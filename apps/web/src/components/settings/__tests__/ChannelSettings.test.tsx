@@ -7,7 +7,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 import type {
   ChannelBinding,
   useChannelBindings as useChannelBindingsFn,
@@ -55,9 +54,7 @@ function hook(over: Partial<ChannelsHook> = {}) {
 
 function renderChannels() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['channels']}>
-      <ChannelSettings lng="en" />
-    </Accordion>
+    <ChannelSettings lng="en" />
   );
 }
 

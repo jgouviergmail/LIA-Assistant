@@ -20,7 +20,7 @@ import { type User } from '@/lib/auth';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function TimezoneSelector({ lng, collapsible = true }: BaseSettingsProps) {
+export function TimezoneSelector({ lng }: BaseSettingsProps) {
   const { user, refreshUser } = useAuth();
   const { t } = useTranslation(lng);
   const [timezones, setTimezones] = useState<Record<string, string[]>>({});
@@ -303,10 +303,6 @@ export function TimezoneSelector({ lng, collapsible = true }: BaseSettingsProps)
       )}
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

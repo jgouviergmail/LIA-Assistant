@@ -34,7 +34,7 @@ import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function ImageGenerationSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
   const [updating, setUpdating] = useState(false);
@@ -184,10 +184,6 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
       </div>
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

@@ -154,16 +154,6 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'telephony-calls',
     declaredIn: 'components/settings/TelephonyCallsSection.tsx',
   },
-  'admin-mcp-servers': {
-    tab: 'preferences',
-    accordionValue: 'admin-mcp-servers',
-    declaredIn: 'components/settings/AdminMCPServersSettings.tsx',
-  },
-  'mcp-servers': {
-    tab: 'preferences',
-    accordionValue: 'mcp-servers',
-    declaredIn: 'components/settings/MCPServersSettings.tsx',
-  },
   // Rendered by the NON-superuser layout only: a superuser gets the richer
   // `debug-settings` section in the administration tab instead.
   'debug-panel': {
@@ -245,6 +235,20 @@ export const SETTINGS_SECTIONS = {
     tab: 'features',
     accordionValue: 'plugins',
     declaredIn: 'components/settings/PluginsSettings.tsx',
+  },
+  // The two MCP sections moved here from Preferences › Connections (2026-08-18):
+  // a server that hands the assistant new tools EXTENDS it, where a connector
+  // links a personal account. They sit right after `plugins`, which installs
+  // skills and MCP servers together. The tokens are URL surface and unchanged.
+  'admin-mcp-servers': {
+    tab: 'features',
+    accordionValue: 'admin-mcp-servers',
+    declaredIn: 'components/settings/AdminMCPServersSettings.tsx',
+  },
+  'mcp-servers': {
+    tab: 'features',
+    accordionValue: 'mcp-servers',
+    declaredIn: 'components/settings/MCPServersSettings.tsx',
   },
   'rag-spaces': {
     tab: 'features',

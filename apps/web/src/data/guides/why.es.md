@@ -4,7 +4,7 @@
 
 **Versión**: 4.8
 **Fecha**: 2026-08-18
-**Aplicación**: LIA v1.30.9
+**Aplicación**: LIA v1.30.10
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -325,6 +325,10 @@ Y el color nunca lleva solo el significado: cada etiqueta conserva su palabra. U
 ### 6.4. Incluso lo que LIA aprende de ti es inspeccionable
 
 La misma transparencia cubre el aprendizaje de hábitos: lo que LIA cree saber de tu ritmo y tus peticiones recurrentes vive en un panel dedicado — mapa de calor de tus 24 horas, porcentaje de días activos, barra de progreso hacia las primeras detecciones, y para cada hábito los días reales en que fue observado más los umbrales exactos aplicados por el detector. Cuando no hay un hábito estable, el panel lo dice en lugar de inventarlo. Pausa, bloqueo definitivo, borrado total, recálculo retroactivo inmediato — y toda la función está apagada hasta que la actives.
+
+### 6.5. Una superficie que describe el producto está obligada a él
+
+La transparencia tiene un modo de fallo que nadie advierte: una pantalla que deja discretamente de decir la verdad. El mapa de capacidades — la página que responde *¿qué sabe hacer mi asistente por mí?* — publicó trece entradas congeladas durante meses, mientras el producto ganaba la generación de imágenes, los documentos, los plugins, los hábitos aprendidos, los servidores MCP y las llamadas telefónicas. Nada estaba roto, ningún test se ponía en rojo, y la página que existía para estar al día se había vuelto la menos al día de la aplicación. Una convención escrita ya pedía mantenerla; las convenciones son justamente lo que erosiona un mes cargado. Así que la regla es ahora mecánica: dos tablas declaradas deben dar cuenta de cada capacidad que la plataforma puede apagar, cada exclusión con una razón escrita, y una aserción se ejecuta al cargar el código — una capacidad publicada sin decidir su lugar en el mapa impide que la aplicación arranque. La misma convicción, un paso más allá: lo que una pantalla afirma sobre tus datos debe ser **exacto o inexistente**. Un recuento es el número que devuelve la base, nunca una longitud que quedaba a mano; y mientras la respuesta viene en camino, o cuando ha fallado, la tarjeta no dice nada en lugar de adivinar. «Nada configurado» es una afirmación sobre tu cuenta — de las que conviene estar seguro antes de pronunciar.
 
 ## 7. Profundidad emocional
 

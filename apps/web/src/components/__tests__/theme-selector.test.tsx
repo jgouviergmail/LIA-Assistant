@@ -2,8 +2,7 @@
  * ThemeSelector — the five colour-theme choices, selecting one (local state +
  * persistence for an authenticated user), and the no-user path.
  *
- * `@/lib/theme-context` is mocked so `setColorTheme` is observable; rendered with
- * `collapsible={false}` to bypass the SettingsSection accordion wrapper.
+ * `@/lib/theme-context` is mocked so `setColorTheme` is observable.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -32,7 +31,7 @@ beforeEach(() => {
 describe('ThemeSelector', () => {
   it('renders every colour theme as a selectable option', () => {
     useAuth.mockReturnValue({ user: { id: 'u1' }, refreshUser: vi.fn() });
-    renderWithProviders(<ThemeSelector lng="en" collapsible={false} />);
+    renderWithProviders(<ThemeSelector lng="en" />);
     for (const name of ['default', 'ocean', 'forest', 'sunset', 'slate']) {
       expect(
         screen.getByRole('button', { name: `settings.theme.themes.${name}.label` })
@@ -42,7 +41,7 @@ describe('ThemeSelector', () => {
 
   it('selecting a theme updates local state and persists it for an authenticated user', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1' }, refreshUser: vi.fn() });
-    const { user } = renderWithProviders(<ThemeSelector lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<ThemeSelector lng="en" />);
     await user.click(screen.getByRole('button', { name: 'settings.theme.themes.ocean.label' }));
     expect(setColorTheme).toHaveBeenCalledWith('ocean');
     await waitFor(() => expect(mutate).toHaveBeenCalledWith('/users/u1', { color_theme: 'ocean' }));
@@ -50,7 +49,7 @@ describe('ThemeSelector', () => {
 
   it('selecting a theme updates local state but does not persist without a user', async () => {
     useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
-    const { user } = renderWithProviders(<ThemeSelector lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<ThemeSelector lng="en" />);
     await user.click(screen.getByRole('button', { name: 'settings.theme.themes.forest.label' }));
     expect(setColorTheme).toHaveBeenCalledWith('forest');
     expect(mutate).not.toHaveBeenCalled();

@@ -3295,8 +3295,8 @@
         "image-generation": "images, pictures, drawing, illustration, generation, art",
         "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services, position, location, geolocation, home address, location memory",
         "telephony-calls": "phone, telephone, calls, call history, dial",
-        "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools",
-        "mcp-servers": "MCP, model context protocol, my servers, tools, extensions, oauth, authorization",
+        "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools, connection, integration, server",
+        "mcp-servers": "MCP, model context protocol, my servers, tools, extensions, oauth, authorization, connection, integration, server",
         "debug-panel": "developer, diagnostics, traces, technical, troubleshooting, waterfall, anomalies, timeline, pipeline",
         "personality": "tone, style, character, behaviour, behavior, persona, voice",
         "psyche": "emotions, mood, feelings, affect, emotional",
@@ -4147,6 +4147,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_10": {
+          "title": "v1.30.10 — 🧭 Your capabilities, up to date and on every card",
+          "date": "August 2026",
+          "items": {
+            "i1": "<b>✨ The capability map finally shows everything LIA can do</b> — image generation, document generation, plugins, learned habits, your MCP servers and phone calls were all missing from “Capabilities”: the page whose whole job is to be current had quietly fallen a few releases behind. It now maps <b>nineteen capabilities</b> instead of thirteen, and a capability an administrator switches off disappears from it immediately instead of being announced as available.",
+            "i2": "<b>🧭 The settings home page now says where each section stands</b> — “Memory — active, 128 items”, “Connectors — to set up”: every section that holds something says so on its card, before you open it. The whole page reads it in a single request, and stays silent rather than guessing while the answer is on its way or when a section has nothing to report.",
+            "i3": "<b>🧩 MCP servers move in with the other extensions</b> — “Application MCP” and “MCP servers” leave Preferences and join <b>Features › Extensions &amp; Data</b>, beside Skills, Plugins and Spaces: a server that hands the assistant new tools extends it, where a connector links a personal account. Your existing links keep working. The FAQ also gains a <b>Plugins</b> section, and its settings instructions now describe the page as it actually is.",
+            "i4": "<b>🆕 The public site shows what just shipped</b> — the latest releases are now told in plain words on the home page, with the full history one click away. Visitors can see the product moving before they even create an account."
+          },
+          "count": "4"
+        },
         "v1_30_9": {
           "title": "v1.30.9 — 🧭 Settings, redesigned: everything one click away",
           "date": "August 2026",
@@ -6190,11 +6201,11 @@
         "questions": {
           "q1": {
             "question": "How do I change my timezone?",
-            "answer": "The timezone affects how dates and times are displayed in your conversations:<br><br><strong>To change it:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Open the <strong>Preferences</strong> tab<br>3. Under <strong>Personalization</strong>, unfold <strong>Timezone</strong> and pick yours<br><br><strong>🌍 Automatic detection:</strong><br>On your first login, LIA detects your timezone from your browser.<br><br><strong>💡 Traveler tip:</strong><br>If you travel, LIA notices the mismatch with your browser and offers to update your timezone in one click."
+            "answer": "The timezone affects how dates and times are displayed in your conversations:<br><br><strong>To change it:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. In the rail, under <strong>Preferences › Personalization</strong>, pick <strong>Timezone</strong><br>3. It opens in the panel beside the rail — choose yours<br><br><strong>🌍 Automatic detection:</strong><br>On your first login, LIA detects your timezone from your browser.<br><br><strong>💡 Traveler tip:</strong><br>If you travel, LIA notices the mismatch with your browser and offers to update your timezone in one click."
           },
           "q2": {
             "question": "How do I change the interface language?",
-            "answer": "Two ways to change the language:<br><br><strong>Quick method:</strong><br>Click the <strong>globe icon</strong> 🌐 in the title bar and pick your language.<br><br><strong>Via settings:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Open the <strong>Preferences</strong> tab<br>3. Under <strong>Personalization</strong>, unfold <strong>Language</strong><br><br><strong>🔄 Sync:</strong><br>Both methods save the same preference to your profile, so it follows you across devices.<br><br><strong>📧 Beyond the interface:</strong><br>Notification emails and the push notifications LIA sends you also use this language."
+            "answer": "Two ways to change the language:<br><br><strong>Quick method:</strong><br>Click the <strong>globe icon</strong> 🌐 in the title bar and pick your language.<br><br><strong>Via settings:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. In the rail, under <strong>Preferences › Personalization</strong>, pick <strong>Language</strong><br>3. It opens in the panel beside the rail<br><br><strong>🔄 Sync:</strong><br>Both methods save the same preference to your profile, so it follows you across devices.<br><br><strong>📧 Beyond the interface:</strong><br>Notification emails and the push notifications LIA sends you also use this language."
           },
           "q3": {
             "question": "How do I customize appearance (themes)?",
@@ -6262,7 +6273,7 @@
           },
           "q19": {
             "question": "How do I find a setting quickly?",
-            "answer": "<p>The settings page stacks some thirty collapsed sections across several tabs. The <strong>\"Search a setting\"</strong> field, below the tabs, saves you from walking through them.</p><strong>What the search understands:</strong><br>• The <strong>title</strong> and <strong>description</strong> of every section<br>• Translated <strong>synonyms</strong>: \"dark\" for Appearance, \"2FA\" or \"TOTP\" for Strong authentication, \"GDPR\" for your data export, \"cron\" for Scheduled actions<br>• Accents and apostrophes are ignored — \"theme\" finds \"Thème\"<br><br><strong>When you pick a result:</strong><br>LIA switches to the right tab, opens the section and brings the cursor to it. Everything works from the keyboard — arrows to walk, Enter to open, Escape to dismiss — and the number of matches is announced to screen readers.<br><br>Some sections only exist when the feature is active on your account: LIA then tells you so, rather than leaving you in front of a page that did not move."
+            "answer": "<p>The settings page lists every section in a rail that never scrolls away, and opens the one you pick in the panel beside it. The <strong>\"Search a setting\"</strong> field, at the top of the rail, takes you straight there.</p><strong>What the search understands:</strong><br>• The <strong>title</strong> and <strong>description</strong> of every section<br>• Translated <strong>synonyms</strong>: \"dark\" for Appearance, \"2FA\" or \"TOTP\" for Strong authentication, \"GDPR\" for your data export, \"cron\" for Scheduled actions<br>• Accents and apostrophes are ignored — \"theme\" finds \"Thème\"<br><br><strong>When you pick a result:</strong><br>LIA opens the section in the panel and brings the cursor to it. Everything works from the keyboard — arrows to walk, Enter to open, Escape to dismiss — and the number of matches is announced to screen readers.<br><br>Some sections only exist when the feature is active on your account: LIA then tells you so, rather than leaving you in front of a page that did not move."
           },
           "q20": {
             "question": "Where can I see everything LIA sent me, without digging through settings?",
@@ -6894,6 +6905,28 @@
           }
         }
       },
+      "plugins": {
+        "title": "Plugins",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "What is a plugin, and how is it different from a skill?",
+            "answer": "A <strong>skill</strong> is one set of expert instructions. A <strong>plugin</strong> is a portable package that can carry several of them at once — skills AND MCP servers — installed in a single step and removed the same way.<br><br>LIA speaks the open <strong>Agent Plugins</strong> standard (agent-plugins.org, backed by AWS, Microsoft, OpenAI, Cursor and Vercel), so a package prepared for another assistant installs here as-is.<br><br>You will find them in <strong>Settings → Features → Extensions &amp; Data → Plugins</strong>."
+          },
+          "q2": {
+            "question": "How do I install a plugin?",
+            "answer": "Two ways, both from the <strong>Plugins</strong> section:<br><br>• a <strong>.zip file</strong> you downloaded;<br>• an <strong>https link</strong> to the package.<br><br>The installation is atomic: either the whole package lands, or nothing does. Reinstalling a plugin you already have updates it in place rather than creating a duplicate."
+          },
+          "q3": {
+            "question": "Why does the report say a component was skipped?",
+            "answer": "Because it was — and hiding it would be worse. After every installation LIA shows what it did with each component: <strong>installed</strong>, <strong>updated</strong>, <strong>skipped</strong> (with the reason: a name already taken, an unsupported field, a server the instance does not allow) or <strong>removed</strong>.<br><br>A plugin whose components were all skipped is not a successful installation, and the report says so plainly."
+          },
+          "q4": {
+            "question": "What happens when I uninstall a plugin?",
+            "answer": "Everything it brought goes with it — its skills and its MCP servers — in one gesture, so an uninstall leaves nothing behind.<br><br>Deleting your account does the same on disk: the files of your imported skills and installed plugins are removed too, not just their database rows."
+          }
+        }
+      },
       "sub_agents": {
         "title": "Sub-Agents",
         "description": "Specialized assistants for complex delegated tasks",
@@ -7486,6 +7519,10 @@
       "plugin_report": {
         "title": "A plugin that reports back",
         "desc": "Install a plugin — skills and connected servers arrive together, in one gesture. The install tells you exactly what came in, what was set aside and why, and what an update removed. Uninstall, and everything it brought leaves with it."
+      },
+      "settings_shell": {
+        "title": "Settings, side by side",
+        "desc": "Every section sits in a rail that never scrolls away, and the one you pick opens whole beside it. On a phone the list comes first, and a section takes the screen with a way back."
       }
     },
     "scenes": {
@@ -7556,6 +7593,9 @@
         "installed": "Installed",
         "skipped": "Skipped",
         "reason": "Not run here — said, not hidden"
+      },
+      "settings_shell": {
+        "section": "Appearance"
       }
     },
     "craft": {
@@ -8449,7 +8489,8 @@
       "technical": "Technical",
       "faq": "FAQ",
       "more": "More",
-      "story": "Story"
+      "story": "Story",
+      "changelog": "What's new"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -9172,6 +9213,12 @@
         "briefing": "Briefing"
       },
       "day_hint": "Keep scrolling: the day moves with you."
+    },
+    "changelog": {
+      "eyebrow": "Recently shipped",
+      "title": "The product moves, and says so",
+      "subtitle": "Every release is written down in plain words — what changed for you, not what changed in the code. Here are the latest; the whole history is one click away.",
+      "all": "See the full history"
     }
   },
   "public_footer": {
@@ -10078,15 +10125,19 @@
     "subtitle": "What your assistant can do, and what is waiting to light up.",
     "map_title": "Your constellation",
     "map_eyebrow": "Capability chart",
-    "magnitude": "{{count}} item(s)",
-    "map_count": "{{live}} capability(ies) active out of {{total}} available.",
+    "magnitude_one": "{{count}} item",
+    "magnitude_other": "{{count}} items",
+    "map_count_one": "{{count}} capability is active, out of {{total}} available.",
+    "map_count_other": "{{count}} capabilities are active, out of {{total}} available.",
     "legend_active": "Filled: active",
     "legend_dormant": "Outlined: waiting for you",
     "legend_size": "Size: what it holds",
-    "state_active": "Active — {{count}} item(s)",
+    "state_active_one": "Active — {{count}} item",
+    "state_active_other": "Active — {{count}} items",
     "state_active_plain": "Active",
     "state_dormant": "To set up",
-    "node_active": "{{name}} — active, {{count}} item(s)",
+    "node_active_one": "{{name}} — active, {{count}} item",
+    "node_active_other": "{{name}} — active, {{count}} items",
     "node_active_plain": "{{name}} — active",
     "node_dormant": "{{name}} — to set up",
     "error": "Could not read your capabilities.",
@@ -10104,7 +10155,13 @@
       "channels": "Channels",
       "spaces": "Spaces",
       "journals": "Journals",
-      "skills": "Skills"
+      "skills": "Skills",
+      "images": "Images",
+      "documents": "Documents",
+      "plugins": "Plugins",
+      "habits": "Habits",
+      "mcp_servers": "MCP servers",
+      "telephony": "Calls"
     },
     "items": {
       "stt": "Voice input (speech-to-text)",

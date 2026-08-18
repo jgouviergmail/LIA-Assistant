@@ -37,10 +37,7 @@ const SWITCH_ID = 'public-demo-link-switch';
  * that declares no demonstrator URL would flip a setting nobody can see, and
  * the card says that rather than letting the operator believe it worked.
  */
-export default function AdminPublicDemoLinkSection({
-  lng,
-  collapsible = true,
-}: BaseSettingsProps) {
+export default function AdminPublicDemoLinkSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
   const { data, loading, setData } = useApiQuery<PublicDemoLinkAdminView>(
@@ -122,7 +119,6 @@ export default function AdminPublicDemoLinkSection({
       title={t('settings.admin.publicDemoLink.title')}
       description={t('settings.admin.publicDemoLink.description')}
       icon={Globe}
-      collapsible={collapsible}
     >
       {content}
     </SettingsSection>

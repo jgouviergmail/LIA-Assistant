@@ -93,7 +93,7 @@ function CallRow({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
  *  2026-07-30) — the full history stays in the database, out of the way. */
 const RECENT_CALLS_LIMIT = 10;
 
-export default function TelephonyCallsSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function TelephonyCallsSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { calls, hasActiveCall, isLoading, isUnavailable } = useTelephonyCalls(
     true,
@@ -109,7 +109,6 @@ export default function TelephonyCallsSection({ lng, collapsible = true }: BaseS
       title={t('settings.telephony.calls.title')}
       description={t('settings.telephony.calls.description')}
       icon={PhoneCall}
-      collapsible={collapsible}
     >
       {/* Polite: a call ending is worth announcing, not worth interrupting. */}
       <div aria-live="polite" className="sr-only">

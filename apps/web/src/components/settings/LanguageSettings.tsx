@@ -27,7 +27,7 @@ import {
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function LanguageSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function LanguageSettings({ lng }: BaseSettingsProps) {
   const { user, refreshUser } = useAuth();
   const { t } = useTranslation(lng);
   const router = useRouter();
@@ -294,10 +294,6 @@ export function LanguageSettings({ lng, collapsible = true }: BaseSettingsProps)
       )}
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

@@ -9,7 +9,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, fireEvent } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 import type { Skill, useSkills as useSkillsFn } from '@/hooks/useSkills';
 
 const { useSkills } = vi.hoisted(() => ({ useSkills: vi.fn() }));
@@ -62,9 +61,7 @@ function hook(over: Partial<SkillsHook> = {}) {
 
 function render() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['admin-skills']}>
-      <AdminSkillsSection lng="en" />
-    </Accordion>
+    <AdminSkillsSection lng="en" />
   );
 }
 

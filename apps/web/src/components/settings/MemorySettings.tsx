@@ -127,7 +127,7 @@ function isAtPurgeRisk(memory: Memory): boolean {
   return memory.purge_risk === 'at_risk' || memory.purge_risk === 'imminent';
 }
 
-export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function MemorySettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
   const {
@@ -981,10 +981,6 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
       )}
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

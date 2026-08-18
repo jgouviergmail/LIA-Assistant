@@ -3300,8 +3300,8 @@
         "image-generation": "images, photos, dessin, illustration, génération, art",
         "connectors": "google, gmail, agenda, calendrier, contacts, apple, microsoft, outlook, intégrations, comptes, oauth, reconnecter, déconnecté, services, position, localisation, géolocalisation, domicile, adresse, mémoire de position",
         "telephony-calls": "téléphone, appels, historique des appels, composer",
-        "admin-mcp-servers": "MCP, model context protocol, serveurs de l’application, outils intégrés",
-        "mcp-servers": "MCP, model context protocol, mes serveurs, outils, extensions, oauth, autorisation",
+        "admin-mcp-servers": "MCP, model context protocol, serveurs de l’application, outils intégrés, connexion, intégration, serveur",
+        "mcp-servers": "MCP, model context protocol, mes serveurs, outils, extensions, oauth, autorisation, connexion, intégration, serveur",
         "debug-panel": "développeur, diagnostic, traces, technique, dépannage, waterfall, anomalies, chronologie, pipeline",
         "personality": "ton, style, caractère, comportement, persona, voix",
         "psyche": "émotions, humeur, sentiments, affect, émotionnel",
@@ -4152,6 +4152,17 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_30_10": {
+          "title": "v1.30.10 — 🧭 Vos capacités, à jour et sur chaque carte",
+          "date": "Août 2026",
+          "items": {
+            "i1": "<b>✨ La carte des capacités montre enfin tout ce que LIA sait faire</b> — la génération d'images, celle de documents, les plugins, les habitudes apprises, vos serveurs MCP et les appels téléphoniques manquaient tous à la page « Capacités » : la page dont le métier entier est d'être à jour avait discrètement pris quelques versions de retard. Elle cartographie désormais <b>dix-neuf capacités</b> au lieu de treize, et une capacité qu'un administrateur coupe en disparaît immédiatement, au lieu d'y être annoncée comme disponible.",
+            "i2": "<b>🧭 L'accueil des réglages dit où en est chaque section</b> — « Mémoire — active, 128 éléments », « Connecteurs — à configurer » : chaque section qui contient quelque chose le dit sur sa carte, avant même que vous l'ouvriez. Toute la page le lit en une seule requête, et se tait plutôt que de deviner tant que la réponse est en route ou quand une section n'a rien à signaler.",
+            "i3": "<b>🧩 Les serveurs MCP rejoignent les autres extensions</b> — « MCP Applicatifs » et « Serveurs MCP » quittent Préférences pour <b>Fonctionnalités › Extensions &amp; Données</b>, aux côtés des compétences, des plugins et des espaces : un serveur qui donne de nouveaux outils à l'assistant l'étend, là où un connecteur relie un compte personnel. Vos liens existants continuent de fonctionner. La FAQ gagne aussi une section <b>Plugins</b>, et ses instructions de réglages décrivent enfin la page telle qu'elle est.",
+            "i4": "<b>🆕 Le site public montre ce qui vient d'arriver</b> — les dernières versions sont désormais racontées en clair sur la page d'accueil, avec tout l'historique à un clic. Un visiteur voit le produit avancer avant même de créer un compte."
+          },
+          "count": "4"
+        },
         "v1_30_9": {
           "title": "v1.30.9 — 🧭 Réglages repensés : tout à un clic",
           "date": "Août 2026",
@@ -6195,11 +6206,11 @@
         "questions": {
           "q1": {
             "question": "Comment changer mon fuseau horaire ?",
-            "answer": "Le fuseau horaire détermine l'affichage des dates et des heures dans tes conversations :<br><br><strong>Pour le modifier :</strong><br>1. Va dans <strong>Paramètres</strong> (icône ⚙️ dans le menu)<br>2. Ouvre l'onglet <strong>Préférences</strong><br>3. Sous <strong>Personnalisation</strong>, déplie <strong>Fuseau horaire</strong> et choisis le tien<br><br><strong>🌍 Détection automatique :</strong><br>À ta première connexion, LIA détecte ton fuseau horaire depuis ton navigateur.<br><br><strong>💡 Conseil voyageur :</strong><br>Si tu voyages, LIA repère l'écart avec celui de ton navigateur et te propose de mettre le tien à jour en un clic."
+            "answer": "Le fuseau horaire détermine l'affichage des dates et des heures dans tes conversations :<br><br><strong>Pour le modifier :</strong><br>1. Va dans <strong>Paramètres</strong> (icône ⚙️ dans le menu)<br>2. Dans le rail, sous <strong>Préférences › Personnalisation</strong>, choisis <strong>Fuseau horaire</strong><br>3. La section s'ouvre dans le panneau à côté — choisis le tien<br><br><strong>🌍 Détection automatique :</strong><br>À ta première connexion, LIA détecte ton fuseau horaire depuis ton navigateur.<br><br><strong>💡 Conseil voyageur :</strong><br>Si tu voyages, LIA repère l'écart avec celui de ton navigateur et te propose de mettre le tien à jour en un clic."
           },
           "q2": {
             "question": "Comment changer la langue de l'interface ?",
-            "answer": "Deux façons de changer de langue :<br><br><strong>Méthode rapide :</strong><br>Clique sur l'<strong>icône globe</strong> 🌐 dans la barre de titre et choisis ta langue.<br><br><strong>Via les paramètres :</strong><br>1. Va dans <strong>Paramètres</strong> (icône ⚙️ dans le menu)<br>2. Ouvre l'onglet <strong>Préférences</strong><br>3. Sous <strong>Personnalisation</strong>, déplie <strong>Langue</strong><br><br><strong>🔄 Synchronisation :</strong><br>Les deux méthodes enregistrent la même préférence dans ton profil : elle te suit d'un appareil à l'autre.<br><br><strong>📧 Au-delà de l'interface :</strong><br>Les emails de notification et les notifications push que LIA t’envoie utilisent également cette langue."
+            "answer": "Deux façons de changer de langue :<br><br><strong>Méthode rapide :</strong><br>Clique sur l'<strong>icône globe</strong> 🌐 dans la barre de titre et choisis ta langue.<br><br><strong>Via les paramètres :</strong><br>1. Va dans <strong>Paramètres</strong> (icône ⚙️ dans le menu)<br>2. Dans le rail, sous <strong>Préférences › Personnalisation</strong>, choisis <strong>Langue</strong><br>3. La section s'ouvre dans le panneau à côté<br><br><strong>🔄 Synchronisation :</strong><br>Les deux méthodes enregistrent la même préférence dans ton profil : elle te suit d'un appareil à l'autre.<br><br><strong>📧 Au-delà de l'interface :</strong><br>Les emails de notification et les notifications push que LIA t’envoie utilisent également cette langue."
           },
           "q3": {
             "question": "Comment personnaliser l'apparence (thèmes) ?",
@@ -6267,7 +6278,7 @@
           },
           "q19": {
             "question": "Comment retrouver un réglage rapidement ?",
-            "answer": "<p>La page des réglages empile une trentaine de sections repliées sur plusieurs onglets. Le champ <strong>« Rechercher un réglage »</strong>, sous les onglets, évite de les parcourir une à une.</p><strong>Ce que la recherche comprend :</strong><br>• Le <strong>titre</strong> et la <strong>description</strong> de chaque section<br>• Des <strong>synonymes</strong> traduits : « sombre » pour l'apparence, « 2FA » ou « TOTP » pour l'authentification forte, « RGPD » pour l'export de tes données, « cron » pour les actions planifiées<br>• Les accents et les apostrophes sont ignorés — « theme » trouve « Thème »<br><br><strong>Quand tu choisis un résultat :</strong><br>LIA bascule sur le bon onglet, déplie la section et y amène le curseur. Tout est utilisable au clavier — flèches pour parcourir, Entrée pour ouvrir, Échap pour refermer — et le nombre de résultats est annoncé aux lecteurs d'écran.<br><br>Certaines sections n'existent que si la fonction est active sur ton compte : dans ce cas, LIA te le dit plutôt que de te laisser devant une page inchangée."
+            "answer": "<p>La page des réglages liste toutes les sections dans un rail qui ne s'en va jamais, et ouvre celle que tu choisis dans le panneau à côté. Le champ <strong>« Rechercher un réglage »</strong>, en haut du rail, t'y emmène directement.</p><strong>Ce que la recherche comprend :</strong><br>• Le <strong>titre</strong> et la <strong>description</strong> de chaque section<br>• Des <strong>synonymes</strong> traduits : « sombre » pour l'apparence, « 2FA » ou « TOTP » pour l'authentification forte, « RGPD » pour l'export de tes données, « cron » pour les actions planifiées<br>• Les accents et les apostrophes sont ignorés — « theme » trouve « Thème »<br><br><strong>Quand tu choisis un résultat :</strong><br>LIA ouvre la section dans le panneau et y amène le curseur. Tout est utilisable au clavier — flèches pour parcourir, Entrée pour ouvrir, Échap pour refermer — et le nombre de résultats est annoncé aux lecteurs d'écran.<br><br>Certaines sections n'existent que si la fonction est active sur ton compte : dans ce cas, LIA te le dit plutôt que de te laisser devant une page inchangée."
           },
           "q20": {
             "question": "Où voir tout ce que LIA m'a envoyé, sans fouiller les réglages ?",
@@ -6899,6 +6910,28 @@
           }
         }
       },
+      "plugins": {
+        "title": "Plugins",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "Qu'est-ce qu'un plugin, et en quoi diffère-t-il d'une skill ?",
+            "answer": "Une <strong>skill</strong> est un jeu d'instructions expertes. Un <strong>plugin</strong> est un paquet portable qui peut en transporter plusieurs à la fois — des skills ET des serveurs MCP — installés en une seule étape et retirés de la même façon.<br><br>LIA parle le standard ouvert <strong>Agent Plugins</strong> (agent-plugins.org, porté par AWS, Microsoft, OpenAI, Cursor et Vercel) : un paquet préparé pour un autre assistant s'installe ici tel quel.<br><br>Tu les trouves dans <strong>Réglages → Fonctionnalités → Extensions &amp; Données → Plugins</strong>."
+          },
+          "q2": {
+            "question": "Comment installer un plugin ?",
+            "answer": "Deux façons, depuis la section <strong>Plugins</strong> :<br><br>• un <strong>fichier .zip</strong> que tu as téléchargé ;<br>• un <strong>lien https</strong> vers le paquet.<br><br>L'installation est atomique : soit le paquet arrive en entier, soit rien n'arrive. Réinstaller un plugin déjà présent le met à jour sur place au lieu d'en créer un doublon."
+          },
+          "q3": {
+            "question": "Pourquoi le rapport dit-il qu'un composant a été ignoré ?",
+            "answer": "Parce qu'il l'a été — et le cacher serait pire. Après chaque installation, LIA montre ce qu'elle a fait de chaque composant : <strong>installé</strong>, <strong>mis à jour</strong>, <strong>ignoré</strong> (avec la raison : un nom déjà pris, un champ non supporté, un serveur que l'instance n'autorise pas) ou <strong>retiré</strong>.<br><br>Un plugin dont tous les composants ont été ignorés n'est pas une installation réussie, et le rapport le dit clairement."
+          },
+          "q4": {
+            "question": "Que se passe-t-il quand je désinstalle un plugin ?",
+            "answer": "Tout ce qu'il avait apporté part avec lui — ses skills et ses serveurs MCP — en un geste : une désinstallation ne laisse rien derrière elle.<br><br>La suppression de ton compte fait de même sur le disque : les fichiers de tes skills importées et de tes plugins installés sont eux aussi retirés, pas seulement leurs lignes en base."
+          }
+        }
+      },
       "sub_agents": {
         "title": "Sous-agents",
         "description": "Assistants spécialisés pour les tâches complexes déléguées",
@@ -7491,6 +7524,10 @@
       "plugin_report": {
         "title": "Un plugin qui rend des comptes",
         "desc": "Installez un plugin — skills et serveurs connectés arrivent ensemble, en un geste. L’installation vous dit exactement ce qui est entré, ce qui a été écarté et pourquoi, et ce qu’une mise à jour a retiré. Désinstallez : tout ce qu’il avait apporté repart avec lui."
+      },
+      "settings_shell": {
+        "title": "Les réglages, côte à côte",
+        "desc": "Toutes les sections tiennent dans un rail qui ne s’en va jamais, et celle que vous choisissez s’ouvre en entier juste à côté. Sur téléphone, la liste vient d’abord et la section prend l’écran, avec un retour."
       }
     },
     "scenes": {
@@ -7561,6 +7598,9 @@
         "installed": "Installé",
         "skipped": "Ignoré",
         "reason": "Non lancé ici — dit, pas caché"
+      },
+      "settings_shell": {
+        "section": "Apparence"
       }
     },
     "craft": {
@@ -8375,7 +8415,8 @@
       "technical": "Technique",
       "faq": "FAQ",
       "more": "Encore +",
-      "story": "Story"
+      "story": "Story",
+      "changelog": "Nouveautés"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -9098,6 +9139,12 @@
         "briefing": "Briefing"
       },
       "day_hint": "Continue de défiler : la journée avance avec toi."
+    },
+    "changelog": {
+      "eyebrow": "Tout juste livré",
+      "title": "Le produit avance, et le dit",
+      "subtitle": "Chaque version est racontée en clair — ce qui change pour vous, pas ce qui change dans le code. Voici les dernières ; tout l’historique est à un clic.",
+      "all": "Voir tout l’historique"
     }
   },
   "public_footer": {
@@ -10083,15 +10130,19 @@
     "subtitle": "Ce que votre assistant sait faire, et ce qui ne demande qu’à s’allumer.",
     "map_title": "Votre constellation",
     "map_eyebrow": "Carte des capacités",
-    "magnitude": "{{count}} élément(s)",
-    "map_count": "{{live}} capacité(s) active(s) sur {{total}} disponibles.",
+    "magnitude_one": "{{count}} élément",
+    "magnitude_other": "{{count}} éléments",
+    "map_count_one": "{{count}} capacité active sur {{total}} disponibles.",
+    "map_count_other": "{{count}} capacités actives sur {{total}} disponibles.",
     "legend_active": "Plein : active",
     "legend_dormant": "Contour : à activer",
     "legend_size": "Taille : ce qu'elle contient",
-    "state_active": "Active — {{count}} élément(s)",
+    "state_active_one": "Active — {{count}} élément",
+    "state_active_other": "Active — {{count}} éléments",
     "state_active_plain": "Active",
     "state_dormant": "À configurer",
-    "node_active": "{{name}} — active, {{count}} élément(s)",
+    "node_active_one": "{{name}} — active, {{count}} élément",
+    "node_active_other": "{{name}} — active, {{count}} éléments",
     "node_active_plain": "{{name}} — active",
     "node_dormant": "{{name}} — à configurer",
     "error": "Impossible de lire vos capacités.",
@@ -10109,7 +10160,13 @@
       "channels": "Canaux",
       "spaces": "Spaces",
       "journals": "Journaux",
-      "skills": "Compétences"
+      "skills": "Compétences",
+      "images": "Images",
+      "documents": "Documents",
+      "plugins": "Plugins",
+      "habits": "Habitudes",
+      "mcp_servers": "Serveurs MCP",
+      "telephony": "Appels"
     },
     "items": {
       "stt": "Saisie vocale (transcription)",

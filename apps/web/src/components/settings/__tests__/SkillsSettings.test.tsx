@@ -5,7 +5,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { useSkills } = vi.hoisted(() => ({ useSkills: vi.fn() }));
 vi.mock('@/hooks/useSkills', async importOriginal => {
@@ -24,13 +23,11 @@ import type { useSkills as useSkillsFn, Skill } from '@/hooks/useSkills';
 
 type SkillsHook = ReturnType<typeof useSkillsFn>;
 
-// SkillsSettings always renders inside a collapsible SettingsSection (value
-// "skills"); mount it expanded.
+// SkillsSettings renders inside an open SettingsSection card (value
+// "skills"), so its body is visible on mount.
 function renderSkills() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['skills']}>
-      <SkillsSettings lng="en" />
-    </Accordion>
+    <SkillsSettings lng="en" />
   );
 }
 

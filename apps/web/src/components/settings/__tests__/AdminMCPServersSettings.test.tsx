@@ -2,14 +2,13 @@
  * AdminMCPServersSettings — the "not configured" null render, and toggling a
  * server's per-user availability (success toast; failure toast).
  *
- * The component always wraps itself in a collapsible SettingsSection, so the
+ * The component renders as an open card (ADR-227), so the
  * server list lives in an accordion that the test expands first.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { useAdminMCPServers } = vi.hoisted(() => ({ useAdminMCPServers: vi.fn() }));
 vi.mock('@/hooks/useAdminMCPServers', () => ({ useAdminMCPServers }));
@@ -46,11 +45,9 @@ function hook(over: Partial<AdminMcpHook> = {}) {
   };
 }
 
-function renderInAccordion() {
+function renderSection() {
   return renderWithProviders(
-    <Accordion type="multiple">
-      <AdminMCPServersSettings lng="en" />
-    </Accordion>
+    <AdminMCPServersSettings lng="en" />
   );
 }
 
@@ -66,8 +63,7 @@ describe('AdminMCPServersSettings', () => {
   it('toggling a server persists the change and toasts success', async () => {
     const toggleServer = vi.fn().mockResolvedValue({ enabled_for_user: true });
     useAdminMCPServers.mockReturnValue(hook({ toggleServer }));
-    const { user } = renderInAccordion();
-    await user.click(screen.getByRole('button', { name: /settings.admin_mcp.title/ }));
+    const { user } = renderSection();
     await user.click(screen.getByRole('switch', { name: 'settings.admin_mcp.toggle_server' }));
     expect(toggleServer).toHaveBeenCalledWith('weather');
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
@@ -76,8 +72,7 @@ describe('AdminMCPServersSettings', () => {
   it('toasts an error when the toggle fails', async () => {
     const toggleServer = vi.fn().mockRejectedValue(new Error('boom'));
     useAdminMCPServers.mockReturnValue(hook({ toggleServer }));
-    const { user } = renderInAccordion();
-    await user.click(screen.getByRole('button', { name: /settings.admin_mcp.title/ }));
+    const { user } = renderSection();
     await user.click(screen.getByRole('switch', { name: 'settings.admin_mcp.toggle_server' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
   });

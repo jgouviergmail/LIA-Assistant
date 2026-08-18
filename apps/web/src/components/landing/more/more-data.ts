@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 32 cards in
+ * Single source of truth for the "/more" small-attentions page: 44 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (32 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (44 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -39,6 +39,7 @@ import {
   Link2,
   ListChecks,
   Menu,
+  PanelLeft,
   PanelsTopLeft,
   Puzzle,
   MessageSquarePlus,
@@ -119,6 +120,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     num: '04',
     tinted: true,
     cards: [
+      'settings_shell',
       'settings_search',
       'deep_links',
       'history_search',
@@ -186,6 +188,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   image_expiry: Clock,
   attachment_limits: Paperclip,
   fix_commitment: PencilLine,
+  settings_shell: PanelLeft,
   settings_search: TextSearch,
   deep_links: Link2,
   history_search: History,
@@ -237,6 +240,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   image_expiry: [],
   attachment_limits: ['limit'],
   fix_commitment: ['before', 'after'],
+  settings_shell: ['section'],
   settings_search: ['query', 'row1', 'row2'],
   deep_links: [],
   history_search: ['query'],

@@ -65,7 +65,7 @@ describe('PeerConnectionsSettings', () => {
     });
     usePeerConnections.mockReturnValue(hookState());
     const { container } = renderWithProviders(
-      <PeerConnectionsSettings lng="fr" collapsible={false} />
+      <PeerConnectionsSettings lng="fr" />
     );
     expect(container).toBeEmptyDOMElement();
     expect(usePeerConnections).toHaveBeenCalledWith(false);
@@ -75,7 +75,7 @@ describe('PeerConnectionsSettings', () => {
     // Every zone folds (ADR-208): the section is an index of titled entries,
     // and a fold's children are UNMOUNTED while closed.
     usePeerConnections.mockReturnValue(hookState());
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     expect(screen.getByText('settings.peers.visibility_title')).toBeInTheDocument();
     expect(screen.getByText('settings.peers.discovery.title')).toBeInTheDocument();
     expect(screen.getByText('settings.peers.connections.title')).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('PeerConnectionsSettings', () => {
 
   it('surfaces the searchable own name with a one-click copy (Lot 7)', async () => {
     usePeerConnections.mockReturnValue(hookState());
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.visibility_title'));
     expect(screen.getByText('Marie Dupont')).toBeInTheDocument();
     expect(screen.getByText('settings.peers.my_name.hint')).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('PeerConnectionsSettings', () => {
   it('says plainly that an empty profile name makes the user unfindable', async () => {
     useAuth.mockReturnValue({ user: { full_name: null } });
     usePeerConnections.mockReturnValue(hookState());
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.visibility_title'));
     expect(screen.getByText('settings.peers.my_name.missing')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'settings.peers.my_name.copy' })).toBeNull();
@@ -118,7 +118,7 @@ describe('PeerConnectionsSettings', () => {
   it('toggling discovery persists and toasts success', async () => {
     const setDiscovery = vi.fn().mockResolvedValue({ ok: true, errorCode: null });
     usePeerConnections.mockReturnValue(hookState({ setDiscovery }));
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.visibility_title'));
     await user.click(screen.getByRole('switch', { name: 'settings.peers.discovery.toggle_label' }));
     expect(setDiscovery).toHaveBeenCalledWith(true);
@@ -132,7 +132,7 @@ describe('PeerConnectionsSettings', () => {
     // is what actually prevents the double submit.
     const setDiscovery = vi.fn().mockResolvedValue({ ok: true, errorCode: null });
     usePeerConnections.mockReturnValue(hookState({ mutating: true, setDiscovery }));
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.visibility_title'));
 
     const toggle = screen.getByRole('switch', { name: 'settings.peers.discovery.toggle_label' });
@@ -167,7 +167,7 @@ describe('PeerConnectionsSettings', () => {
         ],
       })
     );
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.discovery.title'));
     await user.click(screen.getByRole('button', { name: 'settings.peers.requests.accept' }));
     await waitFor(() =>
@@ -179,7 +179,7 @@ describe('PeerConnectionsSettings', () => {
     usePeerConnections.mockReturnValue(
       hookState({ loading: true, initialLoading: true, discoveryEnabled: null })
     );
-    renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     expect(screen.getByText('settings.peers.title')).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
@@ -189,7 +189,7 @@ describe('PeerConnectionsSettings', () => {
     // wiped the search box under the user (and lost their keyboard focus)
     // each time any mutation succeeded.
     usePeerConnections.mockReturnValue(hookState({ loading: true, initialLoading: false }));
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.visibility_title'));
     await user.click(screen.getByText('settings.peers.discovery.title'));
     const input = screen.getByRole('textbox', {
@@ -213,7 +213,7 @@ describe('PeerConnectionsSettings', () => {
     const setEmailVisible = vi.fn().mockResolvedValue({ ok: true, errorCode: null });
     const setDiscovery = vi.fn().mockResolvedValue({ ok: true, errorCode: null });
     usePeerConnections.mockReturnValue(hookState({ setEmailVisible, setDiscovery }));
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.visibility_title'));
 
     await user.click(
@@ -246,7 +246,7 @@ describe('PeerConnectionsSettings', () => {
         ],
       })
     );
-    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     await user.click(screen.getByText('settings.peers.connections.title'));
     expect(screen.getByText('Peer Beta')).toBeInTheDocument();
     expect(screen.getByText('settings.peers.connections.title')).toBeInTheDocument();

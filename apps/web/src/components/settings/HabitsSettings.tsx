@@ -57,7 +57,7 @@ function formatHour(hour: number): string {
   return `${h}:${m}`;
 }
 
-export function HabitsSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function HabitsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
   const flagOn = !!config?.features?.habits_enabled;
@@ -164,8 +164,6 @@ export function HabitsSettings({ lng, collapsible = true }: BaseSettingsProps) {
       {confirmDialog}
     </div>
   );
-
-  if (!collapsible) return content;
 
   return (
     <SettingsSection

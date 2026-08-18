@@ -94,7 +94,6 @@ function ExportCard({
 
 export default function ConsumptionExportSection({
   lng,
-  collapsible = true,
   mode,
 }: ConsumptionExportSectionProps) {
   const { t } = useTranslation(lng, 'translation');
@@ -322,7 +321,6 @@ export default function ConsumptionExportSection({
       title={t(`${i18n}.title`)}
       description={t(`${i18n}.description`)}
       icon={FileSpreadsheet}
-      collapsible={collapsible}
     >
       {content}
     </SettingsSection>

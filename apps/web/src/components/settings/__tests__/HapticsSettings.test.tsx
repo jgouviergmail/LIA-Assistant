@@ -34,14 +34,14 @@ afterEach(() => {
 describe('HapticsSettings', () => {
   it('renders nothing where the device cannot vibrate', () => {
     // iOS Safari, and every desktop.
-    const { container } = renderWithProviders(<HapticsSettings lng="en" collapsible={false} />);
+    const { container } = renderWithProviders(<HapticsSettings lng="en" />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('offers a named switch, on by default, where it can', () => {
     withVibrate();
-    renderWithProviders(<HapticsSettings lng="en" collapsible={false} />);
+    renderWithProviders(<HapticsSettings lng="en" />);
 
     const toggle = screen.getByRole('switch', { name: 'settings.haptics.label' });
     expect(toggle).toBeChecked();
@@ -49,7 +49,7 @@ describe('HapticsSettings', () => {
 
   it('records a refusal on this device', async () => {
     withVibrate();
-    const { user } = renderWithProviders(<HapticsSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<HapticsSettings lng="en" />);
 
     await user.click(screen.getByRole('switch', { name: 'settings.haptics.label' }));
 
@@ -61,7 +61,7 @@ describe('HapticsSettings', () => {
     withVibrate();
     window.localStorage.setItem(HAPTICS_ENABLED_KEY, 'off');
 
-    renderWithProviders(<HapticsSettings lng="en" collapsible={false} />);
+    renderWithProviders(<HapticsSettings lng="en" />);
 
     expect(screen.getByRole('switch', { name: 'settings.haptics.label' })).not.toBeChecked();
   });
@@ -74,7 +74,7 @@ describe('HapticsSettings — on the server', () => {
   // optimistically on the server and the first client paint would remove a
   // section React had just rendered, which is precisely a hydration mismatch.
   it('renders nothing, whatever the device turns out to be', () => {
-    const html = renderToStaticMarkup(<HapticsSettings lng="en" collapsible={false} />);
+    const html = renderToStaticMarkup(<HapticsSettings lng="en" />);
 
     expect(html).toBe('');
   });
@@ -85,6 +85,6 @@ describe('HapticsSettings — on the server', () => {
     // accident and still break hydration on a phone.
     withVibrate();
 
-    expect(renderToStaticMarkup(<HapticsSettings lng="en" collapsible={false} />)).toBe('');
+    expect(renderToStaticMarkup(<HapticsSettings lng="en" />)).toBe('');
   });
 });

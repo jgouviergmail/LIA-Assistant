@@ -73,9 +73,9 @@ function ExportJobStatus({ job, locale }: { job: ExportJob | null | undefined; l
  * Requesting is step-up guarded (the archive contains decrypted personal
  * data); the section hides itself when the instance has exports disabled
  * (the flag-gated router answers 404). Polls while a job is in flight.
- * Renders as a collapsible SettingsSection card like every other section.
+ * Renders as a SettingsSection card like every other section.
  */
-export function AccountExportSettings({ collapsible = true }: { collapsible?: boolean } = {}) {
+export function AccountExportSettings() {
   const { t, i18n } = useTranslation();
   const [unavailable, setUnavailable] = useState(false);
   const { data: job, refetch } = useApiQuery<ExportJob | null>('/account/export/latest', {
@@ -135,10 +135,6 @@ export function AccountExportSettings({ collapsible = true }: { collapsible?: bo
       <StepUpDialog open={stepUpOpen} onVerified={onVerified} onCancel={onCancel} />
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

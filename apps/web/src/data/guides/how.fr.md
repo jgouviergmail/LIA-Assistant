@@ -6,7 +6,7 @@
 
 **Version** : 4.3
 **Date** : 2026-08-18
-**Application** : LIA v1.30.9
+**Application** : LIA v1.30.10
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 466 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 226 ADRs, ~19 409 tests collectés par pytest sur 1 099 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 227 ADRs, ~19 409 tests collectés par pytest sur 1 099 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -1290,11 +1290,13 @@ Trois ADR (206 à 208) ont transformé la cohérence visuelle en contrat outill�
 
 La surface des réglages elle-même suit désormais la même doctrine de structure plutôt que de discipline (ADR-227). La page se rend en coquille master-détail — un rail permanent de sections à côté d’un panneau qui n’en monte qu’une, une vue d’ensemble de cartes descriptives quand rien n’est sélectionné — et ne liste rien à la main : l’ordre du rail, les groupes et le composant monté dérivent de la table des liens profonds et de deux registres à complétude vérifiée par le compilateur, chacun prouvé contre la source des sections par des tests. La conséquence est architecturale plus que cosmétique : une section existe sur la page si et seulement si les tables la déclarent, les ~330 lignes de layout dupliqué de l’ancienne coquille disparaissent, et seule la section choisie interroge le réseau — vingt sections ne tirent plus leurs requêtes au chargement d’un onglet. L’absence reste honnête : une section qui ne rend légitimement rien (instance sans MFA, aucun appel passé) produit un état vide explicite qui continue de sonder, si bien qu’une donnée tardive remplace le message.
 
+La même doctrine répond à une défaillance plus discrète : une surface qui cesse silencieusement de décrire le produit (ADR-229). La carte des capacités — la page qui répond « qu’est-ce que mon assistant sait faire pour moi ? » — publiait treize nœuds figés pendant que le produit livrait la génération d’images, les documents, les plugins, les habitudes apprises, les serveurs MCP utilisateur et la téléphonie : le seul écran dont le métier entier est d’être à jour était devenu le moins à jour de l’application. Une consigne écrite avait déjà échoué exactement là ; le correctif est donc structurel plutôt qu’un rappel. Deux tables déclarées partitionnent désormais l’énumération des capacités de plateforme entre « dessine un nœud » et « délibérément hors carte, pour cette raison écrite », et un assert s’exécute à l’IMPORT : une capacité ajoutée sans décider de son sort fait échouer le démarrage au lieu de partir invisible. Un garde jumeau lit les trois surfaces clientes que l’assert ne voit pas — les emplacements du graphique, les liens « pas suivant », les six locales — car un garde limité à Python aurait laissé passer la moitié de la dérive, celle qui vit en TypeScript. La même agrégation nourrit ensuite la vue d’ensemble des réglages : une requête énonce ce que chaque section contient, dans les mots mêmes de la liste des capacités, et ne dit rien du tout tant que la réponse est en vol, quand elle a échoué, ou pour une section dont elle ne sait rien.
+
 La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible : la primitive d’étiquette restait `inline`, et les marges verticales d’un élément inline sont **calculées mais jamais rendues**. Trois recalibrages d’espacement ont modifié le code sans déplacer un pixel — chaîne de livraison prouvée saine jusqu’à l’octet servi. Le réflexe est désormais consigné : quand un réglage visuel n’a aucun effet, mesurer le `display` et la géométrie DOM dans un vrai navigateur avant de soupçonner la livraison. Le correctif tient en un mot (`block`), le calibrage a été arbitré sur captures pilotées, et une garde interdit la régression.
 
 ## 24. Architecture des décisions (ADR)
 
-226 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+227 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1406,10 +1408,10 @@ Le fil commun de ces quatre lots est une propriété des tests eux-mêmes. Chaqu
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 226 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~19 409 tests sur 1 099 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 227 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~19 409 tests sur 1 099 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 226 ADRs, et du changelog (v1.0 à v1.30.9). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 227 ADRs, et du changelog (v1.0 à v1.30.10). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

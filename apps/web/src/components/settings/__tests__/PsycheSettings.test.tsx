@@ -5,7 +5,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { usePsyche } = vi.hoisted(() => ({ usePsyche: vi.fn() }));
 vi.mock('@/hooks/usePsyche', () => ({ usePsyche }));
@@ -17,13 +16,11 @@ import type { usePsyche as usePsycheFn } from '@/hooks/usePsyche';
 
 type PsycheHook = ReturnType<typeof usePsycheFn>;
 
-// PsycheSettings always renders inside a collapsible SettingsSection (value
-// "psyche"); mount it in an expanded Accordion so its controls are visible.
+// PsycheSettings renders inside an open SettingsSection card (ADR-227), so
+// its controls are visible on mount.
 function renderPsyche() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['psyche']}>
-      <PsycheSettings lng="en" />
-    </Accordion>
+    <PsycheSettings lng="en" />
   );
 }
 

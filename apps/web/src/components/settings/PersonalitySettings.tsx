@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import type { PsycheState } from '@/types/psyche';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function PersonalitySettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function PersonalitySettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { personalities, currentPersonality, loading, refreshing, updating, updatePersonality } =
     usePersonality();
@@ -126,10 +126,6 @@ export function PersonalitySettings({ lng, collapsible = true }: BaseSettingsPro
       )}
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

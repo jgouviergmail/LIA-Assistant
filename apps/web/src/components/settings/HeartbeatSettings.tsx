@@ -30,7 +30,7 @@ import type { BaseSettingsProps } from '@/types/settings';
  * No push toggle: push delivery follows the global notification opt-in
  * (owner arbitration 2026-08-05).
  */
-export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function HeartbeatSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { settings, loading, updating, updateSettings } = useHeartbeatSettings();
   const intlLocale = getIntlLocale(lng);
@@ -211,10 +211,6 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
       )}
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

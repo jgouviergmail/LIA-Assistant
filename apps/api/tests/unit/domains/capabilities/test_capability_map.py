@@ -20,12 +20,22 @@ Three properties are load-bearing:
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.domains.capabilities.router import get_capability_map
-from src.domains.capabilities.service import CapabilityProbe
+from src.domains.capabilities.service import (
+    COUNTED_NODES,
+    MAP_NODE_KEYS,
+    SWITCH_NODE_KEYS,
+    CapabilityProbe,
+    _counted,
+    _from_user,
+)
+from src.domains.feature_switches.registry import PlatformCapability
 
 pytestmark = pytest.mark.unit
 
@@ -37,9 +47,21 @@ def _user(**over: object) -> MagicMock:
     user.voice_mode_enabled = False
     user.heartbeat_enabled = False
     user.personality_id = None
+    user.image_generation_enabled = False
     for key, value in over.items():
         setattr(user, key, value)
     return user
+
+
+def _switches(
+    user: MagicMock, disabled: frozenset[PlatformCapability] = frozenset()
+) -> dict[str, CapabilityProbe]:
+    """The switch-shaped probes, keyed — the shape every caller here asserts on."""
+    return {probe.key: probe for probe in _from_user(user, disabled)}
+
+
+def _never() -> Any:
+    raise AssertionError("an unavailable capability must not be queried at all")
 
 
 async def _map(probes: list[CapabilityProbe]):
@@ -120,16 +142,70 @@ class TestTheProbesDegradeRatherThanFail:
     async def test_the_user_row_answers_the_capabilities_it_already_holds(self) -> None:
         """Re-querying what the authenticated row states would let the map
         disagree with every other surface about the same fact."""
-        from src.domains.capabilities.service import _from_user
-
-        probes = {probe.key: probe for probe in _from_user(_user(voice_enabled=True))}
+        probes = _switches(_user(voice_enabled=True))
 
         assert probes["voice"].active is True
         assert probes["personality"].active is False
 
     async def test_voice_counts_either_of_its_two_switches(self) -> None:
-        from src.domains.capabilities.service import _from_user
-
-        probes = {probe.key: probe for probe in _from_user(_user(voice_mode_enabled=True))}
+        probes = _switches(_user(voice_mode_enabled=True))
 
         assert probes["voice"].active is True
+
+
+class TestTheMapFollowsTheOperatorsSwitches:
+    """An administrator may switch a capability off at runtime, inside the
+    deployment's ceiling. A map reading the raw environment flag would keep
+    announcing what the operator turned off an hour ago."""
+
+    async def test_a_switched_off_capability_is_not_offered(self) -> None:
+        probes = _switches(
+            _user(image_generation_enabled=True),
+            disabled=frozenset({PlatformCapability.IMAGE_GENERATION}),
+        )
+
+        assert probes["images"].available is False
+        assert probes["images"].active is False
+
+    async def test_a_counted_capability_that_is_off_is_never_even_queried(self) -> None:
+        """Not just absent from the payload: no SQL at all — the router drops
+        it anyway, so a query would be pure cost."""
+        node = next(n for n in COUNTED_NODES if n.key == "mcp_servers")
+        exploding = replace(node, load_model=_never)
+
+        probe = await _counted(exploding, uuid.uuid4(), frozenset({PlatformCapability.MCP}))
+
+        assert probe == CapabilityProbe("mcp_servers", available=False, active=False)
+
+    async def test_speech_survives_as_long_as_one_of_its_two_switches_holds(self) -> None:
+        probes = _switches(_user(voice_enabled=True), disabled=frozenset({PlatformCapability.STT}))
+
+        assert probes["voice"].available is True
+
+
+class TestTheMapCoversWhatTheProductShips:
+    """The drift this closes: features shipped (documents v1.30.8, plugins
+    v1.30.7, habits v1.28.0) while "what your assistant can do" kept
+    describing an older product."""
+
+    @pytest.mark.parametrize(
+        "key", ["images", "documents", "plugins", "habits", "mcp_servers", "telephony"]
+    )
+    def test_the_recent_capabilities_have_a_node(self, key: str) -> None:
+        assert key in MAP_NODE_KEYS
+
+    def test_document_generation_is_live_wherever_it_is_offered(self) -> None:
+        """It has no per-account opt-in — claiming a dormant state would send
+        the reader hunting for a switch that does not exist."""
+        probes = _switches(_user())
+
+        assert probes["documents"].available is True
+        assert probes["documents"].active is True
+
+    def test_a_switch_capability_never_invents_a_tally(self) -> None:
+        """ADR-185: a count is exact or it does not exist."""
+        probes = _switches(_user())
+
+        assert {key: probes[key].detail for key in SWITCH_NODE_KEYS} == dict.fromkeys(
+            SWITCH_NODE_KEYS, None
+        )

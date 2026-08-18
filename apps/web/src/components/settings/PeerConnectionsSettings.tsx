@@ -33,7 +33,7 @@ import { usePeerConnections } from '@/hooks/usePeerConnections';
 import { useTranslation } from '@/i18n/client';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function PeerConnectionsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user } = useAuth();
   // Instance-flag self-gating (OpenLoopsSection precedent): flag off → no
@@ -206,7 +206,6 @@ export function PeerConnectionsSettings({ lng, collapsible = true }: BaseSetting
       title={t('settings.peers.title')}
       description={t('settings.peers.description')}
       icon={Users}
-      collapsible={collapsible}
     >
       {content}
     </SettingsSection>

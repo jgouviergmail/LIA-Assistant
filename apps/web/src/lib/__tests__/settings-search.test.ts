@@ -443,6 +443,32 @@ describe('matchSettingsSections — recall in the six languages', () => {
   });
 });
 
+describe('the two MCP sections live with the other extensions', () => {
+  it('sits in Features › Extensions & Data, beside plugins and skills', () => {
+    // Moved out of Preferences › Connections & Integrations (2026-08-18): a
+    // server that brings the assistant new tools extends it — it is not a
+    // connection to a personal account the way Google or Microsoft is. Both
+    // MCP sections therefore join the family they belong to (skills, plugins,
+    // spaces). The tokens are unchanged: they are URL surface.
+    for (const token of ['admin-mcp-servers', 'mcp-servers'] as const) {
+      expect(SETTINGS_SEARCH_META[token].group).toBe('extensions_data');
+      expect(SETTINGS_SECTIONS[token].tab).toBe('features');
+    }
+    expect(SETTINGS_SEARCH_META['mcp-servers'].group).toBe(SETTINGS_SEARCH_META.plugins.group);
+  });
+
+  it('is listed right after plugins, which bundles skills AND MCP servers', () => {
+    // Page order is declared by SETTINGS_SECTIONS and breaks search score
+    // ties, so "next to" has to be true of the table, not just of the group.
+    const tokens = Object.keys(SETTINGS_SECTIONS);
+    expect(tokens.slice(tokens.indexOf('plugins'), tokens.indexOf('plugins') + 3)).toEqual([
+      'plugins',
+      'admin-mcp-servers',
+      'mcp-servers',
+    ]);
+  });
+});
+
 describe('commitments live with the other Features sections', () => {
   it('is grouped under identity_memory, next to interests', () => {
     // Moved out of `personalization` (2026-08-02): a commitments ledger is a

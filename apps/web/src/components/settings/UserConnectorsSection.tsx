@@ -64,7 +64,7 @@ import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 // Constants
 const OAUTH_RECONNECT_PENDING_KEY = 'oauth_connectors_reconnect_pending';
 
-export default function UserConnectorsSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
 
   // State for API key input forms
@@ -1095,10 +1095,6 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
       />
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

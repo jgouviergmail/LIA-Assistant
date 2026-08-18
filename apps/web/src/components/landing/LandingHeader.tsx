@@ -16,8 +16,24 @@ interface LandingHeaderProps {
   lng: string;
 }
 
-/** Anchor links to landing page sections */
+/** Anchor links to landing page sections, in nav order. */
 const SECTION_ANCHORS = [{ id: 'features', key: 'landing.nav.features' }] as const;
+
+/**
+ * Anchors listed AFTER the page links — today, the release band. It is a
+ * section of the home page, not a page of its own, but it belongs at the END
+ * of the row: a visitor reads the product first and its news last (owner
+ * arbitration 2026-08-18, "une nouvelle section après Encore +").
+ *
+ * It joins the DESKTOP row only from `lg` up. That row appears at 880px and
+ * is already saturated there: with six page links plus the language, theme,
+ * login and CTA controls, a seventh entry ran the French row 96px past the
+ * viewport (measured — `smoke/landing-nav-row.spec.ts` now guards it).
+ * Between 880 and 1024px the header therefore keeps exactly what it had; the
+ * band stays reachable by scrolling the page it lives on, from the mobile
+ * menu, and from both footers.
+ */
+const TRAILING_ANCHORS = [{ id: 'changelog', key: 'landing.nav.changelog' }] as const;
 
 /** Links to separate pages — order: Story, Philosophy, Technical, Blog, FAQ, More */
 const PAGE_LINKS = [
@@ -61,7 +77,9 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
       { rootMargin: '-20% 0px -70% 0px' }
     );
 
-    const sections = SECTION_ANCHORS.map(({ id }) => document.getElementById(id)).filter(Boolean);
+    const sections = [...SECTION_ANCHORS, ...TRAILING_ANCHORS]
+      .map(({ id }) => document.getElementById(id))
+      .filter(Boolean);
     sections.forEach(el => observer.observe(el!));
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -137,6 +155,20 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
                 {t(key)}
               </Link>
             ))}
+            {TRAILING_ANCHORS.map(({ id, key }) => (
+              <a
+                key={id}
+                href={buildAnchorHref(id)}
+                className={cn(
+                  'hidden px-2 py-2 text-sm font-medium rounded-md transition-colors lg:block',
+                  activeSection === id
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                )}
+              >
+                {t(key)}
+              </a>
+            ))}
           </div>
 
           {/* Right actions */}
@@ -194,6 +226,21 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               >
                 {t(key)}
               </Link>
+            ))}
+            {TRAILING_ANCHORS.map(({ id, key }) => (
+              <a
+                key={id}
+                href={buildAnchorHref(id)}
+                onClick={handleNavClick}
+                className={cn(
+                  'block px-4 py-2.5 text-sm font-medium rounded-md transition-colors',
+                  activeSection === id
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                )}
+              >
+                {t(key)}
+              </a>
             ))}
             <div className="border-t border-border/50 mt-3 pt-3 flex items-center gap-2 px-4">
               <LanguageSelector currentLocale={lng as Language} />

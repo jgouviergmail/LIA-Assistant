@@ -38,9 +38,9 @@ import { logger } from '@/lib/logger';
  * show their real device name (A4). Revoking one device is plain auth;
  * signing out every other device requires a fresh step-up. Detached
  * background runs (ADR-117) continue server-side — stated in the copy.
- * Renders as a collapsible SettingsSection card like every other section.
+ * Renders as a SettingsSection card like every other section.
  */
-export function DeviceSessionsSettings({ collapsible = true }: { collapsible?: boolean } = {}) {
+export function DeviceSessionsSettings() {
   const { t, i18n } = useTranslation();
   const { sessions, loading, revokeSession, revokeOthers } = useSessions();
   const { guard, stepUpOpen, onVerified, onCancel } = useStepUpGuard();
@@ -262,10 +262,6 @@ export function DeviceSessionsSettings({ collapsible = true }: { collapsible?: b
       <StepUpDialog open={stepUpOpen} onVerified={onVerified} onCancel={onCancel} />
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

@@ -6,7 +6,7 @@
 
 **Version**: 4.3
 **Datum**: 2026-08-18
-**Application**: LIA v1.30.9
+**Application**: LIA v1.30.10
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 466 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 226 ADRs, ~19.409 von pytest gesammelte Tests in 1.099 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 227 ADRs, ~19.409 von pytest gesammelte Tests in 1.099 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -1284,11 +1284,13 @@ Drei ADRs (206 bis 208) haben visuelle Konsistenz in einen werkzeuggestützten V
 
 Die Einstellungsoberfläche selbst folgt nun derselben Doktrin von Struktur statt Disziplin (ADR-227). Die Seite rendert als Master-Detail-Schale — eine permanente Leiste der Bereiche neben einem Panel, das genau einen davon einhängt, eine Übersicht beschreibender Karten, wenn nichts ausgewählt ist — und listet nichts von Hand: Reihenfolge, Gruppierung und die eingehängte Komponente leiten sich aus der Deep-Link-Tabelle und zwei compiler-vollständigen Registern ab, jedes durch Tests gegen die Quelltexte der Bereiche bewiesen. Die Konsequenz ist architektonisch, nicht kosmetisch: Ein Bereich existiert auf der Seite genau dann, wenn die Tabellen ihn deklarieren, das ~330-zeilige duplizierte Layout der alten Schale entfällt, und nur der gewählte Bereich lädt — zwanzig Bereiche feuern ihre Anfragen nicht mehr beim Öffnen eines Tabs. Abwesenheit bleibt ehrlich: Ein Bereich, der legitim nichts rendert (Instanz ohne MFA, nie ein Anruf), zeigt einen expliziten leeren Zustand, der weiter nachschaut — spät antwortende Daten ersetzen die Meldung.
 
+Dieselbe Doktrin beantwortet ein leiseres Versagen: eine Oberfläche, die unbemerkt aufhört, das Produkt zu beschreiben (ADR-229). Die Fähigkeitskarte — die Seite, die beantwortet „was kann mein Assistent für mich tun?“ — veröffentlichte dreizehn eingefrorene Knoten, während das Produkt Bildgenerierung, Dokumente, Plugins, gelernte Gewohnheiten, MCP-Server und Telefonie auslieferte: Ausgerechnet der Bildschirm, dessen ganze Aufgabe Aktualität ist, war der unaktuellste der Anwendung. Eine schriftliche Konvention war genau daran bereits gescheitert; die Korrektur ist deshalb strukturell und keine Erinnerung. Zwei deklarierte Tabellen partitionieren nun die Plattform-Fähigkeiten in „zeichnet einen Knoten“ und „bewusst nicht auf der Karte, aus diesem geschriebenen Grund“, und ein Assert läuft beim IMPORT: Eine Fähigkeit, die ohne Entscheidung hinzugefügt wird, lässt den Start scheitern, statt unsichtbar auszuliefern. Ein Begleit-Guard liest die drei Client-Oberflächen, die der Assert nicht sieht — die Plätze im Diagramm, die „nächster Schritt“-Links, die sechs Sprachen — denn ein Guard, der nur Python beobachtet, hätte die TypeScript-Hälfte der Drift übersehen. Dieselbe Aggregation speist danach die Einstellungsübersicht: Eine Anfrage sagt, was jeder Bereich gerade enthält, in genau den Worten der Fähigkeitsliste — und schweigt vollständig, solange die Antwort unterwegs ist, wenn sie fehlschlug, oder für einen Bereich, von dem sie nichts weiß.
+
 Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-Primitive blieb `inline`, und vertikale Ränder eines Inline-Elements werden **berechnet, aber nie gezeichnet**. Drei Abstands-Rekalibrierungen änderten den Code, ohne einen Pixel zu bewegen — bei nachweislich gesunder Auslieferungskette bis zum letzten Byte. Der Reflex ist jetzt Doktrin: Wenn eine visuelle Einstellung keine Wirkung zeigt, erst `display` und DOM-Geometrie im echten Browser messen, bevor man die Auslieferung verdächtigt. Der Fix ist ein Wort (`block`), die Kalibrierung wurde auf gesteuerten Screenshots entschieden, und ein Guard verbietet die Regression.
 
 ## 24. Architekturentscheidungen (ADR)
 
-226 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+227 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1364,10 +1366,10 @@ Der rote Faden dieser vier Arbeitspakete ist eine Eigenschaft der Tests selbst. 
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 226 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~19.409 Tests in 1.099 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 227 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~19.409 Tests in 1.099 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 226 ADRs und des Changelogs (v1.0 bis v1.30.9). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 227 ADRs und des Changelogs (v1.0 bis v1.30.10). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

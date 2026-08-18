@@ -81,7 +81,7 @@ beforeEach(() => {
 });
 
 function renderSection() {
-  return render(<OpenLoopsSection lng="fr" collapsible={false} />);
+  return render(<OpenLoopsSection lng="fr" />);
 }
 
 describe('OpenLoopsSection', () => {

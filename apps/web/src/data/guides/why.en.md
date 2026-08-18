@@ -4,7 +4,7 @@
 
 **Version**: 4.8
 **Date**: 2026-08-18
-**Application**: LIA v1.30.9
+**Application**: LIA v1.30.10
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -325,6 +325,10 @@ And colour never carries meaning on its own: every label keeps its word. An inte
 ### 6.4. Even what LIA learns about you is inspectable
 
 The same transparency covers habit learning: what LIA believes about your rhythm and your recurring requests sits in a dedicated panel — a 24-hour heat map, your active-day percentage, a progress bar toward the first claims, and for every habit the real days it was observed plus the exact thresholds the detector applied. When there is no stable habit, the panel says so instead of inventing one. Pause, permanent block, total deletion, instant retroactive recompute — and the whole feature is off until you turn it on.
+
+### 6.5. A surface that describes the product is held to it
+
+Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. The capability map — the page answering *what can my assistant do for me?* — published thirteen fixed entries for months while the product gained image generation, documents, plugins, learned habits, MCP servers and telephone calls. Nothing was broken, no test went red, and the page that existed to be current had become the least current in the application. A written convention had already asked for it to be updated; conventions are exactly what a busy month erodes. So the rule is now mechanical: two declared tables must account for every capability the platform can switch, each exclusion carrying a written reason, and an assertion runs when the code loads — a capability that ships without deciding its place on the map stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it.
 
 ## 7. Emotional depth
 

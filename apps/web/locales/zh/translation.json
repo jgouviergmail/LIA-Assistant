@@ -3280,8 +3280,8 @@
         "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
         "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
-        "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具",
-        "mcp-servers": "MCP, 模型上下文协议, 我的服务器, 工具, 扩展, oauth, 授权",
+        "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具，连接，集成，服务器",
+        "mcp-servers": "MCP, 模型上下文协议, 我的服务器, 工具, 扩展, oauth, 授权，连接，集成，服务器",
         "debug-panel": "开发者, 诊断, 调试, 技术, 故障排查, 瀑布图, 异常, 时间线, 流水线",
         "personality": "语气, 风格, 性格, 行为, 人设, 声音",
         "psyche": "情绪, 心情, 感受, 情感",
@@ -4133,6 +4133,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_30_10": {
+          "title": "v1.30.10 — 🧭 你的能力，保持最新并显示在每张卡片上",
+          "date": "2026 年 8 月",
+          "items": {
+            "i1": "<b>✨ 能力地图终于展示了 LIA 会做的一切</b> — 图像生成、文档生成、插件、习惯学习、你的 MCP 服务器和电话呼叫，此前都没有出现在「能力」页面上：偏偏是这块唯一职责就是保持时效的页面，悄悄落后了好几个版本。现在它绘制 <b>十九项能力</b>，而不是十三项；管理员关闭的能力会立刻从中消失，而不是继续被标注为可用。",
+            "i2": "<b>🧭 设置首页会说明每个分区的现状</b> — 「记忆——已激活，128 项」「连接器——待配置」：任何有内容的分区都会在自己的卡片上写明，你甚至不必打开。整页只用一次请求读取，并且在答案尚在途中、或某个分区无可奉告时选择沉默，而不是猜测。",
+            "i3": "<b>🧩 MCP 服务器搬到了其他扩展旁边</b> — 「应用 MCP」和「MCP 服务器」离开偏好设置，进入<b>功能 › 扩展与数据</b>，与技能、插件和空间并列：给助手带来新工具的服务器是在扩展它，而连接器是接入一个个人账户。你已有的链接照常可用。FAQ 也新增了<b>插件</b>分区，并且其中的设置操作步骤终于与页面实际一致。",
+            "i4": "<b>🆕 公开网站会展示刚刚发布的内容</b> — 最近几个版本现在会用平实的话写在首页上，完整历史只需一次点击。访客在注册之前就能看到产品在前进。"
+          },
+          "count": "4"
+        },
         "v1_30_9": {
           "title": "v1.30.9 — 🧭 设置全新改版：一切一键可达",
           "date": "2026年8月",
@@ -6176,11 +6187,11 @@
         "questions": {
           "q1": {
             "question": "如何更改时区？",
-            "answer": "时区决定了对话中日期和时间的显示方式：<br><br><strong>如何更改：</strong><br>1. 进入<strong>设置</strong>（菜单中的 ⚙️ 图标）<br>2. 打开<strong>偏好设置</strong>标签页<br>3. 在<strong>个性化</strong>下展开<strong>时区</strong>并选择你的时区<br><br><strong>🌍 自动检测：</strong><br>首次登录时，LIA 会通过浏览器检测你的时区。<br><br><strong>💡 出行提示：</strong><br>如果你在旅途中，LIA 会发现与浏览器时区的差异，并提示你一键更新。"
+            "answer": "时区决定了对话中日期和时间的显示方式：<br><br><strong>如何更改：</strong><br>1. 进入<strong>设置</strong>（菜单中的 ⚙️ 图标）<br>2. 在侧栏中，于<strong>偏好设置 › 个性化</strong>下选择<strong>时区</strong><br>3. 该分区会在旁边的面板中打开——选择你的时区<br><br><strong>🌍 自动检测：</strong><br>首次登录时，LIA 会通过浏览器检测你的时区。<br><br><strong>💡 出行提示：</strong><br>如果你在旅途中，LIA 会发现与浏览器时区的差异，并提示你一键更新。"
           },
           "q2": {
             "question": "如何更改界面语言？",
-            "answer": "更改语言有两种方式：<br><br><strong>快捷方式：</strong><br>点击标题栏中的<strong>地球图标</strong> 🌐 并选择你的语言。<br><br><strong>通过设置：</strong><br>1. 进入<strong>设置</strong>（菜单中的 ⚙️ 图标）<br>2. 打开<strong>偏好设置</strong>标签页<br>3. 在<strong>个性化</strong>下展开<strong>语言</strong><br><br><strong>🔄 同步：</strong><br>两种方式保存的是同一项偏好，写入你的个人资料，因此会跨设备跟随你。<br><br><strong>📧 不止于界面：</strong><br>通知邮件以及 LIA 发送的推送通知同样使用这一语言。"
+            "answer": "更改语言有两种方式：<br><br><strong>快捷方式：</strong><br>点击标题栏中的<strong>地球图标</strong> 🌐 并选择你的语言。<br><br><strong>通过设置：</strong><br>1. 进入<strong>设置</strong>（菜单中的 ⚙️ 图标）<br>2. 在侧栏中，于<strong>偏好设置 › 个性化</strong>下选择<strong>语言</strong><br>3. 该分区会在旁边的面板中打开<br><br><strong>🔄 同步：</strong><br>两种方式保存的是同一项偏好，写入你的个人资料，因此会跨设备跟随你。<br><br><strong>📧 不止于界面：</strong><br>通知邮件以及 LIA 发送的推送通知同样使用这一语言。"
           },
           "q3": {
             "question": "什么是主题，如何更改？",
@@ -6248,7 +6259,7 @@
           },
           "q19": {
             "question": "如何快速找到某项设置？",
-            "answer": "<p>设置页在多个标签页中堆叠了约三十个折叠区块。标签页下方的<strong>「搜索设置」</strong>输入框让你无需逐个翻找。</p><strong>搜索能理解什么：</strong><br>• 每个区块的<strong>标题</strong>与<strong>描述</strong><br>• 逐语言翻译的<strong>同义词</strong>：「深色模式」对应外观，「2FA」或「TOTP」对应强身份验证，「GDPR」对应数据导出，「cron」对应计划任务<br>• 忽略重音符与撇号——输入「theme」也能找到「Thème」<br><br><strong>选中结果之后：</strong><br>LIA 会切换到正确的标签页，展开该区块并把光标移到上面。全程支持键盘操作——方向键浏览、回车打开、Esc 关闭——结果数量还会向屏幕阅读器播报。<br><br>某些区块只有在你的账户启用了对应功能时才存在：遇到这种情况，LIA 会明确告知，而不是让你面对一个毫无变化的页面。"
+            "answer": "<p>设置页把所有分区列在一条永不滚走的侧栏里，你选中的那个会在旁边的面板中打开。侧栏顶部的<strong>「搜索设置」</strong>输入框可以直接带你过去。</p><strong>搜索能理解什么：</strong><br>• 每个区块的<strong>标题</strong>与<strong>描述</strong><br>• 逐语言翻译的<strong>同义词</strong>：「深色模式」对应外观，「2FA」或「TOTP」对应强身份验证，「GDPR」对应数据导出，「cron」对应计划任务<br>• 忽略重音符与撇号——输入「theme」也能找到「Thème」<br><br><strong>选中结果之后：</strong><br>LIA 会在面板中打开该分区并把光标移到上面。全程支持键盘操作——方向键浏览、回车打开、Esc 关闭——结果数量还会向屏幕阅读器播报。<br><br>某些区块只有在你的账户启用了对应功能时才存在：遇到这种情况，LIA 会明确告知，而不是让你面对一个毫无变化的页面。"
           },
           "q20": {
             "question": "在哪里能看到 LIA 发给我的全部内容，而不必翻找设置？",
@@ -6880,6 +6891,28 @@
           }
         }
       },
+      "plugins": {
+        "title": "插件",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "什么是插件？它和技能有什么区别？",
+            "answer": "<strong>技能</strong>是一套专家指令。<strong>插件</strong>则是一个可移植的包，可以一次带来多项内容——既有技能，也有 MCP 服务器——一步安装，同样一步移除。<br><br>LIA 支持开放的 <strong>Agent Plugins</strong> 标准（agent-plugins.org，由 AWS、Microsoft、OpenAI、Cursor 和 Vercel 共同推动），为其他助手准备的包可以原样安装到这里。<br><br>你可以在<strong>设置 → 功能 → 扩展与数据 → 插件</strong>中找到它们。"
+          },
+          "q2": {
+            "question": "如何安装插件？",
+            "answer": "在<strong>插件</strong>分区里有两种方式：<br><br>• 你下载好的 <strong>.zip 文件</strong>；<br>• 指向该包的 <strong>https 链接</strong>。<br><br>安装是原子性的：要么整个包安装成功，要么什么都不装。重新安装已有的插件会就地更新，而不会产生重复项。"
+          },
+          "q3": {
+            "question": "为什么报告说某个组件被跳过了？",
+            "answer": "因为它确实被跳过了——隐瞒只会更糟。每次安装后，LIA 都会说明它对每个组件做了什么：<strong>已安装</strong>、<strong>已更新</strong>、<strong>已跳过</strong>（并给出原因：名称已被占用、字段不受支持、该实例不允许的服务器）或<strong>已移除</strong>。<br><br>如果一个插件的组件全部被跳过，那不是一次成功的安装，报告会如实说明。"
+          },
+          "q4": {
+            "question": "卸载插件时会发生什么？",
+            "answer": "它带来的一切都会随之移除——它的技能和 MCP 服务器——一次操作完成，卸载不会留下任何残余。<br><br>删除账户在磁盘上做的是同一件事：你导入的技能和已安装插件的文件同样会被清除，而不只是数据库里的记录。"
+          }
+        }
+      },
       "sub_agents": {
         "title": "子代理",
         "description": "用于复杂委派任务的专业助手",
@@ -7472,6 +7505,10 @@
       "plugin_report": {
         "title": "有交代的插件",
         "desc": "安装一个插件——技能和连接的服务器一并到位，一步完成。安装过程会如实告诉你：什么进来了，什么被搁置了、为什么，以及更新移除了什么。卸载时，它带来的一切随之离开。"
+      },
+      "settings_shell": {
+        "title": "设置，并排展开",
+        "desc": "所有分区都列在一条永不滚走的侧栏里，你选中的那个就在旁边整个展开。在手机上，列表先出现，分区占满屏幕，并带有返回。"
       }
     },
     "scenes": {
@@ -7542,6 +7579,9 @@
         "installed": "已安装",
         "skipped": "已跳过",
         "reason": "此处不运行——明说，不隐瞒"
+      },
+      "settings_shell": {
+        "section": "外观"
       }
     },
     "craft": {
@@ -8364,7 +8404,8 @@
       "technical": "技术",
       "faq": "常见问题",
       "more": "更多",
-      "story": "Story"
+      "story": "Story",
+      "changelog": "更新动态"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -9087,6 +9128,12 @@
         "briefing": "晨报"
       },
       "day_hint": "继续滚动：这一天随你前进。"
+    },
+    "changelog": {
+      "eyebrow": "刚刚发布",
+      "title": "产品在前进，并且会告诉你",
+      "subtitle": "每个版本都用平实的话写下来——写的是对你有什么变化，而不是代码里改了什么。这里是最近的几个；完整历史只需一次点击。",
+      "all": "查看完整历史"
     }
   },
   "public_footer": {
@@ -10072,15 +10119,19 @@
     "subtitle": "你的助手能做什么，以及什么正等待被点亮。",
     "map_title": "你的星座",
     "map_eyebrow": "能力星图",
-    "magnitude": "{{count}} 项",
-    "map_count": "{{total}} 项可用能力中已激活 {{live}} 项。",
+    "magnitude_one": "{{count}} 项",
+    "magnitude_other": "{{count}} 项",
+    "map_count_one": "在 {{total}} 项可用能力中，已激活 {{count}} 项。",
+    "map_count_other": "在 {{total}} 项可用能力中，已激活 {{count}} 项。",
     "legend_active": "实心：已启用",
     "legend_dormant": "空心：待启用",
     "legend_size": "大小：所含内容",
-    "state_active": "已激活——{{count}} 项",
+    "state_active_one": "已激活——{{count}} 项",
+    "state_active_other": "已激活——{{count}} 项",
     "state_active_plain": "已启用",
     "state_dormant": "待设置",
-    "node_active": "{{name}}——已激活，{{count}} 项",
+    "node_active_one": "{{name}}——已激活，{{count}} 项",
+    "node_active_other": "{{name}}——已激活，{{count}} 项",
     "node_active_plain": "{{name}} — 已启用",
     "node_dormant": "{{name}}——待设置",
     "error": "无法读取你的能力。",
@@ -10098,7 +10149,13 @@
       "channels": "渠道",
       "spaces": "Spaces",
       "journals": "日志",
-      "skills": "技能"
+      "skills": "技能",
+      "images": "图像",
+      "documents": "文档",
+      "plugins": "插件",
+      "habits": "习惯",
+      "mcp_servers": "MCP 服务器",
+      "telephony": "通话"
     },
     "items": {
       "stt": "语音输入（转写）",

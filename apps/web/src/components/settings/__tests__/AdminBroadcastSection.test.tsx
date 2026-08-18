@@ -41,7 +41,7 @@ function stubSearch(users: UserAutocompleteItem[]) {
 }
 
 function render() {
-  return renderWithProviders(<AdminBroadcastSection lng="en" collapsible={false} />);
+  return renderWithProviders(<AdminBroadcastSection lng="en" />);
 }
 
 /** Opens the confirmation dialog and validates it. */

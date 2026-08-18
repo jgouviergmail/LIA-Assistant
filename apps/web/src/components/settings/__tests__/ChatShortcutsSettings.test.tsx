@@ -48,7 +48,7 @@ const MAX_ID = 32;
 /** Render with the default single-shortcut hook value. */
 function useChatShortcutsMock() {
   useChatShortcuts.mockReturnValue(hookValue());
-  renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+  renderWithProviders(<ChatShortcutsSettings lng="fr" />);
 }
 
 describe('validateShortcutId (pure)', () => {
@@ -77,7 +77,7 @@ describe('validateShortcutId (pure)', () => {
 describe('ChatShortcutsSettings', () => {
   it('lists the existing shortcuts with a named remove button', () => {
     useChatShortcuts.mockReturnValue(hookValue());
-    renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    renderWithProviders(<ChatShortcutsSettings lng="fr" />);
 
     expect(screen.getByText('/meteo')).toBeInTheDocument();
     expect(
@@ -87,7 +87,7 @@ describe('ChatShortcutsSettings', () => {
 
   it('adds a shortcut through the full-replace save', async () => {
     useChatShortcuts.mockReturnValue(hookValue());
-    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" />);
 
     await user.type(screen.getByLabelText('settings.chat_shortcuts.id_label'), 'courses');
     await user.type(
@@ -104,7 +104,7 @@ describe('ChatShortcutsSettings', () => {
 
   it('refuses a reserved id inline and saves nothing', async () => {
     useChatShortcuts.mockReturnValue(hookValue());
-    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" />);
 
     await user.type(screen.getByLabelText('settings.chat_shortcuts.id_label'), 'weather');
     await user.type(screen.getByLabelText('settings.chat_shortcuts.text_label'), 'x');
@@ -116,7 +116,7 @@ describe('ChatShortcutsSettings', () => {
 
   it('removes a shortcut through the full-replace save', async () => {
     useChatShortcuts.mockReturnValue(hookValue());
-    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" />);
 
     await user.click(screen.getByRole('button', { name: 'settings.chat_shortcuts.remove' }));
 
@@ -129,7 +129,7 @@ describe('ChatShortcutsSettings', () => {
     // restarts from the top of the settings page. A focus oracle, not a
     // snapshot: this regression is invisible to rendered-output assertions.
     useChatShortcuts.mockReturnValue(hookValue());
-    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" />);
 
     await user.click(screen.getByRole('button', { name: 'settings.chat_shortcuts.remove' }));
 
@@ -157,7 +157,7 @@ describe('ChatShortcutsSettings', () => {
         ],
       })
     );
-    renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    renderWithProviders(<ChatShortcutsSettings lng="fr" />);
 
     expect(screen.getByRole('status')).toHaveTextContent('settings.chat_shortcuts.limit_reached');
     expect(
@@ -170,7 +170,7 @@ describe('ChatShortcutsSettings — editing an existing shortcut', () => {
   /** Enter edit mode on the single seeded shortcut. */
   async function openEditor() {
     useChatShortcuts.mockReturnValue(hookValue());
-    const rendered = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    const rendered = renderWithProviders(<ChatShortcutsSettings lng="fr" />);
     await rendered.user.click(screen.getByRole('button', { name: 'settings.chat_shortcuts.edit' }));
     return rendered;
   }
@@ -230,7 +230,7 @@ describe('ChatShortcutsSettings — editing an existing shortcut', () => {
         ],
       })
     );
-    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" collapsible={false} />);
+    const { user } = renderWithProviders(<ChatShortcutsSettings lng="fr" />);
     await user.click(screen.getAllByRole('button', { name: 'settings.chat_shortcuts.edit' })[0]!);
 
     const id = screen.getByRole('textbox', { name: 'settings.chat_shortcuts.edit_id_label' });

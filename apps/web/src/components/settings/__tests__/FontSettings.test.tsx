@@ -34,14 +34,14 @@ beforeEach(() => {
 describe('FontSettings', () => {
   it('renders selectable font options', () => {
     useAuth.mockReturnValue({ user: { id: 'u1' }, refreshUser: vi.fn() });
-    renderWithProviders(<FontSettings lng="en" collapsible={false} />);
+    renderWithProviders(<FontSettings lng="en" />);
     expect(screen.getByRole('button', { name: LABEL('system') })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: LABEL('noto-sans') })).toBeInTheDocument();
   });
 
   it('selecting a font updates local state and persists it for an authenticated user', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1' }, refreshUser: vi.fn() });
-    const { user } = renderWithProviders(<FontSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<FontSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: LABEL('noto-sans') }));
     expect(setFontFamily).toHaveBeenCalledWith('noto-sans');
     await waitFor(() =>
@@ -51,7 +51,7 @@ describe('FontSettings', () => {
 
   it('selecting a font updates local state but does not persist without a user', async () => {
     useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
-    const { user } = renderWithProviders(<FontSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<FontSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: LABEL('noto-sans') }));
     expect(setFontFamily).toHaveBeenCalledWith('noto-sans');
     expect(mutate).not.toHaveBeenCalled();

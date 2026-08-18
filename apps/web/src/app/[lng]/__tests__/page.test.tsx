@@ -54,6 +54,9 @@ vi.mock('@/components/landing/ArchitectureDiagram', () => ({
 vi.mock('@/components/landing/BlogPreviewSection', () => ({
   BlogPreviewSection: () => <div data-testid="blog-preview" />,
 }));
+vi.mock('@/components/landing/ChangelogSection', () => ({
+  ChangelogSection: () => <div data-testid="changelog-section" />,
+}));
 vi.mock('@/components/landing/LandingFooter', () => ({
   LandingFooter: () => <div data-testid="landing-footer" />,
 }));
@@ -82,6 +85,7 @@ describe('HomePage (cosmos landing)', () => {
       'gallery-section',
       'tech-section',
       'architecture-diagram',
+      'changelog-section',
       'blog-preview',
       'landing-footer',
     ];

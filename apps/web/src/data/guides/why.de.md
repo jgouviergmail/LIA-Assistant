@@ -4,7 +4,7 @@
 
 **Version**: 4.8
 **Datum**: 2026-08-18
-**Anwendung**: LIA v1.30.9
+**Anwendung**: LIA v1.30.10
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -325,6 +325,10 @@ Und Farbe trägt die Bedeutung nie allein: Jede Markierung behält ihr Wort. Ein
 ### 6.4. Selbst was LIA über dich lernt, ist einsehbar
 
 Dieselbe Transparenz gilt für das Gewohnheitslernen: Was LIA über deinen Rhythmus und deine wiederkehrenden Anfragen zu wissen glaubt, lebt in einem eigenen Panel — eine Heatmap deiner 24 Stunden, dein Anteil aktiver Tage, ein Fortschrittsbalken bis zu den ersten Erkennungen, und für jede Gewohnheit die realen Beobachtungstage plus die exakten Schwellenwerte des Detektors. Gibt es keine stabile Gewohnheit, sagt das Panel das, statt eine zu erfinden. Pause, endgültige Blockierung, vollständige Löschung, sofortige rückwirkende Neuberechnung — und die ganze Funktion bleibt aus, bis du sie aktivierst.
+
+### 6.5. Eine Oberfläche, die das Produkt beschreibt, wird daran gemessen
+
+Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der still aufhört, die Wahrheit zu sagen. Die Fähigkeitskarte — die Seite, die beantwortet *was kann mein Assistent für mich tun?* — veröffentlichte monatelang dreizehn eingefrorene Einträge, während das Produkt Bildgenerierung, Dokumente, Plugins, gelernte Gewohnheiten, MCP-Server und Telefonanrufe hinzugewann. Nichts war kaputt, kein Test wurde rot, und die Seite, die es gab, um aktuell zu sein, war die unaktuellste der Anwendung geworden. Eine schriftliche Konvention hatte ihre Pflege bereits verlangt; Konventionen sind genau das, was ein voller Monat abträgt. Die Regel ist deshalb nun mechanisch: Zwei deklarierte Tabellen müssen jede Fähigkeit erfassen, die die Plattform abschalten kann, jede Ausnahme mit geschriebenem Grund, und eine Zusicherung läuft beim Laden des Codes — eine Fähigkeit, die ohne Entscheidung über ihren Platz auf der Karte ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zahl ist das, was die Datenbank zurückgibt, nie eine Länge, die gerade zur Hand war; und solange die Antwort unterwegs ist oder fehlschlug, sagt die Karte nichts, statt zu raten. „Noch nichts eingerichtet" ist eine Aussage über dein Konto — eine, deren man sich besser sicher ist, bevor man sie trifft.
 
 ## 7. Emotionale Tiefe
 

@@ -4,7 +4,7 @@
 
 **Versione**: 4.8
 **Data**: 2026-08-18
-**Applicazione**: LIA v1.30.9
+**Applicazione**: LIA v1.30.10
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -325,6 +325,10 @@ E il colore non porta mai da solo il significato: ogni etichetta conserva la sua
 ### 6.4. Anche ciò che LIA impara di te è ispezionabile
 
 La stessa trasparenza copre l'apprendimento delle abitudini: ciò che LIA crede di sapere del tuo ritmo e delle tue richieste ricorrenti vive in un pannello dedicato — mappa di calore delle tue 24 ore, percentuale di giorni attivi, barra di avanzamento verso i primi rilevamenti, e per ogni abitudine i giorni reali in cui è stata osservata più le soglie esatte applicate dal rilevatore. Quando non c'è un'abitudine stabile, il pannello lo dice invece di inventarla. Pausa, blocco definitivo, cancellazione totale, ricalcolo retroattivo immediato — e l'intera funzione resta spenta finché non la attivi.
+
+### 6.5. Una superficie che descrive il prodotto ne risponde
+
+La trasparenza ha un modo di fallire che nessuno nota: uno schermo che smette silenziosamente di dire il vero. La mappa delle capacità — la pagina che risponde *che cosa sa fare il mio assistente per me?* — ha pubblicato tredici voci congelate per mesi, mentre il prodotto guadagnava la generazione di immagini, i documenti, i plugin, le abitudini apprese, i server MCP e le telefonate. Nulla era rotto, nessun test diventava rosso, e la pagina che esisteva per essere aggiornata era diventata la meno aggiornata dell'applicazione. Una convenzione scritta ne chiedeva già la manutenzione; le convenzioni sono esattamente ciò che un mese pieno consuma. La regola è quindi diventata meccanica: due tabelle dichiarate devono rendere conto di ogni capacità che la piattaforma sa spegnere, ogni esclusione con una ragione scritta, e un'asserzione gira al caricamento del codice — una capacità rilasciata senza decidere il suo posto sulla mappa impedisce all'applicazione di avviarsi. La stessa convinzione, un passo oltre: ciò che uno schermo afferma dei tuoi dati dev'essere **esatto o assente**. Un conteggio è il numero che restituisce il database, mai una lunghezza che capitava a portata di mano; e finché la risposta è in arrivo, o quando è fallita, la scheda non dice nulla invece di indovinare. «Nulla configurato» è un'affermazione sul tuo account — di quelle di cui conviene essere certi prima di pronunciarle.
 
 ## 7. Profondità emotiva
 

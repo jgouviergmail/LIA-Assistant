@@ -40,7 +40,7 @@ import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { Language } from '@/i18n/settings';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function OpenLoopsSection({ lng, collapsible = true }: BaseSettingsProps) {
+export function OpenLoopsSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
   const flagOn = !!config?.features?.open_loops_enabled;
@@ -88,8 +88,6 @@ export function OpenLoopsSection({ lng, collapsible = true }: BaseSettingsProps)
       )}
     </div>
   );
-
-  if (!collapsible) return content;
 
   return (
     <SettingsSection

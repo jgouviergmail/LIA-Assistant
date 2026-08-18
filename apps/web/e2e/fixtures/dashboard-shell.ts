@@ -137,6 +137,23 @@ export const dashboardShellMocks: MockRoute[] = [
   // RAG space pickers outside the spaces pages (empty catalogue). `*` does not
   // cross `/`, so `/rag-spaces/<id>` stays unmocked here (spec concern).
   { url: '**/api/v1/rag-spaces*', json: { spaces: [], total: 0 } },
+
+  // Capability map (src/hooks/useCapabilities.ts). Read by the constellation
+  // page AND, since the settings hub gained its status lines, by the settings
+  // landing — one of the most visited authenticated screens. Two nodes on
+  // purpose: one live WITH a tally and one dormant, so both states of the
+  // status line are on screen for the axe scans and the smoke assertions.
+  {
+    url: '**/api/v1/capabilities',
+    json: {
+      nodes: [
+        { key: 'memory', active: true, detail: 12 },
+        { key: 'connectors', active: false, detail: 0 },
+      ],
+      live: 1,
+      total: 2,
+    },
+  },
 ];
 
 /**

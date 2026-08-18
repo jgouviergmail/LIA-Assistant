@@ -38,7 +38,7 @@ function userPayload(users: Array<{ id: string; email: string }>): Response {
 }
 
 function renderAdmin() {
-  return render(<ConsumptionExportSection lng="en" mode="admin" collapsible={false} />);
+  return render(<ConsumptionExportSection lng="en" mode="admin" />);
 }
 
 async function type(value: string) {

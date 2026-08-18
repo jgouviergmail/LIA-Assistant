@@ -47,21 +47,21 @@ beforeEach(() => {
 describe('ImageGenerationSettings — options states', () => {
   it('shows only the client-side format selector while options load', () => {
     useImageGenerationOptions.mockReturnValue(loadingQuery());
-    renderWithProviders(<ImageGenerationSettings lng="en" collapsible={false} />);
+    renderWithProviders(<ImageGenerationSettings lng="en" />);
     // Quality/size render as skeletons (no combobox); only the format Select is one.
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
   });
 
   it('shows the unavailable message when the options request errors', () => {
     useImageGenerationOptions.mockReturnValue(errorQuery());
-    renderWithProviders(<ImageGenerationSettings lng="en" collapsible={false} />);
+    renderWithProviders(<ImageGenerationSettings lng="en" />);
     expect(screen.getByText('settings.image_generation.options_unavailable')).toBeInTheDocument();
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
   });
 
   it('renders quality, size and format selectors once options load', () => {
     useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
-    renderWithProviders(<ImageGenerationSettings lng="en" collapsible={false} />);
+    renderWithProviders(<ImageGenerationSettings lng="en" />);
     expect(screen.getAllByRole('combobox')).toHaveLength(3);
   });
 });
@@ -71,7 +71,7 @@ describe('ImageGenerationSettings — enable toggle', () => {
     const ctx = authed({ image_generation_enabled: false });
     useAuth.mockReturnValue(ctx);
     useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
-    const { user } = renderWithProviders(<ImageGenerationSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<ImageGenerationSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     await waitFor(() =>
       expect(patch).toHaveBeenCalledWith('/users/u1', { image_generation_enabled: true })
@@ -83,7 +83,7 @@ describe('ImageGenerationSettings — enable toggle', () => {
   it('toasts an error when the update fails', async () => {
     patch.mockRejectedValue(new Error('boom'));
     useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
-    const { user } = renderWithProviders(<ImageGenerationSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<ImageGenerationSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
   });
@@ -91,7 +91,7 @@ describe('ImageGenerationSettings — enable toggle', () => {
   it('does not persist when no user is authenticated', async () => {
     useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
     useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
-    const { user } = renderWithProviders(<ImageGenerationSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<ImageGenerationSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     expect(patch).not.toHaveBeenCalled();
   });

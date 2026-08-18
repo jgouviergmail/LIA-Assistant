@@ -73,7 +73,7 @@ function ShortcutRow({
   );
 }
 
-export function ChatShortcutsSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function ChatShortcutsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   // Focus parks here after a row deletion: the delete button vanishes with its
   // row, so without a deliberate destination the keyboard user lands on <body>
@@ -292,10 +292,6 @@ export function ChatShortcutsSettings({ lng, collapsible = true }: BaseSettingsP
       )}
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

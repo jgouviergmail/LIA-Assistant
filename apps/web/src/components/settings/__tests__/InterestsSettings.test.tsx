@@ -78,7 +78,7 @@ function hook(over: Partial<InterestsHook> = {}) {
 }
 
 function render() {
-  return renderWithProviders(<InterestsSettings lng="en" collapsible={false} />);
+  return renderWithProviders(<InterestsSettings lng="en" />);
 }
 
 const DELETE = 'interests.delete';

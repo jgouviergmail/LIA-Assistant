@@ -65,7 +65,7 @@ function personality(over: Partial<PersonalityResponse> = {}): PersonalityRespon
 }
 
 function render() {
-  return renderWithProviders(<AdminPersonalitiesSection lng="en" collapsible={false} />);
+  return renderWithProviders(<AdminPersonalitiesSection lng="en" />);
 }
 
 async function renderLoaded(list: PersonalityResponse[] = [personality()]) {

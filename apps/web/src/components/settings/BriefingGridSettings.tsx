@@ -27,7 +27,7 @@ import { useTranslation } from '@/i18n/client';
 import type { BriefingSection } from '@/types/briefing';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function BriefingGridSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function BriefingGridSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { preferences, save } = useBriefingPreferences();
   const [announcement, setAnnouncement] = useState('');
@@ -131,10 +131,6 @@ export function BriefingGridSettings({ lng, collapsible = true }: BaseSettingsPr
       </div>
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

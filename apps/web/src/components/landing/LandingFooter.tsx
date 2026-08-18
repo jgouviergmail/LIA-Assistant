@@ -34,6 +34,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
         { label: t('landing.footer.blog'), href: buildLocalizedPath('/blog', lang) },
         { label: t('landing.footer.faq'), href: buildLocalizedPath('/faq', lang) },
         { label: t('landing.footer.more'), href: buildLocalizedPath('/more', lang) },
+        { label: t('landing.nav.changelog'), href: `${buildLocalizedPath('/', lang)}#changelog` },
       ],
     },
     {

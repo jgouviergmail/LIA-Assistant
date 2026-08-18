@@ -18,7 +18,7 @@ const DISPLAY_MODES = [
   { value: 'markdown', icon: Type },
 ] as const;
 
-export function CardsDisplaySettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function CardsDisplaySettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
   const [updating, setUpdating] = useState(false);
@@ -92,10 +92,6 @@ export function CardsDisplaySettings({ lng, collapsible = true }: BaseSettingsPr
       </InfoBox>
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

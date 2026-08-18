@@ -43,7 +43,7 @@ export interface CapabilitySwitch {
  * Hiding that distinction would let an operator flip a switch and believe
  * something changed.
  */
-export default function AdminCapabilitiesSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminCapabilitiesSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
   const {
@@ -146,7 +146,6 @@ export default function AdminCapabilitiesSection({ lng, collapsible = true }: Ba
       title={t('settings.admin.capabilities.title')}
       description={t('settings.admin.capabilities.description')}
       icon={SlidersHorizontal}
-      collapsible={collapsible}
     >
       {content}
     </SettingsSection>

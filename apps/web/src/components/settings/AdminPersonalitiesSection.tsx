@@ -34,7 +34,7 @@ import { fallbackLng, languages } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 
-export default function AdminPersonalitiesSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
   const [personalities, setPersonalities] = useState<PersonalityResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -299,7 +299,6 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
         title={t('settings.admin.personalities.title')}
         description={t('settings.admin.personalities.description')}
         icon={Sparkles}
-        collapsible={collapsible}
       >
         <TableSkeleton rows={5} />
       </SettingsSection>
@@ -608,7 +607,6 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
       title={t('settings.admin.personalities.title')}
       description={t('settings.admin.personalities.description')}
       icon={Sparkles}
-      collapsible={collapsible}
     >
       {content}
       {confirmDialog}

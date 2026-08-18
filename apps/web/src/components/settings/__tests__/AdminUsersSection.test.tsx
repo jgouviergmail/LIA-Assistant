@@ -85,7 +85,7 @@ function page(users: AdminUserRow[]) {
 }
 
 function render() {
-  return renderWithProviders(<AdminUsersSection lng="en" collapsible={false} />);
+  return renderWithProviders(<AdminUsersSection lng="en" />);
 }
 
 /** Renders and waits for the first fetch to settle into the table. */

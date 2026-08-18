@@ -71,7 +71,7 @@ describe('HeartbeatSettings', () => {
   it('enabling the heartbeat persists it and toasts success', async () => {
     const updateSettings = vi.fn().mockResolvedValue({ ok: true });
     useHeartbeatSettings.mockReturnValue(hook({ updateSettings }));
-    const { user } = renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<HeartbeatSettings lng="en" />);
     await user.click(screen.getAllByRole('switch')[0]);
     expect(updateSettings).toHaveBeenCalledWith({ heartbeat_enabled: true });
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
@@ -80,7 +80,7 @@ describe('HeartbeatSettings', () => {
   it('toasts an error when the update returns a falsy result', async () => {
     const updateSettings = vi.fn().mockResolvedValue(null);
     useHeartbeatSettings.mockReturnValue(hook({ updateSettings }));
-    const { user } = renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<HeartbeatSettings lng="en" />);
     await user.click(screen.getAllByRole('switch')[0]);
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
   });
@@ -102,7 +102,7 @@ describe('HeartbeatSettings — per-source permission (ADR-197)', () => {
         },
       })
     );
-    const { user } = renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<HeartbeatSettings lng="en" />);
 
     // The switches live behind a disclosure that is CLOSED on arrival.
     await user.click(await screen.findByText('heartbeat.sources_permission_title'));
@@ -128,7 +128,7 @@ describe('HeartbeatSettings — per-source permission (ADR-197)', () => {
         },
       })
     );
-    const { user } = renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<HeartbeatSettings lng="en" />);
     await user.click(await screen.findByText('heartbeat.sources_permission_title'));
 
     expect(await screen.findByText('heartbeat.source_requires')).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe('HeartbeatSettings — per-source permission (ADR-197)', () => {
         },
       })
     );
-    const { user } = renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<HeartbeatSettings lng="en" />);
     await user.click(await screen.findByText('heartbeat.sources_permission_title'));
 
     await user.click(await screen.findByRole('switch', { name: 'heartbeat.source_emails' }));
@@ -180,7 +180,7 @@ describe('HeartbeatSettings — folded by default', () => {
 
   it('hides the eleven switches until the reader asks for them', async () => {
     enabledPanel();
-    renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    renderWithProviders(<HeartbeatSettings lng="en" />);
 
     expect(await screen.findByText('heartbeat.sources_permission_title')).toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'heartbeat.source_calendar' })).toBeNull();
@@ -190,7 +190,7 @@ describe('HeartbeatSettings — folded by default', () => {
     // Folded, the badge is the only thing left to judge from — silencing a
     // source must not become invisible just because the block is shut.
     enabledPanel();
-    renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    renderWithProviders(<HeartbeatSettings lng="en" />);
 
     await screen.findByText('heartbeat.sources_permission_title');
     expect(screen.getByText('1')).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe('HeartbeatSettings — folded by default', () => {
 
   it('does not fetch the history until its block is opened', async () => {
     enabledPanel();
-    renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    renderWithProviders(<HeartbeatSettings lng="en" />);
 
     await screen.findByText('heartbeat.history.title');
     // `enabled: false` while shut: a collapsed list must not cost a request.
@@ -207,7 +207,7 @@ describe('HeartbeatSettings — folded by default', () => {
 
   it('fetches it once the reader opens it', async () => {
     enabledPanel();
-    const { user } = renderWithProviders(<HeartbeatSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<HeartbeatSettings lng="en" />);
 
     await user.click(await screen.findByText('heartbeat.history.title'));
 

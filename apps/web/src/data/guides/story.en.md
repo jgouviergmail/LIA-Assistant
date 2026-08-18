@@ -4,7 +4,7 @@
 
 **Version**: 1.6
 **Date**: 2026-08-18
-**Application**: LIA v1.30.9
+**Application**: LIA v1.30.10
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -94,6 +94,8 @@ The 1.29.0 cycle added a third episode, and this one is about the tests themselv
 The 1.30.0 cycle documented a lesson of a different kind: a feature can be delivered, encrypted, consented — and useless, because nobody reads it. The last known position had existed for months; only proactive notifications consulted it. On the move, the assistant therefore answered from the home address, with confidence. The diagnosis came from the production logs, the fix reduced three divergent paths to a single cascade — and the exact-counts doctrine extended to position: a dated position announces itself as dated, "based on your last known position at 9:30", never "you are at". The same cycle recalled that a synchronization mechanism is only believed once proven against the real engine: the lock serializing the first boot deadlocked against PostgreSQL's concurrent index creation — measured in the engine's own lock table, fixed as a non-blocking poll, and guarded by a test that forbids the blocking form's return.
 
 Later in the same cycle, the settings page — the very place all of this is steered from — shed its wall of fifty collapsed accordions for a master-detail shell: a permanent rail of sections, a pane, an overview of cards where every description is finally visible before opening anything, and a search that at last covers administration. The redesign was argued on interactive mockups before a line shipped, and it retired a whole class of drift with it: the page now renders from the same tables that power search and deep links, so a section can no longer exist half-way.
+
+The cycle closed on the surface that is supposed to answer for all the others. The capability map had gone on publishing thirteen entries while six capabilities shipped past it, and the settings hub could say what a section WAS but not what it held. Both were fixed from the same aggregate — nineteen capabilities, one request, the same words on both screens — and the fix that mattered was not the content but the assertion added underneath it: from now on the application refuses to start if a new capability has not decided where it belongs on the map. It is the same lesson as every other one here — a convention degrades, a mechanism does not — applied this time to the page whose only job was to stay true.
 
 Cycle 1.30.1 took the logic one step further: it audited the audit. An internal report concluded that the streamed LLM slots counted zero tokens — exact mechanism, plausible conclusion, maximum severity. The counter-review did what the report could not: it asked production. Five hundred and ten calls out of five hundred and ten were counted. The real defect lay elsewhere, and was more insidious: the accounting rested entirely on the generosity of a provider nobody asked — nothing requested it, nothing tested it, nothing watched it. The answer was not a patch but a contract: every provider declares its accounting mode, the application refuses to start without that declaration, and a paid call without a count becomes an alert. The same cycle repaired the dashboard's actions counter, stuck at zero since forever by a vocabulary nobody emitted — history included, reclassified from the archived intentions. Because a displayed count is exact, or it does not exist.
 

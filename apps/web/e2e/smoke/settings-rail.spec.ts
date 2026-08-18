@@ -56,6 +56,29 @@ test.describe('settings rail — desktop', () => {
     expect(new URL(page.url()).searchParams.get('section')).toBe('theme');
   });
 
+  test('states on the overview what each section currently holds', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    await mockApi(ROUTES);
+    await page.goto('/fr/dashboard/settings');
+
+    // The shell fixture answers one live capability (memory, 12) and one
+    // dormant (connectors) — both states of the line, from ONE aggregate.
+    const memories = page.getByRole('button', { name: /^Mémoire/ }).last();
+    await expect(memories).toContainText('12', { timeout: APPEARS_COLD });
+
+    const connectors = page.getByRole('button', { name: /^Mes Connecteurs/ }).last();
+    await expect(connectors).toContainText('À configurer');
+
+    // A section the aggregate says nothing about claims nothing.
+    await expect(page.getByRole('button', { name: /^Apparence/ }).last()).not.toContainText(
+      'À configurer'
+    );
+  });
+
   test('keeps the rail reachable once the page is scrolled', async ({
     page,
     authenticate,

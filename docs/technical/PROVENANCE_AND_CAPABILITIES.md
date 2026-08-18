@@ -117,9 +117,45 @@ session** (`get_db_context()` — `AsyncSession` n'est pas sûre en concurrence)
 `_count` dégrade à `0` sur échec : une carte qui refuse de se dessiner parce
 qu'une table était injoignable est pire qu'une carte avec un nœud éteint.
 
-`_from_user` lit voix, proactivité et personnalité **sur la ligne
-authentifiée** : re-requêter ce que la ligne affirme déjà laisserait la carte
-contredire toutes les autres surfaces sur le même fait.
+`_from_user` lit voix, proactivité, personnalité, images et documents **sur la
+ligne authentifiée** (et sur les interrupteurs) : re-requêter ce que la ligne
+affirme déjà laisserait la carte contredire toutes les autres surfaces sur le
+même fait. Ces cinq-là sont des interrupteurs, pas des collections : elles
+publient `detail=None` et la carte dit « Active » plutôt que « Active — 0
+élément » (ADR-185).
+
+### La carte ne peut plus prendre du retard (ADR-229)
+
+Elle a publié **treize nœuds figés** pendant que le produit livrait les images,
+les documents, les plugins, les habitudes, les serveurs MCP et la téléphonie :
+la surface qui répond « ce que ton assistant sait faire » était la moins à jour
+de l'application. Depuis, quatre choses tiennent l'alignement :
+
+1. les nœuds sont **déclarés en tables** — `COUNTED_NODES` (vitalité = « ce
+   compte en possède au moins un ») et `SWITCH_NODE_KEYS` (sans décompte) ;
+2. `PLATFORM_CAPABILITY_NODES` et `CAPABILITIES_OFF_THE_MAP` **partitionnent**
+   l'énumération `PlatformCapability`, chaque exclusion portant une raison
+   écrite ;
+3. `_assert_capability_map_coverage()` s'exécute **à l'import** : une capacité
+   ajoutée sans décision fait échouer le **boot** (doctrine ADR-085) ;
+4. la disponibilité publiée est l'**effective** — `disabled_capabilities()` est
+   lu une fois par requête, si bien qu'une capacité coupée à chaud par un
+   administrateur disparaît de la carte, et n'est même pas interrogée en base.
+
+Le garde `test_capability_coverage_guard.py` lit les **trois** surfaces
+clientes — les emplacements de `CAPABILITY_ORDER`, les liens « pas suivant » de
+`lib/capability-sections.ts`, et les libellés des six locales — parce qu'un
+garde limité à Python aurait laissé passer la moitié TypeScript de la dérive.
+
+### La même agrégation nourrit la Vue d'ensemble des réglages
+
+`lib/capability-sections.ts` déclare la correspondance capacité ↔ section **une
+fois** et dérive l'inverse : la constellation demande « où configure-t-on
+ceci ? », la Vue d'ensemble des réglages « que contient cette section ? ». Les
+cartes du hub portent donc une ligne d'état issue du même agrégat et formulée
+par le même `activeLabel` — une requête pour tout le hub, un silence assumé
+pendant le chargement, à l'échec, et pour toute section dont l'agrégat ne dit
+rien.
 
 ### La route
 

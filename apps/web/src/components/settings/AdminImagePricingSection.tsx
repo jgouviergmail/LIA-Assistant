@@ -60,7 +60,7 @@ interface ImagePricingListResponse {
   entries: ImagePricing[];
 }
 
-export default function AdminImagePricingSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
   const invalidateCatalogue = useCatalogueInvalidator();
 
@@ -268,7 +268,6 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
         title={t('settings.admin.image_pricing.title')}
         description={t('settings.admin.image_pricing.description')}
         icon={ImageIcon}
-        collapsible={collapsible}
       >
         <Skeleton className="mb-4 h-8 w-64" />
         <TableSkeleton rows={5} />
@@ -444,7 +443,6 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
       title={t('settings.admin.image_pricing.title')}
       description={t('settings.admin.image_pricing.description')}
       icon={ImageIcon}
-      collapsible={collapsible}
     >
       {content}
       {confirmDialog}

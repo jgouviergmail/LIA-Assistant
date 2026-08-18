@@ -69,7 +69,7 @@ function listOf(entries: ImagePricing[]) {
 }
 
 function render() {
-  return renderWithProviders(<AdminImagePricingSection lng="en" collapsible={false} />);
+  return renderWithProviders(<AdminImagePricingSection lng="en" />);
 }
 
 async function renderLoaded(entries: ImagePricing[] = [pricing()]) {

@@ -99,7 +99,7 @@ function sortInterestsByWeight(interests: Interest[]): Interest[] {
   return [...interests].sort((a, b) => b.weight - a.weight);
 }
 
-export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function InterestsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const {
     interests,
@@ -867,10 +867,6 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
       </div>
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

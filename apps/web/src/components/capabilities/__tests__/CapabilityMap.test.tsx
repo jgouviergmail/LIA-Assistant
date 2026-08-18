@@ -172,7 +172,7 @@ describe('CapabilityMapView', () => {
   it('counts this account only — never a percentage of completion', () => {
     renderWithProviders(<CapabilityMapView lng="fr" />);
 
-    expect(screen.getByText('capabilities.map_count|live=2|total=4')).toBeInTheDocument();
+    expect(screen.getByText('capabilities.map_count|count=2|total=4')).toBeInTheDocument();
   });
 
   it('falls back to the list on a phone, with the same data and order', () => {

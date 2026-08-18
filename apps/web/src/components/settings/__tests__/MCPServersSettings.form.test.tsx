@@ -13,7 +13,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { useUserMCPServers } = vi.hoisted(() => ({ useUserMCPServers: vi.fn() }));
 vi.mock('@/hooks/useUserMCPServers', () => ({ useUserMCPServers }));
@@ -84,9 +83,7 @@ function hook(over: Partial<McpHook> = {}) {
 function render(over: Partial<McpHook> = {}) {
   useUserMCPServers.mockReturnValue(hook(over));
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['mcp-servers']}>
-      <MCPServersSettings lng="en" />
-    </Accordion>
+    <MCPServersSettings lng="en" />
   );
 }
 

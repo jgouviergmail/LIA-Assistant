@@ -40,7 +40,7 @@ describe('VoiceModeSettings — enable switch', () => {
   it('enabling persists, syncs the store, refreshes and toasts', async () => {
     const ctx = authed({ voice_mode_enabled: false });
     useAuth.mockReturnValue(ctx);
-    const { user } = renderWithProviders(<VoiceModeSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<VoiceModeSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     await waitFor(() =>
       expect(patch).toHaveBeenCalledWith('/auth/me/voice-mode-preference', {
@@ -56,7 +56,7 @@ describe('VoiceModeSettings — enable switch', () => {
 describe('VoiceModeSettings — STT picker', () => {
   it('switching to the remote backend persists the new mode', async () => {
     useAuth.mockReturnValue(authed({ voice_stt_mode: 'local' }));
-    const { user } = renderWithProviders(<VoiceModeSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<VoiceModeSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: /stt_mode_remote/ }));
     await waitFor(() =>
       expect(patch).toHaveBeenCalledWith('/auth/me/voice-mode-preference', {
@@ -67,7 +67,7 @@ describe('VoiceModeSettings — STT picker', () => {
 
   it('does not persist when re-selecting the already-active backend', async () => {
     useAuth.mockReturnValue(authed({ voice_stt_mode: 'local' }));
-    const { user } = renderWithProviders(<VoiceModeSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<VoiceModeSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: /stt_mode_local/ }));
     expect(patch).not.toHaveBeenCalled();
   });
@@ -75,7 +75,7 @@ describe('VoiceModeSettings — STT picker', () => {
   it('warns and does not persist when the remote backend is unavailable', async () => {
     get.mockResolvedValue({ stt_remote_available: false });
     useAuth.mockReturnValue(authed({ voice_stt_mode: 'local' }));
-    renderWithProviders(<VoiceModeSettings lng="en" collapsible={false} />);
+    renderWithProviders(<VoiceModeSettings lng="en" />);
     // Wait for the mount probe to mark the remote backend unavailable.
     await waitFor(() =>
       expect(

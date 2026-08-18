@@ -164,7 +164,6 @@ export function AdminUsageLimitsSection({ lng }: AdminUsageLimitsSectionProps) {
       title={t('usage_limits.title')}
       description={t('usage_limits.description')}
       icon={Gauge}
-      collapsible
     >
       {/* Instance-wide ceiling: bounds the deployment, where the table below
           bounds one account at a time. */}

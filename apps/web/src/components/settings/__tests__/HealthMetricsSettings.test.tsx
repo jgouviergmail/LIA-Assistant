@@ -5,7 +5,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { useHealthMetrics } = vi.hoisted(() => ({ useHealthMetrics: vi.fn() }));
 vi.mock('@/hooks/useHealthMetrics', () => ({ useHealthMetrics }));
@@ -47,9 +46,7 @@ describe('HealthMetricsSettings', () => {
   it('shows a loading indicator while metrics load', () => {
     useHealthMetrics.mockReturnValue(hook({ isLoading: true }));
     renderWithProviders(
-      <Accordion type="multiple" defaultValue={['health_metrics']}>
-        <HealthMetricsSettings lng="en" />
-      </Accordion>
+      <HealthMetricsSettings lng="en" />
     );
     expect(screen.getAllByText('common.loading').length).toBeGreaterThan(0);
   });

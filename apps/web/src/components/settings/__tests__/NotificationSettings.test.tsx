@@ -8,7 +8,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 import type { UseFCMTokenReturn, RegisteredToken } from '@/hooks/useFCMToken';
 
 const { useFCMToken } = vi.hoisted(() => ({ useFCMToken: vi.fn() }));
@@ -55,9 +54,7 @@ function fcm(over: Partial<UseFCMTokenReturn> = {}): UseFCMTokenReturn {
 
 function renderNotifications() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['notifications']}>
-      <NotificationSettings lng="en" />
-    </Accordion>
+    <NotificationSettings lng="en" />
   );
 }
 

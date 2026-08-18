@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 226 (ADR-226 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 225 fichiers) |
+| ADRs | 229 (ADR-229 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 227 fichiers) |
 | Fiches knowledge (RAG système) | 30 |
 
 ---

@@ -33,7 +33,7 @@ interface VoiceModePreferenceResponse {
   message?: string;
 }
 
-export function VoiceModeSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function VoiceModeSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
   const { enable: storeEnable, disable: storeDisable } = useVoiceModeStore();
@@ -196,10 +196,6 @@ export function VoiceModeSettings({ lng, collapsible = true }: BaseSettingsProps
       </InfoBox>
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

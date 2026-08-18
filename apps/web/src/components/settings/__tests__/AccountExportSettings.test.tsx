@@ -10,7 +10,6 @@ import { act } from 'react';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import userEvent from '@testing-library/user-event';
-import { Accordion } from '@/components/ui/accordion';
 import { ApiError } from '@/lib/api-client';
 
 const { post } = vi.hoisted(() => ({ post: vi.fn() }));
@@ -72,7 +71,7 @@ beforeEach(() => {
 
 describe('AccountExportSettings — states', () => {
   it('offers the request button with no prior job', () => {
-    renderWithProviders(<AccountExportSettings collapsible={false} />);
+    renderWithProviders(<AccountExportSettings />);
     expect(
       screen.getByRole('button', { name: 'settings.security.export.request' })
     ).toBeInTheDocument();
@@ -89,7 +88,7 @@ describe('AccountExportSettings — states', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', '');
     try {
       useApiQuery.mockReturnValue(queryHook({ data: job() }));
-      renderWithProviders(<AccountExportSettings collapsible={false} />);
+      renderWithProviders(<AccountExportSettings />);
 
       expect(screen.getByText('settings.security.export.status_done')).toBeInTheDocument();
       const download = screen.getByRole('link', { name: 'settings.security.export.download' });
@@ -105,7 +104,7 @@ describe('AccountExportSettings — states', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://api.example.dev');
     try {
       useApiQuery.mockReturnValue(queryHook({ data: job() }));
-      renderWithProviders(<AccountExportSettings collapsible={false} />);
+      renderWithProviders(<AccountExportSettings />);
 
       expect(
         screen.getByRole('link', { name: 'settings.security.export.download' })
@@ -117,7 +116,7 @@ describe('AccountExportSettings — states', () => {
 
   it('disables the request button while a job is in flight', () => {
     useApiQuery.mockReturnValue(queryHook({ data: job({ status: 'running' }) }));
-    renderWithProviders(<AccountExportSettings collapsible={false} />);
+    renderWithProviders(<AccountExportSettings />);
     expect(
       screen.getByRole('button', { name: 'settings.security.export.in_progress' })
     ).toBeDisabled();
@@ -127,7 +126,7 @@ describe('AccountExportSettings — states', () => {
     useApiQuery.mockReturnValue(
       queryHook({ data: job({ status: 'failed', error_code: 'export_too_large' }) })
     );
-    renderWithProviders(<AccountExportSettings collapsible={false} />);
+    renderWithProviders(<AccountExportSettings />);
     expect(screen.getByText('settings.security.export.too_large')).toBeInTheDocument();
   });
 
@@ -137,7 +136,7 @@ describe('AccountExportSettings — states', () => {
       onError = options.onError;
       return queryHook();
     });
-    const { container } = renderWithProviders(<AccountExportSettings collapsible={false} />);
+    const { container } = renderWithProviders(<AccountExportSettings />);
     // The hook reports the 404 after render, like the real fetch would.
     act(() => onError?.(new ApiError('Not found', 404)));
     await waitFor(() => expect(container).toBeEmptyDOMElement());
@@ -156,7 +155,7 @@ describe('AccountExportSettings — request flow', () => {
     const hook = queryHook();
     useApiQuery.mockReturnValue(hook);
     const user = userEvent.setup();
-    renderWithProviders(<AccountExportSettings collapsible={false} />);
+    renderWithProviders(<AccountExportSettings />);
 
     await user.click(screen.getByRole('button', { name: 'settings.security.export.request' }));
 
@@ -169,7 +168,7 @@ describe('AccountExportSettings — request flow', () => {
   it('surfaces a request failure without a success toast', async () => {
     post.mockRejectedValue(new Error('boom'));
     const user = userEvent.setup();
-    renderWithProviders(<AccountExportSettings collapsible={false} />);
+    renderWithProviders(<AccountExportSettings />);
 
     await user.click(screen.getByRole('button', { name: 'settings.security.export.request' }));
 
@@ -180,25 +179,19 @@ describe('AccountExportSettings — request flow', () => {
   });
 });
 
-describe('AccountExportSettings — accordion integration', () => {
-  it('renders as a collapsible SettingsSection card', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(
-      <Accordion type="multiple" defaultValue={[]}>
-        <AccountExportSettings />
-      </Accordion>
-    );
+describe('AccountExportSettings — section shell', () => {
+  it('renders itself as the open settings card the shell deep-links to', () => {
+    const { container } = renderWithProviders(<AccountExportSettings />);
 
-    const trigger = screen.getByRole('button', {
-      name: /settings\.security\.export\.title/,
-    });
+    // The anchor id is the deep-link contract (`?section=security-export`):
+    // the pane polls it to tell an absent section from a slow one.
+    expect(container.querySelector('#settings-section-security-export')).not.toBeNull();
     expect(
-      screen.queryByRole('button', { name: 'settings.security.export.request' })
-    ).not.toBeInTheDocument();
-
-    await user.click(trigger);
+      screen.getByRole('heading', { name: 'settings.security.export.title' })
+    ).toBeInTheDocument();
+    // Body visible on mount — no disclosure step since ADR-227.
     expect(
-      await screen.findByRole('button', { name: 'settings.security.export.request' })
+      screen.getByRole('button', { name: 'settings.security.export.request' })
     ).toBeInTheDocument();
   });
 });

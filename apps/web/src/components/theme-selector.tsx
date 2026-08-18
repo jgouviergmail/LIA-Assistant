@@ -50,14 +50,9 @@ const THEMES = [
 
 interface ThemeSelectorProps {
   lng: Language;
-  /**
-   * If true, wraps in SettingsSection (collapsible)
-   * If false, renders only the content
-   */
-  collapsible?: boolean;
 }
 
-export function ThemeSelector({ lng, collapsible = true }: ThemeSelectorProps) {
+export function ThemeSelector({ lng }: ThemeSelectorProps) {
   const { resolvedTheme } = useTheme();
   const { colorTheme, setColorTheme } = useColorTheme();
   const [mounted, setMounted] = useState(false);
@@ -174,10 +169,6 @@ export function ThemeSelector({ lng, collapsible = true }: ThemeSelectorProps) {
       )}
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

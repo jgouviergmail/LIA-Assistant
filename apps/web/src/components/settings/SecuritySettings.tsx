@@ -47,9 +47,9 @@ import { logger } from '@/lib/logger';
  * Lists registered passkeys with label/last-use, supports enrollment
  * (browser ceremony), rename, and revocation. Renders nothing when the
  * instance has MFA disabled (flag read from /auth/features). Renders as a
- * collapsible SettingsSection card like every other settings section.
+ * SettingsSection card like every other settings section.
  */
-export function SecuritySettings({ collapsible = true }: { collapsible?: boolean } = {}) {
+export function SecuritySettings() {
   const { t, i18n } = useTranslation();
   const { features } = useAuthFeatures();
   const mfaEnabled = Boolean(features?.mfa_enabled);
@@ -329,10 +329,6 @@ export function SecuritySettings({ collapsible = true }: { collapsible?: boolean
       </AlertDialog>
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

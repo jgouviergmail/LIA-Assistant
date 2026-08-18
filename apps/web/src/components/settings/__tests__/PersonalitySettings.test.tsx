@@ -51,13 +51,13 @@ beforeEach(() => {
 describe('PersonalitySettings', () => {
   it('shows a loading indicator while personalities load', () => {
     usePersonality.mockReturnValue(hook({ loading: true, personalities: [] }));
-    renderWithProviders(<PersonalitySettings lng="en" collapsible={false} />);
+    renderWithProviders(<PersonalitySettings lng="en" />);
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('lists every personality as a selectable option', () => {
     usePersonality.mockReturnValue(hook());
-    renderWithProviders(<PersonalitySettings lng="en" collapsible={false} />);
+    renderWithProviders(<PersonalitySettings lng="en" />);
     expect(screen.getByRole('button', { name: 'Companion' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Analyst' })).toBeInTheDocument();
   });
@@ -65,7 +65,7 @@ describe('PersonalitySettings', () => {
   it('switching personality persists it, refreshes psyche and toasts success', async () => {
     const updatePersonality = vi.fn().mockResolvedValue(undefined);
     usePersonality.mockReturnValue(hook({ updatePersonality }));
-    const { user } = renderWithProviders(<PersonalitySettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<PersonalitySettings lng="en" />);
     await user.click(screen.getByRole('button', { name: 'Analyst' }));
     expect(updatePersonality).toHaveBeenCalledWith('p2');
     await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
@@ -75,7 +75,7 @@ describe('PersonalitySettings', () => {
   it('toasts an error when the personality update fails', async () => {
     const updatePersonality = vi.fn().mockRejectedValue(new Error('boom'));
     usePersonality.mockReturnValue(hook({ updatePersonality }));
-    const { user } = renderWithProviders(<PersonalitySettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<PersonalitySettings lng="en" />);
     await user.click(screen.getByRole('button', { name: 'Analyst' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
   });

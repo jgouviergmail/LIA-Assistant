@@ -25,7 +25,7 @@ describe('UserDebugSettings', () => {
   it('enabling the debug panel persists, refreshes and toasts', async () => {
     const refreshUser = vi.fn();
     useAuth.mockReturnValue({ user: { id: 'u1', debug_panel_enabled: false }, refreshUser });
-    const { user } = renderWithProviders(<UserDebugSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<UserDebugSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     await waitFor(() =>
       expect(patch).toHaveBeenCalledWith('/auth/me/debug-panel-preference', {
@@ -42,7 +42,7 @@ describe('UserDebugSettings', () => {
       user: { id: 'u1', debug_panel_enabled: false },
       refreshUser: vi.fn(),
     });
-    const { user } = renderWithProviders(<UserDebugSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<UserDebugSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
   });

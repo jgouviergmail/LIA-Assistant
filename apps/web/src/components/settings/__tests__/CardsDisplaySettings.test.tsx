@@ -32,7 +32,7 @@ beforeEach(() => {
 describe('CardsDisplaySettings', () => {
   it('renders the three display modes', () => {
     useAuth.mockReturnValue(authed());
-    renderWithProviders(<CardsDisplaySettings lng="en" collapsible={false} />);
+    renderWithProviders(<CardsDisplaySettings lng="en" />);
     for (const m of ['cards', 'html', 'markdown']) {
       expect(screen.getByRole('button', { name: MODE(m) })).toBeInTheDocument();
     }
@@ -41,7 +41,7 @@ describe('CardsDisplaySettings', () => {
   it('selecting a different mode persists it, refreshes and toasts', async () => {
     const ctx = authed({ response_display_mode: 'cards' });
     useAuth.mockReturnValue(ctx);
-    const { user } = renderWithProviders(<CardsDisplaySettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<CardsDisplaySettings lng="en" />);
     await user.click(screen.getByRole('button', { name: MODE('html') }));
     await waitFor(() =>
       expect(patch).toHaveBeenCalledWith('/auth/me/display-mode-preference', {
@@ -54,7 +54,7 @@ describe('CardsDisplaySettings', () => {
 
   it('re-selecting the active mode is a no-op', async () => {
     useAuth.mockReturnValue(authed({ response_display_mode: 'cards' }));
-    const { user } = renderWithProviders(<CardsDisplaySettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<CardsDisplaySettings lng="en" />);
     await user.click(screen.getByRole('button', { name: MODE('cards') }));
     expect(patch).not.toHaveBeenCalled();
   });
@@ -62,7 +62,7 @@ describe('CardsDisplaySettings', () => {
   it('shows an error toast when the update fails', async () => {
     patch.mockRejectedValue(new Error('boom'));
     useAuth.mockReturnValue(authed({ response_display_mode: 'cards' }));
-    const { user } = renderWithProviders(<CardsDisplaySettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<CardsDisplaySettings lng="en" />);
     await user.click(screen.getByRole('button', { name: MODE('markdown') }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
   });

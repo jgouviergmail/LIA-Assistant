@@ -141,13 +141,32 @@ déjà leurs états de chargement).
 - Ratchets verrouillés après gain : CC frontend (la page réécrite sort des
   hotspots), a11y 0, react-hooks inchangé.
 
-## Suivis (non faits, décisions explicites)
+## Suites (2026-08-18, arbitrage propriétaire)
 
-- **Résumés d'état sur les cartes de la vue d'ensemble** : ajoutent des
-  requêtes au chemin d'accueil — arbitrage propriétaire requis.
-- **Mode accordéon de `SettingsSection`** : plus aucune surface de production
-  ne le rend ; conservé pour les tests unitaires des sections. Candidat à une
-  suppression dédiée (elle churnerait ~10 fichiers de tests pour zéro valeur
-  utilisateur immédiate).
+Quatre des suivis ci-dessous ont été tranchés et livrés le jour même :
+
+- **Résumés d'état sur les cartes de la vue d'ensemble** : FAIT, par un
+  agrégat unique plutôt que par section — voir **ADR-229**.
+- **Mode accordéon de `SettingsSection`** : SUPPRIMÉ. Plus aucune surface de
+  production ne le rendait ; il ne survivait que dans le gréement de ~19
+  fichiers de tests. `SettingsSection` rend désormais UNE forme (carte
+  ouverte), la prop `collapsible` disparaît des 38 composants qui la
+  transportaient, `BaseSettingsProps` la perd, et le contexte
+  `SettingsShellModeProvider` créé par cette ADR devient inutile et disparaît
+  avec elle (−444 lignes nettes).
+- **Les deux sections MCP rejoignent Fonctionnalités › Extensions & Données** :
+  un serveur qui donne de nouveaux outils à l'assistant l'ÉTEND, là où un
+  connecteur relie un compte personnel. Les jetons ne bougent pas (surface
+  URL) ; seuls l'onglet et le groupe changent, dans les deux tables à la fois.
+- **Carte « Encore + »** : la coquille master-détail a sa carte animée sur
+  `/more` (section 04 « Quand tu cherches »), et la scène des liens profonds a
+  été refaite — elle montrait encore une ligne d'accordéon qui se déplie, un
+  écran qui n'existe plus.
+
+## Suivis restants (décisions explicites)
+
 - **Routes réelles par section** (`/settings/theme`) : meilleur bouton retour
   navigateur, mais touche au routage — `?section=` suffit au besoin actuel.
+- **Captures d'écran du README** : elles montrent l'ancienne interface. Report
+  assumé par le propriétaire vers un rattrapage groupé (dashboards, GitHub,
+  page vitrine) plutôt qu'une capture bâclée sur données de développement.

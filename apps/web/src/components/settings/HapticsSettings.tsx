@@ -31,7 +31,7 @@ import type { BaseSettingsProps } from '@/types/settings';
  * switch that cannot change anything is worse than no switch — it invites the
  * reader to fix something that was never broken.
  */
-export function HapticsSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function HapticsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   // `navigator` and `localStorage` are client-only, so the value is read
   // through the external store rather than copied into React state from an
@@ -53,8 +53,6 @@ export function HapticsSettings({ lng, collapsible = true }: BaseSettingsProps) 
       <Switch id="haptics-enabled" checked={enabled} onCheckedChange={setHapticsEnabled} />
     </div>
   );
-
-  if (!collapsible) return content;
 
   return (
     <SettingsSection

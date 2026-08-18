@@ -6,7 +6,7 @@
 
 **Version**: 4.3
 **Date**: 2026-08-18
-**Application**: LIA v1.30.9
+**Application**: LIA v1.30.10
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 226 ADRs, ~19,409 pytest-collected tests across 1,099 files, native observability, 6-level HITL |
+| Production reliability | 227 ADRs, ~19,409 pytest-collected tests across 1,099 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -1280,11 +1280,13 @@ Three ADRs (206 through 208) turned visual consistency into a tooled contract ra
 
 The settings surface itself now follows the same doctrine of structure over discipline (ADR-227). The page renders as a master-detail shell — a permanent rail of sections beside a pane that mounts exactly one of them, an overview of descriptive cards when nothing is selected — and hand-lists nothing: rail order, grouping and the mounted component all derive from the deep-link table plus two compiler-complete registries, each proven against the section sources by tests. The consequence is architectural rather than cosmetic: a section exists on the page if and only if the tables declare it, the ~330-line duplicated layout the previous shell required is gone, and only the selected section fetches — twenty sections no longer fire their requests on a tab load. Absence stays honest: a section that legitimately renders nothing (an instance without MFA, no call ever placed) yields an explicit inline empty state that keeps polling, so data answering late replaces the message.
 
+The same doctrine answers a subtler failure: a surface that quietly stops describing the product (ADR-229). The capability map — the page that answers “what can my assistant do for me?” — published thirteen fixed nodes while the product shipped image generation, documents, plugins, learned habits, user MCP servers and telephony, so the one screen whose entire job is to be current had become the least current in the application. A written convention had already failed at exactly that; the fix is therefore structural rather than a reminder. Two declared tables now partition the platform-capability enum between “draws a node” and “deliberately off the map, for this written reason”, and an assert runs at IMPORT, so a capability added without deciding its fate fails the boot rather than shipping invisible. A companion guard reads the three client surfaces the assert cannot see — the chart's slots, the “next step” links, the six locales — because a guard watching only Python would have missed the half of the drift that lives in TypeScript. The same aggregate then feeds the settings overview: one request states what each section currently holds, in the very words the capability list uses, and says nothing at all while the answer is in flight, when it failed, or for a section it knows nothing about.
+
 The most valuable engineering lesson came from an invisible defect: the label primitive stayed `inline`, and vertical margins on an inline element are **computed but never rendered**. Three spacing recalibrations changed the code without moving a pixel — with the delivery chain proven healthy down to the served bytes. The reflex is now doctrine: when a visual setting has no effect, measure the element's `display` and DOM geometry in a real browser before suspecting delivery. The fix is one word (`block`), the calibration was arbitrated on driven screenshots, and a guard forbids regression.
 
 ## 24. Architecture Decision Records (ADR)
 
-226 ADRs in MADR format document the major architectural decisions. Some representative examples:
+227 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1389,10 +1391,10 @@ The common thread across these four batches is a property of the tests themselve
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 226 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,409 tests across 1,099 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 227 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,409 tests across 1,099 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 226 ADRs, and the changelog (v1.0 to v1.30.9). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 227 ADRs, and the changelog (v1.0 to v1.30.10). All metrics, versions, and patterns cited are verifiable in the codebase.*

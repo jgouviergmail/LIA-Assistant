@@ -168,7 +168,7 @@ const METADATA = {
 
 function renderSection(configs: LLMTypeConfig[]) {
   setLLMConfigMock(configs, METADATA);
-  return render(<AdminLLMConfigSection lng="en" collapsible={false} />);
+  return render(<AdminLLMConfigSection lng="en" />);
 }
 
 async function openDialog(cardName: string) {

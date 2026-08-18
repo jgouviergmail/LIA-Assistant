@@ -255,20 +255,6 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
       reason: 'renders nothing when telephony is off or no call was placed',
     },
   },
-  'admin-mcp-servers': {
-    titleKey: 'settings.admin_mcp.title',
-    descriptionKey: 'settings.admin_mcp.description',
-    keywordsKey: `${KEYWORDS_PREFIX}.admin-mcp-servers`,
-    group: 'connections_integrations',
-    gate: { kind: 'runtime', reason: 'renders nothing when the instance declares no MCP server' },
-  },
-  'mcp-servers': {
-    titleKey: 'settings.mcp.title',
-    descriptionKey: 'settings.mcp.description',
-    keywordsKey: `${KEYWORDS_PREFIX}.mcp-servers`,
-    group: 'connections_integrations',
-    gate: { kind: 'always' },
-  },
   // Sits in the "connections" group because that is where the page puts it —
   // the index reports the page as it is, it does not tidy it up.
   'debug-panel': {
@@ -358,6 +344,23 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     titleKey: 'settings.plugins.title',
     descriptionKey: 'settings.plugins.description',
     keywordsKey: `${KEYWORDS_PREFIX}.plugins`,
+    group: 'extensions_data',
+    gate: { kind: 'always' },
+  },
+  // Both MCP sections moved here from `connections_integrations` (2026-08-18),
+  // with the page: an MCP server extends the assistant's toolbox, exactly like
+  // a skill or a plugin — it is not a link to a personal account.
+  'admin-mcp-servers': {
+    titleKey: 'settings.admin_mcp.title',
+    descriptionKey: 'settings.admin_mcp.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-mcp-servers`,
+    group: 'extensions_data',
+    gate: { kind: 'runtime', reason: 'renders nothing when the instance declares no MCP server' },
+  },
+  'mcp-servers': {
+    titleKey: 'settings.mcp.title',
+    descriptionKey: 'settings.mcp.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.mcp-servers`,
     group: 'extensions_data',
     gate: { kind: 'always' },
   },

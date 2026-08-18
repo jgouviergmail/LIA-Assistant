@@ -4,10 +4,10 @@
  * SettingsPane — mounts the ONE selected section of the master-detail shell.
  *
  * The section renders exactly as it always has (same component, same
- * `SettingsSection` chokepoint) — the pane only switches the shell mode so the
- * card is permanently open, wraps it in the same `FeatureErrorBoundary` the
- * accordion page used, and keeps the `CatalogueInvalidationProvider` around
- * the admin pricing/config family.
+ * `SettingsSection` chokepoint, which is now open by construction) — the pane
+ * wraps it in the same `FeatureErrorBoundary` the accordion page used, and
+ * keeps the `CatalogueInvalidationProvider` around the admin pricing/config
+ * family.
  *
  * ## The honest-absence contract
  *
@@ -38,7 +38,6 @@ import { SETTINGS_SECTION_ICONS } from '@/lib/settings-section-icons';
 import { SETTINGS_SECTIONS, type SettingsSectionToken } from '@/lib/settings-sections';
 
 import { SETTINGS_SECTION_REGISTRY } from './settings-section-registry';
-import { SettingsShellModeProvider } from './settings-shell-context';
 
 /**
  * First look, poll cadence, and how long before absence is worth mentioning.
@@ -139,11 +138,7 @@ export function SettingsPane({
         />
       )}
 
-      {mountable && (
-        <SettingsShellModeProvider value="pane">
-          <CatalogueInvalidationProvider>{section}</CatalogueInvalidationProvider>
-        </SettingsShellModeProvider>
-      )}
+      {mountable && <CatalogueInvalidationProvider>{section}</CatalogueInvalidationProvider>}
     </div>
   );
 }

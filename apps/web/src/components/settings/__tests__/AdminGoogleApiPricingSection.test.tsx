@@ -64,7 +64,7 @@ function listOf(entries: GoogleApiPricing[]) {
 }
 
 function render() {
-  return renderWithProviders(<AdminGoogleApiPricingSection lng="en" collapsible={false} />);
+  return renderWithProviders(<AdminGoogleApiPricingSection lng="en" />);
 }
 
 async function renderLoaded(entries: GoogleApiPricing[] = [pricing()]) {

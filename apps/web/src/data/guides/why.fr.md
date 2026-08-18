@@ -4,7 +4,7 @@
 
 **Version** : 4.8
 **Date** : 2026-08-18
-**Application** : LIA v1.30.9
+**Application** : LIA v1.30.10
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -325,6 +325,10 @@ Et la couleur ne porte jamais seule le sens : chaque étiquette garde son mot. U
 ### 6.4. Même ce que LIA apprend de toi est inspectable
 
 La même transparence couvre l'apprentissage des habitudes : ce que LIA croit savoir de ton rythme et de tes demandes récurrentes vit dans un panneau dédié — carte de chaleur de tes 24 heures, pourcentage de jours actifs, barre de progression vers les premières détections, et pour chaque habitude les jours réels où elle a été observée plus les seuils exacts appliqués par le détecteur. Quand il n'y a pas d'habitude stable, le panneau le dit au lieu d'en inventer une. Pause, blocage définitif, suppression totale, recalcul rétroactif immédiat — et toute la fonction est éteinte tant que tu ne l'actives pas.
+
+### 6.5. Une surface qui décrit le produit y est tenue
+
+La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. La carte des capacités — la page qui répond *qu'est-ce que mon assistant sait faire pour moi ?* — a publié treize entrées figées pendant des mois, tandis que le produit gagnait la génération d'images, les documents, les plugins, les habitudes apprises, les serveurs MCP et les appels téléphoniques. Rien n'était cassé, aucun test ne virait au rouge, et la page qui existait pour être à jour était devenue la moins à jour de l'application. Une consigne écrite demandait déjà de la maintenir ; les consignes sont précisément ce qu'un mois chargé érode. La règle est donc devenue mécanique : deux tables déclarées doivent rendre compte de chaque capacité que la plateforme sait couper, chaque exclusion portant une raison écrite, et une assertion s'exécute au chargement du code — une capacité livrée sans décider de sa place sur la carte empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer.
 
 ## 7. Profondeur émotionnelle
 

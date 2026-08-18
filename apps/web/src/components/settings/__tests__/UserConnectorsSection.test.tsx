@@ -68,7 +68,7 @@ function stub(connectors: Connector[], loading = false) {
 }
 
 function render() {
-  return renderWithProviders(<UserConnectorsSection lng="en" collapsible={false} />);
+  return renderWithProviders(<UserConnectorsSection lng="en" />);
 }
 
 /** Expands the "connected Google" family so its cards mount. */

@@ -35,9 +35,20 @@ export interface CapabilityMap {
   total: number;
 }
 
-export function useCapabilities() {
+export interface UseCapabilitiesOptions {
+  /**
+   * Whether to read at all. The settings overview is rendered but CSS-hidden
+   * below `lg` (the rail is the phone landing), so without this the aggregate
+   * would be fetched for a hub nobody on a phone can see — the opposite of the
+   * "only what is shown fetches" rule the shell was built on.
+   */
+  enabled?: boolean;
+}
+
+export function useCapabilities({ enabled = true }: UseCapabilitiesOptions = {}) {
   const { data, loading, error, refetch } = useApiQuery<CapabilityMap>('/capabilities', {
     componentName: 'useCapabilities',
+    enabled,
   });
 
   return {

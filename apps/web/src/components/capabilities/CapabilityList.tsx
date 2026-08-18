@@ -46,7 +46,7 @@ export function CapabilityList({ nodes, live, total, hrefOf }: CapabilityListPro
           {t('capabilities.map_title')}
         </h2>
         <p className="text-xs text-muted-foreground">
-          {t('capabilities.map_count', { live, total })}
+          {t('capabilities.map_count', { count: live, total })}
         </p>
       </div>
 

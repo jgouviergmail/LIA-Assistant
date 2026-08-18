@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 import type { BaseSettingsProps } from '@/types/settings';
 
-export function UserDebugSettings({ lng, collapsible = true }: BaseSettingsProps) {
+export function UserDebugSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
   const [updating, setUpdating] = useState(false);
@@ -63,10 +63,6 @@ export function UserDebugSettings({ lng, collapsible = true }: BaseSettingsProps
       </InfoBox>
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

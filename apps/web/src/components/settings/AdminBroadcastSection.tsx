@@ -74,7 +74,7 @@ interface UserAutocompleteResponse {
  * - Confirmation dialog before sending
  * - Success/error toast with delivery stats
  */
-export default function AdminBroadcastSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminBroadcastSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const [message, setMessage] = useState('');
   const [expiresInDays, setExpiresInDays] = useState<string>('none');
@@ -174,7 +174,6 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
       title={t('settings.admin.broadcast.title')}
       description={t('settings.admin.broadcast.description')}
       icon={Megaphone}
-      collapsible={collapsible}
     >
       <div className="space-y-8">
         {/* Recipient Selection */}

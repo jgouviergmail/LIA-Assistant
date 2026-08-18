@@ -86,7 +86,7 @@ describe('DeviceSessionsSettings — list', () => {
         ],
       })
     );
-    renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
+    renderWithProviders(<DeviceSessionsSettings />);
 
     // A4 attested session shows the real device name + current badge.
     expect(screen.getByText('iPhone de Jean')).toBeInTheDocument();
@@ -99,7 +99,7 @@ describe('DeviceSessionsSettings — list', () => {
 
   it('offers no revoke button on the current session', () => {
     useSessions.mockReturnValue(sessionsHook({ sessions: [session({ id: 's1', current: true })] }));
-    renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
+    renderWithProviders(<DeviceSessionsSettings />);
     expect(
       screen.queryByRole('button', { name: 'settings.security.devices.revoke_aria' })
     ).not.toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('DeviceSessionsSettings — revocation', () => {
     });
     useSessions.mockReturnValue(hook);
     const user = userEvent.setup();
-    renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
+    renderWithProviders(<DeviceSessionsSettings />);
 
     await user.click(screen.getByRole('button', { name: 'settings.security.devices.revoke_aria' }));
     await user.click(
@@ -137,7 +137,7 @@ describe('DeviceSessionsSettings — revocation', () => {
     });
     useSessions.mockReturnValue(hook);
     const user = userEvent.setup();
-    renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
+    renderWithProviders(<DeviceSessionsSettings />);
 
     await user.click(
       screen.getByRole('button', { name: 'settings.security.devices.revoke_others' })
@@ -153,7 +153,7 @@ describe('DeviceSessionsSettings — revocation', () => {
 
   it('disables revoke-others with a single session', () => {
     useSessions.mockReturnValue(sessionsHook({ sessions: [session({ id: 's1', current: true })] }));
-    renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
+    renderWithProviders(<DeviceSessionsSettings />);
     expect(
       screen.getByRole('button', { name: 'settings.security.devices.revoke_others' })
     ).toBeDisabled();
@@ -163,7 +163,7 @@ describe('DeviceSessionsSettings — revocation', () => {
 describe('DeviceSessionsSettings — login-notification preference (A4)', () => {
   it('persists the new value then refreshes the user', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
+    renderWithProviders(<DeviceSessionsSettings />);
 
     const toggle = screen.getByRole('switch', {
       name: 'settings.security.devices.notify_title',
@@ -180,7 +180,7 @@ describe('DeviceSessionsSettings — login-notification preference (A4)', () => 
   it('surfaces a persistence failure without refreshing', async () => {
     setEnabled.mockRejectedValue(new Error('boom'));
     const user = userEvent.setup();
-    renderWithProviders(<DeviceSessionsSettings collapsible={false} />);
+    renderWithProviders(<DeviceSessionsSettings />);
 
     await user.click(
       screen.getByRole('switch', { name: 'settings.security.devices.notify_title' })

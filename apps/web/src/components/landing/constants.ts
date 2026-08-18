@@ -35,7 +35,12 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.9: backend 18,705
+ *   Re-measured at v1.30.10: backend 18,758 (1,028 files) + frontend 5,733
+ *   (455 files — the capability↔section table and its derived reverse, the
+ *   settings-hub status line with its four silences, the landing release band,
+ *   the shared changelog key builders, and the single-form SettingsSection
+ *   contract) = 24,491 → 24,400 (the rounded value does not move this time).
+ *   Previous re-measure at v1.30.9: backend 18,705
  *   (`pytest tests/unit tests/agents --collect-only --no-cov`; the master-detail
  *   settings program (ADR-227) is frontend-only, and the per-user
  *   document-generation opt-in removal trimmed a few backend suites) +
@@ -103,12 +108,13 @@
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
  * - adrs: docs/architecture/ ADR files — recount every release, never carry it
- *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 226 files at
- *   v1.30.9, numbered up to ADR-227: ADR-008 has no separate file, so the
- *   highest number is always one above the file count.
+ *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 227 files at
+ *   v1.30.10, numbered up to ADR-229: ADR-008 has no separate file, and
+ *   ADR-228 is held by a parallel workstream, so the highest number now runs
+ *   two above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   213 headings at v1.30.9, no Unreleased pending.
+ *   214 headings at v1.30.10, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -125,8 +131,8 @@ export const LANDING_STATS = {
   metrics: 473,
   uiLanguages: 6,
   tests: 24400,
-  adrs: 226,
-  releases: 213,
+  adrs: 227,
+  releases: 214,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

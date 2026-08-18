@@ -9,7 +9,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 import { makeUsageLimitsUser } from '@/__tests__/factories';
 import type { AdminUserUsageLimitResponse } from '@/types/usage-limits';
 
@@ -54,9 +53,7 @@ function listOf(users: AdminUserUsageLimitResponse[]) {
 
 function render() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['admin-usage-limits']}>
-      <AdminUsageLimitsSection lng="en" />
-    </Accordion>
+    <AdminUsageLimitsSection lng="en" />
   );
 }
 

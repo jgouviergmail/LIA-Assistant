@@ -28,10 +28,4 @@ import type { Language } from '@/i18n/settings';
 export interface BaseSettingsProps {
   /** Current language for translations */
   lng: Language;
-  /**
-   * If true, wraps content in SettingsSection (collapsible accordion)
-   * If false, renders only the inner content
-   * @default true
-   */
-  collapsible?: boolean;
 }

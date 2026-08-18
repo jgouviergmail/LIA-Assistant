@@ -14,7 +14,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { useScheduledActions } = vi.hoisted(() => ({ useScheduledActions: vi.fn() }));
 vi.mock('@/hooks/useScheduledActions', () => ({ useScheduledActions }));
@@ -75,9 +74,7 @@ function hook(over: Partial<ScheduledHook> = {}) {
 
 function render() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['scheduled-actions']}>
-      <ScheduledActionsSettings lng="en" />
-    </Accordion>
+    <ScheduledActionsSettings lng="en" />
   );
 }
 

@@ -1,6 +1,6 @@
 {
   "_comment": "Frontend cyclomatic-complexity ratchet (audit F011). Shrink-only: `over` (functions >= CC 15), `max` (worst function) and each per-file {count, max} fingerprint may only DECREASE; a regression, a new offending file, or a function growing inside an offending file fails CI. Regenerate with --update ONLY after decomposing a hotspot, never to absorb a regression.",
-  "over": 48,
+  "over": 46,
   "max": 59,
   "threshold": 15,
   "perFile": {
@@ -70,21 +70,17 @@
     },
     "src/components/settings/AdminBroadcastSection.tsx": {
       "count": 1,
-      "max": 22
+      "max": 21
     },
     "src/components/settings/AdminDebugSettingsSection.tsx": {
       "count": 1,
-      "max": 20
+      "max": 19
     },
     "src/components/settings/AdminGoogleApiPricingSection.tsx": {
       "count": 1,
-      "max": 26
+      "max": 25
     },
     "src/components/settings/AdminPersonalitiesSection.tsx": {
-      "count": 1,
-      "max": 16
-    },
-    "src/components/settings/AdminRAGSpacesSection.tsx": {
       "count": 1,
       "max": 16
     },
@@ -98,7 +94,7 @@
     },
     "src/components/settings/AdminUsersSection.tsx": {
       "count": 2,
-      "max": 31
+      "max": 30
     },
     "src/components/settings/ChannelSettings.tsx": {
       "count": 1,
@@ -114,11 +110,11 @@
     },
     "src/components/settings/ImageGenerationSettings.tsx": {
       "count": 1,
-      "max": 34
+      "max": 32
     },
     "src/components/settings/InterestsSettings.tsx": {
       "count": 1,
-      "max": 20
+      "max": 18
     },
     "src/components/settings/JournalsSettings.tsx": {
       "count": 1,
@@ -129,7 +125,7 @@
       "max": 45
     },
     "src/components/settings/MemorySettings.tsx": {
-      "count": 2,
+      "count": 1,
       "max": 17
     },
     "src/components/settings/NotificationSettings.tsx": {
@@ -138,7 +134,7 @@
     },
     "src/components/settings/UserConnectorsSection.tsx": {
       "count": 1,
-      "max": 25
+      "max": 23
     },
     "src/components/ui/avatar.tsx": {
       "count": 1,

@@ -74,7 +74,7 @@ export interface SystemStaleness {
 /** Polling interval for reindex status (5 seconds). */
 const REINDEX_POLL_INTERVAL_MS = 5000;
 
-export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
   const { config: appConfig } = useAppConfig(true);
   const [showReindexConfirm, setShowReindexConfirm] = useState(false);
@@ -410,7 +410,6 @@ export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseS
       icon={Library}
       title={t('settings.admin.ragSpaces.title')}
       description={t('settings.admin.ragSpaces.subtitle')}
-      collapsible={collapsible}
     >
       {content}
     </SettingsSection>

@@ -1431,7 +1431,7 @@ function LLMConfigDialog({
 
 // --- Main Component ---
 
-export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminLLMConfigSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
   const {
     configs,
@@ -1547,7 +1547,6 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
       title={t('settings.admin.llmConfig.title')}
       description={t('settings.admin.llmConfig.description')}
       icon={Cpu}
-      collapsible={collapsible}
     >
       {content}
     </SettingsSection>

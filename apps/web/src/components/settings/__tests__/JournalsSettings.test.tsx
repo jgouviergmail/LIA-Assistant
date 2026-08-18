@@ -9,7 +9,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { useJournals } = vi.hoisted(() => ({ useJournals: vi.fn() }));
 vi.mock('@/hooks/useJournals', () => ({ useJournals }));
@@ -86,9 +85,7 @@ function hook(over: Partial<JournalsHook> = {}) {
 
 function render() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['journals']}>
-      <JournalsSettings lng="en" />
-    </Accordion>
+    <JournalsSettings lng="en" />
   );
 }
 

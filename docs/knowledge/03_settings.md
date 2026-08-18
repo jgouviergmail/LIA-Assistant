@@ -1,12 +1,33 @@
 # Settings
 
+## Where do I find my MCP servers and plugins?
+In **Features › Extensions & Data**, beside Skills, Spaces and your data
+export. Both MCP sections live there: **MCP servers** (the ones you connect
+yourself) and **Application MCP** (the ones your administrator configured).
+
+They used to sit under Preferences › Connections, with the connectors. They
+moved because they are a different kind of thing: a connector links a personal
+account so LIA can read it, while an MCP server hands the assistant new tools —
+it extends what LIA can do, exactly like a skill or a plugin. Any link you had
+saved keeps working: the addresses did not change.
+
+## What does the settings home page tell me before I open anything?
+Each section is a card carrying its name, its description, and — when the
+section holds something — where it currently stands: "Memory — active, 128
+items", "Connectors — to set up".
+
+The whole page reads that in a single request, and it stays silent rather than
+guessing: while the answer is still on its way, when it could not be read, or
+for a section that has nothing to report (a theme, an export), the card says
+nothing at all. A count shown to you is exact, or it is absent.
+
 ## How do I change my timezone?
 The timezone affects date display in your conversations:
 
 **To change it:**
 1. Go to **Settings** (⚙️ icon in the menu)
-2. Open the **Preferences** tab
-3. Under **Personalization**, unfold **Timezone** and pick yours
+2. In the rail, under **Preferences › Personalization**, pick **Timezone**
+3. It opens in the panel beside the rail — choose yours
 
 **🌍 Automatic detection:**
 On your first login, LIA automatically detects your timezone via your browser.
@@ -184,8 +205,8 @@ Click the **globe icon** 🌐 in the title bar and select your language.
 
 **Via settings:**
 1. Go to **Settings** (⚙️ icon in the menu)
-2. Open the **Preferences** tab
-3. Under **Personalization**, unfold **Language**
+2. In the rail, under **Preferences › Personalization**, pick **Language**
+3. It opens in the panel beside the rail
 
 **🔄 Sync:**
 Both methods sync your preference. The language is saved in your profile.
@@ -406,7 +427,7 @@ The section used to be called "Open loops" and used to live under Preferences; t
 
 ## Can I link straight to a settings section?
 
-Yes. Adding `?section=<name>` to the settings URL opens the right tab, unfolds
+Yes. Adding `?section=<name>` to the settings URL opens the right section in
 that section and scrolls to it. Thirty sections are addressable this way — every
 user-facing section of both tabs — and the app uses those links itself: the
 getting-started checklist, the home cards and the in-call banner all point at
@@ -429,7 +450,7 @@ through them.
 - Case, accents and apostrophes are ignored — "theme" finds "Thème"
 
 **When you pick a result:**
-LIA switches to the right tab, unfolds the section and brings the cursor to it.
+LIA opens the section in the panel and brings the cursor to it.
 Everything works from the keyboard — arrows to walk the list, Enter to open,
 Escape to dismiss and then clear — and the number of matches is announced to
 screen readers.

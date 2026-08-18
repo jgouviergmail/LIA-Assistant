@@ -15,10 +15,9 @@ import type { User } from '@/lib/auth';
 
 interface FontSettingsProps {
   lng: Language;
-  collapsible?: boolean;
 }
 
-export function FontSettings({ lng, collapsible = true }: FontSettingsProps) {
+export function FontSettings({ lng }: FontSettingsProps) {
   const { fontFamily, setFontFamily } = useFontFamily();
   const [mounted, setMounted] = useState(false);
   const { t } = useTranslation(lng);
@@ -137,10 +136,6 @@ export function FontSettings({ lng, collapsible = true }: FontSettingsProps) {
       )}
     </div>
   );
-
-  if (!collapsible) {
-    return content;
-  }
 
   return (
     <SettingsSection

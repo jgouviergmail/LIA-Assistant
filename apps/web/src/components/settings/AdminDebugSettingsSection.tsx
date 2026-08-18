@@ -32,7 +32,7 @@ export interface DebugPanelUserAccessResponse {
   is_default: boolean;
 }
 
-export default function AdminDebugSettingsSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminDebugSettingsSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
   // Fetch current debug panel status (admin's own debug panel)
@@ -235,7 +235,6 @@ export default function AdminDebugSettingsSection({ lng, collapsible = true }: B
       icon={Bug}
       title={t('settings.admin.debug.title')}
       description={t('settings.admin.debug.subtitle')}
-      collapsible={collapsible}
     >
       {content}
     </SettingsSection>

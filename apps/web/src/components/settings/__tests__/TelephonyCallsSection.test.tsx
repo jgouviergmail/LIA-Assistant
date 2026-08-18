@@ -57,7 +57,7 @@ describe('TelephonyCallsSection', () => {
   it('renders nothing when the feature is off', () => {
     mockCalls([], { isUnavailable: true });
     const { container } = renderWithProviders(
-      <TelephonyCallsSection lng="fr" collapsible={false} />
+      <TelephonyCallsSection lng="fr" />
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -66,20 +66,20 @@ describe('TelephonyCallsSection', () => {
     // An empty shelf on an already long settings page is noise.
     mockCalls([]);
     const { container } = renderWithProviders(
-      <TelephonyCallsSection lng="fr" collapsible={false} />
+      <TelephonyCallsSection lng="fr" />
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it('requests only the 10 most recent calls (owner arbitration 2026-07-30)', () => {
     mockCalls([call()]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(useTelephonyCalls).toHaveBeenCalledWith(true, 10);
   });
 
   it('shows what LIA was asked to do and what came of it', () => {
     mockCalls([call()]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
 
     expect(screen.getByText('Marie Dupont')).toBeInTheDocument();
     expect(screen.getByText('Demander si elle est libre mardi')).toBeInTheDocument();
@@ -90,14 +90,14 @@ describe('TelephonyCallsSection', () => {
     // The API omits it; this asserts nothing reintroduces one from elsewhere.
     mockCalls([call()]);
     const { container } = renderWithProviders(
-      <TelephonyCallsSection lng="fr" collapsible={false} />
+      <TelephonyCallsSection lng="fr" />
     );
     expect(container.textContent ?? '').not.toMatch(/\+?\d[\d ().-]{7,}/);
   });
 
   it('marks a call that is still happening', () => {
     mockCalls([call({ status: 'in_progress', summary: null, outcome: null, call_seconds: null })]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
 
     expect(screen.getByText('settings.telephony.calls.status.in_progress')).toBeInTheDocument();
     // Announced politely — a call ending is worth saying, not worth interrupting.
@@ -106,40 +106,40 @@ describe('TelephonyCallsSection', () => {
 
   it('says nothing about progress once every call has ended', () => {
     mockCalls([call()]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(screen.queryByText('settings.telephony.calls.in_flight')).not.toBeInTheDocument();
   });
 
   it('renders a call that has no recap yet', () => {
     // `summary` is null while in flight and again after the retention purge.
     mockCalls([call({ summary: null, outcome: null, call_seconds: null })]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(screen.getByText('Marie Dupont')).toBeInTheDocument();
   });
 
   it('formats a duration in minutes past a minute', () => {
     mockCalls([call({ call_seconds: 125 })]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(screen.getByText(/2 min 5 s/)).toBeInTheDocument();
   });
 
   it('formats a short call in seconds', () => {
     mockCalls([call({ call_seconds: 48 })]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(screen.getByText(/48 s/)).toBeInTheDocument();
   });
 
   it('never renders an invalid date', () => {
     mockCalls([call({ created_at: 'not-a-date' })]);
     const { container } = renderWithProviders(
-      <TelephonyCallsSection lng="fr" collapsible={false} />
+      <TelephonyCallsSection lng="fr" />
     );
     expect(container.textContent ?? '').not.toContain('Invalid Date');
   });
 
   it('lists several calls', () => {
     mockCalls([call(), call({ id: 'c2', callee_display: 'Le garage' })]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" collapsible={false} />);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
   });
 });

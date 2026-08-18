@@ -6,14 +6,13 @@
  * import report dialog where a skipped component always shows its translated
  * taxonomy reason (anti-false-success doctrine).
  *
- * The component wraps itself in a collapsible SettingsSection, so each test
- * expands the accordion first.
+ * The section renders as an open card (ADR-227), so its body is visible on
+ * mount — there is no disclosure step to perform first.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, userEvent } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { usePlugins } = vi.hoisted(() => ({ usePlugins: vi.fn() }));
 vi.mock('@/hooks/usePlugins', async importOriginal => {
@@ -78,33 +77,23 @@ function hook(over: Partial<PluginsHook> = {}): PluginsHook {
 
 function renderSection() {
   return renderWithProviders(
-    <Accordion type="multiple">
-      <PluginsSettings lng="en" />
-    </Accordion>
+    <PluginsSettings lng="en" />
   );
-}
-
-async function expandSection(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: /settings.plugins.title/ }));
 }
 
 beforeEach(() => vi.clearAllMocks());
 
 describe('PluginsSettings', () => {
-  it('shows the empty state when no plugin is installed', async () => {
+  it('shows the empty state when no plugin is installed', () => {
     usePlugins.mockReturnValue(hook({ plugins: [], total: 0 }));
-    const user = userEvent.setup();
     renderSection();
-    await expandSection(user);
 
     expect(screen.getByText('settings.plugins.empty')).toBeInTheDocument();
   });
 
-  it('lists installed plugins with version and component-count badges', async () => {
+  it('lists installed plugins with version and component-count badges', () => {
     usePlugins.mockReturnValue(hook());
-    const user = userEvent.setup();
     renderSection();
-    await expandSection(user);
 
     expect(screen.getByText('acme.tools')).toBeInTheDocument();
     expect(screen.getByText('v1.2.0')).toBeInTheDocument();
@@ -117,7 +106,6 @@ describe('PluginsSettings', () => {
     usePlugins.mockReturnValue(hook({ uninstallPlugin }));
     const user = userEvent.setup();
     renderSection();
-    await expandSection(user);
 
     await user.click(screen.getByRole('button', { name: /settings.plugins.uninstall_aria/ }));
     expect(screen.getByText('settings.plugins.uninstall_confirm_title')).toBeInTheDocument();
@@ -149,7 +137,6 @@ describe('PluginsSettings', () => {
     usePlugins.mockReturnValue(hook({ importPlugin }));
     const user = userEvent.setup();
     const { container } = renderSection();
-    await expandSection(user);
 
     const input = container.querySelector('[data-testid="plugin-file-input"]');
     expect(input).not.toBeNull();
@@ -176,7 +163,6 @@ describe('PluginsSettings', () => {
     usePlugins.mockReturnValue(hook({ importPlugin }));
     const user = userEvent.setup();
     const { container } = renderSection();
-    await expandSection(user);
 
     const input = container.querySelector('[data-testid="plugin-file-input"]');
     await user.upload(

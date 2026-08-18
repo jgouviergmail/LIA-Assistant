@@ -38,7 +38,7 @@ beforeEach(() => {
 describe('LanguageSettings', () => {
   it('selecting a different language persists it', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1', language: 'en' }, refreshUser: vi.fn() });
-    const { user } = renderWithProviders(<LanguageSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<LanguageSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: btn('fr') }));
     await waitFor(() =>
       expect(mutate).toHaveBeenCalledWith('/users/u1', { language: frontendToBackendLocale('fr') })
@@ -47,7 +47,7 @@ describe('LanguageSettings', () => {
 
   it('re-selecting the current language is a no-op', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1', language: 'en' }, refreshUser: vi.fn() });
-    const { user } = renderWithProviders(<LanguageSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<LanguageSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: btn('en') }));
     expect(mutate).not.toHaveBeenCalled();
   });
@@ -58,7 +58,7 @@ describe('LanguageSettings', () => {
     // had just activated vanished from under them and focus fell back to
     // <body>. The selection is stated with `aria-current` instead.
     useAuth.mockReturnValue({ user: { id: 'u1', language: 'en' }, refreshUser: vi.fn() });
-    renderWithProviders(<LanguageSettings lng="en" collapsible={false} />);
+    renderWithProviders(<LanguageSettings lng="en" />);
 
     const current = screen.getByRole('button', { name: btn('en') });
     expect(current).toBeEnabled();
@@ -68,7 +68,7 @@ describe('LanguageSettings', () => {
 
   it('leaves focus on the option the user just activated', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1', language: 'en' }, refreshUser: vi.fn() });
-    const { user } = renderWithProviders(<LanguageSettings lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<LanguageSettings lng="en" />);
 
     const current = screen.getByRole('button', { name: btn('en') });
     current.focus();
@@ -82,7 +82,7 @@ describe('LanguageSettings', () => {
 
   it('renders nothing without an authenticated user', () => {
     useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
-    renderWithProviders(<LanguageSettings lng="en" collapsible={false} />);
+    renderWithProviders(<LanguageSettings lng="en" />);
     expect(screen.queryByRole('button', { name: btn('fr') })).toBeNull();
   });
 });

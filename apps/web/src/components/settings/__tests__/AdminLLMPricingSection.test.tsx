@@ -63,7 +63,7 @@ function listOf(models: LLMModelPricing[]) {
 }
 
 function render() {
-  return renderWithProviders(<AdminLLMPricingSection lng="en" collapsible={false} />);
+  return renderWithProviders(<AdminLLMPricingSection lng="en" />);
 }
 
 async function renderLoaded(models: LLMModelPricing[] = [makeLLMPricing()]) {

@@ -6,8 +6,13 @@ Contains settings for the AI document generation feature (ADR-226):
 - Source-data size cap forwarded to the internal document LLM
 
 Note: the model is managed via the admin LLM Config system (LLM type
-``document_generation`` in LLM_TYPES_REGISTRY / LLMConfigOverrideCache); the
-per-user opt-in lives on the User model (``document_generation_enabled``).
+``document_generation`` in LLM_TYPES_REGISTRY / LLMConfigOverrideCache).
+
+There is **no per-user opt-in**: an instance that offers document generation
+offers it to every account, and the only bounds are this deployment flag and
+the administrator's capability switch. (This docstring claimed such a column
+existed on the User model until 2026-08-18; it never did, and the capability
+map was about to report a dormant state nobody could ever turn on.)
 """
 
 from __future__ import annotations

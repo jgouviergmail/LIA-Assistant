@@ -7,7 +7,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import { Accordion } from '@/components/ui/accordion';
 
 const { useSkills } = vi.hoisted(() => ({ useSkills: vi.fn() }));
 vi.mock('@/hooks/useSkills', async importOriginal => {
@@ -60,9 +59,7 @@ function hook(over: Partial<SkillsHook> = {}) {
 
 function renderSkills() {
   return renderWithProviders(
-    <Accordion type="multiple" defaultValue={['skills']}>
-      <SkillsSettings lng="en" />
-    </Accordion>
+    <SkillsSettings lng="en" />
   );
 }
 

@@ -66,7 +66,7 @@ function hook(over: Partial<MemoriesHook> = {}) {
 }
 
 function render() {
-  return renderWithProviders(<MemorySettings lng="en" collapsible={false} />);
+  return renderWithProviders(<MemorySettings lng="en" />);
 }
 
 /** Memories live in collapsed per-category sections. */

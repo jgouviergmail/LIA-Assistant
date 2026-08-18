@@ -80,14 +80,14 @@ beforeEach(() => {
 describe('AdminDebugSettingsSection — surfaces', () => {
   it('shows a loading placeholder until both queries settle', () => {
     stub(panelData(), accessData(), true);
-    renderWithProviders(<AdminDebugSettingsSection lng="en" collapsible={false} />);
+    renderWithProviders(<AdminDebugSettingsSection lng="en" />);
     expect(screen.getByText('common.loading')).toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: PANEL_SWITCH })).not.toBeInTheDocument();
   });
 
   it('reflects an enabled panel and flags a value still on its default', () => {
     stub(panelData({ enabled: true, is_default: true }), accessData());
-    renderWithProviders(<AdminDebugSettingsSection lng="en" collapsible={false} />);
+    renderWithProviders(<AdminDebugSettingsSection lng="en" />);
     expect(screen.getByRole('switch', { name: PANEL_SWITCH })).toBeChecked();
     expect(screen.getByText('settings.admin.debug.statusEnabled')).toBeInTheDocument();
     expect(screen.getByText('settings.admin.debug.usingDefault')).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe('AdminDebugSettingsSection — surfaces', () => {
 
   it('keeps the two switches independent', () => {
     stub(panelData({ enabled: true, is_default: false }), accessData({ available: false }));
-    renderWithProviders(<AdminDebugSettingsSection lng="en" collapsible={false} />);
+    renderWithProviders(<AdminDebugSettingsSection lng="en" />);
     expect(screen.getByRole('switch', { name: PANEL_SWITCH })).toBeChecked();
     expect(screen.getByRole('switch', { name: ACCESS_SWITCH })).not.toBeChecked();
   });
@@ -104,7 +104,7 @@ describe('AdminDebugSettingsSection — surfaces', () => {
 describe('AdminDebugSettingsSection — debug panel switch', () => {
   it('enables the panel, patches the cache optimistically and confirms', async () => {
     const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" collapsible={false} />
+      <AdminDebugSettingsSection lng="en" />
     );
     await user.click(screen.getByRole('switch', { name: PANEL_SWITCH }));
     await waitFor(() =>
@@ -121,7 +121,7 @@ describe('AdminDebugSettingsSection — debug panel switch', () => {
   it('uses the disable wording when switching the panel off', async () => {
     stub(panelData({ enabled: true, is_default: false }), accessData());
     const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" collapsible={false} />
+      <AdminDebugSettingsSection lng="en" />
     );
     await user.click(screen.getByRole('switch', { name: PANEL_SWITCH }));
     await waitFor(() =>
@@ -133,7 +133,7 @@ describe('AdminDebugSettingsSection — debug panel switch', () => {
   it('reports a failed panel update without touching the cache', async () => {
     mutatePanel.mockRejectedValue(new Error('boom'));
     const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" collapsible={false} />
+      <AdminDebugSettingsSection lng="en" />
     );
     await user.click(screen.getByRole('switch', { name: PANEL_SWITCH }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.admin.debug.error'));
@@ -144,7 +144,7 @@ describe('AdminDebugSettingsSection — debug panel switch', () => {
 describe('AdminDebugSettingsSection — user access switch', () => {
   it('opens access to end users through its own endpoint', async () => {
     const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" collapsible={false} />
+      <AdminDebugSettingsSection lng="en" />
     );
     await user.click(screen.getByRole('switch', { name: ACCESS_SWITCH }));
     await waitFor(() =>
@@ -161,7 +161,7 @@ describe('AdminDebugSettingsSection — user access switch', () => {
   it('reports a failed access update', async () => {
     mutateAccess.mockRejectedValue(new Error('boom'));
     const { user } = renderWithProviders(
-      <AdminDebugSettingsSection lng="en" collapsible={false} />
+      <AdminDebugSettingsSection lng="en" />
     );
     await user.click(screen.getByRole('switch', { name: ACCESS_SWITCH }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.admin.debug.error'));

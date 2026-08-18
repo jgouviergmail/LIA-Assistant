@@ -28,24 +28,8 @@ import { CapabilityConstellation } from './CapabilityConstellation';
 import { CapabilityList } from './CapabilityList';
 import { useCapabilities } from '@/hooks/useCapabilities';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { settingsSectionHref, type SettingsSectionToken } from '@/lib/settings-sections';
-
-/** Where each capability is set up — its "next step". */
-const NEXT_STEP: Record<string, SettingsSectionToken> = {
-  connectors: 'connectors',
-  memory: 'memories',
-  personality: 'personality',
-  voice: 'voice-mode',
-  proactivity: 'heartbeat',
-  interests: 'interests',
-  routines: 'scheduled-actions',
-  relations: 'open-loops',
-  peers: 'peer-connections',
-  channels: 'channels',
-  spaces: 'rag-spaces',
-  journals: 'journals',
-  skills: 'skills',
-};
+import { sectionOfCapability } from '@/lib/capability-sections';
+import { settingsSectionHref } from '@/lib/settings-sections';
 
 export function CapabilityMapView({ lng }: { lng: string }) {
   const { t } = useTranslation();
@@ -76,9 +60,10 @@ export function CapabilityMapView({ lng }: { lng: string }) {
   }
 
   const hrefOf = (key: string) => {
-    const token = NEXT_STEP[key];
-    // An unmapped capability points at the settings root rather than nowhere:
+    // A capability with no section of its own (document generation: nothing to
+    // configure per account) points at the settings root rather than nowhere —
     // a dead link is worse than a general one.
+    const token = sectionOfCapability(key);
     return token ? settingsSectionHref(lng, token) : `/${lng}/dashboard/settings`;
   };
 

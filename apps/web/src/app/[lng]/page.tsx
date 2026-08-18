@@ -15,6 +15,7 @@ import { ArchitectureDiagram } from '@/components/landing/ArchitectureDiagram';
 import { UseCasesSection } from '@/components/landing/UseCasesSection';
 import { TechSection } from '@/components/landing/TechSection';
 import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
+import { ChangelogSection } from '@/components/landing/ChangelogSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
@@ -150,6 +151,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <GallerySection />
           <TechSection lng={lng} />
           <ArchitectureDiagram />
+          <ChangelogSection lng={lng} />
           <BlogPreviewSection lng={lng} />
           <CosmosFinale lng={lng} />
         </main>
@@ -168,6 +170,7 @@ export default async function HomePage({ params }: HomePageProps) {
         <ScrollScrub targetId="gallery" />
         <ScrollScrub targetId="technology" />
         <ScrollScrub targetId="architecture" />
+        <ScrollScrub targetId="changelog" />
 
         <LandingFooter lng={lng} />
       </div>

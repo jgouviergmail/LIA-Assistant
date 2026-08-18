@@ -9,7 +9,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import userEvent from '@testing-library/user-event';
-import { Accordion } from '@/components/ui/accordion';
 import type { PasskeyCredential } from '@/hooks/useWebAuthn';
 
 const { useAuthFeatures, usePasskeys, useWebAuthn } = vi.hoisted(() => ({
@@ -66,30 +65,27 @@ beforeEach(() => {
 describe('SecuritySettings — gating', () => {
   it('renders nothing when the instance has MFA disabled', () => {
     useAuthFeatures.mockReturnValue({ features: { mfa_enabled: false, federated_signin_enabled: true }, loading: false });
-    const { container } = renderWithProviders(<SecuritySettings collapsible={false} />);
+    const { container } = renderWithProviders(<SecuritySettings />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders the section title and empty state when enabled with no passkeys', () => {
-    renderWithProviders(<SecuritySettings collapsible={false} />);
+    renderWithProviders(<SecuritySettings />);
     expect(screen.getByText('settings.security.passkeys.title')).toBeInTheDocument();
     expect(screen.getByText('settings.security.passkeys.empty')).toBeInTheDocument();
   });
 
-  it('renders as a collapsible SettingsSection card (settings design)', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(
-      <Accordion type="multiple" defaultValue={[]}>
-        <SecuritySettings />
-      </Accordion>
-    );
+  it('renders itself as the open settings card the shell deep-links to', () => {
+    const { container } = renderWithProviders(<SecuritySettings />);
 
-    const trigger = screen.getByRole('button', { name: /settings\.security\.auth\.title/ });
-    // Collapsed by default — content only appears after expanding.
-    expect(screen.queryByText('settings.security.passkeys.empty')).not.toBeInTheDocument();
-
-    await user.click(trigger);
-    expect(await screen.findByText('settings.security.passkeys.empty')).toBeInTheDocument();
+    // The anchor id is the deep-link contract (`?section=security-auth`): the
+    // pane polls it to tell an absent section from a slow one.
+    expect(container.querySelector('#settings-section-security-auth')).not.toBeNull();
+    expect(
+      screen.getByRole('heading', { name: 'settings.security.auth.title' })
+    ).toBeInTheDocument();
+    // Body visible on mount — no disclosure step since ADR-227.
+    expect(screen.getByText('settings.security.passkeys.empty')).toBeInTheDocument();
   });
 });
 
@@ -100,7 +96,7 @@ describe('SecuritySettings — list', () => {
         passkeys: [passkey(), passkey({ id: 'pk-2', label: null, backed_up: false })],
       })
     );
-    renderWithProviders(<SecuritySettings collapsible={false} />);
+    renderWithProviders(<SecuritySettings />);
 
     expect(screen.getByText('iPhone')).toBeInTheDocument();
     // Unnamed credential falls back to the translated placeholder name.
@@ -122,7 +118,7 @@ describe('SecuritySettings — enrollment', () => {
     const registerPasskey = vi.fn().mockResolvedValue(passkey());
     useWebAuthn.mockReturnValue({ registerPasskey, authenticateWithPasskey: vi.fn() });
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings collapsible={false} />);
+    renderWithProviders(<SecuritySettings />);
 
     await user.click(screen.getByRole('button', { name: /settings\.security\.passkeys\.add$/ }));
     await user.type(screen.getByLabelText('settings.security.passkeys.label_input'), 'PC bureau');
@@ -140,7 +136,7 @@ describe('SecuritySettings — enrollment', () => {
     const registerPasskey = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
     useWebAuthn.mockReturnValue({ registerPasskey, authenticateWithPasskey: vi.fn() });
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings collapsible={false} />);
+    renderWithProviders(<SecuritySettings />);
 
     await user.click(screen.getByRole('button', { name: /settings\.security\.passkeys\.add$/ }));
     await user.click(
@@ -158,7 +154,7 @@ describe('SecuritySettings — revocation', () => {
     const deletePasskey = vi.fn().mockResolvedValue(undefined);
     usePasskeys.mockReturnValue(passkeysHook({ passkeys: [passkey()], deletePasskey }));
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings collapsible={false} />);
+    renderWithProviders(<SecuritySettings />);
 
     await user.click(
       screen.getByRole('button', { name: 'settings.security.passkeys.revoke_aria' })
@@ -177,7 +173,7 @@ describe('SecuritySettings — revocation', () => {
     const deletePasskey = vi.fn().mockRejectedValue(new Error('500'));
     usePasskeys.mockReturnValue(passkeysHook({ passkeys: [passkey()], deletePasskey }));
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings collapsible={false} />);
+    renderWithProviders(<SecuritySettings />);
 
     await user.click(
       screen.getByRole('button', { name: 'settings.security.passkeys.revoke_aria' })
@@ -197,7 +193,7 @@ describe('SecuritySettings — rename', () => {
     const renamePasskey = vi.fn().mockResolvedValue(undefined);
     usePasskeys.mockReturnValue(passkeysHook({ passkeys: [passkey()], renamePasskey }));
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings collapsible={false} />);
+    renderWithProviders(<SecuritySettings />);
 
     await user.click(
       screen.getByRole('button', { name: 'settings.security.passkeys.rename_aria' })

@@ -1,0 +1,236 @@
+/**
+ * The release history, as ONE list.
+ *
+ * The FAQ has rendered a changelog for a long time; the landing page now shows
+ * the most recent entries too, so a visitor sees the product moving before
+ * they sign up. Two lists would drift the moment a release was added to one of
+ * them — which has happened here before, in the other direction: entries
+ * existed in all six locales and shipped invisible for two releases because
+ * this list did not name them (`__tests__/changelog-wiring.test.ts` fails on
+ * either kind of drift now).
+ *
+ * The list is the ONLY thing that makes an entry visible: a
+ * `faq.changelog.versions.vX_Y_Z` block can exist everywhere, pass i18n
+ * parity, and still never render if its key is missing here. Newest first.
+ */
+
+/** Versions rendered by any changelog surface, newest first. */
+export const CHANGELOG_VERSION_KEYS = [
+  'v1_30_10',
+  'v1_30_9',
+  'v1_30_8',
+  'v1_30_7',
+  'v1_30_6',
+  'v1_30_5',
+  'v1_30_4',
+  'v1_30_3',
+  'v1_30_2',
+  'v1_30_1',
+  'v1_30_0',
+  'v1_29_0',
+  'v1_28_0',
+  'v1_27_14',
+  'v1_27_13',
+  'v1_27_12',
+  'v1_27_11',
+  'v1_27_10',
+  'v1_27_9',
+  'v1_27_8',
+  'v1_27_7',
+  'v1_27_6',
+  'v1_27_5',
+  'v1_27_4',
+  'v1_27_3',
+  'v1_27_2',
+  'v1_27_1',
+  'v1_27_0',
+  'v1_26_4',
+  'v1_26_3',
+  'v1_26_2',
+  'v1_26_1',
+  'v1_26_0',
+  'v1_25_33',
+  'v1_25_32',
+  'v1_25_31',
+  'v1_25_30',
+  'v1_25_29',
+  'v1_25_28',
+  'v1_25_27',
+  'v1_25_26',
+  'v1_25_25',
+  'v1_25_24',
+  'v1_25_23',
+  'v1_25_22',
+  'v1_25_21',
+  'v1_25_20',
+  'v1_25_19',
+  'v1_25_18',
+  'v1_25_17',
+  'v1_25_16',
+  'v1_25_15',
+  'v1_25_14',
+  'v1_25_13',
+  'v1_25_12',
+  'v1_25_11',
+  'v1_25_10',
+  'v1_25_9',
+  'v1_25_8',
+  'v1_25_7',
+  'v1_25_6',
+  'v1_25_5',
+  'v1_25_4',
+  'v1_25_3',
+  'v1_25_2',
+  'v1_25_1',
+  'v1_25_0',
+  'v1_24_0',
+  'v1_23_13',
+  'v1_23_12',
+  'v1_23_11',
+  'v1_23_10',
+  'v1_23_9',
+  'v1_23_8',
+  'v1_23_7',
+  'v1_23_6',
+  'v1_23_5',
+  'v1_23_4',
+  'v1_23_3',
+  'v1_23_2',
+  'v1_23_1',
+  'v1_23_0',
+  'v1_22_0',
+  'v1_21_26',
+  'v1_21_25',
+  'v1_21_24',
+  'v1_21_23',
+  'v1_21_22',
+  'v1_21_21',
+  'v1_21_20',
+  'v1_21_19',
+  'v1_21_18',
+  'v1_21_17',
+  'v1_21_16',
+  'v1_21_15',
+  'v1_21_14',
+  'v1_21_13',
+  'v1_21_12',
+  'v1_21_11',
+  'v1_21_10',
+  'v1_21_9',
+  'v1_21_8',
+  'v1_21_7',
+  'v1_21_6',
+  'v1_21_5',
+  'v1_21_4',
+  'v1_21_3',
+  'v1_21_2',
+  'v1_21_1',
+  'v1_21_0',
+  // v1_20_17..22 shipped complete in the 6 locales but were never listed
+  // here, so six releases of history stayed invisible. Found by
+  // changelog-wiring.test.ts.
+  'v1_20_22',
+  'v1_20_21',
+  'v1_20_20',
+  'v1_20_19',
+  'v1_20_18',
+  'v1_20_17',
+  'v1_20_16',
+  'v1_20_15',
+  'v1_20_14',
+  'v1_20_13',
+  'v1_20_12',
+  'v1_20_11',
+  'v1_20_10',
+  'v1_20_9',
+  'v1_20_8',
+  'v1_20_7',
+  'v1_20_6',
+  'v1_20_5',
+  'v1_20_4',
+  'v1_20_3',
+  'v1_20_2',
+  'v1_20_1',
+  'v1_20_0',
+  'v1_18_1',
+  'v1_18_0',
+  'v1_17_2',
+  'v1_17_1',
+  'v1_17_0',
+  'v1_16_10',
+  'v1_16_9',
+  'v1_16_8',
+  'v1_16_7',
+  'v1_16_6',
+  'v1_16_5',
+  'v1_16_4',
+  'v1_16_3',
+  'v1_16_2',
+  'v1_16_1',
+  'v1_16_0',
+  'v1_15_3',
+  'v1_15_2',
+  'v1_15_1',
+  'v1_15',
+  'v1_14',
+  'v1_13',
+  'v1_12',
+  'v1_11',
+  'v1_10',
+  'v1_9',
+  'v1_8',
+  'v1_7',
+  'v1_6',
+  'v1_5',
+  'v1_4',
+  'v1_3',
+  'v1_1',
+] as const;
+
+export type ChangelogVersionKey = (typeof CHANGELOG_VERSION_KEYS)[number];
+
+/**
+ * How many releases the landing page teases.
+ *
+ * Three: enough to show a rhythm, few enough that the section stays a taste
+ * of the product rather than a second FAQ. The full history stays one click
+ * away, where it has always been.
+ */
+export const LANDING_CHANGELOG_COUNT = 3;
+
+/**
+ * The most recent releases.
+ *
+ * @param count - How many to take, newest first.
+ * @returns That many version keys (fewer only if the history is shorter).
+ */
+export function latestChangelogVersions(count: number): ChangelogVersionKey[] {
+  return CHANGELOG_VERSION_KEYS.slice(0, count);
+}
+
+/** i18n key of one release's title. */
+export function changelogTitleKey(version: string): string {
+  return `faq.changelog.versions.${version}.title`;
+}
+
+/** i18n key of one release's date line. */
+export function changelogDateKey(version: string): string {
+  return `faq.changelog.versions.${version}.date`;
+}
+
+/**
+ * i18n keys of one release's items, in order.
+ *
+ * Items are numbered `i1…iN` and the count lives beside them, so a release
+ * that gained an item never renders a blank bullet or drops the last one.
+ *
+ * @param version - A version key.
+ * @param count - The release's declared item count.
+ * @returns One key per item.
+ */
+export function changelogItemKeys(version: string, count: number): string[] {
+  return Array.from(
+    { length: count },
+    (_, index) => `faq.changelog.versions.${version}.items.i${index + 1}`
+  );
+}

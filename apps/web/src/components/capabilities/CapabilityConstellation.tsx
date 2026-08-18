@@ -202,7 +202,7 @@ export function CapabilityConstellation({
         {/* A COUNT of this account's own capabilities. Never a percentage of
             completion, and never anybody else's figure. */}
         <p className="text-xs text-muted-foreground">
-          {t('capabilities.map_count', { live, total })}
+          {t('capabilities.map_count', { count: live, total })}
         </p>
       </header>
 

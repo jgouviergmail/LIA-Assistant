@@ -16,6 +16,12 @@ import { chatDraftHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { FaqAnswer } from './FaqAnswer';
 import { Card } from '@/components/ui/card';
+import {
+  CHANGELOG_VERSION_KEYS,
+  changelogDateKey,
+  changelogItemKeys,
+  changelogTitleKey,
+} from '@/lib/changelog';
 import { Button } from '@/components/ui/button';
 import { FAQ_SECTION_ICONS } from './faq-sections';
 import {
@@ -105,6 +111,7 @@ const sections = [
   'scheduled_actions',
   'mcp_servers',
   'skills',
+  'plugins',
   'sub_agents',
   'rag_spaces',
   'voice_mode',
@@ -120,180 +127,12 @@ const sections = [
 /**
  * Versions rendered by the changelog accordion, newest first.
  *
- * This list is the ONLY thing that makes an entry visible: a `faq.changelog.versions.vX_Y_Z`
- * block can exist in all 6 locales, pass i18n parity, and still never render if its key is
- * missing here. That is not hypothetical — `v1_21_8` and `v1_21_9` shipped invisible for two
- * releases. `__tests__/changelog-wiring.test.ts` now fails on any drift in either direction.
+ * Re-exported under its historic name: the list itself moved to
+ * `lib/changelog.ts` when the landing page started teasing the most recent
+ * releases, because two hand-maintained lists would drift apart — and this
+ * one has drifted before (six releases shipped invisible for want of a key).
  */
-export const changelogVersionKeys = [
-  'v1_30_9',
-  'v1_30_8',
-  'v1_30_7',
-  'v1_30_6',
-  'v1_30_5',
-  'v1_30_4',
-  'v1_30_3',
-  'v1_30_2',
-  'v1_30_1',
-  'v1_30_0',
-  'v1_29_0',
-  'v1_28_0',
-  'v1_27_14',
-  'v1_27_13',
-  'v1_27_12',
-  'v1_27_11',
-  'v1_27_10',
-  'v1_27_9',
-  'v1_27_8',
-  'v1_27_7',
-  'v1_27_6',
-  'v1_27_5',
-  'v1_27_4',
-  'v1_27_3',
-  'v1_27_2',
-  'v1_27_1',
-  'v1_27_0',
-  'v1_26_4',
-  'v1_26_3',
-  'v1_26_2',
-  'v1_26_1',
-  'v1_26_0',
-  'v1_25_33',
-  'v1_25_32',
-  'v1_25_31',
-  'v1_25_30',
-  'v1_25_29',
-  'v1_25_28',
-  'v1_25_27',
-  'v1_25_26',
-  'v1_25_25',
-  'v1_25_24',
-  'v1_25_23',
-  'v1_25_22',
-  'v1_25_21',
-  'v1_25_20',
-  'v1_25_19',
-  'v1_25_18',
-  'v1_25_17',
-  'v1_25_16',
-  'v1_25_15',
-  'v1_25_14',
-  'v1_25_13',
-  'v1_25_12',
-  'v1_25_11',
-  'v1_25_10',
-  'v1_25_9',
-  'v1_25_8',
-  'v1_25_7',
-  'v1_25_6',
-  'v1_25_5',
-  'v1_25_4',
-  'v1_25_3',
-  'v1_25_2',
-  'v1_25_1',
-  'v1_25_0',
-  'v1_24_0',
-  'v1_23_13',
-  'v1_23_12',
-  'v1_23_11',
-  'v1_23_10',
-  'v1_23_9',
-  'v1_23_8',
-  'v1_23_7',
-  'v1_23_6',
-  'v1_23_5',
-  'v1_23_4',
-  'v1_23_3',
-  'v1_23_2',
-  'v1_23_1',
-  'v1_23_0',
-  'v1_22_0',
-  'v1_21_26',
-  'v1_21_25',
-  'v1_21_24',
-  'v1_21_23',
-  'v1_21_22',
-  'v1_21_21',
-  'v1_21_20',
-  'v1_21_19',
-  'v1_21_18',
-  'v1_21_17',
-  'v1_21_16',
-  'v1_21_15',
-  'v1_21_14',
-  'v1_21_13',
-  'v1_21_12',
-  'v1_21_11',
-  'v1_21_10',
-  'v1_21_9',
-  'v1_21_8',
-  'v1_21_7',
-  'v1_21_6',
-  'v1_21_5',
-  'v1_21_4',
-  'v1_21_3',
-  'v1_21_2',
-  'v1_21_1',
-  'v1_21_0',
-  // v1_20_17..22 shipped complete in the 6 locales but were never listed here,
-  // so six releases of history stayed invisible. Found by changelog-wiring.test.ts.
-  'v1_20_22',
-  'v1_20_21',
-  'v1_20_20',
-  'v1_20_19',
-  'v1_20_18',
-  'v1_20_17',
-  'v1_20_16',
-  'v1_20_15',
-  'v1_20_14',
-  'v1_20_13',
-  'v1_20_12',
-  'v1_20_11',
-  'v1_20_10',
-  'v1_20_9',
-  'v1_20_8',
-  'v1_20_7',
-  'v1_20_6',
-  'v1_20_5',
-  'v1_20_4',
-  'v1_20_3',
-  'v1_20_2',
-  'v1_20_1',
-  'v1_20_0',
-  'v1_18_1',
-  'v1_18_0',
-  'v1_17_2',
-  'v1_17_1',
-  'v1_17_0',
-  'v1_16_10',
-  'v1_16_9',
-  'v1_16_8',
-  'v1_16_7',
-  'v1_16_6',
-  'v1_16_5',
-  'v1_16_4',
-  'v1_16_3',
-  'v1_16_2',
-  'v1_16_1',
-  'v1_16_0',
-  'v1_15_3',
-  'v1_15_2',
-  'v1_15_1',
-  'v1_15',
-  'v1_14',
-  'v1_13',
-  'v1_12',
-  'v1_11',
-  'v1_10',
-  'v1_9',
-  'v1_8',
-  'v1_7',
-  'v1_6',
-  'v1_5',
-  'v1_4',
-  'v1_3',
-  'v1_1',
-];
+export const changelogVersionKeys = CHANGELOG_VERSION_KEYS;
 
 /**
  * Exported for `__tests__/feature-cards-wiring.test.ts`: a key listed in
@@ -640,23 +479,19 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
                       <AccordionTrigger className="text-left">
                         <div className="flex items-center gap-3">
                           <span className="font-semibold">
-                            {t(`faq.changelog.versions.${versionKey}.title`)}
+                            {t(changelogTitleKey(versionKey))}
                           </span>
                           <span className="text-xs text-muted-foreground font-normal">
-                            {t(`faq.changelog.versions.${versionKey}.date`)}
+                            {t(changelogDateKey(versionKey))}
                           </span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
                         <ul className="space-y-2 text-sm text-muted-foreground">
-                          {Array.from({ length: itemCount }, (_, i) => (
-                            <li key={i} className="flex gap-2">
+                          {changelogItemKeys(versionKey, itemCount).map(itemKey => (
+                            <li key={itemKey} className="flex gap-2">
                               <span className="text-primary mt-0.5">•</span>
-                              <span
-                                dangerouslySetInnerHTML={{
-                                  __html: t(`faq.changelog.versions.${versionKey}.items.i${i + 1}`),
-                                }}
-                              />
+                              <span dangerouslySetInnerHTML={{ __html: t(itemKey) }} />
                             </li>
                           ))}
                         </ul>

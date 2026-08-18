@@ -107,7 +107,7 @@ interface UserListResponse {
   total_pages: number;
 }
 
-export default function AdminUsersSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminUsersSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -372,7 +372,6 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
         title={t('settings.admin.users.title')}
         description={t('settings.admin.users.description')}
         icon={Users}
-        collapsible={collapsible}
       >
         <TableSkeleton rows={5} />
       </SettingsSection>
@@ -1020,7 +1019,6 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
       title={t('settings.admin.users.title')}
       description={t('settings.admin.users.description')}
       icon={Users}
-      collapsible={collapsible}
     >
       {content}
       {confirmDialog}

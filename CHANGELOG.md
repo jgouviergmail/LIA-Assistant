@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.30.10] - 2026-08-18
+
+**La carte des capacités devient la source unique de l'état — et ne peut plus prendre du retard** (ADR-229). La page « Capacités » publiait treize nœuds figés : la génération d'images, celle de **documents** (v1.30.8), les **plugins** (v1.30.7), les **habitudes apprises** (v1.28.0), les serveurs MCP et la téléphonie n'y figuraient pas. La surface censée répondre « ce que ton assistant sait faire » était donc la moins à jour de l'application, et elle lisait les drapeaux d'environnement bruts — elle pouvait annoncer disponible ce qu'un administrateur venait de couper. Elle passe à **dix-neuf capacités**, compose désormais le plafond de déploiement AVEC l'interrupteur opérateur, et un **assert au démarrage** refuse de booter si une capacité nouvellement ajoutée n'a pas décidé de son sort sur la carte : une consigne écrite se périme, un assert non.
+
+**Les cartes de la Vue d'ensemble des réglages disent enfin où en est chaque section** (ADR-229, suivi d'ADR-227 arbitré par le propriétaire). « Mémoire — active, 128 éléments », « Connecteurs — à configurer » : la ligne vient du même agrégat que la carte des capacités, et dans les mêmes mots. Une requête pour tout le hub, pas trente ; et un silence assumé pendant le chargement, en cas d'échec, ou pour une section dont l'agrégat ne dit rien — une carte qui afficherait « à configurer » avant tout comptage accuserait un compte d'être vide.
+
+**Le journal des versions arrive sur la page vitrine.** Les dernières livraisons s'affichent désormais en clair sur l'accueil, avec un lien vers l'historique complet resté dans la FAQ : un visiteur voit que le produit bouge avant même de créer un compte. Les deux surfaces lisent la même liste — une version ne peut plus apparaître ici et manquer là-bas.
+
+### Added
+- **Six capacités sur la carte** : images, documents, plugins, habitudes, serveurs MCP, téléphonie — avec leurs libellés dans les six langues, leur emplacement sur la constellation et leur lien « pas suivant ».
+- **Ligne d'état sur les cartes de la Vue d'ensemble des réglages**, `aria-hidden` (le nom accessible reste la destination).
+- **Section « Nouveautés » sur la page vitrine** et son entrée de navigation, après « Encore + ».
+- **Section « Plugins » dans la FAQ applicative** (quatre questions × six langues) : la fonctionnalité était livrée depuis v1.30.7 sans que la FAQ en parle.
+- **Carte « Les réglages, côte à côte » sur la page « Encore + »**, avec sa scène animée.
+
+### Changed
+- **« MCP Applicatifs » et « Serveurs MCP » passent dans Fonctionnalités › Extensions & Données** : un serveur qui donne de nouveaux outils à l'assistant l'étend, là où un connecteur relie un compte personnel. Les adresses (`?section=`) ne changent pas.
+- La disponibilité publiée par la carte des capacités est l'**effective** : une capacité coupée par un administrateur disparaît des deux surfaces, et n'est même plus interrogée en base.
+- La bande des versions est un composant **serveur**, comme toutes les autres de la page vitrine : aucun coût de bundle client, et des notes de version indexables.
+- Les connexions entre utilisateurs rejoignent la table déclarative des capacités (elles étaient un cas particulier en trois endroits) : leur décompte passe toujours par le dépôt qui possède la règle « acceptée, dans un sens ou dans l'autre » (ADR-185).
+- La scène « chaque réglage a une adresse » de la page « Encore + » montrait une ligne d'accordéon qui se déplie — un écran qui n'existe plus ; elle montre maintenant qu'un rechargement retombe sur le même panneau ouvert. La scène de la constellation passe de cinq à douze étoiles sur deux anneaux, comme la carte réelle.
+
+### Removed
+- **Le mode accordéon de `SettingsSection`** : plus aucune surface de production ne le rendait depuis ADR-227 ; il ne survivait que dans le gréement des tests. La prop `collapsible` disparaît des 38 composants qui la transportaient, `BaseSettingsProps` la perd, et le contexte de mode de coquille devient inutile (−444 lignes nettes).
+
+### Fixed
+- **Les descriptions des cartes de la Vue d'ensemble n'étaient pas tronquées** : `line-clamp-2` et `block` se disputaient la même propriété CSS et `block` gagnait, si bien qu'une description longue (le retour haptique) gonflait toute sa rangée. Mesuré au navigateur ; les cartes ont désormais la hauteur régulière qu'elles annonçaient.
+- **« 12 élément(s) », « 12 capacité(s) active(s) »** : les quatre décomptes de la carte des capacités passent en vrais pluriels dans les six langues — ils s'affichent maintenant sur deux surfaces au lieu d'une.
+- Les instructions de la FAQ décrivaient encore l'ancienne page de réglages (« ouvre l'onglet Préférences », « déplie Fuseau horaire », « une trentaine de sections repliées sur plusieurs onglets ») — faux depuis v1.30.9, dans les six langues.
+- `core/config/document_generation.py` documentait un opt-in par utilisateur qui n'a jamais existé sur le modèle `User` : la carte s'apprêtait à publier un état « dormant » que personne n'aurait pu allumer.
+
+### Tests
+- +28 frontend (5 730 sur 455 fichiers) : table capacité ↔ section et son inverse dérivé, ligne d'état du hub (compte exact, dormant, sans tally, silence au chargement / à l'échec / hors périmètre, nom accessible), section changelog de la vitrine, constructeurs de clés du changelog partagé, contrat unique de `SettingsSection`.
+- Backend : garde de couverture de la carte des capacités (partition de l'énumération, raisons écrites, modèles réellement résolus, emplacements de la constellation, liens « pas suivant », six locales) et sondes des interrupteurs opérateur — 47 assertions.
+- e2e : la Vue d'ensemble affiche ce que chaque section contient, depuis un agrégat mocké portant un état vivant et un état dormant.
+
 ## [1.30.9] - 2026-08-18
 
 **Les Réglages passent en master-détail — le rail est la carte, le panneau est le territoire** (ADR-227). La page empilait 51 sections en accordéons repliés sur deux ou trois onglets : rien n'était scannable, aucune description n'était visible avant d'ouvrir, et naviguer signifiait défiler. Elle devient une coquille master-détail, le patron vers lequel Linear, Slack, Notion et Stripe ont convergé pour des réglages riches : un **rail permanent** liste chaque section visible — groupée, icônée, chaque réglage à un clic à tout instant — à côté d'un **panneau** qui affiche la section choisie, ouverte en entier ; sans sélection, une **Vue d'ensemble** présente toutes les sections en cartes avec leurs descriptions, enfin visibles. Sur téléphone, le rail devient l'écran d'accueil et une sélection l'échange contre le panneau avec retour — le drill-down attendu. La recherche rapide s'installe en tête de rail et couvre désormais **l'administration** (phase 2 d'ADR-172 réalisée : les 15 sections admin deviennent cherchables et adressables par lien profond, pour les administrateurs seulement) ; `?section=` devient l'état de sélection — recharger ou partager l'URL retombe sur le même panneau. L'honnêteté d'ADR-172 survit en mieux : une section légitimement absente (instance sans MFA, aucun appel passé…) affiche un état vide explicite dans le panneau au lieu d'un toast, et continue de guetter — une donnée qui répond tard remplace le message. Sous le capot, la page ne liste plus rien à la main : elle se rend depuis les tables existantes et deux registres à complétude vérifiée par le compilateur, les ~330 lignes de layouts dupliqués disparaissent, et **une seule section monte à la fois** — les requêtes d'une section partent à sa sélection, plus au chargement d'un onglet entier.

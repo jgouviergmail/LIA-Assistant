@@ -118,7 +118,7 @@ beforeEach(() => {
 });
 
 function renderSection() {
-  return render(<HabitsSettings lng="fr" collapsible={false} />);
+  return render(<HabitsSettings lng="fr" />);
 }
 
 describe('HabitsSettings', () => {

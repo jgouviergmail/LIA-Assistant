@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe('TimezoneSelector', () => {
   it('renders the timezone search box once mounted', async () => {
-    renderWithProviders(<TimezoneSelector lng="en" collapsible={false} />);
+    renderWithProviders(<TimezoneSelector lng="en" />);
     await waitFor(() =>
       expect(
         screen.getByPlaceholderText('settings.timezone.search_placeholder')
@@ -35,7 +35,7 @@ describe('TimezoneSelector', () => {
   });
 
   it('fetches the timezone list on mount', async () => {
-    renderWithProviders(<TimezoneSelector lng="en" collapsible={false} />);
+    renderWithProviders(<TimezoneSelector lng="en" />);
     await waitFor(() => expect(get).toHaveBeenCalledWith('/users/timezones'));
   });
 });

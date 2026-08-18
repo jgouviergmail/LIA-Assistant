@@ -71,12 +71,12 @@ afterEach(() => {
 describe('AdminConnectorsSection — rendering', () => {
   it('shows the loading placeholder while the config loads', () => {
     stub([], true);
-    renderWithProviders(<AdminConnectorsSection lng="en" collapsible={false} />);
+    renderWithProviders(<AdminConnectorsSection lng="en" />);
     expect(screen.getByText('settings.admin.connectors.loading')).toBeInTheDocument();
   });
 
   it('treats a connector without config as enabled', () => {
-    renderWithProviders(<AdminConnectorsSection lng="en" collapsible={false} />);
+    renderWithProviders(<AdminConnectorsSection lng="en" />);
     // Every connector defaults to enabled, so only "disable" affordances exist.
     expect(screen.getAllByRole('button', { name: DISABLE }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: ENABLE })).not.toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('AdminConnectorsSection — rendering', () => {
 
   it('surfaces a disabled connector with its reason', () => {
     stub([config({ is_enabled: false, disabled_reason: 'quota exceeded' })]);
-    renderWithProviders(<AdminConnectorsSection lng="en" collapsible={false} />);
+    renderWithProviders(<AdminConnectorsSection lng="en" />);
     // Exactly one connector is disabled → a single enable affordance.
     expect(screen.getByRole('button', { name: ENABLE })).toBeInTheDocument();
     expect(screen.getByText(/quota exceeded/)).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe('AdminConnectorsSection — rendering', () => {
 describe('AdminConnectorsSection — toggling', () => {
   it('does not disable when the reason prompt is dismissed', async () => {
     vi.spyOn(window, 'prompt').mockReturnValue(null);
-    const { user } = renderWithProviders(<AdminConnectorsSection lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<AdminConnectorsSection lng="en" />);
     await user.click(screen.getAllByRole('button', { name: DISABLE })[0]);
     expect(updateConfig).not.toHaveBeenCalled();
     expect(setData).not.toHaveBeenCalled();
@@ -102,7 +102,7 @@ describe('AdminConnectorsSection — toggling', () => {
 
   it('disables a connector with the captured reason and appends the missing config', async () => {
     vi.spyOn(window, 'prompt').mockReturnValue('abuse');
-    const { user } = renderWithProviders(<AdminConnectorsSection lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<AdminConnectorsSection lng="en" />);
     // The first category's first connector is google_gmail.
     await user.click(screen.getAllByRole('button', { name: DISABLE })[0]);
     await waitFor(() =>
@@ -126,7 +126,7 @@ describe('AdminConnectorsSection — toggling', () => {
     const promptSpy = vi.spyOn(window, 'prompt');
     const existing = config({ is_enabled: false, disabled_reason: 'quota exceeded' });
     stub([existing]);
-    const { user } = renderWithProviders(<AdminConnectorsSection lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<AdminConnectorsSection lng="en" />);
     await user.click(screen.getByRole('button', { name: ENABLE }));
     await waitFor(() =>
       expect(updateConfig).toHaveBeenCalledWith(`${ENDPOINT}/google_gmail`, {
@@ -144,7 +144,7 @@ describe('AdminConnectorsSection — toggling', () => {
   it('reports a failed toggle and leaves the cache untouched', async () => {
     vi.spyOn(window, 'prompt').mockReturnValue('abuse');
     updateConfig.mockRejectedValue(new Error('boom'));
-    const { user } = renderWithProviders(<AdminConnectorsSection lng="en" collapsible={false} />);
+    const { user } = renderWithProviders(<AdminConnectorsSection lng="en" />);
     await user.click(screen.getAllByRole('button', { name: DISABLE })[0]);
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
     expect(setData).not.toHaveBeenCalled();

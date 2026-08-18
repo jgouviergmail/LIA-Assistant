@@ -4,12 +4,13 @@
 Because not every LIA instance offers the same features, and that is
 deliberate rather than a bug.
 
-An administrator can switch ten capabilities on or off for the whole instance,
+An administrator can switch eleven capabilities on or off for the whole instance,
 from the settings panel, without redeploying and without editing a
 configuration file:
 
-dictation · speech synthesis · image generation · file uploads · document
-spaces · web search · web browsing · skills · MCP servers · telephony
+dictation · speech synthesis · image generation · document generation · file
+uploads · document spaces · web search · web browsing · skills · MCP servers ·
+telephony
 
 If one of them is off on your instance, LIA says so by name, in your language,
 rather than failing without explanation.

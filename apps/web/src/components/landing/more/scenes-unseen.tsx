@@ -347,15 +347,36 @@ const SKY_STEPS: readonly TimelineStep<SkyPhase>[] = [
   { at: 1900, state: 'traced' },
 ];
 
-/** Where the stars sit, and which of them are lit — fixed, like the real map. */
+/**
+ * Where the stars sit, and which of them are lit — fixed, like the real map.
+ *
+ * TWO rings, as the chart itself draws: the real map went from thirteen
+ * capabilities to nineteen (2026-08-18), and a five-star postcard had stopped
+ * looking like the thing it illustrates. The figure still joins only the lit
+ * ones, which is the whole idea — the outline IS this account's configuration.
+ */
 const SKY_STARS = [
-  { x: 50, y: 16, lit: true },
-  { x: 80, y: 38, lit: true },
-  { x: 72, y: 74, lit: false },
-  { x: 28, y: 74, lit: true },
-  { x: 20, y: 38, lit: true },
+  // Inner ring — what the assistant leans on.
+  { x: 50, y: 26, lit: true },
+  { x: 71, y: 50, lit: true },
+  { x: 50, y: 74, lit: false },
+  { x: 29, y: 50, lit: true },
+  // Outer ring — what extends it.
+  { x: 50, y: 8, lit: false },
+  { x: 80, y: 20, lit: true },
+  { x: 92, y: 50, lit: false },
+  { x: 80, y: 80, lit: true },
+  { x: 50, y: 92, lit: false },
+  { x: 20, y: 80, lit: true },
+  { x: 8, y: 50, lit: false },
+  { x: 20, y: 20, lit: true },
 ] as const;
+// ANGULAR order, like `figureOutline` on the real chart: joined in array order
+// the path would jump between the two rings and knot itself, which reads as a
+// scribble rather than as a constellation.
 const LIT_FIGURE = SKY_STARS.filter(star => star.lit)
+  .slice()
+  .sort((a, b) => Math.atan2(a.y - 50, a.x - 50) - Math.atan2(b.y - 50, b.x - 50))
   .map(star => `${star.x},${star.y}`)
   .join(' ');
 
@@ -370,16 +391,20 @@ function CapabilityMapScene({ active }: SceneProps) {
     <div className={cn(STAGE, 'justify-center')}>
       <div className="relative aspect-square w-full max-w-[150px] overflow-hidden rounded-xl border border-border bg-[radial-gradient(circle_at_50%_45%,var(--capability-glow-blue),transparent_65%)]">
         <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
-          <circle
-            cx="50"
-            cy="50"
-            r="34"
-            fill="none"
-            stroke="var(--capability-star)"
-            strokeOpacity="0.15"
-            strokeWidth="0.4"
-            strokeDasharray="1.5 2.5"
-          />
+          {/* The two rings the chart places its capabilities on. */}
+          {[24, 42].map(radius => (
+            <circle
+              key={radius}
+              cx="50"
+              cy="50"
+              r={radius}
+              fill="none"
+              stroke="var(--capability-star)"
+              strokeOpacity="0.15"
+              strokeWidth="0.4"
+              strokeDasharray="1.5 2.5"
+            />
+          ))}
           <polygon
             points={LIT_FIGURE}
             fill="var(--capability-star)"

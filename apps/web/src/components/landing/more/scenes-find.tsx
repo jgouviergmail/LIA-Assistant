@@ -1,12 +1,23 @@
 /**
- * Scenes of section 04 — "When you search": everyday-words settings search,
- * settings deep links, full history search, the phone logo navigation.
+ * Scenes of section 04 — "When you search": the master-detail settings shell,
+ * the everyday-words settings search, settings deep links that survive a
+ * reload, full history search, the phone logo navigation.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
 'use client';
 
-import { ChevronDown, Hash, Link2, Moon, Palette, Search, Star, SunMedium } from 'lucide-react';
+import {
+  ChevronDown,
+  Hash,
+  Link2,
+  Moon,
+  Palette,
+  PanelLeft,
+  RotateCw,
+  Search,
+  Star,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -52,35 +63,129 @@ function SettingsSearchScene({ active, labels }: SceneProps) {
   );
 }
 
-type DeepPhase = 'link' | 'navigate' | 'highlight';
+type ShellPhase = 'rail' | 'picking' | 'open';
+const SHELL_STEPS: readonly TimelineStep<ShellPhase>[] = [
+  { at: 0, state: 'rail' },
+  { at: 1000, state: 'picking' },
+  { at: 1600, state: 'open' },
+];
+
+/**
+ * The master-detail settings shell (ADR-227): a permanent rail of sections
+ * beside a pane that opens exactly one of them, whole.
+ */
+function SettingsShellScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SHELL_STEPS, { active });
+  const open = phase === 'open';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="flex w-full max-w-[220px] gap-2">
+        {/* The rail — always there, never scrolled away. */}
+        <div className="w-[38%] shrink-0 space-y-1">
+          {[0, 1, 2, 3].map(row => (
+            <div
+              key={row}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors duration-300',
+                row === 1 && phase !== 'rail' ? 'bg-primary/10' : 'bg-transparent'
+              )}
+            >
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-300',
+                  row === 1 && phase !== 'rail' ? 'bg-primary' : 'bg-muted-foreground/30'
+                )}
+              />
+              <SkeletonLine w="w-full" className="h-1.5" />
+            </div>
+          ))}
+        </div>
+        {/* The pane — one section, open, with room to breathe. */}
+        <div
+          className={cn(
+            'min-w-0 flex-1 rounded-lg border bg-background p-2 transition-all duration-500 ease-out',
+            open
+              ? 'translate-x-0 border-border opacity-100'
+              : 'translate-x-1 border-border/40 opacity-40'
+          )}
+        >
+          <span className="flex items-center gap-1.5">
+            <PanelLeft className="h-3 w-3 shrink-0 text-primary" />
+            <span className="truncate text-[9px] font-medium text-foreground/80">
+              {labels.section}
+            </span>
+          </span>
+          <span
+            className={cn(
+              'mt-1.5 block space-y-1 overflow-hidden transition-all duration-500 ease-out',
+              open ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'
+            )}
+          >
+            <SkeletonLine w="w-5/6" className="h-1.5" />
+            <SkeletonLine w="w-2/3" className="h-1.5" />
+            <SkeletonLine w="w-3/4" className="h-1.5" />
+          </span>
+        </div>
+      </div>
+      <Cursor
+        className={cn(
+          'left-[22%] top-[42%] transition-opacity',
+          phase === 'picking' ? 'opacity-100' : 'opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
+type DeepPhase = 'link' | 'navigate' | 'reload';
 const DEEP_STEPS: readonly TimelineStep<DeepPhase>[] = [
   { at: 0, state: 'link' },
   { at: 1100, state: 'navigate' },
-  { at: 1900, state: 'highlight' },
+  { at: 2100, state: 'reload' },
 ];
 
+/**
+ * A section's address SURVIVES: since the shell keeps `?section=` in the URL,
+ * reloading or sharing lands on the very same open panel. The old scene showed
+ * a link highlighting an accordion row — a page that no longer exists.
+ */
 function DeepLinksScene({ active }: SceneProps) {
   const phase = useLoopedTimeline(DEEP_STEPS, { active });
+  const landed = phase !== 'link';
   return (
-    <div className={cn(STAGE, 'justify-center gap-3')}>
+    <div className={cn(STAGE, 'justify-center gap-2.5')}>
       <span
         className={cn(
-          'flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 transition-colors duration-300',
-          phase !== 'link' && 'border-primary/50'
+          'flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 transition-colors duration-300',
+          landed ? 'border-primary/50' : 'border-border'
         )}
       >
         <Link2 className="h-3 w-3 text-primary" />
         <Hash className="h-3 w-3 text-muted-foreground" />
-        <SkeletonLine w="w-14" />
+        <SkeletonLine w="w-12" />
+        <RotateCw
+          className={cn(
+            'h-3 w-3 transition-all duration-500',
+            phase === 'reload' ? 'rotate-180 text-primary' : 'text-muted-foreground/40'
+          )}
+        />
       </span>
+      {/* The same panel, open, before and after the reload — the point being
+          that nothing had to be found again. */}
       <div
         className={cn(
-          'w-full max-w-[200px] space-y-1 transition-transform duration-500 ease-out',
-          phase === 'link' ? 'translate-y-2' : 'translate-y-0'
+          'w-full max-w-[190px] rounded-lg border border-border bg-background p-2 transition-all duration-500 ease-out',
+          landed ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
         )}
       >
-        <MiniSettingRow icon={SunMedium} />
-        <MiniSettingRow icon={Moon} highlighted={phase === 'highlight'} />
+        <span className="flex items-center gap-1.5">
+          <Moon className="h-3 w-3 shrink-0 text-primary" />
+          <SkeletonLine w="w-1/2" className="h-1.5" />
+        </span>
+        <span className="mt-1.5 block space-y-1">
+          <SkeletonLine w="w-full" className="h-1.5" />
+          <SkeletonLine w="w-2/3" className="h-1.5" />
+        </span>
       </div>
     </div>
   );
@@ -292,6 +397,7 @@ function RelationSectionsScene({ active, labels }: SceneProps) {
 }
 
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
+  settings_shell: SettingsShellScene,
   settings_search: SettingsSearchScene,
   deep_links: DeepLinksScene,
   history_search: HistorySearchScene,

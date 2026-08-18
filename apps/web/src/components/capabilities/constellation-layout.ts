@@ -15,21 +15,39 @@
  * keeps its shape across instances.
  */
 
-/** Display order and ring of every capability the map can draw. */
+/**
+ * Display order and ring of every capability the map can draw.
+ *
+ * The INNER ring holds what the assistant leans on in every exchange — who it
+ * is, what it remembers, what it can produce; the OUTER one what extends it.
+ * A key the payload carries but this table does not know is DROPPED by
+ * `layoutCapabilities` (an unlabelled dot would be worse), which is why the
+ * backend guard `test_capability_coverage_guard.py` reads this list and fails
+ * when a node ships without a slot.
+ */
 export const CAPABILITY_ORDER: readonly { key: string; ring: 'inner' | 'outer' }[] = [
   { key: 'connectors', ring: 'inner' },
   { key: 'memory', ring: 'inner' },
   { key: 'personality', ring: 'inner' },
   { key: 'voice', ring: 'inner' },
   { key: 'proactivity', ring: 'inner' },
+  // What the assistant PRODUCES sits on the inner ring with the rest of what
+  // it is: images (v1.25) and documents (v1.30.8) are reached in the flow of a
+  // conversation, not configured on the side.
+  { key: 'images', ring: 'inner' },
+  { key: 'documents', ring: 'inner' },
   { key: 'interests', ring: 'outer' },
   { key: 'routines', ring: 'outer' },
   { key: 'relations', ring: 'outer' },
+  { key: 'habits', ring: 'outer' },
   { key: 'peers', ring: 'outer' },
   { key: 'channels', ring: 'outer' },
+  { key: 'telephony', ring: 'outer' },
   { key: 'spaces', ring: 'outer' },
   { key: 'journals', ring: 'outer' },
   { key: 'skills', ring: 'outer' },
+  { key: 'plugins', ring: 'outer' },
+  { key: 'mcp_servers', ring: 'outer' },
 ];
 
 /** Percentage radii — the map is rendered in a square, unit-free box. */

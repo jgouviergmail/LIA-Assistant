@@ -113,7 +113,7 @@ function stubTransport(
 }
 
 function render() {
-  return renderWithProviders(<AdminRAGSpacesSection lng="en" collapsible={false} />);
+  return renderWithProviders(<AdminRAGSpacesSection lng="en" />);
 }
 
 beforeEach(() => {

@@ -68,6 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-08-18 after the capability-map /
+        // settings-hub lot (ADR-229: the shared capability↔section table and
+        // its derived reverse, the hub status line with its four silences,
+        // the landing release band and the shared changelog key builders,
+        // plus the single-form SettingsSection contract):
+        // statements 74.89 / branches 70.51 / functions 71.54 / lines 75.53.
+        // Raised 72/68/68/72 -> 72/68/69/73 (floor(measured - 2) per axis —
+        // functions and lines cross an integer step this time).
         // Global floor — re-measured 2026-08-17 after the time-slot LLM
         // pricing lot (ADR-223: the slot editor and its pure helpers —
         // validation mirror, payload builder, UTC-offset label — plus the
@@ -230,8 +238,8 @@ export default defineConfig({
         // without the test degenerating into a test of its own mocks.
         statements: 72,
         branches: 68,
-        functions: 68,
-        lines: 72,
+        functions: 69,
+        lines: 73,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

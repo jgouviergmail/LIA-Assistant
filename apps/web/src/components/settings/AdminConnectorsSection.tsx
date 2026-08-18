@@ -64,7 +64,7 @@ const getConnectorLabel = (type: string): string => {
   return type;
 };
 
-export default function AdminConnectorsSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminConnectorsSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
   // Use generic API query hook
@@ -156,7 +156,6 @@ export default function AdminConnectorsSection({ lng, collapsible = true }: Base
         title={t('settings.admin.connectors.title')}
         description={t('settings.admin.connectors.description')}
         icon={Plug}
-        collapsible={collapsible}
       >
         <div className="animate-pulse text-muted-foreground">
           {t('settings.admin.connectors.loading')}
@@ -241,7 +240,6 @@ export default function AdminConnectorsSection({ lng, collapsible = true }: Base
       title={t('settings.admin.connectors.title')}
       description={t('settings.admin.connectors.description')}
       icon={Plug}
-      collapsible={collapsible}
     >
       {content}
     </SettingsSection>

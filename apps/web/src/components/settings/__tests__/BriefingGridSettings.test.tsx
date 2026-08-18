@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 function renderSettings() {
-  return render(<BriefingGridSettings lng="fr" collapsible={false} />);
+  return render(<BriefingGridSettings lng="fr" />);
 }
 
 describe('BriefingGridSettings', () => {

@@ -46,10 +46,7 @@ interface GoogleApiPricingListResponse {
   entries: GoogleApiPricing[];
 }
 
-export default function AdminGoogleApiPricingSection({
-  lng,
-  collapsible = true,
-}: BaseSettingsProps) {
+export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
   const [entries, setEntries] = useState<GoogleApiPricing[]>([]);
@@ -299,7 +296,6 @@ export default function AdminGoogleApiPricingSection({
         title={t('settings.admin.google_api.title')}
         description={t('settings.admin.google_api.description')}
         icon={Globe}
-        collapsible={collapsible}
       >
         <Skeleton className="mb-4 h-8 w-64" />
         <TableSkeleton rows={5} />
@@ -529,7 +525,6 @@ export default function AdminGoogleApiPricingSection({
       title={t('settings.admin.google_api.title')}
       description={t('settings.admin.google_api.description')}
       icon={Globe}
-      collapsible={collapsible}
     >
       {content}
       {confirmDialog}

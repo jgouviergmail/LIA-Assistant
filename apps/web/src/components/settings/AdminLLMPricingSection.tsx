@@ -186,7 +186,7 @@ function SortableHeader({
   );
 }
 
-export default function AdminLLMPricingSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
   const invalidateCatalogue = useCatalogueInvalidator();
 
@@ -490,7 +490,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         title={t('settings.admin.llm.title')}
         description={t('settings.admin.llm.description')}
         icon={DollarSign}
-        collapsible={collapsible}
       >
         <Skeleton className="mb-4 h-8 w-64" />
         <TableSkeleton rows={5} />
@@ -692,7 +691,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
       title={t('settings.admin.llm.title')}
       description={t('settings.admin.llm.description')}
       icon={DollarSign}
-      collapsible={collapsible}
     >
       {content}
       {confirmDialog}
