@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 4.3
-**Date**: 2026-08-17
-**Application**: LIA v1.30.8
+**Date**: 2026-08-18
+**Application**: LIA v1.30.9
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 225 ADRs, ~19,414 pytest-collected tests across 1,100 files, native observability, 6-level HITL |
+| Production reliability | 226 ADRs, ~19,409 pytest-collected tests across 1,099 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -74,7 +74,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~19,414 (collected by pytest across 1,100 test files) + 5,537 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~19,409 (collected by pytest across 1,099 test files) + 5,710 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -349,7 +349,7 @@ The whole system is governed by a feature flag and a dozen env-tunable settings 
 
 ### 5.5. Generated artifacts: from request to downloadable file (ADR-226)
 
-Since v1.30.8 the pipeline can end on a file rather than only on prose. The `generate_document` tool follows the same architecture as image generation — a virtual agent in the catalogue, no dedicated graph node — but its "generator" is a dedicated LLM slot (`document_generation`, admin-configurable like every other slot) called with **structured output typed per format family**: tabular content for CSV/Excel, a section tree for Word/PDF/Markdown/text, a slide list for PowerPoint. The schema is selected *before* the call, so every response is strict-schema validated, then a **pure local renderer** builds the exact bytes — openpyxl, python-docx, python-pptx, PyMuPDF: the libraries already shipped for RAG extraction, now writing instead of reading, with zero third-party document service.
+Since v1.30.9 the pipeline can end on a file rather than only on prose. The `generate_document` tool follows the same architecture as image generation — a virtual agent in the catalogue, no dedicated graph node — but its "generator" is a dedicated LLM slot (`document_generation`, admin-configurable like every other slot) called with **structured output typed per format family**: tabular content for CSV/Excel, a section tree for Word/PDF/Markdown/text, a slide list for PowerPoint. The schema is selected *before* the call, so every response is strict-schema validated, then a **pure local renderer** builds the exact bytes — openpyxl, python-docx, python-pptx, PyMuPDF: the libraries already shipped for RAG extraction, now writing instead of reading, with zero third-party document service.
 
 Three design decisions carry the feature. First, honesty of the artifact: spreadsheet cells are neutralized against formula injection (a probe proved openpyxl stores `=1+2` as a live formula) while legitimate negative numbers stay untouched, and a failure after the paid LLM call returns an explicit error — never a phantom card. Second, chaining: the planner can feed the results of a web-research step into the document step (`source_data`), so "research then formalize as CSV" is one request. Third, lifecycle: the file lands in the existing attachments store with the same TTL purge as generated images, and its card — delivered live through the SSE done chunk and persisted in message metadata through one shared serializer — displays the exact expiry deadline.
 
@@ -1278,11 +1278,13 @@ A corollary about shape: a label is made for a **word**. The component pins its 
 
 Three ADRs (206 through 208) turned visual consistency into a tooled contract rather than a review-time discipline. A status no longer picks its colour: it **names a tone** and a single table decides (`status-tone.ts`), covered by the contrast guard across five themes in light and dark. An action no longer picks its shape: its **altitude** does — solid to create, solid red for mass destruction, red at rest for a row delete, outline for a true secondary. And a list row exposes its actions **one way**, backed by a shared component.
 
+The settings surface itself now follows the same doctrine of structure over discipline (ADR-227). The page renders as a master-detail shell — a permanent rail of sections beside a pane that mounts exactly one of them, an overview of descriptive cards when nothing is selected — and hand-lists nothing: rail order, grouping and the mounted component all derive from the deep-link table plus two compiler-complete registries, each proven against the section sources by tests. The consequence is architectural rather than cosmetic: a section exists on the page if and only if the tables declare it, the ~330-line duplicated layout the previous shell required is gone, and only the selected section fetches — twenty sections no longer fire their requests on a tab load. Absence stays honest: a section that legitimately renders nothing (an instance without MFA, no call ever placed) yields an explicit inline empty state that keeps polling, so data answering late replaces the message.
+
 The most valuable engineering lesson came from an invisible defect: the label primitive stayed `inline`, and vertical margins on an inline element are **computed but never rendered**. Three spacing recalibrations changed the code without moving a pixel — with the delivery chain proven healthy down to the served bytes. The reflex is now doctrine: when a visual setting has no effect, measure the element's `display` and DOM geometry in a real browser before suspecting delivery. The fix is one word (`block`), the calibration was arbitrated on driven screenshots, and a guard forbids regression.
 
 ## 24. Architecture Decision Records (ADR)
 
-225 ADRs in MADR format document the major architectural decisions. Some representative examples:
+226 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1387,10 +1389,10 @@ The common thread across these four batches is a property of the tests themselve
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 225 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,414 tests across 1,100 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 226 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,409 tests across 1,099 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 225 ADRs, and the changelog (v1.0 to v1.30.8). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 226 ADRs, and the changelog (v1.0 to v1.30.9). All metrics, versions, and patterns cited are verifiable in the codebase.*

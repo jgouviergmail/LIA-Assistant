@@ -84,11 +84,6 @@ class UserUpdate(
         None, description="Default output format: 'png', 'jpeg', 'webp'"
     )
 
-    # Document Generation preference (ADR-226)
-    document_generation_enabled: bool | None = Field(
-        None, description="Enable AI document generation feature"
-    )
-
     model_config = {"from_attributes": True}
 
 
@@ -113,11 +108,6 @@ class UserProfile(UserBase, LanguageValidatorMixin):
         default="1024x1024", description="Default image size"
     )
     image_generation_output_format: str = Field(default="png", description="Default output format")
-
-    # Document Generation preference (ADR-226)
-    document_generation_enabled: bool = Field(
-        default=True, description="AI document generation enabled"
-    )
 
 
 class UserListResponse(BaseModel):

@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **版本**：4.8
-**日期**：2026-08-17
-**应用**：LIA v1.30.8
+**日期**：2026-08-18
+**应用**：LIA v1.30.9
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -458,7 +458,7 @@ LIA同时连接**7家AI提供商**：OpenAI、Anthropic、Google、DeepSeek、Pe
 
 每位用户都可以连接自己的MCP服务器，将LIA的能力扩展到内置工具之外。客户端同时支持两代协议——新的无状态修订版与经典握手协议，按服务器自动选择——开放从不以兼容性为代价。Skills（agentskills.io标准）允许以自然语言注入专家指令——内置的Skills生成器通过引导式对话创建技能并直接安装到你的技能中，即刻可用。从 v1.16.8 开始，一个 Skill 还可以在聊天中直接返回**交互式 HTML 框架**（地图、仪表板、日历、换算器……）或**图像**（QR 码、图表），在严格的 CSP 沙盒中运行，主题和语言自动同步。
 
-自 v1.30.8 起，这种开放性有了软件包格式：LIA 支持开放标准 **Agent Plugins**（agent-plugins.org）——由 AWS、Microsoft、OpenAI、Cursor 和 Vercel 指导、被 ChatGPT、Codex、Cursor、GitHub Copilot、Kiro 和 VS Code 采用的便携插件格式。打包了技能和 MCP 服务器的插件一步安装进 LIA——通过 zip 文件或 https 链接——并按组件给出完整报告：已安装、已跳过（及原因）或已移除；卸载同样干净利落，它带来的一切随之离开。在这里，互操作性是一种信念而非功能：你在生态中任何地方构建或采用的东西，都属于你、跟随你。
+自 v1.30.9 起，这种开放性有了软件包格式：LIA 支持开放标准 **Agent Plugins**（agent-plugins.org）——由 AWS、Microsoft、OpenAI、Cursor 和 Vercel 指导、被 ChatGPT、Codex、Cursor、GitHub Copilot、Kiro 和 VS Code 采用的便携插件格式。打包了技能和 MCP 服务器的插件一步安装进 LIA——通过 zip 文件或 https 链接——并按组件给出完整报告：已安装、已跳过（及原因）或已移除；卸载同样干净利落，它带来的一切随之离开。在这里，互操作性是一种信念而非功能：你在生态中任何地方构建或采用的东西，都属于你、跟随你。
 
 
 LIA的架构专为方便扩展而设计——添加新的连接器、频道、智能体和AI提供商都有清晰的抽象层和专属开发指南（智能体创建指南、工具创建指南），让任何开发者都能轻松上手扩展。

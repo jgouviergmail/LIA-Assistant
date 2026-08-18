@@ -36,12 +36,9 @@ test.describe('admin image pricing (superuser)', () => {
     await authenticate({ is_superuser: true });
     await mockApi(adminData);
 
-    await page.goto('/en/dashboard/settings');
-
-    // Superuser settings are tabbed: switch to the Administration tab first,
-    // then open the collapsed pricing section by its visible title.
-    await page.getByRole('tab', { name: 'Administration' }).click();
-    await page.getByRole('button', { name: /LLM Image Pricing/ }).click();
+    // Master-detail shell: the deep link opens the pricing pane directly —
+    // the admin sections are indexed deep-link targets since ADR-227.
+    await page.goto('/en/dashboard/settings?section=admin-image-pricing');
 
     // The row renders from the mocked entry…
     await expect(page.getByRole('cell', { name: 'gpt-image-1' })).toBeVisible();

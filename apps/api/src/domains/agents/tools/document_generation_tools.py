@@ -118,7 +118,9 @@ async def generate_document(
             error_code="TOOL_ERROR",
         )
 
-    # --- 4. Load user (opt-in + language) ---
+    # --- 4. Load user (content language) ---
+    # No per-user opt-in (owner decision 2026-08-18): the feature is governed
+    # by the deployment flag and the admin platform capability only.
     from src.domains.agents.tools.runtime_helpers import parse_user_id
 
     user_id = parse_user_id(user_id_raw)
@@ -132,14 +134,6 @@ async def generate_document(
         )
     if not user:
         return UnifiedToolOutput.failure(message="User not found.", error_code="TOOL_ERROR")
-    if not user.document_generation_enabled:
-        return UnifiedToolOutput.failure(
-            message=(
-                "Document generation is not enabled in your settings. "
-                "Enable it in Settings > Features > Document Generation."
-            ),
-            error_code="TOOL_ERROR",
-        )
 
     # --- 5. Generate via the service (LLM -> render -> attachment -> card) ---
     conversation_id = str(configurable.get("thread_id", "unknown"))

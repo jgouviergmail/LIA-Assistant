@@ -268,6 +268,33 @@ ${summary}`
     expect(blocking, `axe violations on the settings search popup:\n${summary}`).toHaveLength(0);
   });
 
+  test('settings drill-down (phone) scans clean, rail and pane', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // Below `lg` the master-detail shell becomes a drill-down: the rail is the
+    // landing screen, a pick replaces it with the pane and its back control.
+    // Both states are phone-only DOM the desktop scans never see.
+    await authenticate();
+    await mockApi([]);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/en/dashboard/settings');
+    await expect(page.getByRole('navigation', { name: 'Settings sections' })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    const rail = await scanPage(page, testInfo, '/dashboard/settings#rail-phone');
+    expect(rail.blocking, `axe violations on the phone rail:\n${rail.summary}`).toHaveLength(0);
+
+    await page.getByRole('button', { name: 'Appearance' }).click();
+    await expect(page.locator('#settings-section-theme')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: 'Back to settings' })).toBeVisible();
+
+    const pane = await scanPage(page, testInfo, '/dashboard/settings#pane-phone');
+    expect(pane.blocking, `axe violations on the phone pane:\n${pane.summary}`).toHaveLength(0);
+  });
+
   test('spaces page scans clean', async ({ page, authenticate, mockApi }, testInfo) => {
     await authenticate();
     await mockApi(spacesData);
@@ -435,16 +462,18 @@ ${summary}`
     expect(blocking, `axe violations on space detail:\n${summary}`).toHaveLength(0);
   });
 
-  test('admin settings tab scans clean (superuser)', async ({
+  test('an admin settings pane scans clean (superuser)', async ({
     page,
     authenticate,
     mockApi,
   }, testInfo) => {
+    // Master-detail shell: the admin sections live in the rail's
+    // administration block and open as a pane — no tabs any more.
     await authenticate({ is_superuser: true });
     await mockApi(adminData);
     await page.goto('/en/dashboard/settings');
-    await page.getByRole('tab', { name: 'Administration' }).click();
-    await page.getByRole('button', { name: /LLM Image Pricing/ }).click();
+    const nav = page.getByRole('navigation', { name: 'Settings sections' });
+    await nav.getByRole('button', { name: /LLM Image Pricing/ }).click();
     await expect(page.getByRole('cell', { name: 'gpt-image-1' })).toBeVisible();
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard/settings#admin');

@@ -1175,13 +1175,6 @@
       "stt_remote_unavailable_warning": "La transcription distante n'est pas disponible : un administrateur doit d'abord configurer la clé API ElevenLabs.",
       "stt_remote_privacy_notice": "En mode distant, votre audio est transmis à ElevenLabs (cloud) pour la transcription. Le mode local garde l'audio à l'intérieur de LIA."
     },
-    "document_generation": {
-      "title": "Génération de documents",
-      "description": "Créez des fichiers CSV, Excel, Word, PowerPoint ou PDF téléchargeables dans la conversation",
-      "enable": "Activer la génération de documents",
-      "enable_description": "Autoriser l'assistant à créer des documents téléchargeables ; ils expirent automatiquement",
-      "updated": "Préférence de génération de documents mise à jour"
-    },
     "image_generation": {
       "title": "Generation d'images IA",
       "description": "Configurer la generation d'images par intelligence artificielle",
@@ -3273,6 +3266,11 @@
         "meeting_draft": "Planifie une réunion « {{subject}} » avec {{invitee}}, le {{when}}, à {{where}}."
       }
     },
+    "shell": {
+      "nav_label": "Sections des réglages",
+      "back": "Retour aux réglages",
+      "browse_all": "Voir tous les réglages"
+    },
     "search": {
       "label": "Rechercher un réglage",
       "placeholder": "Rechercher un réglage…",
@@ -3282,7 +3280,6 @@
       "results_count_other": "{{count}} réglages trouvés",
       "no_results": "Aucun réglage ne correspond à « {{query}} »",
       "no_results_hint": "Essayez un autre mot, ou parcourez les onglets ci-dessous.",
-      "admin_not_indexed": "L'onglet Administration n'est pas couvert par cette recherche.",
       "unavailable": "« {{section}} » ne s’affiche pas ici — cette section n’est peut-être pas disponible sur votre compte.",
       "keywords": {
         "language": "locale, traduction, langue de l’interface, idiome",
@@ -3301,7 +3298,6 @@
         "security-export": "RGPD, archive, téléchargement, portabilité, sauvegarde, données personnelles, confidentialité",
         "voice-mode": "micro, microphone, parole, dictée, STT, TTS, mot d’activation, audio, vocal",
         "image-generation": "images, photos, dessin, illustration, génération, art",
-        "document-generation": "documents, fichiers, csv, excel, word, powerpoint, pdf, export, rapport, présentation",
         "connectors": "google, gmail, agenda, calendrier, contacts, apple, microsoft, outlook, intégrations, comptes, oauth, reconnecter, déconnecté, services, position, localisation, géolocalisation, domicile, adresse, mémoire de position",
         "telephony-calls": "téléphone, appels, historique des appels, composer",
         "admin-mcp-servers": "MCP, model context protocol, serveurs de l’application, outils intégrés",
@@ -3320,7 +3316,22 @@
         "rag-spaces": "documents, RAG, base de connaissances, fichiers, téléversement, indexation, bibliothèque",
         "user-consumption-export": "CSV, consommation, tokens, coût, facturation, statistiques, export",
         "haptics": "haptique vibration tactile retour sensoriel",
-        "plugins": "plugins, plugin, extensions, agent plugins, installer, paquet, mcp, skills"
+        "plugins": "plugins, plugin, extensions, agent plugins, installer, paquet, mcp, skills",
+        "admin-users": "utilisateurs, comptes, rôles, superutilisateur, activer, désactiver, bloquer",
+        "admin-usage-limits": "quotas, limites, plafonds, budget, jetons, plafonds de consommation",
+        "admin-consumption-export": "export, CSV, consommation, usage, coûts, tous les comptes",
+        "admin-broadcast": "diffusion, message, annonce, notifier tout le monde",
+        "admin-connectors": "connecteurs, fournisseurs, Google, Apple, Microsoft, activer les services",
+        "admin-llm-pricing": "tarification, prix, tarif, jetons, modèles texte, coût par jeton",
+        "admin-google-api-pricing": "tarification, API Google, Maps, Places, itinéraires, coût géocodage",
+        "admin-image-pricing": "tarification, images, génération d'images, coût par image",
+        "admin-llm-config": "LLM, modèles, fournisseur, configuration, température, raisonnement, clés api",
+        "admin-personalities": "personnalités, styles, ton, prompt système, caractère de l'assistant",
+        "admin-skills": "skills, compétences système, importer, recharger, catalogue de capacités",
+        "rag-spaces-admin": "RAG, espaces, connaissances, réindexer, documents, embeddings",
+        "admin-capabilities": "capacités, fonctionnalités, interrupteurs, fonctions de la plateforme",
+        "admin-public-demo-link": "démo, démonstrateur, lien public, vitrine, partager",
+        "debug-settings": "debug, diagnostics, journaux, panneau, suivi des jetons"
       }
     },
     "haptics": {
@@ -4088,7 +4099,7 @@
         },
         "documentGeneration": {
           "title": "Génération de documents",
-          "description": "LIA rédige à la demande des documents complets et téléchargeables : tableurs CSV et Excel, rapports Word, présentations PowerPoint avec notes de présentateur, PDF, Markdown et texte brut. Un modèle rédacteur dédié produit le contenu dans votre langue — ancré dans les données que vous fournissez ou dans une recherche faite dans la même requête — puis un moteur de rendu local construit le fichier exact, sans aucun service documentaire tiers. Les fichiers apparaissent en cartes sous la réponse (nom, taille, échéance d'expiration), les PDF s'ouvrent directement dans un onglet, et tout est temporaire par conception : téléchargez ce que vous voulez garder. Désactivable par utilisateur dans les Réglages, coupure d'instance côté administrateur, et les mêmes limites d'usage que tout autre coût IA."
+          "description": "LIA rédige à la demande des documents complets et téléchargeables : tableurs CSV et Excel, rapports Word, présentations PowerPoint avec notes de présentateur, PDF, Markdown et texte brut. Un modèle rédacteur dédié produit le contenu dans votre langue — ancré dans les données que vous fournissez ou dans une recherche faite dans la même requête — puis un moteur de rendu local construit le fichier exact, sans aucun service documentaire tiers. Les fichiers apparaissent en cartes sous la réponse (nom, taille, échéance d'expiration), les PDF s'ouvrent directement dans un onglet, et tout est temporaire par conception : téléchargez ce que vous voulez garder. Coupure d'instance côté administrateur, et les mêmes limites d'usage que tout autre coût IA."
         },
         "reactMode": {
           "title": "⚡ Mode d'Exécution ReAct",
@@ -4141,12 +4152,22 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_30_9": {
+          "title": "v1.30.9 — 🧭 Réglages repensés : tout à un clic",
+          "date": "Août 2026",
+          "items": {
+            "i1": "<b>🧭 Une page Réglages moderne en master-détail</b> — fini le mur de listes repliées : un rail latéral permanent affiche toutes les sections, groupées et illustrées, et la section choisie s'ouvre en entier dans un panneau à côté. Sans sélection, une vue d'ensemble présente chaque réglage en carte avec sa description — enfin visible avant d'ouvrir quoi que ce soit. Sur téléphone, la liste vient d'abord et chaque section s'ouvre en plein écran avec un bouton retour.",
+            "i2": "<b>🔎 La recherche couvre l'administration, et les sections se partagent</b> — les administrateurs trouvent chaque panneau d'administration (utilisateurs, tarifs, configuration LLM…) par la même recherche rapide, et chaque section a une adresse stable : rechargez ou partagez l'URL, vous retombez exactement dessus. Si une section n'est pas disponible sur votre compte, la page le dit clairement — et continue de guetter, au cas où elle mettait simplement du temps à charger.",
+            "i3": "<b>📄 Les documents générés s'ouvrent dans l'application</b> — cliquez une carte de document : elle s'ouvre dans un onglet de visualisation, les CSV en vrai tableau, le Markdown et le texte joliment rendus ; Word, Excel et PowerPoint présentent un panneau de téléchargement propre, et les PDF continuent de s'ouvrir directement dans le navigateur."
+          },
+          "count": "3"
+        },
         "v1_30_8": {
           "title": "v1.30.8 — 📄 Génération de documents : de vrais fichiers, à la demande",
           "date": "Août 2026",
           "items": {
             "i1": "<b>📄 Demandez un document, recevez un vrai fichier</b> — LIA rédige désormais des documents complets à la demande : tableurs CSV et Excel, rapports Word, présentations PowerPoint, PDF, Markdown et texte brut. Demandez dans le chat (« recherche les derniers modèles LLM et formalise en CSV », « fais une présentation détaillée sur l'Alsace ») et le fichier fini apparaît en carte téléchargeable sous la réponse — il peut s'enchaîner directement sur une recherche web faite dans la même requête. Un modèle rédacteur dédié produit le contenu dans votre langue ; les tableurs sont sûrs par construction (aucune injection de formule) et prêts pour Excel.",
-            "i2": "<b>🕒 Des fichiers qui disent quand ils expirent</b> — chaque carte de document affiche son nom, sa taille et son échéance exacte d'expiration ; les PDF s'ouvrent directement dans un onglet du navigateur, tout le reste se télécharge en un clic. La génération se désactive par utilisateur dans les Réglages, par instance côté administrateur, et entre dans les mêmes limites d'usage que le reste de votre consommation IA."
+            "i2": "<b>🕒 Des fichiers qui disent quand ils expirent</b> — chaque carte de document affiche son nom, sa taille et son échéance exacte d'expiration ; les PDF s'ouvrent directement dans un onglet du navigateur, tout le reste se télécharge en un clic. La génération se pilote par instance côté administrateur et entre dans les mêmes limites d'usage que le reste de votre consommation IA."
           },
           "count": "2"
         },
@@ -7216,8 +7237,8 @@
             "answer": "Les fichiers générés sont temporaires par conception : chaque carte affiche son échéance exacte d'expiration, et un avertissement apparaît à l'approche — téléchargez le fichier pour le conserver. Le coût est celui du modèle rédacteur, compté comme le reste de votre consommation IA dans les limites de votre compte. Une limite technique protège en plus contre les boucles d'emballement ; l'usage normal ne l'atteint jamais."
           },
           "q5": {
-            "question": "Puis-je désactiver la génération de documents ?",
-            "answer": "Oui, à deux niveaux. Vous pouvez la couper pour votre propre compte dans <b>Réglages > Préférences > Génération de documents</b>. L'administrateur peut aussi désactiver la capacité pour toute l'instance, instantanément et sans redéploiement — l'outil disparaît alors même de ce que l'assistant peut proposer."
+            "question": "Qui peut désactiver la génération de documents ?",
+            "answer": "L'administrateur peut désactiver la capacité pour toute l'instance depuis le panneau des capacités de la plateforme, instantanément et sans redéploiement — l'outil disparaît alors même de ce que l'assistant peut proposer. Il n'y a pas d'interrupteur par utilisateur : quand l'instance offre la génération de documents, chaque utilisateur en dispose."
           }
         }
       },
@@ -8622,6 +8643,10 @@
       "image_generation": {
         "title": "Génération d’images IA",
         "description": "Génère des images à partir de descriptions textuelles, retouche-les ou modifie tes propres photos en pièce jointe. Qualité ajustable et suivi des coûts intégré."
+      },
+      "document_generation": {
+        "title": "Génération de documents IA",
+        "description": "Demandez un CSV, un tableur Excel, un rapport Word, un PowerPoint ou un PDF : un modèle rédacteur dédié produit le contenu, et le fichier fini arrive en carte téléchargeable — chaînable sur une recherche web de la même requête."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -10580,6 +10605,13 @@
         "availability": "Il peut être indisponible par moments, sans préavis.",
         "email_required": "L’accès demande une adresse e-mail valide et l’acceptation des conditions — c’est ce qui écarte les robots."
       }
+    }
+  },
+  "documents": {
+    "viewer": {
+      "error": "Ce document n'a pas pu être chargé — il a peut-être expiré.",
+      "not_renderable": "Ce format s'ouvre dans son application native — téléchargez-le pour le consulter.",
+      "download": "Télécharger"
     }
   }
 }

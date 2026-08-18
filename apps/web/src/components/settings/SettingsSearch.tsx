@@ -1,24 +1,20 @@
 'use client';
 
 /**
- * "Search a setting" — the quick way into thirty accordion sections.
+ * "Search a setting" — the quick way into fifty sections.
  *
- * The settings page stacks thirty user-facing sections across two tabs, all
- * collapsed. Finding one meant knowing which tab it lived in and scrolling. A
- * deep link solved that for the seventeen destinations other surfaces link to;
- * this field solves it for a reader who only knows what the setting is called.
+ * Sits at the top of the master-detail rail. A deep link serves the
+ * destinations other surfaces link to; this field serves a reader who only
+ * knows what the setting is called — administration sections included, for a
+ * superuser (phase 2 of ADR-172).
  *
  * ## Shape constraints, not preferences
  *
- * The field lives INSIDE the sticky tab bar, so two things are load-bearing:
- *
- *  1. its height never changes. `SettingsSection`'s `scroll-mt` is calibrated
- *     against the total height of the sticky chrome, so a row that grew when
- *     results appeared would make every deep link land under the bar. Results,
- *     counts and notices therefore render in an ABSOLUTELY positioned popup,
- *     never in the flow;
- *  2. the result list is never truncated. A silent top-N reads as "nothing else
- *     matches"; the listbox scrolls instead.
+ *  1. results, counts and notices render in an ABSOLUTELY positioned popup,
+ *     never in the flow: the rail beneath must not jump while a query is
+ *     typed;
+ *  2. the result list is never truncated. A silent top-N reads as "nothing
+ *     else matches"; the listbox scrolls instead.
  *
  * ## Accessibility
  *
@@ -323,13 +319,6 @@ export function SettingsSearch({ lng, availability, onSelect }: SettingsSearchPr
                 {t('settings.search.no_results_hint')}
               </p>
             </div>
-          )}
-          {/* Said once, plainly: for a superuser the search covers two tabs of
-              three, and staying silent about it would be the lie. */}
-          {availability.isSuperuser && (
-            <p className="border-t border-border/60 px-3 py-2 text-xs text-muted-foreground">
-              {t('settings.search.admin_not_indexed')}
-            </p>
           )}
         </div>
       )}

@@ -115,7 +115,6 @@ const PINNED: ReadonlyArray<{ key: string; placeholders?: readonly string[] }> =
   { key: 'settings.search.results_count_other', placeholders: ['count'] },
   { key: 'settings.search.no_results', placeholders: ['query'] },
   { key: 'settings.search.no_results_hint' },
-  { key: 'settings.search.admin_not_indexed' },
   { key: 'settings.search.unavailable', placeholders: ['section'] },
 ];
 

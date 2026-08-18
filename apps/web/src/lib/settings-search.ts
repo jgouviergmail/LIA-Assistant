@@ -7,28 +7,30 @@
  * answers "what does the reader call it", and the two are kept in lockstep by
  * the TYPE rather than by a test: `SETTINGS_SEARCH_META` is a
  * `Record<SettingsSectionToken, …>`, so adding a deep-link token without search
- * metadata does not compile. The reverse direction — a section the page renders
- * that neither table knows about — is held by
- * `__tests__/settings-sections-coverage.guard.test.ts`.
+ * metadata does not compile. The reverse direction cannot drift any more: the
+ * master-detail page renders FROM these tables (rail, overview and pane all
+ * resolve through them), so a section that neither table knows about cannot be
+ * on the page at all.
  *
  * ## What it can and cannot promise
  *
- * Twenty-two of the thirty sections always render. Eight do not, and only two
- * of those are decidable before the section mounts:
+ * Most sections always render. The administration entries are decidable up
+ * front (`superuser` gate); of the user-facing ones that can be absent, only
+ * two are decidable before the section mounts:
  *
  *   - `open-loops` reads an instance flag from `/config`;
- *   - `debug-panel` reads an admin-granted per-user flag, and the page only
- *     renders it in the NON-superuser layout;
+ *   - `debug-panel` reads an admin-granted per-user flag, and only a
+ *     NON-superuser gets it (a superuser has the admin debug section);
  *   - the six others (`telephony-calls`, `security-auth`, `security-export`,
  *     `admin-mcp-servers`, `briefing-grid`, `heartbeat`) return null from their
  *     own data — a 404, an empty list, an instance without MFA, or simply a
  *     request still in flight.
  *
- * The six stay in the index on purpose. The settings page mounts one tab at a
- * time (Radix unmounts the inactive panel), so from the Preferences tab nothing
- * can observe what the Features tab would render; guessing would trade a
- * visible dead end for an invisible one. They are marked `runtime`, and the
- * caller tells the user plainly when the destination turns out not to exist.
+ * The six stay in the index on purpose: nothing here can observe what an
+ * unmounted section would render, and guessing would trade a visible dead end
+ * for an invisible one. They are marked `runtime`; the pane tells the reader
+ * plainly when the destination turns out not to exist (inline empty state,
+ * observation-worded).
  *
  * ## Matching
  *
@@ -45,13 +47,7 @@ import {
 } from '@/lib/settings-sections';
 import { normalizeSearchText } from '@/lib/utils';
 
-/**
- * Group heading a section sits under, as keyed in `settings.groups.*`.
- *
- * Only the groups of the two indexed tabs are listed; the administration
- * groups (`users_access`, `ai_connectors`, `content_extensions`, `system`) are
- * out of scope for phase 1.
- */
+/** Group heading a section sits under, as keyed in `settings.groups.*`. */
 export type SettingsGroupKey =
   | 'personalization'
   | 'notifications_communication'
@@ -60,7 +56,11 @@ export type SettingsGroupKey =
   | 'connections_integrations'
   | 'identity_memory'
   | 'automation_tracking'
-  | 'extensions_data';
+  | 'extensions_data'
+  | 'users_access'
+  | 'ai_connectors'
+  | 'content_extensions'
+  | 'system';
 
 /**
  * Why a section might not be on the page.
@@ -76,6 +76,7 @@ export type SettingsSectionGate =
   | { kind: 'always' }
   | { kind: 'instanceFlag'; flag: 'openLoopsEnabled' | 'peersEnabled' | 'habitsEnabled' }
   | { kind: 'userDebugPanel' }
+  | { kind: 'superuser' }
   | { kind: 'runtime'; reason: string };
 
 export interface SettingsSearchMeta {
@@ -235,13 +236,6 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'voice_media',
     gate: { kind: 'always' },
   },
-  'document-generation': {
-    titleKey: 'settings.document_generation.title',
-    descriptionKey: 'settings.document_generation.description',
-    keywordsKey: `${KEYWORDS_PREFIX}.document-generation`,
-    group: 'voice_media',
-    gate: { kind: 'always' },
-  },
 
   // ---- Preferences / Connections & Integrations
   connectors: {
@@ -381,6 +375,122 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'extensions_data',
     gate: { kind: 'always' },
   },
+
+  // ---- Administration / Users & Access (superusers only, phase 2 of ADR-172)
+  'admin-users': {
+    titleKey: 'settings.admin.users.title',
+    descriptionKey: 'settings.admin.users.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-users`,
+    group: 'users_access',
+    gate: { kind: 'superuser' },
+  },
+  // Also self-gates at runtime (renders nothing when the backend answers 404),
+  // but `superuser` is the decidable half and the single gate a section gets;
+  // the runtime half is what the "not showing here" message covers.
+  'admin-usage-limits': {
+    titleKey: 'usage_limits.title',
+    descriptionKey: 'usage_limits.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-usage-limits`,
+    group: 'users_access',
+    gate: { kind: 'superuser' },
+  },
+  'admin-consumption-export': {
+    titleKey: 'settings.admin.export.title',
+    descriptionKey: 'settings.admin.export.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-consumption-export`,
+    group: 'users_access',
+    gate: { kind: 'superuser' },
+  },
+  'admin-broadcast': {
+    titleKey: 'settings.admin.broadcast.title',
+    descriptionKey: 'settings.admin.broadcast.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-broadcast`,
+    group: 'users_access',
+    gate: { kind: 'superuser' },
+  },
+
+  // ---- Administration / AI & Connectors
+  'admin-connectors': {
+    titleKey: 'settings.admin.connectors.title',
+    descriptionKey: 'settings.admin.connectors.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-connectors`,
+    group: 'ai_connectors',
+    gate: { kind: 'superuser' },
+  },
+  'admin-llm-pricing': {
+    titleKey: 'settings.admin.llm.title',
+    descriptionKey: 'settings.admin.llm.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-llm-pricing`,
+    group: 'ai_connectors',
+    gate: { kind: 'superuser' },
+  },
+  'admin-google-api-pricing': {
+    titleKey: 'settings.admin.google_api.title',
+    descriptionKey: 'settings.admin.google_api.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-google-api-pricing`,
+    group: 'ai_connectors',
+    gate: { kind: 'superuser' },
+  },
+  'admin-image-pricing': {
+    titleKey: 'settings.admin.image_pricing.title',
+    descriptionKey: 'settings.admin.image_pricing.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-image-pricing`,
+    group: 'ai_connectors',
+    gate: { kind: 'superuser' },
+  },
+  'admin-llm-config': {
+    titleKey: 'settings.admin.llmConfig.title',
+    descriptionKey: 'settings.admin.llmConfig.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-llm-config`,
+    group: 'ai_connectors',
+    gate: { kind: 'superuser' },
+  },
+
+  // ---- Administration / Content & Extensions
+  'admin-personalities': {
+    titleKey: 'settings.admin.personalities.title',
+    descriptionKey: 'settings.admin.personalities.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-personalities`,
+    group: 'content_extensions',
+    gate: { kind: 'superuser' },
+  },
+  'admin-skills': {
+    titleKey: 'settings.skills.admin_title',
+    descriptionKey: 'settings.skills.admin_description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-skills`,
+    group: 'content_extensions',
+    gate: { kind: 'superuser' },
+  },
+  'rag-spaces-admin': {
+    titleKey: 'settings.admin.ragSpaces.title',
+    descriptionKey: 'settings.admin.ragSpaces.subtitle',
+    keywordsKey: `${KEYWORDS_PREFIX}.rag-spaces-admin`,
+    group: 'content_extensions',
+    gate: { kind: 'superuser' },
+  },
+
+  // ---- Administration / System
+  'admin-capabilities': {
+    titleKey: 'settings.admin.capabilities.title',
+    descriptionKey: 'settings.admin.capabilities.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-capabilities`,
+    group: 'system',
+    gate: { kind: 'superuser' },
+  },
+  'admin-public-demo-link': {
+    titleKey: 'settings.admin.publicDemoLink.title',
+    descriptionKey: 'settings.admin.publicDemoLink.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-public-demo-link`,
+    group: 'system',
+    gate: { kind: 'superuser' },
+  },
+  'debug-settings': {
+    titleKey: 'settings.admin.debug.title',
+    descriptionKey: 'settings.admin.debug.subtitle',
+    keywordsKey: `${KEYWORDS_PREFIX}.debug-settings`,
+    group: 'system',
+    gate: { kind: 'superuser' },
+  },
 };
 
 /**
@@ -473,6 +583,9 @@ export function isSectionAvailable(
       // The page renders `UserDebugSettings` in the non-superuser layout only;
       // a superuser gets the richer admin debug section in another tab.
       return availability.debugUserAccess && !availability.isSuperuser;
+    case 'superuser':
+      // The whole administration tab exists for superusers only.
+      return availability.isSuperuser;
     case 'runtime':
     case 'always':
       return true;

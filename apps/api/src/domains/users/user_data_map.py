@@ -497,7 +497,6 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "onboarding_completed": _PREFERENCE,
     "login_notifications_enabled": _PREFERENCE,
     "image_generation_enabled": _PREFERENCE,
-    "document_generation_enabled": _PREFERENCE,
     "image_generation_default_quality": _PREFERENCE,
     "image_generation_default_size": _PREFERENCE,
     "image_generation_output_format": _PREFERENCE,

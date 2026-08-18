@@ -105,6 +105,15 @@ un type LLM dédié en guise de « générateur externe ».**
   du planner à câbler spontanément `$steps → source_data` ; qualité de mise
   en page sur contenus complexes.
 
+## Amendement 2026-08-18
+
+L'opt-in par utilisateur (`User.document_generation_enabled` + section
+Réglages) livré en v1.30.8 est **retiré** sur décision propriétaire : le
+réglage n'apportait rien (la capacité se pilote au niveau instance). Colonne
+supprimée par migration `5d6e7f8a9b0c`, garde d'outil et surface Réglages
+retirées — le flag de déploiement et la capacité admin restent les deux seuls
+niveaux de contrôle.
+
 ## Alternatives rejetées
 
 1. **Contenu fourni en paramètre par le planner/ReAct seul** : le planner est

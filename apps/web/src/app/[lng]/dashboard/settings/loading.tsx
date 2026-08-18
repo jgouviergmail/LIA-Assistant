@@ -4,15 +4,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 /**
  * Loading state for the dashboard settings page.
  *
- * A skeleton is a promise about what is coming, so it only draws what EVERY
- * user actually gets. The previous version sketched "Connectors", "Users Admin"
- * and "LLM Pricing" — two of them superuser-only sections a standard account
- * never sees — and wrapped them in `container mx-auto py-8 px-4`, a second set
- * of gutters on top of the dashboard `<main>`, so the content jumped sideways
- * and upwards the moment the real page replaced it.
- *
- * The shape below mirrors `settings/page.tsx`: the same `space-y-6` rhythm, a
- * title, a subtitle, the tab bar, then neutral collapsed sections.
+ * A skeleton is a promise about what is coming, so it draws the master-detail
+ * geometry every user actually gets: header, then the rail (search field +
+ * grouped entries) beside the overview cards. Below `lg` the rail is the whole
+ * landing screen, exactly like the real page. No superuser-only shapes.
  */
 export default function Loading() {
   return (
@@ -25,17 +20,26 @@ export default function Loading() {
         <Skeleton className="mt-2 h-5 w-80" />
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-2">
-        <Skeleton className="h-10 w-32" />
-        <Skeleton className="h-10 w-32" />
-      </div>
+      <div className="lg:flex lg:items-start lg:gap-8">
+        {/* Rail: search field, then grouped entries */}
+        <div className="space-y-4 lg:w-64 lg:shrink-0">
+          <Skeleton className="h-9 w-full rounded-lg" />
+          <div className="space-y-2">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton key={index} className="h-8 w-full rounded-md" />
+            ))}
+          </div>
+        </div>
 
-      {/* Collapsed settings sections — present for every account, whatever its role */}
-      <div className="space-y-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-16 w-full rounded-lg" />
-        ))}
+        {/* Overview cards — hidden below lg, like the real pane */}
+        <div className="hidden min-w-0 flex-1 lg:block">
+          <Skeleton className="mb-3 h-5 w-44" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

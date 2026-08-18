@@ -1170,13 +1170,6 @@
       "stt_remote_unavailable_warning": "Remote transcription is not available: an administrator must configure the ElevenLabs API key first.",
       "stt_remote_privacy_notice": "In remote mode, your audio is sent to ElevenLabs (cloud) for transcription. The local mode keeps audio inside LIA."
     },
-    "document_generation": {
-      "title": "Document generation",
-      "description": "Create downloadable CSV, Excel, Word, PowerPoint or PDF files in the conversation",
-      "enable": "Enable document generation",
-      "enable_description": "Let the assistant create downloadable documents; they expire automatically",
-      "updated": "Document generation preference updated"
-    },
     "image_generation": {
       "title": "AI Image Generation",
       "description": "Configure AI-powered image generation settings",
@@ -3268,6 +3261,11 @@
         "meeting_draft": "Schedule a meeting “{{subject}}” with {{invitee}}, on {{when}}, at {{where}}."
       }
     },
+    "shell": {
+      "nav_label": "Settings sections",
+      "back": "Back to settings",
+      "browse_all": "Browse all settings"
+    },
     "search": {
       "label": "Search a setting",
       "placeholder": "Search a setting…",
@@ -3277,7 +3275,6 @@
       "results_count_other": "{{count}} settings found",
       "no_results": "No setting matches \"{{query}}\"",
       "no_results_hint": "Try another word, or browse the tabs below.",
-      "admin_not_indexed": "The Administration tab is not covered by this search.",
       "unavailable": "\"{{section}}\" is not showing here — it may not be available on your account.",
       "keywords": {
         "language": "locale, translation, interface language, idiom",
@@ -3296,7 +3293,6 @@
         "security-export": "GDPR, archive, download, portability, backup, personal data, privacy",
         "voice-mode": "microphone, speech, dictation, STT, TTS, wake word, audio, talk",
         "image-generation": "images, pictures, drawing, illustration, generation, art",
-        "document-generation": "documents, files, csv, excel, word, powerpoint, pdf, export, report, presentation",
         "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services, position, location, geolocation, home address, location memory",
         "telephony-calls": "phone, telephone, calls, call history, dial",
         "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools",
@@ -3315,7 +3311,22 @@
         "rag-spaces": "documents, RAG, knowledge base, files, upload, indexing, library",
         "user-consumption-export": "CSV, usage, tokens, cost, billing, statistics, export",
         "haptics": "haptics vibration touch feedback sensory",
-        "plugins": "plugins, plugin, extensions, agent plugins, install, package, mcp, skills"
+        "plugins": "plugins, plugin, extensions, agent plugins, install, package, mcp, skills",
+        "admin-users": "users, accounts, roles, superuser, activate, deactivate, block",
+        "admin-usage-limits": "quotas, limits, ceilings, budget, tokens, consumption caps",
+        "admin-consumption-export": "export, CSV, consumption, usage, costs, all accounts",
+        "admin-broadcast": "broadcast, message, announcement, notify everyone",
+        "admin-connectors": "connectors, providers, Google, Apple, Microsoft, enable services",
+        "admin-llm-pricing": "pricing, price, tariff, tokens, text models, cost per token",
+        "admin-google-api-pricing": "pricing, Google API, Maps, Places, routes, geocoding cost",
+        "admin-image-pricing": "pricing, images, image generation, cost per image",
+        "admin-llm-config": "LLM, models, provider, configuration, temperature, reasoning, api keys",
+        "admin-personalities": "personalities, styles, tone, system prompt, assistant character",
+        "admin-skills": "skills, system skills, import, reload, capabilities catalog",
+        "rag-spaces-admin": "RAG, spaces, knowledge, reindex, documents, embeddings",
+        "admin-capabilities": "capabilities, feature flags, switches, platform features",
+        "admin-public-demo-link": "demo, demonstrator, public link, showroom, share",
+        "debug-settings": "debug, diagnostics, logs, panel, token tracking"
       }
     },
     "haptics": {
@@ -4083,7 +4094,7 @@
         },
         "documentGeneration": {
           "title": "Document Generation",
-          "description": "LIA writes complete, downloadable documents on demand: CSV and Excel spreadsheets, Word reports, PowerPoint presentations with speaker notes, PDF, Markdown and plain text. A dedicated writer model produces the content in your language — grounded in the data you provide or in research done in the same request — then a local renderer builds the exact file, with no third-party document service involved. Files appear as cards below the answer (filename, size, expiry deadline), PDFs open straight in a browser tab, and everything is temporary by design: download what you want to keep. Per-user opt-out in Settings, instance-wide switch for the administrator, and the same usage limits as every other AI cost."
+          "description": "LIA writes complete, downloadable documents on demand: CSV and Excel spreadsheets, Word reports, PowerPoint presentations with speaker notes, PDF, Markdown and plain text. A dedicated writer model produces the content in your language — grounded in the data you provide or in research done in the same request — then a local renderer builds the exact file, with no third-party document service involved. Files appear as cards below the answer (filename, size, expiry deadline), PDFs open straight in a browser tab, and everything is temporary by design: download what you want to keep. Instance-wide switch for the administrator, and the same usage limits as every other AI cost."
         },
         "reactMode": {
           "title": "⚡ ReAct Execution Mode",
@@ -4136,12 +4147,22 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_9": {
+          "title": "v1.30.9 — 🧭 Settings, redesigned: everything one click away",
+          "date": "August 2026",
+          "items": {
+            "i1": "<b>🧭 A modern master-detail settings page</b> — settings are no longer a wall of collapsed lists: a permanent side rail shows every section, grouped and iconed, and the chosen section opens fully in a panel beside it. With nothing selected, an overview presents every setting as a card with its description — finally visible before you open anything. On the phone, the list comes first and each section opens full screen with a back button.",
+            "i2": "<b>🔎 Search now covers administration, and section links can be shared</b> — administrators find every admin panel (users, pricing, LLM configuration…) through the same quick search, and every section has a stable address: reload or share the URL and you land exactly there. If a section isn't available on your account, the page says so plainly — and keeps watching, in case it simply took time to load.",
+            "i3": "<b>📄 Generated documents open in the app</b> — click a document card and it opens in a viewer tab: CSV as a real table, Markdown and text nicely rendered; Word, Excel and PowerPoint present a clean download panel, and PDFs keep opening straight in the browser."
+          },
+          "count": "3"
+        },
         "v1_30_8": {
           "title": "v1.30.8 — 📄 Document generation: real files, on demand",
           "date": "August 2026",
           "items": {
             "i1": "<b>📄 Ask for a real document, get a real file</b> — LIA now writes complete documents on demand: CSV and Excel spreadsheets, Word reports, PowerPoint presentations, PDF, Markdown and plain text. Ask in the chat (“research the latest LLM models and turn it into a CSV”, “make a detailed presentation about Alsace”) and the finished file appears as a downloadable card below the answer — it can chain directly on a web research done in the same request. A dedicated writer model produces the content in your language; spreadsheets are safe by construction (no formula injection) and Excel-ready.",
-            "i2": "<b>🕒 Files that say when they expire</b> — every generated document card shows its filename, its size and its exact expiry deadline; PDFs open right in a browser tab, everything else downloads in one click. Generation is opt-out per user in Settings, switchable instance-wide by the administrator, and covered by the same usage limits as the rest of your AI usage."
+            "i2": "<b>🕒 Files that say when they expire</b> — every generated document card shows its filename, its size and its exact expiry deadline; PDFs open right in a browser tab, everything else downloads in one click. Generation is switchable instance-wide by the administrator and covered by the same usage limits as the rest of your AI usage."
           },
           "count": "2"
         },
@@ -7211,8 +7232,8 @@
             "answer": "Generated files are temporary by design: each card shows its exact expiry deadline, and a warning appears when it gets close — download the file to keep it. The cost is the writer model's usage, counted like the rest of your AI usage within your account's limits. A technical rate limit additionally protects against runaway loops; normal use never hits it."
           },
           "q5": {
-            "question": "Can I turn document generation off?",
-            "answer": "Yes, at two levels. You can switch it off for your own account in <b>Settings > Preferences > Document generation</b>. The administrator can also disable the capability instance-wide, instantly and without redeploying — the tool then disappears from what the assistant can even propose."
+            "question": "Who can turn document generation off?",
+            "answer": "The administrator can disable the capability instance-wide from the platform capabilities panel, instantly and without redeploying — the tool then disappears from what the assistant can even propose. There is no per-user switch: when the instance offers document generation, every user has it."
           }
         }
       },
@@ -8696,6 +8717,10 @@
       "image_generation": {
         "title": "AI Image Generation",
         "description": "Generate images from text descriptions, refine them, or edit your own photos sent as attachments. Adjustable quality and built-in cost tracking."
+      },
+      "document_generation": {
+        "title": "AI Document Generation",
+        "description": "Ask for a CSV, an Excel sheet, a Word report, a PowerPoint or a PDF: a dedicated writer model produces the content, and the finished file arrives as a downloadable card — chainable on a web research from the same request."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -10575,6 +10600,13 @@
         "availability": "It may be unavailable from time to time, without notice.",
         "email_required": "Access needs a valid email address and accepting the terms — that is what keeps the bots out."
       }
+    }
+  },
+  "documents": {
+    "viewer": {
+      "error": "This document could not be loaded — it may have expired.",
+      "not_renderable": "This format opens in its native application — download it to view it.",
+      "download": "Download"
     }
   }
 }

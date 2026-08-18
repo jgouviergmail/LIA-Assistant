@@ -5,8 +5,8 @@
  * against the six real dictionaries. What can only be checked here is the
  * INTERACTION: that the field is a real ARIA combobox, that a keyboard reaches
  * every result and picks one, that dismissing behaves the way APG describes,
- * that the count is announced rather than merely displayed, and that a superuser
- * is told the Administration tab is out of scope.
+ * that the count is announced rather than merely displayed, and that the
+ * administration sections surface for superusers only.
  *
  * The global i18n stub echoes keys, so a section renders as
  * `settings.voice_mode.title`. That is enough — and deliberately so: this file
@@ -212,16 +212,29 @@ describe('SettingsSearch — telling the truth about the result set', () => {
     expect(screen.getByRole('status')).toHaveTextContent('settings.search.no_results');
   });
 
-  it('tells a superuser that the administration tab is out of scope', async () => {
+  it('carries no out-of-scope notice — the administration tab is indexed now', async () => {
+    // The former `admin_not_indexed` footer told a superuser the search
+    // covered two tabs of three. Phase 2 of ADR-172 indexed the third; a
+    // notice that survived it would be the new lie.
     const { user } = renderSearch({ isSuperuser: true });
     await user.type(box(), 'voice_mode');
-    expect(screen.getByText('settings.search.admin_not_indexed')).toBeInTheDocument();
+    expect(screen.queryByText('settings.search.admin_not_indexed')).not.toBeInTheDocument();
   });
 
-  it('stays silent about it for a regular user, who has no such tab', async () => {
+  it('finds an administration section for a superuser', async () => {
+    // `admin.users` is a substring of the echoed title key — same idiom as the
+    // `voice_mode` queries above.
+    const { user } = renderSearch({ isSuperuser: true });
+    await user.type(box(), 'admin.users');
+    const listbox = screen.getByRole('listbox');
+    expect(listbox).toHaveTextContent('settings.admin.users.title');
+  });
+
+  it('never offers an administration section to a regular user', async () => {
     const { user } = renderSearch();
-    await user.type(box(), 'voice_mode');
-    expect(screen.queryByText('settings.search.admin_not_indexed')).not.toBeInTheDocument();
+    await user.type(box(), 'admin.users');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.getByText('settings.search.no_results', { selector: 'p' })).toBeVisible();
   });
 
   it('never offers a section the instance has switched off', async () => {

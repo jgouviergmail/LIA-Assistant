@@ -10,6 +10,7 @@
  */
 
 import '@testing-library/jest-dom';
+import React from 'react';
 import { vi } from 'vitest';
 
 // Mock Next.js router
@@ -47,6 +48,14 @@ const { i18nStub } = vi.hoisted(() => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => i18nStub,
   Trans: ({ children }: { children: React.ReactNode }) => children,
+  // Same echoing `t` as the hook, injected as props — `FeatureErrorBoundary`
+  // is a class component and consumes the HOC form.
+  withTranslation:
+    () =>
+    <P extends object>(Component: React.ComponentType<P>) =>
+      function WithTranslationStub(props: P) {
+        return React.createElement(Component, { ...props, t: i18nStub.t, i18n: i18nStub.i18n });
+      },
   initReactI18next: {
     type: '3rdParty',
     init: vi.fn(),

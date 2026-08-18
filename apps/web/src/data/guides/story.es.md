@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 1.6
-**Fecha**: 2026-08-17
-**Aplicación**: LIA v1.30.8
+**Fecha**: 2026-08-18
+**Aplicación**: LIA v1.30.9
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -92,6 +92,8 @@ El detector de hábitos se ganó la confianza del mismo modo: ejecutado sobre da
 El ciclo 1.29.0 añadió un tercer episodio, y este trata de los tests mismos. Cada protección del programa se había entregado con los suyos, todos en verde — y todos con la misma forma: fijaban lo que el código hacía el día de la entrega. Una lista escrita a mano no describe un sistema; describe lo que su autor sabía de él. Así que se reescribieron tres guardas para **recalcular** la protección desde la fuente de verdad en lugar de repetirla. Encontraron tres fallos que ningún test existente podía ver: una síntesis de voz facturada y jamás contada contra el tope de gasto, un inicio de sesión por proveedor que se saltaba por completo la aceptación ya obligatoria de las condiciones, y once rutas de conectores que vinculaban una credencial real sin ninguna protección. Después cada guarda se rompió a propósito, para comprobar que se pone en rojo — porque una guarda a la que nadie ha visto fallar no es más que otra promesa.
 
 El ciclo 1.30.0 documentó una lección de otra naturaleza: una funcionalidad puede estar entregada, cifrada, consentida — y no servir de nada, porque nadie la lee. La última posición conocida existía desde hacía meses; solo las notificaciones proactivas la consultaban. En movimiento, el asistente respondía por tanto desde el domicilio, con aplomo. El diagnóstico vino de los registros de producción, la corrección redujo tres caminos divergentes a una cascada única — y la doctrina de las cuentas exactas se extendió a la posición: una posición fechada se anuncia fechada, «según tu última posición conocida a las 9:30», nunca «estás en». El mismo ciclo recordó que a un mecanismo de sincronización solo se le cree probado contra el motor real: el candado que serializa el primer arranque se interbloqueó con la creación concurrente de índices de PostgreSQL — medido en la tabla de bloqueos del motor, corregido como sondeo no bloqueante y custodiado por un test que prohíbe el regreso de la forma bloqueante.
+
+Más adelante en el mismo ciclo, la página de ajustes — el lugar mismo desde donde se pilota todo esto — dejó su muro de cincuenta acordeones plegados por una carcasa maestro-detalle: un riel permanente de secciones, un panel, una vista general de tarjetas donde cada descripción por fin es visible antes de abrir nada, y una búsqueda que por fin cubre la administración. El rediseño se decidió sobre maquetas interactivas antes de publicar una sola línea, y retiró de paso toda una clase de deriva: la página se renderiza ahora desde las mismas tablas que alimentan la búsqueda y los enlaces profundos — una sección ya no puede existir a medias.
 
 El ciclo 1.30.1 llevó la lógica un paso más allá: auditó la auditoría. Un informe interno concluía que los puestos LLM en streaming no contaban ningún token — mecanismo exacto, conclusión plausible, severidad máxima. La contraauditoría hizo lo que el informe no pudo: preguntar a producción. Quinientas diez llamadas de quinientas diez estaban contadas. El defecto real estaba en otra parte, y era más insidioso: el recuento dependía por completo de la generosidad de un proveedor al que nadie se lo pedía — nada lo solicitaba, nada lo probaba, nada lo vigilaba. La respuesta no fue un parche sino un contrato: cada proveedor declara su modo de recuento, la aplicación se niega a arrancar sin esa declaración, y una llamada de pago sin recuento se convierte en una alerta. El mismo ciclo reparó el contador de acciones del panel, clavado en cero desde siempre por un vocabulario que nadie emitía — historial incluido, reclasificado desde las intenciones archivadas. Porque una cifra mostrada es exacta, o no existe.
 

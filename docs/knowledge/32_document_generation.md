@@ -12,8 +12,8 @@ Each document appears as a card below the assistant's answer, with its filename,
 ## How long does a document stay available, and what does it cost?
 Generated files are temporary by design: each card shows its exact expiry deadline, and a warning appears when it gets close — download the file to keep it. The cost is the writer model's usage, counted like the rest of your AI usage within your account's limits. A technical rate limit (by default 10 generations per 5 minutes per user, administrator-tunable via DOCUMENT_GENERATION_RATE_LIMIT_CALLS and DOCUMENT_GENERATION_RATE_LIMIT_WINDOW) additionally protects against runaway loops; normal use never hits it.
 
-## Can I turn document generation off?
-Yes, at two levels. You can switch it off for your own account in **Settings > Preferences > Document generation**. The administrator can also disable the capability instance-wide via the platform capabilities panel (or the DOCUMENT_GENERATION_ENABLED environment variable), instantly and without redeploying — the tool then disappears from what the assistant can even propose.
+## Who can turn document generation off?
+The administrator can disable the capability instance-wide via the platform capabilities panel (or the DOCUMENT_GENERATION_ENABLED environment variable), instantly and without redeploying — the tool then disappears from what the assistant can even propose. There is no per-user switch: when the instance offers document generation, every user has it.
 
 ## Which model writes the documents?
 A dedicated LLM slot named "Document Generation" in the administrator's LLM Configuration (default: gpt-4.1). The administrator can point it at any configured chat model; its maximum output length bounds the largest producible document — an overflow fails with an explicit error rather than shipping a silently truncated file. The content is then rendered locally into the exact file format, with no third-party document service involved.

@@ -11,11 +11,8 @@ import {
   Check,
   Copy,
   Download,
-  ExternalLink,
-  FileSpreadsheet,
   FileText,
   Globe,
-  Presentation,
   RotateCcw,
   User,
   X,
@@ -25,6 +22,7 @@ import { cn, proxyGoogleImageUrl } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
 import { copyMessageToClipboard } from '@/lib/message-clipboard';
 import { MarkdownContent } from './MarkdownContent';
+import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
@@ -473,77 +471,75 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
   );
 }
 
-/** Lucide icon for a generated document card, by format family (ADR-226). */
-function documentTypeIcon(docType: string) {
-  switch (docType) {
-    case 'csv':
-    case 'xlsx':
-      return FileSpreadsheet;
-    case 'pptx':
-      return Presentation;
-    default:
-      return FileText;
-  }
+/** Viewer/open target for a generated document (ADR-226, amendment 2026-08-18).
+ *
+ * PDF opens its inline attachment URL directly (native browser viewer);
+ * every other type opens the HTML document viewer page, which renders csv as
+ * a table, md through the sanitized pipeline, txt as text, and offers an
+ * honest download panel for office formats. The attachment id is the URL's
+ * last segment by construction (`/api/v1/attachments/{id}`).
+ */
+function documentOpenHref(doc: GeneratedDocument, lng: string): string {
+  if (doc.doc_type === 'pdf') return doc.url;
+  const id = doc.url.split('/').pop() ?? '';
+  const params = new URLSearchParams({ name: doc.filename, type: doc.doc_type });
+  return `/${lng}/dashboard/documents/${id}?${params.toString()}`;
 }
 
 /**
- * AI-generated document cards (ADR-226) — one download row per document,
- * rendered outside markdown like the image cards. PDF opens inline in a new
- * tab (the API serves `application/pdf` inline); every other type downloads
- * via the native `download` attribute — a download is a navigation, so the
- * control is a real `<a>`, not a button.
+ * AI-generated document cards (ADR-226) — one row per document, rendered
+ * outside markdown like the image cards. The card BODY is a real `<a>` that
+ * OPENS the document in a new tab; a sibling icon link downloads it directly
+ * (a download is a navigation, so both controls are anchors, never buttons).
  */
 function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[] }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // The empty-case guard lives HERE, not at the call site: ChatMessage is a
   // maximum-complexity hotspot and must not gain render branches.
   if (!documents || documents.length === 0) return null;
   return (
     <div className="mt-3 space-y-2">
       {documents.map((doc, i) => {
-        const isPdf = doc.doc_type === 'pdf';
         const Icon = documentTypeIcon(doc.doc_type);
         return (
           <div
             key={i}
             data-testid="generated-document-card"
-            className="flex items-center gap-3 rounded-lg border bg-card p-3 w-full max-w-[512px] mx-auto"
+            className="flex items-center gap-3 rounded-lg border bg-card p-3 w-full max-w-[512px] mx-auto hover:shadow-md transition-shadow"
           >
-            <Icon className="w-8 h-8 shrink-0 text-primary" aria-hidden="true" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-sm">{doc.filename}</p>
-              <p className="text-xs text-muted-foreground">
-                {doc.doc_type.toUpperCase()} · {formatFileSize(doc.size_bytes)}
-              </p>
-              <ImageExpiryNotice
-                expiresAt={doc.expires_at}
-                expiredKey="chat.document_expiry.expired"
-              />
-            </div>
+            <a
+              href={documentOpenHref(doc, i18n.language)}
+              target="_blank"
+              rel="noopener"
+              className="flex items-center gap-3 min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={t('chat.document_card.open', { name: doc.filename })}
+            >
+              <Icon className="w-8 h-8 shrink-0 text-primary" aria-hidden="true" />
+              {/* divs, not spans: the expiry notice renders a <p>, which is
+                  valid flow content inside <a>/<div> but not inside <span> */}
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium text-sm">{doc.filename}</div>
+                <div className="text-xs text-muted-foreground">
+                  {doc.doc_type.toUpperCase()} · {formatFileSize(doc.size_bytes)}
+                </div>
+                <ImageExpiryNotice
+                  expiresAt={doc.expires_at}
+                  expiredKey="chat.document_expiry.expired"
+                />
+              </div>
+            </a>
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
                   href={doc.url}
-                  {...(isPdf
-                    ? { target: '_blank', rel: 'noopener' }
-                    : { download: doc.filename })}
+                  download={doc.filename}
                   className="p-2 shrink-0 rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={
-                    isPdf
-                      ? t('chat.document_card.open', { name: doc.filename })
-                      : t('chat.document_card.download', { name: doc.filename })
-                  }
+                  aria-label={t('chat.document_card.download', { name: doc.filename })}
                 >
-                  {isPdf ? (
-                    <ExternalLink className="w-4 h-4" aria-hidden="true" />
-                  ) : (
-                    <Download className="w-4 h-4" aria-hidden="true" />
-                  )}
+                  <Download className="w-4 h-4" aria-hidden="true" />
                 </a>
               </TooltipTrigger>
-              <TooltipContent>
-                {isPdf ? t('chat.document_card.open_short') : t('common.download')}
-              </TooltipContent>
+              <TooltipContent>{t('common.download')}</TooltipContent>
             </Tooltip>
           </div>
         );

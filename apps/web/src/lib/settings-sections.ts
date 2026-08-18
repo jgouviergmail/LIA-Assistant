@@ -1,34 +1,30 @@
 /**
- * Deep-linkable settings sections (W2).
+ * Deep-linkable settings sections (W2, master-detail since the shell rework).
  *
- * The settings page stacks ~30 collapsed accordion sections across two or three
- * tabs. Arriving there without a target means scanning them by hand — and that
- * is exactly what happened: `?section=` only ever understood two values
- * (`connectors` and `journals`), while the getting-started checklist pointed
- * SIX of its seven items at the bare `/dashboard/settings`. "Choose a
- * personality" landed the user at the top of a page of closed accordions.
- *
- * This table is the single source of truth for the link targets. The page
- * consumes it to pick the tab, expand the accordion item and scroll to it; the
+ * This table is the single source of truth for the settings surface:
+ * `?section=` deep links resolve through it, the master-detail shell renders
+ * its rail and overview FROM it (order included), and the pane mounts the
+ * component `SETTINGS_SECTION_REGISTRY` associates with each token. The
  * checklist and the dashboard cards consume it to build their hrefs.
  *
  * Each entry maps a stable URL token to:
- *   - the TAB that holds the section (superusers get a third, admin tab);
- *   - the accordion `value` of the target `<SettingsSection>`.
+ *   - the TAB the section belongs to (a rail block; `administration` renders
+ *     for superusers only);
+ *   - the `value` of the target `<SettingsSection>` — the pane polls the
+ *     `#settings-section-<value>` anchor to detect a section that renders
+ *     nothing.
  *
- * The accordion values are not free-form: they must match the `value` prop of
- * the corresponding component, and a test asserts exactly that against the
- * source — a renamed section would otherwise leave a link quietly landing on
- * the right tab with nothing expanded.
+ * The values are not free-form: they must match the `value` prop of the
+ * corresponding component, and a test asserts exactly that against the source.
  */
 
-/** Tabs of the settings page. `administration` exists for superusers only. */
+/** Rail blocks of the settings page. `administration` is superuser-only. */
 export type SettingsTab = 'preferences' | 'features' | 'administration';
 
 export interface SettingsSectionTarget {
-  /** Tab to activate. */
+  /** Rail block the section belongs to. */
   tab: SettingsTab;
-  /** Accordion `value` of the section to expand. */
+  /** `value` of the target `<SettingsSection>` — its DOM anchor id suffix. */
   accordionValue: string;
   /** Component that declares that value — checked by the sibling test. */
   declaredIn: string;
@@ -46,10 +42,10 @@ export interface SettingsSectionTarget {
  * reader would meet them by scrolling. Keep a new entry next to the component
  * it describes in `settings/page.tsx`.
  *
- * The table covers every USER-facing section of both tabs (30). The thirteen
- * `administration`-tab sections are deliberately absent, and that absence is
- * enumerated — not implied — in the shrink-only allowlist of
- * `__tests__/settings-sections-coverage.test.ts`.
+ * The table covers every section of every tab, administration included
+ * (phase 2 of ADR-172). Admin entries are filtered per-user by the `superuser`
+ * gate in `settings-search.ts` — the table itself stays user-agnostic, like
+ * the rest of the deep-link surface.
  */
 // `satisfies`, not an annotation: `Readonly<Record<string, …>>` would erode
 // `keyof typeof` to plain `string`, and `SettingsSectionToken` — the type four
@@ -142,11 +138,6 @@ export const SETTINGS_SECTIONS = {
     tab: 'preferences',
     accordionValue: 'image-generation',
     declaredIn: 'components/settings/ImageGenerationSettings.tsx',
-  },
-  'document-generation': {
-    tab: 'preferences',
-    accordionValue: 'document-generation',
-    declaredIn: 'components/settings/DocumentGenerationSettings.tsx',
   },
 
   // ---- Preferences tab / Connections & Integrations
@@ -268,6 +259,94 @@ export const SETTINGS_SECTIONS = {
     tab: 'features',
     accordionValue: 'user-consumption-export',
     declaredIn: 'components/settings/ConsumptionExportSection.tsx',
+  },
+
+  // ---- Administration tab (superusers only — phase 2 of ADR-172)
+  // Deep links and search cover the admin surface like any other: a
+  // non-superuser never sees these entries (gate `superuser` in the search
+  // meta), and a deep link resolves through the same `?section=` mechanism.
+  'admin-users': {
+    tab: 'administration',
+    accordionValue: 'admin-users',
+    declaredIn: 'components/settings/AdminUsersSection.tsx',
+  },
+  'admin-usage-limits': {
+    tab: 'administration',
+    accordionValue: 'admin-usage-limits',
+    declaredIn: 'components/settings/AdminUsageLimitsSection.tsx',
+  },
+  // Same runtime-valued component as `user-consumption-export`, rendered
+  // through the thin `AdminConsumptionExportSection` wrapper — which is what
+  // the administration panel mounts, so the tab check points at the wrapper
+  // while the value literal lives in the wrapped component.
+  'admin-consumption-export': {
+    tab: 'administration',
+    accordionValue: 'admin-consumption-export',
+    declaredIn: 'components/settings/AdminConsumptionExportSection.tsx',
+  },
+  'admin-broadcast': {
+    tab: 'administration',
+    accordionValue: 'admin-broadcast',
+    declaredIn: 'components/settings/AdminBroadcastSection.tsx',
+  },
+  'admin-connectors': {
+    tab: 'administration',
+    accordionValue: 'admin-connectors',
+    declaredIn: 'components/settings/AdminConnectorsSection.tsx',
+  },
+  'admin-llm-pricing': {
+    tab: 'administration',
+    accordionValue: 'admin-llm-pricing',
+    declaredIn: 'components/settings/AdminLLMPricingSection.tsx',
+  },
+  'admin-google-api-pricing': {
+    tab: 'administration',
+    accordionValue: 'admin-google-api-pricing',
+    declaredIn: 'components/settings/AdminGoogleApiPricingSection.tsx',
+  },
+  'admin-image-pricing': {
+    tab: 'administration',
+    accordionValue: 'admin-image-pricing',
+    declaredIn: 'components/settings/AdminImagePricingSection.tsx',
+  },
+  'admin-llm-config': {
+    tab: 'administration',
+    accordionValue: 'admin-llm-config',
+    declaredIn: 'components/settings/AdminLLMConfigSection.tsx',
+  },
+  'admin-personalities': {
+    tab: 'administration',
+    accordionValue: 'admin-personalities',
+    declaredIn: 'components/settings/AdminPersonalitiesSection.tsx',
+  },
+  'admin-skills': {
+    tab: 'administration',
+    accordionValue: 'admin-skills',
+    declaredIn: 'components/settings/AdminSkillsSection.tsx',
+  },
+  // Historic value — predates the `admin-` prefix convention; a rename would
+  // break bookmarked links, so it stays (tokens are URL surface: add, never
+  // rename).
+  'rag-spaces-admin': {
+    tab: 'administration',
+    accordionValue: 'rag-spaces-admin',
+    declaredIn: 'components/settings/AdminRAGSpacesSection.tsx',
+  },
+  'admin-capabilities': {
+    tab: 'administration',
+    accordionValue: 'admin-capabilities',
+    declaredIn: 'components/settings/AdminCapabilitiesSection.tsx',
+  },
+  'admin-public-demo-link': {
+    tab: 'administration',
+    accordionValue: 'admin-public-demo-link',
+    declaredIn: 'components/settings/AdminPublicDemoLinkSection.tsx',
+  },
+  // Same historic naming note as `rag-spaces-admin`.
+  'debug-settings': {
+    tab: 'administration',
+    accordionValue: 'debug-settings',
+    declaredIn: 'components/settings/AdminDebugSettingsSection.tsx',
   },
 } satisfies Readonly<Record<string, SettingsSectionTarget>>;
 

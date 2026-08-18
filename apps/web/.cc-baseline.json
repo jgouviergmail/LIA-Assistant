@@ -158,7 +158,7 @@
     },
     "src/hooks/useConversation.ts": {
       "count": 1,
-      "max": 23
+      "max": 19
     },
     "src/hooks/useVoiceInput.ts": {
       "count": 1,

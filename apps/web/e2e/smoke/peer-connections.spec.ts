@@ -188,7 +188,7 @@ test.describe('peer connections section', () => {
     // Deep link resolves and expands the section (settings-deep-links pattern).
     const section = page.locator('#settings-section-peer-connections');
     await expect(section).toBeAttached({ timeout: 20_000 });
-    await expect(section).toHaveAttribute('data-state', 'open', { timeout: 10_000 });
+    await expect(section).toBeVisible({ timeout: 10_000 });
 
     // Every zone folds since the owner arbitration of 2026-08-05 — a fold's
     // children are UNMOUNTED while closed, so each zone opens before use.
@@ -255,7 +255,7 @@ test.describe('peer connections section', () => {
 
     const section = page.locator('#settings-section-peer-connections');
     await expect(section).toBeAttached({ timeout: 20_000 });
-    await expect(section).toHaveAttribute('data-state', 'open', { timeout: 10_000 });
+    await expect(section).toBeVisible({ timeout: 10_000 });
 
     // Both zones open first: folded children are unmounted (ADR-208 index).
     await section.locator('summary').filter({ hasText: 'Ma visibilité' }).click();
@@ -289,7 +289,7 @@ test.describe('peer connections section', () => {
 
     const section = page.locator('#settings-section-peer-connections');
     await expect(section).toBeAttached({ timeout: 20_000 });
-    await expect(section).toHaveAttribute('data-state', 'open', { timeout: 10_000 });
+    await expect(section).toBeVisible({ timeout: 10_000 });
 
     // Open every fold first: a guard over collapsed summaries would prove
     // nothing about the content that can actually overflow.

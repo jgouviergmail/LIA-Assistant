@@ -2188,13 +2188,6 @@
       "stt_remote_unavailable_warning": "La trascrizione remota non è disponibile: un amministratore deve prima configurare la chiave API ElevenLabs.",
       "stt_remote_privacy_notice": "In modalità remota, il tuo audio viene inviato a ElevenLabs (cloud) per la trascrizione. La modalità locale mantiene l'audio all'interno di LIA."
     },
-    "document_generation": {
-      "title": "Generazione di documenti",
-      "description": "Crea file CSV, Excel, Word, PowerPoint o PDF scaricabili nella conversazione",
-      "enable": "Attivare la generazione di documenti",
-      "enable_description": "Consenti all'assistente di creare documenti scaricabili; scadono automaticamente",
-      "updated": "Preferenza di generazione dei documenti aggiornata"
-    },
     "image_generation": {
       "title": "Generazione immagini IA",
       "description": "Configurare la generazione di immagini tramite intelligenza artificiale",
@@ -3248,6 +3241,11 @@
         "meeting_draft": "Pianifica una riunione «{{subject}}» con {{invitee}}, il {{when}}, a {{where}}."
       }
     },
+    "shell": {
+      "nav_label": "Sezioni delle impostazioni",
+      "back": "Torna alle impostazioni",
+      "browse_all": "Vedi tutte le impostazioni"
+    },
     "search": {
       "label": "Cerca un'impostazione",
       "placeholder": "Cerca un'impostazione…",
@@ -3257,7 +3255,6 @@
       "results_count_other": "{{count}} impostazioni trovate",
       "no_results": "Nessuna impostazione corrisponde a «{{query}}»",
       "no_results_hint": "Prova con un'altra parola oppure sfoglia le schede qui sotto.",
-      "admin_not_indexed": "La scheda Amministrazione non è coperta da questa ricerca.",
       "unavailable": "«{{section}}» non compare qui: forse questa sezione non è disponibile sul tuo account.",
       "keywords": {
         "language": "locale, traduzione, lingua dell'interfaccia, idioma",
@@ -3276,7 +3273,6 @@
         "security-export": "GDPR, RGPD, archivio, download, portabilità, backup, dati personali, privacy",
         "voice-mode": "microfono, voce, dettatura, STT, TTS, parola di attivazione, audio, parlare",
         "image-generation": "immagini, foto, disegno, illustrazione, generazione, arte",
-        "document-generation": "documenti, file, csv, excel, word, powerpoint, pdf, esportazione, rapporto, presentazione",
         "connectors": "google, gmail, calendario, contatti, apple, microsoft, outlook, integrazioni, account, oauth, riconnettere, disconnesso, servizi, posizione, localizzazione, geolocalizzazione, domicilio, indirizzo, memoria della posizione",
         "telephony-calls": "telefono, chiamate, cronologia chiamate, comporre",
         "admin-mcp-servers": "MCP, model context protocol, server dell'applicazione, strumenti integrati",
@@ -3295,7 +3291,22 @@
         "rag-spaces": "documenti, RAG, base di conoscenza, file, caricamento, indicizzazione, biblioteca",
         "user-consumption-export": "CSV, consumo, token, costo, fatturazione, statistiche, esportazione",
         "haptics": "aptico vibrazione tattile sensoriale",
-        "plugins": "plugin, estensioni, agent plugins, installare, pacchetto, mcp, skill"
+        "plugins": "plugin, estensioni, agent plugins, installare, pacchetto, mcp, skill",
+        "admin-users": "utenti, account, ruoli, superutente, attivare, disattivare, bloccare",
+        "admin-usage-limits": "quote, limiti, massimali, budget, token, limiti di consumo",
+        "admin-consumption-export": "esportazione, CSV, consumo, utilizzo, costi, tutti gli account",
+        "admin-broadcast": "diffusione, messaggio, annuncio, notificare tutti",
+        "admin-connectors": "connettori, provider, Google, Apple, Microsoft, attivare i servizi",
+        "admin-llm-pricing": "prezzi, prezzo, tariffa, token, modelli di testo, costo per token",
+        "admin-google-api-pricing": "prezzi, API Google, Maps, Places, percorsi, costo geocodifica",
+        "admin-image-pricing": "prezzi, immagini, generazione di immagini, costo per immagine",
+        "admin-llm-config": "LLM, modelli, provider, configurazione, temperatura, ragionamento, chiavi api",
+        "admin-personalities": "personalità, stili, tono, prompt di sistema, carattere dell'assistente",
+        "admin-skills": "skill, abilità di sistema, importare, ricaricare, catalogo delle capacità",
+        "rag-spaces-admin": "RAG, spazi, conoscenza, reindicizzare, documenti, embedding",
+        "admin-capabilities": "capacità, funzionalità, interruttori, funzioni della piattaforma",
+        "admin-public-demo-link": "demo, dimostratore, link pubblico, vetrina, condividere",
+        "debug-settings": "debug, diagnostica, log, pannello, tracciamento dei token"
       }
     },
     "haptics": {
@@ -4076,7 +4087,7 @@
         },
         "documentGeneration": {
           "title": "Generazione di documenti",
-          "description": "LIA redige su richiesta documenti completi e scaricabili: fogli di calcolo CSV ed Excel, relazioni Word, presentazioni PowerPoint con note del relatore, PDF, Markdown e testo semplice. Un modello redattore dedicato produce il contenuto nella tua lingua — fondato sui dati che fornisci o su una ricerca fatta nella stessa richiesta — poi un motore di resa locale costruisce il file esatto, senza alcun servizio documentale di terzi. I file appaiono come schede sotto la risposta (nome, dimensione, scadenza), i PDF si aprono direttamente in una scheda del browser, e tutto è temporaneo per progetto: scarica ciò che vuoi conservare. Disattivabile per utente nelle Impostazioni, interruttore d'istanza per l'amministratore, e gli stessi limiti d'uso di ogni altro costo di IA."
+          "description": "LIA redige su richiesta documenti completi e scaricabili: fogli di calcolo CSV ed Excel, relazioni Word, presentazioni PowerPoint con note del relatore, PDF, Markdown e testo semplice. Un modello redattore dedicato produce il contenuto nella tua lingua — fondato sui dati che fornisci o su una ricerca fatta nella stessa richiesta — poi un motore di resa locale costruisce il file esatto, senza alcun servizio documentale di terzi. I file appaiono come schede sotto la risposta (nome, dimensione, scadenza), i PDF si aprono direttamente in una scheda del browser, e tutto è temporaneo per progetto: scarica ciò che vuoi conservare. Interruttore d'istanza per l'amministratore, e gli stessi limiti d'uso di ogni altro costo di IA."
         },
         "reactMode": {
           "title": "⚡ Modalità di Esecuzione ReAct",
@@ -4129,12 +4140,22 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_30_9": {
+          "title": "v1.30.9 — 🧭 Impostazioni ripensate: tutto a un clic",
+          "date": "Agosto 2026",
+          "items": {
+            "i1": "<b>🧭 Una pagina Impostazioni moderna in master-detail</b> — basta con il muro di liste richiuse: una barra laterale permanente mostra tutte le sezioni, raggruppate e con icone, e la sezione scelta si apre per intero in un pannello accanto. Senza selezione, una panoramica presenta ogni impostazione come una scheda con la sua descrizione — finalmente visibile prima di aprire qualcosa. Sul telefono la lista viene prima e ogni sezione si apre a schermo intero con un pulsante indietro.",
+            "i2": "<b>🔎 La ricerca copre l'amministrazione, e le sezioni si condividono</b> — gli amministratori trovano ogni pannello di amministrazione (utenti, prezzi, configurazione LLM…) con la stessa ricerca rapida, e ogni sezione ha un indirizzo stabile: ricarica o condividi l'URL e atterri esattamente lì. Se una sezione non è disponibile sul tuo account, la pagina lo dice chiaramente — e continua a controllare, nel caso stesse solo caricando.",
+            "i3": "<b>📄 I documenti generati si aprono nell'applicazione</b> — clicca una scheda documento e si apre in una scheda di visualizzazione: i CSV come una vera tabella, Markdown e testo ben resi; Word, Excel e PowerPoint mostrano un pannello di download pulito, e i PDF continuano ad aprirsi direttamente nel browser."
+          },
+          "count": "3"
+        },
         "v1_30_8": {
           "title": "v1.30.8 — 📄 Generazione di documenti: file veri, su richiesta",
           "date": "Agosto 2026",
           "items": {
             "i1": "<b>📄 Chiedi un documento, ricevi un file vero</b> — LIA redige ora documenti completi su richiesta: fogli di calcolo CSV ed Excel, relazioni Word, presentazioni PowerPoint, PDF, Markdown e testo semplice. Chiedi nella chat («cerca gli ultimi modelli LLM e formalizzali in un CSV», «prepara una presentazione dettagliata sull'Alsazia») e il file finito appare come scheda scaricabile sotto la risposta — può concatenarsi direttamente a una ricerca web fatta nella stessa richiesta. Un modello redattore dedicato produce il contenuto nella tua lingua; i fogli di calcolo sono sicuri per costruzione (nessuna iniezione di formule) e pronti per Excel.",
-            "i2": "<b>🕒 File che dicono quando scadono</b> — ogni scheda documento mostra nome, dimensione e la scadenza esatta; i PDF si aprono direttamente in una scheda del browser, tutto il resto si scarica con un clic. La generazione si disattiva per utente nelle Impostazioni, per istanza dall'amministratore, e rientra negli stessi limiti d'uso del resto del tuo consumo di IA."
+            "i2": "<b>🕒 File che dicono quando scadono</b> — ogni scheda documento mostra nome, dimensione e la scadenza esatta; i PDF si aprono direttamente in una scheda del browser, tutto il resto si scarica con un clic. La generazione si governa per istanza dall'amministratore e rientra negli stessi limiti d'uso del resto del tuo consumo di IA."
           },
           "count": "2"
         },
@@ -7204,8 +7225,8 @@
             "answer": "I file generati sono temporanei per progetto: ogni scheda mostra la scadenza esatta, e un avviso appare quando si avvicina — scarica il file per conservarlo. Il costo è l'uso del modello redattore, contato come il resto del tuo consumo di IA nei limiti del tuo account. Un limite tecnico protegge inoltre dai loop fuori controllo; l'uso normale non lo raggiunge mai."
           },
           "q5": {
-            "question": "Posso disattivare la generazione di documenti?",
-            "answer": "Sì, a due livelli. Puoi spegnerla per il tuo account in <b>Impostazioni > Preferenze > Generazione di documenti</b>. L'amministratore può anche disattivare la capacità per l'intera istanza, all'istante e senza rilancio — lo strumento sparisce allora perfino da ciò che l'assistente può proporre."
+            "question": "Chi può disattivare la generazione di documenti?",
+            "answer": "L'amministratore può disattivare la capacità per l'intera istanza dal pannello delle capacità della piattaforma, all'istante e senza rilancio — lo strumento sparisce allora perfino da ciò che l'assistente può proporre. Non c'è un interruttore per utente: quando l'istanza offre la generazione di documenti, ogni utente ne dispone."
           }
         }
       },
@@ -8618,6 +8639,10 @@
       "image_generation": {
         "title": "Generazione immagini IA",
         "description": "Genera immagini da descrizioni testuali, perfezionale o modifica le tue foto inviate come allegati. Qualità regolabile e tracciamento dei costi integrato."
+      },
+      "document_generation": {
+        "title": "Generazione di documenti IA",
+        "description": "Chiedi un CSV, un foglio Excel, una relazione Word, un PowerPoint o un PDF: un modello redattore dedicato produce il contenuto, e il file finito arriva come scheda scaricabile — concatenabile a una ricerca web della stessa richiesta."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -10576,6 +10601,13 @@
         "availability": "Può non essere disponibile a tratti, senza preavviso.",
         "email_required": "L’accesso richiede un indirizzo email valido e l’accettazione delle condizioni: è ciò che tiene lontani i bot."
       }
+    }
+  },
+  "documents": {
+    "viewer": {
+      "error": "Impossibile caricare questo documento — potrebbe essere scaduto.",
+      "not_renderable": "Questo formato si apre nella sua applicazione nativa — scaricalo per consultarlo.",
+      "download": "Scarica"
     }
   }
 }

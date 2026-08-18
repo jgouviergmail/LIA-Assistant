@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 4.3
-**Fecha**: 2026-08-17
-**Aplicación**: LIA v1.30.8
+**Fecha**: 2026-08-18
+**Aplicación**: LIA v1.30.9
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 466 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 225 ADRs, ~19.414 tests recogidos por pytest en 1.100 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 226 ADRs, ~19.409 tests recogidos por pytest en 1.099 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -74,7 +74,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~19.414 (recopilados por pytest en 1.100 archivos de prueba) + 5.537 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~19.409 (recopilados por pytest en 1.099 archivos de prueba) + 5.710 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 490+ |
 | ADRs (Architecture Decision Records) | 209 |
@@ -349,7 +349,7 @@ El conjunto se gobierna con un feature flag y una docena de ajustes configurable
 
 ### 5.5. Artefactos generados: de la petición al archivo descargable (ADR-226)
 
-Desde la v1.30.8 el pipeline puede terminar en un archivo y no solo en prosa. La herramienta `generate_document` sigue la misma arquitectura que la generación de imágenes — un agente virtual en el catálogo, sin nodo de grafo dedicado — pero su «generador» es un slot LLM dedicado (`document_generation`, administrable como todos los demás) llamado con **salida estructurada tipada por familia de formato**: contenido tabular para CSV/Excel, un árbol de secciones para Word/PDF/Markdown/texto, una lista de diapositivas para PowerPoint. El esquema se elige *antes* de la llamada, así que cada respuesta se valida con esquema estricto; después un **motor de renderizado local puro** construye los bytes exactos — openpyxl, python-docx, python-pptx, PyMuPDF: las bibliotecas ya incluidas para la extracción RAG, que ahora escriben en lugar de leer, sin ningún servicio documental de terceros.
+Desde la v1.30.9 el pipeline puede terminar en un archivo y no solo en prosa. La herramienta `generate_document` sigue la misma arquitectura que la generación de imágenes — un agente virtual en el catálogo, sin nodo de grafo dedicado — pero su «generador» es un slot LLM dedicado (`document_generation`, administrable como todos los demás) llamado con **salida estructurada tipada por familia de formato**: contenido tabular para CSV/Excel, un árbol de secciones para Word/PDF/Markdown/texto, una lista de diapositivas para PowerPoint. El esquema se elige *antes* de la llamada, así que cada respuesta se valida con esquema estricto; después un **motor de renderizado local puro** construye los bytes exactos — openpyxl, python-docx, python-pptx, PyMuPDF: las bibliotecas ya incluidas para la extracción RAG, que ahora escriben en lugar de leer, sin ningún servicio documental de terceros.
 
 Tres decisiones de diseño sostienen la funcionalidad. Primero, la honestidad del artefacto: las celdas de las hojas se neutralizan contra la inyección de fórmulas (una sonda demostró que openpyxl almacena `=1+2` como fórmula viva) mientras los números negativos legítimos quedan intactos, y un fallo tras la llamada LLM pagada devuelve un error explícito — nunca una tarjeta fantasma. Segundo, el encadenamiento: el planificador puede inyectar los resultados de un paso de investigación web en el paso de documento (`source_data`), de modo que «investiga y formaliza en CSV» cabe en una sola petición. Tercero, el ciclo de vida: el archivo aterriza en el almacén de adjuntos existente con la misma purga TTL que las imágenes generadas, y su tarjeta — entregada en vivo por el done chunk SSE y persistida en los metadatos del mensaje por un serializador único compartido — muestra la fecha exacta de expiración.
 
@@ -1282,11 +1282,13 @@ Corolario de forma: una etiqueta está hecha para una **palabra**. El componente
 
 Tres ADR (206 a 208) convirtieron la coherencia visual en un contrato con herramientas, no en una disciplina de revisión. Un estado ya no elige su color: **nombra un tono** y una única tabla decide (`status-tone.ts`), cubierta por el control de contraste en cinco temas, en claro y oscuro. Una acción ya no elige su forma: la elige su **altitud** — relleno para crear, relleno rojo para la destrucción masiva, rojo en reposo para borrar una fila, contorno para la secundaria verdadera. Y una fila de lista expone sus acciones de **una sola manera**, respaldada por un componente compartido.
 
+La propia superficie de ajustes sigue ahora la misma doctrina de estructura antes que disciplina (ADR-227). La página se renderiza como una carcasa maestro-detalle — un riel permanente de secciones junto a un panel que monta exactamente una, una vista general de tarjetas descriptivas cuando no hay selección — y no lista nada a mano: el orden del riel, los grupos y el componente montado derivan de la tabla de enlaces profundos más dos registros de completitud verificada por el compilador, cada uno probado contra el código fuente de las secciones. La consecuencia es arquitectónica, no cosmética: una sección existe en la página si y solo si las tablas la declaran, las ~330 líneas de layout duplicado de la carcasa anterior desaparecen, y solo la sección elegida consulta la red — veinte secciones ya no disparan sus peticiones al cargar una pestaña. La ausencia sigue siendo honesta: una sección que legítimamente no renderiza nada (instancia sin MFA, ninguna llamada realizada) produce un estado vacío explícito que sigue sondeando, de modo que un dato tardío reemplaza el mensaje.
+
 La lección de ingeniería más valiosa vino de un defecto invisible: la primitiva de etiqueta seguía `inline`, y los márgenes verticales de un elemento inline se **calculan pero nunca se dibujan**. Tres recalibraciones de espaciado cambiaron el código sin mover un píxel — con la cadena de entrega probada sana hasta el byte servido. El reflejo ya es doctrina: cuando un ajuste visual no surte efecto, medir el `display` y la geometría del DOM en un navegador real antes de sospechar de la entrega. El arreglo es una palabra (`block`), la calibración se arbitró sobre capturas dirigidas, y una guarda prohíbe la regresión.
 
 ## 24. Arquitectura de decisiones (ADR)
 
-225 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+226 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1362,10 +1364,10 @@ El hilo común de estos cuatro lotes es una propiedad de los propios tests. Cada
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 225 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.414 tests en 1.100 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 226 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.409 tests en 1.099 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 225 ADRs y del changelog (v1.0 a v1.30.8). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 226 ADRs y del changelog (v1.0 a v1.30.9). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

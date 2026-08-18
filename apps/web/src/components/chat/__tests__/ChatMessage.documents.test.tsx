@@ -53,16 +53,28 @@ beforeEach(() => {
 });
 
 describe('ChatMessage — generated document cards', () => {
-  it('renders filename, type/size line, and a download link to the attachment', () => {
+  it('the card body OPENS the document in the viewer page, in a new tab', () => {
     renderMessage(makeMessage({ generatedDocuments: [csvDocument] }));
-    expect(screen.getByText('modeles-llm.csv')).toBeInTheDocument();
     expect(screen.getByText(/CSV/)).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: 'chat.document_card.download' });
-    expect(link).toHaveAttribute('href', '/api/v1/attachments/d1');
-    expect(link).toHaveAttribute('download', 'modeles-llm.csv');
+    const open = screen.getByRole('link', { name: 'chat.document_card.open' });
+    expect(open).toHaveAttribute(
+      'href',
+      expect.stringContaining('/dashboard/documents/d1?')
+    );
+    expect(open).toHaveAttribute('target', '_blank');
+    // The viewer link carries what the page needs before the fetch resolves.
+    expect(open.getAttribute('href')).toContain('type=csv');
+    expect(open.getAttribute('href')).toContain('name=modeles-llm.csv');
   });
 
-  it('opens pdf in a new tab instead of forcing a download (inline serving)', () => {
+  it('keeps a separate named download link on the card', () => {
+    renderMessage(makeMessage({ generatedDocuments: [csvDocument] }));
+    const download = screen.getByRole('link', { name: 'chat.document_card.download' });
+    expect(download).toHaveAttribute('href', '/api/v1/attachments/d1');
+    expect(download).toHaveAttribute('download', 'modeles-llm.csv');
+  });
+
+  it('pdf opens the inline attachment URL directly (native browser viewer)', () => {
     renderMessage(
       makeMessage({
         generatedDocuments: [
@@ -70,9 +82,10 @@ describe('ChatMessage — generated document cards', () => {
         ],
       })
     );
-    const link = screen.getByRole('link', { name: 'chat.document_card.open' });
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).not.toHaveAttribute('download');
+    const open = screen.getByRole('link', { name: 'chat.document_card.open' });
+    expect(open).toHaveAttribute('href', '/api/v1/attachments/d1');
+    expect(open).toHaveAttribute('target', '_blank');
+    expect(open).not.toHaveAttribute('download');
   });
 
   it('renders one card per document', () => {

@@ -1,15 +1,12 @@
 /**
- * Settings deep links (W2) — `?section=` actually opens the section.
+ * Settings deep links — `?section=` opens the section's pane.
  *
- * The settings page stacks ~30 collapsed accordion sections over two tabs.
- * `?section=` used to understand exactly two tokens, while the getting-started
- * checklist pointed SIX of its seven items at the bare page: "choose a
- * personality" landed the user at the top of a wall of closed accordions.
- *
- * Unit tests keep the table aligned with the components that declare each
- * accordion value. Only a browser can prove the rest of the chain: the tab is
- * activated, the item is EXPANDED, and the URL is cleaned so a reload does not
- * replay the navigation.
+ * The settings page is a master-detail shell: a rail of sections beside a pane
+ * that mounts exactly ONE of them. `?section=` is both the deep-link API and
+ * the selection state, so the contract a browser must prove changed with the
+ * shell: the pane mounts the section OPEN (no accordion to expand any more),
+ * the URL KEEPS the token (a reload or a share lands on the same pane), and an
+ * unknown token falls back to the overview with a clean URL.
  */
 import { test, expect, type MockRoute } from '../fixtures';
 
@@ -45,80 +42,61 @@ const ROUTES: MockRoute[] = [
 ];
 
 /**
- * Tokens exercised here, paired with the accordion value the page must expand.
+ * Tokens exercised here, paired with the anchor value the pane must mount.
  *
  * Kept explicit rather than imported from the app: an e2e that reads the very
  * table it verifies would still pass if that table drifted.
  *
- * Coverage is deliberately partial. Several sections are gate-kept (ADR-061) or
- * return null until their own data resolves — `HeartbeatSettings` and
- * `SkillsSettings` among them — so reproducing them here would mean mocking
- * each subsystem's full payload just to assert a routing mechanism that is
- * identical for all of them. The sample below spans BOTH tabs and both
- * accordion states (superuser and not), which is what the mechanism actually
- * depends on; the completeness of the table itself — every token resolving to
- * an accordion value a component really declares — is asserted in
+ * Coverage is deliberately partial — the sample spans both former tabs plus an
+ * instance-gated section; the completeness of the table itself is asserted in
  * `lib/__tests__/settings-sections.test.ts`.
  */
 const CASES = [
-  // Preferences tab
   { token: 'connectors', value: 'connectors' },
   { token: 'voice-mode', value: 'voice-mode' },
-  // Features tab — reached only after the tab switch, which is the part of the
-  // mechanism worth proving in a browser (Radix mounts tab content lazily).
   { token: 'personality', value: 'personality' },
   { token: 'memories', value: 'memories' },
   { token: 'interests', value: 'interests' },
   { token: 'scheduled-actions', value: 'scheduled-actions' },
   { token: 'journals', value: 'journals' },
   // The destination of the dashboard's "For you" commitments card. That card
-  // linked to the bare settings page until 2026-08-03, so someone following
-  // "you have 3 open commitments" landed on a wall of closed accordions with
-  // no commitments in sight — the exact failure this file was written for,
-  // reappearing at a new call site. Pinned here so the link keeps arriving.
+  // linked to the bare settings page until 2026-08-03 — the exact failure this
+  // file was written for. Pinned so the link keeps arriving.
   { token: 'open-loops', value: 'open-loops' },
 ] as const;
 
 test.describe('settings deep links', () => {
   for (const { token, value } of CASES) {
-    test(`?section=${token} expands its section`, async ({ page, authenticate, mockApi }) => {
+    test(`?section=${token} opens its pane`, async ({ page, authenticate, mockApi }) => {
       await authenticate({ language: 'fr' });
       await mockApi(ROUTES);
       await page.goto(`/fr/dashboard/settings?section=${token}`);
 
-      // Radix marks the open item with data-state="open" on the AccordionItem,
-      // which carries the id derived from the same accordion value.
-      //
       // The generous timeout is the cost of the dev server, not a product
-      // signal: the settings page mounts ~30 sections, each with its own
-      // queries, and under a full sequential suite the on-demand compilation
-      // makes first paint slow. Against the CI production build this resolves
-      // immediately. Waiting explicitly beats an intermittent red.
-      const item = page.locator(`#settings-section-${value}`);
-      await expect(item, `${token} must resolve to a section`).toBeAttached({ timeout: 20_000 });
-      await expect(item, `${token} must be expanded`).toHaveAttribute('data-state', 'open', {
-        timeout: 10_000,
-      });
+      // signal; against the CI production build this resolves immediately.
+      const section = page.locator(`#settings-section-${value}`);
+      await expect(section, `${token} must mount its section`).toBeVisible({ timeout: 20_000 });
+
+      // Master-detail: the pane holds exactly ONE section.
+      await expect(page.locator('[id^="settings-section-"]')).toHaveCount(1);
+
+      // The token is selection state now: it STAYS in the URL, so a reload or
+      // a shared link lands on the same pane.
+      expect(new URL(page.url()).searchParams.get('section')).toBe(token);
     });
   }
 
-  test('cleans the parameter so a reload does not replay the jump', async ({
-    page,
-    authenticate,
-    mockApi,
-  }) => {
+  test('a reload lands on the same section', async ({ page, authenticate, mockApi }) => {
     await authenticate({ language: 'fr' });
     await mockApi(ROUTES);
     await page.goto('/fr/dashboard/settings?section=personality');
-    await expect(page.locator('#settings-section-personality')).toHaveAttribute(
-      'data-state',
-      'open',
-      { timeout: 10_000 }
-    );
-    expect(new URL(page.url()).searchParams.get('section')).toBeNull();
+    await expect(page.locator('#settings-section-personality')).toBeVisible({ timeout: 20_000 });
+
+    await page.reload();
+    await expect(page.locator('#settings-section-personality')).toBeVisible({ timeout: 20_000 });
   });
 
-  test('an unknown token leaves the page on its default tab', async ({
+  test('an unknown token lands on the overview with a clean URL', async ({
     page,
     authenticate,
     mockApi,
@@ -129,8 +107,10 @@ test.describe('settings deep links', () => {
     await page.goto('/fr/dashboard/settings?section=does-not-exist');
 
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    const open = page.locator('[id^="settings-section-"][data-state="open"]');
-    await expect(open).toHaveCount(0);
-    expect(new URL(page.url()).searchParams.get('section')).toBeNull();
+    // No pane is mounted: the overview cards are the landing.
+    await expect(page.locator('[id^="settings-section-"]')).toHaveCount(0);
+    await expect
+      .poll(async () => new URL(page.url()).searchParams.get('section'), { timeout: 10_000 })
+      .toBeNull();
   });
 });

@@ -19,7 +19,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.core.constants import (
     DEFAULT_LANGUAGE,
     DEFAULT_USER_DISPLAY_TIMEZONE,
-    DOCUMENT_GENERATION_ENABLED_DEFAULT,
     HEARTBEAT_MAX_PER_DAY_DEFAULT,
     HEARTBEAT_MIN_PER_DAY_DEFAULT,
     HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
@@ -559,14 +558,6 @@ class User(BaseModel):
         default=IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
         server_default=IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
         comment="Default output format: png, jpeg, webp.",
-    )
-
-    # Document Generation preference (ADR-226)
-    document_generation_enabled: Mapped[bool] = mapped_column(
-        default=DOCUMENT_GENERATION_ENABLED_DEFAULT,
-        nullable=False,
-        server_default="true",
-        comment="User opt-in for AI document generation feature.",
     )
 
     # Admin MCP per-user toggle (evolution F2.5)

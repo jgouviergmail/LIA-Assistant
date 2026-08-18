@@ -48,9 +48,8 @@ def _wrapper_settings() -> MagicMock:
     return settings
 
 
-def _user(opted_in: bool = True) -> MagicMock:
+def _user() -> MagicMock:
     user = MagicMock()
-    user.document_generation_enabled = opted_in
     user.language = "fr"
     return user
 
@@ -118,18 +117,6 @@ class TestGenerateDocumentGuards:
             )
         assert result.success is True
         assert service_mock.call_args.kwargs["doc_type"].value == "pdf"
-
-    async def test_user_opt_out_fails(self) -> None:
-        with (
-            patch.object(mod, "settings", _fake_settings()),
-            patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
-            patch.object(mod, "_load_user", AsyncMock(return_value=_user(opted_in=False))),
-        ):
-            result = await mod.generate_document.coroutine(
-                instructions="x", doc_type="csv", runtime=_runtime()
-            )
-        assert result.success is False
-        assert "Settings" in result.message
 
     async def test_user_not_found_fails(self) -> None:
         with (

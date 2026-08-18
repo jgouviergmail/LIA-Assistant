@@ -76,6 +76,7 @@ const ALLOWED: Record<string, string> = {
   'lib/api/chat.ts': 'SSE: needs the raw ReadableStream body, which apiClient consumes as text',
   'lib/audio/sherpaKws.ts': 'static WASM/model assets from /public, not the API',
   'lib/utils/download-image.ts': 'binary blob download, not a JSON payload',
+  'lib/utils/attachment-blob.ts': 'binary blob fetch for the document viewer, not a JSON payload',
   'lib/api/mcp-apps.ts': 'widget bridge: called from the sandboxed iframe shell origin',
   'components/settings/ConsumptionExportSection.tsx':
     'file download: reads Content-Disposition and response.blob(), which the client does not expose',

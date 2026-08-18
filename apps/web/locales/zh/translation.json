@@ -2194,13 +2194,6 @@
       "stt_remote_unavailable_warning": "远程转录不可用：管理员需要先配置 ElevenLabs API 密钥。",
       "stt_remote_privacy_notice": "在远程模式下，您的音频会发送到 ElevenLabs（云端）进行转录。本地模式将音频保留在 LIA 内部。"
     },
-    "document_generation": {
-      "title": "文档生成",
-      "description": "在对话中创建可下载的 CSV、Excel、Word、PowerPoint 或 PDF 文件",
-      "enable": "启用文档生成",
-      "enable_description": "允许助手创建可下载的文档；它们会自动过期",
-      "updated": "文档生成偏好已更新"
-    },
     "image_generation": {
       "title": "AI 图像生成",
       "description": "配置 AI 图像生成设置",
@@ -3254,6 +3247,11 @@
         "meeting_draft": "安排一次会议「{{subject}}」，与 {{invitee}}，时间 {{when}}，地点 {{where}}。"
       }
     },
+    "shell": {
+      "nav_label": "设置分区",
+      "back": "返回设置",
+      "browse_all": "查看所有设置"
+    },
     "search": {
       "label": "搜索设置",
       "placeholder": "搜索设置…",
@@ -3262,7 +3260,6 @@
       "results_count_one": "找到 {{count}} 项设置",
       "no_results": "没有设置与“{{query}}”匹配",
       "no_results_hint": "换个词试试，或浏览下方的标签页。",
-      "admin_not_indexed": "此搜索不包含“管理”标签页。",
       "unavailable": "“{{section}}”未显示在此页面，该设置可能在您的账户中不可用。",
       "keywords": {
         "language": "语言, 区域设置, 翻译, 界面语言",
@@ -3281,7 +3278,6 @@
         "security-export": "GDPR, 数据导出, 归档, 下载, 可携带性, 备份, 个人数据, 隐私",
         "voice-mode": "麦克风, 语音, 听写, STT, TTS, 唤醒词, 音频, 说话",
         "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
-        "document-generation": "文档, 文件, csv, excel, word, powerpoint, pdf, 导出, 报告, 演示文稿",
         "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
         "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具",
@@ -3300,7 +3296,22 @@
         "rag-spaces": "文档, RAG, 知识库, 文件, 上传, 索引, 资料库",
         "user-consumption-export": "CSV, 用量, 消耗, 令牌, 成本, 账单, 统计, 导出",
         "haptics": "触觉 震动 触感 反馈",
-        "plugins": "插件, 扩展, agent plugins, 安装, 软件包, mcp, 技能"
+        "plugins": "插件, 扩展, agent plugins, 安装, 软件包, mcp, 技能",
+        "admin-users": "用户, 账户, 角色, 超级用户, 启用, 停用, 封锁",
+        "admin-usage-limits": "配额, 限制, 上限, 预算, 令牌, 消耗上限",
+        "admin-consumption-export": "导出, CSV, 消耗, 使用, 成本, 所有账户",
+        "admin-broadcast": "广播, 消息, 公告, 通知所有人",
+        "admin-connectors": "连接器, 提供商, Google, Apple, Microsoft, 启用服务",
+        "admin-llm-pricing": "定价, 价格, 费率, 令牌, 文本模型, 每令牌成本",
+        "admin-google-api-pricing": "定价, Google API, 地图, 地点, 路线, 地理编码成本",
+        "admin-image-pricing": "定价, 图片, 图片生成, 每张图片成本",
+        "admin-llm-config": "LLM, 模型, 提供商, 配置, 温度, 推理, API 密钥",
+        "admin-personalities": "个性, 风格, 语气, 系统提示词, 助手角色",
+        "admin-skills": "技能, 系统技能, 导入, 重新加载, 能力目录",
+        "rag-spaces-admin": "RAG, 空间, 知识, 重建索引, 文档, 嵌入",
+        "admin-capabilities": "能力, 功能开关, 开关, 平台功能",
+        "admin-public-demo-link": "演示, 公开链接, 展示, 分享",
+        "debug-settings": "调试, 诊断, 日志, 面板, 令牌跟踪"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -4069,7 +4080,7 @@
         },
         "documentGeneration": {
           "title": "文档生成",
-          "description": "LIA 按需撰写完整的可下载文档：CSV 和 Excel 表格、含演讲者备注的 PowerPoint 演示文稿、Word 报告、PDF、Markdown 和纯文本。专用写作模型以你的语言产出内容 — 基于你提供的数据或同一请求中完成的调研 — 然后由本地渲染引擎构建精确的文件，全程不经过任何第三方文档服务。文件以卡片形式出现在回答下方（文件名、大小、过期时间），PDF 直接在浏览器标签页中打开，一切在设计上都是临时的：想保留就下载。用户可在设置中关闭，管理员可一键关闭整个实例，消耗计入与其他 AI 成本相同的用量限制。"
+          "description": "LIA 按需撰写完整的可下载文档：CSV 和 Excel 表格、含演讲者备注的 PowerPoint 演示文稿、Word 报告、PDF、Markdown 和纯文本。专用写作模型以你的语言产出内容 — 基于你提供的数据或同一请求中完成的调研 — 然后由本地渲染引擎构建精确的文件，全程不经过任何第三方文档服务。文件以卡片形式出现在回答下方（文件名、大小、过期时间），PDF 直接在浏览器标签页中打开，一切在设计上都是临时的：想保留就下载。管理员可一键关闭整个实例，消耗计入与其他 AI 成本相同的用量限制。"
         },
         "reactMode": {
           "title": "⚡ ReAct执行模式",
@@ -4122,12 +4133,22 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_30_9": {
+          "title": "v1.30.9 — 🧭 设置全新改版：一切一键可达",
+          "date": "2026年8月",
+          "items": {
+            "i1": "<b>🧭 现代化的主从式设置页面</b> — 告别折叠列表墙：常驻侧栏按分组和图标展示所有设置分区，选中的分区在旁边的面板中完整展开。未选择时，总览以卡片形式呈现每个设置及其说明 — 打开之前终于能看到它是什么。在手机上，列表优先显示，每个分区全屏打开并带有返回按钮。",
+            "i2": "<b>🔎 搜索覆盖管理面板，设置分区可分享</b> — 管理员可以通过同一个快速搜索找到每个管理面板（用户、价格、LLM 配置……），每个分区都有稳定的地址：刷新或分享 URL 都会精确回到原处。如果某个分区在你的账户上不可用，页面会明确说明 — 并继续留意，以防它只是加载较慢。",
+            "i3": "<b>📄 生成的文档可在应用内打开</b> — 点击文档卡片即可在查看标签页中打开：CSV 显示为真正的表格，Markdown 和文本清晰呈现；Word、Excel 和 PowerPoint 显示简洁的下载面板，PDF 仍然直接在浏览器中打开。"
+          },
+          "count": "3"
+        },
         "v1_30_8": {
           "title": "v1.30.8 — 📄 文档生成：按需产出真正的文件",
           "date": "2026年8月",
           "items": {
             "i1": "<b>📄 要一份文档，得到一个真正的文件</b> — LIA 现在可以按需撰写完整文档：CSV 和 Excel 表格、Word 报告、PowerPoint 演示文稿、PDF、Markdown 和纯文本。在聊天中提出请求（“调研最新的 LLM 模型并整理成 CSV”“做一份关于阿尔萨斯的详细演示文稿”），完成的文件就会以可下载卡片的形式出现在回答下方 — 还能直接衔接同一请求中完成的网络调研。专用写作模型以你的语言产出内容；表格在构造上即安全（无公式注入），可直接在 Excel 中打开。",
-            "i2": "<b>🕒 文件会告诉你何时过期</b> — 每张文档卡片都显示文件名、大小和确切的过期时间；PDF 直接在浏览器标签页中打开，其余格式一键下载。用户可在设置中关闭该功能，管理员可对整个实例关闭，其消耗计入与其他 AI 使用相同的用量限制。"
+            "i2": "<b>🕒 文件会告诉你何时过期</b> — 每张文档卡片都显示文件名、大小和确切的过期时间；PDF 直接在浏览器标签页中打开，其余格式一键下载。管理员可对整个实例控制该功能，其消耗计入与其他 AI 使用相同的用量限制。"
           },
           "count": "2"
         },
@@ -7197,8 +7218,8 @@
             "answer": "生成的文件在设计上是临时的：每张卡片都显示确切的过期时间，临近时会出现提醒 — 下载文件即可长期保留。费用即写作模型的用量，与其他 AI 使用一样计入账户限额。另有技术性频率限制防止失控循环；正常使用绝不会触及。"
           },
           "q5": {
-            "question": "可以关闭文档生成吗？",
-            "answer": "可以，分两个层级。你可以在<b>设置 > 偏好 > 文档生成</b>中为自己的账户关闭。管理员也可以即时为整个实例关闭该能力，无需重新部署 — 此后该工具甚至不会出现在助手可提议的范围内。"
+            "question": "谁可以关闭文档生成？",
+            "answer": "管理员可以在平台能力面板中即时为整个实例关闭该能力，无需重新部署 — 此后该工具甚至不会出现在助手可提议的范围内。没有按用户的开关：只要实例提供文档生成，每位用户都可使用。"
           }
         }
       },
@@ -8611,6 +8632,10 @@
       "image_generation": {
         "title": "AI图像生成",
         "description": "根据文字描述生成图像，对其进行修改，或编辑你发送的附件照片。可调节质量，内置费用跟踪。"
+      },
+      "document_generation": {
+        "title": "AI 文档生成",
+        "description": "索取 CSV、Excel 表格、Word 报告、PowerPoint 或 PDF：专用写作模型产出内容，完成的文件以可下载卡片送达 — 还能衔接同一请求中的网络调研。"
       },
       "devops_cli": {
         "title": "DevOps CLI (管理员)",
@@ -10569,6 +10594,13 @@
         "availability": "它可能会不定时暂停服务，恕不另行通知。",
         "email_required": "访问需要有效的电子邮件地址并接受条款——这正是阻挡机器人的方式。"
       }
+    }
+  },
+  "documents": {
+    "viewer": {
+      "error": "无法加载该文档 — 它可能已过期。",
+      "not_renderable": "该格式需在其原生应用中打开 — 请下载后查看。",
+      "download": "下载"
     }
   }
 }

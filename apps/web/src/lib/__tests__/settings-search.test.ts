@@ -36,12 +36,7 @@ import {
   type SettingsTranslate,
 } from '../settings-search';
 import { SETTINGS_SECTIONS, type SettingsSectionToken } from '../settings-sections';
-import {
-  componentGroupsIn,
-  exportedComponentOf,
-  settingsPageBlocks,
-  SRC,
-} from './helpers/settings-page-source';
+import { SRC } from './helpers/settings-page-source';
 
 const LOCALES = { en: enDict, fr: frDict, de: deDict, es: esDict, it: itDict, zh: zhDict } as const;
 type LocaleCode = keyof typeof LOCALES;
@@ -87,8 +82,10 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // control — `prefers-reduced-motion` is about animation, not touch),
     // +1 habits (learned-habits control surface, ADR-214),
     // +1 plugins (Agent Plugins install/uninstall section, ADR-225),
-    // +1 document-generation (per-user opt-in toggle, ADR-226).
-    expect(TOKENS).toHaveLength(36);
+    // +15 administration sections (phase 2 of ADR-172, master-detail program).
+    // The document-generation toggle (ADR-226) was removed 2026-08-18: the
+    // owner judged the per-user opt-in not useful (admin capability only).
+    expect(TOKENS).toHaveLength(50);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(
@@ -138,19 +135,23 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
    * something the page never shows — no crash, no failing key, just a result
    * the user cannot reconcile with what they land on.
    */
-  const INTERPOLATED_KEY_TOKENS: ReadonlySet<string> = new Set(['user-consumption-export']);
+  // Map value = the file whose source really calls `t()` when `declaredIn` is a
+  // thin wrapper (the admin export renders `ConsumptionExportSection`, where
+  // both the prefix literal and the `t()` calls live); `null` = `declaredIn`.
+  const INTERPOLATED_KEY_TOKENS: ReadonlyMap<string, string | null> = new Map([
+    ['user-consumption-export', null],
+    ['admin-consumption-export', 'components/settings/ConsumptionExportSection.tsx'],
+  ]);
 
   it.each(TOKENS)('%s uses the same i18n keys as its component', token => {
     const meta = SETTINGS_SEARCH_META[token];
+    const sourceFile = INTERPOLATED_KEY_TOKENS.get(token) ?? SETTINGS_SECTIONS[token].declaredIn;
     // Prettier wraps a long `t('key', 'fallback')` call onto three lines, so
     // the key stops following `t(` in the raw text. Collapsing the whitespace
     // right after `t(` keeps the assertion strict about the CALL — a key merely
     // mentioned in a comment still does not count — without being a formatting
     // assertion in disguise.
-    const source = readFileSync(join(SRC, SETTINGS_SECTIONS[token].declaredIn), 'utf8').replace(
-      /\bt\(\s+/g,
-      't('
-    );
+    const source = readFileSync(join(SRC, sourceFile), 'utf8').replace(/\bt\(\s+/g, 't(');
 
     for (const key of [meta.titleKey, meta.descriptionKey]) {
       if (INTERPOLATED_KEY_TOKENS.has(token)) {
@@ -161,42 +162,20 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
         const prefix = key.slice(0, key.lastIndexOf('.'));
         expect(
           source.includes(`'${prefix}'`),
-          `${token}: ${SETTINGS_SECTIONS[token].declaredIn} never mentions the prefix '${prefix}'`
+          `${token}: ${sourceFile} never mentions the prefix '${prefix}'`
         ).toBe(true);
         continue;
       }
       expect(
         source.includes(`t('${key}'`),
-        `${token}: ${SETTINGS_SECTIONS[token].declaredIn} does not call t('${key}')`
+        `${token}: ${sourceFile} does not call t('${key}')`
       ).toBe(true);
     }
   });
 
-  it('places every section in the group the page puts it in', () => {
-    // Derived from the page, never declared twice: the group is what the reader
-    // sees above the section, so a section moved under another heading must
-    // move in the search rows too.
-    // `string | null`: a component rendered before the first heading (the
-    // `<Accordion>` opening each panel) legitimately has no group. A SECTION
-    // with a null group would surface below as a mismatch, which is the point.
-    const pageGroups = new Map<string, string | null>();
-    for (const block of settingsPageBlocks()) {
-      for (const { component, group } of componentGroupsIn(block.body)) {
-        pageGroups.set(component, group);
-      }
-    }
-
-    const drift: string[] = [];
-    for (const token of TOKENS) {
-      const component = exportedComponentOf(SETTINGS_SECTIONS[token].declaredIn);
-      const onPage = pageGroups.get(component);
-      const declared = SETTINGS_SEARCH_META[token].group;
-      if (onPage !== declared) {
-        drift.push(`${token}: declared "${declared}", page renders it under "${onPage}"`);
-      }
-    }
-    expect(drift, drift.join('\n  ')).toEqual([]);
-  });
+  // The former "group the page puts it in" check died with the hand-written
+  // layouts: the master-detail shell renders its group headings FROM this
+  // table (`buildSettingsShellModel`), so the group cannot be declared twice.
 
   it('marks as runtime exactly the sections that can vanish', () => {
     // Pinned so that turning a gate into `runtime` — which silently disables
@@ -248,18 +227,35 @@ describe('isSectionAvailable', () => {
     // render. Dropping these would turn "empty today" into "does not exist".
     expect(isSectionAvailable({ kind: 'runtime', reason: 'x' }, ALL_AVAILABLE)).toBe(true);
   });
+
+  it('reserves administration sections for superusers', () => {
+    const gate = { kind: 'superuser' } as const;
+    expect(isSectionAvailable(gate, ALL_AVAILABLE)).toBe(false);
+    expect(isSectionAvailable(gate, { ...ALL_AVAILABLE, isSuperuser: true })).toBe(true);
+  });
 });
 
 describe('buildSettingsSearchIndex', () => {
+  /** What a regular account can ever see: everything outside the admin tab. */
+  const USER_TOKENS = TOKENS.filter(token => SETTINGS_SECTIONS[token].tab !== 'administration');
+
   it('returns every available section, in page order', () => {
     const index = buildSettingsSearchIndex(echo, ALL_AVAILABLE);
-    expect(index.map(entry => entry.token)).toEqual(TOKENS);
+    expect(index.map(entry => entry.token)).toEqual(USER_TOKENS);
+  });
+
+  it('adds the administration sections for a superuser, still in page order', () => {
+    // The whole table minus `debug-panel`, which the page renders in the
+    // NON-superuser layout only. Order is the table's — the tie-break contract.
+    const index = buildSettingsSearchIndex(echo, { ...ALL_AVAILABLE, isSuperuser: true });
+    expect(index.map(entry => entry.token)).toEqual(TOKENS.filter(t => t !== 'debug-panel'));
+    expect(index.map(entry => entry.token)).toContain('admin-users');
   });
 
   it('drops a section whose instance flag is off', () => {
     const index = buildSettingsSearchIndex(echo, { ...ALL_AVAILABLE, openLoopsEnabled: false });
     expect(index.map(entry => entry.token)).not.toContain('open-loops');
-    expect(index).toHaveLength(TOKENS.length - 1);
+    expect(index).toHaveLength(USER_TOKENS.length - 1);
   });
 
   it('drops the user debug panel for a superuser', () => {

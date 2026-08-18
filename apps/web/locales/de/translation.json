@@ -2186,13 +2186,6 @@
       "stt_remote_unavailable_warning": "Externe Transkription nicht verfügbar: Ein Administrator muss zuerst den ElevenLabs-API-Schlüssel konfigurieren.",
       "stt_remote_privacy_notice": "Im externen Modus wird Ihr Audio zur Transkription an ElevenLabs (Cloud) gesendet. Im lokalen Modus bleibt das Audio innerhalb von LIA."
     },
-    "document_generation": {
-      "title": "Dokumenterstellung",
-      "description": "Erstellen Sie herunterladbare CSV-, Excel-, Word-, PowerPoint- oder PDF-Dateien in der Unterhaltung",
-      "enable": "Dokumenterstellung aktivieren",
-      "enable_description": "Dem Assistenten erlauben, herunterladbare Dokumente zu erstellen; sie laufen automatisch ab",
-      "updated": "Einstellung zur Dokumenterstellung aktualisiert"
-    },
     "image_generation": {
       "title": "KI-Bildgenerierung",
       "description": "KI-gestutzte Bildgenerierung konfigurieren",
@@ -3246,6 +3239,11 @@
         "meeting_draft": "Plane einen Termin „{{subject}}“ mit {{invitee}}, am {{when}}, in {{where}}."
       }
     },
+    "shell": {
+      "nav_label": "Einstellungsbereiche",
+      "back": "Zurück zu den Einstellungen",
+      "browse_all": "Alle Einstellungen anzeigen"
+    },
     "search": {
       "label": "Einstellung suchen",
       "placeholder": "Einstellung suchen…",
@@ -3255,7 +3253,6 @@
       "results_count_other": "{{count}} Einstellungen gefunden",
       "no_results": "Keine Einstellung passt zu „{{query}}“",
       "no_results_hint": "Versuchen Sie ein anderes Wort oder sieh die Tabs unten durch.",
-      "admin_not_indexed": "Der Tab „Administration“ wird von dieser Suche nicht erfasst.",
       "unavailable": "„{{section}}“ wird hier nicht angezeigt – möglicherweise ist dieser Bereich für Ihr Konto nicht verfügbar.",
       "keywords": {
         "language": "Gebietsschema, Übersetzung, Oberflächensprache, Sprache",
@@ -3274,7 +3271,6 @@
         "security-export": "DSGVO, GDPR, Archiv, Download, Datenübertragbarkeit, Sicherung, personenbezogene Daten, Datenschutz",
         "voice-mode": "Mikrofon, Sprache, Diktat, STT, TTS, Aktivierungswort, Audio, sprechen",
         "image-generation": "Bilder, Fotos, Zeichnung, Illustration, Generierung, Kunst",
-        "document-generation": "dokumente, dateien, csv, excel, word, powerpoint, pdf, export, bericht, präsentation",
         "connectors": "Google, Gmail, Kalender, Kontakte, Apple, Microsoft, Outlook, Integrationen, Konten, OAuth, neu verbinden, getrennt, Dienste, Position, Standort, Geolokalisierung, Heimatadresse, Adresse, Standortspeicher",
         "telephony-calls": "Telefon, Anrufe, Anrufverlauf, wählen",
         "admin-mcp-servers": "MCP, Model Context Protocol, Anwendungsserver, integrierte Werkzeuge",
@@ -3293,7 +3289,22 @@
         "rag-spaces": "Dokumente, RAG, Wissensdatenbank, Dateien, Upload, Indexierung, Bibliothek",
         "user-consumption-export": "CSV, Verbrauch, Tokens, Kosten, Abrechnung, Statistiken, Export",
         "haptics": "haptik vibration tastrückmeldung sensorisch",
-        "plugins": "plugins, plugin, erweiterungen, agent plugins, installieren, paket, mcp, skills"
+        "plugins": "plugins, plugin, erweiterungen, agent plugins, installieren, paket, mcp, skills",
+        "admin-users": "Benutzer, Konten, Rollen, Superuser, aktivieren, deaktivieren, sperren",
+        "admin-usage-limits": "Kontingente, Limits, Obergrenzen, Budget, Tokens, Verbrauchsgrenzen",
+        "admin-consumption-export": "Export, CSV, Verbrauch, Nutzung, Kosten, alle Konten",
+        "admin-broadcast": "Rundnachricht, Nachricht, Ankündigung, alle benachrichtigen",
+        "admin-connectors": "Konnektoren, Anbieter, Google, Apple, Microsoft, Dienste aktivieren",
+        "admin-llm-pricing": "Preise, Preis, Tarif, Tokens, Textmodelle, Kosten pro Token",
+        "admin-google-api-pricing": "Preise, Google API, Maps, Places, Routen, Geocoding-Kosten",
+        "admin-image-pricing": "Preise, Bilder, Bildgenerierung, Kosten pro Bild",
+        "admin-llm-config": "LLM, Modelle, Anbieter, Konfiguration, Temperatur, Reasoning, API-Schlüssel",
+        "admin-personalities": "Persönlichkeiten, Stile, Ton, System-Prompt, Assistenten-Charakter",
+        "admin-skills": "Skills, System-Skills, importieren, neu laden, Fähigkeitskatalog",
+        "rag-spaces-admin": "RAG, Räume, Wissen, neu indexieren, Dokumente, Embeddings",
+        "admin-capabilities": "Fähigkeiten, Feature-Flags, Schalter, Plattformfunktionen",
+        "admin-public-demo-link": "Demo, Demonstrator, öffentlicher Link, Showroom, teilen",
+        "debug-settings": "Debug, Diagnose, Protokolle, Panel, Token-Verfolgung"
       }
     },
     "haptics": {
@@ -4074,7 +4085,7 @@
         },
         "documentGeneration": {
           "title": "Dokumenterstellung",
-          "description": "LIA verfasst auf Abruf vollständige, herunterladbare Dokumente: CSV- und Excel-Tabellen, Word-Berichte, PowerPoint-Präsentationen mit Sprechernotizen, PDF, Markdown und Klartext. Ein dediziertes Autorenmodell erzeugt den Inhalt in Ihrer Sprache — gestützt auf Ihre Daten oder auf eine Recherche derselben Anfrage — und ein lokaler Renderer baut die exakte Datei, ohne jeden Dokumentdienst von Dritten. Dateien erscheinen als Karten unter der Antwort (Name, Größe, Ablaufdatum), PDFs öffnen sich direkt im Browser-Tab, und alles ist bewusst temporär: Laden Sie herunter, was Sie behalten möchten. Pro Nutzer abschaltbar in den Einstellungen, instanzweiter Schalter für den Administrator, und dieselben Nutzungsgrenzen wie jede andere KI-Ausgabe."
+          "description": "LIA verfasst auf Abruf vollständige, herunterladbare Dokumente: CSV- und Excel-Tabellen, Word-Berichte, PowerPoint-Präsentationen mit Sprechernotizen, PDF, Markdown und Klartext. Ein dediziertes Autorenmodell erzeugt den Inhalt in Ihrer Sprache — gestützt auf Ihre Daten oder auf eine Recherche derselben Anfrage — und ein lokaler Renderer baut die exakte Datei, ohne jeden Dokumentdienst von Dritten. Dateien erscheinen als Karten unter der Antwort (Name, Größe, Ablaufdatum), PDFs öffnen sich direkt im Browser-Tab, und alles ist bewusst temporär: Laden Sie herunter, was Sie behalten möchten. Instanzweiter Schalter für den Administrator, und dieselben Nutzungsgrenzen wie jede andere KI-Ausgabe."
         },
         "reactMode": {
           "title": "⚡ ReAct-Ausführungsmodus",
@@ -4127,12 +4138,22 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_30_9": {
+          "title": "v1.30.9 — 🧭 Einstellungen neu gedacht: alles einen Klick entfernt",
+          "date": "August 2026",
+          "items": {
+            "i1": "<b>🧭 Eine moderne Master-Detail-Einstellungsseite</b> — Schluss mit der Wand aus zugeklappten Listen: Eine permanente Seitenleiste zeigt alle Bereiche, gruppiert und mit Symbolen, und der gewählte Bereich öffnet sich vollständig im Panel daneben. Ohne Auswahl zeigt eine Übersicht jeden Bereich als Karte mit seiner Beschreibung — endlich sichtbar, bevor man etwas öffnet. Auf dem Telefon kommt zuerst die Liste, und jeder Bereich öffnet sich im Vollbild mit einer Zurück-Taste.",
+            "i2": "<b>🔎 Die Suche deckt jetzt die Administration ab, und Bereiche lassen sich teilen</b> — Administratoren finden jedes Admin-Panel (Benutzer, Preise, LLM-Konfiguration …) über dieselbe Schnellsuche, und jeder Bereich hat eine stabile Adresse: Seite neu laden oder URL teilen, und man landet genau dort. Ist ein Bereich auf dem Konto nicht verfügbar, sagt die Seite das klar — und schaut weiter nach, falls er nur langsam lädt.",
+            "i3": "<b>📄 Generierte Dokumente öffnen sich in der App</b> — ein Klick auf eine Dokumentkarte öffnet sie in einem Ansichts-Tab: CSV als echte Tabelle, Markdown und Text sauber dargestellt; Word, Excel und PowerPoint zeigen ein übersichtliches Download-Panel, und PDFs öffnen sich weiterhin direkt im Browser."
+          },
+          "count": "3"
+        },
         "v1_30_8": {
           "title": "v1.30.8 — 📄 Dokumenterstellung: echte Dateien, auf Abruf",
           "date": "August 2026",
           "items": {
             "i1": "<b>📄 Ein Dokument anfragen, eine echte Datei erhalten</b> — LIA verfasst jetzt vollständige Dokumente auf Abruf: CSV- und Excel-Tabellen, Word-Berichte, PowerPoint-Präsentationen, PDF, Markdown und Klartext. Fragen Sie im Chat („recherchiere die neuesten LLM-Modelle und fasse sie in einer CSV zusammen“, „erstelle eine ausführliche Präsentation über das Elsass“) und die fertige Datei erscheint als herunterladbare Karte unter der Antwort — sie kann direkt an eine Web-Recherche derselben Anfrage anknüpfen. Ein dediziertes Autorenmodell erzeugt den Inhalt in Ihrer Sprache; Tabellen sind konstruktionsbedingt sicher (keine Formel-Injektion) und Excel-fertig.",
-            "i2": "<b>🕒 Dateien, die sagen, wann sie ablaufen</b> — jede Dokumentkarte zeigt Dateinamen, Größe und das exakte Ablaufdatum; PDFs öffnen sich direkt in einem Browser-Tab, alles andere lädt mit einem Klick herunter. Die Erstellung lässt sich pro Nutzer in den Einstellungen abschalten, instanzweit vom Administrator, und zählt zu denselben Nutzungsgrenzen wie der Rest Ihrer KI-Nutzung."
+            "i2": "<b>🕒 Dateien, die sagen, wann sie ablaufen</b> — jede Dokumentkarte zeigt Dateinamen, Größe und das exakte Ablaufdatum; PDFs öffnen sich direkt in einem Browser-Tab, alles andere lädt mit einem Klick herunter. Die Erstellung wird instanzweit vom Administrator gesteuert und zählt zu denselben Nutzungsgrenzen wie der Rest Ihrer KI-Nutzung."
           },
           "count": "2"
         },
@@ -7202,8 +7223,8 @@
             "answer": "Erzeugte Dateien sind bewusst temporär: Jede Karte zeigt ihr exaktes Ablaufdatum, und kurz davor erscheint ein Hinweis — laden Sie die Datei herunter, um sie zu behalten. Die Kosten sind die Nutzung des Autorenmodells, gezählt wie der Rest Ihrer KI-Nutzung innerhalb Ihrer Kontogrenzen. Eine technische Ratenbegrenzung schützt zusätzlich vor Endlosschleifen; normale Nutzung erreicht sie nie."
           },
           "q5": {
-            "question": "Kann ich die Dokumenterstellung abschalten?",
-            "answer": "Ja, auf zwei Ebenen. Für Ihr eigenes Konto in <b>Einstellungen > Präferenzen > Dokumenterstellung</b>. Der Administrator kann die Fähigkeit außerdem instanzweit abschalten, sofort und ohne Neustart — das Werkzeug verschwindet dann sogar aus dem, was der Assistent überhaupt vorschlagen kann."
+            "question": "Wer kann die Dokumenterstellung abschalten?",
+            "answer": "Der Administrator kann die Fähigkeit instanzweit im Panel der Plattform-Fähigkeiten abschalten, sofort und ohne Neustart — das Werkzeug verschwindet dann sogar aus dem, was der Assistent überhaupt vorschlagen kann. Einen Schalter pro Nutzer gibt es nicht: Bietet die Instanz die Dokumenterstellung an, steht sie jedem Nutzer zur Verfügung."
           }
         }
       },
@@ -8616,6 +8637,10 @@
       "image_generation": {
         "title": "KI-Bildgenerierung",
         "description": "Erstelle Bilder aus Textbeschreibungen, verfeinere sie oder bearbeite eigene Fotos als Anhang. Einstellbare Qualität und integrierte Kostenverfolgung."
+      },
+      "document_generation": {
+        "title": "KI-Dokumenterstellung",
+        "description": "Fragen Sie nach einer CSV, einer Excel-Tabelle, einem Word-Bericht, einem PowerPoint oder einem PDF: Ein dediziertes Autorenmodell erzeugt den Inhalt, und die fertige Datei kommt als herunterladbare Karte — verkettbar mit einer Web-Recherche derselben Anfrage."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -10574,6 +10599,13 @@
         "availability": "Sie kann zeitweise und ohne Ankündigung nicht erreichbar sein.",
         "email_required": "Der Zugang erfordert eine gültige E-Mail-Adresse und die Zustimmung zu den Bedingungen – das hält Bots fern."
       }
+    }
+  },
+  "documents": {
+    "viewer": {
+      "error": "Dieses Dokument konnte nicht geladen werden — es ist möglicherweise abgelaufen.",
+      "not_renderable": "Dieses Format öffnet sich in seiner nativen Anwendung — laden Sie es herunter, um es anzusehen.",
+      "download": "Herunterladen"
     }
   }
 }

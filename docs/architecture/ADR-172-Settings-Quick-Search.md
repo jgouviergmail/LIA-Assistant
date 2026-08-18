@@ -1,6 +1,6 @@
 # ADR-172: Recherche de réglage — indexer ce qui existe, et le dire quand ce n'est pas là
 
-**Statut**: ✅ IMPLEMENTED (2026-07-28)
+**Statut**: ✅ IMPLEMENTED (2026-07-28) — phase 2 (indexation de l'administration) réalisée par ADR-227 (2026-08-18), qui remplace aussi la coquille accordéons/onglets décrite ici par un master-détail ; la doctrine « observation, jamais verdict » et les constantes de sondage survivent inchangées dans le panneau.
 **Date**: 2026-07-28
 **Décideurs**: Équipe LIA
 

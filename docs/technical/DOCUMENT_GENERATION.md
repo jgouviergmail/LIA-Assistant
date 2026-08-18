@@ -37,7 +37,7 @@ step in pipeline mode (chaining research → document via `$steps` templating on
 ### Data Flow
 
 ```
-generate_document tool (guards: user, flag, opt-in, doc_type enum)
+generate_document tool (guards: user, flag, doc_type enum)
   └─ DocumentGenerationService.generate_document_for_user
        ├─ load_document_prompt (path-based domain loader — no agents import,
        │   the agents↔document_generation cycle stays broken, telephony pattern)
@@ -86,8 +86,7 @@ in `registry/program_domain_configs.py` (taxonomy extension point). Prompt:
 
 Frontend: `GeneratedDocument` type (`types/chat.ts`, single declaration),
 `GeneratedDocumentCards` in `ChatMessage.tsx`,
-`components/settings/DocumentGenerationSettings.tsx` (per-user opt-in),
-settings search entry `document-generation`.
+and the chat-side document viewer.
 
 ## Expiry surfaced to the client (N2)
 
@@ -107,13 +106,14 @@ document-specific "expired" copy; unknown deadline → the UI says nothing.
 | `MAX_DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS` | 480.0 | Executor ceiling (see [TIMEOUT_REGISTRY.md](./TIMEOUT_REGISTRY.md)) |
 | `DOCUMENT_GENERATION_MAX_SOURCE_CHARS` | 60000 | `source_data` cap forwarded to the LLM (truncation reported) |
 
-### Switches (three levels)
+### Switches (two levels)
 
 1. Env flag `DOCUMENT_GENERATION_ENABLED` (deployment ceiling).
 2. Admin runtime capability `PlatformCapability.DOCUMENT_GENERATION`
    (Administration > Capabilities — removes the agent from the catalogue).
-3. Per-user opt-in `User.document_generation_enabled`
-   (Settings > Preferences > Document generation).
+
+There is deliberately NO per-user opt-in (owner decision 2026-08-18): the
+initial toggle shipped in v1.30.8 was removed with its column.
 
 ### Admin LLM Config
 

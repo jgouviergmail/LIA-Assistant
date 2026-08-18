@@ -110,7 +110,7 @@ test.describe('an unconfigured dashboard says so', () => {
     // its most valuable entry point.
     const section = page.locator('#settings-section-connectors');
     await expect(section).toBeAttached({ timeout: 30_000 });
-    await expect(section).toHaveAttribute('data-state', 'open', { timeout: 15_000 });
+    await expect(section).toBeVisible({ timeout: 10_000 });
   });
 
   test('stays quiet when everything is configured', async ({ page, authenticate, mockApi }) => {

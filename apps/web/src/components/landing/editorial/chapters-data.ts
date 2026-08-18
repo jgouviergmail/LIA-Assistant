@@ -29,6 +29,7 @@ import {
   Handshake,
   Heart,
   HelpCircle,
+  FileOutput,
   ImagePlus,
   LayoutGrid,
   Library,
@@ -91,6 +92,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
       'browser_control',
       'smart_home',
       'image_generation',
+      'document_generation',
       'excalidraw',
       'rich_responses',
     ],
@@ -218,6 +220,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   // creation & media
   'excalidraw',
   'image_generation',
+  'document_generation',
   'attachments',
   'mcp_apps',
   // extensibility & power
@@ -265,6 +268,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   health_metrics: Activity,
   excalidraw: PenTool,
   image_generation: ImagePlus,
+  document_generation: FileOutput,
   attachments: Paperclip,
   mcp_apps: AppWindow,
   mcp: Puzzle,

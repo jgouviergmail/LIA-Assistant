@@ -96,9 +96,6 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
     "image_generation_default_quality": "high",
     "image_generation_default_size": "1536x1024",
     "image_generation_output_format": "webp",
-    # Distinctive = not the schema default (True), so a builder dropping the
-    # field is caught (ADR-226).
-    "document_generation_enabled": False,
     "use_last_known_location": True,
     "health_metrics_agents_enabled": True,
     "created_at": datetime(2020, 1, 2, 3, 4, 5, tzinfo=UTC),

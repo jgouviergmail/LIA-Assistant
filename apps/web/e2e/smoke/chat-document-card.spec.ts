@@ -88,7 +88,15 @@ test.describe('chat generated document cards', () => {
     await expect(page.getByText('rapport.pdf')).toBeVisible();
     await expect(page.getByTestId('generated-document-card')).toHaveCount(2);
 
-    // The csv action is a NAMED native link that downloads the file.
+    // The csv card body OPENS the document viewer page in a new tab.
+    const openCsv = page.getByRole('link', { name: 'Open modeles-llm.csv' });
+    await expect(openCsv).toBeVisible();
+    await expect(openCsv).toHaveAttribute('target', '_blank');
+    const viewerHref = await openCsv.getAttribute('href');
+    expect(viewerHref).toContain('/dashboard/documents/00000000-0000-4000-8000-00000000d001?');
+    expect(viewerHref).toContain('type=csv');
+
+    // A sibling NAMED link downloads the file directly.
     const download = page.getByRole('link', { name: 'Download modeles-llm.csv' });
     await expect(download).toBeVisible();
     await expect(download).toHaveAttribute(
@@ -97,10 +105,14 @@ test.describe('chat generated document cards', () => {
     );
     await expect(download).toHaveAttribute('download', 'modeles-llm.csv');
 
-    // The pdf action opens in a new tab (served inline by the API).
+    // The pdf card opens its inline URL directly (native browser viewer).
     const open = page.getByRole('link', { name: 'Open rapport.pdf' });
     await expect(open).toBeVisible();
     await expect(open).toHaveAttribute('target', '_blank');
+    await expect(open).toHaveAttribute(
+      'href',
+      '/api/v1/attachments/00000000-0000-4000-8000-00000000d002'
+    );
 
     // Keyboard reachability: the link takes focus like any native anchor.
     await download.focus();

@@ -19,7 +19,7 @@ import {
   settingsSectionHref,
   type SettingsSectionToken,
 } from '../settings-sections';
-import { exportedComponentOf, settingsPageBlocks, SRC } from './helpers/settings-page-source';
+import { SRC } from './helpers/settings-page-source';
 
 const ENTRIES = Object.entries(SETTINGS_SECTIONS);
 
@@ -33,10 +33,20 @@ const ENTRIES = Object.entries(SETTINGS_SECTIONS);
  * `value={…}`-shaped fallback would relax the guard for every future section
  * that happens to interpolate, which is exactly how a guard stops guarding.
  *
- * Shrink-only in spirit — an entry leaves this set when its component declares
+ * The map value names the file that holds the QUOTED LITERAL when it is not
+ * `declaredIn` itself: the admin token's `declaredIn` is the thin
+ * `AdminConsumptionExportSection` wrapper (which is what the administration
+ * panel renders, so the tab check needs it), while the literal
+ * `'admin-consumption-export'` lives in the wrapped component. `null` means
+ * the literal sits in `declaredIn`.
+ *
+ * Shrink-only in spirit — an entry leaves this map when its component declares
  * a literal value, never the reverse without a written reason.
  */
-const COMPUTED_VALUE_TOKENS: ReadonlySet<string> = new Set(['user-consumption-export']);
+const COMPUTED_VALUE_TOKENS: ReadonlyMap<string, string | null> = new Map([
+  ['user-consumption-export', null],
+  ['admin-consumption-export', 'components/settings/ConsumptionExportSection.tsx'],
+]);
 
 /** `Object.keys` widens to `string`; the repo idiom is to narrow it back
  *  (cf. `TodayBriefing`, `AdminConnectorsSection`). */
@@ -48,18 +58,20 @@ describe('SETTINGS_SECTIONS — the table matches the components', () => {
   });
 
   it.each(ENTRIES)('%s declares the accordion value it claims', (token, target) => {
-    const source = readFileSync(join(SRC, target.declaredIn), 'utf8');
     if (COMPUTED_VALUE_TOKENS.has(token)) {
       // Relaxed to a quoted literal, and ONLY for the enumerated tokens above:
       // a blanket fallback would silently weaken the check for every future
       // section. A rename still breaks it, which is what the guard is for.
+      const literalFile = COMPUTED_VALUE_TOKENS.get(token) ?? target.declaredIn;
+      const source = readFileSync(join(SRC, literalFile), 'utf8');
       expect(
         source.includes(`'${target.accordionValue}'`) ||
           source.includes(`"${target.accordionValue}"`),
-        `${token}: ${target.declaredIn} never mentions the literal '${target.accordionValue}'`
+        `${token}: ${literalFile} never mentions the literal '${target.accordionValue}'`
       ).toBe(true);
       return;
     }
+    const source = readFileSync(join(SRC, target.declaredIn), 'utf8');
     expect(
       source.includes(`value="${target.accordionValue}"`),
       `${token}: ${target.declaredIn} does not declare value="${target.accordionValue}"`
@@ -70,7 +82,7 @@ describe('SETTINGS_SECTIONS — the table matches the components', () => {
     // The escape hatch may only name tokens that really do compute their value.
     // Left unchecked it would rot into a place to park any entry that fails the
     // strict form.
-    for (const token of COMPUTED_VALUE_TOKENS) {
+    for (const token of COMPUTED_VALUE_TOKENS.keys()) {
       const target = SETTINGS_SECTIONS[token as SettingsSectionToken];
       expect(target, `${token} is allowlisted but not declared`).toBeDefined();
       const source = readFileSync(join(SRC, target.declaredIn), 'utf8');
@@ -102,46 +114,16 @@ describe('SETTINGS_SECTIONS — the table matches the components', () => {
   });
 
   /**
-   * The declared TAB must be the tab the component is actually rendered in.
-   *
-   * `accordionValue` was already checked against the component; the tab was
-   * not, and it is the half that decides where the deep link LANDS. A section
-   * moved from Features to Preferences would leave every link to it opening the
-   * wrong tab and expanding nothing — silently, since the accordion value would
-   * still match. Read from the page rather than declared twice.
+   * The master-detail page renders FROM this table (rail order, tab and group
+   * headings, pane resolution through the registry), so "the page and the
+   * table disagree" is no longer a reachable state — the former source-parsing
+   * checks died with the hand-written layouts. What remains table-level is
+   * that all three audiences are covered: losing the administration entries
+   * would silently un-index the admin surface again.
    */
-  it('places every section in the tab the table claims', () => {
-    // The page renders TWO layouts (superuser gets a third tab), so a component
-    // legitimately appears in several blocks — of the SAME tab. Each block is
-    // sliced to its own closing tag by the shared reader, so the `</Tabs>` +
-    // second `<Tabs>` preamble sitting between two panels is never attributed
-    // to the preceding one.
-    const blocks = settingsPageBlocks();
-    expect(
-      blocks.length,
-      'no TabsContent block found — the scan would pass vacuously'
-    ).toBeGreaterThanOrEqual(4);
-
-    for (const [token, target] of ENTRIES) {
-      const component = exportedComponentOf(target.declaredIn);
-      const tabsRenderingIt = [
-        ...new Set(
-          blocks.filter(block => block.body.includes(`<${component} `)).map(block => block.tab)
-        ),
-      ];
-      // No early `continue` on an empty set. The page renders every section
-      // UNCONDITIONALLY in its JSX — a capability-gated one returns null at
-      // RUNTIME, which source scanning cannot observe. An empty set therefore
-      // means the component is absent from the page entirely, which is the
-      // defect this test exists to catch; skipping it is how a table entry
-      // could point at a section nobody renders.
-      expect(
-        tabsRenderingIt,
-        tabsRenderingIt.length === 0
-          ? `${token}: the page renders no <${component}> at all — the table points at a section that is not on the page`
-          : `${token}: declared in the "${target.tab}" tab but rendered in ${tabsRenderingIt.join(', ')}`
-      ).toEqual([target.tab]);
-    }
+  it('spans all three tabs — the administration deferral is over', () => {
+    const tabsInUse = new Set(ENTRIES.map(([, target]) => String(target.tab)));
+    expect([...tabsInUse].sort()).toEqual(['administration', 'features', 'preferences']);
   });
 });
 

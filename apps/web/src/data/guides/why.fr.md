@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 4.8
-**Date** : 2026-08-17
-**Application** : LIA v1.30.8
+**Date** : 2026-08-18
+**Application** : LIA v1.30.9
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -458,7 +458,7 @@ Si un fournisseur change ses tarifs ou dégrade son service, tu bascules instant
 
 Chaque utilisateur peut connecter ses propres serveurs MCP, étendant les capacités de LIA bien au-delà des outils intégrés. Le client parle les deux générations du protocole — la nouvelle révision sans état comme l'ancien handshake, choisis automatiquement par serveur — si bien que l'ouverture ne coûte jamais la compatibilité. Les Skills (standard agentskills.io) permettent d'injecter des instructions expertes en langage naturel — avec un générateur de Skills intégré qui les crée en dialogue guidé et les installe directement dans tes skills, prêtes à l'emploi. Depuis la v1.16.8, un Skill peut également retourner une **frame HTML interactive** (carte, dashboard, calendrier, convertisseur...) ou une **image** (QR code, graphique) directement dans le chat, sandboxée sous CSP stricte, avec thème et langue synchronisés automatiquement.
 
-Depuis la v1.30.8, cette ouverture a un format de paquet : LIA parle le standard ouvert **Agent Plugins** (agent-plugins.org), le format de plugin portable piloté par AWS, Microsoft, OpenAI, Cursor et Vercel et adopté par ChatGPT, Codex, Cursor, GitHub Copilot, Kiro et VS Code. Un plugin regroupant skills et serveurs MCP s'installe dans LIA en une étape — depuis un zip ou un lien https — avec un rapport complet par composant de ce qui a été installé, ignoré (et pourquoi) ou retiré, et se désinstalle tout aussi proprement, tout ce qu'il avait apporté repartant avec lui. L'interopérabilité est ici une conviction, pas une fonctionnalité : ce que tu construis ou adoptes ailleurs dans l'écosystème t'appartient et te suit.
+Depuis la v1.30.9, cette ouverture a un format de paquet : LIA parle le standard ouvert **Agent Plugins** (agent-plugins.org), le format de plugin portable piloté par AWS, Microsoft, OpenAI, Cursor et Vercel et adopté par ChatGPT, Codex, Cursor, GitHub Copilot, Kiro et VS Code. Un plugin regroupant skills et serveurs MCP s'installe dans LIA en une étape — depuis un zip ou un lien https — avec un rapport complet par composant de ce qui a été installé, ignoré (et pourquoi) ou retiré, et se désinstalle tout aussi proprement, tout ce qu'il avait apporté repartant avec lui. L'interopérabilité est ici une conviction, pas une fonctionnalité : ce que tu construis ou adoptes ailleurs dans l'écosystème t'appartient et te suit.
 
 
 L'architecture de LIA est conçue pour faciliter l'ajout de nouveaux connecteurs, canaux, agents et fournisseurs IA. Le code est structuré avec des abstractions claires et des guides de développement dédiés (agent creation guide, tool creation guide) qui rendent l'extension accessible à tout développeur.
