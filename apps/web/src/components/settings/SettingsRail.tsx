@@ -54,7 +54,19 @@ export function SettingsRail({ lng, model, activeToken, onSelect }: SettingsRail
             key={tab.tab}
             className={cn(tab.tab === 'administration' && 'border-t border-border/60 pt-5')}
           >
-            <p className="flex items-center gap-2 px-2 pb-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            {/* Below `lg` the rail IS the page, so the two heading levels
+                become full-width BANDS with centred labels (owner arbitration
+                2026-08-18) — tab level in the theme tint, group level on the
+                muted ground, both pairs already contrast-guarded (TabsList,
+                badges). From `lg` up the compact left-aligned micro-labels
+                return: beside the pane, bands would shout. */}
+            <p
+              className={cn(
+                'flex items-center gap-2 text-xs font-bold uppercase tracking-wider',
+                'justify-center rounded-md bg-primary/10 px-3 py-2 text-primary',
+                'lg:justify-start lg:rounded-none lg:bg-transparent lg:px-2 lg:py-0 lg:pb-1 lg:text-muted-foreground'
+              )}
+            >
               <TabIcon className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
               {t(`settings.tabs.${tab.tab}`)}
             </p>
@@ -64,7 +76,13 @@ export function SettingsRail({ lng, model, activeToken, onSelect }: SettingsRail
                     modifier: `/75` measured 3.05:1 at 11 px — the exact
                     ADR-172 trap (axe run 3). Hierarchy comes from size and
                     weight, never from fading the ink. */}
-                <p className="px-2 pb-0.5 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p
+                  className={cn(
+                    'text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
+                    'mt-2 rounded-md bg-muted px-3 py-1.5 text-center',
+                    'lg:mt-0 lg:rounded-none lg:bg-transparent lg:px-2 lg:py-0 lg:pb-0.5 lg:pt-2 lg:text-left'
+                  )}
+                >
                   {t(`settings.groups.${group.key}`)}
                 </p>
                 <ul className="space-y-0.5">
