@@ -14,7 +14,6 @@ Key design decisions:
 
 from __future__ import annotations
 
-import time as _time
 import uuid
 from contextlib import suppress
 from datetime import UTC, datetime
@@ -39,9 +38,17 @@ from src.domains.journals.constants import (
     JOURNAL_EXTRACTION_RECENT_LIMIT,
     JOURNAL_EXTRACTION_SEMANTIC_LIMIT,
 )
+from src.domains.journals.extraction_debug_store import (
+    pop_extraction_debug,
+    store_extraction_debug,
+)
 from src.domains.journals.models import JournalEntryMood, JournalEntrySource
 from src.domains.journals.prompt_builders import build_introspection_prompt
 from src.domains.journals.schemas import ConsolidationParseResult, ExtractedJournalEntry
+from src.domains.journals.self_eval import (
+    count_evidence_signals,
+    record_self_eval_funnel,
+)
 from src.domains.shared.extraction_targets import (
     find_last_user_message,
     is_synthetic_message,
@@ -55,70 +62,6 @@ from src.infrastructure.observability.metrics_journals import (
 )
 
 logger = get_logger(__name__)
-
-
-# =============================================================================
-# Debug Results Registry (per run_id, consumed by streaming service)
-# =============================================================================
-# In-process dict storing extraction debug data keyed by run_id.
-# Entries are written by extract_journal_entry_background() and consumed
-# (popped) by the SSE streaming service via pop_extraction_debug().
-# A TTL-based eviction prevents unbounded growth when entries are never
-# consumed (e.g., streaming error, debug panel disabled).
-
-_EXTRACTION_DEBUG_TTL_SECONDS: int = 300  # 5 minutes
-
-_extraction_debug_results: dict[str, tuple[float, dict[str, Any]]] = {}
-
-
-def _evict_stale_debug_entries() -> None:
-    """Drop entries older than the TTL — called on BOTH store and pop.
-
-    Store-side eviction is what actually honours the "debug panel
-    disabled" promise above: with pop-only eviction, a deployment that
-    never opens the panel never pops, and the cache grew one entry per
-    turn for the process lifetime (2026-07-22 counter-review).
-    """
-    now = _time.monotonic()
-    stale_keys = [
-        k
-        for k, (ts, _) in _extraction_debug_results.items()
-        if now - ts > _EXTRACTION_DEBUG_TTL_SECONDS
-    ]
-    for k in stale_keys:
-        del _extraction_debug_results[k]
-
-
-def _store_extraction_debug(run_id: str, data: dict[str, Any]) -> None:
-    """Store extraction debug results for a given run_id with a timestamp.
-
-    Args:
-        run_id: The pipeline run_id to associate the results with.
-        data: Debug dict with actions_parsed, actions_applied, entries.
-    """
-    _evict_stale_debug_entries()
-    _extraction_debug_results[run_id] = (_time.monotonic(), data)
-
-
-def pop_extraction_debug(run_id: str) -> dict[str, Any] | None:
-    """Pop and return extraction debug results for a given run_id.
-
-    Called by the streaming service after await_run_id_tasks to include
-    journal extraction details in the debug panel.
-
-    Also evicts stale entries older than ``_EXTRACTION_DEBUG_TTL_SECONDS``
-    to prevent unbounded memory growth when entries are never consumed.
-
-    Args:
-        run_id: The pipeline run_id whose extraction results to retrieve.
-
-    Returns:
-        Debug dict with actions_parsed, actions_applied, entries details,
-        or None if no results found for this run_id.
-    """
-    _evict_stale_debug_entries()
-    entry = _extraction_debug_results.pop(run_id, None)
-    return entry[1] if entry is not None else None
 
 
 async def _maybe_build_inner_state_section(user_id: str) -> str:
@@ -211,18 +154,25 @@ async def _maybe_build_inner_state_section(user_id: str) -> str:
 async def _build_previous_turn_directives_section(
     user_id: str,
     previous_turn_injected_ids: list[str],
-) -> str:
+) -> tuple[str, set[str]]:
     """Build the deferred self-evaluation section for the extraction prompt.
 
     Loads the entries that were injected at turn T-1 and renders them as a
     block the LLM can use to observe the user's reaction at turn T (visible
     in the conversation excerpt) and signal `evidence_outcome` accordingly.
 
-    Returns an empty string when there is nothing to evaluate (e.g. conversation
-    reset, first turn, or all IDs disappeared between T-1 and T).
+    Returns:
+        ``(section, verified_ids)`` — the rendered block (empty string when
+        there is nothing to evaluate: conversation reset, first turn, or all
+        IDs disappeared between T-1 and T) and the ownership-verified entry
+        ids it lists. The caller feeds these ids to the hallucinated-id
+        filter: without them, an evidence signal targeting a T-1 directive
+        outside the semantic/recent prefilter was silently dropped as
+        hallucinated (audit B-01, 2026-08-19 — latent while journals hold
+        ≤3 entries, structural beyond).
     """
     if not previous_turn_injected_ids:
-        return ""
+        return "", set()
 
     try:
         from src.infrastructure.database import get_db_context
@@ -242,28 +192,16 @@ async def _build_previous_turn_directives_section(
                     entries.append(entry)
 
         if not entries:
-            return ""
+            return "", set()
 
-        lines = [
-            "## DIRECTIVES INJECTED AT THE PREVIOUS TURN",
-            (
-                "The directives below were injected into your previous response. "
-                "Look at the conversation above and consider the user's reaction "
-                "AT THE CURRENT TURN. For each directive that was clearly applied "
-                "and where you can read a signal in the user's reaction:"
-            ),
-            (
-                "- If the user pushed back, reformulated, or corrected → propose `update` with "
-                '`evidence_outcome="contradiction"` on that entry.'
-            ),
-            (
-                "- If the user engaged smoothly, thanked you, or visibly benefited → propose "
-                '`update` with `evidence_outcome="evidence"`.'
-            ),
-            "- If the directive was not relevant to what unfolded → leave it alone (no signal).",
-            "- The system increments the counters atomically; you only signal the outcome.",
-            "",
-        ]
+        # Prose scaffolding lives in the versioned prompt file (rule 16 /
+        # lot 6); entry lines below are data rendering, not prose. The
+        # historical inline block was one wrapped paragraph — normalize the
+        # file's hard-wrapped intro back to the exact same bytes.
+        from src.domains.agents.prompts.prompt_loader import load_prompt
+
+        scaffolding = load_prompt("journal_self_eval_directives_section").rstrip()
+        lines = [scaffolding, ""]
         for entry in entries:
             hints_str = f" | hints: {', '.join(entry.search_hints)}" if entry.search_hints else ""
             lines.append(
@@ -271,14 +209,14 @@ async def _build_previous_turn_directives_section(
                 f"| ev={entry.evidence_count}/co={entry.contradiction_count} "
                 f"| {entry.theme}{hints_str}] **{entry.title}** — {entry.content}"
             )
-        return "\n".join(lines)
+        return "\n".join(lines), {str(entry.id) for entry in entries}
     except Exception as exc:  # pragma: no cover — defensive
         logger.warning(
             "journal_previous_turn_directives_load_failed",
             user_id=user_id,
             error=str(exc),
         )
-        return ""
+        return "", set()
 
 
 async def _maybe_build_health_context(user_id: str) -> str:
@@ -838,10 +776,14 @@ async def extract_journal_entry_background(
         # Lists the directives that were injected at the PREVIOUS turn so the LLM
         # can observe how the user reacted (in the conversation it now sees) and
         # signal `evidence_outcome=evidence|contradiction` on update actions.
-        previous_turn_directives_section = await _build_previous_turn_directives_section(
+        (
+            previous_turn_directives_section,
+            previous_turn_verified_ids,
+        ) = await _build_previous_turn_directives_section(
             user_id=user_id,
             previous_turn_injected_ids=previous_turn_injected_ids or [],
         )
+        record_self_eval_funnel(previous_turn_injected_ids or [], previous_turn_directives_section)
 
         # Build prompt (shared renderer — see domains/journals/prompt_builders.py)
         prompt = build_introspection_prompt(
@@ -901,11 +843,14 @@ async def extract_journal_entry_background(
 
         # Parse result
         actions = _parse_journal_extraction_result(result_content)
+        # Funnel: signals counted BEFORE the hallucinated-id filter below, so
+        # a dropped signal stays visible as a signaled-vs-applied gap.
+        count_evidence_signals(actions)
 
         if not actions:
             logger.debug("journal_extraction_no_actions", user_id=user_id)
             if parent_run_id:
-                _store_extraction_debug(
+                store_extraction_debug(
                     parent_run_id,
                     {
                         "actions_parsed": 0,
@@ -915,8 +860,11 @@ async def extract_journal_entry_background(
                 )
             return 0
 
-        # Filter out hallucinated entry_ids (only keep IDs that exist in loaded entries)
-        known_ids = {str(e.id) for e in existing_entries}
+        # Filter out hallucinated entry_ids. The known set is the union of the
+        # prefiltered entries AND the ownership-verified T-1 directives: an
+        # evidence signal on a directive outside the prefilter must not be
+        # dropped as hallucinated (audit B-01, 2026-08-19).
+        known_ids = {str(e.id) for e in existing_entries} | previous_turn_verified_ids
         valid_actions = []
         for action in actions:
             if action.action in ("update", "delete") and action.entry_id:
@@ -1096,7 +1044,7 @@ async def extract_journal_entry_background(
                     }
                 )
 
-            _store_extraction_debug(
+            store_extraction_debug(
                 parent_run_id,
                 {
                     "actions_parsed": len(actions),
@@ -1111,7 +1059,7 @@ async def extract_journal_entry_background(
         # Graceful degradation — extraction failure must never break the response
         # Clean up debug entry to avoid orphaned data in the registry
         if parent_run_id:
-            _extraction_debug_results.pop(parent_run_id, None)
+            pop_extraction_debug(parent_run_id)
         logger.error(
             "journal_extraction_failed",
             user_id=user_id,

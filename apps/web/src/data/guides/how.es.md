@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 4.4
+**Versión**: 4.5
 **Fecha**: 2026-08-19
-**Aplicación**: LIA v1.30.12
+**Aplicación**: LIA v1.30.13
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 473 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 230 ADRs, ~19.844 tests recogidos por pytest en 1.119 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 232 ADRs, ~19.844 tests recogidos por pytest en 1.119 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -659,6 +659,8 @@ Detección por análisis de las peticiones con evolución bayesiana de los pesos
 
 ---
 
+**El bucle de autoevaluación del diario y el umbral adaptativo.** Las directivas inyectadas en una respuesta se reevalúan en el turno siguiente a la luz de la reacción del usuario: el LLM solo señala `evidence` o `contradiction`, el sistema posee los contadores, y una pinza del lado servidor prohíbe la confianza «alta» a una directiva operativa sin pruebas — L2/L3 quedan libres, su prueba es la convergencia entre entradas. La elegibilidad de la consolidación se guía por delta (existe trabajo: nunca consolidado, o una entrada tocada desde el último pase), nunca por un recuento absoluto. Por último, el umbral de similitud que decide una inyección ya no es global: un controlador acotado (0,55–0,70), histerético (un paso de 0,01 cada 24 h) y desconectable lo aprende por usuario a partir de la distribución real de sus puntuaciones — el estado es consultivo (Redis, TTL deslizante), una lectura fallida recae en el valor por defecto estático.
+
 ## 12. Infraestructura LLM multi-provider
 
 ### 12.1. Factory Pattern
@@ -785,6 +787,8 @@ Factory **catalogue-driven** (ADR-081): `factory.get_tts_client()` lee el overri
 **Fase 2 — Generación** (si notify): LLM reescribe con personalidad + idioma del usuario. Cuando se han recuperado hechos, un bloque VERIFIED FACTS exige nombrar 1-2 elementos concretos sin inventar nunca, y los enlaces a las fuentes se añaden de forma determinista. Dispatch multi-canal. Una mención de interés se inscribe en el libro compartido (`InterestNotification(source='heartbeat')`): el tema descansa entonces para ambos flujos proactivos.
 
 Cada fuente está acotada por un presupuesto de tiempo y falla de forma independiente. Ese presupuesto cubre una parte de un bucle de eventos compartido con los demás recolectores — no es un tiempo de espera de base de datos: las señales de salud lo superaban en régimen nominal porque su lectura traía decenas de miles de filas en bruto para producir unas pocas decenas de números, congelando al worker durante la descodificación. La lectura se apoya ahora en una agregación diaria calculada en la base de datos, y toda pérdida de fuente se cuenta y cronometra en vez de pasar en silencio — una fuente que falla desapareciendo no deja rastro en la propia notificación.
+
+**El guardián de actividad es una sonda inyectada, y la selección es equitativa.** La regla «no interrumpir a un usuario activo» se aplica mediante un puerto (`ActivityProbe`) que cada planificador conecta a la fuente de actividad real — el último mensaje humano, filas automatizadas excluidas, acotado al horizonte del cooldown. El verificador genérico no conoce ningún modelo de dominio: recibe la sonda, y un fallo de lectura se propaga al recuento de fallos del runner en lugar de disolverse en un permiso. Aguas arriba, la selección de cuentas candidatas empuja el indicador de activación a SQL y aleatoriza el orden (`ORDER BY random()`): más allá del tamaño del lote, ninguna cuenta puede quedar sistemáticamente la última. El prefiltro horario en SQL se evaluó y se rechazó — una sola zona horaria corrupta haría fallar el lote entero, por una ganancia del orden del microsegundo.
 
 ### 16.2. Agent Initiative (ADR-062)
 
@@ -1293,7 +1297,7 @@ La lección de ingeniería más valiosa vino de un defecto invisible: la primiti
 
 ## 24. Arquitectura de decisiones (ADR)
 
-230 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+232 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1397,10 +1401,10 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 230 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.844 tests en 1.119 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 232 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.844 tests en 1.119 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 230 ADRs y del changelog (v1.0 a v1.30.12). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 232 ADRs y del changelog (v1.0 a v1.30.13). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

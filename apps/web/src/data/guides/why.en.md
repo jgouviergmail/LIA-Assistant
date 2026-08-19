@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.9
+**Version**: 5.0
 **Date**: 2026-08-19
-**Application**: LIA v1.30.12
+**Application**: LIA v1.30.13
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -329,6 +329,8 @@ The same transparency covers habit learning: what LIA believes about your rhythm
 ### 6.5. A surface that describes the product is held to it
 
 Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. The capability map — the page answering *what can my assistant do for me?* — published thirteen fixed entries for months while the product gained image generation, documents, plugins, learned habits, MCP servers and telephone calls. Nothing was broken, no test went red, and the page that existed to be current had become the least current in the application. A written convention had already asked for it to be updated; conventions are exactly what a busy month erodes. So the rule is now mechanical: two declared tables must account for every capability the platform can switch, each exclusion carrying a written reason, and an assertion runs when the code loads — a capability that ships without deciding its place on the map stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it.
+
+Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 
 ## 7. Emotional depth
 

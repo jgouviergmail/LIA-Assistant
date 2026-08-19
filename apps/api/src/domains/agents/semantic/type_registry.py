@@ -1,13 +1,13 @@
 """
 Semantic Type Registry - Central Type Management
 
-Central registry for managing 96+ semantic types with:
-- Type hierarchy (DAG - Directed Acyclic Graph)
-- Semantic relations (RDF-style)
-- Fast O(1) lookup by name, category, domain, tool
-- Wu & Palmer semantic distance computation
+Central registry for the semantic type catalogue (ADR-233, 2026-08-19):
+- Fast O(1) lookup by name and by source domain (the runtime surface)
+- Parent/child hierarchy kept as data + validate_hierarchy diagnostics
 
-Uses NetworkX for efficient graph management.
+The transitive-subsumption API, Wu & Palmer distance, SKOS relation graph
+and category/tool getters had ZERO runtime consumers and were removed —
+doctrine: unwired capability is deleted, not kept "for later".
 """
 
 import networkx as nx
@@ -22,24 +22,15 @@ class TypeRegistry:
     """
     Central semantic type registry.
 
-    Manages hierarchy, relations, and provides fast lookups
-    to support semantic expansion and reasoning.
-
-    Features:
-    - Type hierarchy (DAG with NetworkX)
-    - Semantic relations (related, broader, narrower)
-    - Fast O(1) lookup by name, category, domain, tool
-    - Wu & Palmer semantic distance computation
-    - Subsumption validation (is-a)
+    Provides the lookups the runtime actually consumes (expansion service,
+    initiative bridges, param guard): by name and by source domain. The
+    hierarchy graph persists as validated data (validate_hierarchy).
 
     Example:
         >>> registry = TypeRegistry()
         >>> registry.register(email_address_type)
-        >>> registry.register(physical_address_type)
-        >>> registry.is_subtype_of("physical_address", "PostalAddress")
-        True
-        >>> registry.compute_distance_wu_palmer("email_address", "phone_number")
-        0.67  # Both are ContactPoint subtypes
+        >>> registry.get_by_domain("contact")
+        {"email_address"}
     """
 
     def __init__(self) -> None:
@@ -47,11 +38,10 @@ class TypeRegistry:
         # Main storage
         self._types: dict[str, SemanticType] = {}
 
-        # Graphs for hierarchy and relations
+        # Hierarchy graph (kept for validate_hierarchy diagnostics)
         self._hierarchy: nx.DiGraph = nx.DiGraph()  # Parent → Child edges
-        self._relations: nx.MultiDiGraph = nx.MultiDiGraph()  # Semantic relations
 
-        # Indexes for fast O(1) lookup
+        # Indexes for fast O(1) lookup (category/tool retained for get_stats)
         self._by_category: dict[TypeCategory, set[str]] = {
             category: set() for category in TypeCategory
         }
@@ -101,16 +91,6 @@ class TypeRegistry:
         if type_def.parent:
             self._hierarchy.add_edge(type_def.parent, type_def.name)
 
-        # Build semantic relations
-        for related in type_def.related_types:
-            self._relations.add_edge(type_def.name, related, relation="related")
-
-        for broader in type_def.broader_types:
-            self._relations.add_edge(type_def.name, broader, relation="broader")
-
-        for narrower in type_def.narrower_types:
-            self._relations.add_edge(type_def.name, narrower, relation="narrower")
-
         # Update indexes
         self._update_indexes(type_def)
 
@@ -143,18 +123,6 @@ class TypeRegistry:
         """
         return list(self._types.values())
 
-    def get_by_category(self, category: TypeCategory) -> set[str]:
-        """
-        Retrieve type names for a category.
-
-        Args:
-            category: Type category
-
-        Returns:
-            Set of type names
-        """
-        return self._by_category.get(category, set())
-
     def get_by_domain(self, domain: str) -> set[str]:
         """
         Retrieve types provided by a domain.
@@ -166,178 +134,6 @@ class TypeRegistry:
             Set of type names provided by this domain
         """
         return self._by_domain.get(domain, set())
-
-    def get_by_tool(self, tool_name: str) -> set[str]:
-        """
-        Retrieve types used by a tool.
-
-        Args:
-            tool_name: Tool name
-
-        Returns:
-            Set of type names used by this tool
-        """
-        return self._by_tool.get(tool_name, set())
-
-    def get_hierarchy_path(self, type_name: str) -> list[str]:
-        """
-        Return the complete hierarchy path (root -> type).
-
-        Args:
-            type_name: Type name
-
-        Returns:
-            Path from root to type (list of names)
-
-        Example:
-            >>> registry.get_hierarchy_path("physical_address")
-            ["Thing", "Place", "PostalAddress", "physical_address"]
-        """
-        if type_name not in self._hierarchy:
-            # Type without parent (root or not registered)
-            return [type_name]
-
-        # Find all ancestors
-        ancestors = list(nx.ancestors(self._hierarchy, type_name))
-        if not ancestors:
-            return [type_name]
-
-        # Find the root (node without predecessors)
-        roots = [n for n in ancestors if self._hierarchy.in_degree(n) == 0]
-        if not roots:
-            # No root found, return just the type
-            return [type_name]
-
-        # Take the first root (should normally be unique)
-        root = roots[0]
-
-        # Find the shortest path from root to type
-        try:
-            path = nx.shortest_path(self._hierarchy, root, type_name)
-            return path  # type: ignore[no-any-return]
-        except nx.NetworkXNoPath:
-            return [type_name]
-
-    def get_subtypes(self, type_name: str, recursive: bool = True) -> set[str]:
-        """
-        Return subtypes (descendants).
-
-        Args:
-            type_name: Type name
-            recursive: If True, returns all descendants,
-                      otherwise only direct children
-
-        Returns:
-            Set of subtype names
-        """
-        if type_name not in self._hierarchy:
-            return set()
-
-        if recursive:
-            # All descendants (full transitivity)
-            return set(nx.descendants(self._hierarchy, type_name))
-        else:
-            # Only direct children
-            return set(self._hierarchy.successors(type_name))
-
-    def is_subtype_of(self, child: str, parent: str) -> bool:
-        """
-        Check subsumption relation (transitive).
-
-        Args:
-            child: Potential child type name
-            parent: Potential parent type name
-
-        Returns:
-            True if child is a subtype of parent (direct or transitive)
-
-        Example:
-            >>> registry.is_subtype_of("physical_address", "Place")
-            True  # physical_address → PostalAddress → Place
-        """
-        if child not in self._hierarchy or parent not in self._hierarchy:
-            return False
-
-        # Check if parent is in the ancestors of child
-        return parent in nx.ancestors(self._hierarchy, child)
-
-    def compute_distance_wu_palmer(self, type1: str, type2: str) -> float:
-        """
-        Compute Wu & Palmer semantic distance.
-
-        Hierarchy-based algorithm:
-        sim(c1, c2) = 2 * depth(LCS) / (depth(c1) + depth(c2))
-
-        where LCS = Lowest Common Subsumer (closest common ancestor)
-
-        Args:
-            type1: First type
-            type2: Second type
-
-        Returns:
-            Similarity between 0.0 (none) and 1.0 (identical)
-
-        Example:
-            >>> registry.compute_distance_wu_palmer("email_address", "phone_number")
-            0.67  # Shares ContactPoint parent
-            >>> registry.compute_distance_wu_palmer("email_address", "email_address")
-            1.0  # Identical
-        """
-        # Identical case
-        if type1 == type2:
-            return 1.0
-
-        # Check that types are in the hierarchy
-        if type1 not in self._hierarchy or type2 not in self._hierarchy:
-            return 0.0
-
-        # Find ancestors for each type
-        ancestors1 = set(nx.ancestors(self._hierarchy, type1)) | {type1}
-        ancestors2 = set(nx.ancestors(self._hierarchy, type2)) | {type2}
-
-        # Find common ancestors
-        common = ancestors1 & ancestors2
-
-        if not common:
-            # No common ancestor
-            return 0.0
-
-        # LCS = deepest common ancestor (closest)
-        # Take the one with the longest path from root
-        lcs = max(common, key=lambda n: len(self.get_hierarchy_path(n)))
-
-        # Compute depths
-        depth_lcs = len(self.get_hierarchy_path(lcs))
-        depth1 = len(self.get_hierarchy_path(type1))
-        depth2 = len(self.get_hierarchy_path(type2))
-
-        # Formule Wu & Palmer
-        if depth1 + depth2 == 0:
-            return 0.0
-
-        similarity = (2.0 * depth_lcs) / (depth1 + depth2)
-        return similarity
-
-    def get_related_types(self, type_name: str, relation: str = "related") -> set[str]:
-        """
-        Retrieve types linked by a semantic relation.
-
-        Args:
-            type_name: Type name
-            relation: Relation type ("related", "broader", "narrower")
-
-        Returns:
-            Set of related type names
-        """
-        if type_name not in self._relations:
-            return set()
-
-        related = set()
-        for _, target, edge_data in self._relations.edges(type_name, data=True):
-            if edge_data.get("relation") == relation:
-                related.add(target)
-
-        return related
 
     def _update_indexes(self, type_def: SemanticType) -> None:
         """
@@ -401,7 +197,6 @@ class TypeRegistry:
             "total_tools": len(self._by_tool),
             "hierarchy_nodes": self._hierarchy.number_of_nodes(),
             "hierarchy_edges": self._hierarchy.number_of_edges(),
-            "relation_edges": self._relations.number_of_edges(),
         }
 
     def __len__(self) -> int:

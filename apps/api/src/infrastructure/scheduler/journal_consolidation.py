@@ -120,48 +120,18 @@ async def process_journal_consolidation() -> dict[str, Any]:
             from src.infrastructure.database import get_db_context
 
             async with get_db_context() as db:
-                from sqlalchemy import and_, func, select
-
-                from src.domains.journals.models import JournalEntry, JournalEntryStatus
                 from src.domains.journals.repository import (
-                    consolidation_eligible_user_conditions,
-                )
-                from src.domains.users.models import User
-
-                # Calculate cooldown threshold
-                cooldown_threshold = datetime.now(UTC) - timedelta(
-                    hours=settings.journal_consolidation_cooldown_hours
-                )
-                min_entries = settings.journal_consolidation_min_entries
-
-                # Subquery: count active entries per user
-                active_count_subq = (
-                    select(
-                        JournalEntry.user_id,
-                        func.count(JournalEntry.id).label("entry_count"),
-                    )
-                    .where(JournalEntry.status == JournalEntryStatus.ACTIVE.value)
-                    .group_by(JournalEntry.user_id)
-                    .having(func.count(JournalEntry.id) >= min_entries)
-                    .subquery()
+                    build_consolidation_eligible_users_query,
                 )
 
-                # Query eligible users
-                eligible_query = (
-                    select(User)
-                    .join(active_count_subq, User.id == active_count_subq.c.user_id)
-                    .where(
-                        and_(
-                            # Shared with the portrait-age gauge — see the helper's
-                            # docstring for why the two must not drift apart.
-                            *consolidation_eligible_user_conditions(),
-                            # Cooldown: never consolidated OR last > cooldown
-                            (
-                                User.journal_last_consolidated_at.is_(None)
-                                | (User.journal_last_consolidated_at < cooldown_threshold)
-                            ),
-                        )
-                    )
+                # Delta-driven eligibility (B-03, 2026-08-19): work exists —
+                # never consolidated, or an active entry touched since the
+                # last stamp. The historical absolute floor (≥3) starved every
+                # post-prune journal and stalled portraits for months.
+                eligible_query = build_consolidation_eligible_users_query(
+                    cooldown_threshold=datetime.now(UTC)
+                    - timedelta(hours=settings.journal_consolidation_cooldown_hours),
+                    min_entries=settings.journal_consolidation_min_entries,
                 )
 
                 db_result = await db.execute(eligible_query)

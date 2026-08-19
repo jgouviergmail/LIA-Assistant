@@ -135,6 +135,7 @@ PromptName = Literal[
     "journal_introspection_prompt",
     "journal_consolidation_prompt",
     "journal_analyst_persona",
+    "journal_self_eval_directives_section",
     # ADR-062: Initiative Phase + MCP ReAct
     "initiative_prompt",
     # Response-node system-prompt scaffolding (proactive suggestions / ReAct findings)

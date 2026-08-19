@@ -38,6 +38,15 @@ class HabitsProfileClassSchema(BaseModel):
         description="Effective days required before claims — the enforced bound, "
         "published so the user can see exactly where the unlock stands (ADR-184).",
     )
+    effective_presence_min: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="The presence a window must REALLY reach for this class — "
+        "max(presence_min, Wilson-implied bar at this n_eff). Published because "
+        "it is enforced (ADR-184): the configured 0.55 understates the real bar "
+        "(≈0.57 weekday / ≈0.70 weekend on a full window, audit C-02).",
+    )
     bin_presence: list[float] = Field(
         default_factory=lambda: [0.0] * 24,
         description="Weighted per-hour day-presence (24 values) — the "

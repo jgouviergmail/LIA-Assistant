@@ -51,6 +51,50 @@ from src.infrastructure.proactive.tracking import generate_proactive_run_id, tra
 logger = get_logger(__name__)
 
 
+def build_candidate_users_query(enabled_field: str | None, batch_size: int) -> Any:
+    """Candidate-user selection for one proactive tick (lot 5, D-05).
+
+    Pushes the checker's boolean feature flag into SQL — disabled users used
+    to consume batch slots (323 feature_disabled checks/7d in prod) — and
+    orders by ``random()`` so slot allocation is fair across ticks: the
+    historical unordered ``LIMIT batch_size`` silently starved whoever
+    sorted last in heap order once verified users outgrew the batch.
+
+    The time-window prefilter was evaluated and deliberately REJECTED: a
+    ``timezone(tz, now())`` SQL computation dies on a single corrupt tz row
+    and would kill the whole batch — the per-user Python gate stays the
+    authority (its cost is microseconds).
+
+    Args:
+        enabled_field: The User boolean column name gating this task type,
+            or None to keep the historical unfiltered shape.
+        batch_size: Max candidates per tick.
+
+    Returns:
+        A ``Select`` over ``User`` rows.
+
+    Raises:
+        ValueError: On an unknown ``enabled_field`` — a typo must fail
+            loudly, never silently select everyone.
+    """
+    from sqlalchemy import func
+
+    from src.domains.users.models import User
+
+    conditions = [
+        User.is_verified == True,  # noqa: E712 - SQLAlchemy requires ==
+        User.is_active == True,  # noqa: E712
+        User.deleted_at.is_(None),
+    ]
+    if enabled_field is not None:
+        column = getattr(User, enabled_field, None)
+        if column is None:
+            raise ValueError(f"unknown enabled_field: {enabled_field!r}")
+        conditions.append(column.is_(True))
+
+    return select(User).where(*conditions).order_by(func.random()).limit(batch_size)
+
+
 @dataclass
 class RunnerStats:
     """
@@ -266,23 +310,8 @@ class ProactiveTaskRunner:
         Returns:
             List of User model instances
         """
-        from src.domains.users.models import User
-
-        # Build query for active users
-        # Task-specific filtering (e.g., interests_enabled) is handled by eligibility checker
-        # Note: No FOR UPDATE needed - duplicates prevented by:
-        # - APScheduler max_instances=1 per job
-        # - Cooldowns (global + per-topic)
-        query = (
-            select(User)
-            .where(
-                User.is_verified == True,  # noqa: E712 - SQLAlchemy requires ==
-                User.is_active == True,  # noqa: E712
-                User.deleted_at.is_(None),
-            )
-            .limit(self.batch_size)
-        )
-
+        enabled_field = getattr(self.eligibility_checker, "enabled_field", None)
+        query = build_candidate_users_query(enabled_field=enabled_field, batch_size=self.batch_size)
         result = await db.execute(query)
         return list(result.scalars().all())
 

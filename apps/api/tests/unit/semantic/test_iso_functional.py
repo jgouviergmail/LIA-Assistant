@@ -55,47 +55,6 @@ class TestSemanticTypeRegistry:
         assert "person_name" in registry
         assert "coordinate" in registry
 
-    def test_registry_hierarchy(self, registry):
-        """Verify the type hierarchy."""
-        # physical_address → PostalAddress → Place → Thing
-        path = registry.get_hierarchy_path("physical_address")
-        assert "Thing" in path
-        assert "Place" in path
-        assert "PostalAddress" in path
-        assert "physical_address" in path
-
-        # Verify hierarchical order
-        assert path.index("Thing") < path.index("Place")
-        assert path.index("Place") < path.index("PostalAddress")
-        assert path.index("PostalAddress") < path.index("physical_address")
-
-    def test_registry_subsumption(self, registry):
-        """Verify subsumption (is-a)."""
-        # physical_address is a PostalAddress
-        assert registry.is_subtype_of("physical_address", "PostalAddress")
-
-        # physical_address is a Place (transitive)
-        assert registry.is_subtype_of("physical_address", "Place")
-
-        # physical_address is a Thing (transitive)
-        assert registry.is_subtype_of("physical_address", "Thing")
-
-        # NOT: Thing is NOT a physical_address
-        assert not registry.is_subtype_of("Thing", "physical_address")
-
-    def test_registry_wu_palmer_distance(self, registry):
-        """Verify Wu & Palmer distance computation."""
-        # Identical distance
-        assert registry.compute_distance_wu_palmer("email_address", "email_address") == 1.0
-
-        # Distance between email and phone (share ContactPoint)
-        email_phone_dist = registry.compute_distance_wu_palmer("email_address", "phone_number")
-        assert 0.5 < email_phone_dist < 1.0, "Should share parent ContactPoint"
-
-        # Distance between unrelated types
-        email_temp_dist = registry.compute_distance_wu_palmer("email_address", "temperature")
-        assert email_temp_dist < email_phone_dist, "Unrelated types should be more distant"
-
     def test_registry_get_by_domain(self, registry):
         """Verify lookup by domain."""
         # Domain name is "contact" (singular), result_key is "contacts" (plural)

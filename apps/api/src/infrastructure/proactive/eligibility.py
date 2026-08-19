@@ -11,10 +11,12 @@ Provides generic eligibility checks that apply to all proactive tasks:
 Task-specific eligibility is handled by the ProactiveTask.check_eligibility() method.
 """
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -23,6 +25,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+#: Last human-activity probe: ``(user_id, db, since) -> latest activity or None``.
+#: Injected by the schedulers (port pattern — this generic checker must not
+#: import domain models). Audit D-01 (2026-08-19): the previous inline
+#: implementation read a phantom attribute, fell back to a nonexistent model,
+#: and swallowed the ImportError into success() — the gate never fired once.
+ActivityProbe = Callable[[UUID, AsyncSession, datetime], Awaitable[datetime | None]]
 
 
 class EligibilityReason(str, Enum):
@@ -115,6 +124,7 @@ class EligibilityChecker:
         default_max_per_day: int = 3,
         notification_filter: Any = None,
         cross_type_filters: dict[Any, Any] | None = None,
+        activity_probe: ActivityProbe | None = None,
     ):
         """
         Initialize eligibility checker.
@@ -150,6 +160,10 @@ class EligibilityChecker:
                 of a cross-type model count for the burst check. ADR-135: the
                 heartbeat flow excludes its own interest-ledger artifacts so it
                 cannot self-block. None (default) changes nothing.
+            activity_probe: Last human-activity lookup injected by the
+                scheduler (see :data:`ActivityProbe`). None disables the
+                activity-cooldown gate EXPLICITLY — both prod schedulers wire
+                a real probe (pinned by test).
         """
         self.task_type = task_type
         self.enabled_field = enabled_field
@@ -169,6 +183,7 @@ class EligibilityChecker:
         self.default_max_per_day = default_max_per_day
         self.notification_filter = notification_filter
         self.cross_type_filters = cross_type_filters or {}
+        self.activity_probe = activity_probe
 
     async def check(
         self,
@@ -446,48 +461,39 @@ class EligibilityChecker:
         db: AsyncSession,
         now: datetime,
     ) -> EligibilityResult:
-        """Check if user is currently active (don't interrupt)."""
-        # Try to get last activity from user model
-        last_activity = getattr(user, "last_chat_activity_at", None)
+        """Check if user is currently active (don't interrupt).
 
-        # If not available on user, try to query messages table
-        if last_activity is None:
-            try:
-                # Message model may not exist yet - graceful fallback
-                from src.domains.chat.models import Message  # type: ignore[attr-defined]
+        Delegates the lookup to the injected :data:`ActivityProbe` (D-01 fix,
+        2026-08-19): the historical inline version read a phantom attribute
+        and swallowed a fallback ImportError into success(), so the gate
+        never fired once in prod. A probe failure now PROPAGATES — the
+        runner's per-user try/except records it as a visible failure.
+        """
+        if self.activity_probe is None:
+            # Explicitly unconfigured (tests, ad-hoc checkers) — gate off.
+            return EligibilityResult.success()
 
-                query = (
-                    select(Message.created_at)
-                    .where(Message.user_id == user.id)
-                    .order_by(Message.created_at.desc())
-                    .limit(1)
-                )
-                result = await db.execute(query)
-                last_activity = result.scalar()
-            except Exception:
-                # If message table doesn't exist or query fails, skip this check
-                return EligibilityResult.success()
+        since = now - timedelta(minutes=self.activity_cooldown_minutes)
+        last_activity = await self.activity_probe(user.id, db, since)
 
-        if last_activity:
-            activity_threshold = now - timedelta(minutes=self.activity_cooldown_minutes)
-            if last_activity > activity_threshold:
-                time_since = now - last_activity
-                logger.debug(
-                    "eligibility_activity_cooldown",
-                    task_type=self.task_type,
-                    user_id=str(user.id),
-                    last_activity=last_activity.isoformat(),
-                    cooldown_minutes=self.activity_cooldown_minutes,
-                    seconds_since_activity=time_since.total_seconds(),
-                )
-                return EligibilityResult.failure(
-                    EligibilityReason.ACTIVITY_COOLDOWN,
-                    {
-                        "last_activity": last_activity.isoformat(),
-                        "cooldown_minutes": self.activity_cooldown_minutes,
-                        "seconds_since_activity": time_since.total_seconds(),
-                    },
-                )
+        if last_activity is not None:
+            time_since = now - last_activity
+            logger.debug(
+                "eligibility_activity_cooldown",
+                task_type=self.task_type,
+                user_id=str(user.id),
+                last_activity=last_activity.isoformat(),
+                cooldown_minutes=self.activity_cooldown_minutes,
+                seconds_since_activity=time_since.total_seconds(),
+            )
+            return EligibilityResult.failure(
+                EligibilityReason.ACTIVITY_COOLDOWN,
+                {
+                    "last_activity": last_activity.isoformat(),
+                    "cooldown_minutes": self.activity_cooldown_minutes,
+                    "seconds_since_activity": time_since.total_seconds(),
+                },
+            )
         return EligibilityResult.success()
 
     def should_send_notification(

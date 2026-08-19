@@ -11,6 +11,8 @@ Provides optimized queries for:
 """
 
 from contextlib import suppress
+from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, delete, func, select
@@ -48,6 +50,69 @@ def consolidation_eligible_user_conditions() -> list[ColumnElement[bool]]:
         User.is_active.is_(True),
         User.deleted_at.is_(None),
     ]
+
+
+def build_consolidation_eligible_users_query(
+    cooldown_threshold: datetime,
+    min_entries: int,
+) -> Any:
+    """Build the delta-driven consolidation eligibility query (B-03, 2026-08-19).
+
+    A user is eligible when there is WORK: at least ``min_entries`` ACTIVE
+    entries AND (never consolidated OR an active entry touched since the last
+    consolidation stamp). The historical absolute floor (3) starved every
+    real user — consolidation prunes journals toward 2 entries, which made it
+    permanently ineligible and stalled portraits for months.
+
+    No churn loop by construction: ``journal_last_consolidated_at`` is
+    stamped AFTER the run's actions commit (``consolidation_service``), so a
+    consolidation's own edits always carry ``updated_at`` strictly below the
+    stamp and never re-trigger the next cycle.
+
+    Args:
+        cooldown_threshold: Scheduler pacing bound (now - cooldown hours).
+        min_entries: Minimum ACTIVE entries (env-overridable floor; the
+            default must stay reachable by a post-prune journal — pinned at 1
+            by test).
+
+    Returns:
+        A ``Select`` over ``User`` rows, ready for ``db.execute``.
+    """
+    from src.domains.users.models import User
+
+    work_subq = (
+        select(
+            JournalEntry.user_id,
+            func.count(JournalEntry.id).label("entry_count"),
+            func.max(JournalEntry.updated_at).label("last_touched_at"),
+        )
+        .where(JournalEntry.status == JournalEntryStatus.ACTIVE.value)
+        .group_by(JournalEntry.user_id)
+        .having(func.count(JournalEntry.id) >= min_entries)
+        .subquery()
+    )
+
+    return (
+        select(User)
+        .join(work_subq, User.id == work_subq.c.user_id)
+        .where(
+            and_(
+                # Shared with the portrait-age gauge — see the helper's
+                # docstring for why the two must not drift apart.
+                *consolidation_eligible_user_conditions(),
+                # Cooldown: never consolidated OR last > cooldown (pacing)
+                (
+                    User.journal_last_consolidated_at.is_(None)
+                    | (User.journal_last_consolidated_at < cooldown_threshold)
+                ),
+                # Delta: never consolidated OR something changed since (work)
+                (
+                    User.journal_last_consolidated_at.is_(None)
+                    | (work_subq.c.last_touched_at > User.journal_last_consolidated_at)
+                ),
+            )
+        )
+    )
 
 
 class JournalEntryRepository:
@@ -232,6 +297,7 @@ class JournalEntryRepository:
         limit: int = 10,
         min_score: float = 0.0,
         exclude_levels: list[str] | None = None,
+        observed_scores: list[float] | None = None,
     ) -> list[tuple[JournalEntry, float]]:
         """Search active entries by multi-vector semantic relevance.
 
@@ -248,6 +314,9 @@ class JournalEntryRepository:
             exclude_levels: Abstraction levels to filter OUT (e.g. ``["L0", "L3"]``
                 for operational injection). ``None`` (default) returns all levels
                 — used by extraction/consolidation which must see every level.
+            observed_scores: Optional accumulator receiving EVERY candidate
+                similarity (filtered ones included) — the adaptive threshold
+                controller's observation channel (lot 7). Purely additive.
 
         Returns:
             List of (entry, score) tuples sorted by score descending,
@@ -292,6 +361,8 @@ class JournalEntryRepository:
                     "passed": similarity >= min_score,
                 }
             )
+            if observed_scores is not None:
+                observed_scores.append(round(similarity, 4))
             if similarity >= min_score:
                 scored.append((entry, similarity))
 

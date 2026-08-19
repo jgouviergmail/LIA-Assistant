@@ -75,6 +75,7 @@ import {
   FileSpreadsheet,
   SlidersHorizontal,
   MapPin,
+  Gauge,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -142,6 +143,7 @@ export const featureIcons = {
   queryAnalyzer: Compass,
   planning: ListChecks,
   semanticTypes: Boxes,
+  adaptiveThresholds: Gauge,
   semanticValidation: ShieldCheck,
   memory: Brain,
   interests: Sparkles,
@@ -206,6 +208,8 @@ export const featureKeys = [
   'memory',
   'interests',
   'habits',
+  // v1.30.13 (ADR-232): the per-user bounded controller behind journal injection.
+  'adaptiveThresholds',
   'security',
   // Three cards shipped complete in the six locales and were never listed here,
   // so they rendered nowhere: `hitl` (rewritten at v1.25.7 for a surface nobody

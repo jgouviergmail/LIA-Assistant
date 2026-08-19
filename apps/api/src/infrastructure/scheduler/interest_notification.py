@@ -24,6 +24,7 @@ from src.core.constants import (
     INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
     SCHEDULER_JOB_INTEREST_NOTIFICATION,
 )
+from src.domains.conversations.activity_probe import fetch_last_user_activity_at
 from src.domains.heartbeat.models import HeartbeatNotification
 from src.domains.interests.models import InterestNotification
 from src.domains.interests.proactive_task import InterestProactiveTask
@@ -71,6 +72,9 @@ def _create_interest_eligibility_checker() -> EligibilityChecker:
         default_end_hour=settings.interest_notify_end_hour,
         default_min_per_day=INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
         default_max_per_day=INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT,
+        # D-01 fix (2026-08-19): real "don't interrupt" gate — last human
+        # message via the conversations probe (automated rows excluded).
+        activity_probe=fetch_last_user_activity_at,
     )
 
 

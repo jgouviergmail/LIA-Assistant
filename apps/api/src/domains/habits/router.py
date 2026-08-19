@@ -26,7 +26,11 @@ from src.domains.habits.candidates import (
     observed_days_for_signature,
 )
 from src.domains.habits.models import HabitKind, ProfileVerdict, UserHabitProfile
-from src.domains.habits.rhythm import RhythmProfile
+from src.domains.habits.rhythm import (
+    RhythmProfile,
+    RhythmThresholds,
+    effective_presence_bar,
+)
 from src.domains.habits.schemas import (
     HabitExplanationResponse,
     HabitResponse,
@@ -55,6 +59,7 @@ def _profile_to_schema(profile: UserHabitProfile | None) -> HabitsProfileSchema:
         "weekday": settings.habits_min_neff_weekday,
         "weekend": settings.habits_min_neff_weekend,
     }
+    thresholds = RhythmThresholds.from_settings(settings)
     if profile is None:
         return HabitsProfileSchema(
             computed_at=None,
@@ -63,12 +68,14 @@ def _profile_to_schema(profile: UserHabitProfile | None) -> HabitsProfileSchema:
                 windows=[],
                 n_eff=0.0,
                 required_n_eff=required["weekday"],
+                effective_presence_min=effective_presence_bar(0.0, thresholds),
             ),
             weekend=HabitsProfileClassSchema(
                 verdict=ProfileVerdict.INSUFFICIENT,
                 windows=[],
                 n_eff=0.0,
                 required_n_eff=required["weekend"],
+                effective_presence_min=effective_presence_bar(0.0, thresholds),
             ),
             active_days_fraction=0.0,
             sparse=False,
@@ -85,6 +92,7 @@ def _profile_to_schema(profile: UserHabitProfile | None) -> HabitsProfileSchema:
             ],
             n_eff=rhythm.n_eff,
             required_n_eff=required[name],
+            effective_presence_min=effective_presence_bar(rhythm.n_eff, thresholds),
             bin_presence=list(rhythm.bin_presence),
         )
 

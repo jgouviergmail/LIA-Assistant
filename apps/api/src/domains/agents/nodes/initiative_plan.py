@@ -10,6 +10,7 @@ is only type-imported here (no runtime cycle).
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -35,6 +36,10 @@ def _validate_read_only(
     co-located events) — executing both wastes a paid provider call whenever
     the target tool has no response cache.
     """
+    from src.infrastructure.observability.metrics_agents import (
+        initiative_actions_rejected_total,
+    )
+
     allowed_names = {m.name for m in read_only_manifests}
     validated = []
     seen: set[str] = set()
@@ -44,11 +49,17 @@ def _validate_read_only(
                 "initiative_action_rejected_non_readonly",
                 tool_name=action.tool_name,
             )
+            # Metrics are best-effort — never break the validation.
+            with suppress(Exception):
+                initiative_actions_rejected_total.labels(reason="non_readonly").inc()
             continue
         params = json.dumps(parameters_to_dict(action.parameters), sort_keys=True, default=str)
         key = f"{action.tool_name}|{params}"
         if key in seen:
             logger.info("initiative_action_deduplicated", tool_name=action.tool_name)
+            # Metrics are best-effort — never break the validation.
+            with suppress(Exception):
+                initiative_actions_rejected_total.labels(reason="duplicate").inc()
             continue
         seen.add(key)
         validated.append(action)

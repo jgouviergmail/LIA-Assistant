@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 4.4
+**Versione**: 4.5
 **Data**: 2026-08-19
-**Applicazione**: LIA v1.30.12
+**Applicazione**: LIA v1.30.13
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 473 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 230 ADRs, ~19.844 test raccolti da pytest in 1.119 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 232 ADRs, ~19.844 test raccolti da pytest in 1.119 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -659,6 +659,8 @@ Rilevamento tramite analisi delle richieste con evoluzione bayesiana dei pesi (d
 
 ---
 
+**Il ciclo di autovalutazione del diario e la soglia adattiva.** Le direttive iniettate in una risposta vengono rivalutate al turno successivo alla luce della reazione dell'utente: il LLM segnala soltanto `evidence` o `contradiction`, il sistema possiede i contatori, e un morsetto lato server vieta la fiducia «alta» a una direttiva operativa senza prove — L2/L3 restano libere, la loro prova è la convergenza tra voci. L'idoneità del consolidamento è guidata dal delta (esiste lavoro: mai consolidato, o una voce toccata dall'ultimo passaggio), mai da un conteggio assoluto. Infine, la soglia di similarità che decide un'iniezione non è più globale: un controllore limitato (0,55–0,70), isteretico (un passo di 0,01 ogni 24 ore) e disattivabile la apprende per utente dalla distribuzione reale dei suoi punteggi — lo stato è consultivo (Redis, TTL scorrevole), una lettura fallita ricade sul valore predefinito statico.
+
 ## 12. Infrastruttura LLM multi-provider
 
 ### 12.1. Factory Pattern
@@ -785,6 +787,8 @@ Factory **catalogue-driven** (ADR-081): `factory.get_tts_client()` legge l'overr
 **Fase 2 — Generazione** (se notify): LLM riscrive con personalità + lingua utente. Quando sono stati recuperati fatti, un blocco VERIFIED FACTS impone di nominare 1-2 elementi concreti senza mai inventare, e i link alle fonti vengono aggiunti in modo deterministico. Dispatch multi-canale. Una menzione di interesse viene iscritta nel libro condiviso (`InterestNotification(source='heartbeat')`): l'argomento si mette allora in pausa per entrambi i flussi proattivi.
 
 Ogni fonte è limitata da un budget di tempo e fallisce in modo indipendente. Quel budget copre una quota di event loop condivisa con gli altri fetcher — non è un timeout di database: i segnali di salute lo superavano in regime nominale perché la loro lettura portava decine di migliaia di righe grezze per produrre poche decine di numeri, congelando il worker per tutta la decodifica. La lettura si basa ora su un’aggregazione giornaliera calcolata nel database, e ogni perdita di fonte viene contata e cronometrata anziché passare in silenzio — una fonte che fallisce sparendo non lascia alcuna traccia nella notifica stessa.
+
+**Il guardiano di attività è una sonda iniettata, e la selezione è equa.** La regola «non interrompere un utente attivo» è applicata tramite una porta (`ActivityProbe`) che ogni pianificatore collega alla fonte di attività reale — l'ultimo messaggio umano, righe automatizzate escluse, limitato all'orizzonte del cooldown. Il verificatore generico non conosce alcun modello di dominio: riceve la sonda, e un errore di lettura si propaga al conteggio dei fallimenti del runner invece di dissolversi in un permesso. A monte, la selezione degli account candidati spinge il flag di attivazione in SQL e randomizza l'ordine (`ORDER BY random()`): oltre la dimensione del batch, nessun account può essere sistematicamente servito per ultimo. Il prefiltro orario in SQL è stato valutato e rifiutato — una sola timezone corrotta farebbe fallire l'intero batch, per un guadagno dell'ordine del microsecondo.
 
 ### 16.2. Agent Initiative (ADR-062)
 
@@ -1295,7 +1299,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-230 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+232 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1399,10 +1403,10 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 230 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.844 test in 1.119 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 232 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.844 test in 1.119 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 230 ADRs e del changelog (da v1.0 a v1.30.12). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 232 ADRs e del changelog (da v1.0 a v1.30.13). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

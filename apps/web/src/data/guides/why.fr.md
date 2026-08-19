@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 4.9
+**Version** : 5.0
 **Date** : 2026-08-19
-**Application** : LIA v1.30.12
+**Application** : LIA v1.30.13
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -329,6 +329,8 @@ La même transparence couvre l'apprentissage des habitudes : ce que LIA croit sa
 ### 6.5. Une surface qui décrit le produit y est tenue
 
 La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. La carte des capacités — la page qui répond *qu'est-ce que mon assistant sait faire pour moi ?* — a publié treize entrées figées pendant des mois, tandis que le produit gagnait la génération d'images, les documents, les plugins, les habitudes apprises, les serveurs MCP et les appels téléphoniques. Rien n'était cassé, aucun test ne virait au rouge, et la page qui existait pour être à jour était devenue la moins à jour de l'application. Une consigne écrite demandait déjà de la maintenir ; les consignes sont précisément ce qu'un mois chargé érode. La règle est donc devenue mécanique : deux tables déclarées doivent rendre compte de chaque capacité que la plateforme sait couper, chaque exclusion portant une raison écrite, et une assertion s'exécute au chargement du code — une capacité livrée sans décider de sa place sur la carte empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer.
+
+La transparence vaut aussi pour les règles internes de l'assistant. Une contrainte que le système applique doit être publiée à qui la subit : quand l'apprentissage des habitudes ne détecte rien, les Réglages affichent le seuil réellement exigé — plus strict le week-end, où les jours observés sont moins nombreux — au lieu d'un silence inexpliqué. Et quand un réglage s'ajuste tout seul, comme le seuil qui décide qu'une note du journal entre dans une réponse, il le fait dans des bornes strictes, un petit pas par jour, avec un interrupteur d'arrêt et chaque ajustement compté : un système qui apprend n'est acceptable que s'il reste observable et débrayable.
 
 ## 7. Profondeur émotionnelle
 

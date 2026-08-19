@@ -3966,6 +3966,24 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-232 : fermeture des boucles cognitives (auto-évaluation du journal, garde proactive, seuils adaptatifs)
+
+**Statut**: ✅ IMPLÉMENTÉ (2026-08-19)
+**Fichier**: `docs/architecture/ADR-232-cognitive-loops-closure.md`
+
+**Décision** : contre-audit de prod des quatre boucles d'auto-amélioration, chaque constat vérifié par données (PostgreSQL/Prometheus/Loki) et simulations exécutées (rejeu hors ligne du détecteur de rythme, rejeu d'extraction avec LLM réel, Monte-Carlo du tirage de quotas). **Corrigé** : le tunnel d'auto-évaluation T→T+1 du journal (zéro signal depuis avril) est instrumenté (`journal_self_eval_total{stage}`) et débloqué — IDs T-1 vérifiés ajoutés au filtre anti-hallucination, éligibilité de consolidation pilotée par delta (le plancher absolu 3 affamait les journaux élagués à 2, portraits gelés depuis juin), clamp épistémique (`high` interdit à L0/L1 sans `evidence_count`) ; le garde proactif « ne pas interrompre » (code mort : attribut fantôme + ImportError avalée) reconstruit en port injecté (`ActivityProbe`) câblé par les deux schedulers ; sélection de candidats équitable (flag en SQL + `ORDER BY random()` — le pré-filtre horaire SQL est REFUSÉ, motif documenté) ; **seuils adaptatifs par utilisateur** (`infrastructure/adaptive/`) : contrôleur générique borné/hystérétique/observable avec kill-switch, premier périmètre = injection journal (plancher 0,55, plafond 0,70, bande 10–35 %). Habitudes : la barre effective réellement appliquée (Wilson ⊃ presence_min : 0,572 semaine / 0,699 week-end) est **publiée** (API + panneau réglages, arrondi par excès) et le recensement des barrières de rejet est métriqué — publication sans recalibration (l'autorité reste le harnais). **Requalifiés avec preuve (aucune action)** : coût de décision heartbeat, puces de feedback, fraîcheur de la jauge de niveaux.
+
+---
+
+### ADR-233 : l'ontologie sémantique perd sa machinerie de raisonnement non consommée
+
+**Statut**: ✅ IMPLÉMENTÉ (2026-08-19)
+**Fichier**: `docs/architecture/ADR-233-ontology-simplification.md`
+
+**Décision** : la subsomption transitive, la distance de Wu & Palmer, le graphe de relations SKOS et les accesseurs par catégorie/outil n'avaient **aucun consommateur runtime** — supprimés (doctrine : la capacité non câblée se supprime, elle ne se garde pas « pour plus tard »). Restent les trois lookups réellement consommés (`get`, `get_all`, `get_by_domain`), les champs de données, la hiérarchie parent/enfant (diagnostics `validate_hierarchy`) et une classe de tests épinglant la surface vivante. L'intelligence d'adjacence vit désormais là où elle est consommée : `related_domains` (gardé **bidirectionnellement** par le test de ponts d'identité, allowlist motivée — dont le piège peer↔contact du 2026-07-30 respecté) et les annotations `semantic_type` des manifestes (cliquet en valeurs absolues : ≥125 paramètres, ≥145 sorties, ≥71 types consommés). Dette datée : purge des champs SKOS de `core_types.py`.
+
+---
+
 
 
 

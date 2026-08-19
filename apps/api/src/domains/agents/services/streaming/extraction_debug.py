@@ -31,7 +31,7 @@ def _families() -> list[tuple[str, Any]]:
         pop_extraction_debug as pop_open_loops,
     )
     from src.domains.chat.run_records import get_tts_debug
-    from src.domains.journals.extraction_service import (
+    from src.domains.journals.extraction_debug_store import (
         pop_extraction_debug as pop_journals,
     )
 

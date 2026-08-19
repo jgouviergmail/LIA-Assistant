@@ -127,11 +127,11 @@ class TestSelfEvaluationSkipPaths:
 
     @pytest.mark.asyncio
     async def test_empty_id_list_returns_empty_string(self) -> None:
-        result = await _build_previous_turn_directives_section(
+        result, verified_ids = await _build_previous_turn_directives_section(
             user_id=str(uuid4()),
             previous_turn_injected_ids=[],
         )
-        assert result == ""
+        assert result == "" and verified_ids == set()
 
     @pytest.mark.asyncio
     async def test_all_malformed_ids_returns_empty_string(self) -> None:
@@ -140,11 +140,11 @@ class TestSelfEvaluationSkipPaths:
             _patch_get_db_context(),
             _patch_service_factory(get_by_id_results=[]),
         ):
-            result = await _build_previous_turn_directives_section(
+            result, verified_ids = await _build_previous_turn_directives_section(
                 user_id=str(uuid4()),
                 previous_turn_injected_ids=["not-a-uuid", "garbage", "0000"],
             )
-        assert result == ""
+        assert result == "" and verified_ids == set()
 
     @pytest.mark.asyncio
     async def test_all_ids_unknown_returns_empty_string(self) -> None:
@@ -153,11 +153,11 @@ class TestSelfEvaluationSkipPaths:
             _patch_get_db_context(),
             _patch_service_factory(get_by_id_results=[None, None]),
         ):
-            result = await _build_previous_turn_directives_section(
+            result, verified_ids = await _build_previous_turn_directives_section(
                 user_id=str(uuid4()),
                 previous_turn_injected_ids=[str(uuid4()), str(uuid4())],
             )
-        assert result == ""
+        assert result == "" and verified_ids == set()
 
 
 # -----------------------------------------------------------------------------
@@ -181,11 +181,11 @@ class TestSelfEvaluationIsolation:
             _patch_get_db_context(),
             _patch_service_factory(get_by_id_results=[foreign_entry]),
         ):
-            result = await _build_previous_turn_directives_section(
+            result, verified_ids = await _build_previous_turn_directives_section(
                 user_id=str(legit_user),
                 previous_turn_injected_ids=[str(entry_id)],
             )
-        assert result == ""
+        assert result == "" and verified_ids == set()
 
     @pytest.mark.asyncio
     async def test_legit_entry_is_kept(self) -> None:
@@ -197,11 +197,15 @@ class TestSelfEvaluationIsolation:
             _patch_get_db_context(),
             _patch_service_factory(get_by_id_results=[legit_entry]),
         ):
-            result = await _build_previous_turn_directives_section(
+            result, verified_ids = await _build_previous_turn_directives_section(
                 user_id=str(legit_user),
                 previous_turn_injected_ids=[str(entry_id)],
             )
         assert "## DIRECTIVES INJECTED AT THE PREVIOUS TURN" in result
+        # B-01 (2026-08-19): the verified ids feed the hallucinated-id filter —
+        # an evidence signal on a T-1 directive outside the semantic/recent
+        # prefilter must not be dropped as hallucinated.
+        assert verified_ids == {str(entry_id)}
 
 
 # -----------------------------------------------------------------------------
@@ -222,7 +226,7 @@ class TestSelfEvaluationSectionShape:
             _patch_get_db_context(),
             _patch_service_factory(get_by_id_results=[entry]),
         ):
-            result = await _build_previous_turn_directives_section(
+            result, verified_ids = await _build_previous_turn_directives_section(
                 user_id=str(user_id),
                 previous_turn_injected_ids=[str(entry.id)],
             )
@@ -251,7 +255,7 @@ class TestSelfEvaluationSectionShape:
             _patch_get_db_context(),
             _patch_service_factory(get_by_id_results=[entry]),
         ):
-            result = await _build_previous_turn_directives_section(
+            result, verified_ids = await _build_previous_turn_directives_section(
                 user_id=str(user_id),
                 previous_turn_injected_ids=[str(entry.id)],
             )
@@ -273,7 +277,7 @@ class TestSelfEvaluationSectionShape:
             _patch_get_db_context(),
             _patch_service_factory(get_by_id_results=[entry_a, entry_b]),
         ):
-            result = await _build_previous_turn_directives_section(
+            result, verified_ids = await _build_previous_turn_directives_section(
                 user_id=str(user_id),
                 previous_turn_injected_ids=[str(entry_a.id), str(entry_b.id)],
             )

@@ -43,6 +43,18 @@ heartbeat_ticks_deferred_total = Counter(
     # day_class: weekday | weekend
 )
 
+habit_window_rejected_total = Counter(
+    "habit_window_rejected_total",
+    "Candidate windows rejected by the rhythm detector, per gate (audit "
+    "2026-08-19 lot 0). Answers 'why zero habits' from Grafana instead of an "
+    "offline ledger replay: a presence/wilson-dominated census means no "
+    "concentrated routine, a capture/selectivity one means activity too "
+    "spread for the claimed hours to be informative.",
+    ["day_class", "gate"],
+    # day_class: weekday | weekend
+    # gate: presence | wilson | recent | halves | capture | selectivity
+)
+
 habit_ambient_block_total = Counter(
     "habit_ambient_block_total",
     "Ambient rhythm-block presence per flow (portrait-counter precedent) — "

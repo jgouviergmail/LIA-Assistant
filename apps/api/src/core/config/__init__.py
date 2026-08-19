@@ -26,6 +26,7 @@ from src.core.constants import (
 )
 
 from .account_export import AccountExportSettings
+from .adaptive import AdaptiveSettings
 from .advanced import AdvancedSettings
 from .agents import AgentsSettings
 from .attachments import AttachmentsSettings
@@ -95,6 +96,7 @@ class SupportedCurrency(str, Enum):
 
 class Settings(
     SecuritySettings,
+    AdaptiveSettings,
     DatabaseSettings,
     ObservabilitySettings,
     LLMSettings,

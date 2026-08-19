@@ -246,49 +246,6 @@ class SemanticType:
                 f"SemanticType name '{self.name}' cannot contain spaces (use underscores)"
             )
 
-    def get_label(self, lang: str = "en") -> str:
-        """
-        Return the label in the requested language, with fallback.
-
-        Args:
-            lang: ISO 639-1 language code (e.g., "fr", "en", "de")
-
-        Returns:
-            Label in the requested language, or type name if not available
-
-        Example:
-            >>> type_def.get_label("fr")
-            "Adresse physique"
-            >>> type_def.get_label("es")  # Not available, fallback to en
-            "Physical address"
-            >>> type_def.get_label("it")  # Not available, fallback to name
-            "physical_address"
-        """
-        if lang in self.labels:
-            return self.labels[lang]
-
-        # Fallback to English if available
-        if lang != "en" and "en" in self.labels:
-            return self.labels["en"]
-
-        # Ultimate fallback to name
-        return self.name
-
-    def is_subtype_of(self, other_type_name: str) -> bool:
-        """
-        Check if this type is a subtype of other_type_name.
-
-        This method only checks the direct parent relation.
-        For full (transitive) subsumption, use TypeRegistry.is_subtype_of().
-
-        Args:
-            other_type_name: Name of the potential parent type
-
-        Returns:
-            True if this type has other_type_name as direct parent
-        """
-        return self.parent == other_type_name
-
     def to_dict(self) -> dict[str, Any]:
         """
         Serialize the type to a dictionary.

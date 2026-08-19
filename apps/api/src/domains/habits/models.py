@@ -17,6 +17,9 @@ from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Uniqu
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+# Re-export: ProfileVerdict moved to the pure `verdicts` module (C-04) —
+# historical importers (router, schemas, heartbeat) keep working unchanged.
+from src.domains.habits.verdicts import ProfileVerdict as ProfileVerdict
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
@@ -47,25 +50,6 @@ class HabitStatus(str, Enum):
     ACTIVE = "active"
     PAUSED = "paused"
     BLOCKED = "blocked"
-
-
-class ProfileVerdict(str, Enum):
-    """Verdict of the rhythm detector for one day class (or the profile).
-
-    - WINDOWS: stable active windows were claimed.
-    - DIFFUSE: activity everywhere — no time habit (an information, not a
-      failure).
-    - NONE: no window met the thresholds.
-    - INSUFFICIENT: not enough observed days yet ("still learning").
-    - SPARSE: too few active days — window claims would be factually false
-      for an occasional user; recurrences remain detectable.
-    """
-
-    WINDOWS = "windows"
-    DIFFUSE = "diffuse"
-    NONE = "none"
-    INSUFFICIENT = "insufficient"
-    SPARSE = "sparse"
 
 
 class UserActivityDay(BaseModel):

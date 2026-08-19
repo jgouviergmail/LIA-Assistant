@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 4.4
+**Version**: 4.5
 **Datum**: 2026-08-19
-**Application**: LIA v1.30.12
+**Application**: LIA v1.30.13
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 473 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 230 ADRs, ~19.844 von pytest gesammelte Tests in 1.119 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 232 ADRs, ~19.844 von pytest gesammelte Tests in 1.119 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -659,6 +659,8 @@ Erkennung durch Analyse der Anfragen mit bayesscher Gewichtsentwicklung (konfigu
 
 ---
 
+**Die Selbstbewertungsschleife des Journals und die adaptive Schwelle.** In eine Antwort injizierte Direktiven werden im nächsten Zug im Licht der Nutzerreaktion neu bewertet: Das LLM signalisiert nur `evidence` oder `contradiction`, das System besitzt die Zähler, und eine serverseitige Klammer verbietet „hohes“ Vertrauen für eine operative Direktive ohne Beleg — L2/L3 bleiben frei, ihr Beleg ist die Konvergenz zwischen Einträgen. Die Konsolidierungs-Eignung ist delta-gesteuert (Arbeit existiert: nie konsolidiert, oder ein Eintrag seit dem letzten Lauf berührt), nie ein absoluter Zählwert. Schließlich ist die Ähnlichkeitsschwelle für eine Injektion nicht mehr global: Ein begrenzter (0,55–0,70), hysteretischer (ein 0,01-Schritt pro 24 h), abschaltbarer Regler lernt sie pro Nutzer aus der realen Verteilung seiner Scores — der Zustand ist beratend (Redis, gleitende TTL), ein fehlgeschlagenes Lesen fällt auf den statischen Standard zurück.
+
 ## 12. Multi-Provider-LLM-Infrastruktur
 
 ### 12.1. Factory Pattern
@@ -785,6 +787,8 @@ Wake Word ("OK Guy") über Sherpa-onnx WASM im Browser (kein externer Versand). 
 **Phase 2 — Generierung** (bei Notify): LLM schreibt mit Persönlichkeit + Benutzersprache um. Wurden Fakten abgerufen, verlangt ein VERIFIED-FACTS-Block das Nennen von 1-2 konkreten Elementen ohne jede Erfindung, und Quellenlinks werden deterministisch angehängt. Multi-Kanal-Dispatch. Eine Interessen-Erwähnung wird ins gemeinsame Ledger geschrieben (`InterestNotification(source='heartbeat')`): das Thema pausiert dann für beide proaktiven Kanäle.
 
 Jede Quelle ist durch ein Zeitbudget begrenzt und fällt unabhängig aus. Dieses Budget umfasst einen Anteil an einer mit den übrigen Fetchern geteilten Event-Loop — es ist kein Datenbank-Timeout: Die Gesundheitssignale überschritten es im Normalbetrieb, weil ihr Lesevorgang Zehntausende Rohzeilen holte, um wenige Dutzend Zahlen zu erzeugen, und den Worker während der Dekodierung blockierte. Der Lesevorgang stützt sich nun auf eine in der Datenbank berechnete Tagesaggregation, und ein Ausfall wird gezählt und zeitlich erfasst statt stillschweigend übergangen — eine Quelle, die durch Verschwinden scheitert, hinterlässt in der Benachrichtigung selbst keine Spur.
+
+**Der Aktivitätswächter ist eine injizierte Sonde, die Auswahl ist fair.** Die Regel „einen aktiven Nutzer nicht unterbrechen“ wird über einen Port (`ActivityProbe`) durchgesetzt, den jeder Planer mit der realen Aktivitätsquelle verdrahtet — die letzte menschliche Nachricht, automatisierte Zeilen ausgeschlossen, begrenzt auf den Cooldown-Horizont. Der generische Prüfer kennt kein Domänenmodell: Er erhält die Sonde, und ein Lesefehler fließt in die Fehlerzählung des Runners ein, statt sich in eine Erlaubnis aufzulösen. Vorgelagert schiebt die Kandidatenauswahl das Aktivierungs-Flag in SQL und randomisiert die Reihenfolge (`ORDER BY random()`): Jenseits der Batchgröße kann kein Konto systematisch zuletzt bedient werden. Der SQL-Zeitfenster-Vorfilter wurde geprüft und verworfen — eine einzige korrupte Zeitzone ließe den ganzen Batch scheitern, für einen Gewinn im Mikrosekundenbereich.
 
 ### 16.2. Agent Initiative (ADR-062)
 
@@ -1293,7 +1297,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-230 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+232 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1397,10 +1401,10 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 230 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~19.844 Tests in 1.119 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 232 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~19.844 Tests in 1.119 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 230 ADRs und des Changelogs (v1.0 bis v1.30.12). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 232 ADRs und des Changelogs (v1.0 bis v1.30.13). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

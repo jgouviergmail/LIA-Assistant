@@ -37,6 +37,8 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured at v1.30.13: backend 19,894 (pytest, 1,131 files) +
+ *   frontend 5,816 vitest = 25,710.
  *   Re-measured at v1.30.11: backend 19,100 (1,042 files;
  *   `pytest tests/unit tests/agents --collect-only --no-cov`; +342 — the
  *   tabular import/export foundation (ADR-228): workbook writer/reader and
@@ -121,12 +123,12 @@
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
  * - adrs: docs/architecture/ ADR files — recount every release, never carry it
- *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 230 files at
- *   v1.30.12, numbered up to ADR-231: ADR-008 has no separate file, so the
+ *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 232 files at
+ *   v1.30.13, numbered up to ADR-233: ADR-008 has no separate file, so the
  *   highest number runs one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   216 headings at v1.30.12, no Unreleased pending.
+ *   217 headings at v1.30.13, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -142,9 +144,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 473,
   uiLanguages: 6,
-  tests: 25600,
-  adrs: 230,
-  releases: 216,
+  tests: 25700,
+  adrs: 232,
+  releases: 217,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

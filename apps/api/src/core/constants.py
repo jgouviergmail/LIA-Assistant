@@ -4563,7 +4563,23 @@ JOURNAL_EXTRACTION_MIN_MESSAGES_DEFAULT = 1
 # Consolidation defaults
 JOURNAL_CONSOLIDATION_INTERVAL_HOURS_DEFAULT = 5
 JOURNAL_CONSOLIDATION_COOLDOWN_HOURS_DEFAULT = 6
-JOURNAL_CONSOLIDATION_MIN_ENTRIES_DEFAULT = 3
+# ============================================================================
+# ADAPTIVE THRESHOLDS (lot 7, audit 2026-08-19)
+# ============================================================================
+# Controller pace/window for per-user similarity thresholds. Per-perimeter
+# hard bounds live in infrastructure/adaptive/threshold_controller.py.
+ADAPTIVE_THRESHOLDS_ENABLED_DEFAULT = True
+ADAPTIVE_THRESHOLD_WINDOW_SIZE_DEFAULT = 50
+ADAPTIVE_THRESHOLD_MIN_SAMPLES_DEFAULT = 20
+ADAPTIVE_THRESHOLD_STEP_DEFAULT = 0.01
+ADAPTIVE_THRESHOLD_ADJUST_INTERVAL_HOURS_DEFAULT = 24.0
+ADAPTIVE_THRESHOLD_STATE_TTL_DAYS_DEFAULT = 90
+
+# B-03 (2026-08-19): 3 → 1. Consolidation prunes journals toward 2 entries,
+# so a floor above 1 made every real user permanently ineligible (portraits
+# stalled for months). Eligibility is now delta-driven (entries touched since
+# the last stamp) — the floor only excludes truly empty journals.
+JOURNAL_CONSOLIDATION_MIN_ENTRIES_DEFAULT = 1
 JOURNAL_CONSOLIDATION_HISTORY_MAX_MESSAGES_DEFAULT = 20
 JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS_DEFAULT = 7
 

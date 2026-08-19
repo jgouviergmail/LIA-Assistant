@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 4.4
+**Version** : 4.5
 **Date** : 2026-08-19
-**Application** : LIA v1.30.12
+**Application** : LIA v1.30.13
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 473 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 230 ADRs, ~19 844 tests collectés par pytest sur 1 119 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 232 ADRs, ~19 894 tests collectés par pytest sur 1 131 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -75,7 +75,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~19 844 (collectés par pytest sur 1 119 fichiers de test) + 5 815 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~19 894 (collectés par pytest sur 1 131 fichiers de test) + 5 816 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 490+ |
 | ADRs (Architecture Decision Records) | 229 |
@@ -658,6 +658,8 @@ Détection par analyse des requêtes avec évolution bayésienne des poids (deca
 
 ---
 
+**La boucle d'auto-évaluation du journal et le seuil adaptatif.** Les directives injectées dans une réponse sont réévaluées au tour suivant à la lumière de la réaction de l'utilisateur : le LLM ne fait que signaler `evidence` ou `contradiction`, le système possède les compteurs, et un clamp serveur interdit la confiance « haute » à une directive opérationnelle sans preuve — L2/L3 restent libres, leur preuve étant la convergence inter-entrées. L'éligibilité de la consolidation est pilotée par delta (du travail existe : jamais consolidé, ou une entrée touchée depuis le dernier passage), jamais par un décompte absolu. Enfin, le seuil de similarité qui décide d'une injection n'est plus global : un contrôleur borné (0,55–0,70), hystérétique (un pas de 0,01 par 24 h) et débrayable l'apprend par utilisateur à partir de la distribution réelle de ses scores — l'état est consultatif (Redis, TTL glissant), une lecture en échec retombe sur le défaut statique.
+
 ## 12. Infrastructure LLM multi-provider
 
 ### 12.1. Factory Pattern
@@ -784,6 +786,8 @@ Factory **catalogue-driven** (ADR-081) : `factory.get_tts_client()` lit l'overri
 **Phase 2 — Génération** (si notify) : LLM réécrit avec personnalité + langue utilisateur. Quand des faits ont été récupérés, un bloc VERIFIED FACTS impose de nommer 1-2 éléments concrets sans jamais inventer, et les liens sources sont ajoutés de façon déterministe. Dispatch multi-canal. Une mention d'intérêt est inscrite au livre de comptes partagé (`InterestNotification(source='heartbeat')`) : le sujet se met alors au repos pour les deux flux proactifs.
 
 Chaque source est bornée par un budget de temps et faillit indépendamment. Ce budget encadre une part d’event-loop partagé entre les fetchers — ce n’est pas un délai de base de données : les signaux santé le franchissaient en régime nominal parce que leur lecture rapatriait des dizaines de milliers de lignes brutes pour produire quelques dizaines de nombres, figeant le worker le temps du décodage. La lecture s’appuie désormais sur une agrégation journalière calculée en base, et tout abandon de source est compté puis chronométré plutôt que silencieux — une source qui échoue en s’effaçant ne laisse aucune trace dans la notification.
+
+**Le garde d'activité est une sonde injectée, la sélection est équitable.** La règle « ne pas interrompre un utilisateur actif » est appliquée par un port (`ActivityProbe`) que chaque planificateur câble vers la source d'activité réelle — le dernier message humain, lignes automatisées exclues, borné à l'horizon du cooldown. Le vérificateur générique ne connaît aucun modèle de domaine : il reçoit la sonde, et un échec de lecture se propage au comptage d'échecs du runner au lieu de se dissoudre en autorisation. En amont, la sélection des comptes candidats pousse le drapeau d'activation en SQL et tire au sort l'ordre (`ORDER BY random()`) : au-delà de la taille de lot, aucun compte ne peut être systématiquement servi dernier. Le pré-filtre horaire en SQL a été évalué puis refusé — une seule timezone corrompue ferait échouer le lot entier, pour un gain de l'ordre de la microseconde.
 
 ### 16.2. Agent Initiative (ADR-062)
 
@@ -1299,7 +1303,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-230 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+232 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1439,10 +1443,10 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 230 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~19 844 tests sur 1 119 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 232 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~19 894 tests sur 1 131 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 230 ADRs, et du changelog (v1.0 à v1.30.12). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 232 ADRs, et du changelog (v1.0 à v1.30.13). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

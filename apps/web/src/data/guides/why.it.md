@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 4.9
+**Versione**: 5.0
 **Data**: 2026-08-19
-**Applicazione**: LIA v1.30.12
+**Applicazione**: LIA v1.30.13
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -329,6 +329,8 @@ La stessa trasparenza copre l'apprendimento delle abitudini: ciò che LIA crede 
 ### 6.5. Una superficie che descrive il prodotto ne risponde
 
 La trasparenza ha un modo di fallire che nessuno nota: uno schermo che smette silenziosamente di dire il vero. La mappa delle capacità — la pagina che risponde *che cosa sa fare il mio assistente per me?* — ha pubblicato tredici voci congelate per mesi, mentre il prodotto guadagnava la generazione di immagini, i documenti, i plugin, le abitudini apprese, i server MCP e le telefonate. Nulla era rotto, nessun test diventava rosso, e la pagina che esisteva per essere aggiornata era diventata la meno aggiornata dell'applicazione. Una convenzione scritta ne chiedeva già la manutenzione; le convenzioni sono esattamente ciò che un mese pieno consuma. La regola è quindi diventata meccanica: due tabelle dichiarate devono rendere conto di ogni capacità che la piattaforma sa spegnere, ogni esclusione con una ragione scritta, e un'asserzione gira al caricamento del codice — una capacità rilasciata senza decidere il suo posto sulla mappa impedisce all'applicazione di avviarsi. La stessa convinzione, un passo oltre: ciò che uno schermo afferma dei tuoi dati dev'essere **esatto o assente**. Un conteggio è il numero che restituisce il database, mai una lunghezza che capitava a portata di mano; e finché la risposta è in arrivo, o quando è fallita, la scheda non dice nulla invece di indovinare. «Nulla configurato» è un'affermazione sul tuo account — di quelle di cui conviene essere certi prima di pronunciarle.
+
+La trasparenza vale anche per le regole interne dell'assistente. Un vincolo che il sistema applica deve essere pubblicato a chi lo subisce: quando l'apprendimento delle abitudini non rileva nulla, le Impostazioni mostrano la soglia realmente richiesta — più severa nel weekend, dove i giorni osservati sono meno — invece di un silenzio inspiegato. E quando una regolazione si aggiusta da sola, come la soglia che decide se una nota del diario entra in una risposta, lo fa entro limiti rigidi, un piccolo passo al giorno, con un interruttore di spegnimento e ogni aggiustamento conteggiato: un sistema che apprende è accettabile solo se resta osservabile e disattivabile.
 
 ## 7. Profondità emotiva
 

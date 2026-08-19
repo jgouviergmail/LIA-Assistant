@@ -367,6 +367,16 @@ function ClassRhythmLine({
           </span>
         )}
       </div>
+      {/* C-02 (ADR-184): the enforced bar is published, not just applied —
+          shown on the `none` verdict, where it answers "why nothing?". The
+          Wilson floor makes it class-dependent (weekends need more). */}
+      {rhythm.verdict === 'none' && rhythm.effective_presence_min < 1 && (
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {t('settings.habits.effective_bar', {
+            pct: Math.round(rhythm.effective_presence_min * 100),
+          })}
+        </p>
+      )}
       <RhythmHeatmap lng={lng} bins={rhythm.bin_presence} />
     </div>
   );

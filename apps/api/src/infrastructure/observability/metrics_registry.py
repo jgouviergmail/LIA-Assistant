@@ -424,6 +424,14 @@ proactive_feedback_total = Counter(
     ["task_type", "feedback_type"],  # feedback_type: thumbs_up, thumbs_down, block
 )
 
+# Lot 7 (2026-08-19): bounded per-user threshold adjustments — the trace of
+# the adaptive controller (one step per interval, hard bounds).
+adaptive_threshold_adjustments_total = Counter(
+    "adaptive_threshold_adjustments_total",
+    "Adaptive per-user threshold adjustments applied",
+    ["perimeter", "direction"],  # direction: up | down
+)
+
 # QW-5 (ADR-138): first direct satisfaction signal on ORDINARY assistant
 # responses (proactive notifications keep proactive_feedback_total above).
 response_feedback_total = Counter(

@@ -18,12 +18,16 @@ runtime mechanisms:
 
 ### Key Characteristics
 
-- **96+ semantic types** catalogued and organized hierarchically
-- **Type hierarchy** with transitive subsumption (DAG)
-- **Wu & Palmer semantic distance** (O(log n))
-- **Fast lookups** O(1) by name, category, domain, tool
+- **101 semantic types** catalogued (hierarchy kept as validated data)
+- **Fast lookups** O(1) by name and by source domain — the runtime surface
 - **Singular domain vocabulary** throughout (contact, email, event, place,
   route...), matching `DOMAIN_REGISTRY`
+
+ADR-233 (2026-08-19): the transitive-subsumption API, Wu & Palmer distance,
+SKOS relation graph and category/tool getters had zero runtime consumers and
+were removed (doctrine: unwired capability is deleted, not kept "for later").
+The SKOS-style data fields on `SemanticType` (labels, related/broader/
+narrower) remain as dated debt recorded in the ADR.
 
 ## 🏗️ Architecture
 
@@ -59,19 +63,6 @@ print(email_type.source_domains)  # ["contact", "email", "event"]
 contact_types = registry.get_by_domain("contact")
 # {"email_address", "physical_address", "phone_number", "person_name", ...}
 
-# By category
-from src.domains.agents.semantic import TypeCategory
-identity_types = registry.get_by_category(TypeCategory.IDENTITY)
-```
-
-### Hierarchy and Subsumption
-
-```python
-path = registry.get_hierarchy_path("physical_address")
-# ["Thing", "Place", "PostalAddress", "physical_address"]
-
-registry.is_subtype_of("physical_address", "Place")  # True
-registry.is_subtype_of("physical_address", "Thing")  # True (transitive)
 ```
 
 ### Domain Expansion

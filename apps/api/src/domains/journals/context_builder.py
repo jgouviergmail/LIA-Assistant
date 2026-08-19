@@ -3,16 +3,21 @@ Journal context builder for prompt injection.
 
 Builds a formatted journal context block for injection into response
 and planner prompts. Combines two retrieval strategies:
-1. Semantic search (pgvector cosine distance on OpenAI embeddings) for topically relevant entries
-2. Temporal recency for continuity of the assistant's latest reflections
+1. Semantic search (pgvector cosine distance on Gemini embeddings) for
+   topically relevant entries — per-user adaptive threshold (lot 7)
+2. Temporal recency for continuity — DISABLED BY DEFAULT
+   (``JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT = 0``): the semantic path is
+   the only active one unless the setting is raised (B-07, 2026-08-19)
 
 Two distinct calls in the pipeline:
 - Response: query = last user message (tone, formulation)
 - Planner: query = user goal (reasoning, learnings)
 
 Design decisions:
-- min_score prefiltering: entries below threshold are discarded
-- Recent entries always injected (up to N), deduplicated with semantic results
+- min_score prefiltering: entries below threshold are discarded (per-user
+  adaptive value inside hard bounds — see infrastructure/adaptive)
+- Recent entries injected only when ``journal_context_recent_entries`` > 0
+  (default 0), deduplicated with semantic results
 - User's max_chars setting loaded from DB (not available in node scope)
 - Truncation respects max_chars budget
 - Returns debug data alongside context for the debug panel
@@ -190,14 +195,28 @@ async def build_journal_context(
                     clear_embedding_context()
 
             if _effective_embedding:
-                min_score = settings.journal_context_min_score
+                # Lot 7 (2026-08-19): per-user adaptive threshold. Prod ran at
+                # a 10% injection rate with scores massed just under the fixed
+                # 0.63 — the effective value is learned inside hard bounds and
+                # published through this call's debug/log surfaces.
+                from src.infrastructure.adaptive.threshold_controller import (
+                    effective_threshold,
+                    observe_score,
+                )
+
+                min_score = await effective_threshold(user_id, "journal_injection")
+                _observed: list[float] = []
                 scored_entries = await repo.search_by_relevance(
                     user_id=user_id,
                     query_embedding=_effective_embedding,
                     limit=max_results,
                     min_score=min_score,
                     exclude_levels=effective_exclude_levels,
+                    observed_scores=_observed,
                 )
+                if _observed:
+                    # No candidates → no information about the threshold.
+                    await observe_score(user_id, "journal_injection", max(_observed))
             else:
                 logger.warning(
                     "journal_context_embedding_empty",

@@ -31,30 +31,38 @@ SCRIPTS: dict[str, str] = {
 
 
 def _run(script: str, cwd: Path) -> str:
-    result = subprocess.run(
-        [sys.executable, str(AUDIT_DIR / script)],
-        cwd=str(cwd),
-        capture_output=True,
-        text=True,
-    )
+    # These scripts are GATES: 0 = clean, 1 = threshold exceeded (measure_cc
+    # reports 346 functions over CC 15 and exits 1 with complete output). Any
+    # OTHER code means the INTERPRETER died (measured on Windows under the
+    # pre-commit hook's 8 xdist workers: exit 3221225477 = 0xC0000005 access
+    # violation at startup, empty stdout/stderr — a runner resource problem,
+    # not a script behavior). One bounded retry absorbs that crash class
+    # WITHOUT masking an F023 regression: a wrong-output or "not found" run
+    # still fails, only a dead interpreter earns a second attempt.
+    result = None
+    for _attempt in range(2):
+        result = subprocess.run(
+            [sys.executable, str(AUDIT_DIR / script)],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode in (0, 1):
+            break
+    assert result is not None
     assert (
         "not found" not in result.stderr
     ), f"{script} from {cwd} could not locate its default source dir:\n{result.stderr}"
-    # These scripts are GATES: 0 = clean, 1 = threshold exceeded (measure_cc
-    # reports 346 functions over CC 15 and exits 1 with complete output). Any
-    # OTHER code means the process died mid-scan — under `-n auto` each case
-    # walks ~1 000 files three times, and a killed subprocess returns PARTIAL
-    # stdout that the comparison below would report as an F023 regression,
-    # blaming the scripts for what is a resource problem on the runner.
     assert result.returncode in (0, 1), (
-        f"{script} from {cwd} died with code {result.returncode} — its output is "
-        f"partial, so the comparison below would be meaningless:\n{result.stderr[-2000:]}"
+        f"{script} from {cwd} died TWICE with code {result.returncode} — runner "
+        f"resource exhaustion goes beyond the flake this retry absorbs:\n"
+        f"{result.stderr[-2000:]}"
     )
     return result.stdout
 
 
 @pytest.mark.parametrize("script, signature", list(SCRIPTS.items()))
-def test_default_run_is_cwd_independent(script: str, signature: str, tmp_path: Path):
+def test_default_run_is_cwd_independent(script: str, signature: str, tmp_path: Path) -> None:
     """Default (no-arg) run yields the same metrics from three different CWDs."""
     api_dir = REPO_ROOT / "apps" / "api"
     outputs = {

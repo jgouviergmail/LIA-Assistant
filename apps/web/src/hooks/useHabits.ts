@@ -34,6 +34,9 @@ export interface HabitsProfileClass {
   n_eff: number;
   /** Effective days required before claims — published so the unlock is quantified. */
   required_n_eff: number;
+  /** The presence a window must REALLY reach for this class — published
+   *  because it is enforced (ADR-184; Wilson floor dominates at low n_eff). */
+  effective_presence_min: number;
   /** Weighted per-hour day-presence, 24 values — heatmap source, present for every verdict. */
   bin_presence: number[];
 }

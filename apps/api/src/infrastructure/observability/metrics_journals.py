@@ -62,6 +62,26 @@ journal_evidence_total = Counter(
     # outcome: evidence | contradiction
 )
 
+# B-06 (2026-08-19): prod held 6 entries at confidence=high with
+# evidence_count=0 everywhere — the LLM promoted without proof.
+journal_confidence_clamped_total = Counter(
+    "journal_confidence_clamped_total",
+    "L0/L1 'high' confidence demotions applied by the epistemic clamp",
+    ["source"],  # create | update
+)
+
+journal_self_eval_total = Counter(
+    "journal_self_eval_total",
+    "Deferred self-evaluation funnel stages (audit 2026-08-19 lot 0). Zero "
+    "signals since April were indistinguishable from a wiring defect: this "
+    "funnel separates 'no T-1 ids reached the extractor', 'the directives "
+    "section rendered', and 'the LLM emitted an outcome'. The applied "
+    "terminal is journal_evidence_total; a signaled-vs-applied gap exposes "
+    "signals eaten by the hallucinated-id filter.",
+    ["stage"],
+    # stage: no_previous_ids | section_built | section_empty | signaled
+)
+
 # =============================================================================
 # Consolidation effects (level transitions are wired up in commit 2)
 # =============================================================================

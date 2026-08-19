@@ -85,6 +85,16 @@ search_user_documents_catalogue_manifest = ToolManifest(
             description="Excerpts: content, space, filename, score",
         ),
         OutputFieldSchema(
+            path="documents[].content",
+            type="string",
+            description="Excerpt text from the user's uploaded file",
+            # Verified against the real payload (documents_tools.py): the
+            # excerpt IS file content. A document→file identity bridge would
+            # need a `file_name` ontology type + a drive consumer — flagged
+            # as follow-up (lot 4), not faked here.
+            semantic_type="file_content",
+        ),
+        OutputFieldSchema(
             path="count",
             type="integer",
             description="Number of excerpts returned",

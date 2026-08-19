@@ -151,3 +151,16 @@ in black and white.
 The word is always shown next to the colour: colour speeds up reading, it never
 replaces it. A level LIA does not know yet renders neutral rather than red —
 presenting an unrecognised level as urgent would be a claim nobody made.
+
+## Will a proactive notification interrupt a conversation I'm having?
+
+No. Before any proactive send, LIA checks your latest real message: if you
+were active within the last few minutes, the notification waits. The check
+reads your actual messages (automated system rows are excluded), so being
+mid-conversation genuinely holds proactive pushes back — LIA waits its turn.
+
+## Can one account be forgotten by the notification cycle?
+
+No. On each cycle, candidate accounts are selected in a randomized order and
+accounts that disabled the feature never take a slot. No account can end up
+systematically served last, however many users the instance hosts.

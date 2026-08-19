@@ -31,11 +31,44 @@ from src.domains.journals.repository import JournalEntryRepository
 from src.domains.journals.schemas import JournalCostInfo, JournalSizeInfo
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import (
+    journal_confidence_clamped_total,
     journal_consolidation_promotions_total,
     journal_evidence_total,
 )
 
 logger = get_logger(__name__)
+
+
+def _clamp_confidence(confidence: str, level: str, evidence_count: int, source: str) -> str:
+    """Epistemic clamp (B-06, 2026-08-19): make the confidence contract true.
+
+    ``high`` means "confirmed by repeated evidence" — an L0/L1 directive
+    cannot hold it while its ``evidence_count`` is zero (prod held 6/6
+    entries at high with zero evidence). L2/L3 stay free: their evidence is
+    cross-entry convergence, not a reaction counter. Mechanically repairable
+    → repaired (never reported as an error to the LLM), per the ADR-184
+    doctrine.
+
+    Args:
+        confidence: Requested confidence value.
+        level: The entry's FINAL abstraction level for this action.
+        evidence_count: Current system-managed evidence counter.
+        source: Metric label — ``create`` or ``update``.
+
+    Returns:
+        The confidence to store (demoted to ``medium`` when clamped).
+    """
+    if (
+        confidence == JournalEntryConfidence.HIGH.value
+        and level in (JournalEntryLevel.L0.value, JournalEntryLevel.L1.value)
+        and evidence_count == 0
+    ):
+        # metrics never break writes
+        with suppress(Exception):
+            journal_confidence_clamped_total.labels(source=source).inc()
+        logger.info("journal_confidence_clamped", level=level, source=source)
+        return JournalEntryConfidence.MEDIUM.value
+    return confidence
 
 
 async def _generate_document_embedding(text: str) -> list[float] | None:
@@ -172,6 +205,9 @@ class JournalService:
 
         char_count = len(content)
 
+        # Epistemic clamp: a fresh L0/L1 has zero evidence by definition (B-06).
+        confidence = _clamp_confidence(confidence, level, evidence_count=0, source="create")
+
         # Generate dual embeddings: title+content + search_hints separately
         embedding, keyword_embedding = await _generate_dual_embeddings(title, content, search_hints)
 
@@ -265,8 +301,16 @@ class JournalService:
             entry.search_hints = search_hints
             content_changed = True  # Hints affect embedding text
 
-        if confidence is not None:
-            entry.confidence = confidence
+        # Evidence signal FIRST: a confirming outcome in the same update
+        # legitimately raises the counter the confidence clamp reads (B-06).
+        if evidence_outcome == "evidence":
+            entry.evidence_count = entry.evidence_count + 1
+            with suppress(Exception):
+                journal_evidence_total.labels(outcome="evidence").inc()
+        elif evidence_outcome == "contradiction":
+            entry.contradiction_count = entry.contradiction_count + 1
+            with suppress(Exception):
+                journal_evidence_total.labels(outcome="contradiction").inc()
 
         if level is not None and level != entry.level:
             # metrics never break writes
@@ -276,14 +320,11 @@ class JournalService:
                 ).inc()
             entry.level = level
 
-        if evidence_outcome == "evidence":
-            entry.evidence_count = entry.evidence_count + 1
-            with suppress(Exception):
-                journal_evidence_total.labels(outcome="evidence").inc()
-        elif evidence_outcome == "contradiction":
-            entry.contradiction_count = entry.contradiction_count + 1
-            with suppress(Exception):
-                journal_evidence_total.labels(outcome="contradiction").inc()
+        if confidence is not None:
+            # Clamp against the FINAL level and the post-signal counter (B-06).
+            entry.confidence = _clamp_confidence(
+                confidence, entry.level, entry.evidence_count, source="update"
+            )
 
         # Regenerate dual embeddings if title, content, or search_hints changed
         if content_changed:

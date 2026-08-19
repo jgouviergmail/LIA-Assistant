@@ -249,12 +249,14 @@ class TestEvidenceOutcomeIncrements:
 
 
 class TestConfidencePassthrough:
-    """Confidence is a simple field write — no metric, no transformation."""
+    """Confidence writes pass through EXCEPT the epistemic clamp (B-06):
+    an L0/L1 cannot reach `high` with evidence_count=0 — the exact prod
+    defect this suite used to pin as correct behavior (2026-08-19)."""
 
     @pytest.mark.asyncio
-    async def test_confidence_low_to_high(self) -> None:
+    async def test_confidence_low_to_high_requires_evidence_on_l1(self) -> None:
         service, _ = _make_service()
-        entry = _make_entry(confidence=JournalEntryConfidence.LOW.value)
+        entry = _make_entry(confidence=JournalEntryConfidence.LOW.value, evidence_count=1)
 
         with patch(
             "src.domains.journals.service._generate_dual_embeddings",
@@ -263,6 +265,19 @@ class TestConfidencePassthrough:
             await service.update_entry(entry, confidence=JournalEntryConfidence.HIGH.value)
 
         assert entry.confidence == JournalEntryConfidence.HIGH.value
+
+    @pytest.mark.asyncio
+    async def test_confidence_high_without_evidence_is_clamped_on_l1(self) -> None:
+        service, _ = _make_service()
+        entry = _make_entry(confidence=JournalEntryConfidence.LOW.value, evidence_count=0)
+
+        with patch(
+            "src.domains.journals.service._generate_dual_embeddings",
+            AsyncMock(return_value=(None, None)),
+        ):
+            await service.update_entry(entry, confidence=JournalEntryConfidence.HIGH.value)
+
+        assert entry.confidence == JournalEntryConfidence.MEDIUM.value
 
 
 # -----------------------------------------------------------------------------

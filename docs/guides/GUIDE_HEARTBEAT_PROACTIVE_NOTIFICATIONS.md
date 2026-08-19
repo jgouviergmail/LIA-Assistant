@@ -545,7 +545,11 @@ L'`EligibilityChecker` (`infrastructure/proactive/eligibility.py`) effectue des 
 3. **Quota journalier** : `COUNT(notifications WHERE created_at >= today_start)`
 4. **Global cooldown** : temps depuis la derniere notification du **meme type**
 5. **Cross-type cooldown** : temps depuis la derniere notification d'un **type different** (heartbeat <-> interests)
-6. **Activity cooldown** : ne pas interrompre un utilisateur actif
+6. **Activity cooldown** : ne pas interrompre un utilisateur actif — applique via un **port injecte** (`ActivityProbe`, ADR-232) : le checker generique n'importe aucun modele de domaine, chaque scheduler cable la sonde vers `conversations/activity_probe.fetch_last_user_activity_at` (dernier message humain, lignes automatisees exclues, borne a l'horizon du cooldown). Sans sonde, le garde est explicitement desactive ; un echec de sonde SE PROPAGE au comptage d'echecs du runner (jamais un `success()` silencieux — l'implementation historique lisait un attribut inexistant et avalait l'ImportError, le garde n'a jamais tire avant la v1.30.13).
+
+### Selection des candidats (v1.30.13)
+
+En amont du checker, `build_candidate_users_query` (runner) pousse le drapeau d'activation en SQL et randomise l'ordre (`ORDER BY random()`) : les comptes desactives ne consomment plus de slot du batch, et au-dela de `batch_size` aucun compte ne peut etre systematiquement servi dernier (l'ordre de heap non trie affamait silencieusement les derniers). Le pre-filtre horaire en SQL a ete evalue puis REFUSE : une seule timezone corrompue ferait echouer le lot entier (`timezone(tz, now())` leve), pour un gain de l'ordre de la microseconde — la fenetre horaire reste verifiee en Python, par utilisateur.
 
 ### Cross-type dedup (heartbeat <-> interets)
 

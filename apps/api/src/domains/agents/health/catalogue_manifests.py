@@ -132,7 +132,12 @@ get_steps_summary_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="samples_count", type="integer", description="Number of raw samples"
         ),
-        OutputFieldSchema(path="last_sample_at", type="string", description="ISO timestamp"),
+        OutputFieldSchema(
+            path="last_sample_at",
+            type="string",
+            description="ISO timestamp",
+            semantic_type="datetime",
+        ),
     ],
     cost=CostProfile(est_tokens_in=80, est_tokens_out=150, est_cost_usd=0.0005, est_latency_ms=200),
     permissions=PermissionProfile(
@@ -289,7 +294,12 @@ get_health_overview_catalogue_manifest = ToolManifest(
     ],
     parameters=[_TIME_MIN_PARAM, _TIME_MAX_PARAM],
     outputs=[
-        OutputFieldSchema(path="from_ts", type="string", description="Window start (ISO)"),
+        OutputFieldSchema(
+            path="from_ts",
+            type="string",
+            description="Window start (ISO)",
+            semantic_type="datetime",
+        ),
         OutputFieldSchema(path="to_ts", type="string", description="Window end (ISO)"),
         OutputFieldSchema(path="overview", type="object", description="Per-kind summary dict"),
     ],

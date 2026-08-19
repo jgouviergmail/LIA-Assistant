@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
-from src.domains.habits.models import ProfileVerdict
+from src.domains.habits.verdicts import ProfileVerdict
 
 # Candidate window lengths, in hours. 2-4h windows match how humans describe
 # their own routines ("my mornings", "after dinner"); longer claims are the
@@ -43,6 +43,19 @@ PROFILE_PAYLOAD_VERSION = 1
 WEEKDAY = "weekday"
 WEEKEND = "weekend"
 DAY_CLASSES: tuple[str, ...] = (WEEKDAY, WEEKEND)
+
+# Gate labels for the rejection diagnostics (audit 2026-08-19, lot 0).
+# Per-candidate gates come from ``_candidate_failing_gate``; capture and
+# selectivity are set-level gates evaluated once on the greedy-chosen claim.
+GATE_PRESENCE = "presence"
+GATE_WILSON = "wilson"
+GATE_RECENT = "recent"
+GATE_HALVES = "halves"
+GATE_CAPTURE = "capture"
+GATE_SELECTIVITY = "selectivity"
+
+#: Per-class gate-rejection census: {gate: candidate_count}.
+GateDiagnostics = dict[str, int]
 
 
 @dataclass(frozen=True, slots=True)
@@ -243,6 +256,40 @@ def wilson_lower_bound(p_hat: float, n: float, z: float = _Z99) -> float:
     return max(0.0, (center - margin) / denom)
 
 
+def effective_presence_bar(n_eff: float, thresholds: RhythmThresholds) -> float:
+    """The presence a candidate window must REALLY reach for this class.
+
+    ``presence_min`` is the configured entry bar, but the Wilson 99% floor
+    binds harder at low effective n: on a full 56-day window the real bar is
+    ≈0.572 for weekdays (n_eff≈25.4) and ≈0.699 for weekends (n_eff≈10.28)
+    while the config displays 0.55 (audit C-02, 2026-08-19). A constraint
+    the system applies must be published (ADR-184) — this is the single
+    authority for that number; publication only, never a recalibration.
+
+    Args:
+        n_eff: Kish effective class days (calendar-determined).
+        thresholds: Detector thresholds.
+
+    Returns:
+        The binding presence bar in [presence_min, 1.0]; 1.0 when nothing
+        can pass (n_eff = 0).
+    """
+    if n_eff <= 0:
+        return 1.0
+    if wilson_lower_bound(1.0, n_eff) < thresholds.wilson_floor:
+        return 1.0  # even certainty cannot clear Wilson at this n_eff
+    lo, hi = 0.0, 1.0
+    for _ in range(40):  # binary search — wilson_lower_bound is monotone in p
+        mid = (lo + hi) / 2
+        if wilson_lower_bound(mid, n_eff) >= thresholds.wilson_floor:
+            hi = mid
+        else:
+            lo = mid
+    # Ceil at 4 decimals: the published bar must never UNDERSTATE the
+    # enforced constraint (a half-round-down value would fail the gate).
+    return max(thresholds.presence_min, math.ceil(hi * 10_000) / 10_000)
+
+
 def kish_effective_n(weights: list[float]) -> float:
     """Kish effective sample size of a weight vector."""
     s1 = sum(weights)
@@ -313,30 +360,35 @@ def _weighted_presence(ctx: _ClassContext, bins: frozenset[int], days: list[date
     return hit / total
 
 
-def _candidate_passes(
+def _candidate_failing_gate(
     ctx: _ClassContext,
     bins: frozenset[int],
     p_hat: float,
     thresholds: RhythmThresholds,
     presence_min: float,
-) -> bool:
-    """Entry (or exit) gates for one candidate window, selectivity excluded."""
+) -> str | None:
+    """Entry (or exit) gates for one candidate window, selectivity excluded.
+
+    Returns:
+        The FIRST failing gate label (diagnostics contract), or None when the
+        candidate passes every per-candidate gate.
+    """
     if p_hat < presence_min:
-        return False
+        return GATE_PRESENCE
     if wilson_lower_bound(p_hat, ctx.n_eff) < thresholds.wilson_floor:
-        return False
+        return GATE_WILSON
     if ctx.recent_days:
         recent_hits = sum(1 for d in ctx.recent_days if _day_hits(ctx.day_hours[d], bins))
         if recent_hits / len(ctx.recent_days) < thresholds.recent_min:
-            return False
+            return GATE_RECENT
     # Split-half consistency: both interleaved halves of the class days must
     # independently support the window (kills lucky-streak selection noise).
     for half in (ctx.class_days[0::2], ctx.class_days[1::2]):
         if not half:
-            return False
+            return GATE_HALVES
         if _weighted_presence(ctx, bins, half) < thresholds.half_presence_min:
-            return False
-    return True
+            return GATE_HALVES
+    return None
 
 
 def _capture_of(ctx: _ClassContext, bins: frozenset[int]) -> float:
@@ -359,14 +411,23 @@ def _detect_class_windows(
     presence_min: float,
     capture_min: float,
     selectivity_min: float,
+    diag: GateDiagnostics | None = None,
 ) -> tuple[list[ClaimedWindow], str]:
-    """Candidate scan → marginal-capture greedy → selectivity gate."""
+    """Candidate scan → marginal-capture greedy → selectivity gate.
+
+    Args:
+        diag: Optional gate-rejection accumulator ({gate: count}). Purely
+            additive — filling it never alters the detection outcome.
+    """
     prelim: list[tuple[float, float, int, int]] = []
     for length in WINDOW_LENGTHS:
         for start in range(24):
             bins = _window_bins(start, length)
             p_hat = _weighted_presence(ctx, bins, ctx.class_days)
-            if not _candidate_passes(ctx, bins, p_hat, thresholds, presence_min):
+            failing_gate = _candidate_failing_gate(ctx, bins, p_hat, thresholds, presence_min)
+            if failing_gate is not None:
+                if diag is not None:
+                    diag[failing_gate] = diag.get(failing_gate, 0) + 1
                 continue
             prelim.append((_capture_of(ctx, bins), p_hat, start, length))
 
@@ -381,6 +442,9 @@ def _detect_class_windows(
     share = total_hours / thresholds.waking_hours
     if share <= 0 or capture < capture_min or capture / share < selectivity_min:
         # Nothing stood out enough to be informative — the claim is withheld.
+        if diag is not None:
+            gate = GATE_CAPTURE if capture < capture_min else GATE_SELECTIVITY
+            diag[gate] = diag.get(gate, 0) + 1
         return [], ProfileVerdict.NONE.value
 
     chosen.sort(key=lambda w: w.start_hour)
@@ -452,8 +516,13 @@ def _detect_class(
     thresholds: RhythmThresholds,
     had_claim: bool,
     window_days: int,
+    diag: GateDiagnostics | None = None,
 ) -> ClassRhythm:
-    """Full per-class detection with hysteresis."""
+    """Full per-class detection with hysteresis.
+
+    ``diag`` records the ENTRY-threshold scan only: the hysteresis rescan
+    re-tests the same candidates under relaxed exits and would double-count.
+    """
     ctx = _build_class_context(days, as_of, day_class, thresholds, window_days)
     min_neff = thresholds.min_neff_weekday if day_class == WEEKDAY else thresholds.min_neff_weekend
     bin_presence = tuple(_weighted_presence(ctx, frozenset({b}), ctx.class_days) for b in range(24))
@@ -483,6 +552,7 @@ def _detect_class(
         thresholds.presence_min,
         thresholds.capture_min,
         thresholds.selectivity_min,
+        diag=diag,
     )
     if not windows and had_claim:
         # Hysteresis: a previously claimed rhythm is retained under relaxed
@@ -509,6 +579,25 @@ def compute_rhythm_profile(
     previously_claimed: Mapping[str, bool] | None = None,
     first_observed: date | None = None,
 ) -> RhythmProfile:
+    """Compute the full rhythm profile for one user (no diagnostics).
+
+    Thin wrapper over :func:`compute_rhythm_profile_with_diagnostics` — the
+    historical signature, kept for callers that do not consume the gate
+    census (ambient block, tick scoring, tests).
+    """
+    profile, _diag = compute_rhythm_profile_with_diagnostics(
+        days, as_of, thresholds, previously_claimed, first_observed
+    )
+    return profile
+
+
+def compute_rhythm_profile_with_diagnostics(
+    days: Mapping[date, Mapping[int, int]],
+    as_of: date,
+    thresholds: RhythmThresholds,
+    previously_claimed: Mapping[str, bool] | None = None,
+    first_observed: date | None = None,
+) -> tuple[RhythmProfile, dict[str, GateDiagnostics]]:
     """Compute the full rhythm profile for one user.
 
     Args:
@@ -528,12 +617,16 @@ def compute_rhythm_profile(
             full window: its absences are real data.
 
     Returns:
-        The computed profile. When the user is too occasional
+        ``(profile, diagnostics)`` where ``diagnostics`` maps each day class
+        to its gate-rejection census ({gate: candidate_count}, empty when the
+        class never reached the candidate scan — sparse / insufficient /
+        diffuse verdicts). When the user is too occasional
         (``active_days_fraction`` under the sparse floor) both classes carry
         the SPARSE verdict and no windows: a "usually active at H" claim
         would be factually false — recurrences remain the honest granularity.
     """
     previously_claimed = previously_claimed or {}
+    diag_map: dict[str, GateDiagnostics] = {WEEKDAY: {}, WEEKEND: {}}
 
     window_days = thresholds.window_days
     if first_observed is not None and first_observed > as_of - timedelta(days=window_days - 1):
@@ -556,14 +649,17 @@ def compute_rhythm_profile(
             n_eff=0.0,
             bin_presence=tuple([0.0] * 24),
         )
-        return RhythmProfile(
-            weekday=empty,
-            weekend=empty,
-            active_days_fraction=active_fraction,
-            sparse=True,
+        return (
+            RhythmProfile(
+                weekday=empty,
+                weekend=empty,
+                active_days_fraction=active_fraction,
+                sparse=True,
+            ),
+            diag_map,
         )
 
-    return RhythmProfile(
+    profile = RhythmProfile(
         weekday=_detect_class(
             days,
             as_of,
@@ -571,6 +667,7 @@ def compute_rhythm_profile(
             thresholds,
             bool(previously_claimed.get(WEEKDAY)),
             window_days,
+            diag=diag_map[WEEKDAY],
         ),
         weekend=_detect_class(
             days,
@@ -579,10 +676,12 @@ def compute_rhythm_profile(
             thresholds,
             bool(previously_claimed.get(WEEKEND)),
             window_days,
+            diag=diag_map[WEEKEND],
         ),
         active_days_fraction=active_fraction,
         sparse=False,
     )
+    return profile, diag_map
 
 
 def hour_in_windows(hour: float, windows: tuple[ClaimedWindow, ...]) -> bool:

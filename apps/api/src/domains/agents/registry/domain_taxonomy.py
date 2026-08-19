@@ -164,7 +164,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         # Events involve people (contact) and generate follow-up work (task).
         # One directed edge covers both directions: the initiative node also
         # resolves adjacency via reverse lookup (task→event).
-        related_domains=["contact", "task"],
+        related_domains=["contact", "task", "email"],  # email: attendees ↔ invitations (lot 4)
         # requires_hitl: creating/modifying events needs approval;
         # default_calendar: user-configured via preferences.
         metadata={
@@ -199,9 +199,10 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["task_agent"],
         result_key="tasks",  # $steps.step_N.tasks
-        # Adjacency provided by the event→task edge via the initiative
-        # node's reverse lookup (task execution → event enrichment).
-        related_domains=[],
+        # event adjacency provided by the event→task edge (reverse lookup);
+        # contact declared for the person_name bridge — assignees and
+        # mentions in tasks resolve to address-book people (lot 4).
+        related_domains=["contact"],
         # requires_hitl: creating/completing tasks needs approval;
         # default_task_list: user-configured via preferences.
         metadata={

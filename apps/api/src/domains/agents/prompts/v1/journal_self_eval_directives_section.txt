@@ -1,0 +1,6 @@
+## DIRECTIVES INJECTED AT THE PREVIOUS TURN
+The directives below were injected into your previous response. Look at the conversation above and consider the user's reaction AT THE CURRENT TURN. For each directive that was clearly applied and where you can read a signal in the user's reaction:
+- If the user pushed back, reformulated, or corrected → propose `update` with `evidence_outcome="contradiction"` on that entry.
+- If the user engaged smoothly, thanked you, or visibly benefited → propose `update` with `evidence_outcome="evidence"`.
+- If the directive was not relevant to what unfolded → leave it alone (no signal).
+- The system increments the counters atomically; you only signal the outcome.

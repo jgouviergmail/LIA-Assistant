@@ -507,6 +507,10 @@ async def react_setup_node(
                 from src.infrastructure.database.session import get_db_context
 
                 async with get_db_context() as journal_db:
+                    # B-08 decision (2026-08-19): `_jids` deliberately discarded —
+                    # the response-flow injection (same turn, response node) is
+                    # the instance evaluated by the T→T+1 loop; this in-loop
+                    # copy only steers the ReAct reasoning.
                     directives_block, _jdebug, _jids = await build_journal_context(
                         user_id=react_journal_user_id,
                         query=last_user_text,

@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 4.4
+**Version**: 4.5
 **Date**: 2026-08-19
-**Application**: LIA v1.30.12
+**Application**: LIA v1.30.13
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 473 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 230 ADRs, ~19,844 pytest-collected tests across 1,119 files, native observability, 6-level HITL |
+| Production reliability | 232 ADRs, ~19,894 pytest-collected tests across 1,131 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -75,7 +75,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~19,844 (collected by pytest across 1,119 test files) + 5,815 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~19,894 (collected by pytest across 1,131 test files) + 5,816 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 229 |
@@ -659,6 +659,8 @@ Detection through query analysis with Bayesian weight evolution (configurable de
 
 ---
 
+**The journal's self-evaluation loop and the adaptive threshold.** Directives injected into a reply are re-evaluated at the next turn in light of the user's reaction: the LLM only signals `evidence` or `contradiction`, the system owns the counters, and a server-side clamp forbids "high" confidence on an operational directive without evidence — L2/L3 stay free, their evidence being cross-entry convergence. Consolidation eligibility is delta-driven (work exists: never consolidated, or an entry touched since the last pass), never an absolute count. Finally, the similarity threshold deciding an injection is no longer global: a bounded (0.55–0.70), hysteretic (one 0.01 step per 24h), switchable controller learns it per user from the real distribution of their scores — state is advisory (Redis, sliding TTL), a failed read falls back to the static default.
+
 ## 12. Multi-provider LLM infrastructure
 
 ### 12.1. Factory Pattern
@@ -785,6 +787,8 @@ Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmis
 **Phase 2 — Generation** (if notify): LLM rewrites with personality + user language. When facts were fetched, a VERIFIED FACTS block requires naming 1-2 concrete items without ever inventing, and source links are appended deterministically. Multi-channel dispatch. An interest mention is written to the shared ledger (`InterestNotification(source='heartbeat')`): the subject then rests for both proactive flows.
 
 Every source is bounded by a time budget and fails independently. That budget covers a share of an event loop shared with the other fetchers — it is not a database timeout: health signals were blowing it under nominal conditions because their read pulled tens of thousands of raw rows to produce a few dozen numbers, freezing the worker for the duration of the decode. The read now relies on a per-day aggregation computed in the database, and a source that drops out is counted and timed rather than silently missing — a source that fails by disappearing leaves no trace in the notification itself.
+
+**The activity guard is an injected probe, and selection is fair.** The "don't interrupt an active user" rule is enforced through a port (`ActivityProbe`) that each scheduler wires to the real activity source — the latest human message, automated rows excluded, bounded to the cooldown horizon. The generic checker knows no domain model: it receives the probe, and a read failure propagates to the runner's failure accounting instead of dissolving into permission. Upstream, candidate-account selection pushes the enablement flag into SQL and randomizes order (`ORDER BY random()`): beyond the batch size, no account can be systematically served last. The SQL time-window prefilter was evaluated and refused — a single corrupt timezone would fail the whole batch, for a microsecond-scale gain.
 
 ### 16.2. Agent Initiative (ADR-062)
 
@@ -1289,7 +1293,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-230 ADRs in MADR format document the major architectural decisions. Some representative examples:
+232 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1422,10 +1426,10 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 230 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,844 tests across 1,119 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 232 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,894 tests across 1,131 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 230 ADRs, and the changelog (v1.0 to v1.30.12). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 232 ADRs, and the changelog (v1.0 to v1.30.13). All metrics, versions, and patterns cited are verifiable in the codebase.*

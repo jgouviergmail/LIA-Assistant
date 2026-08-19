@@ -79,11 +79,6 @@ class TestTypeRegistryInit:
         assert len(registry) == 0
         assert registry.get_all() == []
 
-    def test_init_creates_category_indexes(self, registry):
-        """Test that init creates category indexes."""
-        for category in TypeCategory:
-            assert registry.get_by_category(category) == set()
-
 
 class TestTypeRegistryRegister:
     """Tests for register method."""
@@ -104,23 +99,6 @@ class TestTypeRegistryRegister:
 
         assert len(registry) == 1
 
-    def test_register_builds_hierarchy(self, registry, sample_types):
-        """Test that register builds parent-child hierarchy."""
-        registry.register(sample_types["thing"])
-        registry.register(sample_types["person"])
-
-        # Check hierarchy is built
-        subtypes = registry.get_subtypes("Thing")
-        assert "Person" in subtypes
-
-    def test_register_builds_semantic_relations(self, registry, sample_types):
-        """Test that register builds semantic relations."""
-        registry.register(sample_types["email"])
-        registry.register(sample_types["phone"])
-
-        related = registry.get_related_types("email_address", "related")
-        assert "phone_number" in related
-
     def test_register_updates_domain_index(self, registry, sample_types):
         """Test that register updates domain index."""
         registry.register(sample_types["email"])
@@ -130,23 +108,6 @@ class TestTypeRegistryRegister:
 
         types_by_domain = registry.get_by_domain("email")
         assert "email_address" in types_by_domain
-
-    def test_register_updates_tool_index(self, registry, sample_types):
-        """Test that register updates tool index."""
-        registry.register(sample_types["email"])
-
-        types_by_tool = registry.get_by_tool("get_contact_tool")
-        assert "email_address" in types_by_tool
-
-        types_by_tool = registry.get_by_tool("send_email_tool")
-        assert "email_address" in types_by_tool
-
-    def test_register_updates_category_index(self, registry, sample_types):
-        """Test that register updates category index."""
-        registry.register(sample_types["email"])
-
-        types_by_category = registry.get_by_category(TypeCategory.IDENTITY)
-        assert "email_address" in types_by_category
 
 
 class TestTypeRegistryGet:
@@ -174,23 +135,6 @@ class TestTypeRegistryGet:
         assert "email_address" in names
 
 
-class TestTypeRegistryByCategory:
-    """Tests for get_by_category method."""
-
-    def test_get_by_category_returns_matching(self, populated_registry):
-        """Test that get_by_category returns matching types."""
-        result = populated_registry.get_by_category(TypeCategory.IDENTITY)
-
-        assert "Thing" in result
-        assert "Person" in result
-        assert "email_address" in result
-
-    def test_get_by_category_returns_empty_for_no_match(self, populated_registry):
-        """Test that get_by_category returns empty for no matches."""
-        result = populated_registry.get_by_category(TypeCategory.LOCATION)
-        assert result == set()
-
-
 class TestTypeRegistryByDomain:
     """Tests for get_by_domain method."""
 
@@ -206,155 +150,6 @@ class TestTypeRegistryByDomain:
         """Test that get_by_domain returns empty for unknown domain."""
         result = populated_registry.get_by_domain("unknown_domain")
         assert result == set()
-
-
-class TestTypeRegistryByTool:
-    """Tests for get_by_tool method."""
-
-    def test_get_by_tool_returns_matching(self, populated_registry):
-        """Test that get_by_tool returns matching types."""
-        result = populated_registry.get_by_tool("get_contact_tool")
-
-        assert "Contact" in result
-        assert "email_address" in result
-
-    def test_get_by_tool_returns_empty_for_unknown(self, populated_registry):
-        """Test that get_by_tool returns empty for unknown tool."""
-        result = populated_registry.get_by_tool("unknown_tool")
-        assert result == set()
-
-
-class TestTypeRegistryHierarchy:
-    """Tests for hierarchy-related methods."""
-
-    def test_get_hierarchy_path_returns_path(self, populated_registry):
-        """Test that get_hierarchy_path returns full path."""
-        path = populated_registry.get_hierarchy_path("email_address")
-
-        # Should include ancestors
-        assert "Thing" in path
-        assert "Person" in path
-        assert "Contact" in path
-        assert "email_address" in path
-        assert path[-1] == "email_address"
-
-    def test_get_hierarchy_path_for_root(self, populated_registry):
-        """Test that get_hierarchy_path for root returns single item."""
-        path = populated_registry.get_hierarchy_path("Thing")
-        assert path == ["Thing"]
-
-    def test_get_hierarchy_path_for_unknown(self, registry):
-        """Test that get_hierarchy_path for unknown type returns single item."""
-        path = registry.get_hierarchy_path("unknown_type")
-        assert path == ["unknown_type"]
-
-    def test_get_subtypes_recursive(self, populated_registry):
-        """Test that get_subtypes returns all descendants."""
-        subtypes = populated_registry.get_subtypes("Thing", recursive=True)
-
-        assert "Person" in subtypes
-        assert "Contact" in subtypes
-        assert "email_address" in subtypes
-        assert "phone_number" in subtypes
-
-    def test_get_subtypes_non_recursive(self, populated_registry):
-        """Test that get_subtypes returns only direct children."""
-        subtypes = populated_registry.get_subtypes("Thing", recursive=False)
-
-        assert "Person" in subtypes
-        assert "Contact" not in subtypes
-        assert "email_address" not in subtypes
-
-    def test_get_subtypes_for_leaf(self, populated_registry):
-        """Test that get_subtypes for leaf returns empty."""
-        subtypes = populated_registry.get_subtypes("email_address")
-        assert subtypes == set()
-
-    def test_is_subtype_of_direct_parent(self, populated_registry):
-        """Test that is_subtype_of returns True for direct parent."""
-        assert populated_registry.is_subtype_of("Person", "Thing") is True
-
-    def test_is_subtype_of_transitive(self, populated_registry):
-        """Test that is_subtype_of returns True for transitive parent."""
-        assert populated_registry.is_subtype_of("email_address", "Thing") is True
-        assert populated_registry.is_subtype_of("email_address", "Person") is True
-
-    def test_is_subtype_of_returns_false_for_non_parent(self, populated_registry):
-        """Test that is_subtype_of returns False for non-parent."""
-        assert populated_registry.is_subtype_of("Thing", "Person") is False
-        assert populated_registry.is_subtype_of("email_address", "phone_number") is False
-
-    def test_is_subtype_of_returns_false_for_unknown(self, registry):
-        """Test that is_subtype_of returns False for unknown types."""
-        assert registry.is_subtype_of("unknown1", "unknown2") is False
-
-
-class TestTypeRegistryWuPalmer:
-    """Tests for Wu & Palmer distance calculation."""
-
-    def test_distance_identical_types(self, populated_registry):
-        """Test that identical types have distance 1.0."""
-        distance = populated_registry.compute_distance_wu_palmer("email_address", "email_address")
-        assert distance == 1.0
-
-    def test_distance_sibling_types(self, populated_registry):
-        """Test distance for sibling types."""
-        distance = populated_registry.compute_distance_wu_palmer("email_address", "phone_number")
-
-        # Both are children of Contact, should have high similarity
-        assert 0.5 < distance < 1.0
-
-    def test_distance_parent_child(self, populated_registry):
-        """Test distance for parent-child types."""
-        distance = populated_registry.compute_distance_wu_palmer("Contact", "email_address")
-
-        # Parent-child should have similarity
-        assert 0.5 < distance < 1.0
-
-    def test_distance_distant_types(self, populated_registry):
-        """Test distance for more distant types."""
-        distance = populated_registry.compute_distance_wu_palmer("Thing", "email_address")
-
-        # Distant types should have lower similarity
-        assert distance < 0.8
-
-    def test_distance_unknown_types(self, registry):
-        """Test that unknown types have distance 0.0."""
-        distance = registry.compute_distance_wu_palmer("unknown1", "unknown2")
-        assert distance == 0.0
-
-
-class TestTypeRegistryRelatedTypes:
-    """Tests for get_related_types method."""
-
-    def test_get_related_types_returns_related(self, populated_registry):
-        """Test that get_related_types returns related types."""
-        related = populated_registry.get_related_types("email_address", "related")
-
-        assert "phone_number" in related
-
-    def test_get_related_types_returns_empty_for_unknown(self, registry):
-        """Test that get_related_types returns empty for unknown type."""
-        related = registry.get_related_types("unknown_type", "related")
-        assert related == set()
-
-    def test_get_related_types_filters_by_relation(self, registry):
-        """Test that get_related_types filters by relation type."""
-        type_def = SemanticType(
-            name="test_type",
-            category=TypeCategory.IDENTITY,
-            related_types=["related1"],
-            broader_types=["broader1"],
-        )
-        registry.register(type_def)
-
-        related = registry.get_related_types("test_type", "related")
-        assert "related1" in related
-        assert "broader1" not in related
-
-        broader = registry.get_related_types("test_type", "broader")
-        assert "broader1" in broader
-        assert "related1" not in broader
 
 
 class TestTypeRegistryValidation:
@@ -457,3 +252,54 @@ class TestGlobalRegistry:
         registry2 = get_registry()
 
         assert "test" not in registry2
+
+
+class TestLivingSurface:
+    """Coverage of the API that survived ADR-233 (register/get/by_domain/stats).
+
+    The transitive-subsumption / Wu & Palmer / SKOS / category-tool getters
+    were removed with their tests (zero runtime consumers); this class keeps
+    the RETAINED surface pinned so the purge cannot silently rot it.
+    """
+
+    def test_register_and_get(self, registry, sample_types):
+        registry.register(sample_types["thing"])
+        registry.register(sample_types["contact"])
+        assert registry.get("Contact") is sample_types["contact"]
+        assert registry.get("missing") is None
+        assert len(registry) == 2
+        assert "Contact" in registry
+
+    def test_duplicate_registration_is_skipped(self, registry, sample_types):
+        registry.register(sample_types["thing"])
+        registry.register(sample_types["thing"])
+        assert len(registry) == 1
+
+    def test_get_by_domain_index(self, registry, sample_types):
+        registry.register(sample_types["contact"])
+        assert registry.get_by_domain("contact") == {"Contact"}
+        assert registry.get_by_domain("unknown") == set()
+
+    def test_get_all_returns_every_type(self, registry, sample_types):
+        for t in sample_types.values():
+            registry.register(t)
+        assert {t.name for t in registry.get_all()} == {t.name for t in sample_types.values()}
+
+    def test_validate_hierarchy_flags_missing_parent(self, registry):
+        registry.register(
+            SemanticType(name="orphan", parent="ghost", category=TypeCategory.IDENTITY)
+        )
+        errors = registry.validate_hierarchy()
+        assert any("ghost" in e for e in errors)
+
+    def test_get_stats_shape(self, registry, sample_types):
+        registry.register(sample_types["contact"])
+        stats = registry.get_stats()
+        assert stats["total_types"] == 1
+        assert stats["total_domains"] == 1
+        assert stats["total_tools"] == 1
+
+    def test_global_singleton_roundtrip(self):
+        reset_registry()
+        assert get_registry() is get_registry()
+        reset_registry()

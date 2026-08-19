@@ -724,9 +724,15 @@ initiative_evaluations_total = Counter(
 )
 
 initiative_actions_executed_total = Counter(
-    "initiative_actions_executed_total",
-    "Initiative actions executed",
-    ["tool_name"],
+    "initiative_actions_executed_total", "Initiative actions executed", ["tool_name"]
+)
+
+# Audit 2026-08-19 lot 0: prod showed decision=act evaluations with zero
+# executions and only a logger.warning to explain the gap.
+initiative_actions_rejected_total = Counter(
+    "initiative_actions_rejected_total",
+    "Initiative actions rejected by the read-only validation",
+    ["reason"],  # non_readonly | duplicate
 )
 
 initiative_duration_seconds = Histogram(

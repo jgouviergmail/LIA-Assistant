@@ -46,3 +46,13 @@ With restraint, and never beyond your own settings:
 
 ## Does a conversation reset erase what was learned?
 No. Activity is aggregated from several durable sources (including run summaries and the reset history itself), so resetting your conversation does not erase your rhythm. Conversely, "Forget everything" in the Habits panel truly forgets: it also clears the durable activity bank so a recompute cannot resurrect the profile.
+
+## Why does it say "no stable time habit detected"?
+
+Because the statistical bar was not met — and that bar is now **shown**, not
+hidden. When nothing is detected, the Habits panel displays the exact
+presence threshold required for that day class. It is stricter on weekends:
+a full observation window holds far fewer weekend days than weekdays, so the
+confidence bound demands more presence before claiming anything. An enforced
+constraint is a published constraint — you should never face an unexplained
+"no habit".

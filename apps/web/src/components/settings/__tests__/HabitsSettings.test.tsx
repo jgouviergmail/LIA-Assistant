@@ -80,6 +80,7 @@ function profileClass(over: Partial<HabitsProfileClass> = {}): HabitsProfileClas
     windows: [],
     n_eff: 0,
     required_n_eff: 12,
+    effective_presence_min: 0.699,
     bin_presence: Array<number>(24).fill(0),
     ...over,
   };
@@ -292,6 +293,23 @@ describe('HabitsSettings', () => {
   it('no candidates section when nothing is under observation', () => {
     renderSection();
     expect(screen.queryByText('settings.habits.observing_title')).not.toBeInTheDocument();
+  });
+
+  it('the none verdict publishes the enforced detection bar (C-02, ADR-184)', () => {
+    state.overview = overview({
+      profile: {
+        computed_at: '2026-08-05T04:10:00Z',
+        weekday: profileClass({ verdict: 'none', n_eff: 25.4, effective_presence_min: 0.5715 }),
+        weekend: profileClass({ verdict: 'insufficient' }),
+        active_days_fraction: 0.7,
+        sparse: false,
+      },
+      habits: [],
+    });
+    renderSection();
+    // The i18n mock renders the raw key — presence of the key + rounded pct
+    // interpolation is asserted through the t() call contract.
+    expect(screen.getByText('settings.habits.effective_bar')).toBeInTheDocument();
   });
 
   it('the heatmap shows where activity concentrates even on a none verdict', () => {

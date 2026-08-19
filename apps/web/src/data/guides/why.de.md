@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 4.9
+**Version**: 5.0
 **Datum**: 2026-08-19
-**Anwendung**: LIA v1.30.12
+**Anwendung**: LIA v1.30.13
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -329,6 +329,8 @@ Dieselbe Transparenz gilt für das Gewohnheitslernen: Was LIA über deinen Rhyth
 ### 6.5. Eine Oberfläche, die das Produkt beschreibt, wird daran gemessen
 
 Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der still aufhört, die Wahrheit zu sagen. Die Fähigkeitskarte — die Seite, die beantwortet *was kann mein Assistent für mich tun?* — veröffentlichte monatelang dreizehn eingefrorene Einträge, während das Produkt Bildgenerierung, Dokumente, Plugins, gelernte Gewohnheiten, MCP-Server und Telefonanrufe hinzugewann. Nichts war kaputt, kein Test wurde rot, und die Seite, die es gab, um aktuell zu sein, war die unaktuellste der Anwendung geworden. Eine schriftliche Konvention hatte ihre Pflege bereits verlangt; Konventionen sind genau das, was ein voller Monat abträgt. Die Regel ist deshalb nun mechanisch: Zwei deklarierte Tabellen müssen jede Fähigkeit erfassen, die die Plattform abschalten kann, jede Ausnahme mit geschriebenem Grund, und eine Zusicherung läuft beim Laden des Codes — eine Fähigkeit, die ohne Entscheidung über ihren Platz auf der Karte ausgeliefert wird, verhindert den Start der Anwendung. Dieselbe Überzeugung, eine Stufe weiter: Was ein Bildschirm über deine Daten behauptet, muss **exakt oder abwesend** sein. Eine Zahl ist das, was die Datenbank zurückgibt, nie eine Länge, die gerade zur Hand war; und solange die Antwort unterwegs ist oder fehlschlug, sagt die Karte nichts, statt zu raten. „Noch nichts eingerichtet" ist eine Aussage über dein Konto — eine, deren man sich besser sicher ist, bevor man sie trifft.
+
+Transparenz gilt auch für die inneren Regeln des Assistenten. Eine Grenze, die das System durchsetzt, muss dem veröffentlicht werden, den sie betrifft: Erkennt das Gewohnheitslernen nichts, zeigen die Einstellungen die tatsächlich verlangte Schwelle — strenger am Wochenende, wo weniger Tage beobachtet werden — statt eines unerklärten Schweigens. Und wenn sich eine Einstellung selbst justiert, wie die Schwelle, die entscheidet, ob eine Journalnotiz in eine Antwort einfließt, dann innerhalb strikter Grenzen, ein kleiner Schritt pro Tag, mit Notausschalter und gezählten Anpassungen: Ein lernendes System ist nur akzeptabel, wenn es beobachtbar und abschaltbar bleibt.
 
 ## 7. Emotionale Tiefe
 

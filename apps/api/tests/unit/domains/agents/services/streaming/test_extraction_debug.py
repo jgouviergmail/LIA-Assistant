@@ -19,9 +19,9 @@ from src.domains.agents.services.streaming.extraction_debug import (
 class TestPopBackgroundExtractionDebug:
     def test_returns_pairs_for_every_populated_family(self):
         from src.domains.agents.services import open_loop_extractor
-        from src.domains.journals import extraction_service
+        from src.domains.journals import extraction_debug_store
 
-        extraction_service._store_extraction_debug(
+        extraction_debug_store.store_extraction_debug(
             "run-agg-1", {"actions_parsed": 1, "actions_applied": 1, "entries": []}
         )
         open_loop_extractor._store_extraction_debug(
@@ -42,7 +42,7 @@ class TestPopBackgroundExtractionDebug:
         open_loop_extractor._store_extraction_debug("run-agg-2", {"items_parsed": 0})
 
         with patch(
-            "src.domains.journals.extraction_service.pop_extraction_debug",
+            "src.domains.journals.extraction_debug_store.pop_extraction_debug",
             side_effect=RuntimeError("boom"),
         ):
             pairs = pop_background_extraction_debug("run-agg-2")

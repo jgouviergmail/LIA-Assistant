@@ -28,7 +28,6 @@ def _make_user(**overrides: Any) -> MagicMock:
     user.interests_notify_end_hour = overrides.get("end_hour", 22)
     user.interests_notify_min_per_day = overrides.get("min_per_day", 1)
     user.interests_notify_max_per_day = overrides.get("max_per_day", 5)
-    user.last_chat_activity_at = overrides.get("last_activity", None)
     user.timezone = overrides.get("timezone", "UTC")
     return user
 

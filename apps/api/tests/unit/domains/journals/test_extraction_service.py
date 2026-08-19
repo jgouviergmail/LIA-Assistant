@@ -111,10 +111,10 @@ class TestExtractionDebugStoreEviction:
     panel accumulated one entry per turn for the process lifetime."""
 
     def test_store_evicts_stale_entries_without_any_pop(self):
-        import src.domains.journals.extraction_service as mod
+        import src.domains.journals.extraction_debug_store as mod
 
-        mod._store_extraction_debug("run-old", {"actions_parsed": 0})
+        mod.store_extraction_debug("run-old", {"actions_parsed": 0})
         with patch.object(mod._time, "monotonic", return_value=mod._time.monotonic() + 10_000):
-            mod._store_extraction_debug("run-new", {"actions_parsed": 1})
+            mod.store_extraction_debug("run-new", {"actions_parsed": 1})
             assert "run-old" not in mod._extraction_debug_results
             assert mod.pop_extraction_debug("run-new") == {"actions_parsed": 1}

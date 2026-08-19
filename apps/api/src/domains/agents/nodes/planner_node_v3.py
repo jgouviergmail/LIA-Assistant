@@ -445,6 +445,12 @@ async def planner_node_v3(
                 )
 
                 async with get_db_context() as journal_db:
+                    # B-08 decision (2026-08-19): the planner's injected ids are
+                    # DELIBERATELY out of the deferred self-evaluation loop —
+                    # the response-flow injection is the evaluated instance
+                    # (state `injected_journal_ids`); this copy only informs
+                    # plan reasoning. Merging them would corrupt the T-1
+                    # semantics the response node reads from the checkpoint.
                     (
                         journal_context_result,
                         planner_journal_debug_data,

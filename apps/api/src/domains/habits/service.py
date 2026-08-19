@@ -14,6 +14,7 @@ across concurrent tasks).
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -35,7 +36,7 @@ from src.domains.habits.rhythm import (
     ClaimedWindow,
     RhythmProfile,
     RhythmThresholds,
-    compute_rhythm_profile,
+    compute_rhythm_profile_with_diagnostics,
 )
 
 logger = structlog.get_logger(__name__)
@@ -210,13 +211,14 @@ class HabitsService:
             name: bool(getattr(previous, name).windows) if previous else False
             for name in DAY_CLASSES
         }
-        profile = compute_rhythm_profile(
+        profile, gate_diagnostics = compute_rhythm_profile_with_diagnostics(
             days,
             as_of,
             thresholds,
             previously_claimed=previously_claimed,
             first_observed=first_observed,
         )
+        self._emit_gate_diagnostics(gate_diagnostics)
 
         await self.repository.upsert_profile(
             user_id=user.id,
@@ -233,6 +235,30 @@ class HabitsService:
             sparse=profile.sparse,
         )
         return "computed"
+
+    @staticmethod
+    def _emit_gate_diagnostics(gate_diagnostics: dict[str, dict[str, int]]) -> None:
+        """Emit the detector's gate-rejection census (best-effort).
+
+        Makes "why zero habits" answerable from Grafana instead of an
+        offline ledger replay (audit 2026-08-19, lot 0). Metrics must never
+        break the recompute.
+
+        Args:
+            gate_diagnostics: Per-day-class {gate: candidate_count} census.
+        """
+        # Best-effort metric emission — a metrics failure must never break the job.
+        with suppress(Exception):
+            from src.infrastructure.observability.metrics_habits import (
+                habit_window_rejected_total,
+            )
+
+            for day_class, gates in gate_diagnostics.items():
+                for gate, count in gates.items():
+                    if count > 0:
+                        habit_window_rejected_total.labels(day_class=day_class, gate=gate).inc(
+                            count
+                        )
 
     async def _sync_active_window_habits(self, user_id: UUID, profile: RhythmProfile) -> None:
         """Mirror claimed windows into user-controllable habit rows.
@@ -264,8 +290,6 @@ class HabitsService:
                         "presence": window.presence,
                     }
                 )
-
-        from contextlib import suppress
 
         from src.infrastructure.observability.metrics_habits import (
             user_habits_synced_total,

@@ -134,3 +134,23 @@ signal was deleted — a tombstone. Your deletion stays a deletion.
 
 The trail is capped at the five most recent signals per entry, and that cap is
 stated under the list rather than applied in silence.
+
+## Does the journal actually learn from my reactions?
+
+Yes, end to end. A directive injected into a reply is re-examined at the next
+turn in light of how you reacted: the model only signals "evidence" or
+"contradiction", and the system owns the counters — a note can never inflate
+its own numbers. A directive cannot reach **high confidence** without real
+evidence: the promise is enforced in code, not just described.
+
+Consolidation (the periodic review that merges, prunes and refreshes the
+portrait) triggers on **actual work** — a note touched since the last pass —
+never on a minimum note count, so small journals keep their portrait fresh.
+
+## How does LIA decide when a journal note enters a reply?
+
+Through a similarity threshold that is now **learned per user**, because your
+vocabulary is not someone else's. It moves inside strict bounds (0.55–0.70),
+at most one small step per day, every adjustment is counted, and a kill
+switch can freeze it to the static default at any time. If the stored value
+cannot be read, LIA falls back to the default — never to an error.

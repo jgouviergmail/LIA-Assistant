@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 4.9
+**Versión**: 5.0
 **Fecha**: 2026-08-19
-**Aplicación**: LIA v1.30.12
+**Aplicación**: LIA v1.30.13
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -329,6 +329,8 @@ La misma transparencia cubre el aprendizaje de hábitos: lo que LIA cree saber d
 ### 6.5. Una superficie que describe el producto está obligada a él
 
 La transparencia tiene un modo de fallo que nadie advierte: una pantalla que deja discretamente de decir la verdad. El mapa de capacidades — la página que responde *¿qué sabe hacer mi asistente por mí?* — publicó trece entradas congeladas durante meses, mientras el producto ganaba la generación de imágenes, los documentos, los plugins, los hábitos aprendidos, los servidores MCP y las llamadas telefónicas. Nada estaba roto, ningún test se ponía en rojo, y la página que existía para estar al día se había vuelto la menos al día de la aplicación. Una convención escrita ya pedía mantenerla; las convenciones son justamente lo que erosiona un mes cargado. Así que la regla es ahora mecánica: dos tablas declaradas deben dar cuenta de cada capacidad que la plataforma puede apagar, cada exclusión con una razón escrita, y una aserción se ejecuta al cargar el código — una capacidad publicada sin decidir su lugar en el mapa impide que la aplicación arranque. La misma convicción, un paso más allá: lo que una pantalla afirma sobre tus datos debe ser **exacto o inexistente**. Un recuento es el número que devuelve la base, nunca una longitud que quedaba a mano; y mientras la respuesta viene en camino, o cuando ha fallado, la tarjeta no dice nada en lugar de adivinar. «Nada configurado» es una afirmación sobre tu cuenta — de las que conviene estar seguro antes de pronunciar.
+
+La transparencia también se aplica a las reglas internas del asistente. Una restricción que el sistema impone debe publicarse a quien la sufre: cuando el aprendizaje de hábitos no detecta nada, los Ajustes muestran el umbral realmente exigido — más estricto el fin de semana, cuando hay menos días observados — en lugar de un silencio sin explicación. Y cuando un ajuste se regula solo, como el umbral que decide que una nota del diario entra en una respuesta, lo hace dentro de límites estrictos, un pequeño paso al día, con interruptor de apagado y cada ajuste contabilizado: un sistema que aprende solo es aceptable si sigue siendo observable y desconectable.
 
 ## 7. Profundidad emocional
 

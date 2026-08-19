@@ -24,6 +24,7 @@ from src.core.constants import (
     HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
     SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
 )
+from src.domains.conversations.activity_probe import fetch_last_user_activity_at
 from src.domains.heartbeat.models import HeartbeatNotification
 from src.domains.heartbeat.proactive_task import HeartbeatProactiveTask
 from src.domains.interests.models import InterestNotification
@@ -70,6 +71,9 @@ def _create_heartbeat_eligibility_checker() -> EligibilityChecker:
         default_end_hour=HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
         default_min_per_day=HEARTBEAT_MIN_PER_DAY_DEFAULT,
         default_max_per_day=HEARTBEAT_MAX_PER_DAY_DEFAULT,
+        # D-01 fix (2026-08-19): real "don't interrupt" gate — last human
+        # message via the conversations probe (automated rows excluded).
+        activity_probe=fetch_last_user_activity_at,
     )
 
 
