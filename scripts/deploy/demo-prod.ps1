@@ -182,7 +182,11 @@ switch ($Action) {
         # version of this check reached the host unterminated, and the second
         # blamed permissions for a file that was simply not there.
         Push-DemoEnv
-        Invoke-Remote "sh scripts/deploy/preflight-demo-prod.sh" "Preflight"
+        # The digest travels WITH the preflight: it is what turns "these
+        # seeds are not the ones you just described" into a refusal on the
+        # host, BEFORE any migration runs, instead of a bare 64-hex
+        # mismatch raised inside the container afterwards (2026-08-19).
+        Invoke-Remote "SEED_BUNDLE_SHA256=$seedDigest sh scripts/deploy/preflight-demo-prod.sh" "Preflight"
 
         # `--build`, and it is the difference between serving the code that was
         # shipped and serving yesterday's. `deploy:prod` builds the three
@@ -239,7 +243,7 @@ switch ($Action) {
 
     "push-env" {
         Push-DemoEnv
-        Invoke-Remote "sh scripts/deploy/preflight-demo-prod.sh" "Preflight"
+        Invoke-Remote "SEED_BUNDLE_SHA256=$seedDigest sh scripts/deploy/preflight-demo-prod.sh" "Preflight"
         Write-Host "`nFichier en place. Lancer ensuite: task demo:prod:up" -ForegroundColor Green
     }
 

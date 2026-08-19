@@ -172,6 +172,63 @@ else
     fi
 fi
 
+# --- 3ter. Les seeds livres sont-ils CEUX que le poste vient de decrire ? ---
+# Le pilote calcule l'empreinte du lot depuis l'arbre LOCAL et la passe a la
+# pile ; le conteneur la recalcule sur les fichiers presents et refuse tout
+# ecart (ADR-215). Sans le controle ci-dessous, cet ecart ne se manifeste
+# qu'APRES la chaine complete de migrations, sous la forme de deux empreintes
+# de 64 caracteres — un symptome qui ne nomme ni la cause ni le remede.
+#
+# Vecu le 2026-08-19 : un seed corrige sur le poste, pas encore expedie. La
+# contrainte d'ordre est reelle et n'etait ecrite nulle part :
+#   task deploy:prod   AVANT   task demo:prod:up
+#
+# Meme algorithme et meme ORDRE que apply_reference_seeds.sh et que
+# scripts/install/seed_bundle.py — les trois listes sont maintenues identiques
+# par tests/unit/test_reference_seed_bundle_contract.py.
+SEED_FILES="google_api_pricing_seed.sql
+image_generation_pricing_seed.sql
+llm_config_seed.sql
+llm_pricing_seed.sql
+personalities_seed.sql
+verify_reference_seeds.sql"
+SEEDS_DIR="infrastructure/database/seeds"
+
+if [ -z "${SEED_BUNDLE_SHA256:-}" ]; then
+    say "lot de seeds         : empreinte attendue non fournie — controle ignore"
+else
+    missing=""
+    for name in $SEED_FILES; do
+        [ -f "$SEEDS_DIR/$name" ] || missing="$missing $name"
+    done
+    if [ -n "$missing" ]; then
+        refuse "fichier(s) de seed absent(s) sur cet hote :$missing"
+        say "  Relancer 'task deploy:prod', qui livre infrastructure/database/."
+    else
+        host_digest="$(
+            for name in $SEED_FILES; do
+                h="$(sha256sum "$SEEDS_DIR/$name" | cut -d' ' -f1)"
+                printf '%s\0%s\n' "$SEEDS_DIR/$name" "$h"
+            done | sha256sum | cut -d' ' -f1
+        )"
+        if [ "$host_digest" = "$SEED_BUNDLE_SHA256" ]; then
+            say "lot de seeds         : identique a l arbre local"
+        else
+            refuse "les seeds de cet hote ne sont PAS ceux du poste."
+            say ""
+            say "    attendu (poste) : $SEED_BUNDLE_SHA256"
+            say "    present (hote)  : $host_digest"
+            say ""
+            say "  L instance refuserait de semer APRES avoir migre la base."
+            say "  Expedier les fichiers d abord :"
+            say ""
+            say "      task deploy:prod"
+            say "      task demo:prod:down && task demo:prod:up"
+            say ""
+        fi
+    fi
+fi
+
 # --- 4. Compose sait-il vraiment rendre cette pile ? ------------------------
 # Le dernier controle, et le seul qui aurait attrape le piege des DEUX
 # variables : `--env-file` dit a Compose ou INTERPOLER, `DEMO_INSTANCE_ENV_FILE`

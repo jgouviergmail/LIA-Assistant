@@ -92,6 +92,39 @@ task demo:prod:harden  # (re)install the container->host firewall rules
 task demo:prod:down
 ```
 
+### Changed a seed? Ship it BEFORE you start
+
+The seed bundle is hash-bound (ADR-215): the driver computes the digest of the
+six seed files **from your working tree**, the container recomputes it from the
+files it actually has, and any difference is refused rather than applied. A seed
+fixed locally but not yet shipped therefore makes the instance refuse to seed —
+and before 2026-08-19 it did so *inside the container, after the whole migration
+chain had run*, as a bare mismatch between two 64-hex strings.
+
+The order is a constraint, not a preference:
+
+```bash
+task deploy:prod        # ships infrastructure/database/seeds/ (among the rest)
+task demo:prod:down
+task demo:prod:up
+task demo:prod:verify
+```
+
+The preflight now checks this on the host before anything starts, and its
+refusal prints both digests and the commands above. Three guards keep it honest
+(`apps/api/tests/unit/test_reference_seed_bundle_contract.py`): its file list
+cannot drift from the applier's, the driver cannot stop handing it the digest
+(unset, the check silently skips), and the record separator must stay the
+two-character `\0` escape — writing the byte it denotes computes a wrong digest
+while every syntax check still passes.
+
+Same trap, different shape: a seed that is merely *re-applied* must be
+idempotent AND compatible with the invariants the migrations install. The
+pricing bundle now retires the tariffs it supersedes **before** inserting its
+own, because `alembic upgrade head` already leaves one active row per model and
+`uq_llm_model_pricing_active` (ADR-228) refuses the second — the failure that
+made this section necessary.
+
 The host, port and user of those remote tasks come from
 `scripts/deploy/deploy.local.ps1` — the same gitignored file the deploy driver
 reads, so the address lives in one place and never in the repository.

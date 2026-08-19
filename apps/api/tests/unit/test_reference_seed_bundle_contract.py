@@ -215,3 +215,86 @@ class TestWrapperExecution:
         proc, _ = self._run(tmp_path, seeds_digest, psql_exit=7)
         assert proc.returncode == 7
         assert "success" not in proc.stdout.lower()
+
+
+# ===========================================================================
+# The demo preflight — third holder of the bundle's file list (2026-08-19)
+# ===========================================================================
+
+_PREFLIGHT = ROOT / "scripts" / "deploy" / "preflight-demo-prod.sh"
+_DEMO_DRIVER = ROOT / "scripts" / "deploy" / "demo-prod.ps1"
+
+
+def _seed_files_of(path: Path) -> list[str]:
+    """The `SEED_FILES="..."` list a shell script hashes, in its own order."""
+    block = path.read_text(encoding="utf-8").split('SEED_FILES="', 1)[1].split('"', 1)[0]
+    return [line.strip() for line in block.splitlines() if line.strip()]
+
+
+def _preflight_seed_files() -> list[str]:
+    return _seed_files_of(_PREFLIGHT)
+
+
+def _wrapper_seed_files() -> list[str]:
+    return _seed_files_of(WRAPPER)
+
+
+def test_the_preflight_hashes_exactly_the_bundle_in_the_same_order() -> None:
+    """A third copy of the list is a third chance to drift.
+
+    The preflight refuses a demo start whose seeds differ from the operator's
+    tree. If its list ever fell out of step with the applier's, it would
+    compute a DIFFERENT digest from correct files and refuse a perfectly good
+    host — a guard that cries wolf gets disabled, which is worse than none.
+    """
+    assert _preflight_seed_files() == _wrapper_seed_files()
+
+
+def test_the_demo_driver_hands_the_digest_to_the_preflight() -> None:
+    """Otherwise the check sits there, silent, and proves nothing.
+
+    The preflight compares against ``SEED_BUNDLE_SHA256``; unset, it skips.
+    Every path that runs the preflight must therefore pass the digest the
+    driver just computed from the local tree.
+    """
+    driver = _DEMO_DRIVER.read_text(encoding="utf-8")
+    calls = driver.count("preflight-demo-prod.sh")
+    armed = driver.count("SEED_BUNDLE_SHA256=$seedDigest sh scripts/deploy/preflight-demo-prod.sh")
+    assert calls > 0, "the demo driver no longer runs the preflight at all"
+    assert armed == calls, (
+        f"{calls - armed} preflight call(s) run without SEED_BUNDLE_SHA256: the "
+        "seed-drift check silently skips, and `demo:prod:up` goes back to "
+        "failing inside the container after the migrations."
+    )
+
+
+def test_the_preflight_names_the_command_that_fixes_a_seed_drift() -> None:
+    """A refusal that does not say what to do costs a round-trip.
+
+    The remedy is an ORDER — ship the files, then start — and it is the part
+    nobody could infer from two 64-hex strings.
+    """
+    text = _PREFLIGHT.read_text(encoding="utf-8")
+    drift_section = text.split("3ter.", 1)[1].split("--- 4.", 1)[0]
+    assert "task deploy:prod" in drift_section
+
+
+def test_the_preflight_hashes_a_literal_backslash_zero_not_a_nul_byte() -> None:
+    """The separator is TWO characters, and writing it as one silently rots.
+
+    Authoring this check embedded a real NUL byte in the script instead of the
+    ``\0`` escape (2026-08-19). Every syntax check still passed, the refusal
+    path still fired, and the digest it computed was simply WRONG — so a host
+    carrying the right seeds would have been refused, and the guard would have
+    been switched off as unreliable. A binary byte in a POSIX script is never
+    intentional here.
+    """
+    raw = _PREFLIGHT.read_bytes()
+    assert b"\x00" not in raw, (
+        "preflight-demo-prod.sh contains a NUL byte: the bundle-digest printf "
+        "must carry the two-character escape \0, not the byte it denotes."
+    )
+    assert rb"printf '%s\0%s\n'" in raw, (
+        "the preflight must hash the same <path NUL sha256 LF> records as "
+        "apply_reference_seeds.sh, or its digest cannot be compared to theirs."
+    )
