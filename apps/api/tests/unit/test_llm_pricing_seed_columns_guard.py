@@ -65,3 +65,48 @@ def test_the_guard_actually_bites() -> None:
     """Prove the checker fails on a seed stripped of a pricing column."""
     stripped = _SEED_PATH.read_text(encoding="utf-8").replace("time_slots", "removed")
     assert "time_slots" in _missing_columns(stripped)
+
+
+def _statement_order(seed_text: str) -> tuple[int, int]:
+    """Offsets of (retire pre-existing actives, insert the bundle)."""
+    return (
+        seed_text.index("UPDATE llm_model_pricing p\n   SET is_active = false"),
+        seed_text.index("INSERT INTO llm_model_pricing ("),
+    )
+
+
+def test_the_bundle_retires_superseded_tariffs_before_inserting_its_own() -> None:
+    """Order is the whole invariant, and it broke a demo boot for real.
+
+    ``alembic upgrade head`` runs ``seed_openai_pricing``, so a freshly
+    migrated database already holds ONE active tariff per model. Inserting the
+    bundle's row on top left BOTH active — silently, until ADR-228 added
+    ``uq_llm_model_pricing_active``, which turned it into a hard failure at
+    ``demo:prod:up`` (measured 2026-08-19). Retiring AFTER the insert cannot
+    work: the index refuses the second active row before any cleanup runs.
+    """
+    retire_at, insert_at = _statement_order(_SEED_PATH.read_text(encoding="utf-8"))
+    assert retire_at < insert_at, (
+        "the pricing bundle must deactivate the tariffs it supersedes BEFORE "
+        "inserting its own rows, or uq_llm_model_pricing_active rejects the "
+        "insert on any database that already ran the seeding migrations."
+    )
+
+
+def test_the_bundle_overwrites_a_row_it_just_retired_instead_of_skipping_it() -> None:
+    """``DO NOTHING`` here would leave a model with NO active tariff.
+
+    When a row already stands at the SAME ``effective_from``, the retire step
+    above has just set ``is_active = false`` on it. Skipping the insert would
+    leave that row inactive and add nothing — the model would be billed zero
+    in silence, which is the very defect ADR-228 makes the workbook state in
+    words.
+    """
+    seed_text = _SEED_PATH.read_text(encoding="utf-8")
+    conflict_at = seed_text.index("ON CONFLICT (model_id, effective_from)")
+    clause = seed_text[conflict_at : conflict_at + 120]
+    assert "DO UPDATE" in clause, (
+        "the pricing bundle must upsert on (model_id, effective_from): with "
+        "DO NOTHING, a row retired by the preceding UPDATE is never replaced "
+        "and the model ends up with no active tariff at all."
+    )

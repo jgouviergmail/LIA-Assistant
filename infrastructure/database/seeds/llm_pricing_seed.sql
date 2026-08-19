@@ -173,21 +173,21 @@ INSERT INTO llm_models (
     ('edge', 'edge-tts', 1, 1, false, false, false, true, false, false, false, false, false, false, 'tts', 'none', NULL, NULL, NULL, NULL, true)
 ON CONFLICT (model_name) DO NOTHING;
 
-INSERT INTO llm_model_pricing (
-    id,
-    model_id,
-    input_unit_price,
-    cached_input_unit_price,
-    output_unit_price,
-    pricing_unit,
-    effective_from,
-    is_active,
-    created_at,
-    updated_at
-)
-SELECT gen_random_uuid(), m.id, p.input::numeric, p.cached::numeric, p.output::numeric,
-       p.unit::pricing_unit_enum, p.effective_from::timestamptz, p.is_active, NOW(), NOW()
-FROM (VALUES
+-- The bundle is materialised once: the model set below is read TWICE (to retire
+-- the tariffs this bundle supersedes, then to insert its own), and duplicating
+-- 139 rows of data to read them twice is how the two copies drift apart.
+DROP TABLE IF EXISTS _lia_pricing_bundle;
+CREATE TEMP TABLE _lia_pricing_bundle (
+    model_name      text,
+    input           numeric,
+    cached          numeric,
+    output          numeric,
+    unit            text,
+    effective_from  text,
+    is_active       boolean
+);
+
+INSERT INTO _lia_pricing_bundle VALUES
     ('chatgpt-image-latest', 5.000000, 1.250000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('claude-haiku-4-5', 1.000000, 0.100000, 5.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('claude-opus-4-5', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
@@ -327,9 +327,52 @@ FROM (VALUES
     ('tts-1', 30.000000, NULL, 0.000001, 'per_1m_tokens', '2026-01-16T15:31:29.945630+00:00', false),
     ('tts-1', 15.000000, NULL, 0.000000, 'per_1m_tokens', '2026-05-07T23:26:05.210606+00:00', true),
     ('tts-1-hd', 30.000000, NULL, 0.000000, 'per_1m_tokens', '2026-05-07T23:26:33.641328+00:00', true)
-) AS p(model_name, input, cached, output, unit, effective_from, is_active)
+;
+
+-- Retire the ACTIVE tariff this bundle supersedes, BEFORE inserting its own.
+-- `alembic upgrade head` runs migration `seed_openai_pricing`, which already
+-- leaves one active row per model; inserting the bundle's row on top used to
+-- leave BOTH active (silently, until ADR-228 added the partial unique index —
+-- and that is exactly how 96 of 114 models ended up with two or three active
+-- tariffs, with the read paths disagreeing on the price). Superseded rows stay
+-- in the table: this retires history, it never deletes it.
+UPDATE llm_model_pricing p
+   SET is_active = false,
+       updated_at = NOW()
+  FROM llm_models m
+ WHERE m.id = p.model_id
+   AND p.is_active
+   AND m.model_name IN (SELECT b.model_name FROM _lia_pricing_bundle b);
+
+INSERT INTO llm_model_pricing (
+    id,
+    model_id,
+    input_unit_price,
+    cached_input_unit_price,
+    output_unit_price,
+    pricing_unit,
+    effective_from,
+    is_active,
+    created_at,
+    updated_at
+)
+SELECT gen_random_uuid(), m.id, p.input, p.cached, p.output,
+       p.unit::pricing_unit_enum, p.effective_from::timestamptz, p.is_active, NOW(), NOW()
+FROM _lia_pricing_bundle p
 JOIN llm_models m ON m.model_name = p.model_name
-ON CONFLICT (model_id, effective_from) DO NOTHING;
+-- DO UPDATE, never DO NOTHING: a row already standing at the SAME
+-- effective_from was just deactivated above, so skipping it would leave the
+-- model with NO active tariff — billed zero in silence, the defect ADR-228
+-- makes the workbook state in words.
+ON CONFLICT (model_id, effective_from) DO UPDATE
+   SET input_unit_price        = EXCLUDED.input_unit_price,
+       cached_input_unit_price = EXCLUDED.cached_input_unit_price,
+       output_unit_price       = EXCLUDED.output_unit_price,
+       pricing_unit            = EXCLUDED.pricing_unit,
+       is_active               = EXCLUDED.is_active,
+       updated_at              = NOW();
+
+DROP TABLE _lia_pricing_bundle;
 
 -- Enforce "exactly one active tariff per model" (partial unique index added by
 -- migration 6e7f8a9b0c1d). ON CONFLICT above keys on (model_id, effective_from)
