@@ -8,8 +8,16 @@ without an explicit ``@pytest.mark.asyncio`` marker.
 from decimal import Decimal
 
 import pytest
+from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.llm.models import (
+    LLMModelKindEnum,
+    LLMModelPricing,
+    LLMProviderEnum,
+    LLMReasoningWidgetEnum,
+)
 from src.domains.llm.schemas import ModelPriceCreate, ModelPriceUpdate
 from src.domains.llm.service import LLMModelService, UnknownReasoningTemplateError
 
@@ -39,10 +47,13 @@ def _make_create(model_name: str, **overrides) -> ModelPriceCreate:
     return ModelPriceCreate(
         provider="openai",
         model_name=model_name,
-        input_unit_price=Decimal("1.0"),
-        cached_input_unit_price=None,
-        output_unit_price=Decimal("3.0"),
-        **{**_BASE_CREATE_FIELDS, **overrides},
+        **{
+            "input_unit_price": Decimal("1.0"),
+            "cached_input_unit_price": None,
+            "output_unit_price": Decimal("3.0"),
+            **_BASE_CREATE_FIELDS,
+            **overrides,
+        },
     )
 
 
@@ -569,3 +580,224 @@ async def test_update_rejects_switching_to_audio_unit_while_slots_survive(
     )
     assert new_pricing is not None
     assert new_pricing.time_slots is None
+
+
+# ============================================================================
+# Reactivation — the inverse of deactivate, which never existed
+# ============================================================================
+
+
+async def test_reactivate_restores_the_model_and_its_last_tariff(
+    async_session: AsyncSession,
+) -> None:
+    """``deactivate`` was a dead end: nothing could bring a model back."""
+    service = LLMModelService(async_session)
+    model, pricing = await service.create(_make_create("revive-me"))
+    await service.deactivate("revive-me")
+
+    restored, restored_pricing = await service.reactivate("revive-me")
+
+    assert restored.is_active is True
+    assert restored_pricing is not None and restored_pricing.is_active is True
+    assert restored_pricing.id == pricing.id
+
+
+async def test_reactivate_reports_a_model_that_never_existed(
+    async_session: AsyncSession,
+) -> None:
+    service = LLMModelService(async_session)
+
+    with pytest.raises(LookupError):
+        await service.reactivate("never-existed-at-all")
+
+
+async def test_reactivate_an_already_active_model_is_a_no_op(
+    async_session: AsyncSession,
+) -> None:
+    service = LLMModelService(async_session)
+    await service.create(_make_create("already-on"))
+
+    model, pricing = await service.reactivate("already-on")
+
+    assert model.is_active is True
+    assert pricing is not None and pricing.is_active is True
+
+
+async def test_reactivate_restores_the_most_recent_tariff(
+    async_session: AsyncSession,
+) -> None:
+    """Several superseded versions may exist; the latest is the one that applies."""
+    service = LLMModelService(async_session)
+    await service.create(_make_create("many-versions"))
+    _, second = await service.update(
+        "many-versions", ModelPriceUpdate(input_unit_price=Decimal("5"))
+    )
+    await service.deactivate("many-versions")
+
+    _, restored = await service.reactivate("many-versions")
+
+    assert second is not None and restored is not None
+    assert restored.id == second.id
+
+
+async def test_reactivate_a_model_without_any_tariff_says_so(
+    async_session: AsyncSession,
+) -> None:
+    """Honest outcome: the model is back, but it would be billed zero."""
+    service = LLMModelService(async_session)
+    model = await service.repo.create_model(
+        provider=LLMProviderEnum.openai,
+        model_name="no-tariff-ever",
+        max_input_tokens=10,
+        max_output_tokens=10,
+        supports_tools=True,
+        supports_structured_output=True,
+        supports_strict_mode=False,
+        supports_streaming=True,
+        supports_vision=False,
+        kind=LLMModelKindEnum.chat,
+        supports_temperature=True,
+        supports_top_p=True,
+        supports_frequency_penalty=True,
+        supports_presence_penalty=True,
+        reasoning_doc_i18n_key=None,
+        is_reasoning_model=False,
+        reasoning_widget=LLMReasoningWidgetEnum.none,
+        reasoning_enum_values=None,
+        reasoning_budget_range=None,
+    )
+    model.is_active = False
+    await async_session.flush()
+
+    restored, pricing = await service.reactivate("no-tariff-ever")
+
+    assert restored.is_active is True
+    assert pricing is None
+
+
+async def test_reactivate_leaves_exactly_one_active_tariff(
+    async_session: AsyncSession,
+) -> None:
+    """The partial unique index turns any slip into an IntegrityError."""
+    service = LLMModelService(async_session)
+    await service.create(_make_create("one-active-only"))
+    await service.update("one-active-only", ModelPriceUpdate(input_unit_price=Decimal("7")))
+    await service.deactivate("one-active-only")
+
+    await service.reactivate("one-active-only")
+    await async_session.flush()
+
+    model = await service.repo.get_by_name("one-active-only")
+    assert model is not None
+    rows = await async_session.scalars(
+        select(LLMModelPricing).where(
+            LLMModelPricing.model_id == model.id, LLMModelPricing.is_active
+        )
+    )
+    assert len(list(rows)) == 1
+
+
+# ============================================================================
+# Clearing a cached price — impossible through the current contract
+# ============================================================================
+
+
+async def test_a_cached_price_can_be_cleared_to_null(
+    async_session: AsyncSession,
+) -> None:
+    """``exclude_none`` swallowed a None, so an emptied cell kept its old value.
+
+    73 of 206 active rows carry NULL here: an administrator must be able to
+    say "this model has no cached price" and be believed.
+    """
+    service = LLMModelService(async_session)
+    await service.create(_make_create("clear-me", cached_input_unit_price=Decimal("0.5")))
+
+    _, updated = await service.update("clear-me", ModelPriceUpdate(clear_cached_input_price=True))
+
+    assert updated is not None
+    assert updated.cached_input_unit_price is None
+
+
+async def test_clearing_supersedes_the_tariff_like_any_price_change(
+    async_session: AsyncSession,
+) -> None:
+    service = LLMModelService(async_session)
+    _, first = await service.create(
+        _make_create("clear-supersedes", cached_input_unit_price=Decimal("0.5"))
+    )
+
+    _, updated = await service.update(
+        "clear-supersedes", ModelPriceUpdate(clear_cached_input_price=True)
+    )
+
+    assert updated is not None and updated.id != first.id
+    assert first.is_active is False
+
+
+async def test_clearing_preserves_the_other_prices(
+    async_session: AsyncSession,
+) -> None:
+    service = LLMModelService(async_session)
+    await service.create(_make_create("clear-keeps-rest", cached_input_unit_price=Decimal("0.5")))
+
+    _, updated = await service.update(
+        "clear-keeps-rest", ModelPriceUpdate(clear_cached_input_price=True)
+    )
+
+    assert updated is not None
+    assert updated.input_unit_price == Decimal("1.0")
+    assert updated.output_unit_price == Decimal("3.0")
+
+
+async def test_clearing_and_setting_at_once_is_refused(
+    async_session: AsyncSession,
+) -> None:
+    """Two contradictory intents in one payload must not be silently ranked."""
+    with pytest.raises(ValidationError):
+        ModelPriceUpdate(clear_cached_input_price=True, cached_input_unit_price=Decimal("0.5"))
+
+
+async def test_not_clearing_leaves_the_cached_price_untouched(
+    async_session: AsyncSession,
+) -> None:
+    service = LLMModelService(async_session)
+    await service.create(_make_create("clear-absent", cached_input_unit_price=Decimal("0.5")))
+
+    _, updated = await service.update(
+        "clear-absent", ModelPriceUpdate(input_unit_price=Decimal("9"))
+    )
+
+    assert updated is not None
+    assert updated.cached_input_unit_price == Decimal("0.5")
+
+
+async def test_the_update_log_reports_the_outcome_not_the_payload(
+    async_session: AsyncSession,
+) -> None:
+    """Clearing carries no value, yet writes a new tariff version.
+
+    Reporting ``pricing_changed=False`` there would send an operator hunting
+    for a write that did happen.
+    """
+    import contextlib
+
+    import structlog
+
+    from src.domains.llm import service as service_module
+    from tests.support.structlog_capture import fresh_module_logger
+
+    restore = fresh_module_logger(service_module)
+    next(restore)
+    try:
+        service = LLMModelService(async_session)
+        await service.create(_make_create("log-honesty", cached_input_unit_price=Decimal("0.5")))
+
+        with structlog.testing.capture_logs() as logs:
+            await service.update("log-honesty", ModelPriceUpdate(clear_cached_input_price=True))
+
+        entry = next(e for e in logs if e["event"] == "llm_model_updated")
+        assert entry["pricing_changed"] is True
+    finally:
+        with contextlib.suppress(StopIteration):
+            next(restore)

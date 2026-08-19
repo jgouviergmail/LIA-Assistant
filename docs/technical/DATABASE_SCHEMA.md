@@ -1158,6 +1158,13 @@ CREATE TABLE llm_model_pricing (
 -- Indexes
 CREATE INDEX ix_llm_model_pricing_model_id ON llm_model_pricing(model_id);
 CREATE INDEX ix_llm_model_pricing_is_active ON llm_model_pricing(is_active);
+
+-- ADR-228 (2026-08-19) — "the" active tariff is an invariant, not a convention.
+-- Measured before it existed: 96 of 114 active models carried 2 or 3 active rows.
+-- Historisation unaffected: get_model_price_at_date orders by effective_from and
+-- ignores is_active, so the index constrains the current row only.
+CREATE UNIQUE INDEX uq_llm_model_pricing_active
+    ON llm_model_pricing(model_id) WHERE is_active;
 ```
 
 **Modèle SQLAlchemy** : `LLMModelPricing` (`apps/api/src/domains/llm/models.py`) avec `model: Mapped[LLMModel]` (relation back-populated, `lazy="raise"`).
@@ -1172,8 +1179,8 @@ JOIN llm_models m ON m.id = p.model_id
 WHERE m.model_name = 'gpt-4.1-mini'
   AND p.is_active = TRUE
   AND p.effective_from <= CURRENT_TIMESTAMP
-ORDER BY p.effective_from DESC
-LIMIT 1;
+ORDER BY p.effective_from DESC, p.id DESC   -- deterministic: never rely on
+LIMIT 1;                                     -- physical row order (ADR-228)
 ```
 
 **Migration Clé:**
@@ -1217,6 +1224,12 @@ CREATE TABLE currency_exchange_rates (
 -- Indexes
 CREATE INDEX ix_currency_exchange_rates_from_currency ON currency_exchange_rates(from_currency);
 CREATE INDEX ix_currency_exchange_rates_to_currency ON currency_exchange_rates(to_currency);
+
+-- ADR-228 (2026-08-19) — one active rate per currency pair. The duplicates came
+-- from a scheduler that inserted without deactivating; both writers now go
+-- through domains/llm/currency_rates.py::replace_active_rate.
+CREATE UNIQUE INDEX uq_currency_rate_active
+    ON currency_exchange_rates(from_currency, to_currency) WHERE is_active;
 CREATE INDEX ix_currency_exchange_rates_is_active ON currency_exchange_rates(is_active);
 CREATE INDEX ix_currency_exchange_rates_active_lookup
     ON currency_exchange_rates(from_currency, to_currency, is_active);
@@ -2809,8 +2822,8 @@ FROM llm_model_pricing p
 JOIN llm_models m ON m.id = p.model_id
 WHERE m.model_name = 'gpt-4.1-mini'
   AND p.is_active = TRUE
-ORDER BY p.effective_from DESC
-LIMIT 1;
+ORDER BY p.effective_from DESC, p.id DESC   -- deterministic: never rely on
+LIMIT 1;                                     -- physical row order (ADR-228)
 
 -- EXPLAIN result: Nested Loop with Index Scan on llm_models(model_name) + Index Scan on ix_llm_model_pricing_model_id
 ```

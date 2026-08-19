@@ -64,6 +64,7 @@
 - [Story — how LIA was built by an AI under human direction](https://lia.jeyswork.com/story)
 - [Blog](https://lia.jeyswork.com/blog) — 31 technical articles about architecture, integrations, features, security, and engineering
 - [FAQ](https://lia.jeyswork.com/faq)
+- [Changelog — the full release history, version by version](https://lia.jeyswork.com/changelog)
 - [More — the small UX attentions that make daily use pleasant](https://lia.jeyswork.com/more)
 - [Live demo animation](https://lia.jeyswork.com/demo)
 - [Technical deep dive](https://lia.jeyswork.com/how)

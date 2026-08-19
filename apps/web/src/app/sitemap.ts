@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { languages, fallbackLng } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { BLOG_ARTICLES } from '@/data/blog-articles';
+import { PUBLIC_PAGES } from '@/lib/public-pages';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
 // Evaluated per request so the generic prebuilt image serves the runtime
@@ -35,7 +36,9 @@ function buildAlternates(path: string): Record<string, string> {
 /**
  * Dynamic sitemap generation with multilingual hreflang support.
  *
- * Public pages and blog articles are included.
+ * Public pages and blog articles are included. The page list is the shared
+ * declaration (`lib/public-pages.ts`) that robots.txt reads too — a second copy
+ * here is how `/more` and `/demo` ended up sitemapped but never allowed.
  * Each page has alternates for all 6 supported languages.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -44,22 +47,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // would be invalid — serve an honest empty one instead.
     return [];
   }
-  const publicPages = [
-    { path: '/', changeFrequency: 'weekly' as const, priority: 1.0 },
-    { path: '/blog', changeFrequency: 'weekly' as const, priority: 0.8 },
-    { path: '/faq', changeFrequency: 'monthly' as const, priority: 0.7 },
-    { path: '/more', changeFrequency: 'monthly' as const, priority: 0.7 },
-    { path: '/demo', changeFrequency: 'monthly' as const, priority: 0.5 },
-    { path: '/why', changeFrequency: 'monthly' as const, priority: 0.7 },
-    { path: '/how', changeFrequency: 'monthly' as const, priority: 0.7 },
-    { path: '/story', changeFrequency: 'monthly' as const, priority: 0.7 },
-    { path: '/privacy', changeFrequency: 'yearly' as const, priority: 0.5 },
-    { path: '/terms', changeFrequency: 'yearly' as const, priority: 0.5 },
-    { path: '/login', changeFrequency: 'monthly' as const, priority: 0.3 },
-    { path: '/register', changeFrequency: 'monthly' as const, priority: 0.3 },
-  ];
-
-  const staticEntries = publicPages.map(({ path, changeFrequency, priority }) => ({
+  const staticEntries = PUBLIC_PAGES.map(({ path, changeFrequency, priority }) => ({
     url: buildUrl(path, fallbackLng),
     lastModified: new Date(),
     changeFrequency,

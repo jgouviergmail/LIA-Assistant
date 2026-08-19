@@ -397,6 +397,42 @@ Quick presets (current month, last month, last 30 days, all time) or custom date
 **🔒 Security:**
 You can only export your own data — it is not possible to access other users' consumption. Administrators have a separate export tool in Settings > Administration with the ability to filter by user.
 
+## How does an administrator update the LLM model prices in bulk?
+
+From **Settings → Administration → LLM pricing**, the whole catalogue — every
+model, every characteristic, every tariff — downloads as a structured Excel
+workbook (v1.30.11), and the edited file goes back in the same way.
+
+**📗 What the workbook contains:**
+- A **usage notice** sheet, translated into the administrator's language
+- One row per model, with dropdown lists and cell validations on every field
+  that has a fixed vocabulary
+- A **referentials** sheet feeding those lists, and a sheet listing the UTC
+  time windows for providers that bill peak/off-peak hours
+- A `status` column stating what would really happen: no active tariff (billed
+  zero), several active tariffs, or billed under another model's name
+
+**🔍 Re-importing happens in two steps:**
+1. The file is analysed and the **whole diff is shown field by field** —
+   created, updated, reactivated, retired — while nothing is written yet.
+2. Only then can it be applied, and only against the preview that was read.
+
+**🛡️ What an import can never do:**
+- A row missing from the file **never deletes anything** — a forgotten Excel
+  filter cannot empty the catalogue. A removal is declared explicitly by
+  setting the `is_active` column to false; setting it back to true brings the
+  model back.
+- Anything unreadable or contradictory is reported **with the sheet and the
+  cell to fix**, and the import writes nothing at all — it is all-or-nothing.
+- A tariff is rewritten only if it actually changed, so re-importing an
+  untouched file leaves the price history exactly as it was.
+- If someone else changed a model between the preview and the confirmation,
+  only the affected rows are refused, not the whole file.
+
+Creating a model from the workbook is possible; changing its provider is
+reported rather than applied, and a brand-new reasoning family is still
+created from the administration dialog.
+
 ## How does the settings priority chain work?
 
 LIA uses a three-level priority chain for all configurable values:

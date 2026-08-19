@@ -17,6 +17,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -349,6 +350,16 @@ class LLMModelPricing(Base, TimestampMixin):
             "model_id",
             "is_active",
         ),
+        # ADR-228: "the" active tariff of a model is an invariant, not a
+        # convention. Without it, four read paths selected among two or three
+        # active rows without a deterministic order — two of them could return
+        # different prices for the same model at the same instant.
+        Index(
+            "uq_llm_model_pricing_active",
+            "model_id",
+            unique=True,
+            postgresql_where=text("is_active"),
+        ),
     )
 
     def __repr__(self) -> str:
@@ -428,6 +439,16 @@ class CurrencyExchangeRate(Base, TimestampMixin):
             "from_currency",
             "to_currency",
             "is_active",
+        ),
+        # ADR-228: one active rate per pair. The duplicates came from a
+        # scheduler that inserted without deactivating; both writers now go
+        # through domains/llm/currency_rates.py::replace_active_rate.
+        Index(
+            "uq_currency_rate_active",
+            "from_currency",
+            "to_currency",
+            unique=True,
+            postgresql_where=text("is_active"),
         ),
     )
 

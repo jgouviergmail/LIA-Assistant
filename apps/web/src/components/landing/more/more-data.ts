@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 44 cards in
+ * Single source of truth for the "/more" small-attentions page: 45 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (44 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (45 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -31,6 +31,7 @@ import {
   Clock,
   Coins,
   Drama,
+  FileSpreadsheet,
   FileUp,
   Gauge,
   Handshake,
@@ -156,6 +157,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'plugin_report',
       'widgets_travel',
       'cost_transparency',
+      'pricing_workbook',
       'haptics',
       'readable_at_a_glance',
       'a11y_care',
@@ -203,6 +205,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   background_response: Radio,
   widgets_travel: AppWindow,
   cost_transparency: Coins,
+  pricing_workbook: FileSpreadsheet,
   readable_at_a_glance: Contrast,
   a11y_care: Accessibility,
   haptics: Vibrate,
@@ -255,6 +258,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   background_response: ['ready'],
   widgets_travel: [],
   cost_transparency: [],
+  pricing_workbook: ['preview'],
   haptics: [],
   folded_settings: [],
   readable_at_a_glance: [],

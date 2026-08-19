@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 1.6
-**Date**: 2026-08-18
-**Application**: LIA v1.30.10
+**Version**: 1.7
+**Date**: 2026-08-19
+**Application**: LIA v1.30.11
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,7 +20,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 40 functional domains | **520,000** |
 | Automated tests, run on every commit and release | **23,900+** |
-| Documented architecture decisions (ADR) | **223** |
+| Documented architecture decisions (ADR) | **229** |
 | Versions shipped at a steady pace | **210** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 223 documented:
+Three structural decisions, among the 229 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -106,6 +106,8 @@ Cycle 1.30.5 started from a three-line user message: "I asked to relay a message
 Cycle 1.30.6 turned the same discipline outward, toward the standard the entire ecosystem speaks. The Model Context Protocol had just published a revision that makes the protocol stateless — and whose own compatibility matrix condemns older clients in front of new-generation servers. The work was run as a compliance investigation before being a migration: the specification read requirement by requirement, every gap demonstrated by simulation before a single line changed, the new SDK exercised against real servers of both generations. LIA now speaks both — the new stateless revision and the legacy handshake — so every server already configured keeps working unchanged while next-generation ones become reachable; the OAuth flow gained the revision's security obligations, each with an explicit tolerance rule for existing registrations. And declining a consent screen is no longer an error page: it is an answer, acknowledged in six languages.
 
 Cycle 1.30.7 completed the movement: after speaking the ecosystem's wire protocol, speak its package format. The Agent Plugins open standard — steered by AWS, Microsoft, OpenAI, Cursor and Vercel — had just given the whole ecosystem one portable way to ship skills and MCP servers together, and the work followed the now-familiar discipline: the normative text read section by section, every integration hypothesis proven against the code by simulation before a line was written, then a client built almost entirely out of layers LIA already trusted — the hardened skill importer, the per-user MCP registry, the quota system. The review found and killed two real bugs before they ever ran, and the whole lifecycle was proven at runtime against the real database, twice. What shipped is quietly radical: a plugin packaged for ChatGPT or VS Code installs into LIA unchanged, reports exactly what it brought — and what it could not bring, with the reason — and leaves without a trace.
+
+Cycle 1.30.11 produced the most unexpected lesson: designing an export can reveal that the system cannot answer its own question. Administering a hundred and twenty-four AI models one dialog at a time had stopped being tenable, and the idea was simple — export the pricing grid into a workbook, fix it offline, import it back. Writing it, though, required answering "what is this model's tariff?". There was no answer: nothing enforced a single active tariff, and two read paths could return different prices for the same model, at the same instant, on the same database. Two billing errors had been running in production for months with nobody able to see them. Putting it back in order produced a rule that outlives this domain: a migration never invents business data. The intuitive rule — keep the most recent row — proved wrong on all four real cases; so the migration merges what is strictly identical and stops, naming the rest, leaving the arbitration to a human. The delivered file holds the same standard: nothing is deleted implicitly, the preview you approve is the one that gets written, and what did not change is not rewritten.
 
 
 ## 7. Convictions

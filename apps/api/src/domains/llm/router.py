@@ -20,6 +20,7 @@ from src.core.field_names import FIELD_MODEL_NAME
 from src.core.i18n_api_messages import APIMessages
 from src.core.reasoning_types import ReasoningBudgetRange
 from src.core.session_dependencies import get_current_superuser_session
+from src.domains.llm.currency_rates import replace_active_rate
 from src.domains.llm.models import (
     CurrencyExchangeRate,
     LLMModel,
@@ -603,35 +604,15 @@ async def create_currency_rate(
     Creates a new active exchange rate. If rate already exists for this pair,
     the old one will be deactivated and replaced.
     """
-    # Check if active rate already exists for this currency pair
-    stmt = select(CurrencyExchangeRate).where(
-        CurrencyExchangeRate.from_currency == data.from_currency,
-        CurrencyExchangeRate.to_currency == data.to_currency,
-        CurrencyExchangeRate.is_active,
-    )
-    result = await db.execute(stmt)
-    existing_rate = result.scalars().first()
-
-    if existing_rate:
-        # Deactivate existing rate
-        existing_rate.is_active = False
-        logger.info(
-            "currency_rate_replaced",
-            from_currency=data.from_currency,
-            to_currency=data.to_currency,
-            old_rate=float(existing_rate.rate),
-            new_rate=float(data.rate),
-        )
-
-    # Create new rate
-    new_rate = CurrencyExchangeRate(
-        from_currency=data.from_currency.upper(),
-        to_currency=data.to_currency.upper(),
+    # Retire every previously active rate for the pair and insert the new one.
+    # Shared with the daily scheduler so the "exactly one active row per pair"
+    # invariant has a single implementation (see domains/llm/currency_rates.py).
+    new_rate = await replace_active_rate(
+        db,
+        from_currency=data.from_currency,
+        to_currency=data.to_currency,
         rate=data.rate,
-        is_active=True,
     )
-
-    db.add(new_rate)
     await db.commit()
     await db.refresh(new_rate)
 

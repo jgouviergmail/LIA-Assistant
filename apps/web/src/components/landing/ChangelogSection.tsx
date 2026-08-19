@@ -4,8 +4,12 @@
  * A visitor decides whether a product is alive by whether it moves, and until
  * now the only proof was four clicks deep in the FAQ, behind a fold. This
  * section puts the three most recent releases where someone who has not signed
- * up yet will actually meet them, and hands the full history back to the FAQ
- * — it teases, it does not duplicate.
+ * up yet will actually meet them, and hands the full history to `/changelog`
+ * — it teases, it does not duplicate. It used to hand it to `/faq`, where the
+ * public FAQ carries no changelog at all: the promise led to a page without
+ * it (`__tests__/ChangelogSection.test.tsx` now pins this button's
+ * destination; `components/__tests__/changelog-destination.test.tsx` pins the
+ * same promise in both footers).
  *
  * A SERVER component, like every other band of this page (`TechSection`,
  * `UseCasesSection`, `BlogPreviewSection`): the content is static editorial
@@ -17,20 +21,19 @@
  * "newest first" is that list's order, never a hand-picked selection that
  * would freeze the day somebody forgot to update it.
  *
- * The item bodies are `dangerouslySetInnerHTML` for the same reason the FAQ's
- * are: this is app-controlled editorial text compiled from the repo's own
- * locale files (`<b>`, `<br>` and nothing else), never user or model output —
- * the frontend XSS boundary is unchanged.
+ * The bullets themselves come from the shared `ChangelogItems`, so the rule
+ * "an unusable count renders NO bullet" has one implementation across the three
+ * surfaces that quote a release.
  */
 
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
+import { ChangelogItems } from '@/components/changelog/ChangelogItems';
 import { initI18next } from '@/i18n';
 import {
   LANDING_CHANGELOG_COUNT,
   changelogDateKey,
-  changelogItemKeys,
   changelogTitleKey,
   latestChangelogVersions,
 } from '@/lib/changelog';
@@ -38,17 +41,6 @@ import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 
 import { FadeInOnScroll } from './FadeInOnScroll';
-
-/**
- * How many bullets a release declares.
- *
- * The count lives in its own i18n string beside the items, so a malformed or
- * missing one must render NO bullet rather than a list of empty ones.
- */
-function itemCountOf(raw: string): number {
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-}
 
 export async function ChangelogSection({ lng }: { lng: string }) {
   const { t } = await initI18next(lng);
@@ -90,19 +82,7 @@ export async function ChangelogSection({ lng }: { lng: string }) {
                     </h3>
                     <p className="text-xs text-muted-foreground">{t(changelogDateKey(version))}</p>
                   </header>
-                  <ul className="mt-4 space-y-2.5 text-sm leading-relaxed text-muted-foreground">
-                    {changelogItemKeys(
-                      version,
-                      itemCountOf(t(`faq.changelog.versions.${version}.count`))
-                    ).map(itemKey => (
-                      <li key={itemKey} className="flex gap-2">
-                        <span className="mt-0.5 text-primary" aria-hidden="true">
-                          •
-                        </span>
-                        <span dangerouslySetInnerHTML={{ __html: t(itemKey) }} />
-                      </li>
-                    ))}
-                  </ul>
+                  <ChangelogItems version={version} t={t} className="mt-4 space-y-2.5" />
                 </article>
               </FadeInOnScroll>
             </li>
@@ -111,7 +91,7 @@ export async function ChangelogSection({ lng }: { lng: string }) {
 
         <div className="mt-8 text-center">
           <Link
-            href={buildLocalizedPath('/faq', lng as Language)}
+            href={buildLocalizedPath('/changelog', lng as Language)}
             className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium transition-colors hover:border-primary/60 hover:bg-accent/40"
           >
             {t('landing.changelog.all')}

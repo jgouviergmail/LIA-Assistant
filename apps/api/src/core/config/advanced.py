@@ -40,6 +40,10 @@ from src.core.constants import (
     HITL_PENDING_DATA_TTL_SECONDS_DEFAULT,
     JINJA_MAX_RECURSION_DEPTH_DEFAULT,
     LLM_PRICING_CACHE_TTL_DEFAULT,
+    LLM_SHEET_MAX_ROWS_DEFAULT,
+    LLM_SHEET_MAX_UPLOAD_KB_DEFAULT,
+    LLM_SHEET_ZIP_MAX_DECOMPRESSED_KB_DEFAULT,
+    LLM_SHEET_ZIP_MAX_FILES_DEFAULT,
     MAX_AGENT_RESULTS_DEFAULT,
     PROMPT_DATETIME_FORMAT_DEFAULT,
     PROMPT_TIMEZONE_DEFAULT,
@@ -74,6 +78,30 @@ class AdvancedSettings(BaseSettings):
         default=LLM_PRICING_CACHE_TTL_DEFAULT,
         gt=0,
         description="LLM pricing cache TTL in seconds (default: 1 hour)",
+    )
+
+    llm_sheet_max_upload_kb: int = Field(
+        default=LLM_SHEET_MAX_UPLOAD_KB_DEFAULT,
+        gt=0,
+        description="Largest pricing workbook accepted on import, in KB",
+    )
+
+    llm_sheet_zip_max_decompressed_kb: int = Field(
+        default=LLM_SHEET_ZIP_MAX_DECOMPRESSED_KB_DEFAULT,
+        gt=0,
+        description="Largest expanded size of an imported workbook, in KB (zip-bomb guard)",
+    )
+
+    llm_sheet_zip_max_files: int = Field(
+        default=LLM_SHEET_ZIP_MAX_FILES_DEFAULT,
+        gt=0,
+        description="Largest number of members an imported workbook may hold",
+    )
+
+    llm_sheet_max_rows: int = Field(
+        default=LLM_SHEET_MAX_ROWS_DEFAULT,
+        gt=0,
+        description="Largest number of data rows accepted per sheet on import",
     )
 
     default_usd_eur_rate: float = Field(

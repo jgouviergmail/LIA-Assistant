@@ -16,12 +16,8 @@ import { chatDraftHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { FaqAnswer } from './FaqAnswer';
 import { Card } from '@/components/ui/card';
-import {
-  CHANGELOG_VERSION_KEYS,
-  changelogDateKey,
-  changelogItemKeys,
-  changelogTitleKey,
-} from '@/lib/changelog';
+import { ChangelogItems } from '@/components/changelog/ChangelogItems';
+import { CHANGELOG_VERSION_KEYS, changelogDateKey, changelogTitleKey } from '@/lib/changelog';
 import { Button } from '@/components/ui/button';
 import { FAQ_SECTION_ICONS } from './faq-sections';
 import {
@@ -76,6 +72,7 @@ import {
   Handshake,
   Users,
   Server,
+  FileSpreadsheet,
   SlidersHorizontal,
   MapPin,
 } from 'lucide-react';
@@ -192,6 +189,7 @@ export const featureIcons = {
   capabilityMap: Orbit,
   selfHosting: Server,
   platformCapabilities: SlidersHorizontal,
+  tabularAdmin: FileSpreadsheet,
 };
 
 /**
@@ -259,6 +257,7 @@ export const featureKeys = [
   'capabilityMap',
   'selfHosting',
   'platformCapabilities',
+  'tabularAdmin',
 ];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {
@@ -472,33 +471,21 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
           {showChangelog && (
             <div className="px-6 pb-6 pt-2 border-t">
               <Accordion type="multiple" className="w-full">
-                {changelogVersionKeys.map(versionKey => {
-                  const itemCount = parseInt(t(`faq.changelog.versions.${versionKey}.count`));
-                  return (
-                    <AccordionItem key={versionKey} value={`changelog-${versionKey}`}>
-                      <AccordionTrigger className="text-left">
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold">
-                            {t(changelogTitleKey(versionKey))}
-                          </span>
-                          <span className="text-xs text-muted-foreground font-normal">
-                            {t(changelogDateKey(versionKey))}
-                          </span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                          {changelogItemKeys(versionKey, itemCount).map(itemKey => (
-                            <li key={itemKey} className="flex gap-2">
-                              <span className="text-primary mt-0.5">•</span>
-                              <span dangerouslySetInnerHTML={{ __html: t(itemKey) }} />
-                            </li>
-                          ))}
-                        </ul>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
+                {changelogVersionKeys.map(versionKey => (
+                  <AccordionItem key={versionKey} value={`changelog-${versionKey}`}>
+                    <AccordionTrigger className="text-left">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">{t(changelogTitleKey(versionKey))}</span>
+                        <span className="text-xs text-muted-foreground font-normal">
+                          {t(changelogDateKey(versionKey))}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <ChangelogItems version={versionKey} t={t} />
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
               </Accordion>
             </div>
           )}

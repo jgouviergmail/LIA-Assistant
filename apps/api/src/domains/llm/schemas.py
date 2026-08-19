@@ -388,6 +388,32 @@ class ModelPriceUpdate(BaseModel):
         ),
     )
 
+    clear_cached_input_price: bool = Field(
+        default=False,
+        description=(
+            "Explicitly set cached_input_unit_price back to NULL. A plain "
+            "None cannot express it: the service builds its change-set with "
+            "exclude_none, so the null is dropped and the previous value "
+            "survives — an administrator emptying the cell would silently "
+            "keep the old price. Same doctrine as the empty list clearing "
+            "time_slots (ADR-223): the intent needs a shape of its own."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_cached_price_clearing(self) -> "ModelPriceUpdate":
+        """Refuse a payload that both clears and sets the cached price.
+
+        Ranking two contradictory intents silently is how a price ends up
+        being whatever the implementation happened to check first.
+        """
+        if self.clear_cached_input_price and self.cached_input_unit_price is not None:
+            raise ValueError(
+                "clear_cached_input_price and cached_input_unit_price are "
+                "mutually exclusive: choose clearing or a value, not both"
+            )
+        return self
+
     @model_validator(mode="after")
     def _validate_time_slots(self) -> "ModelPriceUpdate":
         """Reject overlaps, and audio units combined with non-empty slots.

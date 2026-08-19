@@ -24,6 +24,8 @@
  *   cross-check rather than grep alone: production logs 344
  *   `catalogue_tool_registered` events across 4 uvicorn workers = 86 per
  *   worker, matching `grep -rcE '^[A-Za-z_]+ = ToolManifest\(' src/domains/agents/`.
+ *   Re-measured at v1.30.11: 90 (the two peer-facing manifests added since
+ *   v1.27.0 had never been carried into this tile).
  *   The +4 over the v1.25.27 measurement of 82 is the peer tool family shipped
  *   in v1.27.0 (list_peer_connections, get_peer_availability, get_peer_tasks,
  *   send_peer_message), which had never been carried into this tile.
@@ -35,7 +37,16 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.10: backend 18,758 (1,028 files) + frontend 5,733
+ *   Re-measured at v1.30.11: backend 19,100 (1,042 files;
+ *   `pytest tests/unit tests/agents --collect-only --no-cov`; +342 — the
+ *   tabular import/export foundation (ADR-228): workbook writer/reader and
+ *   their OOXML pins, the column-coverage guard against the live schema,
+ *   the change-plan engine, the transactional applier, the deterministic
+ *   pricing read paths and the unique-active-tariff migration) + frontend
+ *   5,812 (463 files — the sheet hook, the import state machine and the
+ *   preview dialog with its issue/diff/apply oracles) = 24,912 -> 24,900.
+ *   Previous re-measure at v1.30.10: backend 18,758 (1,028 files)
+ *   + frontend 5,733
  *   (455 files — the capability↔section table and its derived reverse, the
  *   settings-hub status line with its four silences, the landing release band,
  *   the shared changelog key builders, and the single-form SettingsSection
@@ -108,13 +119,12 @@
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
  * - adrs: docs/architecture/ ADR files — recount every release, never carry it
- *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 227 files at
- *   v1.30.10, numbered up to ADR-229: ADR-008 has no separate file, and
- *   ADR-228 is held by a parallel workstream, so the highest number now runs
- *   two above the file count.
+ *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 229 files at
+ *   v1.30.11, numbered up to ADR-230: ADR-008 has no separate file, so the
+ *   highest number runs one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   214 headings at v1.30.10, no Unreleased pending.
+ *   215 headings at v1.30.11, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -125,14 +135,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 88,
+  tools: 90,
   providers: 7,
   voiceLanguages: 99,
   metrics: 473,
   uiLanguages: 6,
-  tests: 24400,
-  adrs: 227,
-  releases: 214,
+  tests: 24900,
+  adrs: 229,
+  releases: 215,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

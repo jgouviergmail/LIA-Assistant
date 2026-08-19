@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 4.3
-**Date**: 2026-08-18
-**Application**: LIA v1.30.10
+**Version**: 4.4
+**Date**: 2026-08-19
+**Application**: LIA v1.30.11
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -41,6 +41,7 @@
 26. [Psyche Engine: Dynamic Emotional Intelligence](#26-psyche-engine-dynamic-emotional-intelligence)
 27. [Deterministic habit learning](#27-deterministic-habit-learning)
 28. [Governing an instance: spend, capabilities, installation](#28-governing-an-instance-spend-capabilities-installation)
+29. [Administering by file: the workbook is the form](#29-administering-by-file-the-workbook-is-the-form)
 
 ---
 
@@ -55,8 +56,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 466 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 227 ADRs, ~19,409 pytest-collected tests across 1,099 files, native observability, 6-level HITL |
+| Full transparency | 473 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 229 ADRs, ~19,804 pytest-collected tests across 1,114 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -74,11 +75,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~19,409 (collected by pytest across 1,099 test files) + 5,710 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~19,804 (collected by pytest across 1,114 test files) + 5,812 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
-| ADRs (Architecture Decision Records) | 209 |
-| Prometheus metrics | 466 definitions |
+| ADRs (Architecture Decision Records) | 229 |
+| Prometheus metrics | 473 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -885,7 +886,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 466 custom metrics (RED pattern) |
+| Prometheus | 473 custom metrics (RED pattern) |
 | Grafana | 26 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1286,7 +1287,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-227 ADRs in MADR format document the major architectural decisions. Some representative examples:
+229 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1387,14 +1388,42 @@ The installer applies the same rule to the artifact chain: never trust a label. 
 
 The common thread across these four batches is a property of the tests themselves. Each protection had shipped with its own, all green, and all of the same shape: they pinned what the code did on the day it was delivered. A hand-written list does not describe a system; it describes what its author knew about the system. These guards **recalculate** the protection from the source of truth — the cost families the run summary really publishes, read by AST; the routes the application really mounts, confronted with the edge's evaluation order; the connector router walked in both directions, so that unclassified and classified-but-unmounted are equally red. They found three faults no existing test could see, including speech synthesis billed to the owner and never counted against the ceiling. Each was then deliberately broken, to verify that it goes red.
 
+## 29. Administering by file: the workbook is the form
+
+The LLM model catalogue holds a hundred and twenty-four entries; each carries twenty-four characteristics and a four-dimensional tariff. It was administered one dialog per model — fine for correcting a single price, absurd for taking in the whole grid a provider revises two or three times a year. The answer was not one more screen but a **declarative foundation**: `WorkbookSpec` / `SheetSpec` / `ColumnSpec` describe a workbook, and both directions are derived from it — the writer produces the file, the reader reads it back. The foundation imports no domain; the domain supplies only a column declaration and an applier that goes through its own service. Declining the mechanism to another administration screen means writing a declaration, not format code.
+
+### 29.1. Three properties that separate an export from an administration
+
+**Columns are resolved by technical key, never by position.** The workbook's first row carries the invariant keys and stays hidden; the second carries the translated labels, coloured by block, and the data starts on the third. Reordering a column, hiding one, adding one, or exporting in one language to re-import in another: no effect on the read.
+
+**Nothing is deleted implicitly.** A row missing from the file never deletes anything — a filter left active in Excel cannot empty a catalogue. Removal goes through an explicit state column, and setting it back to true reactivates, which incidentally fills in a deactivation that had no inverse in the application.
+
+**The preview commits.** The import happens in two steps: the first writes nothing and returns the plan field by field; the second **re-derives** that plan and refuses if it differs from the one that was read. An optimistic lock **per row** — a fingerprint carried in a hidden column — refuses only the rows that moved in between: a colleague touching an unrelated model does not get the whole file rejected. And what did not change is not written: without that rule, re-importing a hundred and twenty-four rows would leave a hundred and twenty-four useless tariff versions behind.
+
+### 29.2. The file states what is, not what one assumes
+
+Three derived, read-only columns exist because the raw data misleads. A model with no active tariff is billed zero in silence: the file says so in words. A time-windowed tariff — a provider's off-peak hours — read as a flat tariff, the windows living on a sheet nobody had a reason to open: it now appears on the row that carries the price. And the exported mode is always the real state, never the "inherit" instruction, which is a write directive rather than a state.
+
+Completeness, for its part, is **guarded** rather than remembered. An early version of the workbook exported sixteen columns against a schema that held considerably more, and the fidelity test could not see it: it compared an extraction to itself. The oracle is now the database schema — every business column is exported, or excluded with a written reason — and a column added tomorrow reds continuous integration. That is the doctrine of registry completeness asserts (ADR-085), applied to a file format.
+
+### 29.3. What the instruction revealed before the first line of code
+
+Designing the export required answering a simple question: what is a model's tariff? There was no answer. No constraint enforced a single active tariff, and four read paths selected without a deterministic order — two of them could return different prices for the same model, at the same instant, on the same database. A cache filled by raw name and read by normalized name was, besides, billing a dated model at its base model's price. These defects are not collateral damage: without them the export has no object, since it would not know which row to show.
+
+Putting it back in order produced a rule that outlives this domain: **a migration never invents business data.** The intuitive rule — keep the most recent row — was confronted with the real divergent cases and proved wrong every time: the correct row was the older one, and on two models it was the billing *unit* itself that had changed. So the migration merges only strictly identical duplicates and stops, **naming** the divergent ones. The arbitration stays human.
+
+### 29.4. The format is not a detail
+
+An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared rather than rewritten, and the read is bounded in chunks — a file outside the template is refused before being held in memory in full. The rest comes down to an OOXML quirk that bites back: the sheet-protection booleans mean "blocked" when true, so protecting the sheet to lock five computed columns **forbade adding a model**; and the attribute that looks like it enables a dropdown actually hides it. Both behaviours are pinned by assertions on the emitted XML, because a good-faith fix on either would silently remove half of the file's ergonomics.
+
 ## Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 227 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,409 tests across 1,099 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 229 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,804 tests across 1,114 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 227 ADRs, and the changelog (v1.0 to v1.30.10). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 229 ADRs, and the changelog (v1.0 to v1.30.11). All metrics, versions, and patterns cited are verifiable in the codebase.*

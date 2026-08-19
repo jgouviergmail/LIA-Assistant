@@ -223,6 +223,14 @@ export const BLOG_ARTICLES: BlogArticle[] = [
 
   // --- Technical ---
   {
+    slug: 'tabular-administration',
+    category: 'technical',
+    icon: 'FileSpreadsheet',
+    date: '2026-08-19',
+    readTime: 6,
+    tags: ['excel', 'import-export', 'admin', 'pricing', 'openpyxl', 'bulk-edit'],
+  },
+  {
     slug: 'embedding-calibration',
     category: 'technical',
     icon: 'SlidersHorizontal',

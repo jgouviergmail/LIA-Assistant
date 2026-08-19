@@ -331,6 +331,24 @@ FROM (VALUES
 JOIN llm_models m ON m.model_name = p.model_name
 ON CONFLICT (model_id, effective_from) DO NOTHING;
 
+-- Enforce "exactly one active tariff per model" (partial unique index added by
+-- migration 6e7f8a9b0c1d). ON CONFLICT above keys on (model_id, effective_from)
+-- only, so re-running this seed against a database that already holds an
+-- admin-entered row used to leave BOTH active — that is how 96 of 114 models
+-- ended up with two or three active tariffs, with the read paths disagreeing on
+-- the price. Retiring everything but the most recent row is safe: superseded
+-- rows stay in the table as the cost history.
+UPDATE llm_model_pricing p
+SET is_active = false
+WHERE p.is_active
+  AND p.id <> (
+      SELECT p2.id
+      FROM llm_model_pricing p2
+      WHERE p2.model_id = p.model_id AND p2.is_active
+      ORDER BY p2.effective_from DESC, p2.id DESC
+      LIMIT 1
+  );
+
 -- ============================================================================
 -- Time-slot tariffs (ADR-223) — DeepSeek v4 official peak/off-peak windows
 -- (verified 2026-08-17 on api-docs.deepseek.com: peak 01:00-04:00 and

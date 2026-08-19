@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from src.domains.plugins.exceptions import raise_plugin_invalid_package
+from src.infrastructure.archives.zip_budget import ZipBudgetExceeded, enforce_zip_budgets
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -100,11 +101,21 @@ def stage_plugin_zip(content: bytes, staging: Path, settings: Any) -> Path:
 
 
 def _enforce_zip_budgets(infos: list[zipfile.ZipInfo], settings: Any) -> None:
-    """S3 zip-bomb guards: member count + total decompressed size."""
-    if len(infos) > settings.plugins_zip_max_files:
-        raise_plugin_invalid_package(f"too many files (max {settings.plugins_zip_max_files})")
-    total = sum(i.file_size for i in infos)
-    if total > settings.plugins_zip_max_decompressed_kb * 1024:
+    """S3 zip-bomb guards: member count + total decompressed size.
+
+    Delegates to the shared guard (``infrastructure/archives/zip_budget.py``),
+    which the workbook importer uses too, and translates its outcome into the
+    plugin error vocabulary so the API contract is unchanged.
+    """
+    try:
+        enforce_zip_budgets(
+            infos,
+            max_files=settings.plugins_zip_max_files,
+            max_decompressed_bytes=settings.plugins_zip_max_decompressed_kb * 1024,
+        )
+    except ZipBudgetExceeded as exc:
+        if exc.reason == "too_many_files":
+            raise_plugin_invalid_package(f"too many files (max {exc.limit})")
         raise_plugin_invalid_package(
             f"decompressed size exceeds {settings.plugins_zip_max_decompressed_kb}KB"
         )

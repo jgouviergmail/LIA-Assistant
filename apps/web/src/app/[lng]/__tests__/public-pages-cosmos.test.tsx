@@ -36,6 +36,9 @@ vi.mock('@/components/guides/HowContent', () => ({
 vi.mock('@/components/faq/PublicFAQContent', () => ({
   PublicFAQContent: () => <div data-testid="faq-content" />,
 }));
+vi.mock('@/components/changelog/ChangelogHistory', () => ({
+  ChangelogHistory: () => <div data-testid="changelog-history" />,
+}));
 vi.mock('@/components/blog/BlogCard', () => ({
   BlogCard: () => <div data-testid="blog-card" />,
 }));
@@ -79,6 +82,7 @@ const variantMock = vi.mocked(getPublicShowroomVariant);
 import { BLOG_ARTICLES } from '@/data/blog-articles';
 import BlogArticlePage from '../blog/[slug]/page';
 import BlogPage from '../blog/page';
+import ChangelogPage from '../changelog/page';
 import DemoPage from '../demo/page';
 import FaqPage from '../faq/page';
 import HowPage from '../how/page';
@@ -131,6 +135,7 @@ describe('public pages — cosmos identity', () => {
     ['why', WhyPage, 'why-content'],
     ['how', HowPage, 'how-content'],
     ['faq', FaqPage, 'faq-content'],
+    ['changelog', ChangelogPage, 'changelog-history'],
     ['blog', BlogPage, 'jsonld-bloglist'],
     ['privacy', PrivacyPage, 'privacy-content'],
     ['terms', TermsPage, 'terms-content'],
@@ -158,6 +163,7 @@ describe('public pages — cosmos identity', () => {
     ['demo', DemoPage],
     ['story', StoryPage],
     ['faq', FaqPage],
+    ['changelog', ChangelogPage],
   ])('/%s is NOT dev-gated (real route, renders in production)', async (_n, Page) => {
     vi.stubEnv('NODE_ENV', 'production');
     const { container } = render(await Page(PARAMS));

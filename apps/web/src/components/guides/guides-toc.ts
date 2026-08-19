@@ -15,6 +15,7 @@ import {
   Database,
   Eye,
   FileText,
+  FileSpreadsheet,
   FolderTree,
   Gauge,
   GitBranch,
@@ -94,6 +95,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'psyche', icon: HeartPulse },
   { id: 'habits', icon: CalendarClock },
   { id: 'governance', icon: SlidersHorizontal },
+  { id: 'tabular_admin', icon: FileSpreadsheet },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

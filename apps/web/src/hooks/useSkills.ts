@@ -1,4 +1,6 @@
 import { useCallback } from 'react';
+
+import { apiEndpointUrl } from '@/lib/api-client';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 
@@ -63,18 +65,13 @@ interface AdminSystemToggleResponse {
 
 const ENDPOINT = '/skills';
 
-/** API base for direct fetches (uploads, downloads, images). */
-function apiBase(): string {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  return apiUrl ? `${apiUrl}/api/v1` : '/api/v1';
-}
 
 /**
  * URL of a skill's gallery preview image (UXR Lot 10, B12) — the backend
  * serves only `assets/preview.png`, 404 when the skill bundles none.
  */
 export function skillPreviewUrl(skillName: string): string {
-  return `${apiBase()}${ENDPOINT}/${encodeURIComponent(skillName)}/preview`;
+  return apiEndpointUrl(`${ENDPOINT}/${encodeURIComponent(skillName)}/preview`);
 }
 
 /**
@@ -129,7 +126,7 @@ export function useSkills(adminView = false) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${apiBase()}${endpoint}`, {
+      const response = await fetch(apiEndpointUrl(endpoint), {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -334,10 +331,11 @@ export function useSkills(adminView = false) {
 
   /** Download any accessible skill as a zip archive (browser download). */
   const downloadSkill = useCallback(async (skillName: string, isAdmin = false) => {
-    const baseUrl = apiBase();
-    const endpoint = isAdmin
-      ? `${baseUrl}${ENDPOINT}/admin/${skillName}/download`
-      : `${baseUrl}${ENDPOINT}/${skillName}/download`;
+    const endpoint = apiEndpointUrl(
+      isAdmin
+        ? `${ENDPOINT}/admin/${skillName}/download`
+        : `${ENDPOINT}/${skillName}/download`
+    );
 
     const response = await fetch(endpoint, { credentials: 'include' });
     if (!response.ok) {

@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 4.3
-**Data**: 2026-08-18
-**Applicazione**: LIA v1.30.10
+**Versione**: 4.4
+**Data**: 2026-08-19
+**Applicazione**: LIA v1.30.11
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -41,6 +41,7 @@
 26. [Psyche Engine: Intelligenza emotiva dinamica](#26-psyche-engine-intelligenza-emotiva-dinamica)
 27. [Apprendimento deterministico delle abitudini](#27-apprendimento-deterministico-delle-abitudini)
 28. [Governare un'istanza: spesa, capacità, installazione](#28-governare-unistanza-spesa-capacità-installazione)
+29. [Amministrare per file: la cartella è il modulo](#29-amministrare-per-file-la-cartella-è-il-modulo)
 
 ---
 
@@ -55,8 +56,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 466 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 227 ADRs, ~19.409 test raccolti da pytest in 1.099 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 473 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 229 ADRs, ~19.804 test raccolti da pytest in 1.114 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -74,11 +75,11 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~19.409 (raccolti da pytest su 1.099 file di test) + 5.710 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~19.804 (raccolti da pytest su 1.114 file di test) + 5.812 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 490+ |
-| ADR (Architecture Decision Record) | 209 |
-| Metriche Prometheus | 466 definizioni |
+| ADR (Architecture Decision Record) | 229 |
+| Metriche Prometheus | 473 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -885,7 +886,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 466 metriche custom (RED pattern) |
+| Prometheus | 473 metriche custom (RED pattern) |
 | Grafana | 26 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -1292,7 +1293,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-227 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+229 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1364,14 +1365,42 @@ L'installatore applica la stessa regola alla catena degli artefatti: non fidarsi
 
 Il filo comune di questi quattro lotti è una proprietà dei test stessi. Ogni protezione era stata consegnata con i propri, tutti verdi, e tutti della stessa forma: fissavano ciò che il codice faceva il giorno della consegna. Un elenco scritto a mano non descrive un sistema, descrive ciò che il suo autore sapeva del sistema. Queste guardie **ricalcolano** la protezione dalla fonte di verità — le famiglie di costo che il riepilogo di esecuzione pubblica davvero, lette via AST; le rotte che l'applicazione monta davvero, confrontate con l'ordine di valutazione del bordo; il router dei connettori percorso in entrambi i sensi, così che non classificato e classificato-ma-smontato diventino ugualmente rossi. Hanno trovato tre difetti che nessun test esistente poteva vedere, tra cui una sintesi vocale fatturata al proprietario e mai conteggiata contro il tetto. Ciascuna è poi stata messa in difetto di proposito, per verificare che diventi rossa.
 
+## 29. Amministrare per file: la cartella è il modulo
+
+Il catalogo dei modelli LLM conta centoventiquattro voci; ognuna porta ventiquattro caratteristiche e una tariffa a quattro dimensioni. Si amministrava con una finestra di dialogo per modello — adeguata per correggere un prezzo, assurda per accogliere l'intera griglia che un fornitore rivede due o tre volte l'anno. La risposta non è stata una schermata in più, ma una **base dichiarativa**: `WorkbookSpec` / `SheetSpec` / `ColumnSpec` descrivono una cartella di lavoro, e da lì si derivano i due sensi — lo scrittore produce il file, il lettore lo rilegge. La base non importa alcun dominio; il dominio fornisce solo una dichiarazione di colonne e un applicatore che passa dal proprio servizio. Declinare il meccanismo a un'altra schermata di amministrazione significa scrivere una dichiarazione, non codice di formato.
+
+### 29.1. Tre proprietà che separano un'esportazione da un'amministrazione
+
+**Le colonne si risolvono per chiave tecnica, mai per posizione.** La prima riga porta le chiavi invarianti e resta nascosta; la seconda porta le etichette tradotte, colorate per blocco, e i dati iniziano dalla terza. Riordinare una colonna, nasconderla, aggiungerne una, o esportare in una lingua per reimportare in un'altra: nessun effetto sulla lettura.
+
+**Nulla viene cancellato implicitamente.** Una riga assente dal file non cancella mai nulla — un filtro rimasto attivo in Excel non può svuotare un catalogo. La rimozione passa da una colonna di stato esplicita, e rimetterla a vero riattiva, il che colma per inciso una disattivazione che non aveva alcun inverso nell'applicazione.
+
+**L'anteprima impegna.** L'importazione avviene in due tempi: il primo non scrive nulla e restituisce il piano campo per campo; il secondo **ri-deriva** quel piano e rifiuta se differisce da quello letto. Un lucchetto ottimistico **per riga** — un'impronta trasportata in una colonna nascosta — rifiuta solo le righe cambiate nel frattempo: chi tocca un modello estraneo non fa respingere l'intero file. E ciò che non è cambiato non viene scritto: senza questa regola, reimportare centoventiquattro righe lascerebbe dietro di sé centoventiquattro versioni di tariffa inutili.
+
+### 29.2. Il file dice ciò che è, non ciò che si suppone
+
+Tre colonne derivate, in sola lettura, esistono perché il dato grezzo inganna. Un modello senza tariffa attiva viene fatturato a zero in silenzio: il file lo dice a lettere. Una tariffa a fasce orarie — le ore di morbida di un fornitore — si leggeva come una tariffa piatta, perché le fasce vivevano su un foglio che nessuno aveva motivo di aprire: ora compare sulla riga che porta il prezzo. E la modalità esportata vale sempre lo stato reale, mai l'istruzione «eredita», che è una consegna di scrittura e non uno stato.
+
+La completezza, dal canto suo, è **sorvegliata** anziché ricordata. Una prima versione della cartella esportava sedici colonne contro uno schema che ne conteneva molte di più, e il test di fedeltà non poteva vederlo: confrontava un'estrazione con sé stessa. L'oracolo è ora lo schema del database — ogni colonna di business è esportata, oppure esclusa con una ragione scritta — e una colonna aggiunta domani fa diventare rossa l'integrazione continua. È la dottrina delle asserzioni di completezza di registro (ADR-085), applicata a un formato di file.
+
+### 29.3. Ciò che la richiesta ha rivelato prima della prima riga di codice
+
+Progettare l'esportazione richiedeva di rispondere a una domanda semplice: qual è la tariffa di un modello? Non c'era risposta. Nessun vincolo imponeva una sola tariffa attiva, e quattro percorsi di lettura selezionavano senza ordine deterministico — due di essi potevano restituire prezzi diversi per lo stesso modello, nello stesso istante, sullo stesso database. Inoltre una cache riempita per nome grezzo e letta per nome normalizzato fatturava un modello datato al prezzo del suo modello di base. Questi difetti non sono danni collaterali: senza di essi l'esportazione non ha oggetto, perché non saprebbe quale riga mostrare.
+
+Il riordino ha prodotto una regola che vale oltre questo dominio: **una migrazione non inventa mai un dato di business.** La regola intuitiva — tenere la riga più recente — è stata confrontata con i casi divergenti reali e si è rivelata falsa ogni volta: la riga giusta era quella vecchia, e su due modelli era l'*unità* di fatturazione stessa a essere cambiata. La migrazione fonde quindi soltanto i duplicati rigorosamente identici e si ferma **nominando** i divergenti. L'arbitrato resta umano.
+
+### 29.4. Il formato non è un dettaglio
+
+Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importatore di plugin, condivisa anziché riscritta, e la lettura è limitata a blocchi — un file fuori modello viene rifiutato prima di essere tenuto interamente in memoria. Il resto dipende da una particolarità di OOXML che si vendica: i booleani della protezione del foglio significano «bloccato» quando valgono vero, così proteggere il foglio per bloccare cinque colonne calcolate **impediva di aggiungere un modello**; e l'attributo che sembra attivare un elenco a discesa in realtà lo nasconde. Entrambi i comportamenti sono fissati da asserzioni sull'XML prodotto, perché una correzione in buona fede sull'uno o sull'altro rimuoverebbe in silenzio metà dell'ergonomia del file.
+
 ## Conclusione
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 227 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.409 test in 1.099 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 229 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.804 test in 1.114 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 227 ADRs e del changelog (da v1.0 a v1.30.10). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 229 ADRs e del changelog (da v1.0 a v1.30.11). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

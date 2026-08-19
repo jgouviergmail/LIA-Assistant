@@ -4315,6 +4315,18 @@ PLUGINS_ZIP_MAX_DECOMPRESSED_KB_DEFAULT = 8192
 PLUGINS_ZIP_MAX_FILES_DEFAULT = 256
 
 # ============================================================================
+# LLM pricing workbook (ADR-228) — import guards
+# ============================================================================
+# An .xlsx IS a zip: the same two budgets that protect the plugin importer
+# apply here (a crafted archive is small on disk and enormous once expanded —
+# measured ratio on realistic content: 20x). The row cap is a sanity bound on
+# a catalogue that holds ~124 models, not a business limit.
+LLM_SHEET_MAX_UPLOAD_KB_DEFAULT = 4096
+LLM_SHEET_ZIP_MAX_DECOMPRESSED_KB_DEFAULT = 65536
+LLM_SHEET_ZIP_MAX_FILES_DEFAULT = 256
+LLM_SHEET_MAX_ROWS_DEFAULT = 2000
+
+# ============================================================================
 # CONTEXT COMPACTION (Intelligent History Summarization)
 # ============================================================================
 # LLM-based compaction of conversation history when token count exceeds

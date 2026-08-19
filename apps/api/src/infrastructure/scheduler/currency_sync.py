@@ -8,10 +8,9 @@ import time
 from datetime import UTC, datetime
 
 import structlog
-from sqlalchemy import update
 
 from src.core.constants import SCHEDULER_JOB_CURRENCY_SYNC, SUPPORTED_CURRENCIES
-from src.domains.llm.models import CurrencyExchangeRate
+from src.domains.llm.currency_rates import replace_active_rate
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database import get_db_context
 from src.infrastructure.external.currency_api import CurrencyRateService
@@ -59,27 +58,16 @@ async def sync_currency_rates() -> None:
                 background_job_errors_total.labels(job_name=job_name).inc()
                 return
 
-            # Deactivate previous active rate
-            stmt = (
-                update(CurrencyExchangeRate)
-                .where(
-                    CurrencyExchangeRate.from_currency == _CURRENCY_USD,
-                    CurrencyExchangeRate.to_currency == _CURRENCY_EUR,
-                    CurrencyExchangeRate.is_active,
-                )
-                .values(is_active=False)
-            )
-            await db.execute(stmt)
-
-            # Insert new active rate
-            new_rate = CurrencyExchangeRate(
+            # Retire the previous active rate and insert the new one. Shared
+            # with the admin route so the "exactly one active row per pair"
+            # invariant has a single implementation.
+            new_rate = await replace_active_rate(
+                db,
                 from_currency=_CURRENCY_USD,
                 to_currency=_CURRENCY_EUR,
                 rate=rate,
                 effective_from=datetime.now(UTC),
-                is_active=True,
             )
-            db.add(new_rate)
 
             # Track duration
             duration = time.perf_counter() - start_time

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Clock, DollarSign, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Clock, DollarSign, Download, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,9 @@ import { useCatalogueInvalidator } from '@/lib/catalogue-invalidation-context';
 import { useTranslation } from '@/i18n/client';
 import { useConfirm } from '@/components/ui/use-confirm';
 import type { Language } from '@/i18n/settings';
+import { SectionToolbar } from '@/components/settings/SectionToolbar';
+import { AdminPricingSheetDialog } from '@/components/settings/AdminPricingSheetDialog';
+import { useLLMPricingSheet } from '@/hooks/useLLMPricingSheet';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -193,6 +196,8 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
   const [models, setModels] = useState<LLMModelPricing[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSheetDialog, setShowSheetDialog] = useState(false);
+  const { exportSheet, preview, apply, busy: sheetBusy } = useLLMPricingSheet();
   const [editingModel, setEditingModel] = useState<LLMModelPricing | null>(null);
   const [reloadingCache, setReloadingCache] = useState(false);
 
@@ -499,41 +504,56 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
 
   const content = (
     <>
-      <div className="flex flex-col sm:flex-row gap-4 mb-4">
-        <div className="flex-1">
-          <SearchInput
-            placeholder={t('settings.admin.llm.search_placeholder')}
-            onSearchChange={handleSearchChange}
-            debounceMs={SEARCH_DEBOUNCE_MS}
-            loading={loading}
-            aria-label={t('settings.admin.llm.search_placeholder')}
-          />
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button
-            onClick={handleReloadCache}
-            disabled={reloadingCache}
-            aria-label={t('settings.admin.llm.reload_cache')}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${reloadingCache ? 'animate-spin' : ''}`} />
-            {t('settings.admin.llm.reload_cache')}
-          </Button>
-          <Button
-            onClick={() => setShowAddModal(true)}
-            aria-label={t('settings.admin.llm.add_model')}
-          >
-            {t('settings.admin.llm.add_model')}
-          </Button>
-        </div>
+      <div className="mb-4 space-y-3">
+        <SearchInput
+          placeholder={t('settings.admin.llm.search_placeholder')}
+          onSearchChange={handleSearchChange}
+          debounceMs={SEARCH_DEBOUNCE_MS}
+          loading={loading}
+          aria-label={t('settings.admin.llm.search_placeholder')}
+        />
+        {/* The one header bar (ADR-208). The hand-rolled row it replaces stacked
+            two raw buttons; adding export and import to it would have put four
+            of them one under another on a phone. Export stays pinned — folded
+            into the "⋯" it reads as absent (owner arbitration 2026-08-05). */}
+        <SectionToolbar
+          count={
+            total > 1
+              ? t('settings.admin.llm.results_count_plural', { total })
+              : t('settings.admin.llm.results_count', { total })
+          }
+          menuLabel={t('settings.admin.llm.more_actions')}
+          primary={{
+            key: 'add',
+            label: t('settings.admin.llm.add_model'),
+            icon: Plus,
+            onSelect: () => setShowAddModal(true),
+          }}
+          secondary={[
+            {
+              key: 'export',
+              label: t('settings.admin.llm.sheet.export'),
+              icon: Download,
+              onSelect: exportSheet,
+              pinned: true,
+            },
+            {
+              key: 'import',
+              label: t('settings.admin.llm.sheet.import'),
+              icon: Upload,
+              onSelect: () => setShowSheetDialog(true),
+            },
+            {
+              key: 'reload',
+              label: t('settings.admin.llm.reload_cache'),
+              icon: RefreshCw,
+              onSelect: handleReloadCache,
+              loading: reloadingCache,
+            },
+          ]}
+        />
       </div>
 
-      {!loading && (
-        <p className="text-sm text-muted-foreground mb-2" aria-live="polite">
-          {total > 1
-            ? t('settings.admin.llm.results_count_plural', { total })
-            : t('settings.admin.llm.results_count', { total })}
-        </p>
-      )}
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="min-w-full divide-y divide-border" role="table">
@@ -667,6 +687,24 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
           totalItems: count => t('common.pagination.total_items', { count }),
         }}
         className="mt-4 px-4"
+      />
+
+      <AdminPricingSheetDialog
+        lng={lng}
+        open={showSheetDialog}
+        onOpenChange={open => {
+          setShowSheetDialog(open);
+          // Closing after an import: the grid on screen is a snapshot of a
+          // catalogue that just moved, and the runtime caches were rebuilt
+          // server-side. Re-reading is the only honest thing to show.
+          if (!open) {
+            void fetchModels();
+            invalidateCatalogue('model_capabilities');
+          }
+        }}
+        onPreview={preview}
+        onApply={apply}
+        busy={sheetBusy}
       />
 
       {(showAddModal || editingModel) && (

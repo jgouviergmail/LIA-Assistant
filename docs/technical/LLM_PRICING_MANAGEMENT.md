@@ -22,6 +22,7 @@
 7. [Multi-Provider Support](#-multi-provider-support)
 8. [Google API Cost Tracking](#-google-api-cost-tracking)
 9. [Export de Consommation](#-export-de-consommation)
+9-bis. [Administration en masse par classeur](#-administration-en-masse-par-classeur)
 10. [Métriques & Observabilité](#-métriques--observabilité)
 11. [Annexes](#-annexes)
 
@@ -313,7 +314,27 @@ CREATE TABLE llm_model_pricing (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_pricing_model_effective UNIQUE (model_id, effective_from)
 );
+
+-- ADR-228 (2026-08-19): "the" active tariff of a model is an invariant,
+-- not a convention. Before this index, 96 of the 114 active models carried
+-- two or three active rows and four read paths selected without ORDER BY —
+-- two of them could return different prices for the same model at the same
+-- instant. Same shape on the rates table, whose duplicates came from a
+-- scheduler that inserted without deactivating.
+CREATE UNIQUE INDEX uq_llm_model_pricing_active
+    ON llm_model_pricing (model_id) WHERE is_active;
+CREATE UNIQUE INDEX uq_currency_rate_active
+    ON currency_exchange_rates (from_currency, to_currency) WHERE is_active;
 ```
+
+> Historisation : le versionnement temporel reste inchangé. `get_model_price_at_date`
+> trie par `effective_from` et **n'utilise pas** `is_active` — l'index ne contraint
+> que la ligne courante, pas l'historique.
+
+Toute lecture d'un tarif ordonne désormais explicitement — nom exact avant nom
+normalisé, puis `effective_from DESC, id DESC` — via `resolve_priced_name`
+(`src/core/llm_utils.py`), la seule implémentation partagée par le cache et le
+service asynchrone.
 
 **Pre-v1.19.0** : la table `llm_model_pricing` portait directement une colonne `model_name` (libre, sans FK). La migration `2026_05_05_0001/2/3` introduit la FK et supprime `model_name` après backfill.
 
@@ -417,6 +438,27 @@ currency_rates = [
     }
 ]
 ```
+
+---
+
+## 📗 Administration en masse par classeur
+
+Le catalogue complet — modèles, caractéristiques et tarifs courants, plages
+horaires comprises — s'exporte en classeur Excel et se réimporte après édition
+hors ligne (ADR-228). Le mécanisme est générique : le domaine ne fournit qu'une
+déclaration de colonnes (`domains/llm/pricing_sheet.py`) et un applicateur
+(`pricing_import_service.py`) ; le format vit dans `infrastructure/tabular_io/`.
+
+| Aspect | Où |
+|---|---|
+| Contrat complet, règles d'import, gardes | [`TABULAR_ADMIN_IO.md`](./TABULAR_ADMIN_IO.md) |
+| Décision et défauts préexistants corrigés | `docs/architecture/ADR-228-Import-Export-Tabulaire-Administration.md` |
+| Endpoints | `GET/POST /admin/llm/pricing/sheet/…` (superuser) |
+
+Deux règles engagent ce document : **un tarif n'est réécrit que s'il a réellement
+changé** (sinon un import de 124 lignes créerait 124 versions inutiles dans
+l'historique ci-dessus), et **une ligne absente du fichier ne supprime rien** —
+le retrait passe par `is_active`, dans les deux sens.
 
 ---
 

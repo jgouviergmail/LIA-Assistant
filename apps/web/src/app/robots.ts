@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 
+import { languages } from '@/i18n/settings';
+import { indexablePathsWithoutHome } from '@/lib/public-pages';
 import { getSiteOrigin } from '@/lib/site-origin';
 
 // Evaluated per request so the generic prebuilt image serves the runtime
@@ -10,26 +12,19 @@ export const dynamic = 'force-dynamic';
  * Dynamic robots.txt generation
  *
  * Strategy:
- * - Allow traditional search engines (Googlebot, Bingbot) on public pages
+ * - Allow traditional search engines (Googlebot, Bingbot) on public pages,
+ *   read from the shared declaration the sitemap uses (`lib/public-pages.ts`)
+ *   so a page can never be announced to crawlers and left out of the allow-list
  * - Allow AI search bots (OAI-SearchBot, Claude-SearchBot, PerplexityBot) for GEO visibility
  * - Allow user-triggered AI fetches (ChatGPT-User, Claude-User)
  * - Block AI training crawlers (GPTBot, ClaudeBot, Google-Extended, CCBot, Bytespider)
  * - Block all bots from authenticated areas (/dashboard, /api)
  */
 export default function robots(): MetadataRoute.Robots {
-  const locales = ['fr', 'en', 'de', 'es', 'it', 'zh'];
-  const basePublicPaths = [
-    '/login',
-    '/register',
-    '/faq',
-    '/why',
-    '/how',
-    '/story',
-    '/blog',
-    '/blog/*',
-    '/privacy',
-    '/terms',
-  ];
+  const locales = languages;
+  // The shared declaration, plus the one wildcard a sitemap cannot express:
+  // blog articles are enumerated there, but robots needs the whole subtree.
+  const basePublicPaths = [...indexablePathsWithoutHome(), '/blog/*'];
 
   const publicPaths = [
     '/',

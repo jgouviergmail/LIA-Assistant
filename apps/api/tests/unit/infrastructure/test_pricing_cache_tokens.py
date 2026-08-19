@@ -255,12 +255,23 @@ class TestTimeSlotPricing:
 
 
 class TestModelNameNormalisation:
-    def test_lookup_goes_through_normalisation(self) -> None:
-        """Providers report decorated names (dated suffixes, vendor prefixes);
-        the cache is keyed on the normalised form, so both must resolve to the
-        same price — otherwise a live model silently costs zero."""
-        from src.infrastructure.cache.pricing_cache import normalize_model_name
+    """A decorated name must still be billed — and never at zero.
 
-        assert normalize_model_name("gpt-4.1-mini") == "gpt-4.1-mini"
+    The cache is keyed on the catalogue's **exact** name; normalisation is the
+    fallback applied at lookup time (``resolve_priced_name``), so a dated model
+    inherits its base model's price while a dated model that owns an explicit
+    tariff keeps its own (production defect, ``gpt-4o-2024-05-13``).
+    """
+
+    def test_undecorated_name_resolves_to_its_own_price(self) -> None:
         direct, _ = get_cached_cost_usd_eur("gpt-4.1-mini", MILLION, 0)
         assert direct == pytest.approx(INPUT_PRICE)
+
+    def test_dated_name_falls_back_to_the_base_model_price(self) -> None:
+        """Otherwise a live model would silently cost zero."""
+        decorated, _ = get_cached_cost_usd_eur("gpt-4.1-mini-2025-04-14", MILLION, 0)
+        assert decorated == pytest.approx(INPUT_PRICE)
+
+    def test_unknown_model_costs_zero_rather_than_guessing(self) -> None:
+        unknown, _ = get_cached_cost_usd_eur("no-such-model", MILLION, 0)
+        assert unknown == 0.0

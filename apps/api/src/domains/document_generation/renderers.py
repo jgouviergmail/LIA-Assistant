@@ -152,9 +152,9 @@ def _xlsx_sheet_title(name: str, index: int, used: set[str]) -> str:
 def _render_xlsx(content: DocumentContent) -> bytes:
     if not isinstance(content, TabularContent):
         raise ValueError("xlsx rendering requires TabularContent")
-    import openpyxl  # type: ignore[import-untyped]
-    from openpyxl.styles import Font  # type: ignore[import-untyped]
-    from openpyxl.utils import get_column_letter  # type: ignore[import-untyped]
+    import openpyxl
+    from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
 
     wb = openpyxl.Workbook()
     default_sheet = wb.active

@@ -193,8 +193,9 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 `PUBLIC_ROUTE_SEGMENTS` + test invariant `api-client.public-routes.test.ts` (voir historique v1.21.17). Le test de
 completude scanne `app/[lng]` : **toute nouvelle page publique doit etre ajoutee au tableau** (dernier ajout : `more`).
 
-Depuis ADR-181 les 11 pages publiques portent l'identite : `/` et `/more` et `/demo` en scope complet, les sept pages de
-lecture (`/story`, `/why`, `/how`, `/faq`, `/blog` + articles, `/privacy`, `/terms`) en sous-scope `cosmos-calm`. Les
+Depuis ADR-181 les 12 pages publiques portent l'identite : `/` et `/more` et `/demo` en scope complet, les huit pages de
+lecture (`/story`, `/why`, `/how`, `/faq`, `/changelog`, `/blog` + articles, `/privacy`, `/terms`) en sous-scope
+`cosmos-calm`. Les
 routes de previsualisation `/cosmos/*` qui ont servi a l'arbitrage ont ete **supprimees** a la bascule — pas de code mort.
 
 ### `/more` — « Encore + », les petites attentions UX
@@ -231,6 +232,41 @@ section iconises (`components/faq/faq-sections.ts`, registre partage `FAQ_SECTIO
 sections orientees prospect), accordeons `<details>` natifs, reponses en typographie `prose`. La reponse-fleuve « Que
 puis-je demander ? » (~10 k chars) est regroupee **visuellement** en sous-accordeons par domaine via
 `lib/faq-answer-groups.ts` — les fichiers de traduction restent intacts (garde de preservation §5).
+
+### Historique des versions (`/changelog`)
+
+`app/[lng]/changelog/page.tsx` (serveur : metadonnees ×6 avec canonical + hreflang, BreadcrumbJsonLd, header/footer
+publics, sous-scope `cosmos-calm`) rend `components/changelog/ChangelogHistory` — **composant serveur**, accordeons
+`<details>` natifs, zero bundle client, indexable.
+
+La page existe parce que la promesse « Voir tout l'historique » de la bande `#changelog` pointait vers `/faq`, ou
+`PublicFAQContent` **ne rend aucun changelog** : l'historique n'a jamais existe que dans la FAQ du dashboard
+(`FAQContent`, derriere l'authentification). Un visiteur non connecte n'avait donc acces a l'historique complet nulle
+part. `components/__tests__/changelog-destination.test.tsx` epingle desormais la destination des trois surfaces qui la
+promettent (bande landing, `LandingFooter`, `PublicFooter`).
+
+Source unique inchangee : `lib/changelog.ts` (`CHANGELOG_VERSION_KEYS`, 166 releases) et les traductions
+`faq.changelog.*` deja ecrites ×6 — **aucune nouvelle cle i18n**, le titre et le sous-titre de la page reutilisent
+`faq.changelog.title` / `faq.changelog.description`. `groupChangelogBySeries` plie la liste par serie mineure
+(`v1.30`, `v1.29`…) **sans jamais retrier** : la liste reste seule autorite sur l'ordre. Chaque serie est un `section`
+nomme avec son ancre (`#release-1-30`) et un rail de chips en tete de page ; seule la release la plus recente est
+ouverte d'emblee.
+
+Le header de la landing garde, lui, son ancre vers la bande `#changelog` : c'est un rail de sections avec scroll-spy
+(la bande est une section, pas une page) et la contrainte de saturation a 880 px est gardee par
+`e2e/smoke/landing-nav-row.spec.ts`. Son entree « Nouveautes » se place **juste apres « Presentation »** (arbitrage
+proprietaire 2026-08-19, remplacant « apres Encore + » du 2026-08-18) : `SECTION_ANCHORS` est desormais **une seule
+table ordonnee** ou un drapeau `lgOnly` porte l'exclusion de la rangee saturee — `TRAILING_ANCHORS` et ses deux blocs de
+rendu ont disparu (`components/landing/__tests__/LandingHeader.test.tsx` epingle l'ordre, la classe responsive et la
+parite du menu mobile). Les deux pieds de page, qui listent des **pages**, pointent sur `/changelog`.
+
+Les pages publiques sont declarees **une seule fois** dans `lib/public-pages.ts` (`PUBLIC_PAGES` : chemin,
+`changeFrequency`, `priority`) : `sitemap.ts` la consomme telle quelle, `robots.ts` en derive ses `allow` (plus le seul
+motif qu'un sitemap ne sait pas exprimer, `/blog/*`) et lit `languages` au lieu d'une copie des six locales. Les deux
+fichiers portaient chacun sa liste et avaient **deja diverge** : `/more` et `/demo` etaient sitemappes sans figurer dans
+aucune regle `allow`. `NON_INDEXED_SEGMENTS` nomme, avec sa raison, chaque route volontairement non indexable, et
+`lib/__tests__/public-pages.test.ts` scanne `app/[lng]` pour exiger que toute route soit d'un cote ou de l'autre (meme
+traversee que la garde 401 ci-dessus).
 
 ---
 

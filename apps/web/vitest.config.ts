@@ -68,6 +68,13 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-08-19 after the tabular import/export
+        // lot (ADR-228: the workbook hook, the import state machine and the
+        // preview dialog with its issue/diff/apply oracles) plus the browser
+        // journey of the whole round trip:
+        // statements 75.53 / branches 70.81 / functions 72.45 / lines 76.17.
+        // Raised 72/68/69/73 -> 73/68/70/74 (floor(measured - 2) per axis —
+        // branches alone does not cross an integer step this time).
         // Global floor — re-measured 2026-08-18 after the capability-map /
         // settings-hub lot (ADR-229: the shared capability↔section table and
         // its derived reverse, the hub status line with its four silences,
@@ -236,10 +243,10 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 72,
+        statements: 73,
         branches: 68,
-        functions: 69,
-        lines: 73,
+        functions: 70,
+        lines: 74,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

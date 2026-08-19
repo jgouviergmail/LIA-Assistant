@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 1.6
-**Data**: 2026-08-18
-**Applicazione**: LIA v1.30.10
+**Versione**: 1.7
+**Data**: 2026-08-19
+**Applicazione**: LIA v1.30.11
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,7 +20,7 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 40 domini funzionali | **520.000** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **23.900+** |
-| Decisioni di architettura documentate (ADR) | **223** |
+| Decisioni di architettura documentate (ADR) | **229** |
 | Versioni rilasciate a ritmo regolare | **210** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 223 documentate:
+Tre decisioni strutturanti, tra le 229 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -106,6 +106,8 @@ Il ciclo 1.30.5 è nato da un messaggio utente di tre righe: «ho chiesto di ino
 Il ciclo 1.30.6 ha rivolto la stessa disciplina verso l'esterno: verso lo standard che parla l'intero ecosistema. Il Model Context Protocol aveva appena pubblicato una revisione che rende il protocollo senza stato — e la cui stessa matrice di compatibilità condanna i client più vecchi di fronte ai server di nuova generazione. Il lavoro è stato condotto come un'indagine di conformità prima che come una migrazione: la specifica letta requisito per requisito, ogni scostamento dimostrato per simulazione prima di cambiare una sola riga, il nuovo SDK esercitato contro server reali di entrambe le generazioni. LIA ora parla entrambe — la nuova revisione senza stato e il vecchio handshake —, così ogni server già configurato continua a funzionare identico mentre quelli di nuova generazione diventano raggiungibili; il flusso OAuth ha guadagnato gli obblighi di sicurezza della revisione, ciascuno con una regola di tolleranza esplicita per le registrazioni esistenti. E rifiutare una schermata di consenso non è più una pagina di errore: è una risposta, riconosciuta in sei lingue.
 
 Il ciclo 1.30.7 ha completato il movimento: dopo aver parlato il protocollo dell'ecosistema, parlarne il formato di pacchetto. Lo standard aperto Agent Plugins — guidato da AWS, Microsoft, OpenAI, Cursor e Vercel — aveva appena dato all'intero ecosistema un modo portabile di spedire insieme skill e server MCP, e il lavoro ha seguito la disciplina ormai familiare: il testo normativo letto sezione per sezione, ogni ipotesi di integrazione provata contro il codice per simulazione prima di scrivere una riga, poi un client costruito quasi interamente con strati di cui LIA già si fidava — l'importatore di skill irrobustito, il registro MCP per utente, il sistema di quote. La revisione ha trovato ed eliminato due bug reali prima che girassero mai, e l'intero ciclo di vita è stato provato a runtime contro il database reale, due volte. Ciò che è stato consegnato è discretamente radicale: un plugin preparato per ChatGPT o VS Code si installa in LIA senza modifiche, riferisce esattamente cosa ha portato — e cosa non ha potuto portare, con il motivo — e se ne va senza lasciare traccia.
+
+Il ciclo 1.30.11 ha prodotto la lezione più inattesa: progettare un'esportazione può rivelare che il sistema non sa rispondere alla propria domanda. Amministrare centoventiquattro modelli di IA una finestra alla volta non era più sostenibile, e l'idea era semplice — esportare la griglia tariffaria in una cartella di lavoro, correggerla offline, reimportarla. Scriverla, però, richiedeva di rispondere a «qual è la tariffa di questo modello?». Non c'era risposta: nulla imponeva una sola tariffa attiva, e due percorsi di lettura potevano restituire prezzi diversi per lo stesso modello, nello stesso istante, sullo stesso database. Due errori di fatturazione giravano in produzione da mesi senza che nessuno potesse vederli. Il riordino ha prodotto una regola che va oltre questo dominio: una migrazione non inventa mai un dato di business. La regola intuitiva — tenere la riga più recente — si è rivelata falsa in tutti e quattro i casi reali; la migrazione fonde quindi ciò che è rigorosamente identico e si ferma nominando il resto, lasciando l'arbitrato a una persona. Il file consegnato tiene lo stesso standard: nulla viene cancellato implicitamente, l'anteprima approvata è quella che viene scritta, e ciò che non è cambiato non viene riscritto.
 
 
 ## 7. Convinzioni

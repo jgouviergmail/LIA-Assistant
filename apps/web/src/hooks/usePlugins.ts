@@ -1,14 +1,11 @@
 import { useCallback } from 'react';
+
+import { apiEndpointUrl } from '@/lib/api-client';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 
 const ENDPOINT = '/plugins';
 
-/** API base for direct fetches (FormData uploads bypass the JSON client). */
-function apiBase(): string {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  return apiUrl ? `${apiUrl}/api/v1` : '/api/v1';
-}
 
 /** Taxonomy code for a plugin validation/import issue (mirrors the backend enum). */
 export type PluginIssueCode =
@@ -116,7 +113,7 @@ export function usePlugins() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${apiBase()}${ENDPOINT}/import`, {
+      const response = await fetch(apiEndpointUrl(`${ENDPOINT}/import`), {
         method: 'POST',
         credentials: 'include',
         body: formData,

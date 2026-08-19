@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.30.11] - 2026-08-19
+
+**La grille tarifaire des modèles s'édite désormais dans un classeur, pas ligne par ligne** (ADR-228). Le catalogue compte 124 modèles, chacun portant 24 caractéristiques et un tarif à quatre dimensions ; il s'administrait une boîte de dialogue à la fois. Mettre à jour une grille complète — ce qu'un fournisseur impose deux ou trois fois par an — demandait 124 allers-retours. L'export produit un classeur Excel avec listes déroulantes, notice traduite et validations ; le réimport montre **le diff champ par champ avant d'écrire quoi que ce soit**, et n'écrit rien tant que l'administrateur n'a pas relu. Une ligne absente du fichier ne supprime jamais rien : un filtre Excel oublié ne peut pas vider un catalogue.
+
+**Deux erreurs de facturation qui tournaient en production sont corrigées.** L'instruction du chantier a montré que « le » tarif d'un modèle n'était pas défini : quatre chemins de lecture choisissaient sans ordre déterministe, et deux d'entre eux pouvaient rendre des prix différents **au même instant, sur la même base** — mesuré à un facteur 4 sur un modèle, et jusqu'à un changement d'unité de facturation sur un autre. Par ailleurs, un modèle dont le nom porte une date était facturé au tarif de son modèle de base même lorsqu'il possédait le sien : `gpt-4o-2024-05-13` coûtait 2,50 au lieu de 5,00 en entrée. Les deux sont réparés, et une contrainte en base empêche désormais le premier de revenir.
+
+**Le classeur dit ce qui est, pas ce qu'on croit.** Un modèle sans tarif actif est facturé zéro en silence : le fichier l'écrit noir sur blanc. Un tarif fenêtré — les heures creuses de DeepSeek — apparaît **sur la ligne qui porte le prix**, et non sur un onglet que personne n'a de raison d'ouvrir.
+
+### Added
+- **Export du catalogue LLM en classeur Excel** : 27 colonnes, listes déroulantes alimentées par les référentiels, notice d'utilisation et libellés traduits dans les six langues.
+- **Import en masse avec aperçu obligatoire** : le diff est groupé par nature (créations, modifications, désactivations, réactivations), replié avec ses compteurs, et ne montre que ce qui bouge — les lignes inchangées sont comptées, jamais listées.
+- **Colonnes de diagnostic** en lecture seule : un modèle sans tarif, un modèle à tarifs multiples ou un modèle facturé sous un autre nom le disent eux-mêmes.
+- **Réactivation d'un modèle désactivé** : `deactivate` n'avait aucun inverse, et un modèle éteint ne pouvait plus être rallumé depuis l'application.
+- **Effacement explicite d'un prix de cache** : le contrat d'écriture avalait silencieusement l'intention, sur un champ vide dans 73 des 206 tarifs actifs.
+- **Socle générique d'import/export tabulaire** (`infrastructure/tabular_io`) : décliner le mécanisme à une autre administration revient à écrire une déclaration de colonnes, pas du code de format.
+
+### Fixed
+- **Sous-facturation en production** : un modèle au nom daté possédant son propre tarif était facturé à celui de son modèle de base (facteur 2 en entrée, 1,5 en sortie).
+- **Résolution non déterministe du tarif actif** : les quatre chemins de lecture trient désormais explicitement, et une contrainte d'unicité partielle interdit deux tarifs actifs pour un même modèle.
+- **Taux de change dupliqués** : la route d'administration ne désactivait qu'une seule des lignes actives avant d'en insérer une nouvelle — cause racine de trois taux actifs simultanés. L'invariant a désormais une seule implémentation, partagée avec le planificateur quotidien.
+- **Journaux trompeurs** : trois événements annonçaient un fait inexact — un taux « remplacé » là où il était créé, un tarif « inchangé » alors qu'une version venait d'être écrite, et un fichier « applicable » que la réponse refusait.
+
+### Changed
+- **La barre de la section Tarification LLM passe par `SectionToolbar`** (ADR-208) : ajouter export et import à la rangée artisanale précédente aurait empilé quatre boutons sur un téléphone.
+- **Le seed de tarifs invalide avant d'insérer** : son `ON CONFLICT` ne portait que sur la date d'effet, si bien qu'un rejeu laissait deux tarifs actifs.
+
 ## [1.30.10] - 2026-08-18
 
 **La carte des capacités devient la source unique de l'état — et ne peut plus prendre du retard** (ADR-229). La page « Capacités » publiait treize nœuds figés : la génération d'images, celle de **documents** (v1.30.8), les **plugins** (v1.30.7), les **habitudes apprises** (v1.28.0), les serveurs MCP et la téléphonie n'y figuraient pas. La surface censée répondre « ce que ton assistant sait faire » était donc la moins à jour de l'application, et elle lisait les drapeaux d'environnement bruts — elle pouvait annoncer disponible ce qu'un administrateur venait de couper. Elle passe à **dix-neuf capacités**, compose désormais le plafond de déploiement AVEC l'interrupteur opérateur, et un **assert au démarrage** refuse de booter si une capacité nouvellement ajoutée n'a pas décidé de son sort sur la carte : une consigne écrite se périme, un assert non.

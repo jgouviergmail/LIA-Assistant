@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 4.3
-**Datum**: 2026-08-18
-**Application**: LIA v1.30.10
+**Version**: 4.4
+**Datum**: 2026-08-19
+**Application**: LIA v1.30.11
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -41,6 +41,7 @@
 26. [Psyche Engine: Dynamische emotionale Intelligenz](#26-psyche-engine-dynamische-emotionale-intelligenz)
 27. [Deterministisches Gewohnheitslernen](#27-deterministisches-gewohnheitslernen)
 28. [Eine Instanz regieren: Ausgaben, Fähigkeiten, Installation](#28-eine-instanz-regieren-ausgaben-fähigkeiten-installation)
+29. [Per Datei verwalten: Die Arbeitsmappe ist das Formular](#29-per-datei-verwalten-die-arbeitsmappe-ist-das-formular)
 
 ---
 
@@ -55,8 +56,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 466 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 227 ADRs, ~19.409 von pytest gesammelte Tests in 1.099 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 473 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 229 ADRs, ~19.804 von pytest gesammelte Tests in 1.114 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -74,11 +75,11 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | ~19.409 von pytest gesammelt (von pytest über 1.099 Testdateien gesammelt) + 5.710 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | ~19.804 von pytest gesammelt (von pytest über 1.114 Testdateien gesammelt) + 5.812 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | Wiederverwendbare Fixtures | 170+ |
 | Dokumentationsdokumente | 490+ |
-| ADRs (Architecture Decision Records) | 209 |
-| Prometheus-Metriken | 466 Definitionen |
+| ADRs (Architecture Decision Records) | 229 |
+| Prometheus-Metriken | 473 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -885,7 +886,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 466 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 473 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -1290,7 +1291,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-227 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+229 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1362,14 +1363,42 @@ Der Installer wendet dieselbe Regel auf die Artefaktkette an: einem Etikett nie 
 
 Der rote Faden dieser vier Arbeitspakete ist eine Eigenschaft der Tests selbst. Jede Schutzmaßnahme war mit eigenen Tests geliefert worden, alle grün, alle von derselben Form: sie hielten fest, was der Code am Tag der Lieferung tat. Eine handgeschriebene Liste beschreibt kein System, sie beschreibt, was ihre Autorin über das System wusste. Diese Wächter **berechnen** den Schutz aus der Quelle der Wahrheit neu — die Kostenfamilien, die die Lauf-Zusammenfassung wirklich veröffentlicht, per AST gelesen; die Routen, die die Anwendung wirklich montiert, konfrontiert mit der Auswertungsreihenfolge des Randes; der Konnektor-Router in beide Richtungen abgelaufen, damit unklassifiziert und klassifiziert-aber-abmontiert gleichermaßen rot werden. Sie fanden drei Fehler, die kein bestehender Test sehen konnte, darunter eine Sprachausgabe, die dem Betreiber berechnet und nie gegen das Limit gezählt wurde. Jeder Wächter wurde danach absichtlich in die Irre geführt, um zu prüfen, dass er rot wird.
 
+## 29. Per Datei verwalten: Die Arbeitsmappe ist das Formular
+
+Der LLM-Modellkatalog umfasst hundertvierundzwanzig Einträge; jeder trägt vierundzwanzig Merkmale und einen vierdimensionalen Tarif. Verwaltet wurde er mit einem Dialog je Modell — angemessen, um einen einzelnen Preis zu korrigieren, absurd, um die ganze Preistabelle aufzunehmen, die ein Anbieter zwei- oder dreimal im Jahr überarbeitet. Die Antwort war kein weiterer Bildschirm, sondern ein **deklaratives Fundament**: `WorkbookSpec` / `SheetSpec` / `ColumnSpec` beschreiben eine Arbeitsmappe, und beide Richtungen werden daraus abgeleitet — der Writer erzeugt die Datei, der Reader liest sie zurück. Das Fundament importiert keine Domäne; die Domäne liefert nur eine Spaltendeklaration und einen Applier, der über ihren eigenen Service geht. Das Verfahren auf einen anderen Verwaltungsbildschirm zu übertragen heißt, eine Deklaration zu schreiben — keinen Formatcode.
+
+### 29.1. Drei Eigenschaften, die einen Export von einer Verwaltung trennen
+
+**Spalten werden über den technischen Schlüssel aufgelöst, nie über die Position.** Die erste Zeile trägt die invarianten Schlüssel und bleibt ausgeblendet; die zweite trägt die übersetzten Beschriftungen, nach Blöcken eingefärbt, und die Daten beginnen in der dritten. Eine Spalte umsortieren, ausblenden, hinzufügen oder in einer Sprache exportieren und in einer anderen zurückspielen: ohne Wirkung auf das Lesen.
+
+**Nichts wird implizit gelöscht.** Eine in der Datei fehlende Zeile löscht niemals etwas — ein in Excel aktiv gebliebener Filter kann keinen Katalog leeren. Die Entfernung läuft über eine ausdrückliche Zustandsspalte, und sie wieder auf wahr zu setzen reaktiviert — womit nebenbei eine Deaktivierung geschlossen wird, die in der Anwendung keine Umkehrung hatte.
+
+**Die Vorschau verpflichtet.** Der Import läuft in zwei Schritten: Der erste schreibt nichts und liefert den Plan Feld für Feld; der zweite **leitet ihn erneut ab** und verweigert, wenn er von dem gelesenen abweicht. Eine optimistische Sperre **je Zeile** — ein Fingerabdruck in einer ausgeblendeten Spalte — verweigert nur die zwischenzeitlich geänderten Zeilen: Wer ein unbeteiligtes Modell anfasst, bringt nicht die ganze Datei zu Fall. Und was sich nicht geändert hat, wird nicht geschrieben: Ohne diese Regel hinterließe ein erneuter Import von hundertvierundzwanzig Zeilen hundertvierundzwanzig nutzlose Tarifversionen.
+
+### 29.2. Die Datei sagt, was ist — nicht, was man annimmt
+
+Drei abgeleitete, schreibgeschützte Spalten existieren, weil die Rohdaten in die Irre führen. Ein Modell ohne aktiven Tarif wird stillschweigend mit null abgerechnet: Die Datei schreibt es aus. Ein Tarif mit Zeitfenstern — die Schwachlastzeiten eines Anbieters — las sich wie ein Pauschaltarif, weil die Fenster auf einem Blatt lagen, das niemand zu öffnen Anlass hatte: Er erscheint jetzt in der Zeile, die den Preis trägt. Und der exportierte Modus ist stets der reale Zustand, nie die Anweisung „erben“, die eine Schreibvorgabe ist und kein Zustand.
+
+Die Vollständigkeit wiederum wird **bewacht** statt erinnert. Eine frühe Fassung der Arbeitsmappe exportierte sechzehn Spalten gegen ein Schema, das erheblich mehr enthielt, und der Treuetest konnte es nicht sehen: Er verglich eine Extraktion mit sich selbst. Das Orakel ist nun das Datenbankschema — jede fachliche Spalte wird exportiert oder mit schriftlicher Begründung ausgeschlossen — und eine morgen ergänzte Spalte färbt die Continuous Integration rot. Das ist die Doktrin der Registry-Vollständigkeitszusicherungen (ADR-085), angewandt auf ein Dateiformat.
+
+### 29.3. Was die Aufgabenstellung vor der ersten Codezeile offenlegte
+
+Den Export zu entwerfen verlangte eine einfache Antwort: Wie lautet der Tarif eines Modells? Es gab keine. Keine Bedingung erzwang genau einen aktiven Tarif, und vier Lesepfade wählten ohne deterministische Ordnung — zwei davon konnten im selben Augenblick, auf derselben Datenbank, unterschiedliche Preise für dasselbe Modell liefern. Ein Cache, der nach Rohnamen gefüllt und nach normalisiertem Namen gelesen wurde, rechnete zudem ein datiertes Modell zum Preis seines Basismodells ab. Diese Mängel sind kein Kollateralschaden: Ohne ihre Behebung hat der Export keinen Gegenstand, denn er wüsste nicht, welche Zeile er zeigen soll.
+
+Das Aufräumen brachte eine Regel hervor, die über diese Domäne hinausreicht: **Eine Migration erfindet niemals Fachdaten.** Die intuitive Regel — die jüngste Zeile behalten — wurde den echten abweichenden Fällen gegenübergestellt und erwies sich jedes Mal als falsch: Richtig war die ältere Zeile, und bei zwei Modellen hatte sich die Abrechnungs*einheit* selbst geändert. Die Migration führt daher nur streng identische Dubletten zusammen und hält an, indem sie die abweichenden **benennt**. Die Entscheidung bleibt beim Menschen.
+
+### 29.4. Das Format ist kein Detail
+
+Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers, geteilt statt neu geschrieben, und gelesen wird blockweise begrenzt — eine Datei außerhalb der Vorlage wird abgewiesen, bevor sie vollständig im Speicher liegt. Der Rest hängt an einer OOXML-Eigenheit, die sich rächt: Die Booleans des Blattschutzes bedeuten „gesperrt“, wenn sie wahr sind, sodass das Schützen des Blattes zum Sperren von fünf berechneten Spalten **das Hinzufügen eines Modells verbot**; und das Attribut, das eine Auswahlliste zu aktivieren scheint, blendet sie in Wahrheit aus. Beide Verhalten sind durch Zusicherungen auf dem erzeugten XML festgenagelt, denn eine gutgläubige Korrektur an einem von beiden würde die halbe Ergonomie der Datei stillschweigend entfernen.
+
 ## Fazit
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 227 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~19.409 Tests in 1.099 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 229 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~19.804 Tests in 1.114 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 227 ADRs und des Changelogs (v1.0 bis v1.30.10). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 229 ADRs und des Changelogs (v1.0 bis v1.30.11). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

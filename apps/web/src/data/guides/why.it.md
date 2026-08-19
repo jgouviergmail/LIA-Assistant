@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 4.8
-**Data**: 2026-08-18
-**Applicazione**: LIA v1.30.10
+**Versione**: 4.9
+**Data**: 2026-08-19
+**Applicazione**: LIA v1.30.11
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -90,7 +90,7 @@ L'amministratore ha accesso a una terza scheda dedicata alla gestione dell'istan
 
 - **Configurazione LLM**: configurare le chiavi API dei provider (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assegnare un modello per ogni ruolo nella pipeline, gestire i livelli di ragionamento — chiavi archiviate in forma cifrata. L'interfaccia espone solo i parametri che il modello scelto accetta realmente (matrice DB per modello per temperature, top_p, frequency_penalty, presence_penalty e forma del widget reasoning), evitando qualsiasi inserimento di un valore che l'API rifiuterebbe
 - **Attivazione/disattivazione connettori**: abilitare o disabilitare le integrazioni a livello globale (Google OAuth, Apple, Microsoft 365, Hue, meteo, Wikipedia, Perplexity, Brave Search). La disattivazione revoca le connessioni attive e notifica gli utenti
-- **Tariffazione**: gestire i prezzi per modello LLM (costo per milione di token), per API Google Maps (Places, Routes, Geocoding), e per generazione di immagini — con storico dei prezzi. All'aggiunta di un nuovo modello reasoning, un selettore «copia la forma da tale modello esistente» permette di ereditare automaticamente il widget reasoning e i suoi valori senza inserimento manuale; la modalità Custom rimane disponibile per modelli atipici. Le tariffe dei modelli di testo possono inoltre variare secondo l'ora UTC (fasce di punta/fuori punta, alla DeepSeek): ogni chiamata è allora valorizzata alla tariffa del suo istante esatto, e le statistiche di utilizzo corrispondono alla fattura reale del fornitore
+- **Tariffazione**: gestire i prezzi per modello LLM (costo per milione di token), per API Google Maps (Places, Routes, Geocoding), e per generazione di immagini — con storico dei prezzi. All'aggiunta di un nuovo modello reasoning, un selettore «copia la forma da tale modello esistente» permette di ereditare automaticamente il widget reasoning e i suoi valori senza inserimento manuale; la modalità Custom rimane disponibile per modelli atipici. Le tariffe dei modelli di testo possono inoltre variare secondo l'ora UTC (fasce di punta/fuori punta, alla DeepSeek): ogni chiamata è allora valorizzata alla tariffa del suo istante esatto, e le statistiche di utilizzo corrispondono alla fattura reale del fornitore Infine, l'intera griglia si esporta come cartella Excel — istruzioni tradotte, elenchi a discesa, controlli di inserimento — e si reimporta dopo la modifica offline: LIA ti mostra ogni cambiamento campo per campo prima di scrivere qualcosa, e una riga assente dal file non cancella mai nulla
 
 **Contenuti ed estensioni:**
 

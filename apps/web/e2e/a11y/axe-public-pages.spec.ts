@@ -4,7 +4,8 @@
  * carousels: a hidden tab panel scans as invisible, so each tab needs its own
  * pass), the landing
  * FAQ (`/faq` — icon section headers, chip anchor rail, native <details>
- * accordions, grouped long answers) and the shareable demo page (`/demo` —
+ * accordions, grouped long answers), the release history (`/changelog` — the
+ * series rail and 166 native <details>) and the shareable demo page (`/demo` —
  * the hero animation inside the planetarium). Same AC-002 policy as
  * axe-smoke: EVERY critical/serious violation blocks, color-contrast
  * included, light AND dark (the theme is user-toggled — the stored
@@ -92,6 +93,32 @@ for (const theme of THEMES) {
 
       const { blocking, summary } = await scanPage(page, testInfo, `/faq-${theme}`);
       expect(blocking, `axe violations on /faq (${theme}):\n${summary}`).toHaveLength(0);
+    });
+
+    test(`changelog page scans clean with releases open (${theme})`, async ({
+      page,
+    }, testInfo) => {
+      await page.goto('/changelog');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+      // A closed <details> is scanned as invisible, so the release bodies
+      // (bullet lists, <b> emphasis, muted date lines) would never be covered.
+      // Open a sample across the page rather than all 166 — the scan cost is
+      // linear and the markup is identical from one release to the next.
+      const opened = await page.evaluate(() => {
+        const cards = Array.from(document.querySelectorAll('main details'));
+        [0, Math.floor(cards.length / 2), cards.length - 1]
+          .filter(index => index >= 0 && cards[index])
+          .forEach(index => {
+            (cards[index] as HTMLDetailsElement).open = true;
+          });
+        return cards.length;
+      });
+      expect(opened, 'the changelog page must render its releases').toBeGreaterThan(10);
+
+      const { blocking, summary } = await scanPage(page, testInfo, `/changelog-${theme}`);
+      expect(blocking, `axe violations on /changelog (${theme}):
+${summary}`).toHaveLength(0);
     });
 
     test(`demo page scans clean (${theme})`, async ({ page }, testInfo) => {

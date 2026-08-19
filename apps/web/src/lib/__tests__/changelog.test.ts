@@ -16,6 +16,7 @@ import {
   changelogDateKey,
   changelogItemKeys,
   changelogTitleKey,
+  groupChangelogBySeries,
   latestChangelogVersions,
 } from '../changelog';
 
@@ -52,5 +53,45 @@ describe('key builders', () => {
   it('builds the title and date keys the locales actually carry', () => {
     expect(changelogTitleKey('v1_30_9')).toBe('faq.changelog.versions.v1_30_9.title');
     expect(changelogDateKey('v1_30_9')).toBe('faq.changelog.versions.v1_30_9.date');
+  });
+});
+
+describe('groupChangelogBySeries', () => {
+  it('groups consecutive patches under their minor series', () => {
+    expect(groupChangelogBySeries(['v1_30_10', 'v1_30_9', 'v1_29_0'])).toEqual([
+      { label: 'v1.30', id: 'release-1-30', versions: ['v1_30_10', 'v1_30_9'] },
+      { label: 'v1.29', id: 'release-1-29', versions: ['v1_29_0'] },
+    ]);
+  });
+
+  it('keeps a two-segment key in the same series as its patches', () => {
+    // The oldest releases are keyed `v1_15`, their patches `v1_15_1`: two
+    // spellings of ONE series. Splitting them would file the same release
+    // family under two headings.
+    const [series, ...rest] = groupChangelogBySeries(['v1_15_3', 'v1_15']);
+
+    expect(rest).toEqual([]);
+    expect(series.versions).toEqual(['v1_15_3', 'v1_15']);
+  });
+
+  it('preserves the shared list order rather than re-sorting', () => {
+    // The list is the authority on order (newest first); a grouping that
+    // sorted by itself would become a second, divergent authority.
+    const groups = groupChangelogBySeries(CHANGELOG_VERSION_KEYS);
+
+    expect(groups.flatMap(group => group.versions)).toEqual([...CHANGELOG_VERSION_KEYS]);
+  });
+
+  it('gives every series a unique anchor', () => {
+    const ids = groupChangelogBySeries(CHANGELOG_VERSION_KEYS).map(group => group.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('loses no release of the real history', () => {
+    const groups = groupChangelogBySeries(CHANGELOG_VERSION_KEYS);
+
+    expect(groups.flatMap(group => group.versions)).toHaveLength(CHANGELOG_VERSION_KEYS.length);
+    expect(groups.length).toBeGreaterThan(1);
   });
 });

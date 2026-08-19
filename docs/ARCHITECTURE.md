@@ -2231,7 +2231,28 @@ PUT /admin/llm/pricing/{model_name}
 # Deactivate pricing (soft delete)
 DELETE /admin/llm/pricing/{pricing_id}
 # is_active = False (history preserved)
+
+# Bulk administration by workbook (ADR-228) — the whole catalogue in one file
+GET  /admin/llm/pricing/sheet/export.xlsx
+# Excel workbook: translated notice, dropdowns, cell validations, referentials.
+# Columns are matched on a hidden row of technical keys, never by position.
+
+POST /admin/llm/pricing/sheet/import?dry_run=true
+# Writes NOTHING. Returns the plan field by field, with the sheet and cell of
+# every problem. A row missing from the file never deletes anything.
+
+POST /admin/llm/pricing/sheet/import?dry_run=false&plan_fingerprint=...
+# Applies, and only the plan that was reviewed: the server re-derives it and
+# refuses if it differs. Per-row optimistic lock; all-or-nothing; a tariff is
+# rewritten only if it actually changed.
 ```
+
+> Two database invariants back these routes since ADR-228:
+> `uq_llm_model_pricing_active` (one active tariff per model) and
+> `uq_currency_rate_active` (one active rate per pair). Every read orders
+> explicitly — exact name before normalized name, then `effective_from DESC,
+> id DESC` — through `resolve_priced_name`, the single shared implementation.
+> See [`TABULAR_ADMIN_IO.md`](technical/TABULAR_ADMIN_IO.md).
 
 **Image Generation Pricing** (`/admin/image-pricing/pricing`) :
 

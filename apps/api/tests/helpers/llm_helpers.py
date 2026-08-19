@@ -9,6 +9,7 @@ from decimal import Decimal
 
 import structlog
 from sqlalchemy import select
+from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, selectinload
 
@@ -67,6 +68,20 @@ async def create_llm_pricing_async(
     (LLMModelPricing.model uses lazy="raise").
     """
     model = await ensure_llm_model_async(db, model_name, provider)
+    # Retire any active row first: a model has exactly one active tariff
+    # (partial unique index, migration 6e7f8a9b0c1d). Without this, calling the
+    # helper twice for the same model raises IntegrityError instead of
+    # superseding the price, which is what a test means by "set this price".
+    if is_active:
+        await db.execute(
+            sa_update(LLMModelPricing)
+            .where(
+                LLMModelPricing.model_id == model.id,
+                LLMModelPricing.is_active,
+            )
+            .values(is_active=False)
+        )
+        await db.flush()
     pricing = LLMModelPricing(
         model_id=model.id,
         input_unit_price=input_price,
@@ -109,6 +124,17 @@ def create_llm_pricing_entry(
         Created LLMModelPricing instance with ``model`` relationship loaded.
     """
     model = _ensure_llm_model_sync(db, model_name, provider)
+
+    # Same invariant as the async helper: one active tariff per model.
+    db.execute(
+        sa_update(LLMModelPricing)
+        .where(
+            LLMModelPricing.model_id == model.id,
+            LLMModelPricing.is_active,
+        )
+        .values(is_active=False)
+    )
+    db.flush()
 
     pricing = LLMModelPricing(
         model_id=model.id,

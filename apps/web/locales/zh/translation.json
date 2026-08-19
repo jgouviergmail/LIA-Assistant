@@ -1613,7 +1613,49 @@
           "deactivate_title": "停用模型\"{{name}}\"？",
           "deactivate_message": "此操作将使模型在活动列表中不可见。\n价格历史记录将保留在数据库中。",
           "deactivate_confirm": "确认停用？"
-        }
+        },
+        "sheet": {
+          "export": "导出工作簿",
+          "import": "导入工作簿",
+          "import_title": "导入价格工作簿",
+          "import_description": "在您查看下方的变更之前，不会写入任何内容。",
+          "choose_file": "选择已修改的工作簿",
+          "apply": "应用这些变更",
+          "applied_title": "变更已应用",
+          "applied_summary": "新增 {{created}} · 修改 {{updated}} · 停用 {{deactivated}} · 重新启用 {{reactivated}}",
+          "no_change": "该工作簿与目录一致：无需应用。",
+          "unchanged_count": "{{count}} 行保持不变",
+          "issues_title": "需先解决 {{count}} 个问题",
+          "action": {
+            "create": "新增模型",
+            "update": "已修改的模型",
+            "deactivate": "已停用的模型",
+            "reactivate": "已重新启用的模型",
+            "unchanged": "未变更"
+          },
+          "issue": {
+            "not_a_workbook": "该文件不是电子表格。",
+            "archive_too_large": "该文件过大，无法安全读取。",
+            "schema_version_mismatch": "该工作簿来自其他版本；请重新导出。",
+            "sheet_missing": "缺少必需的工作表。",
+            "column_missing": "缺少列 {{column}}。",
+            "too_many_rows": "行数过多（上限 {{limit}}）。",
+            "formula_rejected": "发现公式；请填写数值，而不是算式。",
+            "not_a_number": "{{value}} 不是数字。",
+            "not_a_boolean": "{{value}} 既不是「是」也不是「否」。",
+            "not_a_time": "{{value}} 不是 HH:MM 格式的时间。",
+            "too_many_decimals": "小数位超过 {{decimals}} 位。",
+            "out_of_range": "{{value}} 低于最小值 {{minimum}}。",
+            "value_not_in_referential": "{{value}} 不在允许的取值范围内。",
+            "key_missing": "该行没有模型名称。",
+            "duplicate_key": "{{key}} 已出现在第 {{first_row}} 行。",
+            "provider_immutable": "已存在模型的供应商无法更改。",
+            "row_changed_since_export": "自导出该文件以来 {{key}} 已变更；请重新导出。",
+            "creation_needs_template": "新模型需要推理模板。",
+            "creation_field_missing": "新模型需要列 {{field}}。"
+          }
+        },
+        "more_actions": "更多操作"
       },
       "google_api": {
         "title": "Google API 定价",
@@ -3302,7 +3344,7 @@
         "admin-consumption-export": "导出, CSV, 消耗, 使用, 成本, 所有账户",
         "admin-broadcast": "广播, 消息, 公告, 通知所有人",
         "admin-connectors": "连接器, 提供商, Google, Apple, Microsoft, 启用服务",
-        "admin-llm-pricing": "定价, 价格, 费率, 令牌, 文本模型, 每令牌成本",
+        "admin-llm-pricing": "定价, 价格, 费率, 令牌, 文本模型, 每令牌成本, Excel, 电子表格, 导入, 导出, 批量更新, 工作簿",
         "admin-google-api-pricing": "定价, Google API, 地图, 地点, 路线, 地理编码成本",
         "admin-image-pricing": "定价, 图片, 图片生成, 每张图片成本",
         "admin-llm-config": "LLM, 模型, 提供商, 配置, 温度, 推理, API 密钥",
@@ -3983,8 +4025,8 @@
           "description": "完整栈：Prometheus 指标（token、延迟、错误、成本）、26 个 Grafana 仪表盘、Tempo 分布式追踪、Loki 集中日志、每条告警都关联 runbook 的邮件告警。第 26 个仪表盘是产品驾驶舱：统计经验证的结果 — 你的明确 👍（E1），或整整一天未被更正的操作（E2）— 并由此推导 North Star、激活漏斗、留存与每个有用结果的成本。精确计数存放在 PostgreSQL 中（状态会变化，计数器无法回退）；Grafana 通过只读角色读取，该角色只能访问聚合视图，绝不能访问原始表。"
         },
         "tools": {
-          "title": "🔧 88 个类型化工具",
-          "description": "88 个原生工具，JSON 模式从 Python/Pydantic 自动生成，可通过 MCP 服务器与 Skills 无限扩展。声明式清单带 semantic_keywords 支持智能路由，并公布参数上限：验证器能拒绝的，规划器就能读到。目录按领域过滤，因此只带写入工具的领域会促使系统去执行动作——正因如此，每个领域现在也带上了自己的读取能力。"
+          "title": "🔧 90 个类型化工具",
+          "description": "90 个原生工具，JSON 模式从 Python/Pydantic 自动生成，可通过 MCP 服务器与 Skills 无限扩展。声明式清单带 semantic_keywords 支持智能路由，并公布参数上限：验证器能拒绝的，规划器就能读到。目录按领域过滤，因此只带写入工具的领域会促使系统去执行动作——正因如此，每个领域现在也带上了自己的读取能力。"
         },
         "costTransparency": {
           "title": "💰 成本透明度",
@@ -4125,6 +4167,10 @@
         "plugins": {
           "title": "🧩 Agent Plugins（开放标准）",
           "description": "LIA 是开放标准 Agent Plugins v1.0.0（agent-plugins.org——由 AWS、Microsoft、OpenAI、Cursor 和 Vercel 共同指导）的合规客户端：一种便携式软件包格式，打包 agentskills.io 技能和 MCP 服务器，已被 ChatGPT、Codex、Cursor、GitHub Copilot、Kiro 和 VS Code 采用。插件可通过 zip 文件或经 SSRF 加固的 https URL 安装，走与单个技能相同的加固管线（暂存区解压、zip 炸弹与路径穿越防护、按技能原子安装并可回滚），配额在任何写入前预先校验。每次安装都返回按组件的详尽报告——已安装、已更新、已跳过（附翻译后的原因）、已移除——绝无静默的部分成功。组件携带其插件来源：更新即重新导入，保留已配置的凭据；移除只能通过整体卸载——插件永远不会被悄悄拆散。安全设计：多用户服务器上从不启动 stdio 服务器，端点仅限 HTTPS。"
+        },
+        "tabularAdmin": {
+          "title": "📗 以工作簿进行管理",
+          "description": "承载上百条记录的界面，不该一个对话框一个对话框地编辑。一套<strong>声明式底座</strong>描述一本工作簿 —— 它的工作表、它的列、以及这些列的参照表 —— 并从这唯一的描述派生出两个方向：导出产出文件，导入把它读回。列的匹配依据一行隐藏的技术键：在 Excel 里重排、隐藏某列，或者用一种语言导出、用另一种语言回传，都不会改变结果。导入分两步作出承诺：第一步什么都不写，逐字段返回差异；第二步重新推导该计划，若它已发生变动则拒绝执行。文件中缺失的行<strong>永远不会删除任何东西</strong> —— 下架是一列显式的状态 —— 而未发生变化的内容不会被重写。模型价目目录是第一个使用者；把这套机制移植到另一块管理界面，写的是一份声明，而不是格式代码。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -4133,6 +4179,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_30_11": {
+          "title": "v1.30.11 — 📊 模型价目在 Excel 中管理",
+          "date": "2026 年 8 月",
+          "items": {
+            "i1": "<b>📊 整份价目表一次导出、编辑并回传</b> —— <b>124 个模型</b>及其价目可下载为结构化的 Excel 工作簿：附带翻译好的使用说明、下拉列表、单元格校验以及参照表工作表。离线改好价格后回传，应用会<b>在写入任何数据之前逐字段列出全部改动</b>。供应商调整价目表时，不必再打开 124 个对话框。",
+            "i2": "<b>🛡️ 导入不会毁掉目录</b> —— 文件中缺失的行永远不会删除任何东西：忘记取消的 Excel 筛选不可能清空目录，下架必须通过「启用」列显式声明。导入要么全部生效、要么全不生效：任何异常都会<b>连同需要修正的工作表与单元格</b>一并指出，并且什么都不写入。若某个模型在预览与确认之间被改动，只有相关的行被拒绝，而不是整个文件。",
+            "i3": "<b>💶 修复两处计费错误</b> —— 带日期的模型明明有自己的价目，却按基础模型计价（<code>gpt-4o-2024-05-13</code> 输入按 2.50 而非 5.00 计），并且两条读取路径可能在同一时刻对同一模型返回不同价格。两者均已修复，数据库约束可防止第二种情况再现。工作簿还会明确写出哪些模型<b>因缺少生效价目而按零计费</b>，并把分时段价目显示在承载价格的那一行上。",
+            "i4": "<b>🔌 已停用的模型可以重新启用</b> —— 停用此前在应用内没有反向操作。现在可从工作簿重新启用已关闭的模型，缓存输入价格也终于可以被清空，而不只能将就。"
+          },
+          "count": "4"
+        },
         "v1_30_10": {
           "title": "v1.30.10 — 🧭 你的能力，保持最新并显示在每张卡片上",
           "date": "2026 年 8 月",
@@ -6183,7 +6240,7 @@
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "20",
+        "count": "21",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -6264,6 +6321,10 @@
           "q20": {
             "question": "在哪里能看到 LIA 发给我的全部内容，而不必翻找设置？",
             "answer": "导航栏中的<b>提醒</b>入口将五类信息汇集到一屏：同伴转发消息、主动通知、兴趣通知、待触发提醒与已排期例程。每个区块默认折叠<b>并已显示其精确数量</b>——你无需展开就能决定要看哪一个——且每页十条。在展开之前不会加载任何列表：只读取计数，且只需一次读取。设置面板仍是这些信息流各自的详细配置，你此前保存的所有链接依然有效。"
+          },
+          "q21": {
+            "question": "管理员如何批量更新 LLM 模型价格？",
+            "answer": "在<b>设置 → 管理 → LLM 定价</b>中，整个目录 —— 每个模型、每项特征、每份价目 —— 都可下载为结构化的 Excel 工作簿，编辑好的文件也沿同一条路回传。<br><br><b>工作簿包含什么：</b>一份翻译成你所用语言的使用说明；每个模型一行，附下拉列表与单元格校验；一张为这些列表供数的参照表；一张列出 UTC 时间窗的工作表，用于按高峰/低谷计费的供应商；以及一列<b>状态</b>，说明实际会发生什么 —— 没有生效价目（按零计费）、存在多份生效价目，或是按另一个模型的名称计费。<br><br><b>回传分两步进行。</b>系统先分析文件，逐字段展示全部差异 —— 新建、修改、重新启用、下架 —— 此时尚未写入任何数据；只有随后才能应用，而且只针对你读过的那份预览。<br><br><b>导入永远做不到的事：</b>文件中缺失的行<b>永远不会删除任何东西</b>（忘记取消的 Excel 筛选无法清空目录 —— 下架必须通过把 <b>is_active</b> 列置为假来显式声明，重新置为真则会把模型找回来）；任何无法读取或自相矛盾的内容都会<b>连同需要修正的工作表与单元格</b>一并指出，此时导入什么都不会写入；价目只有在确实发生变化时才会重写，因此重新导入一份未改动的文件会让价目历史保持原样；而如果他人在预览与确认之间改动了某个模型，被拒绝的只是相关的行，而不是整个文件。"
           }
         }
       },
@@ -7450,6 +7511,10 @@
         "title": "消耗，一目了然",
         "desc": "开启后，每条回复都会显示它消耗了什么。"
       },
+      "pricing_workbook": {
+        "title": "价格在电子表格里修改",
+        "desc": "你看到的每一笔成本背后，都有一份价目表：管理员把它导出、离线修改后再导回来 —— 在写入任何数据之前，逐项看清全部改动。"
+      },
       "a11y_care": {
         "title": "看不见的用心",
         "desc": "尊重动画偏好，保持对比度，一切都可用键盘操作——而且你要点的东西足够大，包括那些只在鼠标悬停时才出现、因而手指根本够不到的小叉。 列表操作不再藏在悬停之后 — 键盘能找到它们 — 标签与输入框之间的间距也终于按所写的那样呈现。"
@@ -7582,6 +7647,9 @@
       },
       "settings_shell": {
         "section": "外观"
+      },
+      "pricing_workbook": {
+        "preview": "写入前预览"
       }
     },
     "craft": {
@@ -9443,9 +9511,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "464个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：464指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 464个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
+        "title": "473个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：473指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 473个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -9480,7 +9548,7 @@
       "progressive-steps": {
         "title": "实时执行步骤：观看 LIA 工作过程",
         "excerpt": "LIA 在处理请求时逐步显示每个执行步骤 — 路由、规划、工具调用 — 实时呈现。",
-        "body": "<h2>透明度的实践</h2><p>当你向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，你可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，整体淡入回答的第一批文字，撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖63个工具</h2><p>目录中的所有 <strong>63个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p><h2>当数据流陷入静默</h2><p>步骤展示的价值，取决于喂养它的数据流是否还活着。当手机挂起标签页时，连接会无声中断 —— 既无结束，也无报错 —— 屏幕便一直停在最后显示的那个步骤上，而回答其实早已在服务器端完成并保存。此前没有任何迹象能把这种状态与一次单纯较慢的回答区分开。现在 LIA 能识别这种静默：超过按服务器心跳节奏校准的预算后，便丢弃这条已死的连接，并自动接续仍在后台运行的那一轮。</p>"
+        "body": "<h2>透明度的实践</h2><p>当你向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，你可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，整体淡入回答的第一批文字，撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖90个工具</h2><p>目录中的所有 <strong>90个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p><h2>当数据流陷入静默</h2><p>步骤展示的价值，取决于喂养它的数据流是否还活着。当手机挂起标签页时，连接会无声中断 —— 既无结束，也无报错 —— 屏幕便一直停在最后显示的那个步骤上，而回答其实早已在服务器端完成并保存。此前没有任何迹象能把这种状态与一次单纯较慢的回答区分开。现在 LIA 能识别这种静默：超过按服务器心跳节奏校准的预算后，便丢弃这条已死的连接，并自动接续仍在后台运行的那一轮。</p>"
       },
       "account-lifecycle": {
         "title": "账户生命周期：4种状态实现完整 GDPR 合规",
@@ -9501,6 +9569,11 @@
         "title": "LLM 治理：通过单一仪表板管理 24 个 AI 模型",
         "excerpt": "LIA 如何让管理员实时配置、调整和监控 24 种不同的 LLM 类型，无需重启或重新部署。",
         "body": "<h2>挑战：编排 24 个大脑</h2><p>LIA 不是使用单一的 LLM，而是<strong>超过 24 种不同类型</strong>，每种都针对其任务进行了优化。每种类型都有自己的参数：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>timeout</code>、<code>reasoning_effort</code>。</p><p>挑战：如何让管理员<strong>不触碰代码</strong>就能管理这一切？</p><h2>3 级解析链</h2><p>每个 LLM 配置通过 <strong>3 源优先级链</strong>解析：</p><ol><li><strong>DB 覆盖</strong> — 通过管理界面设置（最高优先级）</li><li><strong>环境变量</strong> — 部署配置</li><li><strong>LLM_DEFAULTS</strong> — 代码中的 24 个默认配置</li></ol><p><code>LLMConfigOverrideCache</code> 提供 O(1) 查找。管理界面的更改<strong>立即生效</strong>。</p><h2>单一入口</h2><p><code>get_llm_config_for_agent()</code> 是获取 LLM 配置的<strong>唯一路径</strong>。这是一个<strong>架构原则</strong>。</p><h2>实时管理界面</h2><p>从管理面板，你可以为每种 LLM 类型：</p><ul><li>更改<strong>提供商和模型</strong></li><li>调整<strong>温度</strong>、<strong>top_p</strong>、<strong>惩罚</strong></li><li>配置<strong>超时</strong>和<strong>最大 token 数</strong></li><li>启用或禁用<strong>推理模式</strong></li></ul><h2>精细化成本优化</h2><p>管理员按<strong>任务类型</strong>而非全局调整质量/成本比。 当提供商按 UTC 时段计费时（高峰/低谷时段，如 DeepSeek），价格目录会承载这些时段：每次调用按其确切时刻的费率计价，所记录的支出与真实账单一致。</p><h2>自适应推理模型</h2><p>LIA 提供 <strong>5 个 reasoning_effort 级别</strong>，可按类型配置。</p><h2>内置可观测性</h2><p>每次 LLM 调用都会记录其类型、提供商、实际模型、持续时间和 token。Prometheus 指标和 Langfuse 追踪允许<strong>比较不同配置的性能</strong>。</p><h2>整个实例能花多少</h2><p>上面所有内容约束的是一个模型、一次调用或一个账户。其中没有一样约束<strong>一套部署</strong>，而这并不是同一个问题：N 个账户乘以各自的配额，就是没有上界的支出。现在有一份按 UTC 日计的账本，用带列运算的原子 UPSERT 记录每次运行的成本，并且就写在那条已经持久化 token 汇总的事务里——因此并发运行不会在「读-改-写」的竞态中丢失支出，检查也永远不会看到残缺的视图。两个上界会叠加：部署给的和运维者选的，取较小者。管理员可以收紧环境所允许的额度，永远不能放宽，面板会把「实际生效的」摆在「填进去的」旁边。</p><p>这里的失败取向是刻意反转的。按用户的限制是<strong>开放失败</strong>——数据库打个嗝，最多多放过一条消息。未知的实例支出则是<strong>关闭失败</strong>，因为这一侧最坏的情况是整个预算。而拒绝会说实话：不是一条关于个人配额的消息，而是一个专门的代码，并带上当天翻篇的准确时刻。</p>"
+      },
+      "tabular-administration": {
+        "title": "当工作簿成为表单：批量管理的正确做法",
+        "excerpt": "以每次一个对话框的方式管理一百二十四个模型，不是人机工程问题，而是设计问题。本文讲述那套把管理界面变成 Excel 往返的声明式底座，以及它在途中揭出的两处计费缺陷。",
+        "body": "<h2>每个模型一个对话框，撑不住规模</h2><p>LIA 的模型目录有一百二十四条记录。每条承载二十四项特征 —— 上下文窗口、工具支持、采样参数、推理形态 —— 以及一份四维度的价目。管理界面为每个模型提供一个对话框：改一个价格恰到好处，可当供应商修订整份价目表时就荒谬了，而这一年会发生两三次。</p><p>显而易见的答案本该是一张可批量编辑的表格。我们真正构建的，是一套描述工作簿的<strong>声明式底座</strong>，并从这唯一的描述派生出两个方向：写入器产出文件，读取器把它读回。底座完全不引入任何领域。领域只提供一份列声明和一个经由自身服务落库的应用器。把这套机制移植到另一块管理界面，写的是一份声明 —— 而不是格式代码。</p><h2>让一个文件可以安全导入的三条规则</h2><ul><li><strong>列按技术键解析，绝不按位置。</strong> 第一行承载不变的技术键并保持隐藏；第二行承载翻译后的标签。重排某列、隐藏某列、新增某列，或者用法语导出、用德语回传：这些都不会改变读取结果。</li><li><strong>没有任何东西被隐式删除。</strong> 文件中缺失的行永远不会删除任何东西。有人忘记取消的筛选，不可能清空一个目录。下架要经过一列显式的状态列 —— 把它重新置为真则重新启用。</li><li><strong>预览是有约束力的。</strong> 导入分两步：第一步什么都不写，逐字段返回计划；第二步重新推导该计划，若与已审阅的那份不同则拒绝执行。按行的乐观锁只拒绝期间被改动过的行，因此同事改了一个无关模型，并不会让你整个文件被驳回。</li></ul><p>还有一条规则在默默起作用：未发生变化的内容不会被写入。没有它，重新导入一百二十四行就会留下一百二十四个无用的价目版本，而价目历史 —— 让「三月这项花了我们多少钱」这个问题可被回答的东西 —— 会被噪声填满。</p><h2>文件陈述事实，而非你的假设</h2><p>三列只读的派生列之所以存在，是因为原始数据会误导人。没有生效价目的模型会被静默按零计费 —— 文件把这件事写成文字。带时间窗的价目，比如某供应商的低谷时段，此前读起来像一份平价目，因为时间窗住在一个没人有理由打开的工作表上；现在它出现在承载价格的那一行上。</p><p>完整性是被守护的，而不是被记住的。工作簿的早期版本导出十六列，而真实模式远不止于此，保真度测试却看不见 —— 它拿一份抽取与自己作比较。如今的判据是数据库模式本身：每一列业务字段要么被导出，要么带着书面理由被排除；明天新增一列就会让构建变红。</p><h2>设计一个导出功能会揭示什么</h2><p>写导出器需要回答一个简单的问题：一个模型的价目是多少？当时没有答案。没有任何约束保证只有一份生效价目，四条读取路径都在没有确定性排序的情况下选取 —— 其中两条可能在同一时刻、同一数据库上，为同一模型返回不同的价格。一个按原始名称写入、按归一化名称读取的缓存，让带日期的模型按其基础模型的价格计费。</p><p>修复它产出了一条值得带去别处的规则：<strong>迁移绝不臆造业务数据。</strong> 直觉规则 —— 保留最新的那一行 —— 与真实的分歧个案对照后，每一次都被证伪。正确的是较旧那行，而在两个模型上改变的是计费<em>单位</em>本身。因此迁移只合并严格相同的重复项，遇到其余情形便点名并停止。裁决权仍在人手中。</p><h2>格式并非细节</h2><p><code>.xlsx</code> 本身就是一个 zip 压缩包，所以防 zip 炸弹的护栏沿用插件导入器的那一套，是共享而非重写。而 OOXML 会反噬：工作表保护的布尔值为真时意味着「禁止」，于是为了锁住五列计算列而保护工作表，反而悄无声息地禁止了新增模型 —— 恰恰是管理员最需要做的事。那个看似启用下拉列表的属性，实际上是把它隐藏起来。这两点现在都由针对生成 XML 的断言钉死，因为对其中任何一个出于好意的「修正」，都会拿掉这份文件一半的易用性，而不会有任何一个测试变红。</p>"
       }
     }
   },
@@ -9652,7 +9725,8 @@
       "extensibility": "可扩展性",
       "psyche": "心理引擎",
       "habits": "习惯学习",
-      "governance": "治理一个实例"
+      "governance": "治理一个实例",
+      "tabular_admin": "按文件管理"
     }
   },
   "healthMetrics": {

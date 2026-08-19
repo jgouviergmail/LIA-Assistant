@@ -80,11 +80,14 @@ describe('ChangelogSection', () => {
   });
 
   it('sends the reader to the full history rather than claiming to be it', async () => {
+    // `/changelog`, NOT `/faq`: the public FAQ carries no changelog (the
+    // history lives in the signed-in dashboard FAQ), so the old destination
+    // answered the promise with a page that did not have it.
     await renderSection();
 
     expect(screen.getByRole('link', { name: /landing\.changelog\.all/ })).toHaveAttribute(
       'href',
-      '/en/faq'
+      '/en/changelog'
     );
   });
 

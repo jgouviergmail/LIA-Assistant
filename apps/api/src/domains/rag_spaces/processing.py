@@ -115,7 +115,7 @@ def extract_text_pptx(file_path: Path) -> str:
 
 def extract_text_xlsx(file_path: Path) -> str:
     """Extract text from XLSX spreadsheet cells, sheet by sheet."""
-    from openpyxl import load_workbook  # type: ignore[import-untyped]
+    from openpyxl import load_workbook
 
     wb = load_workbook(str(file_path), read_only=True, data_only=True)
     text_parts: list[str] = []

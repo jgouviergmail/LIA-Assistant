@@ -31,7 +31,7 @@ from prometheus_client import Counter
 
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_PRICING_CACHE, SUPPORTED_CURRENCIES
-from src.core.llm_utils import normalize_model_name
+from src.core.llm_utils import normalize_model_name, resolve_priced_name
 from src.domains.llm.pricing_time_slots import find_active_slot
 
 # Currency constants (LLM pricing is in USD, with optional conversion to EUR)
@@ -73,6 +73,8 @@ pricing_cache_fallback_total = Counter(
 
 if TYPE_CHECKING:
     import redis.asyncio as aioredis
+
+    from src.domains.llm.models import LLMModelPricing
 
 logger = structlog.get_logger(__name__)
 
@@ -163,6 +165,41 @@ class PricingCacheData:
 _local_cache: PricingCacheData | None = None
 
 
+def build_price_index(rows: Iterable[LLMModelPricing]) -> dict[str, CachedModelPrice]:
+    """Index active pricing rows by their model's exact name.
+
+    The caller must supply the rows ordered by ``(effective_from DESC, id DESC)``
+    with the ``model`` relationship loaded: **the first row seen for a model
+    wins**. That rule matters on databases predating the partial unique index,
+    where several rows could carry ``is_active`` for the same model and the
+    surviving one was whichever PostgreSQL happened to return last.
+
+    Indexing uses the exact catalogue name, never the normalised one — the
+    normalisation fallback belongs to the read side
+    (:func:`~src.core.llm_utils.resolve_priced_name`), so a model that owns an
+    explicit tariff keeps it.
+
+    Args:
+        rows: Active ``LLMModelPricing`` rows, ordered most recent first.
+
+    Returns:
+        Mapping of exact model name to its cached price.
+    """
+    index: dict[str, CachedModelPrice] = {}
+    for pricing in rows:
+        index.setdefault(
+            pricing.model.model_name,
+            CachedModelPrice(
+                input_unit_price=float(pricing.input_unit_price),
+                output_unit_price=float(pricing.output_unit_price),
+                cached_input_unit_price=float(pricing.cached_input_unit_price or 0),
+                pricing_unit=pricing.pricing_unit.value,
+                time_slots=pricing.time_slots or None,
+            ),
+        )
+    return index
+
+
 class PricingCacheService:
     """
     Service for managing LLM pricing cache in Redis.
@@ -210,18 +247,19 @@ class PricingCacheService:
                     select(LLMModelPricing)
                     .options(selectinload(LLMModelPricing.model))
                     .where(LLMModelPricing.is_active)
+                    # Deterministic order: the first row seen for a model is its
+                    # most recent active tariff. The partial unique index added by
+                    # migration 6e7f8a9b0c1d makes duplicates impossible, but the
+                    # ordering keeps this read honest against a database that
+                    # predates it (a rolling deploy reaches this code first).
+                    .order_by(
+                        LLMModelPricing.effective_from.desc(),
+                        LLMModelPricing.id.desc(),
+                    )
                 )
                 result = await session.scalars(stmt)
 
-                models: dict[str, CachedModelPrice] = {}
-                for pricing in result.all():
-                    models[pricing.model.model_name] = CachedModelPrice(
-                        input_unit_price=float(pricing.input_unit_price),
-                        output_unit_price=float(pricing.output_unit_price),
-                        cached_input_unit_price=float(pricing.cached_input_unit_price or 0),
-                        pricing_unit=pricing.pricing_unit.value,
-                        time_slots=pricing.time_slots or None,
-                    )
+                models = build_price_index(result.all())
 
                 # Load USD/EUR rate using existing service
                 # Fallback to settings.default_usd_eur_rate (from .env or constants.py)
@@ -386,14 +424,17 @@ def get_cached_cost_usd_eur(
         pricing_cache_fallback_total.labels(reason="cache_not_initialized").inc()
         return (0.0, 0.0)
 
-    model_normalized = normalize_model_name(model)
-    prices = _local_cache.models.get(model_normalized)
+    priced_name = resolve_priced_name(model, _local_cache.models.__contains__)
+    prices = _local_cache.models.get(priced_name) if priced_name else None
 
     if not prices:
+        # Name the fallback that was attempted: an operator investigating a
+        # zero-cost model needs to know which keys were looked up, not just
+        # that the lookup failed.
         logger.debug(
             "pricing_cache_model_not_found",
             model=model,
-            model_normalized=model_normalized,
+            normalized_candidate=normalize_model_name(model),
             available_models=len(_local_cache.models),
         )
         pricing_cache_fallback_total.labels(reason="model_not_found").inc()
@@ -464,14 +505,14 @@ def get_cached_cost_audio_usd_eur(
     if duration_seconds <= 0:
         return (0.0, 0.0)
 
-    model_normalized = normalize_model_name(model)
-    prices = _local_cache.models.get(model_normalized)
+    priced_name = resolve_priced_name(model, _local_cache.models.__contains__)
+    prices = _local_cache.models.get(priced_name) if priced_name else None
 
     if not prices:
         logger.debug(
             "pricing_cache_audio_model_not_found",
             model=model,
-            model_normalized=model_normalized,
+            normalized_candidate=normalize_model_name(model),
             available_models=len(_local_cache.models),
         )
         pricing_cache_fallback_total.labels(reason="model_not_found").inc()

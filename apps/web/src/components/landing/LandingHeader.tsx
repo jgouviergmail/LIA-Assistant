@@ -16,24 +16,37 @@ interface LandingHeaderProps {
   lng: string;
 }
 
-/** Anchor links to landing page sections, in nav order. */
-const SECTION_ANCHORS = [{ id: 'features', key: 'landing.nav.features' }] as const;
+/** One in-page anchor of the landing, as the nav renders it. */
+interface NavAnchor {
+  /** Target section id on the home document. */
+  readonly id: string;
+  /** i18n key of its label. */
+  readonly key: string;
+  /**
+   * Hide it in the DESKTOP row below `lg`.
+   *
+   * That row appears at 880px and is saturated there: with six page links plus
+   * the language, theme, login and CTA controls, a seventh entry ran the French
+   * row 96px past the viewport (measured — `smoke/landing-nav-row.spec.ts`
+   * guards it). An entry marked here is still offered by the mobile menu at
+   * every size, and by both footers.
+   */
+  readonly lgOnly?: boolean;
+}
 
 /**
- * Anchors listed AFTER the page links — today, the release band. It is a
- * section of the home page, not a page of its own, but it belongs at the END
- * of the row: a visitor reads the product first and its news last (owner
- * arbitration 2026-08-18, "une nouvelle section après Encore +").
+ * Anchor links to landing page sections, in nav order.
  *
- * It joins the DESKTOP row only from `lg` up. That row appears at 880px and
- * is already saturated there: with six page links plus the language, theme,
- * login and CTA controls, a seventh entry ran the French row 96px past the
- * viewport (measured — `smoke/landing-nav-row.spec.ts` now guards it).
- * Between 880 and 1024px the header therefore keeps exactly what it had; the
- * band stays reachable by scrolling the page it lives on, from the mobile
- * menu, and from both footers.
+ * The release band comes right after the presentation anchor (owner
+ * arbitration 2026-08-19, superseding the 2026-08-18 "après Encore +"): the
+ * product is introduced, then what just shipped, and only then the pages. It
+ * stays a section of the home document — the full history is a page of its own
+ * at `/changelog`, which the band and both footers link to.
  */
-const TRAILING_ANCHORS = [{ id: 'changelog', key: 'landing.nav.changelog' }] as const;
+const SECTION_ANCHORS: readonly NavAnchor[] = [
+  { id: 'features', key: 'landing.nav.features' },
+  { id: 'changelog', key: 'landing.nav.changelog', lgOnly: true },
+];
 
 /** Links to separate pages — order: Story, Philosophy, Technical, Blog, FAQ, More */
 const PAGE_LINKS = [
@@ -77,9 +90,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
       { rootMargin: '-20% 0px -70% 0px' }
     );
 
-    const sections = [...SECTION_ANCHORS, ...TRAILING_ANCHORS]
-      .map(({ id }) => document.getElementById(id))
-      .filter(Boolean);
+    const sections = SECTION_ANCHORS.map(({ id }) => document.getElementById(id)).filter(Boolean);
     sections.forEach(el => observer.observe(el!));
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -131,12 +142,13 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               the 6th page link (More), the widest locale row (fr) exceeded a
               880-900px viewport by 25px; the tighter padding buys ~36px. */}
           <div className="hidden mobile:flex items-center gap-0.5">
-            {SECTION_ANCHORS.map(({ id, key }) => (
+            {SECTION_ANCHORS.map(({ id, key, lgOnly }) => (
               <a
                 key={id}
                 href={buildAnchorHref(id)}
                 className={cn(
                   'px-2 py-2 text-sm font-medium rounded-md transition-colors',
+                  lgOnly && 'hidden lg:block',
                   activeSection === id
                     ? 'text-primary bg-primary/10'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -154,20 +166,6 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               >
                 {t(key)}
               </Link>
-            ))}
-            {TRAILING_ANCHORS.map(({ id, key }) => (
-              <a
-                key={id}
-                href={buildAnchorHref(id)}
-                className={cn(
-                  'hidden px-2 py-2 text-sm font-medium rounded-md transition-colors lg:block',
-                  activeSection === id
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                )}
-              >
-                {t(key)}
-              </a>
             ))}
           </div>
 
@@ -226,21 +224,6 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               >
                 {t(key)}
               </Link>
-            ))}
-            {TRAILING_ANCHORS.map(({ id, key }) => (
-              <a
-                key={id}
-                href={buildAnchorHref(id)}
-                onClick={handleNavClick}
-                className={cn(
-                  'block px-4 py-2.5 text-sm font-medium rounded-md transition-colors',
-                  activeSection === id
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                )}
-              >
-                {t(key)}
-              </a>
             ))}
             <div className="border-t border-border/50 mt-3 pt-3 flex items-center gap-2 px-4">
               <LanguageSelector currentLocale={lng as Language} />

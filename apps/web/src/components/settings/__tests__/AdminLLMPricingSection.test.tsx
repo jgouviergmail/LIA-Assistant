@@ -13,12 +13,24 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { answerConfirmDialog, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import {
+  answerConfirmDialog,
+  renderWithProviders,
+  screen,
+  userEvent,
+  waitFor,
+} from '@/__tests__/test-utils';
 import { makeLLMPricing } from '@/__tests__/factories';
 import type { LLMModelPricing } from '../AdminLLMPricingSection';
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('@/lib/api-client', () => ({ default: { get } }));
+// The mock keeps the module's PUBLIC surface, not just the default export:
+// stubbing a module down to one symbol makes every other import resolve to
+// `undefined`, and the failure surfaces far from here as "x is not a function".
+vi.mock('@/lib/api-client', () => ({
+  default: { get },
+  apiEndpointUrl: (endpoint: string) => `/api/v1${endpoint}`,
+}));
 const {
   createLLMPricing,
   updateLLMPricing,
@@ -190,5 +202,56 @@ describe('AdminLLMPricingSection — editing', () => {
       expect(updateLLMPricing).toHaveBeenCalledWith('claude-x', expect.anything())
     );
     await waitFor(() => expect(invalidateCatalogue).toHaveBeenCalledWith(CATALOGUE_KEY));
+  });
+});
+
+describe('AdminLLMPricingSection — section toolbar (ADR-208)', () => {
+  it('offers the primary action labelled at every size', async () => {
+    await renderLoaded();
+
+    expect(screen.getByRole('button', { name: `${I18N}.add_model` })).toBeInTheDocument();
+  });
+
+  it('offers the workbook export', async () => {
+    await renderLoaded();
+
+    expect(screen.getByRole('button', { name: `${I18N}.sheet.export` })).toBeInTheDocument();
+  });
+
+  it('downloads the workbook when export is chosen', async () => {
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    await renderLoaded();
+
+    await userEvent.click(screen.getByRole('button', { name: `${I18N}.sheet.export` }));
+
+    expect(open).toHaveBeenCalledWith(
+      expect.stringContaining('/admin/llm/pricing/sheet/export.xlsx'),
+      expect.anything()
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps the cache reload reachable', async () => {
+    await renderLoaded();
+
+    // Folded into the "⋯" menu on phones, inline from `sm` — present either way.
+    const reload = screen.queryByRole('button', { name: RELOAD });
+    const menu = screen.queryByRole('button', { name: `${I18N}.more_actions` });
+    expect(reload ?? menu).toBeTruthy();
+  });
+
+  it('opens the import dialog', async () => {
+    await renderLoaded();
+
+    await userEvent.click(screen.getByRole('button', { name: `${I18N}.sheet.import` }));
+
+    expect(await screen.findByRole('dialog', { name: `${I18N}.sheet.import_title` })).toBeInTheDocument();
+  });
+
+  it('states how many models it is showing', async () => {
+    await renderLoaded();
+
+    expect(screen.getByText(/results_count/)).toBeInTheDocument();
   });
 });

@@ -5,6 +5,7 @@ Centralized utilities to avoid code duplication across domains.
 """
 
 import re
+from collections.abc import Callable
 
 
 def normalize_model_name(model_name: str) -> str:
@@ -51,3 +52,42 @@ def normalize_model_name(model_name: str) -> str:
         model_name = re.sub(r"-\d{4}$", "", model_name)
 
     return model_name
+
+
+def resolve_priced_name(model_name: str, is_priced: Callable[[str], bool]) -> str | None:
+    """Pick the name under which a model's tariff must be read.
+
+    Tariffs are stored under the catalogue's exact ``model_name``, while
+    versioned models are meant to inherit their base model's price. Reading
+    only the normalised name defeats the first rule: a dated model that owns an
+    explicit tariff was billed under its base model instead (measured in
+    production on ``gpt-4o-2024-05-13``, which owns 5.00/15.00 but was billed
+    ``gpt-4o``'s 2.50/10.00).
+
+    The exact name therefore wins, and normalisation is the fallback — the
+    documented inheritance still applies to versions with no tariff of their own.
+
+    This helper is the single implementation of that rule: the pricing cache and
+    :class:`~src.domains.llm.pricing_service.AsyncPricingService` both call it so
+    they cannot diverge again.
+
+    Args:
+        model_name: Raw model name as reported by the provider or the caller.
+        is_priced: Predicate answering whether a name has a tariff available.
+
+    Returns:
+        The exact name when it is priced, else the normalised name when that one
+        is priced, else ``None`` when neither is.
+
+    Examples:
+        >>> resolve_priced_name("gpt-4o-2024-05-13", {"gpt-4o", "gpt-4o-2024-05-13"}.__contains__)
+        'gpt-4o-2024-05-13'
+        >>> resolve_priced_name("gpt-4o-2024-05-13", {"gpt-4o"}.__contains__)
+        'gpt-4o'
+    """
+    if is_priced(model_name):
+        return model_name
+    normalized = normalize_model_name(model_name)
+    if normalized != model_name and is_priced(normalized):
+        return normalized
+    return None

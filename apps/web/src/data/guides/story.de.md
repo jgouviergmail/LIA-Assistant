@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 1.6
-**Datum**: 2026-08-18
-**Anwendung**: LIA v1.30.10
+**Version**: 1.7
+**Datum**: 2026-08-19
+**Anwendung**: LIA v1.30.11
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,7 +20,7 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 40 Fachdomänen | **520.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.900+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **223** |
+| Dokumentierte Architekturentscheidungen (ADR) | **229** |
 | In regelmäßigem Rhythmus gelieferte Versionen | **210** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 223 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 229 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -106,6 +106,8 @@ Zyklus 1.30.5 begann mit einer dreizeiligen Nutzernachricht: „Ich habe gebeten
 Zyklus 1.30.6 richtete dieselbe Disziplin nach außen — auf den Standard, den das gesamte Ökosystem spricht. Das Model Context Protocol hatte gerade eine Revision veröffentlicht, die das Protokoll zustandslos macht — und deren eigene Kompatibilitätsmatrix ältere Clients gegenüber Servern der neuen Generation verurteilt. Die Arbeit wurde als Konformitätsuntersuchung geführt, bevor sie eine Migration war: die Spezifikation Anforderung für Anforderung gelesen, jede Lücke per Simulation nachgewiesen, bevor eine einzige Zeile geändert wurde, das neue SDK gegen echte Server beider Generationen erprobt. LIA spricht nun beide — die neue zustandslose Revision und den alten Handshake —, sodass jeder bereits konfigurierte Server unverändert weiterarbeitet, während die der neuen Generation erreichbar werden; der OAuth-Fluss erhielt die Sicherheitspflichten der Revision, jede mit einer expliziten Toleranzregel für bestehende Registrierungen. Und das Ablehnen eines Zustimmungsbildschirms ist keine Fehlerseite mehr: Es ist eine Antwort, anerkannt in sechs Sprachen.
 
 Zyklus 1.30.7 vollendete die Bewegung: Nachdem LIA das Protokoll des Ökosystems sprach, nun auch sein Paketformat. Der offene Standard Agent Plugins — gesteuert von AWS, Microsoft, OpenAI, Cursor und Vercel — hatte dem gesamten Ökosystem gerade einen portablen Weg gegeben, Skills und MCP-Server gemeinsam auszuliefern, und die Arbeit folgte der inzwischen vertrauten Disziplin: der normative Text Abschnitt für Abschnitt gelesen, jede Integrationshypothese per Simulation gegen den Code bewiesen, bevor eine Zeile geschrieben wurde, dann ein Client, fast vollständig aus Schichten gebaut, denen LIA bereits vertraute — der gehärtete Skill-Importer, das Benutzer-MCP-Register, das Quotensystem. Die Review fand und beseitigte zwei echte Bugs, bevor sie je liefen, und der gesamte Lebenszyklus wurde zweimal zur Laufzeit gegen die echte Datenbank bewiesen. Was ausgeliefert wurde, ist still radikal: Ein für ChatGPT oder VS Code paketiertes Plugin installiert sich unverändert in LIA, berichtet genau, was es mitbrachte — und was es nicht mitbringen konnte, mit Grund — und geht ohne Spur.
+
+Zyklus 1.30.11 brachte die unerwartetste Lektion: Einen Export zu entwerfen kann offenlegen, dass das System seine eigene Frage nicht beantworten kann. Hundertvierundzwanzig KI-Modelle mit je einem Dialog zu verwalten war nicht mehr haltbar, und die Idee war einfach — die Preistabelle in eine Arbeitsmappe exportieren, offline korrigieren, zurückspielen. Um das zu schreiben, musste allerdings die Frage „Wie lautet der Tarif dieses Modells?“ beantwortet werden. Es gab keine Antwort: Nichts erzwang genau einen aktiven Tarif, und zwei Lesepfade konnten im selben Augenblick, auf derselben Datenbank, unterschiedliche Preise für dasselbe Modell liefern. Zwei Abrechnungsfehler liefen seit Monaten in Produktion, ohne dass jemand sie hätte sehen können. Das Aufräumen brachte eine Regel hervor, die über diese Domäne hinausreicht: Eine Migration erfindet niemals Fachdaten. Die intuitive Regel — die jüngste Zeile behalten — erwies sich in allen vier realen Fällen als falsch; deshalb führt die Migration nur streng Identisches zusammen und hält an, indem sie den Rest benennt und die Entscheidung dem Menschen überlässt. Die ausgelieferte Datei hält denselben Maßstab: Nichts wird implizit gelöscht, die genehmigte Vorschau ist die geschriebene, und was sich nicht geändert hat, wird nicht neu geschrieben.
 
 
 ## 7. Überzeugungen

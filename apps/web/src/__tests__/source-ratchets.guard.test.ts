@@ -83,6 +83,9 @@ const ALLOWED: Record<string, string> = {
   'hooks/useSkills.ts':
     'FormData upload (the client forces application/json) and a zip blob download',
   'hooks/usePlugins.ts': 'FormData plugin-package upload (the client forces application/json)',
+  'hooks/useLLMPricingSheet.ts':
+    'FormData workbook upload (the client forces application/json, and a multipart body needs ' +
+    'the browser to set its own boundary)',
   'hooks/useAPIHealth.ts':
     'availability probe: a 401 here means "API unreachable", it must not eject the user to /login',
   'lib/product-telemetry.ts':

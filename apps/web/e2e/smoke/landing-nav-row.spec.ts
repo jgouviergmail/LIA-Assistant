@@ -53,24 +53,29 @@ test.describe('landing header — the row fits where it first appears (880px)', 
 test.describe('landing header — the release band, from lg up', () => {
   test.use({ viewport: { width: 1024, height: 900 }, locale: 'fr-FR' });
 
-  test('is listed last and scrolls to the band', async ({ page }) => {
+  test('follows the presentation anchor and scrolls to the band', async ({ page }) => {
     await page.goto('/fr');
     await awaitStyledPage(page, 'nav row fr at lg');
     await expectNoOverflow(page, 'header row at 1024px');
 
     const header = page.getByRole('banner').or(page.locator('header')).first();
     const labels = await header.getByRole('link').allInnerTexts();
-    // Listed immediately after "Encore +": a visitor reads the product first,
-    // its news last (owner arbitration). Asserted as a RELATION rather than a
-    // last position — the right-hand actions are links too.
-    expect(labels.indexOf('Nouveautés')).toBe(labels.indexOf('Encore +') + 1);
+    // Listed immediately after "Présentation" (owner arbitration 2026-08-19,
+    // superseding "après Encore +"): the product is introduced, then what just
+    // shipped. Asserted as a RELATION rather than a fixed position — the logo
+    // and the right-hand account actions are links too.
+    expect(labels.indexOf('Nouveautés')).toBe(labels.indexOf('Présentation') + 1);
 
     await header.getByRole('link', { name: 'Nouveautés' }).click();
     const band = page.locator('#changelog');
     await expect(band).toBeVisible();
-    // The band quotes releases, and hands the full history back to the FAQ.
-    // Scoped: the shuffled blog grid can surface a post whose title also
-    // contains the word, and the pick changes between runs.
-    await expect(band.getByRole('link', { name: /historique/i })).toBeVisible();
+    // The band quotes releases, and hands the full history to `/changelog`
+    // (the public FAQ never carried one). Scoped: the shuffled blog grid can
+    // surface a post whose title also contains the word, and the pick changes
+    // between runs.
+    await expect(band.getByRole('link', { name: /historique/i })).toHaveAttribute(
+      'href',
+      '/changelog'
+    );
   });
 });

@@ -198,17 +198,29 @@ class AsyncPricingService:
 
         from src.domains.llm.models import LLMModel
 
-        # Normalize model name to remove date suffix (e.g., gpt-4.1-mini-2025-04-14 -> gpt-4.1-mini)
+        # A model is billed under its EXACT catalogue name when that name owns a
+        # tariff, and only otherwise under its normalised name (a dated version
+        # inheriting its base model's price). Reading the normalised name alone
+        # shadowed explicit per-version tariffs: measured in production,
+        # gpt-4o-2024-05-13 owns 5.00/15.00 but was billed gpt-4o's 2.50/10.00.
+        # Both candidates are fetched in one query and ordered exact-name-first;
+        # the secondary ordering keeps the read deterministic on a database
+        # predating the partial unique index (migration 6e7f8a9b0c1d).
         normalized_model = normalize_model_name(model_name)
 
         stmt = (
             select(LLMModelPricing)
             .join(LLMModelPricing.model)
             .where(
-                LLMModel.model_name == normalized_model,
+                LLMModel.model_name.in_({model_name, normalized_model}),
                 LLMModelPricing.is_active,
             )
             .options(selectinload(LLMModelPricing.model))
+            .order_by(
+                (LLMModel.model_name == model_name).desc(),
+                LLMModelPricing.effective_from.desc(),
+                LLMModelPricing.id.desc(),
+            )
         )
 
         result = await self.db.scalars(stmt)
@@ -304,10 +316,20 @@ class AsyncPricingService:
             )
             return cached
 
-        stmt = select(CurrencyExchangeRate).where(
-            CurrencyExchangeRate.from_currency == from_currency,
-            CurrencyExchangeRate.to_currency == to_currency,
-            CurrencyExchangeRate.is_active,
+        # Deterministic order: most recent first. The partial unique index added
+        # by migration 6e7f8a9b0c1d makes duplicate active rates impossible, but
+        # a rolling deploy reaches this code before the migration runs.
+        stmt = (
+            select(CurrencyExchangeRate)
+            .where(
+                CurrencyExchangeRate.from_currency == from_currency,
+                CurrencyExchangeRate.to_currency == to_currency,
+                CurrencyExchangeRate.is_active,
+            )
+            .order_by(
+                CurrencyExchangeRate.effective_from.desc(),
+                CurrencyExchangeRate.id.desc(),
+            )
         )
 
         result = await self.db.scalars(stmt)

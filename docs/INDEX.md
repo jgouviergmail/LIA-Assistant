@@ -132,6 +132,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 | ✅ |
 | [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider, cost tracking, attachment storage | ✅ |
 | [DOCUMENT_GENERATION.md](./technical/DOCUMENT_GENERATION.md) | AI Document Generation (ADR-226) — dedicated LLM slot, pure renderers (csv/xlsx/docx/pptx/pdf/md/txt), TTL attachment cards | ✅ |
+| [TABULAR_ADMIN_IO.md](./technical/TABULAR_ADMIN_IO.md) | Import/export tabulaire des administrations (ADR-228) — socle déclaratif, classeur Excel, aperçu obligatoire, verrou optimiste par ligne | ✅ |
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
 | [HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health Metrics — iPhone Shortcuts ingestion, per-user tokens, charts, aggregation; assistant integrations (agents + Heartbeat + journal + memory) + `HEALTH_KINDS` registry (v1.17.2) | ✅ |
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |

@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.30.10</strong> — <strong>Your capabilities, up to date — and on every settings card</strong> ([ADR-229](docs/architecture/ADR-229-Carte-Capacites-Source-Unique.md)). The capability map — the page that answers <em>what can my assistant do for me?</em> — had quietly published <strong>thirteen frozen nodes</strong> while the product shipped image generation, documents, plugins, learned habits, user MCP servers and telephony: the one screen whose entire job is to be current had become the least current in the application, and it read raw environment flags, so it could announce as available what an administrator had switched off an hour earlier. It now maps <strong>nineteen capabilities</strong>, composes the deployment ceiling with the operator's switch, and — because a written convention had already failed exactly here — an <strong>assert at import refuses to boot</strong> when a capability ships without deciding its place on the map; a companion guard reads the three client surfaces the assert cannot see. The same aggregate now feeds the settings hub: every section card states what it currently holds (<em>“Memory — active, 128 items”</em>, <em>“Connectors — to set up”</em>) in one request for the whole page, and says nothing at all rather than guessing while the answer is in flight, when it failed, or for a section it knows nothing about. Also in this release: the two MCP sections move to <strong>Features › Extensions &amp; Data</strong> where they belong (addresses unchanged), the release notes reach the <strong>public site</strong> so a visitor sees the product moving before signing up, the accordion mode of the settings sections is gone for good (−444 lines), and the FAQ stops describing a settings page that no longer exists — with a new <strong>Plugins</strong> section it had never had. — 18 August 2026.
+  <strong>Version 1.30.11</strong> — <strong>The pricing grid is a workbook now, not 124 dialogs</strong> ([ADR-228](docs/architecture/ADR-228-Import-Export-Tabulaire-Administration.md)). The model catalogue holds <strong>124 models</strong>, each carrying 24 characteristics and a four-dimensional tariff, and it was administered one dialog at a time: updating a full price grid — what a provider imposes two or three times a year — meant 124 round trips. It now exports as an Excel workbook with dropdowns, a translated usage notice and cell validations; the re-import shows <strong>the diff field by field before writing anything</strong>, and a row missing from the file never deletes anything — a forgotten Excel filter cannot empty a catalogue. Preparing it uncovered <strong>two billing errors running in production</strong>: &laquo;&nbsp;the&nbsp;&raquo; active tariff of a model was not actually defined — four read paths selected without a deterministic order, and two of them could return different prices <em>at the same instant, on the same database</em> (measured at a factor 4 on one model, and at a change of billing <em>unit</em> on another) — while a dated model was billed at its base model's rate even when it owned its own: <code>gpt-4o-2024-05-13</code> cost 2.50 instead of 5.00 on input. Both are repaired, and a database constraint stops the first from returning. The workbook also states what <em>is</em> rather than what one assumes: a model with no active tariff is billed zero in silence, and the file says so in words; a windowed tariff — DeepSeek's off-peak hours — appears <strong>on the row that carries the price</strong>, not on a sheet nobody has a reason to open. Underneath it all sits a generic foundation: declining the mechanism to another administration screen means writing a column declaration, not format code. — 19 August 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **40** functional domains | **520,000** lines of code (excl. tests) | **24,400+** automated tests | **227** ADRs                                                           |
-| **214** versions shipped  | **6 languages**, parity enforced in CI  | **473** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **41** functional domains | **540,000** lines of code (excl. tests) | **24,900+** automated tests | **229** ADRs                                                           |
+| **215** versions shipped  | **6 languages**, parity enforced in CI  | **473** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -905,7 +905,7 @@ apps/api/src/
 
 | Technology | Role                 |
 | ---------- | -------------------- |
-| Prometheus | 464 metrics          |
+| Prometheus | 473 metrics          |
 | Grafana    | 26 dashboards        |
 | Loki       | Aggregated logs      |
 | Tempo      | Distributed tracing  |

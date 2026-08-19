@@ -1,6 +1,7 @@
 /**
  * Scenes of section 06 — "Unseen but felt": background response continuity,
- * widgets that travel across devices, per-response cost transparency, and
+ * widgets that travel across devices, per-response cost transparency, the
+ * pricing grid reviewed field by field before it is written, and
  * the accessibility care (focus ring travelling on Tab), and the reflow that
  * keeps a narrow screen readable. Timer-driven micro-demos; last phase =
  * resting frame.
@@ -8,7 +9,18 @@
 
 'use client';
 
-import { Blocks, Check, Coins, EyeOff, Info, Map as MapIcon, Mic, Server, Vibrate } from 'lucide-react';
+import {
+  Blocks,
+  Check,
+  Coins,
+  EyeOff,
+  FileSpreadsheet,
+  Info,
+  Map as MapIcon,
+  Mic,
+  Server,
+  Vibrate,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -628,6 +640,54 @@ function PluginReportScene({ active, labels }: SceneProps) {
   );
 }
 
+type WorkbookPhase = 'rows' | 'diff' | 'confirm';
+const WORKBOOK_STEPS: readonly TimelineStep<WorkbookPhase>[] = [
+  { at: 0, state: 'rows' },
+  { at: 1200, state: 'diff' },
+  { at: 2200, state: 'confirm' },
+];
+
+/** Rows whose price cell moves — the diff the preview shows before writing. */
+const WORKBOOK_MOVED: readonly number[] = [1, 2];
+
+function PricingWorkbookScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(WORKBOOK_STEPS, { active });
+  const diff = phase === 'diff' || phase === 'confirm';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <span className="flex items-center gap-1.5 self-start">
+        <FileSpreadsheet className="h-3 w-3 text-primary" />
+        <SkeletonLine w="w-10" className="h-1.5" />
+      </span>
+      <div className="space-y-1 rounded-md border border-border bg-background p-1.5">
+        {[0, 1, 2, 3].map(row => (
+          <div key={row} className="flex items-center gap-1.5">
+            <SkeletonLine w="w-1/3" className="h-1.5" />
+            <SkeletonLine
+              w="w-1/4"
+              className={cn(
+                'h-1.5 transition-colors duration-300 motion-reduce:transition-none',
+                diff && WORKBOOK_MOVED.includes(row) && 'bg-primary/60'
+              )}
+            />
+            <SkeletonLine w="w-1/5" className="h-1.5" />
+          </div>
+        ))}
+      </div>
+      <MiniToast
+        icon={Check}
+        tone="success"
+        className={cn(
+          'self-start transition-all duration-300 motion-reduce:transition-none',
+          phase === 'confirm' ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.preview}
+      </MiniToast>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   readable_at_a_glance: ReadableAtAGlanceScene,
   capability_map: CapabilityMapScene,
@@ -636,6 +696,7 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,
   cost_transparency: CostTransparencyScene,
+  pricing_workbook: PricingWorkbookScene,
   haptics: HapticsScene,
   a11y_care: A11yCareScene,
   frosted_glass: FrostedGlassScene,

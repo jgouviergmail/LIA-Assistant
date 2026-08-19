@@ -17,7 +17,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -250,8 +250,11 @@ class LLMModelService:
             await self.db.flush()
 
         # 2. Pricing → deactivate old active row, insert new active row.
+        # Clearing the cached price is a pricing change in its own right: the
+        # payload carries no value, so it would otherwise leave price_changes
+        # empty and the intent would evaporate.
         new_pricing: LLMModelPricing | None = None
-        if price_changes:
+        if price_changes or data.clear_cached_input_price:
             current = await self._get_active_pricing(model.id)
             if current is None:
                 raise LookupError(f"Model {model.model_name!r} has no active pricing row to update")
@@ -278,13 +281,15 @@ class LLMModelService:
             current.is_active = False
             await self.db.flush()
 
+            cached_price = (
+                None
+                if data.clear_cached_input_price
+                else price_changes.get("cached_input_unit_price", current.cached_input_unit_price)
+            )
             new_pricing = LLMModelPricing(
                 model_id=model.id,
                 input_unit_price=price_changes.get("input_unit_price", current.input_unit_price),
-                cached_input_unit_price=price_changes.get(
-                    "cached_input_unit_price",
-                    current.cached_input_unit_price,
-                ),
+                cached_input_unit_price=cached_price,
                 output_unit_price=price_changes.get("output_unit_price", current.output_unit_price),
                 pricing_unit=PricingUnitEnum(new_pricing_unit_value),
                 time_slots=new_time_slots,
@@ -298,12 +303,16 @@ class LLMModelService:
             self.db.add(new_pricing)
             await self.db.flush()
 
+        # Report the outcome, not the input: clearing the cached price carries
+        # no value in the payload, so `price_changes` stays empty while a new
+        # tariff version really was written. A log that says otherwise sends an
+        # operator looking in the wrong place.
         logger.info(
             "llm_model_updated",
             model_name=model.model_name,
             renamed=new_name is not None,
             capabilities_changed=bool(cap_changes),
-            pricing_changed=bool(price_changes),
+            pricing_changed=new_pricing is not None,
         )
         return model, new_pricing
 
@@ -327,6 +336,72 @@ class LLMModelService:
         await self.db.flush()
 
         logger.info("llm_model_deactivated", model_name=model_name)
+
+    async def reactivate(self, model_name: str) -> tuple[LLMModel, LLMModelPricing | None]:
+        """Bring a soft-deleted model back, with the tariff it had when retired.
+
+        ``deactivate`` had no inverse: once a model was switched off, nothing in
+        the application could switch it back on. The repository docstring
+        anticipated the need ("the admin UI may legitimately want to surface a
+        deactivated model to re-enable it") — this is it.
+
+        The most recent pricing row is restored, whatever its state, so the
+        model resumes at the tariff it was retired on. A model that never had
+        one comes back priced at nothing, and the caller is told so by the
+        ``None`` rather than left to assume.
+
+        Args:
+            model_name: Model to bring back.
+
+        Returns:
+            The model and the pricing row now active, or ``None`` when the
+            model has no tariff at all.
+
+        Raises:
+            LookupError: if no model carries that name.
+        """
+        model = await self.repo.get_by_name(model_name)
+        if model is None:
+            raise LookupError(f"Model {model_name!r} not found")
+
+        model.is_active = True
+
+        # Retire anything still flagged active before restoring the latest row:
+        # the partial unique index (migration 6e7f8a9b0c1d) tolerates exactly
+        # one, and the UPDATE must reach the database before the restore.
+        await self.db.execute(
+            update(LLMModelPricing)
+            .where(
+                LLMModelPricing.model_id == model.id,
+                LLMModelPricing.is_active,
+            )
+            .values(is_active=False)
+        )
+        await self.db.flush()
+
+        latest = (
+            await self.db.scalars(
+                select(LLMModelPricing)
+                .where(LLMModelPricing.model_id == model.id)
+                .order_by(
+                    LLMModelPricing.effective_from.desc(),
+                    LLMModelPricing.id.desc(),
+                )
+                .limit(1)
+            )
+        ).first()
+
+        if latest is not None:
+            latest.is_active = True
+            latest.model = model
+        await self.db.flush()
+
+        logger.info(
+            "llm_model_reactivated",
+            model_name=model_name,
+            tariff_restored=latest is not None,
+        )
+        return model, latest
 
     async def get_active_pricing_for(self, model_id: uuid.UUID) -> LLMModelPricing | None:
         """Public helper: return the active pricing row for a model, or ``None``."""
@@ -547,12 +622,19 @@ class LLMModelService:
                 )
 
     async def _get_active_pricing(self, model_id: uuid.UUID) -> LLMModelPricing | None:
+        # Deterministic order: the most recent active row is the one an update
+        # supersedes. Without it, an update on a database holding legacy
+        # duplicates deactivated an arbitrary row and left the others active.
         stmt = (
             select(LLMModelPricing)
             .options(selectinload(LLMModelPricing.model))
             .where(
                 LLMModelPricing.model_id == model_id,
                 LLMModelPricing.is_active,
+            )
+            .order_by(
+                LLMModelPricing.effective_from.desc(),
+                LLMModelPricing.id.desc(),
             )
         )
         return (await self.db.execute(stmt)).scalars().first()

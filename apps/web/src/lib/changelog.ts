@@ -16,6 +16,7 @@
 
 /** Versions rendered by any changelog surface, newest first. */
 export const CHANGELOG_VERSION_KEYS = [
+  'v1_30_11',
   'v1_30_10',
   'v1_30_9',
   'v1_30_8',
@@ -233,4 +234,73 @@ export function changelogItemKeys(version: string, count: number): string[] {
     { length: count },
     (_, index) => `faq.changelog.versions.${version}.items.i${index + 1}`
   );
+}
+
+/**
+ * One minor series of releases — `v1.30` and every patch it shipped.
+ *
+ * 166 releases in one flat column is a wall, not a history: the series is the
+ * unit a reader actually navigates by ("what changed in 1.27?"), so the public
+ * page renders one landmark per series and an anchor rail over them.
+ */
+export interface ChangelogSeries {
+  /** Display label, e.g. `v1.30`. */
+  label: string;
+  /** DOM id and anchor fragment, e.g. `release-1-30`. */
+  id: string;
+  /** Its versions, in the shared list's own order (newest first). */
+  versions: string[];
+}
+
+/**
+ * Group release keys by minor series, preserving the list's order.
+ *
+ * The shared list is the ONLY authority on order; this function never sorts,
+ * it only folds runs of the same series together. The oldest releases are
+ * keyed on two segments (`v1_15`) and their patches on three (`v1_15_1`) —
+ * both belong to `v1.15`, so the series is read from the first two segments
+ * whatever the key's length.
+ *
+ * @param versions - Release keys, newest first.
+ * @returns One entry per series, in first-encounter order.
+ */
+export function groupChangelogBySeries(versions: readonly string[]): ChangelogSeries[] {
+  const groups: ChangelogSeries[] = [];
+
+  for (const version of versions) {
+    const label = `v${version.replace(/^v/, '').split('_').slice(0, 2).join('.')}`;
+    const current = groups[groups.length - 1];
+
+    if (current?.label === label) {
+      current.versions.push(version);
+    } else {
+      groups.push({
+        label,
+        id: `release-${label.slice(1).replace(/\./g, '-')}`,
+        versions: [version],
+      });
+    }
+  }
+
+  return groups;
+}
+
+/**
+ * How many bullets a release declares.
+ *
+ * The count lives in its own i18n string beside the items, so a malformed or
+ * missing one must render NO bullet rather than a list of empty ones. Shared
+ * by every surface: nothing is honest, an empty bullet is not.
+ *
+ * @param raw - The release's declared count, as the locale carries it.
+ * @returns A usable item count, or 0.
+ */
+export function changelogItemCount(raw: string): number {
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+/** i18n key of one release's declared item count. */
+export function changelogCountKey(version: string): string {
+  return `faq.changelog.versions.${version}.count`;
 }
