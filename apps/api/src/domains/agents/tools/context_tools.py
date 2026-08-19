@@ -46,7 +46,7 @@ Scope note (do NOT "fix" the apparent contradiction with the planner prompt):
     Both statements are correct in their own execution context.
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
@@ -57,6 +57,7 @@ from src.core.i18n import _
 from src.domains.agents.context.manager import ToolContextManager
 from src.domains.agents.context.registry import ContextTypeRegistry
 from src.domains.agents.context.resolver import ReferenceResolver
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     handle_tool_exception,
@@ -99,7 +100,7 @@ AGENT_CONTEXT = "context_agent"
 )
 async def resolve_reference(
     reference: str,
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     domain: str | None = None,
 ) -> UnifiedToolOutput:
     """
@@ -395,7 +396,7 @@ async def resolve_reference(
     scope="user",
 )
 async def list_active_domains(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
     List all active domains available for the user.
@@ -468,7 +469,7 @@ async def list_active_domains(
 async def set_current_item(
     reference: str,
     domain: str,
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
     Mark an item as "current" for a specific domain.
@@ -566,7 +567,7 @@ async def set_current_item(
 )
 async def get_context_state(
     domain: str,
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
     Retrieve the current contextual state for a domain.
@@ -646,7 +647,7 @@ async def get_context_state(
 )
 async def get_context_list(
     domain: str,
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
     Retrieve the full list of items for a domain from the context.

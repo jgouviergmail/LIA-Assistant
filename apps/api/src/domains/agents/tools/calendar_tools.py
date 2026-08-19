@@ -58,6 +58,7 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.manager import ToolContextManager
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
@@ -88,7 +89,7 @@ logger = structlog.get_logger(__name__)
 
 
 async def _resolve_calendar_query_param(
-    runtime: ToolRuntime | None, query: str | None
+    runtime: ToolRuntime[LiaRuntimeContext, Any] | None, query: str | None
 ) -> str | None:
     """Resolve the calendar ``query`` param to a reliable filter, or drop it.
 
@@ -472,7 +473,7 @@ async def search_events_tool(
         list[str] | None,
         "List of event fields to return for optimization (optional). Example: ['summary', 'start', 'end', 'location']. If omitted, returns default search fields.",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Search calendar events in Google Calendar.
@@ -848,7 +849,7 @@ async def get_event_details_tool(
         list[str] | None,
         "List of event fields to return for optimization (optional). If omitted, returns all detail fields.",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get detailed information for one or more calendar events.
@@ -1088,7 +1089,7 @@ async def create_event_tool(
     description: Annotated[str | None, "Event description (optional)"] = None,
     location: Annotated[str | None, "Event location (optional)"] = None,
     attendees: Annotated[list[str] | None, "List of attendee emails (optional)"] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Create a calendar event in Google Calendar (with user confirmation).
@@ -1386,7 +1387,7 @@ async def update_event_tool(
     description: Annotated[str | None, "New event description (optional)"] = None,
     location: Annotated[str | None, "New event location (optional)"] = None,
     attendees: Annotated[list[str] | None, "New list of attendee emails (optional)"] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Update an existing calendar event in Google Calendar (with user confirmation).
@@ -1564,7 +1565,7 @@ async def delete_event_tool(
         str | None,
         "Calendar where the event is located. If None or 'primary', uses user's default calendar preference.",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Delete a calendar event from Google Calendar (with user confirmation).
@@ -2070,7 +2071,7 @@ async def list_calendars_tool(
         int,
         "Maximum number of calendars to return (default: 100, max: 250)",
     ] = 100,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     List all calendars available to the user.
@@ -2124,7 +2125,7 @@ async def list_calendars_tool(
     category="read",
 )
 async def get_events_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     query: str | None = None,
     event_id: str | None = None,
     event_ids: list[str] | None = None,

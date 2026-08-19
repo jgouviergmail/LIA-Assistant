@@ -31,6 +31,7 @@ from src.core.constants import (
     COMPACTION_UI_ESTIMATE_SECONDS_PER_CHUNK,
     COMPACTION_UI_ESTIMATE_TOKENS_PER_CHUNK,
 )
+from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.models import MessagesState
 from src.domains.agents.services.compaction_service import CompactionService
 from src.infrastructure.observability.logging import get_logger
@@ -139,7 +140,16 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
 
     Returns:
         Dict with updated state fields, or empty dict for pass-through.
+
+    Raises:
+        RuntimeError: When the run carries no typed runtime context. This node is
+            the graph's entry point, so the check lands here rather than deep in a
+            tool: with ``context_schema`` declared but no context supplied, a run —
+            including a resume after a HITL interrupt — otherwise succeeds
+            SILENTLY and every node reads ``None`` (measured; ADR-231, ADR-085).
     """
+    runtime_context_if_running()
+
     if not settings.compaction_enabled:
         return {}
 

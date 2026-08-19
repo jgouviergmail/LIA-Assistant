@@ -100,6 +100,7 @@ from src.core.field_names import (
     FIELD_USER_ID,
 )
 from src.domains.agents.constants import TOOL_LOCAL_QUERY_ENGINE
+from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.data_registry.models import RegistryItemType, generate_registry_id
 from src.domains.agents.orchestration.condition_evaluator import (
     ConditionEvaluator,
@@ -1952,26 +1953,28 @@ def _build_tool_runtime(
 
     # Inject ToolRuntime if needed
     if runtime_arg_name:
-        # DEBUG: Log config.configurable keys to diagnose __user_message propagation
-        configurable = config.get("configurable", {}) if config else {}
-        logger.debug(
-            "injecting_tool_runtime",
-            tool=tool.name,
-            runtime_arg=runtime_arg_name,
-            configurable_keys=list(configurable.keys()),
-            has_user_message="__user_message" in configurable,
-        )
+        # A temporary diagnostic that logged every `configurable` key to trace
+        # __user_message propagation was removed here: the key it watched is now a
+        # typed field of the runtime context, so the probe had nothing left to
+        # observe (ADR-231).
 
-        # Construct ToolRuntime (minimal, no state/context)
-        # LangGraph v1.0: Store is NOT accessible via config in standalone functions
-        # Store is passed explicitly from execute_plan_parallel() via get_tool_context_store()
+        # Construct ToolRuntime. The executor runs INSIDE a graph node (behind an
+        # asyncio.gather fan-out) but OUTSIDE LangGraph's ToolNode machinery — so
+        # graph state is unavailable, the store must be passed explicitly (from
+        # execute_plan_parallel() via get_tool_context_store()), and there is no
+        # LangGraph-issued tool_call_id.
         runtime = ToolRuntime(
-            state=None,  # Not available in worker context
+            state=None,  # graph state does not reach a hand-built runtime
             config=config,
-            context=None,  # Not available in worker context
-            store=store,  # Passed explicitly from execute_plan_parallel()
-            stream_writer=NullStreamWriter(),  # Session 22: Use module-level NullStreamWriter
-            tool_call_id=None,  # No tool call ID outside graph
+            # The run-scoped context crosses the gather boundary via its
+            # ContextVar, so no private key has to be smuggled through
+            # ``configurable`` (ADR-231). Tolerant of "no run at all" (a direct
+            # call from a test or a script) while still refusing a run whose
+            # context is missing — only the second is the measured trap.
+            context=runtime_context_if_running(),
+            store=store,
+            stream_writer=NullStreamWriter(),  # Session 22: module-level NullStreamWriter
+            tool_call_id=None,
         )
 
         # Inject into args

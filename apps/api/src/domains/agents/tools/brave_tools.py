@@ -35,6 +35,7 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_BRAVE,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -284,7 +285,7 @@ async def brave_search_tool(
         str | None,
         "Freshness filter: 'pd' (24h), 'pw' (7d), 'pm' (31d), 'py' (1y)",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Search the web using Brave Search API.
@@ -344,7 +345,7 @@ async def brave_news_tool(
         str | None,
         "Freshness filter: 'pd' (24h), 'pw' (7d), 'pm' (31d)",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Search news using Brave Search API.

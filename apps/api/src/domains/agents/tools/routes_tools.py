@@ -37,6 +37,7 @@ from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context, parse_datetime
 from src.domains.agents.constants import AGENT_ROUTE, CONTEXT_DOMAIN_ROUTES
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -324,7 +325,7 @@ def _estimate_distance_km(
 
 
 async def _resolve_origin(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
     origin: str | None,
     user_message: str,
     language: str,
@@ -414,7 +415,7 @@ class _UnresolvedDestination:
 
 async def _resolve_destination(
     destination: str,
-    runtime: ToolRuntime | None = None,
+    runtime: ToolRuntime[LiaRuntimeContext, Any] | None = None,
     origin_location: ResolvedLocation | dict[str, Any] | str | None = None,
     language: str = "fr",
 ) -> str | dict[str, Any] | _UnresolvedDestination | None:
@@ -1363,7 +1364,7 @@ async def get_route_tool(
         str,
         "Original user message for context detection",
     ] = "",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get directions and travel information between two locations.
@@ -1787,7 +1788,7 @@ async def get_route_matrix_tool(
         str | None,
         "Departure time in ISO 8601 format for traffic prediction.",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Compute distance and duration matrix between multiple origins and destinations.

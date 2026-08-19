@@ -6,7 +6,7 @@
 
 **Versión**: 4.4
 **Fecha**: 2026-08-19
-**Aplicación**: LIA v1.30.11
+**Aplicación**: LIA v1.30.12
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 473 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 229 ADRs, ~19.804 tests recogidos por pytest en 1.114 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 230 ADRs, ~19.844 tests recogidos por pytest en 1.119 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -75,7 +75,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | ~19.804 (recopilados por pytest en 1.114 archivos de prueba) + 5.812 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | ~19.844 (recopilados por pytest en 1.119 archivos de prueba) + 5.815 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures reutilizables | 170+ |
 | Documentos de documentación | 490+ |
 | ADRs (Architecture Decision Records) | 229 |
@@ -559,6 +559,8 @@ La semántica de reanudación de LangGraph re-ejecuta el nodo interrumpido **por
 ### 10.1. MessagesState y reducer custom
 
 El state LangGraph es un `TypedDict` con un reducer `add_messages_with_truncate` que gestiona el truncation basado en tokens, la validación de las secuencias de mensajes OpenAI, y la deduplicación de los mensajes tool.
+
+Desde la v1.30.12, el state se complementa con un **contexto de ejecución tipado** (`LiaRuntimeContext`, ADR-231): una dataclass congelada declarada como `context_schema` del grafo, que porta la identidad, las preferencias y las dependencias vivas del run (cola SSE, contenedor de herramientas). A diferencia del state, este contexto nunca se checkpointea ni se copia — la identidad de los objetos se preserva del nodo al subgrafo y a la herramienta — y un assert en la entrada del grafo rechaza todo run cuyo contexto falte, incluso al reanudar una interrupción HITL, donde la ausencia degradaba antes en silencio.
 
 ### 10.2. ¿Por qué el windowing por nodo? (ADR-007)
 
@@ -1291,7 +1293,7 @@ La lección de ingeniería más valiosa vino de un defecto invisible: la primiti
 
 ## 24. Arquitectura de decisiones (ADR)
 
-229 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+230 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1395,10 +1397,10 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 229 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.804 tests en 1.114 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 230 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~19.844 tests en 1.119 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 229 ADRs y del changelog (v1.0 a v1.30.11). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 230 ADRs y del changelog (v1.0 a v1.30.12). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

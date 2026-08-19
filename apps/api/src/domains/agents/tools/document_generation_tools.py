@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
@@ -19,6 +19,7 @@ from langchain_core.tools import InjectedToolArg
 from src.core.config import settings
 from src.core.i18n import normalize_language
 from src.domains.agents.constants import AGENT_DOCUMENT_GENERATION
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
 from src.domains.agents.utils.rate_limiting import rate_limit
@@ -70,7 +71,7 @@ async def generate_document(
     doc_type: str,
     source_data: str = "",
     filename: str = "",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Create a downloadable document (csv, xlsx, docx, pptx, pdf, md, txt).
 

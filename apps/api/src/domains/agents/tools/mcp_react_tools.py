@@ -32,6 +32,7 @@ from langchain_core.tools import BaseTool, InjectedToolArg, tool
 from pydantic import PrivateAttr
 
 from src.core.config import settings
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_runner import ReactSubAgentRunner
 from src.domains.agents.tools.tool_registry import get_all_tools
@@ -217,7 +218,7 @@ async def _run_mcp_react_task(
     server_name: str,
     task: str,
     thread_prefix: str,
-    runtime: ToolRuntime | None,
+    runtime: ToolRuntime[LiaRuntimeContext, Any] | None,
     extra_structured_data: dict[str, Any] | None = None,
 ) -> UnifiedToolOutput:
     """Run a ReAct agent on a set of MCP tools.
@@ -299,7 +300,7 @@ async def _run_mcp_react_task(
 async def mcp_server_task_tool(
     server_name: Annotated[str, "The MCP server to interact with"],
     task: Annotated[str, "Natural language description of the task to accomplish"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Execute a multi-step task on an MCP server using a ReAct agent.
 
@@ -352,7 +353,7 @@ async def mcp_user_server_task_tool(
     server_id_prefix: Annotated[str, "First 8 characters of the user MCP server UUID"],
     server_name: Annotated[str, "Human-readable server name for display"],
     task: Annotated[str, "Natural language description of the task to accomplish"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Execute a multi-step task on a user MCP server using a ReAct agent.
 

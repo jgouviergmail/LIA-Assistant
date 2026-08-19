@@ -33,7 +33,7 @@ task stop
 
 ```bash
 task test:backend:unit:fast        # Fast unit tests, xdist, no coverage (pre-commit)
-task test:backend:unit:coverage    # The CI command verbatim, including the 66% floor
+task test:backend:unit:coverage    # The CI command verbatim, including the 67% floor
 task test:backend:unit             # All unit tests
 task test:backend:integration      # Integration tests (requires PostgreSQL + Redis)
 task test:backend:agents           # Agent-specific tests
@@ -209,7 +209,7 @@ The HOW / WHY guides (`apps/web/src/data/guides/{how,why}.{lang}.md`) and any fu
 - **Ruff rules**: E (pycodestyle errors), W (warnings), F (pyflakes), I (isort), B (bugbear), C4 (comprehensions), UP (pyupgrade). E501 ignored (handled by Black).
 - **TypeScript**: ESLint + Prettier.
 - **Commits**: Conventional Commits (`feat(agents):`, `fix(auth):`, etc.)
-- **Tests**: pytest with `asyncio_mode = "auto"`. Coverage threshold: 66% (ratchet: never lowered — raise the floor after coverage-improving work to lock the gains, keeping ≥2 pts margin vs measured; see GUIDE_TESTING.md). Markers: `e2e`, `integration`, `slow`, `benchmark`, `multiprocess`.
+- **Tests**: pytest with `asyncio_mode = "auto"`. Coverage threshold: 67% (ratchet: never lowered — raise the floor after coverage-improving work to lock the gains, keeping ≥2 pts margin vs measured; see GUIDE_TESTING.md). Markers: `e2e`, `integration`, `slow`, `benchmark`, `multiprocess`.
 - **Logging**: structlog (structured JSON). Use `structlog.get_logger(__name__)`, never `print()`.
 - **i18n**: 6 languages (en, fr, de, es, it, zh). Frontend uses react-i18next with locale files in `apps/web/locales/{lang}/translation.json`. **The pre-commit hook enforces strict key parity** vs `en/translation.json` — every key present in `en` MUST exist in the 5 other locales (the hook diffs `en` keys against each language and aborts the commit on any missing/extra). When using i18next pluralization (`_one` / `_other` suffixes), zh has no plural form per CLDR — duplicate the value to `_one` anyway so parity passes.
 
@@ -423,6 +423,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (229 ADR files, ADR-230 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (230 ADR files, ADR-231 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

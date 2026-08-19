@@ -31,6 +31,7 @@ from pydantic import BaseModel
 from src.core.i18n import _
 from src.domains.agents.constants import AGENT_HUE, CONTEXT_DOMAIN_HUE
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -630,7 +631,7 @@ _activate_hue_scene_impl = ActivateHueSceneTool(
     counter_metric=agent_tool_invocations,
 )
 async def list_hue_lights_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     List all Philips Hue lights with their current state.
@@ -665,7 +666,7 @@ async def control_hue_light_tool(
         str | None,
         "Color name (red, blue, warm_white, etc.) or CIE 'x,y' coordinates. Leave empty to keep current.",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Control a specific Philips Hue light.
@@ -692,7 +693,7 @@ async def control_hue_light_tool(
     counter_metric=agent_tool_invocations,
 )
 async def list_hue_rooms_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     List all Philips Hue rooms with their devices.
@@ -723,7 +724,7 @@ async def control_hue_room_tool(
         int | None,
         "Brightness percentage 0-100 for all lights. Leave empty to keep current.",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Control all lights in a Philips Hue room at once.
@@ -747,7 +748,7 @@ async def control_hue_room_tool(
     counter_metric=agent_tool_invocations,
 )
 async def list_hue_scenes_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     List all available Philips Hue scenes.
@@ -770,7 +771,7 @@ async def activate_hue_scene_tool(
         str,
         "Name or ID of the scene to activate (e.g., 'Movie', 'Relax', 'Energize')",
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Activate a Philips Hue scene by name or ID.

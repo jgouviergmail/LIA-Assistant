@@ -709,6 +709,20 @@ Presentation attendue:
 
 **Fichier**: `models.py`
 
+> **Depuis la v1.30.12 (ADR-231)** : le state est complété par un **contexte
+> d'exécution typé**, `LiaRuntimeContext`
+> (`src/domains/agents/context/runtime_context.py`) — dataclass gelée déclarée
+> comme `context_schema` du graphe. Il porte le run-scoped (identité `uuid.UUID`
+> unique, préférences, dépendances vivantes : file SSE, conteneur d'outils) que
+> `config["configurable"]` transportait en 17 clés non typées. Deux propriétés
+> mesurées le distinguent du state : il n'est **jamais checkpointé** (rien de ce
+> qui doit survivre à une reprise HITL ne peut y vivre) et **jamais copié**
+> (l'identité des objets traverse nœud → sous-graphe → outil). Un assert à
+> l'entrée du graphe refuse tout run dont le contexte manque ; hors nœud, la
+> lecture passe par `current_runtime_context()` (ContextVar traversant
+> `asyncio.gather` / `to_thread` / `create_task`), jamais par une clé privée de
+> `configurable`.
+
 ```python
 class MessagesState(TypedDict):
     # ═══════════════════════════════════════════════════════════

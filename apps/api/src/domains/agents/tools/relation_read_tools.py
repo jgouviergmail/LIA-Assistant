@@ -44,6 +44,7 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.config import settings
 from src.domains.agents.constants import AGENT_PEER, AGENT_TASK, AGENT_TELEPHONY
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.decorators import read_tool
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import parse_user_id, validate_runtime_config
@@ -109,7 +110,7 @@ def _identity(detail: RelationDetail) -> dict[str, Any]:
 
 
 async def _read_block(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
     person_name: str,
     limit: int | None,
     tool_name: str,
@@ -218,7 +219,7 @@ def _peer_messages_block(detail: RelationDetail, limit: int) -> Block:
 @read_tool(name="get_calls", agent_name=AGENT_TELEPHONY)
 async def get_calls_tool(
     person_name: Annotated[str, _PERSON_ARG],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     limit: int | None = None,
 ) -> UnifiedToolOutput:
     """Past calls with ONE person: objective, outcome, summary, when.
@@ -237,7 +238,7 @@ async def get_calls_tool(
 @read_tool(name="get_open_loops", agent_name=AGENT_TASK)
 async def get_open_loops_tool(
     person_name: Annotated[str, _PERSON_ARG],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     limit: int | None = None,
 ) -> UnifiedToolOutput:
     """Open commitments with ONE person: who owes what, and since when.
@@ -256,7 +257,7 @@ async def get_open_loops_tool(
 @read_tool(name="get_peer_messages", agent_name=AGENT_PEER)
 async def get_peer_messages_tool(
     person_name: Annotated[str, _PERSON_ARG],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     limit: int | None = None,
 ) -> UnifiedToolOutput:
     """Messages relayed through LIA with ONE connected person.

@@ -107,10 +107,10 @@ apscheduler==3.11.2
 # only retryable errors, interrupts propagate through ToolRetry, SummarizationMiddleware
 # preserves history on summary failure, nested-subgraph checkpoint_ns regression fixed,
 # subgraphs cancelled on stream abort. Full audit: docs/plans + ADR if promoted.)
-langchain-core==1.5.5  # >=1.5.4 required by langchain 1.3.15 and all provider packages; reasoning_effort standard param
+langchain-core==1.5.6  # >=1.5.6 required by langchain-openai 1.5.2 — COUPLED bump, move both or neither; reasoning_effort standard param
 langchain==1.3.15  # middleware fixes used by every built agent (ToolRetry retryable-only, interrupt propagation, Summarization history preservation, HITL gate silent failures)
 langchain-text-splitters==1.1.2  # RecursiveCharacterTextSplitter for RAG Spaces document chunking
-langchain-openai==1.5.1  # Responses API fixes (streamed encrypted reasoning, text options, invalid tool calls, ContextWindowExceededError)
+langchain-openai==1.5.2  # Requires langchain-core>=1.5.6 (COUPLED bump). Owns BaseChatOpenAI._get_request_payload, which _deepseek_patched.py overrides — gate any bump on the DeepSeek round-trip tests, not only on test_langchain_migration_compat
 openai==2.54.0  # Last 2.x release. 3.x deliberately excluded: it defaults to HTTPX2 and stops installing httpx, which LIA pins and uses everywhere
 langgraph==1.2.11  # >=1.2.11 required by langchain 1.3.15; fixes nested-subgraph checkpoint_ns regression (present in 1.2.4) + subgraph cancellation on stream abort
 langgraph-checkpoint==4.2.0  # history-consistency fixes; opt-in omit_expired (not used — LIA retention is delete_thread-based)

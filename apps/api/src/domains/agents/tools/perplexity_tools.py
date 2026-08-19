@@ -42,6 +42,7 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_PERPLEXITY,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -481,7 +482,7 @@ async def perplexity_search_tool(
         "Filter by recency: 'day', 'week', 'month', 'year', or 'none' (default: none)",
     ] = "none",
     include_citations: Annotated[bool, "Include source URLs (default: True)"] = True,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Search the web using Perplexity AI.
@@ -538,7 +539,7 @@ async def perplexity_ask_tool(
         str,
         "Optional context or domain to focus the answer (e.g., 'technology', 'finance')",
     ] = "",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Ask a question using Perplexity AI with optional context.

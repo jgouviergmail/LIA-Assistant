@@ -48,6 +48,7 @@ from src.domains.agents.constants import (
     WEB_SEARCH_SOURCE_WIKIPEDIA,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -437,7 +438,7 @@ async def unified_web_search_tool(
         bool,
         "Force bypass cache and fetch fresh results (use when user asks to refresh/update)",
     ] = False,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Comprehensive web search combining three sources in parallel.

@@ -46,6 +46,7 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.constants import GMAIL_FORMAT_METADATA
 from src.domains.agents.constants import AGENT_CONTACT
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.decorators import read_tool, with_user_preferences
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -579,7 +580,7 @@ async def get_person_overview_tool(
         "Person to build the 360 overview for: a relationship name as the user "
         "says it (Marie, Marie Dupont, or a nickname already resolved).",
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = "UTC",
     locale: str = "fr",
 ) -> UnifiedToolOutput:

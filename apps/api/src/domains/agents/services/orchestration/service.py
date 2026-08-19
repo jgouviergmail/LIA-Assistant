@@ -35,6 +35,7 @@ from src.core.i18n import DEFAULT_LANGUAGE
 from src.domains.agents.constants import (
     HITL_DECISION_NEW_REQUEST,
 )
+from src.domains.agents.context.runtime_context_builder import build_runtime_context
 from src.domains.agents.context.store import get_tool_context_store
 from src.domains.agents.models import (
     MessagesState,
@@ -697,7 +698,7 @@ class OrchestrationService:
         - User message injection (__user_message) for location phrase detection
         - Token tracking callback
         - Langfuse callbacks for observability
-        - Context dict for ToolRuntime
+        - Runtime context passed to graph.astream (not yet consumed — see ADR-231)
         - Graph.astream() execution with stream_mode=["values", "messages", "updates", "custom"]
 
         Args:
@@ -807,12 +808,24 @@ class OrchestrationService:
             trace_name=f"agent_conversation_{run_id[:8]}",
         )
 
-        # Build context dict for ToolRuntime
-        context_dict = {
-            FIELD_USER_ID: str(user_id),
-            FIELD_CONVERSATION_ID: str(conversation_id),
-            "thread_id": str(conversation_id),
-        }
+        # Typed run-scoped context (ADR-231), built by the single builder so
+        # this frozen service does not grow a second construction site.
+        runtime_context = build_runtime_context(
+            state=state,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            memory_store=memory_store,
+            tool_deps=tool_deps,
+            browser_context=browser_context,
+            user_message=user_message,
+            side_channel_queue=side_channel_queue,
+            user_memory_enabled=user_memory_enabled,
+            user_journals_enabled=user_journals_enabled,
+            user_psyche_enabled=user_psyche_enabled,
+            user_display_mode=user_display_mode,
+            user_execution_mode=user_execution_mode,
+            is_automated_source=is_automated_source,
+        )
 
         # === PHASE 8 - HITL: Check if resuming from interrupt ===
         # If _interrupt_resume_data is present, use Command(resume=...) pattern
@@ -886,7 +899,7 @@ class OrchestrationService:
                     # to push compaction_start/done events that the streaming service
                     # forwards to the frontend SSE stream.
                     stream_mode=["values", "messages", "updates", "custom"],
-                    context=context_dict,
+                    context=runtime_context,
                     # Explicit intent (was the implicit default): checkpoint
                     # writes happen asynchronously per step — per-step
                     # persistence is required for HITL interrupts/resume while
@@ -900,7 +913,7 @@ class OrchestrationService:
                     state,
                     runnable_config,
                     stream_mode=["values", "messages", "updates", "custom"],
-                    context=context_dict,
+                    context=runtime_context,
                     durability="async",  # explicit intent — see resume branch above
                 ):
                     yield (mode, chunk)

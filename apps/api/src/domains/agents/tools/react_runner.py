@@ -29,7 +29,14 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import create_react_agent
 
+from src.core.config import settings
+from src.core.constants import DEFAULT_TIMEZONE
 from src.core.time_utils import get_prompt_datetime_formatted
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    derive_sub_agent_context,
+    runtime_context_if_running,
+)
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -206,7 +213,7 @@ class ReactSubAgentRunner:
         task: str,
         tools: list[BaseTool],
         prompt_vars: dict[str, str],
-        parent_runtime: ToolRuntime | None = None,
+        parent_runtime: ToolRuntime[LiaRuntimeContext, Any] | None = None,
         thread_prefix: str = "react",
         recursion_limit: int = 15,
         display_name: str | None = None,
@@ -252,6 +259,9 @@ class ReactSubAgentRunner:
                 tools=tools,
                 prompt=prompt,
                 store=parent_store,
+                # Declared so the sub-agent's own nodes and tools read the SAME
+                # typed context as the parent run, rather than an untyped dict.
+                context_schema=LiaRuntimeContext,
             )
 
             # Propagate parent metadata and inject node_name_override so
@@ -264,15 +274,35 @@ class ReactSubAgentRunner:
                 "node_name_override": effective_display_name,
             }
 
+            nested_thread_id = f"{thread_prefix}_{user_id}"
+
+            # The sub-run inherits the parent's context WHOLE: deriving instead of
+            # re-listing keys is what stops the next field added to the context
+            # from being silently dropped here (ADR-231). ``__parent_thread_id``
+            # stays in ``configurable`` — it is thread plumbing, not run context,
+            # and ``browser_tools`` reads it deliberately.
+            parent_context = runtime_context_if_running()
+            nested_context = (
+                derive_sub_agent_context(parent_context, thread_id=nested_thread_id)
+                if parent_context is not None
+                else None
+            )
+
             nested_config = RunnableConfig(
                 configurable={
                     "user_id": user_id,
-                    "thread_id": f"{thread_prefix}_{user_id}",
+                    "thread_id": nested_thread_id,
                     "__deps": parent_configurable.get("__deps"),
                     "__side_channel_queue": parent_configurable.get("__side_channel_queue"),
                     "__parent_thread_id": parent_configurable.get("thread_id"),
-                    "user_timezone": parent_configurable.get("user_timezone", "UTC"),
-                    "user_language": parent_configurable.get("user_language", "fr"),
+                    # Canonical defaults, same sources as the chokepoint that
+                    # builds the parent configurable — an inline literal here
+                    # answered in French to a German user whenever the parent
+                    # lacked the key (ADR-231).
+                    "user_timezone": parent_configurable.get("user_timezone", DEFAULT_TIMEZONE),
+                    "user_language": parent_configurable.get(
+                        "user_language", settings.default_language
+                    ),
                 },
                 callbacks=parent_config.get("callbacks"),
                 metadata=nested_metadata,
@@ -292,6 +322,7 @@ class ReactSubAgentRunner:
                 result = await react_agent.ainvoke(
                     {"messages": [HumanMessage(content=task)]},
                     config=nested_config,
+                    context=nested_context,
                 )
             except Exception as exc:
                 elapsed_ms = int((time.perf_counter() - start) * 1000)

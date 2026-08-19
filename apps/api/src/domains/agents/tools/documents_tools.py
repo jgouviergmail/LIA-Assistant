@@ -8,7 +8,7 @@ Read-only, no HITL, no OAuth — the spaces belong to the user.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 import structlog
@@ -17,6 +17,7 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.config import settings
 from src.domains.agents.constants import AGENT_DOCUMENT
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.decorators import read_tool, with_user_preferences
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
@@ -35,7 +36,7 @@ async def search_user_documents_tool(
         "Semantic search query over the user's document spaces, in the "
         "user's language (their documents are stored as written).",
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     max_results: Annotated[int, "Max document excerpts to return (1-10)"] = 5,
     user_timezone: str = "UTC",
     locale: str = "fr",

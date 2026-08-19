@@ -44,6 +44,7 @@ import structlog
 from langchain.tools import ToolRuntime
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials, ConnectorCredentials
 from src.domains.connectors.service import ConnectorService
@@ -325,7 +326,7 @@ class ToolDependencies:
         self._clients_cache.clear()
 
 
-def get_dependencies(runtime: ToolRuntime) -> ToolDependencies:
+def get_dependencies(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> ToolDependencies:
     """
     Extract dependencies from ToolRuntime config.
 

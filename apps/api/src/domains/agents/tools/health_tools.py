@@ -43,6 +43,7 @@ from src.core.constants import (
     HEALTH_METRICS_USER_TOGGLE_ATTR,
 )
 from src.domains.agents.constants import AGENT_HEALTH
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     handle_tool_exception,
@@ -177,7 +178,7 @@ async def get_steps_summary_tool(
     time_max: Annotated[
         str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return the user's total step count over a time window.
 
@@ -232,7 +233,7 @@ async def get_steps_summary_tool(
 )
 async def get_steps_daily_breakdown_tool(
     days: Annotated[int, "Window length in days (1-30). Defaults to 7."] = 7,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return per-day step totals over the last ``days`` days.
 
@@ -283,7 +284,7 @@ async def compare_steps_to_baseline_tool(
         int,
         "Recent window length in days to compare against the 28-day baseline. Defaults to 7.",
     ] = 7,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Compare the user's recent steps average to their rolling baseline.
 
@@ -346,7 +347,7 @@ async def get_heart_rate_summary_tool(
     time_max: Annotated[
         str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return the user's average, min, and max heart rate over a time window.
 
@@ -405,7 +406,7 @@ async def compare_heart_rate_to_baseline_tool(
         int,
         "Recent window length in days to compare against the 28-day baseline. Defaults to 7.",
     ] = 7,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Compare the user's recent heart-rate average to their rolling baseline.
 
@@ -467,7 +468,7 @@ async def get_health_overview_tool(
     time_max: Annotated[
         str | None, "End of search window (ISO 8601). Defaults to now (UTC)."
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Return a kind-by-kind summary of the user's health data for a time window.
 
@@ -540,7 +541,7 @@ async def detect_health_changes_tool(
         int,
         "Recent window length in days to inspect for notable variations. Defaults to 7.",
     ] = 7,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Detect notable recent variations and structural events across all kinds.
 

@@ -34,12 +34,13 @@ were all removed (no UI consumer, no real usage). The whole subsystem is
 gated by the global `SUB_AGENTS_ENABLED` flag.
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 
 from src.core.config import get_settings
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_runner import ReactSubAgentRunner
 from src.domains.agents.tools.runtime_helpers import (
@@ -82,7 +83,7 @@ async def delegate_to_sub_agent_tool(
         "the sub-agent has its own read-only tools and fetches what it needs. "
         "Resolved $ref payloads exceeding the configured cap are rejected.",
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Delegate a UNITARY expert task to an ephemeral sub-agent (ReAct loop).
 

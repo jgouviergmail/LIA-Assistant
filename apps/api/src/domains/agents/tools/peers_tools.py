@@ -29,6 +29,7 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.config import get_settings
 from src.domains.agents.constants import AGENT_PEER
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
 from src.domains.agents.tools.decorators import read_tool, write_tool
@@ -89,7 +90,7 @@ async def send_peer_message_tool(
         "are you doing?'. The recipient's own assistant conveys its intent in "
         "its own voice.",
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Prepare a message for a connected user — sent only after confirmation.
 
@@ -206,7 +207,7 @@ async def _check_send_quotas(
 
 @read_tool(name="list_peer_connections", agent_name=AGENT_PEER)
 async def list_peer_connections_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """List the caller's accepted connections with both share directions.
 

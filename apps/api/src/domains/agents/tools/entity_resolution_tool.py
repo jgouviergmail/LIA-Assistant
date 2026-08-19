@@ -43,6 +43,7 @@ from src.domains.agents.context.entity_resolution import (
     ResolutionStatus,
     get_entity_resolution_service,
 )
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import RegistryItem, RegistryItemType
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.observability.logging import get_logger
@@ -54,7 +55,7 @@ logger = get_logger(__name__)
 async def resolve_entity_for_action(
     query: str,
     action: str,
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     domain: str = "contacts",
     target_field: str | None = None,
 ) -> UnifiedToolOutput:
@@ -186,7 +187,7 @@ async def resolve_entity_for_action(
 async def _search_entities(
     query: str,
     domain: str,
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
 ) -> list[dict[str, Any]]:
     """
     Search for entities matching the query.

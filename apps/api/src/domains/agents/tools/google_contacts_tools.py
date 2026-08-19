@@ -48,6 +48,7 @@ from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import calculate_cache_age_seconds
 from src.domains.agents.constants import AGENT_CONTACT, CONTEXT_DOMAIN_CONTACTS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
@@ -441,7 +442,7 @@ def _filter_contacts_by_address(
 # ============================================================================
 
 
-def _get_deps_or_fallback(runtime: ToolRuntime) -> tuple[bool, Any]:
+def _get_deps_or_fallback(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> tuple[bool, Any]:
     """
     Try to get injected dependencies, fallback to None if not available.
 
@@ -856,7 +857,7 @@ _search_contacts_tool_instance = SearchContactsTool()
 )
 async def search_contacts_tool(
     query: str,
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     max_results: int | None = None,
     fields: list[str] | None = None,
     force_refresh: bool = False,
@@ -1145,7 +1146,7 @@ _list_contacts_tool_instance = ListContactsTool()
     category="read",
 )
 async def list_contacts_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     query: str | None = None,
     limit: int | None = None,
     fields: list[str] | None = None,
@@ -2066,7 +2067,7 @@ async def _fetch_single_contact_details(
     category="read",
 )
 async def get_contact_details_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     resource_name: str | None = None,
     resource_names: (
         str | list[str] | list[dict[str, Any]] | None
@@ -2362,7 +2363,7 @@ async def create_contact_tool(
     phone: Annotated[str | None, "Contact phone number (optional)"] = None,
     organization: Annotated[str | None, "Company/organization name (optional)"] = None,
     notes: Annotated[str | None, "Additional notes (optional)"] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Create a contact in Google Contacts (with user confirmation).
@@ -2648,7 +2649,7 @@ async def update_contact_tool(
     address: Annotated[
         str | None, "New address (optional, e.g. '15 rue de la Paix, Paris 75001')"
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Update an existing contact in Google Contacts (with user confirmation).
@@ -2807,7 +2808,7 @@ _delete_contact_draft_tool_instance = DeleteContactDraftTool()
 )
 async def delete_contact_tool(
     resource_name: Annotated[str, "Contact resource name (people/c...) - required"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Delete a contact from Google Contacts (with user confirmation).
@@ -2928,7 +2929,7 @@ async def execute_contact_delete_draft(
     category="read",
 )
 async def get_contacts_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     query: str | None = None,
     resource_name: str | None = None,
     resource_names: str | list[str] | list[dict[str, Any]] | None = None,

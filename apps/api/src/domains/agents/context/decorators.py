@@ -6,11 +6,16 @@ Provides zero-boilerplate auto-save functionality for LangChain tools.
 Usage:
     @tool
     @auto_save_context("contacts")
-    async def search_contacts_tool(query: str, config: RunnableConfig, *, store: BaseStore) -> str:
+    async def search_contacts_tool(
+        query: str,
+        runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
+    ) -> str:
         # ... tool logic ...
         return json.dumps({"success": True, "contacts": [...]})
 
-    # Context automatically saved to Store after successful execution
+    # Context automatically saved to Store after successful execution.
+    # Config and store are taken from the injected ToolRuntime (ADR-231) —
+    # the former config/store parameters are gone.
 
 Data Registry Mode Support (Phase 5.2 BugFix 2025-11-26):
     Registry-enabled tools return UnifiedToolOutput instead of JSON string.
@@ -27,7 +32,10 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Union
 
+from langchain.tools import ToolRuntime
+
 from src.domains.agents.context.manager import ToolContextManager
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.infrastructure.observability.logging import get_logger
 
@@ -35,6 +43,30 @@ if TYPE_CHECKING:
     from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
 
 logger = get_logger(__name__)
+
+
+def _resolve_runtime(
+    args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> ToolRuntime[LiaRuntimeContext, Any] | None:
+    """Find the ToolRuntime the tool layer injected, keyword or positional.
+
+    Both output paths of ``auto_save_context`` need it, and before ADR-231 each
+    resolved it differently: the registry path scanned positional arguments, the
+    JSON path did not. Same intent, two implementations, one weaker — so a tool
+    returning a JSON string with a positional runtime silently skipped its save.
+
+    Args:
+        args: Positional arguments the wrapped tool received.
+        kwargs: Keyword arguments the wrapped tool received.
+
+    Returns:
+        The injected ToolRuntime, or None when the tool ran outside the agent
+        layer (auto-save is a side effect and must never break its tool).
+    """
+    runtime = kwargs.get("runtime")
+    if runtime is not None:
+        return runtime
+    return next((arg for arg in args if isinstance(arg, ToolRuntime)), None)
 
 
 def auto_save_context(
@@ -48,9 +80,11 @@ def auto_save_context(
     with zero boilerplate in tool code.
 
     Requirements:
-        - Tool must accept `config: RunnableConfig` parameter
-        - Tool must accept `*, store: BaseStore` parameter (injected by LangGraph)
-        - Tool must return JSON string with {"success": True, "{context_type}s": [...]}
+        - Tool must accept an injected ``runtime: ToolRuntime`` parameter (the
+          decorator reads config and store from it — ADR-231; the former
+          config/store parameters are gone)
+        - Tool must return a JSON string with {"success": True, "{context_type}s":
+          [...]} or a UnifiedToolOutput carrying registry_updates
 
     Args:
         context_type: Context type identifier ("contacts", "emails", "events").
@@ -65,8 +99,7 @@ def auto_save_context(
         @auto_save_context("contacts")
         async def search_contacts_tool(
             query: str,
-            config: RunnableConfig,
-            *, store: BaseStore
+            runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
         ) -> str:
             # Tool logic
             results = await search_contacts(query)
@@ -93,7 +126,7 @@ def auto_save_context(
     Integration:
         - Works with LangChain @tool decorator
         - Compatible with ReAct agents
-        - Store injected automatically by LangGraph (no manual wiring)
+        - Store arrives on the injected ToolRuntime (no manual wiring)
     """
 
     def decorator(func: Callable) -> Callable:
@@ -125,20 +158,25 @@ def auto_save_context(
 
                 # Attempt auto-save from registry_updates (fail-safe)
                 try:
-                    # Support ToolRuntime passed positionally or via kwarg
-                    runtime = kwargs.get("runtime")
+                    runtime = _resolve_runtime(args, kwargs)
+
+                    # No ToolRuntime means the tool ran outside the agent layer.
+                    # The former fallback read ``config["store"]`` — one nesting
+                    # level above where LIA writes it (``configurable["store"]``)
+                    # — so it could only ever yield None, and it was unreachable
+                    # anyway: no tool declares a ``config`` parameter. Skipping is
+                    # the honest behaviour; auto-save is a side effect and must
+                    # never break the tool it wraps (ADR-231).
                     if not runtime:
-                        from src.domains.agents.tools.runtime_helpers import ToolRuntime
+                        logger.debug(
+                            "auto_save_registry_skipped_missing_runtime",
+                            context_type=context_type,
+                            tool_name=func.__name__,
+                        )
+                        return tool_result
 
-                        runtime = next((arg for arg in args if isinstance(arg, ToolRuntime)), None)
-
-                    if runtime:
-                        config = runtime.config
-                        store = runtime.store
-                    else:
-                        # Legacy: config + store passed explicitly
-                        config = kwargs.get("config")
-                        store = config.get("store") if config else None
+                    config = runtime.config
+                    store = runtime.store
 
                     if store and config:
                         # Extract data from registry_updates based on context_type
@@ -260,26 +298,20 @@ def auto_save_context(
                     )
                     return result_json
 
-                # Support both ToolRuntime (new) and config+store (legacy)
-                runtime = kwargs.get("runtime")
+                # The ToolRuntime is the only supported injection path; see the
+                # registry branch above for why the config+store fallback was
+                # removed (wrong nesting level, and unreachable).
+                runtime = _resolve_runtime(args, kwargs)
+                if not runtime:
+                    logger.warning(
+                        "auto_save_skipped_missing_runtime",
+                        context_type=context_type,
+                        tool_name=func.__name__,
+                    )
+                    return result_json
 
-                if runtime:
-                    # ToolRuntime pattern (LangChain v1.0 new pattern)
-                    config = runtime.config
-                    store = runtime.store
-                else:
-                    # Legacy pattern (config + store separately)
-                    config = kwargs.get("config")
-                    if not config:
-                        logger.warning(
-                            "auto_save_skipped_missing_config_and_runtime",
-                            context_type=context_type,
-                            tool_name=func.__name__,
-                        )
-                        return result_json
-
-                    # Extract store from config (injected by LangGraph)
-                    store = config.get("store")
+                config = runtime.config
+                store = runtime.store
 
                 if not store:
                     logger.warning(

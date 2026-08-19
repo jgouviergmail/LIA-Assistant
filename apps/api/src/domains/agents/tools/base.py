@@ -63,6 +63,7 @@ from langchain.tools import ToolRuntime
 from src.core.config import settings
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_types import SupportedLanguage
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.dependencies import ToolDependencies, get_dependencies
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -224,7 +225,7 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
         return _current_runtime.get()
 
     @runtime.setter
-    def runtime(self, value: ToolRuntime | None) -> None:
+    def runtime(self, value: ToolRuntime[LiaRuntimeContext, Any] | None) -> None:
         """Bind a runtime to the current task (tests / manual invocation).
 
         ``execute()`` manages the production lifecycle itself (token +
@@ -235,7 +236,7 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
 
     async def execute(
         self,
-        runtime: ToolRuntime,
+        runtime: ToolRuntime[LiaRuntimeContext, Any],
         **kwargs: Any,
     ) -> ToolOutputType:
         """
@@ -550,7 +551,9 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
         # Use standardized error handler
         return handle_tool_exception(error, self.tool_name, params).model_dump_json()
 
-    def _get_deps_or_fallback(self, runtime: ToolRuntime) -> tuple[bool, ToolDependencies | None]:
+    def _get_deps_or_fallback(
+        self, runtime: ToolRuntime[LiaRuntimeContext, Any]
+    ) -> tuple[bool, ToolDependencies | None]:
         """
         Try to get injected dependencies, fallback to None if not available.
 
@@ -728,7 +731,7 @@ class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
 
     async def execute(
         self,
-        runtime: ToolRuntime,
+        runtime: ToolRuntime[LiaRuntimeContext, Any],
         **kwargs: Any,
     ) -> ToolOutputType:
         """
@@ -873,7 +876,9 @@ class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
         )
         return handle_tool_exception(error, self.tool_name, params).model_dump_json()
 
-    def _get_deps_or_fallback(self, runtime: ToolRuntime) -> tuple[bool, "ToolDependencies | None"]:
+    def _get_deps_or_fallback(
+        self, runtime: ToolRuntime[LiaRuntimeContext, Any]
+    ) -> tuple[bool, "ToolDependencies | None"]:
         """Get injected dependencies."""
         try:
             deps = get_dependencies(runtime)

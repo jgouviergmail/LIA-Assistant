@@ -142,6 +142,7 @@ from langgraph.store.base import BaseStore
 from src.core.config import settings
 from src.core.field_names import FIELD_ERROR_MESSAGE, FIELD_ERROR_TYPE, FIELD_USER_ID
 from src.core.i18n_api_messages import APIMessages
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -314,7 +315,7 @@ class ValidatedRuntimeConfig(NamedTuple):
 
 
 def validate_runtime_config(
-    runtime: ToolRuntime | None,
+    runtime: ToolRuntime[LiaRuntimeContext, Any] | None,
     tool_name: str,
 ) -> "UnifiedToolOutput | ValidatedRuntimeConfig":
     """
@@ -543,7 +544,9 @@ def extract_cache_metadata(result: dict[str, Any]) -> tuple[bool, Any]:
 # =============================================================================
 
 
-async def get_user_preferences(runtime: ToolRuntime) -> tuple[str, str, str]:
+async def get_user_preferences(
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
+) -> tuple[str, str, str]:
     """
     Get user timezone, language and locale with per-user TTL caching.
 
@@ -608,7 +611,7 @@ async def get_user_preferences(runtime: ToolRuntime) -> tuple[str, str, str]:
 
 
 async def get_user_language_safe(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
     default: str = settings.default_language,
 ) -> str:
     """Get user language from runtime preferences with safe fallback.
@@ -646,7 +649,7 @@ async def get_user_language_safe(
 
 
 async def save_to_context_store(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
     domain: str,
     key: str,
     value: Any,
@@ -790,7 +793,7 @@ def extract_value_by_path(obj: Any, path: str, default: Any = None) -> Any:
 
 
 async def get_connector_preference(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
     connector_type: str,
     preference_name: str,
     default: str | None = None,
@@ -874,7 +877,7 @@ async def get_connector_preference(
 
 
 async def resolve_connector_default(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
     connector_type: str,
     preference_name: str,
     client: Any,
@@ -947,7 +950,7 @@ async def resolve_connector_default(
 # =============================================================================
 
 
-def get_original_user_message(runtime: ToolRuntime) -> str:
+def get_original_user_message(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> str:
     """
     Get original user message from runtime config.
 
@@ -1041,7 +1044,7 @@ def extract_coordinates(
 
 
 async def resolve_contact_to_email(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
     name: str,
 ) -> str | None:
     """
@@ -1151,7 +1154,7 @@ async def resolve_contact_to_email(
 
 
 async def resolve_recipients_to_emails(
-    runtime: ToolRuntime | None,
+    runtime: ToolRuntime[LiaRuntimeContext, Any] | None,
     recipients: str | list[str] | None,
     field_name: str = "recipient",
 ) -> str | list[str] | None:
@@ -1281,7 +1284,7 @@ async def resolve_recipients_to_emails(
 
 
 def emit_side_channel_chunk(
-    runtime: ToolRuntime | None,
+    runtime: ToolRuntime[LiaRuntimeContext, Any] | None,
     chunk: Any,
 ) -> None:
     """Put a ChatStreamChunk into the side-channel queue for direct SSE emission.

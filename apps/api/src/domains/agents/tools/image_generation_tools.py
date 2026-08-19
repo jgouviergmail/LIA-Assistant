@@ -22,7 +22,7 @@ import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
@@ -34,6 +34,7 @@ from src.core.constants import (
     IMAGE_GENERATION_VALID_SIZES,
 )
 from src.domains.agents.constants import AGENT_IMAGE
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
 from src.domains.agents.utils.rate_limiting import rate_limit
@@ -82,7 +83,7 @@ async def _write_image_file(image_bytes: bytes, relative_path: str) -> Path:
 )
 async def generate_image(
     prompt: str,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Generate an image from a text description using AI (e.g., gpt-image-1).
 
@@ -351,7 +352,7 @@ async def generate_image(
 async def edit_image(
     prompt: str,
     source_attachment_id: str = "",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Edit an existing image based on a text description using AI.
 

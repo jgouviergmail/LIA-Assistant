@@ -38,6 +38,7 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.agents.constants import AGENT_BROWSER, CONTEXT_DOMAIN_BROWSERS
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -61,7 +62,7 @@ _screenshot_debounce: dict[str, float] = {}
 
 
 async def _emit_progressive_screenshot(
-    runtime: ToolRuntime | None,
+    runtime: ToolRuntime[LiaRuntimeContext, Any] | None,
     session: Any,
     url: str = "",
     title: str = "",
@@ -172,7 +173,9 @@ ContextTypeRegistry.register(
 # ============================================================================
 
 
-async def _get_session(runtime: ToolRuntime, user_id: str) -> tuple[object, object]:
+async def _get_session(
+    runtime: ToolRuntime[LiaRuntimeContext, Any], user_id: str
+) -> tuple[object, object]:
     """Get browser pool and session for the current user.
 
     Extracts user language/timezone from runtime config for browser locale.
@@ -257,7 +260,7 @@ def _make_registry_item(url: str, title: str, interactive_count: int, content: s
 )
 async def browser_task_tool(
     task: Annotated[str, "Natural language description of the browsing task to accomplish"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Execute a complete browsing task autonomously using the browser agent.
 
@@ -382,7 +385,7 @@ async def browser_task_tool(
 )
 async def browser_navigate_tool(
     url: Annotated[str, "The URL to navigate to"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Navigate to a web page and return its accessibility tree structure.
 
@@ -466,7 +469,7 @@ async def browser_navigate_tool(
     scope="user",
 )
 async def browser_snapshot_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Get current page accessibility tree (observe page state before acting).
 
@@ -533,7 +536,7 @@ async def browser_snapshot_tool(
 )
 async def browser_click_tool(
     ref: Annotated[str, "Element reference from accessibility tree (e.g., 'E3')"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Click an interactive element by its reference from the accessibility tree.
 
@@ -599,7 +602,7 @@ async def browser_click_tool(
 async def browser_fill_tool(
     ref: Annotated[str, "Element reference for the form field (e.g., 'E2')"],
     value: Annotated[str, "The value to fill into the form field"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Fill a form field by its reference with the given value.
 
@@ -664,7 +667,7 @@ async def browser_fill_tool(
 )
 async def browser_press_key_tool(
     key: Annotated[str, "Keyboard key to press (e.g., 'Enter', 'Tab', 'Escape')"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Press a keyboard key (Enter, Tab, Escape, Arrow keys, etc.).
 

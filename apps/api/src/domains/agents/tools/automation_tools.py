@@ -38,6 +38,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.agents.constants import AGENT_AUTOMATION
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
 from src.domains.agents.tools.decorators import read_tool, with_user_preferences, write_tool
@@ -81,7 +82,7 @@ async def create_scheduled_action_tool(
         "ISO weekdays to run on: 1=Monday .. 7=Sunday (e.g. [1,2,3,4,5] for weekdays).",
     ],
     trigger_hour: Annotated[int, "Hour of execution 0-23, in the USER's timezone"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     trigger_minute: Annotated[int, "Minute of execution 0-59"] = 0,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str = "fr",
@@ -148,7 +149,7 @@ async def create_scheduled_action_tool(
 @read_tool(name="list_scheduled_actions", agent_name=AGENT_AUTOMATION)
 @with_user_preferences
 async def list_scheduled_actions_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str = "fr",
 ) -> UnifiedToolOutput:
@@ -200,7 +201,7 @@ async def list_scheduled_actions_tool(
 @with_user_preferences
 async def toggle_scheduled_action_tool(
     action_id: Annotated[str, "Automation id from list_scheduled_actions"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str = "fr",
 ) -> UnifiedToolOutput:

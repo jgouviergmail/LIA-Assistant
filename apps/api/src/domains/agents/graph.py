@@ -57,6 +57,7 @@ from src.domains.agents.constants import (
     STATE_KEY_ROUTING_HISTORY,
 )
 from src.domains.agents.context import get_tool_context_store
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 
 # Phase 2.1.6 - SubGraph Callback Propagation Fix
 from src.domains.agents.graphs.base_agent_builder import (
@@ -373,7 +374,7 @@ def route_from_orchestrator(state: MessagesState) -> str:
 
 async def build_graph(
     config: Settings | None = None, checkpointer: Any = None
-) -> tuple[CompiledStateGraph, Any]:
+) -> tuple[CompiledStateGraph[MessagesState, LiaRuntimeContext, MessagesState, MessagesState], Any]:
     """
     Factory function to build LangGraph StateGraph.
 
@@ -461,7 +462,7 @@ async def build_graph(
     store = await get_tool_context_store()
 
     # Initialize StateGraph with MessagesState schema
-    graph = StateGraph(MessagesState)
+    graph = StateGraph(MessagesState, context_schema=LiaRuntimeContext)
 
     # ✅ Create agent wrapper nodes using generic factory pattern
     # Agents are obtained from the global registry with automatic dependency injection

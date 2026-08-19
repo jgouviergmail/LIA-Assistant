@@ -24,6 +24,7 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.config import get_settings
 from src.core.i18n_telephony import get_tool_phrases
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts import PhoneCallDraftInput
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
@@ -448,7 +449,7 @@ async def place_phone_call_tool(
         "What LIA must accomplish on the call, in the user's words "
         "(e.g. 'ask if she is free for dinner on Tuesday').",
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     date_window: str | None = None,
     user_timezone: str = "UTC",
     locale: str = "fr",

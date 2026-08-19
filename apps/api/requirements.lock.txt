@@ -1470,9 +1470,9 @@ langchain-anthropic==1.5.6 \
     --hash=sha256:648fdab25573fc9d29543c4b4af1d682b7b6e548d452bb46e67ebc586e195629 \
     --hash=sha256:c358ed2ca90ef75254bb73a96b0a8a8ef0efc1deabe529ea06db6ff403001a27
     # via -r requirements.txt
-langchain-core==1.5.5 \
-    --hash=sha256:537037fd44ead7c1ffb9621011029ad2e347e051519d17f112d7bf7be12f4365 \
-    --hash=sha256:c08d78176113867e9a76acc1007d641cd68fa5682e9e0018980d062b4ae0777e
+langchain-core==1.5.6 \
+    --hash=sha256:b5f73bd9688c457b31ec73657a0ad56948f889fae27acee79286e9c285632ee6 \
+    --hash=sha256:d6cf37bf695ecc22cddeb8461a684e353190b2ce430d99eb22bc11c0c7c00ea5
     # via
     #   -r requirements.txt
     #   langchain
@@ -1493,9 +1493,9 @@ langchain-google-genai==4.3.4 \
     --hash=sha256:265655baad05f799fa7b83a030eaca7cee0e32c9ab7de846b80ea7f59c26134e \
     --hash=sha256:618fb0da1b9ba9def5569a8b05cb87e1389de41b8731c802958d09499490d2a5
     # via -r requirements.txt
-langchain-openai==1.5.1 \
-    --hash=sha256:a4da6e507d2e867127f0d622797bca4b7e7e98f08b3bbdc8db46f0a0695d69cb \
-    --hash=sha256:e7100c89a6180e3fdf8d02b29a0f2b6c532da91428fc1b57aa93ebbc8acc0ce9
+langchain-openai==1.5.2 \
+    --hash=sha256:94b83536d943ff661bb74cf607534ff6e7c7d1c3b2235e33a1e09e3af1d77bfc \
+    --hash=sha256:ace745b422eecce5cec3f4a1802c95853de91a8283adbfcea4f2ac457f2a8181
     # via
     #   -r requirements.txt
     #   langchain-deepseek

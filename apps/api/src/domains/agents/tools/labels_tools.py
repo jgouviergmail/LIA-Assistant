@@ -26,6 +26,7 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
@@ -181,7 +182,7 @@ class ListLabelsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     category="read",
 )
 async def list_labels_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     name_filter: str | None = None,
     include_system: bool = False,
 ) -> UnifiedToolOutput:
@@ -282,7 +283,7 @@ class CreateLabelTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     category="write",
 )
 async def create_label_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     name: str,
 ) -> UnifiedToolOutput:
     """
@@ -406,7 +407,7 @@ class UpdateLabelTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     category="write",
 )
 async def update_label_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     label_name: str,
     new_name: str,
 ) -> UnifiedToolOutput:
@@ -614,7 +615,7 @@ class DeleteLabelDirectTool(ConnectorTool[GoogleGmailClient]):
     category="write",
 )
 async def delete_label_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     label_name: str,
     children_only: bool = False,
 ) -> UnifiedToolOutput:
@@ -759,7 +760,7 @@ class ApplyLabelsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     category="write",
 )
 async def apply_labels_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     label_names: list[str],
     message_id: str | None = None,
     message_ids: list[str] | None = None,
@@ -899,7 +900,7 @@ class RemoveLabelsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     category="write",
 )
 async def remove_labels_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     label_names: list[str],
     message_id: str | None = None,
     message_ids: list[str] | None = None,

@@ -41,6 +41,7 @@ from src.core.config import get_settings, settings
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_TASK, CONTEXT_DOMAIN_TASKS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.data_registry.models import (
     RegistryItem,
@@ -390,7 +391,7 @@ async def list_tasks_tool(
     due_max: Annotated[
         str | None, "Filter tasks due before this RFC 3339 timestamp (e.g., '2025-01-15T23:59:59Z')"
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     List tasks from a Google Tasks list.
@@ -663,7 +664,7 @@ async def get_task_details_tool(
         "List of Task IDs to retrieve (batch mode for multi-ordinal queries)",
     ] = None,
     task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get detailed information for one or more tasks.
@@ -845,7 +846,7 @@ async def create_task_tool(
     notes: Annotated[str | None, "Task notes/description (optional)"] = None,
     due: Annotated[str | None, "Due date in RFC 3339 format (e.g., '2025-01-15T00:00:00Z')"] = None,
     task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Create a new task in Google Tasks (with user confirmation).
@@ -929,7 +930,7 @@ _complete_task_tool_instance = CompleteTaskTool()
 async def complete_task_tool(
     task_id: Annotated[str, "Task ID to mark as complete"],
     task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Mark a task as completed in Google Tasks.
@@ -1062,7 +1063,7 @@ _list_task_lists_tool_instance = ListTaskListsTool()
 )
 async def list_task_lists_tool(
     max_results: Annotated[int, "Maximum number of results (default 20)"] = 20,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     List all task lists for the user.
@@ -1266,7 +1267,7 @@ async def update_task_tool(
     due: Annotated[str | None, "New due date in RFC 3339 format (optional)"] = None,
     status: Annotated[str | None, "New status: 'needsAction' or 'completed' (optional)"] = None,
     task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Update an existing task in Google Tasks (with user confirmation).
@@ -1430,7 +1431,7 @@ _delete_task_draft_tool_instance = DeleteTaskDraftTool()
 async def delete_task_tool(
     task_id: Annotated[str, "Task ID to delete (required)"],
     task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Delete a task from Google Tasks (with user confirmation).
@@ -1659,7 +1660,7 @@ async def execute_task_delete_draft(
     category="read",
 )
 async def get_tasks_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     task_id: str | None = None,
     task_ids: list[str] | None = None,
     task_list_id: str | None = None,

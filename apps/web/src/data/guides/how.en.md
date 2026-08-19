@@ -6,7 +6,7 @@
 
 **Version**: 4.4
 **Date**: 2026-08-19
-**Application**: LIA v1.30.11
+**Application**: LIA v1.30.12
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 473 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 229 ADRs, ~19,804 pytest-collected tests across 1,114 files, native observability, 6-level HITL |
+| Production reliability | 230 ADRs, ~19,844 pytest-collected tests across 1,119 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -75,7 +75,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~19,804 (collected by pytest across 1,114 test files) + 5,812 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~19,844 (collected by pytest across 1,119 test files) + 5,815 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 229 |
@@ -559,6 +559,8 @@ LangGraph's resume semantics re-execute the interrupted node **in full**: past `
 ### 10.1. MessagesState and custom reducer
 
 The LangGraph state is a `TypedDict` with an `add_messages_with_truncate` reducer that handles token-based truncation, OpenAI message sequence validation, and tool message deduplication.
+
+Since v1.30.12, the state is complemented by a **typed run context** (`LiaRuntimeContext`, ADR-231): a frozen dataclass declared as the graph's `context_schema`, carrying the run's identity, preferences and live dependencies (SSE queue, tool container). Unlike the state, this context is never checkpointed nor copied — object identity is preserved from node to subgraph to tool — and an assert at the graph's entrance refuses any run whose context is missing, including on the resume of a HITL interrupt, where the absence used to degrade silently.
 
 ### 10.2. Why per-node windowing? (ADR-007)
 
@@ -1287,7 +1289,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-229 ADRs in MADR format document the major architectural decisions. Some representative examples:
+230 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1420,10 +1422,10 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 229 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,804 tests across 1,114 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 230 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,844 tests across 1,119 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 229 ADRs, and the changelog (v1.0 to v1.30.11). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 230 ADRs, and the changelog (v1.0 to v1.30.12). All metrics, versions, and patterns cited are verifiable in the codebase.*

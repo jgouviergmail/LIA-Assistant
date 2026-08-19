@@ -19,6 +19,7 @@ from langchain_core.tools import InjectedToolArg
 from src.core.config import get_settings
 from src.core.constants import DEVOPS_AGENT_NAME
 from src.core.i18n_drafts import get_draft_error_message
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.services.devops_ssh_service import DevOpsService
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -133,7 +134,7 @@ async def claude_server_task_tool(
     server: Annotated[str, "Target server name. Empty for default server."] = "",
     context: Annotated[str, "Additional context or constraints for the task"] = "",
     resume_session: Annotated[str, "Previous Claude session ID to resume"] = "",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Prepare a task to run on a remote server via Claude Code CLI.
 

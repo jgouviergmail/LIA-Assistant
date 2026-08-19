@@ -62,15 +62,19 @@ async def resolve_user_location_for_prompt(
     """
     from langchain.tools import ToolRuntime
 
+    from src.domains.agents.context.runtime_context import (
+        LiaRuntimeContext,
+        runtime_context_if_running,
+    )
     from src.domains.agents.tools.location_resolution import resolve_location
 
     try:
         # Synthetic runtime: resolve_location and its source helpers only read
         # ``runtime.config`` — there is no tool call, hence the empty state and
         # absent store (the state dict shape matches resolve_location's bound).
-        runtime: ToolRuntime[None, dict[Any, Any]] = ToolRuntime(
+        runtime: ToolRuntime[LiaRuntimeContext | None, dict[Any, Any]] = ToolRuntime(
             state={},
-            context=None,
+            context=runtime_context_if_running(),
             config=config,
             stream_writer=_noop_stream_writer,
             tool_call_id=None,

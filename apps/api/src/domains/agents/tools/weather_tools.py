@@ -36,6 +36,7 @@ from src.core.i18n import _
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import AGENT_QUERY, AGENT_WEATHER, CONTEXT_DOMAIN_WEATHER
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -1165,7 +1166,7 @@ async def get_current_weather_tool(
     language: Annotated[
         str, "Language code for weather description (e.g., 'fr', 'en', 'es')"
     ] = "fr",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Get current weather for a location.
@@ -1233,7 +1234,7 @@ async def get_weather_forecast_tool(
     language: Annotated[
         str, "Language code for weather description (e.g., 'fr', 'en', 'es')"
     ] = "fr",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Get weather forecast for a location.
@@ -1306,7 +1307,7 @@ async def get_hourly_forecast_tool(
     language: Annotated[
         str, "Language code for weather description (e.g., 'fr', 'en', 'es')"
     ] = "fr",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Get intra-day weather forecast in 3-hour steps for a location.

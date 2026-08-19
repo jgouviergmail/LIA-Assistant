@@ -1440,7 +1440,8 @@ and reusable by any tool.
 ### How it works
 
 1. The graph runner creates an `asyncio.Queue` and stores it in
-   `RunnableConfig.configurable["__side_channel_queue"]`.
+   `runtime.context.side_channel_queue` (ADR-231 — the former
+   `RunnableConfig.configurable["__side_channel_queue"]` private key).
 2. Tools call `emit_side_channel_chunk(runtime, chunk)` to put a
    `ChatStreamChunk` into the queue. Fire-and-forget, never raises.
 3. `_interleave_side_channel()` in `service.py` polls the queue every 300ms

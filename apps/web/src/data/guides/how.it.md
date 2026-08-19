@@ -6,7 +6,7 @@
 
 **Versione**: 4.4
 **Data**: 2026-08-19
-**Applicazione**: LIA v1.30.11
+**Applicazione**: LIA v1.30.12
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 473 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 229 ADRs, ~19.804 test raccolti da pytest in 1.114 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 230 ADRs, ~19.844 test raccolti da pytest in 1.119 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -75,7 +75,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~19.804 (raccolti da pytest su 1.114 file di test) + 5.812 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | ~19.844 (raccolti da pytest su 1.119 file di test) + 5.815 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture riutilizzabili | 170+ |
 | Documenti di documentazione | 490+ |
 | ADR (Architecture Decision Record) | 229 |
@@ -559,6 +559,8 @@ La semantica di ripresa di LangGraph ri-esegue il nodo interrotto **per intero**
 ### 10.1. MessagesState e reducer custom
 
 Lo state LangGraph è un `TypedDict` con un reducer `add_messages_with_truncate` che gestisce il truncation basato sui token, la validazione delle sequenze di messaggi OpenAI e la deduplicazione dei messaggi tool.
+
+Dalla v1.30.12, lo state è completato da un **contesto di esecuzione tipizzato** (`LiaRuntimeContext`, ADR-231): una dataclass congelata dichiarata come `context_schema` del grafo, che porta l'identità, le preferenze e le dipendenze vive del run (coda SSE, contenitore degli strumenti). A differenza dello state, questo contesto non viene mai checkpointato né copiato — l'identità degli oggetti è preservata dal nodo al sottografo e allo strumento — e un assert all'ingresso del grafo rifiuta ogni run privo di contesto, anche alla ripresa di un'interruzione HITL, dove l'assenza prima degradava in silenzio.
 
 ### 10.2. Perché il windowing per nodo? (ADR-007)
 
@@ -1293,7 +1295,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-229 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+230 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1397,10 +1399,10 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 229 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.804 test in 1.114 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 230 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.844 test in 1.119 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 229 ADRs e del changelog (da v1.0 a v1.30.11). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 230 ADRs e del changelog (da v1.0 a v1.30.12). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

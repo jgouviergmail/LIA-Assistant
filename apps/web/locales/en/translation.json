@@ -4193,6 +4193,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_12": {
+          "title": "v1.30.12 — 🧱 A typed foundation under every conversation",
+          "date": "August 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧱 The run context is now typed and verified</b> — the \"who, where, with which preferences\" of every conversation used to travel in a 17-key bag with no contract; it now rides in a typed block validated at the graph's entrance: if it is missing, the application refuses instead of carrying on silently — including when resuming a pending confirmation.",
+            "i2": "<b>🌍 A sub-assistant inherits the whole context</b> — language, timezone, consented location: the hand-made copy that kept only 6 values out of 17 is replaced by full inheritance. A German-speaking profile can no longer get a sub-assistant answering in French by default.",
+            "i3": "<b>🛡️ The tool contract facing the model is continuously guarded</b> — every tool must prove it presents itself correctly to the model, with no internal parameter leaking; two new automatic guards lock that contract, and the orchestration libraries are up to date."
+          }
+        },
         "v1_30_11": {
           "title": "v1.30.11 — 📊 Model pricing is administered in Excel",
           "date": "August 2026",

@@ -40,6 +40,7 @@ from src.core.config import settings
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_FILE, CONTEXT_DOMAIN_FILES
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
@@ -349,7 +350,7 @@ async def search_files_tool(
         list[str] | None,
         "List of file fields to return for optimization (optional). Example: ['name', 'mimeType', 'modifiedTime']. If omitted, returns default search fields.",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Search files in Google Drive by name or content.
@@ -557,7 +558,7 @@ async def list_files_tool(
         list[str] | None,
         "List of file fields to return for optimization (optional). If omitted, returns default list fields.",
     ] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     List files in Google Drive folder.
@@ -1023,7 +1024,7 @@ async def get_file_details_tool(
         "List of Google Drive file IDs to retrieve (batch mode for multi-ordinal queries)",
     ] = None,
     include_content: Annotated[bool, "Include file content (default True)"] = True,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get full file details and metadata from Google Drive.
@@ -1181,7 +1182,7 @@ _delete_file_draft_tool_instance = DeleteFileDraftTool()
 )
 async def delete_file_tool(
     file_id: Annotated[str, "Google Drive file ID to delete (required)"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Delete a file from Google Drive (with user confirmation).
@@ -1264,7 +1265,7 @@ async def execute_file_delete_draft(
     category="read",
 )
 async def get_files_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     query: str | None = None,
     file_id: str | None = None,
     file_ids: list[str] | None = None,

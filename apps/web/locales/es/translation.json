@@ -4184,6 +4184,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_30_12": {
+          "title": "v1.30.12 — 🧱 Una base tipada bajo cada conversación",
+          "date": "Agosto 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧱 El contexto de ejecución ahora está tipado y verificado</b> — el «quién, dónde, con qué preferencias» de cada conversación viajaba en una bolsa de 17 claves sin contrato; ahora va en un bloque tipado validado en la entrada del grafo: si falta, la aplicación se niega en lugar de continuar en silencio — incluso al reanudar una confirmación pendiente.",
+            "i2": "<b>🌍 Un subasistente hereda todo el contexto</b> — idioma, zona horaria, ubicación consentida: la copia manual que solo conservaba 6 valores de 17 se sustituye por una herencia completa. Un perfil germanohablante ya no puede recibir un subasistente que responda en francés por defecto.",
+            "i3": "<b>🛡️ El contrato de las herramientas frente al modelo está vigilado de forma continua</b> — cada herramienta debe demostrar que se presenta correctamente al modelo, sin fugas de parámetros internos; dos nuevas guardas automáticas bloquean ese contrato, y las bibliotecas de orquestación están al día."
+          }
+        },
         "v1_30_11": {
           "title": "v1.30.11 — 📊 Las tarifas de los modelos se administran en Excel",
           "date": "Agosto de 2026",

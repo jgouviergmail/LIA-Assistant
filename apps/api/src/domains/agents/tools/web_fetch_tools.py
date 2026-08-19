@@ -37,7 +37,7 @@ Architecture:
 import re
 from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 from urllib.parse import urlparse
 
 import httpx
@@ -68,6 +68,7 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_WEB_FETCH,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -296,7 +297,7 @@ async def fetch_web_page_tool(
         bool,
         "Force bypass cache and fetch fresh content (use when user asks to refresh/reload)",
     ] = False,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Fetch a web page and extract its content as clean Markdown.
 

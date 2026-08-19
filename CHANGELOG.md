@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.30.12] - 2026-08-19
+
+**Le contexte d'exécution devient typé** (ADR-231). Le « qui, où, avec quelles préférences » d'une conversation circulait dans un sac non typé de 17 clés, écrit en un point et lu dans 43 fichiers — quatre clés privées non publiées, et la même identité sous **deux noms et deux types** (`user_id` en UUID d'un écrivain, en chaîne d'un autre, plus un doublon `langgraph_user_id` justifié par une intégration jamais installée). Il devient une dataclass gelée, construite en un point, injectée en quatre, validée à l'entrée du graphe : un contexte absent ou malformé **échoue bruyamment** au lieu de dégrader en silence — y compris à la reprise d'une confirmation, où l'absence passait inaperçue (mesuré, pas supposé). Les 145 annotations d'outils sont paramétrées ; l'ordre des deux opérations a été mesuré sur les quatre quadrants, car l'ordre inverse aurait pollué chaque appel d'outil d'un avertissement Pydantic.
+
+**Un sous-assistant hérite désormais de TOUT le contexte, pas de 6 clés sur 17.** La projection manuelle du sous-agent ReAct perdait en silence la géolocalisation consentie, le message d'origine, l'identité d'expéditeur et huit autres valeurs — latent tant que la liste blanche d'outils par défaut ne les lisait pas, mais cette liste est configurable. Le sous-agent **dérive** maintenant le contexte du parent : le prochain champ ajouté sera porté sans qu'aucun code ne change ici.
+
+**Agent Server v0.13 : étudié à fond, refusé** (ADR-231). Cinq bloquants indépendants, chacun vérifié : licence Elastic 2.0 incompatible avec l'AGPL de LIA dans un modèle qui charge le graphe hôte dans le processus serveur ; aucune version stable (uniquement des release candidates) ; redondance intégrale avec les sous-systèmes déjà durcis ; un plan d'autorisation qui ignore sessions d'appareil, MFA et plafonds ; et 17 services déjà sur le Raspberry Pi 5. La moitié « contextes » de la question n'a jamais eu besoin du serveur : elle est dans le paquet MIT déjà installé.
+
+### Added
+- **`LiaRuntimeContext`** : dataclass gelée de 17 champs, identité `uuid.UUID` unique, les quatre anciennes clés privées (`__deps`, `__browser_context`, `__user_message`, `__side_channel_queue`) publiées en champs nommés et documentés. Construite par un builder unique ; lue via ContextVar (traverse `asyncio.gather`, `to_thread`, `create_task` — vérifié avant d'être adopté).
+- **Garde CI « contrat de schéma d'outil »** : chaque outil enregistré (105) doit se convertir vers le schéma OpenAI, et aucun argument injecté (`runtime`, `config`, `state`, `store`, `tool_call_id`) ne doit atteindre le modèle. Aucun test ne couvrait ce que le LLM voit réellement ; la garde a été prouvée capable d'échouer par trois mutations injectées.
+- **Garde CI « annotation nue »** sur tout `src/` : une annotation `ToolRuntime` non paramétrée provoquerait un avertissement Pydantic à chaque appel d'outil une fois le contexte peuplé — la forme fautive échoue désormais en CI.
+- **ADR-231** : la décision Agent Server (cinq bloquants), le chantier contexte, et la liste des constats réfutés — pour qu'aucune session future ne « corrige » un non-problème mesuré comme sain.
+
+### Fixed
+- **Perte silencieuse d'auto-save** : les deux chemins de sortie du décorateur `auto_save_context` résolvaient le `ToolRuntime` différemment — le chemin JSON ignorait un runtime positionnel et sautait sa sauvegarde sans un mot. Une seule résolution factorisée sert les deux.
+- **Repli de langue codé en dur** : le sous-runner ReAct retombait sur `"fr"` et `"UTC"` en littéraux — un utilisateur germanophone pouvait recevoir un sous-agent francophone. Les replis lisent la configuration canonique.
+- **Branches legacy mortes** : `auto_save_context` lisait le store un niveau au-dessus de là où il est écrit — un chemin qui ne pouvait que rendre `None`, et que plus aucun outil n'empruntait (105 inspectés).
+- **Docstrings mensongers** : trois docstrings exigeaient des paramètres supprimés, deux commentaires du même bloc se contredisaient sur le lieu d'exécution, et le commentaire du contexte prétendait alimenter des outils qui ne le voyaient pas.
+
+### Changed
+- **langchain-core 1.5.6 + langchain-openai 1.5.2** (montée couplée : 1.5.2 exige core ≥ 1.5.6). Le risque nommé — une méthode privée de `langchain-openai` surchargée par le correctif DeepSeek local — a été clos par comparaison directe des signatures, pas seulement par des tests verts.
+- **Plancher de couverture backend 66 % → 67 %** (mesuré 69,04 %), propagé aux trois déclarations qui portent la valeur.
+- Migration sans casse vérifiée dans les deux sens : un fil interrompu avant la bascule reprend après, et un fil démarré après reprend avant (rollback testé) ; le contexte n'est jamais écrit dans les checkpoints.
+
 ## [1.30.11] - 2026-08-19
 
 **La grille tarifaire des modèles s'édite désormais dans un classeur, pas ligne par ligne** (ADR-228). Le catalogue compte 124 modèles, chacun portant 24 caractéristiques et un tarif à quatre dimensions ; il s'administrait une boîte de dialogue à la fois. Mettre à jour une grille complète — ce qu'un fournisseur impose deux ou trois fois par an — demandait 124 allers-retours. L'export produit un classeur Excel avec listes déroulantes, notice traduite et validations ; le réimport montre **le diff champ par champ avant d'écrire quoi que ce soit**, et n'écrit rien tant que l'administrateur n'a pas relu. Une ligne absente du fichier ne supprime jamais rien : un filtre Excel oublié ne peut pas vider un catalogue.

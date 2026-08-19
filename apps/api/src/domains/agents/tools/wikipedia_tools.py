@@ -13,7 +13,7 @@ Data Registry Integration:
     - Cross-domain queries with LocalQueryEngine
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import structlog
 from langchain.tools import ToolRuntime
@@ -28,6 +28,7 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_WIKIPEDIA,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -103,7 +104,7 @@ async def search_wikipedia_tool(
     query: Annotated[str, "Search query for Wikipedia articles"],
     language: Annotated[str, "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de')"] = "fr",
     max_results: Annotated[int, "Maximum number of results (default 5)"] = 5,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Search for Wikipedia articles matching a query.
@@ -239,7 +240,7 @@ WIKIPEDIA_SUMMARY_MAX_CHARS = settings.wikipedia_summary_max_chars
 async def get_wikipedia_summary_tool(
     title: Annotated[str, "Wikipedia article title"],
     language: Annotated[str, "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de')"] = "fr",
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get a summary of a Wikipedia article.
@@ -360,7 +361,7 @@ async def get_wikipedia_article_tool(
     language: Annotated[str, "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de')"] = "fr",
     sections: Annotated[bool, "Include section breakdown (default True)"] = True,
     max_length: Annotated[int, "Maximum content length in characters (default 10000)"] = 10000,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get full content of a Wikipedia article.
@@ -538,7 +539,7 @@ async def get_wikipedia_related_tool(
     title: Annotated[str, "Wikipedia article title"],
     language: Annotated[str, "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de')"] = "fr",
     max_results: Annotated[int, "Maximum number of related articles (default 10)"] = 10,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get articles related to a Wikipedia article.

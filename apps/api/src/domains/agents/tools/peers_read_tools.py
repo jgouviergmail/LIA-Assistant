@@ -37,6 +37,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.domains.agents.constants import AGENT_PEER
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.peer.summaries import format_peer_availability, format_peer_tasks
 from src.domains.agents.tools.decorators import read_tool
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -232,7 +233,7 @@ def _event_slot(event: dict[str, Any], include_title: bool) -> dict[str, Any]:
 @read_tool(name="get_peer_availability", agent_name=AGENT_PEER)
 async def get_peer_availability_tool(
     peer_name: Annotated[str, "Full name of the CONNECTED user whose availability to check"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Read a connected peer's calendar availability (their shared level).
 
@@ -317,7 +318,7 @@ async def get_peer_availability_tool(
 @read_tool(name="get_peer_tasks", agent_name=AGENT_PEER)
 async def get_peer_tasks_tool(
     peer_name: Annotated[str, "Full name of the CONNECTED user whose tasks to read"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Read a connected peer's pending task titles (share level ``titles``).
 

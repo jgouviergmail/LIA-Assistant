@@ -711,9 +711,9 @@ tasks:
     desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=66
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=67
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=66
+      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=67
         platforms: [linux, darwin]
 
   test:backend:agents:

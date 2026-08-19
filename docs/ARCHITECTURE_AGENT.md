@@ -2332,9 +2332,9 @@ Le système utilise un container d'injection pour partager les ressources entre 
 │       ↓                                                                  │
 │  deps = ToolDependencies(db_session=db)                                 │
 │       ↓                                                                  │
-│  config = {"configurable": {"__deps": deps, "user_id": ...}}           │
-│       ↓                                                                  │
-│  agent.ainvoke(state, config)                                           │
+│  ctx = LiaRuntimeContext.for_conversation(user_id=..., deps=deps, ...)  │
+│       ↓                              (ADR-231: typed, frozen, run-scoped)│
+│  agent.ainvoke(state, config, context=ctx)                              │
 │       ↓                                                                  │
 │  Tool.execute() → get_dependencies(runtime) → deps                      │
 │       ↓                                                                  │

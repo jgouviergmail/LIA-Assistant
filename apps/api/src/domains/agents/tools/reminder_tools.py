@@ -40,6 +40,7 @@ from src.domains.agents.constants import (
     AGENT_REMINDER,
     CONTEXT_DOMAIN_REMINDERS,
 )
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -184,7 +185,7 @@ def _parse_relative_trigger(relative_trigger: str, user_timezone: str) -> str:
 async def create_reminder_tool(
     content: Annotated[str, "Ce dont l'utilisateur veut être rappelé (résumé concis)"],
     original_message: Annotated[str, "Message original complet de l'utilisateur"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     trigger_datetime: Annotated[
         str | None,
         "Date/heure ISO du rappel en heure LOCALE (ex: 2025-12-29T10:00:00). "
@@ -342,7 +343,7 @@ async def create_reminder_tool(
 @read_tool(name="list_reminders", agent_name=AGENT_REMINDER)
 @with_user_preferences
 async def list_reminders_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str = "fr",
 ) -> UnifiedToolOutput:
@@ -467,7 +468,7 @@ async def cancel_reminder_tool(
         str,
         "ID du rappel (UUID) ou référence naturelle ('next', 'le prochain', 'prochain')",
     ],
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str = "fr",
 ) -> UnifiedToolOutput:

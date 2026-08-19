@@ -45,6 +45,7 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_PLACES,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ToolValidationError
@@ -660,7 +661,7 @@ _search_places_tool_instance = SearchPlacesTool()
     category="read",
 )
 async def search_places_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     query: Annotated[
         str,
         "Search query (e.g., 'restaurants in Paris'). Optional for proximity search.",
@@ -1145,7 +1146,7 @@ async def get_place_details_tool(
         "List of Google Place IDs (batch mode for multi-ordinal queries)",
     ] = None,
     force_refresh: Annotated[bool, "Force refresh from API (bypass cache)"] = False,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
     Get detailed information about one or more places.
@@ -1263,7 +1264,7 @@ _list_places_tool_instance = ListPlacesTool()
     category="read",
 )
 async def list_places_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     limit: Annotated[int, "Maximum number of results (default: 10)"] = 10,
 ) -> str:
     """
@@ -1544,7 +1545,7 @@ _get_current_location_tool_instance = GetCurrentLocationTool()
     category="read",
 )
 async def get_current_location_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
 ) -> str:
     """
     Get user's current location using browser geolocation and reverse geocoding.
@@ -1593,7 +1594,7 @@ async def get_current_location_tool(
     category="read",
 )
 async def get_places_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg],
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     query: str | None = None,
     location: str | None = None,
     place_id: str | None = None,

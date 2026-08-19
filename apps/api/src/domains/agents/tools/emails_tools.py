@@ -51,6 +51,7 @@ from src.core.i18n_types import get_language_name
 from src.core.validators import validate_email
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.tools.base import ConnectorTool
@@ -715,7 +716,7 @@ async def get_emails_tool(
         int, "Maximum number of results (default 10, max 50)"
     ] = settings.emails_tool_default_max_results,
     use_cache: Annotated[bool, "Use cached results if available (default True)"] = True,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get emails with full details - unified search and retrieval.
@@ -994,7 +995,7 @@ async def search_emails_tool(
         int, "Maximum number of results to return (default 10, max 100)"
     ] = settings.emails_tool_default_max_results,
     use_cache: Annotated[bool, "Use cached results if available (default True)"] = True,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Search emails using Gmail search query syntax.
@@ -1471,7 +1472,7 @@ async def get_email_details_tool(
     ] = None,
     include_body: Annotated[bool, "Include email body content (default True)"] = True,
     use_cache: Annotated[bool, "Use cached results if available (default True)"] = True,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Get detailed information for one or more email messages.
@@ -1657,7 +1658,7 @@ class SendEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
     async def execute(
         self,
-        runtime: ToolRuntime | None = None,
+        runtime: ToolRuntime[LiaRuntimeContext, Any] | None = None,
         **kwargs: Any,
     ) -> str:
         """
@@ -1956,7 +1957,7 @@ async def send_email_tool(
     cc: Annotated[str | None, "CC recipients (optional, comma-separated)"] = None,
     bcc: Annotated[str | None, "BCC recipients (optional, comma-separated)"] = None,
     is_html: Annotated[bool, "True if body is HTML, False for plain text (default False)"] = False,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Send an email via Gmail (with user confirmation).
@@ -2302,7 +2303,7 @@ async def reply_email_tool(
     message_id: Annotated[str, "Original message ID to reply to (required)"],
     body: Annotated[str, "Reply message body (required)"],
     reply_all: Annotated[bool, "Reply to all recipients (default False)"] = False,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Reply to an email in Gmail (with user confirmation).
@@ -2353,7 +2354,7 @@ class ForwardEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
     async def execute(
         self,
-        runtime: ToolRuntime | None = None,
+        runtime: ToolRuntime[LiaRuntimeContext, Any] | None = None,
         **kwargs: Any,
     ) -> str:
         """
@@ -2504,7 +2505,7 @@ async def forward_email_tool(
     to: Annotated[str, "Forward recipient email (required)"],
     body: Annotated[str | None, "Additional message to prepend (optional)"] = None,
     cc: Annotated[str | None, "CC recipients (optional)"] = None,
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Forward an email in Gmail (with user confirmation).
@@ -2681,7 +2682,7 @@ _delete_email_draft_tool_instance = DeleteEmailDraftTool()
 )
 async def delete_email_tool(
     message_id: Annotated[str, "Message ID to delete (required)"],
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Delete an email in Gmail (with user confirmation).

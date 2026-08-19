@@ -21,10 +21,11 @@ cascade (browser > last_known > home) is :func:`resolve_implicit_location`.
 """
 
 from datetime import datetime
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from langchain.tools import ToolRuntime
 
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.runtime_helpers import parse_user_id
 from src.infrastructure.observability.logging import get_logger
 
@@ -46,7 +47,9 @@ class ResolvedLocation(NamedTuple):
     as_of: datetime | None = None
 
 
-async def get_browser_geolocation(runtime: ToolRuntime) -> ResolvedLocation | None:
+async def get_browser_geolocation(
+    runtime: ToolRuntime[LiaRuntimeContext | None, Any],
+) -> ResolvedLocation | None:
     """
     Get browser geolocation from runtime config.
 
@@ -106,7 +109,9 @@ async def get_browser_geolocation(runtime: ToolRuntime) -> ResolvedLocation | No
         return None
 
 
-async def get_user_home_location(runtime: ToolRuntime) -> ResolvedLocation | None:
+async def get_user_home_location(
+    runtime: ToolRuntime[LiaRuntimeContext | None, Any],
+) -> ResolvedLocation | None:
     """
     Get user's configured home location from database (decrypted).
 
@@ -175,7 +180,9 @@ async def get_user_home_location(runtime: ToolRuntime) -> ResolvedLocation | Non
         return None
 
 
-async def get_user_last_known_location(runtime: ToolRuntime) -> ResolvedLocation | None:
+async def get_user_last_known_location(
+    runtime: ToolRuntime[LiaRuntimeContext | None, Any],
+) -> ResolvedLocation | None:
     """
     Get the user's persisted last-known location (opt-in, fresh only).
 
@@ -240,7 +247,9 @@ async def get_user_last_known_location(runtime: ToolRuntime) -> ResolvedLocation
         return None
 
 
-async def resolve_implicit_location(runtime: ToolRuntime) -> ResolvedLocation | None:
+async def resolve_implicit_location(
+    runtime: ToolRuntime[LiaRuntimeContext | None, Any],
+) -> ResolvedLocation | None:
     """
     Resolve the user's implicit location: browser > last_known > home.
 
@@ -269,7 +278,7 @@ async def resolve_implicit_location(runtime: ToolRuntime) -> ResolvedLocation | 
 
 
 async def resolve_location(
-    runtime: ToolRuntime,
+    runtime: ToolRuntime[LiaRuntimeContext | None, Any],
     user_message: str,
     language: str = "fr",
 ) -> tuple[ResolvedLocation | None, str | None]:

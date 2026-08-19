@@ -4184,6 +4184,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_30_12": {
+          "title": "v1.30.12 — 🧱 Ein typisiertes Fundament unter jeder Unterhaltung",
+          "date": "August 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧱 Der Ausführungskontext ist jetzt typisiert und geprüft</b> — das „Wer, wo, mit welchen Einstellungen“ jeder Unterhaltung reiste bisher in einem Beutel aus 17 Schlüsseln ohne Vertrag; jetzt fährt es in einem typisierten Block, der am Eingang des Graphen validiert wird: Fehlt er, verweigert die Anwendung, statt stumm weiterzumachen — auch beim Fortsetzen einer offenen Bestätigung.",
+            "i2": "<b>🌍 Ein Unter-Assistent erbt den gesamten Kontext</b> — Sprache, Zeitzone, freigegebener Standort: Die handgemachte Kopie, die nur 6 von 17 Werten behielt, ist durch vollständige Vererbung ersetzt. Ein deutschsprachiges Profil kann keinen Unter-Assistenten mehr bekommen, der standardmäßig auf Französisch antwortet.",
+            "i3": "<b>🛡️ Der Werkzeug-Vertrag gegenüber dem Modell wird laufend bewacht</b> — jedes Werkzeug muss beweisen, dass es sich dem Modell korrekt präsentiert, ohne dass interne Parameter durchsickern; zwei neue automatische Wächter sichern diesen Vertrag, und die Orchestrierungs-Bibliotheken sind aktuell."
+          }
+        },
         "v1_30_11": {
           "title": "v1.30.11 — 📊 Modelltarife werden in Excel verwaltet",
           "date": "August 2026",

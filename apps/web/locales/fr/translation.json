@@ -4198,6 +4198,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_30_12": {
+          "title": "v1.30.12 — 🧱 Un socle typé sous chaque conversation",
+          "date": "Août 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🧱 Le contexte d'exécution est désormais typé et vérifié</b> — le « qui, où, avec quelles préférences » de chaque conversation circulait dans un sac de 17 clés sans contrat ; il voyage maintenant dans un bloc typé, validé à l'entrée du graphe : s'il manque, l'application refuse au lieu de continuer en silence — y compris à la reprise d'une confirmation en attente.",
+            "i2": "<b>🌍 Un sous-assistant hérite de tout le contexte</b> — langue, fuseau horaire, position consentie : la copie manuelle qui n'en gardait que 6 valeurs sur 17 est remplacée par un héritage intégral. Un profil germanophone ne peut plus voir un sous-assistant répondre en français par défaut.",
+            "i3": "<b>🛡️ Le contrat des outils face au modèle est gardé en continu</b> — chaque outil doit prouver qu'il se présente correctement au modèle, sans fuite de paramètres internes ; deux nouvelles gardes automatiques verrouillent ce contrat, et les bibliothèques d'orchestration sont à jour."
+          }
+        },
         "v1_30_11": {
           "title": "v1.30.11 — 📊 Les tarifs des modèles s'administrent dans Excel",
           "date": "Août 2026",
