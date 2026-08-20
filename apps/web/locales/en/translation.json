@@ -8801,7 +8801,7 @@
       },
       "voice_mode": {
         "title": "Voice mode, local recognition",
-        "description": "Talk to LIA and listen to her responses. Wake word and speech recognition run entirely in your browser — nothing is sent before you speak to LIA. Natural multi-engine speech synthesis. Also works via Telegram audio messages. Numbers, prices and web addresses are read as a single phrase."
+        "description": "Talk to LIA and listen to her responses. Wake word and speech recognition run entirely in your browser — nothing is sent before you speak to LIA. Natural multi-engine speech synthesis. Also works via Telegram audio messages. Numbers, prices and web addresses are read as a single phrase. The voice also breathes with the moment: its prosody follows the assistant's mood within strict bounds, so a good news does not sound like a weather report."
       },
       "natural_language": {
         "title": "Natural language",
@@ -8813,7 +8813,7 @@
       },
       "proactive": {
         "title": "Proactive intelligence",
-        "description": "Push notifications at the right time (weather, meetings, tasks). Themes rotate so the same topic never comes back day after day, and when a notification builds on one of your interests it names real, fresh facts with clickable sources. During conversations, LIA proactively cross-references related information: rain forecast + outdoor event, email with meeting proposal + calendar conflict. Fully configurable."
+        "description": "Push notifications at the right time (weather, meetings, tasks). Themes rotate so the same topic never comes back day after day, and when a notification builds on one of your interests it names real, fresh facts with clickable sources. During conversations, LIA proactively cross-references related information: rain forecast + outdoor event, email with meeting proposal + calendar conflict. Fully configurable. When something can wait, it becomes a proposal on your dashboard instead of a ping — nothing runs until you accept — and an activity feed shows everything LIA did for you in the background."
       },
       "interests": {
         "title": "Interest tracking",
@@ -8821,7 +8821,7 @@
       },
       "habits": {
         "title": "Habit learning",
-        "description": "LIA learns your rhythm and recurring requests through transparent statistics — never an opaque model. Everything is visible: a heat map of your 24 hours, unlock progress, the days actually observed and the thresholds applied. A displayed habit is proven, or it does not exist — and everything can be paused, blocked or forgotten in one click. Off by default."
+        "description": "LIA learns your rhythm and recurring requests through transparent statistics — never an opaque model. Everything is visible: a heat map of your 24 hours, unlock progress, the days actually observed and the thresholds applied. A displayed habit is proven, or it does not exist — and everything can be paused, blocked or forgotten in one click. Off by default. Confirmed habits carry their streak — consecutive days honored, milestones and your best record — computed from the same proven ledger."
       },
       "telephony": {
         "title": "LIA can call for you",
@@ -8833,7 +8833,7 @@
       },
       "memory": {
         "title": "Contextual memory",
-        "description": "LIA remembers your preferences, habits, and important information. She improves with every interaction for increasingly relevant responses. What it retains comes from you, wherever you write — browser or messenger — and even when your request triggers an action."
+        "description": "LIA remembers your preferences, habits, and important information. She improves with every interaction for increasingly relevant responses. What it retains comes from you, wherever you write — browser or messenger — and even when your request triggers an action. Standing rules are memories too: say once how LIA should work for you, it applies everywhere — and when a fact changes, the old one is superseded with a date, never silently erased."
       },
       "rich_responses": {
         "title": "Rich visual responses",
@@ -8941,7 +8941,7 @@
       },
       "briefing": {
         "title": "Today briefing",
-        "description": "Every morning, your day at a glance: personalized synthesis, weather, agenda, birthdays, reminders, health, unread emails, your tracked commitments, overdue tasks and freshly edited documents — before you even ask. Each card now acts, not just informs — summarize a document, draft a reply, mark a task done or reschedule right there — and states honestly how fresh it is (updated X ago, from cache, one-click retry)."
+        "description": "Every morning, your day at a glance: personalized synthesis, weather, agenda, birthdays, reminders, health, unread emails, your tracked commitments, overdue tasks and freshly edited documents — before you even ask. Each card now acts, not just informs — summarize a document, draft a reply, mark a task done or reschedule right there — and states honestly how fresh it is (updated X ago, from cache, one-click retry). And when reading is not an option, a listen button speaks the whole briefing with a natural voice."
       },
       "peers": {
         "title": "Your circle, assistant to assistant",

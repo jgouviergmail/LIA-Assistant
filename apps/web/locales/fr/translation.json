@@ -8727,7 +8727,7 @@
       },
       "voice_mode": {
         "title": "Mode vocal, écoute 100 % locale",
-        "description": "Parle à LIA et écoute ses réponses. Le mot d'activation et la reconnaissance vocale tournent entièrement dans ton navigateur — rien n'est transmis avant que tu t'adresses à LIA. Synthèse vocale naturelle multi-moteurs. Fonctionne aussi via Telegram en message audio. Les nombres, les prix et les adresses web sont lus d'un seul tenant."
+        "description": "Parle à LIA et écoute ses réponses. Le mot d'activation et la reconnaissance vocale tournent entièrement dans ton navigateur — rien n'est transmis avant que tu t'adresses à LIA. Synthèse vocale naturelle multi-moteurs. Fonctionne aussi via Telegram en message audio. Les nombres, les prix et les adresses web sont lus d'un seul tenant. La voix respire aussi avec l'instant : sa prosodie suit l'humeur de l'assistante dans des bornes strictes, pour qu'une bonne nouvelle ne sonne pas comme un bulletin météo."
       },
       "natural_language": {
         "title": "Langage naturel",
@@ -8739,7 +8739,7 @@
       },
       "proactive": {
         "title": "Intelligence proactive",
-        "description": "Notifications push au bon moment (météo, réunions, tâches). Les thèmes tournent pour que le même sujet ne revienne pas jour après jour, et quand une notification s'appuie sur un de tes centres d'intérêt, elle nomme des faits réels et récents avec des sources cliquables. En conversation, LIA croise proactivement les informations : pluie prévue + activité en extérieur, email mentionnant un rdv + conflit d'agenda. Entièrement configurable."
+        "description": "Notifications push au bon moment (météo, réunions, tâches). Les thèmes tournent pour que le même sujet ne revienne pas jour après jour, et quand une notification s'appuie sur un de tes centres d'intérêt, elle nomme des faits réels et récents avec des sources cliquables. En conversation, LIA croise proactivement les informations : pluie prévue + activité en extérieur, email mentionnant un rdv + conflit d'agenda. Entièrement configurable. Quand une chose peut attendre, elle devient une proposition sur ton tableau de bord plutôt qu'une alerte — rien ne s'exécute sans ton accord — et un fil d'activité montre tout ce que LIA a fait pour toi en coulisses."
       },
       "interests": {
         "title": "Centres d'intérêt",
@@ -8747,7 +8747,7 @@
       },
       "habits": {
         "title": "Apprentissage des habitudes",
-        "description": "LIA apprend ton rythme et tes demandes récurrentes par statistiques transparentes — jamais un modèle opaque. Tout est visible : carte de chaleur de tes 24 heures, progression du déblocage, jours réellement observés et seuils appliqués. Une habitude affichée est prouvée, ou elle n'existe pas — et tout se met en pause, se bloque ou s'oublie en un clic. Éteint par défaut."
+        "description": "LIA apprend ton rythme et tes demandes récurrentes par statistiques transparentes — jamais un modèle opaque. Tout est visible : carte de chaleur de tes 24 heures, progression du déblocage, jours réellement observés et seuils appliqués. Une habitude affichée est prouvée, ou elle n'existe pas — et tout se met en pause, se bloque ou s'oublie en un clic. Éteint par défaut. Les habitudes confirmées portent leur série — jours consécutifs honorés, jalons et ton record — calculée sur le même registre prouvé."
       },
       "telephony": {
         "title": "LIA passe des appels pour toi",
@@ -8759,7 +8759,7 @@
       },
       "memory": {
         "title": "Mémoire contextuelle",
-        "description": "LIA retient tes préférences, habitudes et informations importantes. Elle s'améliore à chaque interaction pour des réponses toujours plus pertinentes. Ce qu'elle retient vient de toi, où que tu écrives — navigateur ou messagerie — et même quand ta demande déclenche une action."
+        "description": "LIA retient tes préférences, habitudes et informations importantes. Elle s'améliore à chaque interaction pour des réponses toujours plus pertinentes. Ce qu'elle retient vient de toi, où que tu écrives — navigateur ou messagerie — et même quand ta demande déclenche une action. Les règles permanentes sont aussi des souvenirs : dis une fois comment LIA doit travailler pour toi, elle l'applique partout — et quand un fait change, l'ancien est supplanté avec une date, jamais effacé en silence."
       },
       "rich_responses": {
         "title": "Réponses visuelles enrichies",
@@ -8867,7 +8867,7 @@
       },
       "briefing": {
         "title": "Briefing du jour",
-        "description": "Chaque matin, ta journée en un coup d'œil : synthèse personnalisée, météo, agenda, anniversaires, rappels, santé, emails non lus, tes engagements suivis, tâches en retard et documents fraîchement modifiés — avant même que tu demandes. Chaque carte agit désormais, elle ne se contente plus d'informer — résumer un document, préparer une réponse, terminer ou reporter une tâche sur place — et elle dit honnêtement sa fraîcheur (mis à jour il y a X, servi du cache, réessai en un clic)."
+        "description": "Chaque matin, ta journée en un coup d'œil : synthèse personnalisée, météo, agenda, anniversaires, rappels, santé, emails non lus, tes engagements suivis, tâches en retard et documents fraîchement modifiés — avant même que tu demandes. Chaque carte agit désormais, elle ne se contente plus d'informer — résumer un document, préparer une réponse, terminer ou reporter une tâche sur place — et elle dit honnêtement sa fraîcheur (mis à jour il y a X, servi du cache, réessai en un clic). Et quand lire n'est pas possible, un bouton d'écoute lit tout le briefing d'une voix naturelle."
       },
       "peers": {
         "title": "Ton cercle, d’assistant à assistant",
