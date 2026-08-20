@@ -16,6 +16,9 @@ local fallback, circuit breaker, retry with backoff, connection pooling.
 The public contract is unchanged: methods RAISE on errors (callers absorb —
 ``gather(return_exceptions=True)`` in heartbeat, broad except in geocoding,
 error-family catch in briefing) and the geocoding endpoints return lists.
+One deliberate nuance (2026-08-20): geo/1.0 answers HTTP 404 for a query it
+cannot match — that is a no-results verdict, so geocode()/reverse_geocode()
+return [] there instead of raising.
 """
 
 from __future__ import annotations
@@ -24,6 +27,8 @@ from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
+
+import httpx
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
@@ -125,11 +130,26 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
 
         params: dict[str, Any] = {"q": query, "limit": limit}
 
-        # geo/1.0 endpoints return a JSON list (not a dict)
-        response = cast(
-            "list[dict[str, Any]]",
-            await self._make_request("GET", "geo/1.0/direct", params=params),
-        )
+        try:
+            # geo/1.0 endpoints return a JSON list (not a dict)
+            response = cast(
+                "list[dict[str, Any]]",
+                await self._make_request("GET", "geo/1.0/direct", params=params),
+            )
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                # geo/1.0 answers 404 {"cod":"404","message":"not found"} for a
+                # query it cannot match (measured in prod 2026-08-19). That is a
+                # no-results verdict, not a failure: returning [] keeps the
+                # Google fallback and the tools' location_not_found path
+                # reachable instead of surfacing a raw traceback.
+                logger.info(
+                    "weather_geocode_no_results",
+                    user_id=str(self.user_id) if self.user_id else None,
+                    query_chars=len(query),
+                )
+                return []
+            raise
 
         logger.info(
             "weather_geocode_completed",
@@ -159,11 +179,21 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         """
         params: dict[str, Any] = {"lat": lat, "lon": lon, "limit": limit}
 
-        # geo/1.0 endpoints return a JSON list (not a dict)
-        return cast(
-            "list[dict[str, Any]]",
-            await self._make_request("GET", "geo/1.0/reverse", params=params),
-        )
+        try:
+            # geo/1.0 endpoints return a JSON list (not a dict)
+            return cast(
+                "list[dict[str, Any]]",
+                await self._make_request("GET", "geo/1.0/reverse", params=params),
+            )
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                # Same no-results verdict as geocode() — see comment there.
+                logger.info(
+                    "weather_reverse_geocode_no_results",
+                    user_id=str(self.user_id) if self.user_id else None,
+                )
+                return []
+            raise
 
     # =========================================================================
     # CURRENT WEATHER

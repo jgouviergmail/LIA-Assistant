@@ -196,6 +196,11 @@ def configure_logging() -> None:
     logging.getLogger("openai._base_client").setLevel(
         getattr(logging, str(settings.log_level_httpx).upper())
     )
+    # The MCP SDK warns "Session termination failed: 404" every time a remote
+    # server does not implement session DELETE (Excalidraw does not) — 41
+    # warnings in 7 days of prod logs for third-party behavior we cannot fix
+    # and already tolerate. Real transport failures still surface as ERROR.
+    logging.getLogger("mcp.client.streamable_http").setLevel(logging.ERROR)
 
     logger = structlog.get_logger(__name__)
     logger.info(

@@ -52,27 +52,27 @@ class TestTimeoutFamily:
     """ADR-160: dedicated floor/ceiling — the planner can never undercut reality."""
 
     def test_floor_applies_when_planner_is_silent(self) -> None:
-        from src.domains.agents.orchestration.parallel_executor import (
+        from src.domains.agents.orchestration.step_timeouts import (
             _DOCUMENT_TOOL_NAMES,
-            _compute_step_timeout,
+            compute_step_timeout,
         )
 
         assert "generate_document" in _DOCUMENT_TOOL_NAMES
-        resolved = _compute_step_timeout("generate_document", None)
+        resolved = compute_step_timeout("generate_document", None)
         assert resolved == settings.document_generation_tool_timeout_seconds
 
     def test_planner_cannot_undercut_the_floor(self) -> None:
-        from src.domains.agents.orchestration.parallel_executor import (
-            _compute_step_timeout,
+        from src.domains.agents.orchestration.step_timeouts import (
+            compute_step_timeout,
         )
 
-        resolved = _compute_step_timeout("generate_document", 5.0)
+        resolved = compute_step_timeout("generate_document", 5.0)
         assert resolved >= settings.document_generation_tool_timeout_seconds
 
     def test_ceiling_caps_the_planner(self) -> None:
-        from src.domains.agents.orchestration.parallel_executor import (
-            _compute_step_timeout,
+        from src.domains.agents.orchestration.step_timeouts import (
+            compute_step_timeout,
         )
 
-        resolved = _compute_step_timeout("generate_document", 100000.0)
+        resolved = compute_step_timeout("generate_document", 100000.0)
         assert resolved == settings.max_document_generation_tool_timeout_seconds

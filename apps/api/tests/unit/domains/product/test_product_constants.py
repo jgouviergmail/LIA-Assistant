@@ -111,6 +111,42 @@ class TestDeriveResultType:
         assert derive_result_type(INTENTION_CONVERSATION, "web") == "answer"
 
 
+class TestVocabularyFitsPersistedColumns:
+    """Every bounded value must fit the column that persists it — derived.
+
+    Regression 2026-08-20: ``demo_mission_started_overloaded_morning``
+    (39 chars) exceeded the historical ``String(32)`` column, so every
+    per-mission showroom INSERT failed with StringDataRightTruncationError
+    and the guided-showroom funnel silently lost its per-mission rows for
+    six weeks. Both bounds are read from the SQLAlchemy model, never
+    pinned: adding a longer enum value without widening the column turns
+    this test red before it can turn production inserts red.
+    """
+
+    def test_every_event_type_fits_column(self) -> None:
+        from src.domains.product.models import ProductEvent
+
+        column_length = ProductEvent.__table__.c.event_type.type.length
+        assert column_length is not None
+        longest = max(ProductEventType, key=lambda e: len(e.value))
+        assert len(longest.value) <= column_length, (
+            f"ProductEventType.{longest.name} ({len(longest.value)} chars) does not fit "
+            f"product_events.event_type (String({column_length})) — widen the column "
+            f"in a migration alongside the enum change."
+        )
+
+    def test_every_channel_fits_column(self) -> None:
+        from src.domains.product.models import ProductEvent
+
+        column_length = ProductEvent.__table__.c.channel.type.length
+        assert column_length is not None
+        longest = max(CHANNELS, key=len)
+        assert len(longest) <= column_length, (
+            f"channel '{longest}' ({len(longest)} chars) does not fit "
+            f"product_events.channel (String({column_length}))."
+        )
+
+
 class TestEventRegistry:
     """ADR-085 doctrine: registry drift fails loudly at boot."""
 

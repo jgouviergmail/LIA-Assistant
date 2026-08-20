@@ -53,6 +53,7 @@ export type ShowroomFunnelEvent =
   | 'demo_source_clicked'
   | 'demo_release_clicked'
   | 'demo_install_guide_clicked'
+  | 'demo_live_clicked'
   | `demo_mission_started_${ShowroomMissionId}`
   | `demo_completed_${ShowroomMissionId}`;
 

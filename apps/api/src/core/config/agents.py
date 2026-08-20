@@ -176,6 +176,7 @@ from src.core.constants import (
     MAX_ROUTING_HISTORY_DEFAULT,
     MAX_TOKENS_HISTORY_DEFAULT,
     MAX_TOOL_TIMEOUT_SECONDS,
+    MAX_WEB_RESEARCH_TOOL_TIMEOUT_SECONDS_DEFAULT,
     MCP_REACT_ENABLED_DEFAULT,
     MCP_REACT_MAX_ITERATIONS_DEFAULT,
     MCP_REACT_STEP_MAX_TIMEOUT_SECONDS_DEFAULT,
@@ -347,6 +348,7 @@ from src.core.constants import (
     V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT,
     V3_TOOL_SOFTMAX_TEMPERATURE,
     WEB_FETCH_TIMEOUT_SECONDS,
+    WEB_RESEARCH_TOOL_TIMEOUT_SECONDS_DEFAULT,
     WIDGET_PERSIST_MAX_BYTES_DEFAULT,
 )
 
@@ -3243,6 +3245,28 @@ class AgentsSettings(BaseSettings):
             "models. The planner may request a lower value per step; the "
             "effective timeout is `max(step.timeout_seconds, this default)` "
             "capped by `subagent_tool_max_timeout_seconds`."
+        ),
+    )
+    web_research_tool_timeout_seconds: float = Field(
+        default=WEB_RESEARCH_TOOL_TIMEOUT_SECONDS_DEFAULT,
+        ge=30.0,
+        le=300.0,
+        description=(
+            "Default timeout (seconds) for web-research steps backed by an "
+            "external LLM (unified_web_search_tool, perplexity_search_tool, "
+            "perplexity_ask_tool). The Perplexity synthesis legitimately "
+            "exceeds the generic 30 s default; the effective timeout is "
+            "`max(step.timeout_seconds, this default)` capped by "
+            "`max_web_research_tool_timeout_seconds`."
+        ),
+    )
+    max_web_research_tool_timeout_seconds: float = Field(
+        default=MAX_WEB_RESEARCH_TOOL_TIMEOUT_SECONDS_DEFAULT,
+        ge=60.0,
+        le=600.0,
+        description=(
+            "Hard ceiling (seconds) on the effective timeout of a "
+            "web-research step, even if the planner requests more."
         ),
     )
     subagent_tool_max_timeout_seconds: float = Field(

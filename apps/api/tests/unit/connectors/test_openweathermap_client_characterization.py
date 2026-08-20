@@ -192,6 +192,46 @@ class TestGeocoding:
         assert params["limit"] == "1"
         assert result == [{"name": "Paris"}]
 
+    async def test_geocode_404_means_no_results(self, client):
+        """OWM answers HTTP 404 {"cod":"404","message":"not found"} on geo/1.0
+        for a query it cannot match (measured in prod, 2026-08-19). That is
+        "no results", not a failure: geocode() returns [] so the Google
+        fallback and the tools' location_not_found path stay reachable —
+        raising here surfaced a raw traceback to the LLM instead."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"cod": "404", "message": "not found"})
+
+        p1, p2 = transport_patches(handler)
+        with p1, p2:
+            result = await client.geocode("Prawira, North Lombok")
+            await client.close()
+
+        assert result == []
+
+    async def test_reverse_geocode_404_means_no_results(self, client):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"cod": "404", "message": "not found"})
+
+        p1, p2 = transport_patches(handler)
+        with p1, p2:
+            result = await client.reverse_geocode(lat=0.0, lon=0.0)
+            await client.close()
+
+        assert result == []
+
+    async def test_geocode_other_client_errors_still_raise(self, client):
+        """Only 404 is a no-results verdict; a 400 stays an error (contract)."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(400, json={"cod": "400", "message": "bad query"})
+
+        p1, p2 = transport_patches(handler)
+        with p1, p2:
+            with pytest.raises(httpx.HTTPStatusError):
+                await client.geocode("Paris")
+            await client.close()
+
 
 class TestErrorContract:
     """OWM raises on errors (callers absorb: gather(return_exceptions),

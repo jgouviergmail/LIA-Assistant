@@ -64,6 +64,7 @@ EXPECTED_SHOWROOM = (
         "demo_source_clicked",
         "demo_release_clicked",
         "demo_install_guide_clicked",
+        "demo_live_clicked",
     }
     | {f"demo_mission_started_{m}" for m in EXPECTED_MISSION_IDS}
     | {f"demo_completed_{m}" for m in EXPECTED_MISSION_IDS}
@@ -180,6 +181,18 @@ def test_accepts_bounded_events_and_writes_null_identity(
         assert row["user_id"] is None
         assert row["run_id"] is None
         assert row["channel"] == "web_showroom"
+
+
+def test_accepts_live_demo_click(client: TestClient) -> None:
+    """The live-demonstrator CTA click is the funnel's missing upstream rung:
+    without it, "0 signups" on the instance cannot be told apart from "nobody
+    ever clicked the invitation" (analysis 2026-08-20)."""
+    resp = client.post(
+        "/product/showroom-events",
+        json={"events": ["demo_live_clicked"]},
+    )
+    assert resp.status_code == 202
+    assert resp.json() == {"accepted": 1, "dropped": 0}
 
 
 @pytest.mark.parametrize(

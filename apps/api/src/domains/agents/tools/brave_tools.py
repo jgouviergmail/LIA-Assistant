@@ -276,7 +276,11 @@ _brave_news_tool_impl = BraveSearchToolImpl(
     counter_metric=agent_tool_invocations,
 )
 async def brave_search_tool(
-    query: Annotated[str, "Search query - what to search for"],
+    query: Annotated[
+        str,
+        "Search query - what to search for. Keep it under 400 characters / "
+        "50 words (Brave API bound); longer queries are truncated at a word boundary.",
+    ],
     count: Annotated[
         int,
         "Number of results to return (1-10, default 5). Use the exact count the user requested.",
@@ -336,7 +340,11 @@ async def brave_search_tool(
     counter_metric=agent_tool_invocations,
 )
 async def brave_news_tool(
-    query: Annotated[str, "News search query"],
+    query: Annotated[
+        str,
+        "News search query. Keep it under 400 characters / 50 words "
+        "(Brave API bound); longer queries are truncated at a word boundary.",
+    ],
     count: Annotated[
         int,
         "Number of news articles to return (1-10, default 5). Use the exact count the user requested.",

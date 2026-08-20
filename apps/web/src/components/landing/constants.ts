@@ -39,7 +39,13 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.14: backend 19,291 (pytest, 1,073 files — the
+ *   Re-measured at v1.30.15: backend 19,335 (pytest tests/unit tests/agents,
+ *   1,076 files — the prod-log remediation: SSE stream registry + eviction
+ *   wiring, GraphInterrupt carve-outs, Brave clamp, OWM 404 verdicts,
+ *   event_type capacity guard, web-research timeout family, catalogue
+ *   registration order) + frontend 5,869 vitest (468 files) = 25,204
+ *   -> 25200.
+ *   Previous re-measure at v1.30.14: backend 19,291 (pytest, 1,073 files — the
  *   ADR-233 ontology purge removed more collected items than the evolution
  *   program added; ~155 new: activity timeline, memory supersession,
  *   procedural memory, prosody/readout, proposals inbox, adaptive ReAct) +
@@ -152,9 +158,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 480,
   uiLanguages: 6,
-  tests: 25100,
+  tests: 25200,
   adrs: 238,
-  releases: 218,
+  releases: 219,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

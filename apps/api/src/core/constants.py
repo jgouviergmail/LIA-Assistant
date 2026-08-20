@@ -96,6 +96,12 @@ PERPLEXITY_TOOL_DEFAULT_LIMIT = 5  # Web search typically returns fewer results
 # Brave Search (Knowledge Enrichment)
 BRAVE_SEARCH_MAX_RESULTS = 5  # Maximum results for knowledge context injection
 BRAVE_SEARCH_MAX_CONTEXT_CHARS = 1500  # Max chars per result description (truncation)
+# Brave API hard bounds on the `q` parameter (HTTP 422 "too_long" beyond them,
+# measured in prod 2026-08-20). The client clamps at a word boundary instead of
+# letting the whole search fail — ADR-184: a bound the vendor enforces is
+# repaired before the call, never reported as a defect.
+BRAVE_SEARCH_MAX_QUERY_CHARS = 400
+BRAVE_SEARCH_MAX_QUERY_WORDS = 50
 
 # Web Fetch Tool (evolution F1 — Web Page Content Extraction)
 WEB_FETCH_MAX_CONTENT_LENGTH = 2_000_000  # bytes, max HTTP response body size
@@ -1292,10 +1298,19 @@ OAUTH_HEALTH_NOTIFIED_KEY_PREFIX = "oauth:health:notified"
 # Pattern: sse:connection:{user_id}
 SSE_CONNECTION_KEY_PREFIX = "sse:connection"
 
+# Per-user live notification-stream registry (newest-wins capacity guard —
+# incident 2026-08-14/15: unbounded streams exhausted the Redis pool).
+# Pattern: sse:streams:{user_id} (ZSET stream_id → registered_at)
+SSE_STREAMS_KEY_PREFIX = "sse:streams"
+
 # Default configuration values (overridable via .env → ConnectorsSettings)
 OAUTH_HEALTH_CHECK_INTERVAL_MINUTES_DEFAULT = 5
 OAUTH_HEALTH_CRITICAL_COOLDOWN_HOURS_DEFAULT = 12
 SSE_CONNECTION_TTL_SECONDS_DEFAULT = 120
+# 8, not lower: the web app opens TWO streams per tab (BroadcastProvider +
+# useNotifications), so 8 serves four fully-live tabs — while the incident
+# shape this cap exists for (2026-08-14/15) was DOZENS of half-dead streams.
+SSE_MAX_STREAMS_PER_USER_DEFAULT = 8
 
 # ============================================================================
 # ADMIN BROADCASTS
@@ -1361,6 +1376,14 @@ SUBAGENT_TOOL_TIMEOUT_SECONDS_DEFAULT = (
 SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS_DEFAULT = (
     300.0  # 5 minutes - hard ceiling for delegate_to_sub_agent_tool
 )
+
+# Web-research tools backed by an external LLM (Perplexity synthesis, unified
+# multi-source search). Production 2026-08-14→20: these steps were killed at
+# the generic 30 s while the synthesis legitimately takes longer. Dedicated
+# floor + ceiling, tunable via Settings (web_research_tool_timeout_seconds /
+# max_web_research_tool_timeout_seconds).
+WEB_RESEARCH_TOOL_TIMEOUT_SECONDS_DEFAULT = 60.0
+MAX_WEB_RESEARCH_TOOL_TIMEOUT_SECONDS_DEFAULT = 180.0
 
 # Default rate limit for Google API clients (requests per second)
 DEFAULT_RATE_LIMIT_PER_SECOND = 10  # Conservative: 10 req/s = 600/minute

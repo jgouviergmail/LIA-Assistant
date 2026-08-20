@@ -4252,6 +4252,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_30_15": {
+          "title": "v1.30.15 — 🛡️ Sturdier in the real world",
+          "date": "August 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Smarter notifications across tabs</b> — the tab you are actually using always keeps its live connection; a long-forgotten tab can no longer pile up dead connections behind the scenes. Come back to a tab and it reconnects on its own.",
+            "i2": "<b>🌍 Weather for any place name</b> — an unknown or misspelled location now gets a clear \"location not found\" answer (with a second geocoder trying first), instead of a technical error.",
+            "i3": "<b>🔎 Deep web research gets the time it needs</b> — long syntheses are no longer cut off at 30 seconds, and an over-long search query is automatically shortened instead of failing.",
+            "i4": "<b>🔒 Cleaner, more private technical logs</b> — asking for your confirmation is no longer counted as an error, and draft content or recipient names never end up in the technical logs.",
+            "i5": "<b>📊 For admins: honest showroom metrics</b> — the demo funnel counts every mission again, clicks toward the free live instance are now measured, and a new alert watches for Redis connection-pool saturation."
+          }
+        },
         "v1_30_14": {
           "title": "v1.30.14 — 👁️ The invisible work becomes visible",
           "date": "August 2026",

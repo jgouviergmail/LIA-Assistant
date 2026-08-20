@@ -111,7 +111,10 @@ class ProductEvent(BaseModel):
     # counts only, no identifier of any kind stored.
     user_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
     run_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    event_type: Mapped[str] = mapped_column(String(32), index=True)
+    # 64 (not 32): per-mission showroom values reach 39 chars — the historical
+    # String(32) made those INSERTs fail and silently lost the funnel rows.
+    # Guarded (derived) by test_product_constants.TestVocabularyFitsPersistedColumns.
+    event_type: Mapped[str] = mapped_column(String(64), index=True)
     channel: Mapped[str] = mapped_column(String(16), default="unknown")
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False

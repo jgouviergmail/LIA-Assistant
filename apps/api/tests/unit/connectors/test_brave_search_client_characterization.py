@@ -251,6 +251,89 @@ class TestBraveSearchNoneOnError:
         assert calls["n"] == 2
 
 
+class TestBraveQueryClamp:
+    """Brave rejects q > 400 chars or > 50 words with HTTP 422 (measured in
+    prod, 2026-08-20). What is mechanically repairable is repaired before the
+    call (ADR-184 doctrine): the query is clamped at a word boundary to the
+    published bounds instead of letting the whole search fail."""
+
+    async def test_long_query_is_clamped_to_char_bound_at_word_boundary(self, client):
+        captured: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.append(request)
+            return httpx.Response(200, json={"web": {"results": []}})
+
+        long_query = " ".join(f"w{i:03d}" for i in range(20)) + " " + "x" * 500
+
+        p1, p2 = _patches(handler)
+        with p1, p2:
+            result = await client.search(long_query)
+            await client.close()
+
+        from src.core.constants import BRAVE_SEARCH_MAX_QUERY_CHARS
+
+        sent = dict(captured[0].url.params)["q"]
+        assert len(sent) <= BRAVE_SEARCH_MAX_QUERY_CHARS
+        # Cut at a word boundary: the sent query is a prefix of the original
+        # made of whole words (the oversized trailing word is dropped).
+        assert sent == " ".join(f"w{i:03d}" for i in range(20))
+        assert result == {"web": {"results": []}}
+
+    async def test_long_query_is_clamped_to_word_bound(self, client):
+        captured: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.append(request)
+            return httpx.Response(200, json={"web": {"results": []}})
+
+        many_words = " ".join(f"w{i}" for i in range(80))
+
+        p1, p2 = _patches(handler)
+        with p1, p2:
+            await client.search(many_words)
+            await client.close()
+
+        from src.core.constants import BRAVE_SEARCH_MAX_QUERY_WORDS
+
+        sent = dict(captured[0].url.params)["q"]
+        assert len(sent.split()) <= BRAVE_SEARCH_MAX_QUERY_WORDS
+        assert sent == " ".join(f"w{i}" for i in range(BRAVE_SEARCH_MAX_QUERY_WORDS))
+
+    async def test_single_oversized_word_is_hard_cut(self, client):
+        """A single word longer than the char bound cannot be word-cut."""
+        captured: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.append(request)
+            return httpx.Response(200, json={"web": {"results": []}})
+
+        p1, p2 = _patches(handler)
+        with p1, p2:
+            await client.search("y" * 900)
+            await client.close()
+
+        from src.core.constants import BRAVE_SEARCH_MAX_QUERY_CHARS
+
+        sent = dict(captured[0].url.params)["q"]
+        assert sent == "y" * BRAVE_SEARCH_MAX_QUERY_CHARS
+
+    async def test_compliant_query_is_sent_verbatim(self, client):
+        """A query within bounds is never rewritten (whitespace included)."""
+        captured: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.append(request)
+            return httpx.Response(200, json={"web": {"results": []}})
+
+        p1, p2 = _patches(handler)
+        with p1, p2:
+            await client.search('météo  "Lombok nord" demain')
+            await client.close()
+
+        assert dict(captured[0].url.params)["q"] == 'météo  "Lombok nord" demain'
+
+
 class TestBraveClientLifecycle:
     async def test_close_is_idempotent(self, client):
         """close() can be called twice, including before any request."""

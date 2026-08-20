@@ -68,6 +68,12 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-08-20 after the prod-log remediation
+        // lot (SSE superseded handling in useNotifications + BroadcastProvider
+        // with visibility-driven resume, the live-demo CTA telemetry):
+        // statements 75.71 / branches 70.98 / functions 72.62 / lines 76.35.
+        // Unchanged 73/68/70/74 (floor(measured - 2) per axis — no axis
+        // crosses an integer step this time).
         // Global floor — re-measured 2026-08-19 after evolution-program Lots
         // 1-4 (ADR-234..237: the activity timeline feed + hook, the habit
         // streak block, the initiative-motivation reducer branches, the

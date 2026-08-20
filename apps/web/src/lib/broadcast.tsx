@@ -205,26 +205,57 @@ export function BroadcastProvider({ children, isAuthenticated }: BroadcastProvid
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const eventSource = new EventSource(`${API_BASE_URL}/api/v1/notifications/stream`, {
-      withCredentials: true,
-    });
+    let eventSource: EventSource | null = null;
+    let supersededWhileHidden = false;
 
-    eventSource.addEventListener('notification', (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'admin_broadcast' && data.broadcast_id) {
-          handleNewBroadcastRef.current(data.message || '', data.broadcast_id);
+    const connect = () => {
+      eventSource = new EventSource(`${API_BASE_URL}/api/v1/notifications/stream`, {
+        withCredentials: true,
+      });
+
+      eventSource.addEventListener('notification', (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'admin_broadcast' && data.broadcast_id) {
+            handleNewBroadcastRef.current(data.message || '', data.broadcast_id);
+          }
+        } catch (error) {
+          console.error('Failed to parse SSE broadcast:', error);
         }
-      } catch (error) {
-        console.error('Failed to parse SSE broadcast:', error);
-      }
-    });
+      });
 
-    eventSource.onerror = () => {
-      // SSE errors are expected during reconnection, don't log
+      // Backend caps concurrent streams per user (newest wins) and announces
+      // the eviction before closing. Deliberate verdict, not a failure: close
+      // (which also stops the browser's native auto-retry); a visible tab
+      // reclaims a slot immediately, a hidden one when looked at again.
+      eventSource.addEventListener('superseded', () => {
+        eventSource?.close();
+        eventSource = null;
+        if (document.visibilityState === 'visible') {
+          connect();
+        } else {
+          supersededWhileHidden = true;
+        }
+      });
+
+      eventSource.onerror = () => {
+        // SSE errors are expected during reconnection, don't log
+      };
     };
 
-    return () => eventSource.close();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && supersededWhileHidden) {
+        supersededWhileHidden = false;
+        connect();
+      }
+    };
+
+    connect();
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      eventSource?.close();
+    };
   }, [isAuthenticated]);
 
   /**

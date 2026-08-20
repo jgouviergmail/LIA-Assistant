@@ -18,6 +18,7 @@ import {
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { trackShowroomEvent } from '@/lib/product-telemetry';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 
@@ -151,6 +152,10 @@ export function LiveDemoInvitation({ lng }: LiveDemoInvitationProps) {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={t('showroom.live_invitation.cta')}
+            // Fire-and-forget, credential-less (same contract as the mission
+            // events): the funnel's upstream rung — without it, "0 signups"
+            // on the instance cannot be told apart from "nobody clicked".
+            onClick={() => trackShowroomEvent('demo_live_clicked')}
           >
             {t('showroom.live_invitation.cta')}
             <ArrowUpRight className="ml-1.5 h-4 w-4" aria-hidden="true" />

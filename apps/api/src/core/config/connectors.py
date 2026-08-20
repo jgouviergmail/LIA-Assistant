@@ -112,6 +112,7 @@ from src.core.constants import (
     ROUTES_MAX_WAYPOINTS,
     ROUTES_WALK_THRESHOLD_KM,
     SSE_CONNECTION_TTL_SECONDS_DEFAULT,
+    SSE_MAX_STREAMS_PER_USER_DEFAULT,
     TASKS_CACHE_DETAILS_TTL,
     TASKS_CACHE_LIST_TTL,
     TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
@@ -734,6 +735,16 @@ class ConnectorsSettings(BaseSettings):
         ge=30,
         le=300,
         description="TTL for SSE connection tracking in Redis (seconds, default: 120)",
+    )
+    sse_max_streams_per_user: int = Field(
+        default=SSE_MAX_STREAMS_PER_USER_DEFAULT,
+        ge=1,
+        le=50,
+        description=(
+            "Max concurrent notification SSE streams per user (newest wins, "
+            "oldest evicted at its next keepalive). Each stream pins a pooled "
+            "Redis pub/sub connection — incident 2026-08-14/15."
+        ),
     )
 
     # ========================================================================

@@ -1,0 +1,6 @@
+# Grafana 11 scans /etc/grafana/provisioning/alerting at every boot and logs
+# an ERROR ("can't read alerting provisioning files from directory") when the
+# directory is absent — 93 error lines in 7 days of prod logs (2026-08-20).
+# Alert rules are provisioned in Prometheus/Alertmanager (ADR-119), not in
+# Grafana: this directory stays deliberately empty, and this file only makes
+# git ship it.

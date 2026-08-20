@@ -17,6 +17,9 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+const { trackShowroomEvent } = vi.hoisted(() => ({ trackShowroomEvent: vi.fn() }));
+vi.mock('@/lib/product-telemetry', () => ({ trackShowroomEvent }));
+
 import { LiveDemoInvitation } from '@/components/showroom/LiveDemoInvitation';
 
 /**
@@ -103,6 +106,19 @@ describe('LiveDemoInvitation', () => {
     // A cross-origin target=_blank without noopener leaks window.opener.
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
     expect(link).toHaveAttribute('rel', expect.stringContaining('noreferrer'));
+  });
+
+  it('records the outbound attempt when the CTA is clicked', async () => {
+    // The funnel's upstream rung (2026-08-20): without it, "0 signups" on
+    // the instance cannot be told apart from "nobody clicked". Same
+    // credential-less fire-and-forget contract as the mission events.
+    mockLink(true, 'https://demo.example.org');
+    render(<LiveDemoInvitation lng="fr" />);
+
+    const link = await screen.findByRole('link', { name: /showroom\.live_invitation\.cta/ });
+    link.click();
+
+    expect(trackShowroomEvent).toHaveBeenCalledWith('demo_live_clicked');
   });
 
   it('links to the terms, where the demonstrator section lives', async () => {

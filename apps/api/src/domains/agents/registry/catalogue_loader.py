@@ -742,12 +742,6 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     registry.register_tool_manifest(list_reminders_catalogue_manifest)
     registry.register_tool_manifest(cancel_reminder_catalogue_manifest)
 
-    # Interdomain-program manifests (ADR-140/141+) — registration delegated
-    # to one aggregator (loader is frozen at its size cap; net-zero here).
-    from src.domains.agents.registry.program_manifests import register_program_manifests
-
-    register_program_manifests(registry)
-
     # Register Hue tool manifests (Philips Hue Smart Home)
     # Import hue_tools to trigger ContextTypeRegistry.register() at module level
     import src.domains.agents.tools.hue_tools  # noqa: F401
@@ -827,6 +821,17 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
 
         registry.register_agent_manifest(TELEPHONY_AGENT_MANIFEST)
         registry.register_tool_manifest(place_phone_call_catalogue_manifest)
+
+    # Interdomain-program manifests (ADR-140/141+) — registration delegated
+    # to one aggregator (loader is frozen at its size cap; net-zero here).
+    # AFTER the flag-gated agent blocks above: the aggregator registers tools
+    # belonging to those agents (e.g. get_calls_tool → telephony_agent), and a
+    # tool registered before its agent logs catalogue_tool_orphan on every
+    # boot of every worker (prod noise, 2026-08-20). Order guarded by
+    # tests/unit/domains/agents/registry/test_tool_manifests_follow_their_agent.py.
+    from src.domains.agents.registry.program_manifests import register_program_manifests
+
+    register_program_manifests(registry)
 
     # Dynamic counting from registry (no more hardcoded values)
     registered_agents = list(registry._agent_manifests.keys())

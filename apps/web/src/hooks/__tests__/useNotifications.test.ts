@@ -198,6 +198,63 @@ describe('useNotifications — reconnection', () => {
   });
 });
 
+describe('useNotifications — eviction (superseded)', () => {
+  // The backend caps concurrent streams per user (newest wins) and tells an
+  // evicted stream so with an `superseded` SSE event before closing it.
+  // Eviction is a deliberate verdict, not a failure: no retry budget burned,
+  // no user-facing error — and only a VISIBLE tab retakes a slot immediately.
+
+  function setVisibility(state: DocumentVisibilityState) {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => state,
+    });
+  }
+
+  afterEach(() => setVisibility('visible'));
+
+  it('reconnects immediately when the tab is visible', () => {
+    const { result, source } = connected();
+
+    act(() => source.emit({ reason: 'newer_stream' }, 'superseded'));
+
+    expect(source.closed).toBe(true);
+    expect(result.current.error).toBeNull();
+    // A visible tab is in active use: it retakes a slot right away
+    // (evicting, in turn, some hidden tab's stream server-side).
+    expect(FakeEventSource.instances).toHaveLength(2);
+  });
+
+  it('waits for visibility before reconnecting when the tab is hidden', () => {
+    const { result, source } = connected();
+    setVisibility('hidden');
+
+    act(() => source.emit({ reason: 'newer_stream' }, 'superseded'));
+
+    expect(source.closed).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(FakeEventSource.instances).toHaveLength(1);
+
+    // The user comes back to this tab: it resumes and takes a slot again.
+    setVisibility('visible');
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(FakeEventSource.instances).toHaveLength(2);
+  });
+
+  it('does not resume after unmount even if the tab becomes visible', () => {
+    const { source, unmount } = connected();
+    setVisibility('hidden');
+    act(() => source.emit({ reason: 'newer_stream' }, 'superseded'));
+    unmount();
+
+    setVisibility('visible');
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+
+    // A surviving listener would open a stream for a user who is gone.
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+});
+
 describe('useNotifications — incoming notifications', () => {
   it('keeps the newest first and counts it as unread', () => {
     const { result } = connected();

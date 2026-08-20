@@ -4243,6 +4243,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_30_15": {
+          "title": "v1.30.15 — 🛡️ Más robusta en el mundo real",
+          "date": "Agosto 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Notificaciones más inteligentes entre pestañas</b> — la pestaña que estás usando siempre conserva su conexión en directo; una pestaña olvidada ya no puede acumular conexiones muertas entre bastidores. Vuelve a una pestaña y se reconecta sola.",
+            "i2": "<b>🌍 El tiempo para cualquier lugar</b> — un lugar desconocido o mal escrito ahora recibe una respuesta clara de «lugar no encontrado» (tras intentarlo un segundo geocodificador), en vez de un error técnico.",
+            "i3": "<b>🔎 Las búsquedas web profundas tienen el tiempo que necesitan</b> — las síntesis largas ya no se cortan a los 30 segundos, y una consulta demasiado larga se acorta automáticamente en lugar de fallar.",
+            "i4": "<b>🔒 Registros técnicos más limpios y privados</b> — pedirte confirmación ya no cuenta como error, y el contenido de borradores o los destinatarios nunca acaban en los registros técnicos.",
+            "i5": "<b>📊 Para admins: métricas de escaparate honestas</b> — el funnel de la demo vuelve a contar cada misión, los clics hacia la instancia libre se miden, y una nueva alerta vigila la saturación del pool de Redis."
+          }
+        },
         "v1_30_14": {
           "title": "v1.30.14 — 👁️ El trabajo invisible se hace visible",
           "date": "Agosto 2026",

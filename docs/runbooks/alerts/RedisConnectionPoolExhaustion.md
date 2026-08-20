@@ -9,24 +9,34 @@
 
 ## 📊 Alert Definition
 
-**Alert Name**: `RedisConnectionPoolExhaustion`
+**Alert Name**: `RedisConnectionPoolExhaustion` (core tier, `alerts-core.yml` — ADR-119)
 
 **Prometheus Expression**:
 ```promql
-100 * (1 - (redis_connection_pool_available_current / redis_connection_pool_size_current)) > 90
+sum(increase(redis_rate_limit_errors_total{error_type="MaxConnectionsError"}[10m])) > 5
 ```
 
-**Threshold**:
-- **Production**: >90% pool utilization (CRITICAL)
-- **Staging**: >95% pool utilization
-- **Development**: Disabled (no connection pool limits)
+The rule watches the **direct failure signal**: the global HTTP rate limiter
+runs on every request, so a `MaxConnectionsError` recorded there means the
+pool is really exhausted, not merely busy. History: a utilisation-ratio rule
+(`100 * (1 - available/size) > 142.5`) existed in the legacy, **disabled**
+`alerts.yml` — a 0-100 ratio can never exceed 142.5, so it could never fire;
+the 2026-08-14/15 exhaustion incident (hours of MaxConnectionsError across
+SSE, caches and scheduler leadership) raised no alert at all. The gauges
+(`redis_connection_pool_available_current` / `_size_current`) remain useful
+for diagnosis below.
 
-**Firing Duration**: `for: 5m`
+**Threshold** (`ALERT_CORE_REDIS_POOL_EXHAUSTED_10M`, `thresholds/*.env`):
+- **Production**: >5 MaxConnectionsError per 10 minutes
+- **Staging**: >5
+- **Development**: >50 (full-stack recreations churn connections)
+
+**Firing Duration**: `for: 0m` (the count over 10 minutes IS the persistence)
 
 **Labels**:
 - `severity`: critical
 - `component`: redis
-- `type`: capacity
+- `tier`: core
 
 ---
 

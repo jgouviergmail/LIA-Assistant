@@ -760,6 +760,28 @@ async def test_process_updates_chunk_warns_on_truly_unexpected_state_delta(
     assert sse_chunks[0][0].type == "execution_step"
 
 
+@pytest.mark.asyncio
+async def test_process_updates_chunk_skips_interrupt_pseudo_node_silently(
+    streaming_service,
+):
+    """``stream_mode="updates"`` yields ``{"__interrupt__": (Interrupt(...),)}``
+    when a HITL interrupt fires — a LangGraph internal pseudo-node whose delta
+    is a TUPLE by design, delivered on its own channel (the HITL flow). It must
+    be skipped like ``__start__``/``__end__``: prod logs showed one
+    ``updates_mode_non_dict_state_delta`` warning per interrupt (2026-08-20),
+    reporting normal control flow as an anomaly.
+    """
+    with patch("src.domains.agents.services.streaming.service.logger") as mock_logger:
+        sse_chunks = streaming_service._process_updates_chunk(
+            chunk={"__interrupt__": ({"value": "whatever"},)},
+            accumulated_state={},
+        )
+
+    warning_event_names = [c.args[0] for c in mock_logger.warning.call_args_list if c.args]
+    assert "updates_mode_non_dict_state_delta" not in warning_event_names
+    assert sse_chunks == []
+
+
 # ============================================================================
 # "custom" stream_mode handler (Day 2 — Task 2.1)
 # ============================================================================

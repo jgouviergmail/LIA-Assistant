@@ -84,6 +84,10 @@ class ProductEventType(StrEnum):
     DEMO_SOURCE_CLICKED = "demo_source_clicked"
     DEMO_RELEASE_CLICKED = "demo_release_clicked"
     DEMO_INSTALL_GUIDE_CLICKED = "demo_install_guide_clicked"
+    # Live-demonstrator invitation CTA (2026-08-20): the funnel's upstream
+    # rung — without it, "0 signups" on the free instance cannot be told
+    # apart from "nobody ever clicked the invitation".
+    DEMO_LIVE_CLICKED = "demo_live_clicked"
     # Per-mission breakdown (multi-mission showroom): which mission engages
     # and which converts. Aggregate DEMO_MISSION_STARTED / DEMO_COMPLETED
     # keep firing unchanged; these add the bounded mission dimension without
@@ -124,6 +128,7 @@ PRODUCT_EVENT_DESCRIPTIONS: dict[ProductEventType, str] = {
     ProductEventType.DEMO_SOURCE_CLICKED: "Source CTA outbound attempt after completion.",
     ProductEventType.DEMO_RELEASE_CLICKED: "Release CTA outbound attempt after completion.",
     ProductEventType.DEMO_INSTALL_GUIDE_CLICKED: "Install-guide CTA outbound attempt.",
+    ProductEventType.DEMO_LIVE_CLICKED: "Live-demonstrator invitation CTA outbound attempt.",
     ProductEventType.DEMO_MISSION_STARTED_OVERLOADED_MORNING: (
         "Overloaded-morning mission started (per-mission breakdown)."
     ),
@@ -214,6 +219,7 @@ SHOWROOM_EVENT_TYPES: frozenset[ProductEventType] = frozenset(
         ProductEventType.DEMO_SOURCE_CLICKED,
         ProductEventType.DEMO_RELEASE_CLICKED,
         ProductEventType.DEMO_INSTALL_GUIDE_CLICKED,
+        ProductEventType.DEMO_LIVE_CLICKED,
     }
     | {ProductEventType(f"demo_mission_started_{m}") for m in SHOWROOM_MISSION_IDS}
     | {ProductEventType(f"demo_completed_{m}") for m in SHOWROOM_MISSION_IDS}

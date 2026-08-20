@@ -27,12 +27,19 @@ from collections.abc import Callable
 from typing import ParamSpec, TypeVar, cast
 
 import structlog
+from langgraph.errors import GraphInterrupt
 from prometheus_client import Counter, Histogram
 
 P = ParamSpec("P")
 T = TypeVar("T")
 
 logger = structlog.get_logger(__name__)
+
+# A GraphInterrupt is HITL control flow, not a failure: it must propagate to
+# LangGraph untouched, without an ERROR log (its payload carries user content
+# — PII rule) and without a success/error counter increment — the node or tool
+# resumes later and is counted once, at completion. Every wrapper below
+# handles it BEFORE the generic Exception handler.
 
 
 # ============================================================================
@@ -170,6 +177,17 @@ def track_metrics(
 
                     return cast(T, result)
 
+                except GraphInterrupt:
+                    # HITL control flow — see module-level note. Name and
+                    # duration only: the interrupt payload never reaches a log.
+                    logger.debug(
+                        "node_execution_interrupted",
+                        node_name=node_name,
+                        func_name=func.__name__,
+                        duration_ms=int((time.time() - start_time) * 1000),
+                    )
+                    raise
+
                 except Exception as e:
                     # Record error metric
                     if counter_metric:
@@ -227,6 +245,16 @@ def track_metrics(
                         )
 
                     return result
+
+                except GraphInterrupt:
+                    # HITL control flow — see module-level note.
+                    logger.debug(
+                        "node_execution_interrupted",
+                        node_name=node_name,
+                        func_name=func.__name__,
+                        duration_ms=int((time.time() - start_time) * 1000),
+                    )
+                    raise
 
                 except Exception as e:
                     # Record error metric
@@ -382,6 +410,17 @@ def track_tool_metrics(
 
                     return cast(T, result)
 
+                except GraphInterrupt:
+                    # HITL control flow — see module-level note.
+                    logger.debug(
+                        "tool_execution_interrupted",
+                        tool_name=tool_name,
+                        agent_name=agent_name,
+                        func_name=func.__name__,
+                        duration_ms=int((time.time() - start_time) * 1000),
+                    )
+                    raise
+
                 except Exception as e:
                     # Record error metrics (FRAMEWORK)
                     if counter_metric:
@@ -464,6 +503,17 @@ def track_tool_metrics(
                         )
 
                     return result
+
+                except GraphInterrupt:
+                    # HITL control flow — see module-level note.
+                    logger.debug(
+                        "tool_execution_interrupted",
+                        tool_name=tool_name,
+                        agent_name=agent_name,
+                        func_name=func.__name__,
+                        duration_ms=int((time.time() - start_time) * 1000),
+                    )
+                    raise
 
                 except Exception as e:
                     # Record error metrics (FRAMEWORK)

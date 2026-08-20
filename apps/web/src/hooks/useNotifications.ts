@@ -238,6 +238,8 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
+  // Evicted by a newer stream while hidden — resume on the next visibility.
+  const supersededWhileHiddenRef = useRef(false);
 
   const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_DELAY_MS = 3000;
@@ -361,6 +363,25 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       // Also listen for default message events (fallback)
       eventSource.onmessage = handleNotificationEvent;
 
+      // The backend caps concurrent streams per user (newest wins) and tells
+      // an evicted stream so before closing it. This is a deliberate verdict,
+      // not a failure: close without burning retry attempts or surfacing an
+      // error. A visible tab is in active use and retakes a slot right away;
+      // a hidden tab waits until the user looks at it again.
+      eventSource.addEventListener('superseded', () => {
+        logger.info('SSE: Stream superseded by a newer one', {
+          component: 'useNotifications',
+        });
+        eventSource.close();
+        eventSourceRef.current = null;
+        setIsConnected(false);
+        if (document.visibilityState === 'visible') {
+          connectSSE();
+        } else {
+          supersededWhileHiddenRef.current = true;
+        }
+      });
+
       eventSource.onerror = _event => {
         logger.warn('SSE: Connection error', {
           component: 'useNotifications',
@@ -416,6 +437,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
     setIsConnected(false);
     reconnectAttempts.current = 0;
+    supersededWhileHiddenRef.current = false;
   }, []);
 
   // Setup SSE connection (only when authenticated)
@@ -433,6 +455,21 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       disconnectSSE();
     };
   }, [enableSSE, isAuthenticated, connectSSE, disconnectSSE]);
+
+  // Resume a stream evicted while hidden when the tab returns to the
+  // foreground (the visible tab then wins a slot back, by design).
+  useEffect(() => {
+    if (!enableSSE || !isAuthenticated) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && supersededWhileHiddenRef.current) {
+        supersededWhileHiddenRef.current = false;
+        connectSSE();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [enableSSE, isAuthenticated, connectSSE]);
 
   // Setup FCM foreground message handler
   useEffect(() => {

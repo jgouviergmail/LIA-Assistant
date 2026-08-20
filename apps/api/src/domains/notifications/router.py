@@ -8,6 +8,7 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator
 from contextlib import suppress
+from uuid import uuid4
 
 import structlog
 from fastapi import APIRouter, Depends, status
@@ -228,13 +229,21 @@ async def stream_notifications(
     SSE Connection Tracking:
         - Sets Redis key when connection established
         - Refreshes TTL on each keepalive
-        - Deletes key when connection closes
+        - Deletes key when the user's LAST stream closes (multi-tab safe)
         - Used by OAuth health check to avoid duplicate push notifications
+
+    Capacity (incident 2026-08-14/15): each stream pins a pooled Redis
+    pub/sub connection, so concurrent streams per user are capped
+    (``sse_max_streams_per_user``), newest wins — an evicted stream
+    discovers it at its next keepalive tick, emits ``superseded`` and
+    closes. The new connection is never refused: EventSource cannot read
+    an HTTP status, a refusal would only feed a blind retry loop.
     """
 
     async def event_generator() -> AsyncGenerator[str, None]:
         """Generate SSE events from Redis Pub/Sub."""
         from src.core.constants import SSE_CONNECTION_KEY_PREFIX
+        from src.domains.notifications import stream_registry
         from src.infrastructure.cache.redis import get_redis_cache
 
         redis = await get_redis_cache()
@@ -245,6 +254,8 @@ async def stream_notifications(
         channel = f"user_notifications:{current_user.id}"
         sse_key = f"{SSE_CONNECTION_KEY_PREFIX}:{current_user.id}"
         sse_ttl = settings.sse_connection_ttl_seconds
+        user_key = str(current_user.id)
+        stream_id = uuid4().hex
         pubsub = redis.pubsub()
 
         try:
@@ -253,11 +264,21 @@ async def stream_notifications(
             # Track SSE connection in Redis for OAuth health check deduplication
             await redis.set(sse_key, "1", ex=sse_ttl)
 
+            # Newest-wins capacity guard (fail-open on Redis errors).
+            await stream_registry.register_stream(
+                redis,
+                user_key,
+                stream_id,
+                cap=settings.sse_max_streams_per_user,
+                ttl_seconds=sse_ttl,
+            )
+
             logger.info(
                 "sse_client_connected",
-                user_id=str(current_user.id),
+                user_id=user_key,
                 channel=channel,
                 sse_ttl=sse_ttl,
+                stream_id=stream_id,
             )
 
             # Send initial connection event
@@ -276,6 +297,19 @@ async def stream_notifications(
                     if message is None:
                         # Timeout reached, no message - send keepalive and refresh SSE tracking
                         await redis.expire(sse_key, sse_ttl)
+                        await stream_registry.refresh_registry(redis, user_key, ttl_seconds=sse_ttl)
+                        if not await stream_registry.stream_is_active(redis, user_key, stream_id):
+                            # A newer stream took this slot (newest wins).
+                            logger.info(
+                                "sse_stream_superseded",
+                                user_id=user_key,
+                                stream_id=stream_id,
+                            )
+                            yield (
+                                "event: superseded\n"
+                                f"data: {json.dumps({'reason': 'newer_stream'})}\n\n"
+                            )
+                            return
                         yield ": keepalive\n\n"
                     elif message["type"] == "message":
                         data = message["data"]
@@ -306,10 +340,14 @@ async def stream_notifications(
             )
             yield f"event: error\ndata: {json.dumps({'error': 'An unexpected error occurred'})}\n\n"
         finally:
-            # Clean up SSE tracking key on disconnect
-            # Best effort cleanup
+            # Best-effort cleanup. The shared per-user marker (OAuth-health
+            # dedup) is deleted only when this was the user's LAST stream —
+            # a closing tab must not blind the health check while another
+            # tab still streams; on any doubt the marker expires by TTL.
             with suppress(Exception):
-                await redis.delete(sse_key)
+                remaining = await stream_registry.unregister_stream(redis, user_key, stream_id)
+                if remaining == 0:
+                    await redis.delete(sse_key)
             await pubsub.unsubscribe(channel)
             await pubsub.close()
 

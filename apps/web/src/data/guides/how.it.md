@@ -6,7 +6,7 @@
 
 **Versione**: 4.5
 **Data**: 2026-08-20
-**Applicazione**: LIA v1.30.14
+**Applicazione**: LIA v1.30.15
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -1415,4 +1415,4 @@ La pagina Attività è un **read-model puro**: fetcher paralleli (una sessione p
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 238 ADRs e del changelog (da v1.0 a v1.30.14). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 238 ADRs e del changelog (da v1.0 a v1.30.15). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

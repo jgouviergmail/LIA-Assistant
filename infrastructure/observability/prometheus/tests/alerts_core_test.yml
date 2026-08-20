@@ -1,4 +1,4 @@
-# Unit tests for the 14-alert core (ADR-119). Run in CI (F025, job
+# Unit tests for the alerting core (ADR-119). Run in CI (F025, job
 # "observability") and locally with the SAME promtool version the CI installs
 # (Prometheus v3.0.0) so results never diverge across environments:
 #   docker run --rm --entrypoint promtool \
@@ -279,6 +279,41 @@ tests:
     alert_rule_test:
       - eval_time: 12m
         alertname: GlobalRateLimitDegraded
+        exp_alerts: []
+
+  # ===== RedisConnectionPoolExhaustion: the 2026-08-14/15 incident shape =====
+  # 30 MaxConnectionsError per minute at the rate limiter, sustained: the pool
+  # is exhausted and every Redis-backed path fails intermittently. Counter is
+  # linear across the full [10m] window, so increase() is exactly 300.
+  - interval: 1m
+    input_series:
+      - series: 'redis_rate_limit_errors_total{error_type="MaxConnectionsError"}'
+        values: '0+30x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: RedisConnectionPoolExhaustion
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              component: redis
+              tier: core
+            exp_annotations:
+              summary: "Redis connection pool exhausted — API degrading"
+              description: "300 MaxConnectionsError in 10 minutes at the rate limiter (threshold: 5). Every Redis-backed path (SSE streams, caches, rate limiting, scheduler leadership) is failing intermittently: raise REDIS_MAX_CONNECTIONS or find what is pinning connections."
+              runbook: "docs/runbooks/alerts/RedisConnectionPoolExhaustion.md"
+
+  # ===== …but transient blips stay silent — this buys the threshold of 5 =====
+  # Three isolated errors in ten minutes: an occasional timeout under a brief
+  # burst, not an exhausted pool. Other error_type values never count.
+  - interval: 1m
+    input_series:
+      - series: 'redis_rate_limit_errors_total{error_type="MaxConnectionsError"}'
+        values: '0 0 1 1 1 2 2 2 3 3 3 3 3'
+      - series: 'redis_rate_limit_errors_total{error_type="TimeoutError"}'
+        values: '0+30x12'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RedisConnectionPoolExhaustion
         exp_alerts: []
 
   # ===== BackupFailed: probe failing beyond the 15m grace =====

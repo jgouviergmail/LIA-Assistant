@@ -75,7 +75,11 @@ class FakeEventSource {
   }
 
   emit(data: unknown) {
-    this.listeners.get('notification')?.({
+    this.emitEvent('notification', data);
+  }
+
+  emitEvent(type: string, data: unknown) {
+    this.listeners.get(type)?.({
       data: typeof data === 'string' ? data : JSON.stringify(data),
     } as MessageEvent);
   }
@@ -216,6 +220,58 @@ describe('BroadcastProvider — debounce', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BroadcastProvider — eviction (superseded)', () => {
+  // Backend caps concurrent notification streams per user (newest wins) and
+  // announces the eviction before closing. Deliberate verdict, not a failure:
+  // a visible tab reclaims a slot immediately, a hidden one waits until the
+  // user looks at it again — no blind auto-retry from an abandoned tab.
+
+  function setVisibility(state: DocumentVisibilityState) {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => state,
+    });
+  }
+
+  afterEach(() => setVisibility('visible'));
+
+  it('reconnects immediately when the tab is visible', async () => {
+    setup();
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => stream().emitEvent('superseded', { reason: 'newer_stream' }));
+
+    expect(FakeEventSource.instances[0].closed).toBe(true);
+    expect(FakeEventSource.instances).toHaveLength(2);
+  });
+
+  it('waits for visibility before reconnecting when hidden', async () => {
+    setup();
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+    setVisibility('hidden');
+
+    act(() => stream().emitEvent('superseded', { reason: 'newer_stream' }));
+    expect(FakeEventSource.instances[0].closed).toBe(true);
+    expect(FakeEventSource.instances).toHaveLength(1);
+
+    setVisibility('visible');
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+  });
+
+  it('does not resume after unmount even if the tab becomes visible', async () => {
+    const { unmount } = setup();
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+    setVisibility('hidden');
+    act(() => stream().emitEvent('superseded', { reason: 'newer_stream' }));
+    unmount();
+
+    setVisibility('visible');
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(FakeEventSource.instances).toHaveLength(1);
   });
 });
 

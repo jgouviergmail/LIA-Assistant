@@ -4243,6 +4243,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_30_15": {
+          "title": "v1.30.15 — 🛡️ Robuster in der echten Welt",
+          "date": "August 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Klügere Benachrichtigungen über Tabs hinweg</b> — der Tab, den du gerade nutzt, behält immer seine Live-Verbindung; ein längst vergessener Tab kann im Hintergrund keine toten Verbindungen mehr anhäufen. Kehrst du zu einem Tab zurück, verbindet er sich von selbst neu.",
+            "i2": "<b>🌍 Wetter für jeden Ortsnamen</b> — ein unbekannter oder falsch geschriebener Ort bekommt jetzt eine klare Antwort „Ort nicht gefunden“ (nachdem ein zweiter Geocoder es versucht hat), statt eines technischen Fehlers.",
+            "i3": "<b>🔎 Tiefe Web-Recherchen bekommen die nötige Zeit</b> — lange Synthesen werden nicht mehr nach 30 Sekunden abgebrochen, und eine zu lange Suchanfrage wird automatisch gekürzt, statt zu scheitern.",
+            "i4": "<b>🔒 Sauberere, privatere technische Logs</b> — dich um Bestätigung zu bitten zählt nicht mehr als Fehler, und Entwurfsinhalte oder Empfängernamen landen nie in den technischen Logs.",
+            "i5": "<b>📊 Für Admins: ehrliche Showroom-Metriken</b> — der Demo-Funnel zählt wieder jede Mission, Klicks zur freien Live-Instanz werden gemessen, und ein neuer Alarm überwacht die Sättigung des Redis-Verbindungspools."
+          }
+        },
         "v1_30_14": {
           "title": "v1.30.14 — 👁️ Die unsichtbare Arbeit wird sichtbar",
           "date": "August 2026",

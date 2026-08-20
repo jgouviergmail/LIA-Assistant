@@ -4257,6 +4257,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_30_15": {
+          "title": "v1.30.15 — 🛡️ Plus robuste dans le monde réel",
+          "date": "Août 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Notifications plus futées entre onglets</b> — l'onglet que tu utilises garde toujours sa connexion en direct ; un vieil onglet oublié ne peut plus accumuler de connexions mortes en coulisses. Reviens sur un onglet : il se reconnecte tout seul.",
+            "i2": "<b>🌍 La météo pour n'importe quel lieu</b> — un lieu inconnu ou mal orthographié reçoit désormais une vraie réponse « lieu introuvable » (après l'essai d'un second géocodeur), au lieu d'une erreur technique.",
+            "i3": "<b>🔎 Les recherches web approfondies ont le temps qu'il faut</b> — les synthèses longues ne sont plus coupées à 30 secondes, et une requête trop longue est raccourcie automatiquement au lieu d'échouer.",
+            "i4": "<b>🔒 Des journaux techniques plus propres et plus privés</b> — te demander confirmation n'est plus compté comme une erreur, et aucun contenu de brouillon ni destinataire ne finit dans les journaux techniques.",
+            "i5": "<b>📊 Pour les admins : des métriques de vitrine honnêtes</b> — le funnel de la démo compte à nouveau chaque mission, les clics vers l'instance libre sont mesurés, et une nouvelle alerte surveille la saturation du pool Redis."
+          }
+        },
         "v1_30_14": {
           "title": "v1.30.14 — 👁️ Le travail invisible devient visible",
           "date": "Août 2026",

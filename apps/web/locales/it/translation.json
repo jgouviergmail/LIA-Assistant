@@ -4245,6 +4245,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_30_15": {
+          "title": "v1.30.15 — 🛡️ Più solida nel mondo reale",
+          "date": "Agosto 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🔔 Notifiche più intelligenti tra le schede</b> — la scheda che stai usando mantiene sempre la sua connessione in diretta; una scheda dimenticata non può più accumulare connessioni morte dietro le quinte. Torna su una scheda e si riconnette da sola.",
+            "i2": "<b>🌍 Il meteo per qualsiasi località</b> — una località sconosciuta o scritta male riceve ora una risposta chiara «località non trovata» (dopo il tentativo di un secondo geocodificatore), invece di un errore tecnico.",
+            "i3": "<b>🔎 Le ricerche web approfondite hanno il tempo che serve</b> — le sintesi lunghe non vengono più interrotte a 30 secondi, e una richiesta troppo lunga viene accorciata automaticamente invece di fallire.",
+            "i4": "<b>🔒 Log tecnici più puliti e più privati</b> — chiederti conferma non conta più come errore, e il contenuto delle bozze o i destinatari non finiscono mai nei log tecnici.",
+            "i5": "<b>📊 Per gli admin: metriche dello showroom oneste</b> — il funnel della demo conta di nuovo ogni missione, i clic verso l'istanza libera vengono misurati, e un nuovo allarme sorveglia la saturazione del pool Redis."
+          }
+        },
         "v1_30_14": {
           "title": "v1.30.14 — 👁️ Il lavoro invisibile diventa visibile",
           "date": "Agosto 2026",

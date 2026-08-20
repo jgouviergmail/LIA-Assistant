@@ -1439,8 +1439,11 @@ class StreamingService:
         node_name = next(iter(chunk))
         state_delta = chunk[node_name]
 
-        # Skip LangGraph internal nodes
-        if node_name in ("__start__", "__end__"):
+        # Skip LangGraph internal nodes. "__interrupt__" is the HITL interrupt
+        # pseudo-node: its delta is a TUPLE of Interrupt objects by design and
+        # the interrupt travels on its own channel — warning on it reported
+        # normal control flow as an anomaly (prod logs, 2026-08-20).
+        if node_name in ("__start__", "__end__", "__interrupt__"):
             return sse_chunks
 
         # Guard: state_delta must be a dict.

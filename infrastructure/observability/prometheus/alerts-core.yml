@@ -1,7 +1,7 @@
 # ============================================================================
 # LIA Core Alerting Rules (TEMPLATE) — ADR-119
 # ============================================================================
-# Minimal viable alerting core: 12 vital alerts wired to Alertmanager (email).
+# Minimal viable alerting core: the vital alerts wired to Alertmanager (email).
 # This file is a Jinja2 template rendered by prepare_config.sh using
 # thresholds/{environment}.env (triple-chevron variable delimiters, to avoid
 # clashing with Prometheus curly-brace templating). Rendered artifact:
@@ -183,6 +183,27 @@ groups:
           summary: "Global rate limit degraded — requests admitted unchecked"
           description: "{{ $value | humanize }} req/s are crossing the API with no rate limit applied because the limiter cannot reach Redis (threshold: 0.01 req/s over 5 minutes — fail-open is deliberate, but the API is running without a global ceiling until Redis recovers)."
           runbook: "docs/runbooks/alerts/GlobalRateLimitDegraded.md"
+
+      # 2026-08-20 postmortem (incident of 08-14/15): one client's EventSource
+      # churn pinned pooled Redis connections for hours — MaxConnectionsError
+      # across SSE, caches, scheduler leadership — and nothing fired: the only
+      # pool alert lives in the DISABLED legacy alerts.yml, and its threshold
+      # (>142.5 on a 0-100 utilisation ratio) can never be true. This rule
+      # watches the direct signal instead: the global HTTP limiter runs on
+      # every request, so MaxConnectionsError recorded there means the pool is
+      # really exhausted — not merely busy.
+      - alert: RedisConnectionPoolExhaustion
+        expr: |
+          sum(increase(redis_rate_limit_errors_total{error_type="MaxConnectionsError"}[10m])) > 5
+        for: 0m
+        labels:
+          severity: critical
+          component: redis
+          tier: core
+        annotations:
+          summary: "Redis connection pool exhausted — API degrading"
+          description: "{{ $value | humanize }} MaxConnectionsError in 10 minutes at the rate limiter (threshold: 5). Every Redis-backed path (SSE streams, caches, rate limiting, scheduler leadership) is failing intermittently: raise REDIS_MAX_CONNECTIONS or find what is pinning connections."
+          runbook: "docs/runbooks/alerts/RedisConnectionPoolExhaustion.md"
 
       # ADR-220. A completed LLM call whose result carries no token usage is a
       # hole in the ledger: token_usage_logs, the daily spend ceiling and every

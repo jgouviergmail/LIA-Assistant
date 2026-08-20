@@ -25,12 +25,48 @@ from typing import Literal
 from uuid import UUID
 
 from src.core.config import settings
+from src.core.constants import BRAVE_SEARCH_MAX_QUERY_CHARS, BRAVE_SEARCH_MAX_QUERY_WORDS
 from src.domains.connectors.clients.base_api_key_client import BaseAPIKeyClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _clamp_query(query: str) -> str:
+    """Clamp a search query to Brave's published `q` bounds, at a word boundary.
+
+    Brave rejects queries above 400 characters or 50 words with HTTP 422
+    (``too_long``), which used to fail the whole search when the planner
+    generated a verbose query. A compliant query is returned verbatim —
+    internal whitespace included; an oversized one keeps whole leading words
+    within both bounds. A single word longer than the char bound is hard-cut
+    (no word boundary exists to respect).
+
+    Args:
+        query: The requested search query.
+
+    Returns:
+        A query satisfying both Brave bounds.
+    """
+    words = query.split()
+    if len(query) <= BRAVE_SEARCH_MAX_QUERY_CHARS and len(words) <= BRAVE_SEARCH_MAX_QUERY_WORDS:
+        return query
+
+    kept: list[str] = []
+    length = 0
+    for word in words[:BRAVE_SEARCH_MAX_QUERY_WORDS]:
+        # +1 for the joining space (absent before the first word).
+        candidate = length + len(word) + (1 if kept else 0)
+        if candidate > BRAVE_SEARCH_MAX_QUERY_CHARS:
+            break
+        kept.append(word)
+        length = candidate
+    if not kept:
+        # First word alone exceeds the char bound: no boundary to respect.
+        return query[:BRAVE_SEARCH_MAX_QUERY_CHARS]
+    return " ".join(kept)
 
 
 class BraveSearchClient(BaseAPIKeyClient):
@@ -121,9 +157,20 @@ class BraveSearchClient(BaseAPIKeyClient):
             logger.error("brave_search_invalid_endpoint", endpoint=endpoint)
             return None
 
+        # Repair-before-call (ADR-184): Brave 422s on q > 400 chars / 50 words.
+        clamped_query = _clamp_query(query)
+        if clamped_query != query:
+            logger.info(
+                "brave_query_clamped",
+                original_chars=len(query),
+                original_words=len(query.split()),
+                clamped_chars=len(clamped_query),
+                user_id=str(self.user_id) if self.user_id else None,
+            )
+
         # Build params
         params: dict = {
-            "q": query,
+            "q": clamped_query,
             "count": min(count, 20 if endpoint == "web" else 50),
             "search_lang": self.language,
         }
