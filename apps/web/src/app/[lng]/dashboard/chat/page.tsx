@@ -28,6 +28,8 @@ import { sentHistoryOf } from '@/lib/sent-history';
 import { hitlAwaitsUser, visibleChatSurfaces } from '@/lib/chat-surfaces';
 import { visibleFollowups, visibleMotivation } from '@/components/chat/FollowupChips';
 import { ChatConditionalSurfaces } from '@/components/chat/ChatConditionalSurfaces';
+import { EyesWidget } from '@/components/eyes/EyesWidget';
+import { useEyesChatWiring } from '@/components/eyes/useEyesChatWiring';
 import { SelectionActions } from '@/components/chat/SelectionActions';
 import { ResetConversationConfirm } from '@/components/chat/ResetConversationConfirm';
 import { useTranslation } from 'react-i18next';
@@ -150,6 +152,7 @@ export default function ChatPage() {
   const {
     messages,
     isTyping,
+    chatStatus, // Raw FSM status — the expressive-eyes widget needs the distinction
     activeStreamId, // Assistant message currently streaming (steps/caret styling)
     streamPhase, // 'progress' (execution steps) vs 'answer' (real tokens)
     isConnected,
@@ -321,10 +324,16 @@ export default function ChatPage() {
   // Only connect when user is authenticated (prevents 401 errors on SSE endpoint)
   // SSE now uses relative URL to go through Next.js proxy (same origin)
   // Note: Admin broadcasts are handled by BroadcastProvider (independent SSE/FCM listeners)
+  // Expressive eyes: per-turn signal wiring (new turn, post-response reaction,
+  // typing activity, notification pings). Lives in its own hook — the page's
+  // render function sits under the complexity ratchet.
+  const eyesWiring = useEyesChatWiring(chatStatus, messages);
+
   useNotifications({
     enableSSE: true,
     enableFCM: true,
     isAuthenticated: !!user && !isLoading,
+    onNotification: eyesWiring.onNotification,
     onReminder: handleReminder,
     onProactiveNotification: handleProactiveNotification,
     onScheduledAction: handleScheduledAction,
@@ -336,8 +345,9 @@ export default function ChatPage() {
     (message: string) => {
       setCurrentMessage(message);
       saveDraft(message);
+      eyesWiring.onTyping(message);
     },
-    [saveDraft]
+    [saveDraft, eyesWiring]
   );
 
   // Totals from API (loaded at startup from message_token_summary)
@@ -836,28 +846,32 @@ export default function ChatPage() {
                           {t('chat.input.status.offline')}
                         </span>
                       </div>
-                    ) : isTyping ? (
-                      <div className="flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900 px-3 py-1.5 shadow-sm border border-amber-200 dark:border-amber-800 shrink-0">
-                        <LoadingSpinner className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300" />
-                        <span className="text-[11px] mobile:text-xs font-semibold text-amber-700 dark:text-amber-300">
-                          {t('chat.input.status.processing')}
-                        </span>
-                      </div>
                     ) : null}
+                    {/* The amber "processing…" pill used to sit here — removed
+                    2026-08-20: the expressive eyes carry that state now, and
+                    richer (thinking vs searching vs answering). Offline stays:
+                    it is actionable information the eyes do not carry. */}
                     {/* Mobile search toggle (< 880px) — unfolds the input row in
                     the ChatSearchBar below the header (QW-2). */}
+                    {/* data-eyes-anchor-start sits on BOTH search forms — the
+                    eyes widget docks from the first VISIBLE one, so the
+                    default spot follows the responsive breakpoint. */}
                     <button
                       type="button"
                       onClick={() => setMobileSearchOpen(open => !open)}
                       aria-expanded={mobileSearchOpen}
                       aria-label={t('chat.search.open_mobile')}
+                      data-eyes-anchor-start
                       className="mobile:hidden p-2 rounded-full hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
                     </button>
                     {/* Search input (≥ 880px) — filters currently loaded messages
                     by content; left-aligned in the header. */}
-                    <div className="relative hidden mobile:flex items-center">
+                    <div
+                      className="relative hidden mobile:flex items-center"
+                      data-eyes-anchor-start
+                    >
                       <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                       <input
                         type="search"
@@ -900,7 +914,11 @@ export default function ChatPage() {
                       }
                       disabled={!apiAvailable || isTyping || isUsageBlocked}
                     />
-                    <ActiveSpacesIndicator />
+                    {/* data-eyes-anchor-end: the eyes widget docks centered
+                    between the search field and this RAG-knowledge badge. */}
+                    <span className="inline-flex" data-eyes-anchor-end>
+                      <ActiveSpacesIndicator />
+                    </span>
                     {contextUsage && (
                       <ContextUsagePill
                         usage={contextUsage}
@@ -1075,6 +1093,13 @@ export default function ChatPage() {
           open={resetConfirmOpen}
           onOpenChange={setResetConfirmOpen}
           onConfirm={handleResetConversation}
+        />
+
+        {/* Expressive eyes — floating, draggable, hideable (restore dot). */}
+        <EyesWidget
+          chatStatus={chatStatus}
+          streamPhase={streamPhase}
+          hitlAwaiting={hitl.status === 'awaiting'}
         />
 
         {/* Debug Panel - Right side (only when enabled + desktop viewport ≥1024px) */}

@@ -75,6 +75,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'font',
     declaredIn: 'components/settings/FontSettings.tsx',
   },
+  'eyes-style': {
+    tab: 'preferences',
+    accordionValue: 'eyes-style',
+    declaredIn: 'components/settings/EyesStyleSettings.tsx',
+  },
   'display-mode': {
     tab: 'preferences',
     accordionValue: 'display-mode',

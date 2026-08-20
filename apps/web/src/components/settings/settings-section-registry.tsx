@@ -45,6 +45,7 @@ import { ChannelSettings } from './ChannelSettings';
 import { ChatShortcutsSettings } from './ChatShortcutsSettings';
 import ConsumptionExportSection from './ConsumptionExportSection';
 import { DeviceSessionsSettings } from './DeviceSessionsSettings';
+import { EyesStyleSettings } from './EyesStyleSettings';
 import { FontSettings } from './FontSettings';
 import { HabitsSettings } from './HabitsSettings';
 import { HapticsSettings } from './HapticsSettings';
@@ -86,6 +87,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   timezone: { render: lng => <TimezoneSelector lng={lng} /> },
   theme: { render: lng => <ThemeSelector lng={lng} /> },
   font: { render: lng => <FontSettings lng={lng} /> },
+  'eyes-style': { render: lng => <EyesStyleSettings lng={lng} /> },
   'display-mode': { render: lng => <CardsDisplaySettings lng={lng} /> },
   haptics: { render: lng => <HapticsSettings lng={lng} /> },
   'briefing-grid': { render: lng => <BriefingGridSettings lng={lng} /> },

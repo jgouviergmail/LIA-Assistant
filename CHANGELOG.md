@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.30.16] - 2026-08-20
+
+**L'assistant gagne un regard** (ADR-240). Deux yeux cartoon pleins habitent désormais la page de chat — un widget flottant, déplaçable au pointeur comme au clavier, redimensionnable, masquable en un point de rappel. Vingt expressions dérivées d'une chaîne de priorités pure (`erreur > question HITL > voix > interaction > réaction > notification > frappe > inactivité > humeur × heure`), toutes issues de **signaux qui existaient déjà** : la machine à états du chat, les étapes d'exécution SSE (réflexion vs recherche d'outil), la carte HITL, la machine vocale, les notifications, la psyché. Zéro endpoint, zéro migration, zéro appel LLM supplémentaire. La réaction à chaque réponse lit le **self-report émotionnel du tour** (le modèle qui a écrit la réponse l'évalue lui-même) avec un repli heuristique neutre en langue — ponctuation, émojis, structure, pleine chasse chinoise incluse — pour couvrir la course du calcul psyché et les comptes psyché-off.
+
+**Une vie de personnage, pas une animation d'état.** Entre deux événements, les yeux vivent : clignements à cadence humaine (doubles occasionnels), errance du regard en saccades et coups d'œil qui balayent parfois la pièce, neuf gestes pondérés par famille d'humeur (un somnolent ne bondit jamais, un excité ne cligne jamais paresseusement), mini-scènes de songe et de rêverie, et — rarement, la rareté fait le gag — des facéties : échange de places en arc de cirque, entrechoc avec squash à l'impact, pirouette, tremblote gélatine. Les astuces d'atelier d'animation sont là : **blink de masquage** sur chaque changement d'expression, dynamiques d'arrivée par émotion (la tristesse s'installe en 950 ms, un réflexe claque en 190), émotes flottantes (« ? », « ! », « z » qui dérive, « … »), réveil en sursaut quand l'activité surprend des yeux endormis, écarquillement quand on attrape le widget. Toute la géométrie est en **morphs lisses** (aucun clipping — un œil mi-clos est un ovale plus court, jamais un rectangle), et un invariant testé garantit le retour exact à la position d'origine, quelles que soient les animations interrompues.
+
+**Six regards au choix** — Réglages › Préférences › Personnalisation › Style des yeux. Cozmo (écrans lumineux, le défaut), Capsules, Billes, Amande, Traits kawaii, Anneaux à pupille mobile : six feuilles de recettes sur le même squelette, présentées avec des **aperçus vivants** (le neutre respire, la joie rebondit). Le registre est générique par construction : ajouter un style = un id, un bloc CSS scopé, six entrées de locale — un test de complétude refuse tout style incomplet, et un style persisté disparu retombe proprement sur le défaut.
+
+**Le bandeau du chat s'allège.** Les yeux se posent par défaut entre le champ de recherche et le badge des connaissances RAG (repère responsive : la forme visible du contrôle gagne), re-mesurés en continu, avec un ordre de clamp qui interdit de recouvrir un contrôle — la classe de piège que les parcours navigateur ont attrapée deux fois. La pilule ambre « Traitement… » disparaît : cet état vit désormais dans les yeux, en plus riche (réfléchir, chercher, répondre sont trois regards différents) ; la pilule hors-ligne reste, elle dit quelque chose que les yeux ne disent pas. La courte phrase d'attente à côté des points de frappe disparaît aussi — le mouvement suffit.
+
+### Added
+- **Widget yeux expressifs** (`components/eyes/` : moteur pur à RNG/horloges injectés, rendu déclaratif, feuille d'animation `styles/eyes.css`, hooks comportement/drag/ancre/parallaxe) + `chatStatus` exposé par `useChat` (additif) + enregistrement du type d'étape dans le handler SSE `execution_step`.
+- **Registre de styles d'yeux** (6 styles, complétude CSS+i18n testée) + **section Réglages « Style des yeux »** (aperçus animés par style, jeton de lien profond `eyes-style`, recherche des réglages et icône câblées, préférence d'affichage par appareil).
+- **Vie idle complète** : gestes pondérés par humeur, saccades pendant la parole, mini-scènes (`IDLE_FLICKERS`), facéties (`swap`/`bump`/`spin`/`jelly`, ~6 % des tics), performances scriptées (réveil en sursaut), émotes flottantes, parallaxe curseur desktop à expiration.
+- Préférences persistées du widget (visibilité, taille `auto` — petite mobile / grande desktop —, position en % viewport re-clampée, style) sous une clé localStorage documentée hors registre de purge SEC-035.
+
+### Changed
+- Position par défaut du widget ancrée entre recherche et badge RAG (mesure vivante : resize, ResizeObserver, battement), clamp prioritaire anti-recouvrement ; barre d'outils du widget sur survol/focus au desktop et sur tap au tactile (masquage auto, inerte quand cachée).
+
+### Removed
+- Pilule « Traitement… » du bandeau de chat (l'état vit dans les yeux ; la pilule hors-ligne, actionnable, reste) — clé `chat.input.status.processing` purgée des 6 locales.
+- Phrase d'attente teintée par l'humeur à côté de l'indicateur de frappe (Lot 1-A5, v1.30.14) — retirée sur décision produit : l'indicateur parle par le mouvement seul ; clés `chat.ack.*` purgées des 6 locales.
+
+### Fixed
+- Oracle de test de l'indicateur de frappe rendu déterministe (la variante ✦ est une forme, pas une phrase — flaky 1/6 éliminé) ; garde de complétude des styles lue depuis le disque dans le corps du test (les imports CSS `?raw` sont vidés par le pipeline vitest ; une lecture top-level transformait l'échec en erreur de collecte illisible).
+
+### Tests
+- ~180 tests neufs (matrice exhaustive du moteur d'expressions, stores, chrome du widget, câblage par tour, ancrage double-repère avec clamp, registre de styles, section Réglages, invariant de retour du regard) — tous à RNG injecté et horloge épinglée, aucun n'attend une animation. Suites : 19 335 backend collectés (inchangé — release 100 % frontend), 6 038 vitest, suite e2e complète 185 parcours (chat, axe, réglages, parcours publics) contre le build de production, couverture frontend re-verrouillée (planchers 74/69/71/74).
+
 ## [1.30.15] - 2026-08-20
 
 **Les logs de production deviennent un contrat.** Une analyse systémique de sept jours de journaux (Loki par tranches de 24 h, docker, base et métriques croisées) a recensé, qualifié puis traité **douze constats** — chacun vérifié par la donnée avant tout correctif, plusieurs hypothèses plausibles réfutées en route (le « 0 visiteur » du rapport du démonstrateur est un vrai zéro structurel : la pile était éteinte et le lien public désactivé — personne ne *pouvait* s'inscrire ; le compte n'a jamais menti).

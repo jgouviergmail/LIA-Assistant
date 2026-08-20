@@ -4,6 +4,8 @@
 /* V3 Display Architecture: Modern HTML components */
 /* Note: Material Symbols font is loaded via <link> in layout.tsx for better reliability */
 @import './lia-components.css';
+/* Expressive-eyes widget animation system (self-contained reduced-motion block) */
+@import './eyes.css';
 
 /* Enable dark: variant for .dark class */
 @variant dark (.dark &);

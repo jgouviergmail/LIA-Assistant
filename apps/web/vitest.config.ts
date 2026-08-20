@@ -256,9 +256,14 @@ export default defineConfig({
         // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
         // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
         // without the test degenerating into a test of its own mocks.
-        statements: 73,
-        branches: 68,
-        functions: 70,
+        // Re-locked 2026-08-20 (473 files / 6,012 tests) after the
+        // expressive-eyes waves (engine matrix + idle life + performances +
+        // touch toolbar): measured 76.20 / 71.39 / 73.20 / 76.85 →
+        // statements joins branches and functions one point up
+        // (floor(measured - 2)); lines already sits at its doctrine floor.
+        statements: 74,
+        branches: 69,
+        functions: 71,
         lines: 74,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {

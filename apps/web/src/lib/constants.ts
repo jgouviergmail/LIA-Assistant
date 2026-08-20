@@ -399,6 +399,16 @@ export const VOICE_MODE_IDLE_TIMEOUT_SECONDS = 300;
 export const VOICE_MODE_ENABLED_KEY = 'voice_mode_enabled';
 
 /**
+ * LocalStorage key persisting the expressive-eyes widget display preferences
+ * (visibility, size preset, position as viewport percentages).
+ *
+ * Deliberately NOT in the SEC-035 purge registry: the value is a pure display
+ * preference of the device — no personal data, no consent record, nothing an
+ * account inherits harmfully on a shared browser profile.
+ */
+export const EYES_WIDGET_PREFS_KEY = 'lia_eyes_widget_prefs';
+
+/**
  * SessionStorage key holding the debug metrics history (SEC-035).
  *
  * The entries carry the user's own request text plus execution details, and the

@@ -1,0 +1,1150 @@
+/**
+ * Expressive eyes — the full animation system for the ExpressiveEyes component.
+ *
+ * Design language: two solid capsule eyes (Cozmo lineage, softened). ALL
+ * expressivity is pure geometric morphing — vertical compression with a
+ * variable anchor (`--eye-oy` decides WHICH lid closes), per-eye rotation
+ * (slants), and border-radius morphs (dome = joy, lens = focus, ellipse =
+ * surprise). There is deliberately NO clipping anywhere: a half-closed eye is
+ * a SHORTER SMOOTH OVAL, never a squared-off cut — every intermediate state
+ * of every transition stays a natural curve.
+ *
+ * Motion doctrine: emotions land at their own speed (arrival dynamics below),
+ * base morphs are unhurried (650 ms) with a whisper of overshoot, and the
+ * idle life stays calm. Left/right phase offsets (60-120 ms) keep everything
+ * organic.
+ *
+ * Contract with ExpressiveEyes.tsx:
+ *  - geometry is em-based: the size modifier only changes font-size
+ *  - `data-expression` picks a recipe; `data-gesture` plays one idle beat
+ *  - `--gaze-x` / `--gaze-y` ([-1, 1]) aim the gaze wrapper; `--gaze-ms`
+ *    tunes travel time (saccade jump vs eased return)
+ *  - `.is-blinking` runs one blink cycle (host toggles the class on a timer)
+ *
+ * Reduced motion: self-contained kill block at the end of this file (the
+ * global kill-switch in globals.css is an explicit class list — these
+ * selectors live here so the system stays in one place).
+ */
+
+/* =============================================================================
+   Root & geometry
+   ============================================================================= */
+
+.lia-eyes {
+  --eyes-color: var(--lia-primary);
+  /* Cozmo screens GLOW — the halo replaces the old specular sheen. */
+  --eyes-glow: color-mix(in srgb, var(--eyes-color) 30%, transparent);
+
+  /* Openness & squash: --eye-sy compresses the eye; --eye-oy anchors the
+     compression (100% = bottom anchored → the TOP lid comes down). */
+  --eye-sx: 1;
+  --eye-sy: 1;
+  --eye-oy: 50%;
+  --eye-rot: 0deg;
+  --eye-ty: 0em;
+
+  /* Border-radius personality — horizontal / vertical radii per edge.
+     Neutral Cozmo screen: an even, moderate corner. */
+  --r-top: 0.28em;
+  --r-bot: 0.28em;
+  --rv-top: 0.28em;
+  --rv-bot: 0.28em;
+
+  /* Gaze ([-1, 1] from the component) and its travel time. */
+  --gaze-x: 0;
+  --gaze-y: 0;
+
+  position: relative;
+  display: inline-flex;
+  line-height: 0;
+}
+
+/* Size presets: everything is em-based, so font-size is the whole scale. */
+.lia-eyes--sm {
+  font-size: 20px;
+}
+.lia-eyes--md {
+  font-size: 30px;
+}
+.lia-eyes--lg {
+  font-size: 44px;
+}
+
+.lia-eyes-gaze {
+  display: inline-flex;
+  gap: var(--eye-gap, 0.45em);
+  padding: 0.18em;
+  transform: translate(calc(var(--gaze-x) * 0.14em), calc(var(--gaze-y) * 0.12em));
+  /* --gaze-ms is host-tuned: ~140 ms for a saccade, ~650 ms for the eased
+     return to center, 380 ms default for directed/parallax gazes. */
+  transition: transform var(--gaze-ms, 380ms) cubic-bezier(0.36, 0.6, 0.25, 1);
+}
+
+.lia-eye {
+  display: inline-block;
+  width: var(--eye-w, 1.3em);
+  height: var(--eye-h, 1.05em);
+  /* --style-rot: per-STYLE base tilt of the whole eye (e.g. the almond
+     look), independent from the per-EXPRESSION --eye-rot on the shape. */
+  transform: translateY(var(--eye-ty)) rotate(var(--style-rot, 0deg));
+  transition: transform 650ms cubic-bezier(0.32, 0.9, 0.35, 1.04);
+}
+.lia-eye--right {
+  --style-rot: var(--style-rot-r, 0deg);
+}
+.lia-eye--left {
+  --style-rot: var(--style-rot-l, 0deg);
+}
+
+/* Blink layer: independent from the expression morphs so a blink composes
+   with any recipe. Center-origin scaleY squash with a light scaleX stretch. */
+.lia-eye-blink {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 55%;
+  transition: transform 260ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.lia-eye-shape {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--eyes-color);
+  border-radius: var(--r-top) var(--r-top) var(--r-bot) var(--r-bot) / var(--rv-top) var(--rv-top)
+    var(--rv-bot) var(--rv-bot);
+  /* The Cozmo halo: a flat glowing SCREEN, no specular sheen — the eyes read
+     as emissive, and the gaze is carried by whole-eye motion (the original
+     robot's language). box-shadow scales with the transform, so squashed
+     lids keep a coherent glow. */
+  box-shadow: 0 0 0.45em var(--eyes-glow);
+  transform: scale(var(--eye-sx), var(--eye-sy)) rotate(var(--eye-rot));
+  transform-origin: 50% var(--eye-oy);
+  /* transform-origin deliberately NOT transitioned: interpolating the origin
+     makes the scaled shape SLIDE sideways (reads as positional drift). It
+     snaps instead — under the transition mask blink, invisibly. */
+  transition:
+    transform 650ms cubic-bezier(0.32, 0.9, 0.35, 1.04),
+    border-radius 650ms cubic-bezier(0.33, 0, 0.15, 1);
+}
+
+/* Dark mode: the screens burn brighter (stronger halo, wider throw). */
+.dark .lia-eyes {
+  --eyes-glow: color-mix(in srgb, var(--eyes-color) 55%, transparent);
+}
+.dark .lia-eye-shape {
+  box-shadow: 0 0 0.6em var(--eyes-glow);
+}
+
+/* =============================================================================
+   Arrival dynamics — emotions land at their OWN speed. Sadness settles
+   slowly, joy springs, a reflex snaps, anger strikes.
+   ============================================================================= */
+
+:is(
+    [data-expression='sad'],
+    [data-expression='tired'],
+    [data-expression='sleepy'],
+    [data-expression='sleep'],
+    [data-expression='bored']
+  )
+  :is(.lia-eye, .lia-eye-shape) {
+  transition-duration: 950ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.45, 1);
+}
+:is([data-expression='joy'], [data-expression='excited'], [data-expression='attentive'])
+  :is(.lia-eye, .lia-eye-shape) {
+  transition-duration: 500ms;
+}
+:is([data-expression='surprise'], [data-expression='fear']) :is(.lia-eye, .lia-eye-shape) {
+  transition-duration: 190ms;
+}
+[data-expression='anger'] :is(.lia-eye, .lia-eye-shape) {
+  transition-duration: 380ms;
+  transition-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+}
+
+/* Tactile response: pressing the eyes squashes them slightly — releasing
+   springs back through the normal transform transition. */
+.lia-eyes-widget:active .lia-eye {
+  transform: translateY(var(--eye-ty)) scale(0.93);
+  transition-duration: 130ms;
+}
+
+/* =============================================================================
+   Blink (host toggles .is-blinking; right eye trails by 70 ms)
+   ============================================================================= */
+
+@keyframes lia-eye-blink {
+  0% {
+    transform: scaleY(1) scaleX(1);
+  }
+  42% {
+    transform: scaleY(0.06) scaleX(1.05);
+  }
+  56% {
+    transform: scaleY(0.06) scaleX(1.05);
+  }
+  84% {
+    transform: scaleY(1.06) scaleX(0.99);
+  }
+  100% {
+    transform: scaleY(1) scaleX(1);
+  }
+}
+
+.lia-eyes.is-blinking .lia-eye-blink {
+  animation: lia-eye-blink 420ms cubic-bezier(0.4, 0, 0.35, 1) both;
+}
+.lia-eyes.is-blinking .lia-eye--right .lia-eye-blink {
+  animation-delay: 70ms;
+}
+
+/* =============================================================================
+   Idle micro-life: calm expressions breathe gently
+   ============================================================================= */
+
+@keyframes lia-eyes-breathe {
+  0%,
+  100% {
+    scale: 1;
+    translate: 0 0;
+  }
+  50% {
+    scale: 1.025;
+    translate: 0 -0.03em;
+  }
+}
+
+:is(
+    [data-expression='neutral'],
+    [data-expression='attentive'],
+    [data-expression='tender'],
+    [data-expression='joy'],
+    [data-expression='bored'],
+    [data-expression='tired'],
+    [data-expression='thinking']
+  )
+  .lia-eyes-gaze {
+  animation: lia-eyes-breathe 4600ms ease-in-out infinite;
+}
+
+/* =============================================================================
+   Expression recipes — pure smooth-geometry morphs
+   ============================================================================= */
+
+/* --- attentive: screens widen and lift — "I'm all ears". */
+[data-expression='attentive'] .lia-eye {
+  --eye-sy: 1.12;
+  --eye-sx: 1.04;
+  --eye-ty: -0.03em;
+}
+
+/* --- joy: a rising dome-screen — round crown, flat base. The eye smiles. */
+[data-expression='joy'] .lia-eye,
+[data-expression='wink'] .lia-eye--left {
+  --eye-sy: 0.55;
+  --eye-oy: 20%;
+  --eye-ty: -0.08em;
+  --r-top: 0.42em;
+  --rv-top: 0.46em;
+  --r-bot: 0.12em;
+  --rv-bot: 0.1em;
+}
+
+/* --- excited: a livelier dome + bounce. */
+[data-expression='excited'] .lia-eye {
+  --eye-sy: 0.7;
+  --eye-oy: 25%;
+  --eye-sx: 1.05;
+  --r-top: 0.4em;
+  --rv-top: 0.42em;
+  --r-bot: 0.18em;
+  --rv-bot: 0.14em;
+}
+@keyframes lia-eye-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-0.11em) scaleY(1.06);
+  }
+  55% {
+    transform: translateY(0.02em) scaleY(0.96);
+  }
+  78% {
+    transform: translateY(-0.04em);
+  }
+}
+[data-expression='excited'] .lia-eye-blink {
+  animation: lia-eye-bounce 760ms cubic-bezier(0.34, 1.3, 0.5, 1) infinite;
+}
+[data-expression='excited'] .lia-eye--right .lia-eye-blink {
+  animation-delay: 90ms;
+}
+
+/* --- tender: soft low domes, a gentle inward lean — melted look. */
+[data-expression='tender'] .lia-eye {
+  --eye-sy: 0.6;
+  --eye-oy: 30%;
+  --eye-ty: -0.02em;
+  --r-top: 0.4em;
+  --rv-top: 0.42em;
+  --r-bot: 0.2em;
+  --rv-bot: 0.16em;
+}
+[data-expression='tender'] .lia-eye--left {
+  --eye-rot: 3deg;
+}
+[data-expression='tender'] .lia-eye--right {
+  --eye-rot: -3deg;
+}
+
+/* --- surprise: big rounded screens, with a one-shot pop. */
+[data-expression='surprise'] .lia-eye {
+  --eye-sx: 1.12;
+  --eye-sy: 1.25;
+  --r-top: 0.34em;
+  --r-bot: 0.34em;
+  --rv-top: 0.34em;
+  --rv-bot: 0.34em;
+}
+@keyframes lia-eyes-pop {
+  0% {
+    scale: 0.92;
+  }
+  55% {
+    scale: 1.1;
+  }
+  100% {
+    scale: 1;
+  }
+}
+[data-expression='surprise'] .lia-eyes-gaze {
+  animation: lia-eyes-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+
+/* --- fear: shrunken screens, trembling. */
+[data-expression='fear'] .lia-eye {
+  --eye-sx: 0.85;
+  --eye-sy: 0.85;
+  --r-top: 0.3em;
+  --r-bot: 0.3em;
+  --rv-top: 0.34em;
+  --rv-bot: 0.34em;
+}
+@keyframes lia-eyes-tremble {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: 0.016em 0;
+  }
+  75% {
+    translate: -0.016em 0;
+  }
+}
+[data-expression='fear'] .lia-eyes-gaze {
+  animation: lia-eyes-tremble 130ms linear infinite;
+}
+
+/* --- anger: screens press down, corners SHARPEN, tips toward the nose —
+   the slant is the brow, the hard corner is the scowl. */
+[data-expression='anger'] .lia-eye {
+  --eye-sy: 0.62;
+  --eye-oy: 100%;
+  --eye-ty: 0.03em;
+  --r-top: 0.1em;
+  --rv-top: 0.08em;
+}
+[data-expression='anger'] .lia-eye--left {
+  --eye-rot: 7deg;
+}
+[data-expression='anger'] .lia-eye--right {
+  --eye-rot: -7deg;
+}
+
+/* --- sad: the mirror lean — outer corners sink, gaze low. */
+[data-expression='sad'] .lia-eye {
+  --eye-sy: 0.68;
+  --eye-oy: 100%;
+  --eye-ty: 0.05em;
+}
+[data-expression='sad'] .lia-eye--left {
+  --eye-rot: -6deg;
+}
+[data-expression='sad'] .lia-eye--right {
+  --eye-rot: 6deg;
+}
+
+/* --- worried: a soft, slighter sadness. */
+[data-expression='worried'] .lia-eye {
+  --eye-sy: 0.85;
+  --eye-oy: 90%;
+}
+[data-expression='worried'] .lia-eye--left {
+  --eye-rot: -3deg;
+}
+[data-expression='worried'] .lia-eye--right {
+  --eye-rot: 3deg;
+}
+
+/* --- question: one raised screen — asymmetry is the message. */
+[data-expression='question'] .lia-eye--left {
+  --eye-sy: 1.12;
+  --eye-ty: -0.04em;
+}
+[data-expression='question'] .lia-eye--right {
+  --eye-sy: 0.66;
+  --eye-oy: 100%;
+  --eye-rot: -5deg;
+}
+
+/* --- thinking: half-lidded from above, gaze aimed up by the engine. */
+[data-expression='thinking'] .lia-eye {
+  --eye-sy: 0.6;
+  --eye-oy: 60%;
+}
+
+/* --- searching: light squint + horizontal scan with end-of-travel holds. */
+[data-expression='searching'] .lia-eye {
+  --eye-sy: 0.7;
+  --eye-oy: 55%;
+}
+@keyframes lia-eyes-scan {
+  0%,
+  8% {
+    transform: translateX(-0.16em);
+  }
+  42%,
+  58% {
+    transform: translateX(0.16em);
+  }
+  92%,
+  100% {
+    transform: translateX(-0.16em);
+  }
+}
+[data-expression='searching'] .lia-eyes-gaze {
+  animation: lia-eyes-scan 2800ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* --- focused: concentrated slits — squeezed from both lids. */
+[data-expression='focused'] .lia-eye {
+  --eye-sy: 0.45;
+  --eye-sx: 1.05;
+  --r-top: 0.16em;
+  --r-bot: 0.16em;
+  --rv-top: 0.14em;
+  --rv-bot: 0.14em;
+}
+
+/* --- speaking: alive and rhythmic — a gentle alternating bob whose two
+   cycles drift in and out of phase (never a metronome). */
+@keyframes lia-eye-speak {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-0.028em) scaleY(1.03);
+  }
+}
+[data-expression='speaking'] .lia-eye-blink {
+  animation: lia-eye-speak 900ms ease-in-out infinite;
+}
+[data-expression='speaking'] .lia-eye--right .lia-eye-blink {
+  animation-duration: 980ms;
+  animation-delay: 120ms;
+}
+
+/* --- bored: heavy flat-ish lids from above — the stillness is the point. */
+[data-expression='bored'] .lia-eye {
+  --eye-sy: 0.5;
+  --eye-oy: 100%;
+  --r-top: 0.16em;
+  --rv-top: 0.12em;
+}
+
+/* --- tired: heavy lids, a light outward droop. */
+[data-expression='tired'] .lia-eye {
+  --eye-sy: 0.52;
+  --eye-oy: 100%;
+}
+[data-expression='tired'] .lia-eye--left {
+  --eye-rot: -2deg;
+}
+[data-expression='tired'] .lia-eye--right {
+  --eye-rot: 2deg;
+}
+
+/* --- sleepy: almost closed, everything slows down. */
+[data-expression='sleepy'] .lia-eye {
+  --eye-sy: 0.36;
+  --eye-oy: 100%;
+}
+[data-expression='sleepy'] .lia-eyes-gaze {
+  animation: lia-eyes-breathe 6000ms ease-in-out infinite;
+}
+
+/* --- sleep: a soft closed lens, deep slow breathing. */
+[data-expression='sleep'] .lia-eye {
+  --eye-sy: 0.12;
+  --eye-oy: 85%;
+}
+@keyframes lia-eyes-sleep-breathe {
+  0%,
+  100% {
+    scale: 1 0.96;
+  }
+  50% {
+    scale: 1.03 1;
+  }
+}
+[data-expression='sleep'] .lia-eyes-gaze {
+  animation: lia-eyes-sleep-breathe 4200ms ease-in-out infinite;
+}
+
+/* --- wink: right eye snaps shut (left keeps the joy dome set above). */
+[data-expression='wink'] .lia-eye--right .lia-eye-blink {
+  transform: scaleY(0.06) scaleX(1.05);
+}
+
+/* Joy ARRIVES with a little pop, then settles into the shared breathe loop
+   (same specificity as the breathe list above — source order wins). */
+@keyframes lia-joy-pop {
+  0% {
+    scale: 0.94;
+  }
+  45% {
+    scale: 1.06;
+  }
+  100% {
+    scale: 1;
+  }
+}
+[data-expression='joy'] .lia-eyes-gaze {
+  animation:
+    lia-joy-pop 480ms cubic-bezier(0.34, 1.5, 0.6, 1) 1,
+    lia-eyes-breathe 4600ms ease-in-out 480ms infinite;
+}
+
+/* =============================================================================
+   Idle-life gestures — one-shot classes the host holds for
+   GESTURE_DURATION_MS (covering the right-eye delays), then clears.
+   Blink specificity note: `.lia-eyes.is-blinking .lia-eye-blink` (0,3,0)
+   outranks every `[data-gesture] .lia-eye-blink` (0,2,0), so a scheduled
+   blink cleanly wins over a lid gesture for its cycle.
+   ============================================================================= */
+
+/* Languid blink — the drowsy signature (reuses the blink keyframe, slowed). */
+[data-gesture='slow-blink'] .lia-eye-blink {
+  animation: lia-eye-blink 900ms cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+[data-gesture='slow-blink'] .lia-eye--right .lia-eye-blink {
+  animation-delay: 70ms;
+}
+
+/* Partial lid drop — "hm?" without commitment. */
+@keyframes lia-gesture-half-blink {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  40%,
+  60% {
+    transform: scaleY(0.45);
+  }
+}
+[data-gesture='half-blink'] .lia-eye-blink {
+  animation: lia-gesture-half-blink 380ms ease-in-out both;
+}
+
+/* Brief squint-and-release — reading something far away. */
+@keyframes lia-gesture-squint {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  30%,
+  70% {
+    transform: scaleY(0.62) scaleX(1.02);
+  }
+}
+[data-gesture='squint'] .lia-eye-blink {
+  animation: lia-gesture-squint 740ms ease-in-out both;
+}
+
+/* Small head-tilt wobble with a spring back. */
+@keyframes lia-gesture-tilt {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  30% {
+    rotate: 3.5deg;
+  }
+  68% {
+    rotate: -2.2deg;
+  }
+}
+[data-gesture='tilt'] .lia-eyes-gaze {
+  animation: lia-gesture-tilt 950ms cubic-bezier(0.34, 1.3, 0.5, 1) both;
+}
+
+/* Happy little hop — lively moods only (the engine's weight table). */
+@keyframes lia-gesture-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-0.11em) scaleY(1.06);
+  }
+  55% {
+    transform: translateY(0.02em) scaleY(0.96);
+  }
+  78% {
+    transform: translateY(-0.04em);
+  }
+}
+[data-gesture='bounce'] .lia-eye-blink {
+  animation: lia-gesture-bounce 660ms cubic-bezier(0.34, 1.4, 0.5, 1) both;
+}
+[data-gesture='bounce'] .lia-eye--right .lia-eye-blink {
+  animation-delay: 90ms;
+}
+
+/* Asymmetric single-brow raise — "oh?" (right eye stretches up briefly). */
+@keyframes lia-gesture-brow {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  30%,
+  60% {
+    transform: translateY(-0.06em) scaleY(1.12);
+  }
+}
+[data-gesture='brow'] .lia-eye--right .lia-eye-blink {
+  animation: lia-gesture-brow 640ms cubic-bezier(0.34, 1.3, 0.5, 1) both;
+}
+
+/* Quick attention flick — something interesting just crossed the mind. */
+@keyframes lia-gesture-perk {
+  0%,
+  100% {
+    scale: 1;
+  }
+  35% {
+    scale: 1.07;
+  }
+}
+[data-gesture='perk'] .lia-eyes-gaze {
+  animation: lia-gesture-perk 540ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* =============================================================================
+   Slapstick beats — rare comedy on the whole eyes. All motion rides the
+   independent translate/scale/rotate properties, so it composes with (never
+   fights) the expression transforms underneath.
+   ============================================================================= */
+
+/* The eyes trade places in a circus arc (left over the top, right under),
+   hold a beat, then trade back the opposite way. Travel = eye width + gap —
+   computed from the style's geometry vars, so every style swaps correctly. */
+.lia-eyes {
+  --swap-x: calc(var(--eye-w, 1.3em) + var(--eye-gap, 0.45em));
+}
+@keyframes lia-silly-swap-left {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: calc(var(--swap-x) / 2) -0.6em;
+  }
+  42%,
+  58% {
+    translate: var(--swap-x) 0;
+  }
+  75% {
+    translate: calc(var(--swap-x) / 2) 0.6em;
+  }
+}
+@keyframes lia-silly-swap-right {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25% {
+    translate: calc(var(--swap-x) / -2) 0.6em;
+  }
+  42%,
+  58% {
+    translate: calc(var(--swap-x) * -1) 0;
+  }
+  75% {
+    translate: calc(var(--swap-x) / -2) -0.6em;
+  }
+}
+[data-gesture='swap'] .lia-eye--left {
+  animation: lia-silly-swap-left 1700ms cubic-bezier(0.45, 0, 0.45, 1) both;
+}
+[data-gesture='swap'] .lia-eye--right {
+  animation: lia-silly-swap-right 1700ms cubic-bezier(0.45, 0, 0.45, 1) both;
+}
+
+/* Drift apart… rush together… CLACK (squash at impact), rebound, settle. */
+@keyframes lia-silly-bump-left {
+  0%,
+  100% {
+    translate: 0 0;
+    scale: 1 1;
+  }
+  30% {
+    translate: -0.3em 0;
+  }
+  52% {
+    translate: 0.14em 0;
+    scale: 0.82 1.12;
+  }
+  70% {
+    translate: -0.08em 0;
+    scale: 1.05 0.97;
+  }
+}
+@keyframes lia-silly-bump-right {
+  0%,
+  100% {
+    translate: 0 0;
+    scale: 1 1;
+  }
+  30% {
+    translate: 0.3em 0;
+  }
+  52% {
+    translate: -0.14em 0;
+    scale: 0.82 1.12;
+  }
+  70% {
+    translate: 0.08em 0;
+    scale: 1.05 0.97;
+  }
+}
+[data-gesture='bump'] .lia-eye--left {
+  animation: lia-silly-bump-left 1450ms cubic-bezier(0.4, 0, 0.5, 1) both;
+}
+[data-gesture='bump'] .lia-eye--right {
+  animation: lia-silly-bump-right 1450ms cubic-bezier(0.4, 0, 0.5, 1) both;
+}
+
+/* Quick 360° pirouette with a mid-spin dip, the right eye trailing. */
+@keyframes lia-silly-spin {
+  0% {
+    rotate: 0deg;
+    scale: 1;
+  }
+  50% {
+    scale: 0.9;
+  }
+  100% {
+    rotate: 1turn;
+    scale: 1;
+  }
+}
+[data-gesture='spin'] .lia-eye--left {
+  animation: lia-silly-spin 950ms cubic-bezier(0.5, 0, 0.35, 1) both;
+}
+[data-gesture='spin'] .lia-eye--right {
+  animation: lia-silly-spin 950ms cubic-bezier(0.5, 0, 0.35, 1) 140ms both;
+}
+
+/* Jello shudder — big wobble decaying to rest. */
+@keyframes lia-silly-jelly {
+  0%,
+  100% {
+    scale: 1 1;
+  }
+  18% {
+    scale: 1.18 0.82;
+  }
+  38% {
+    scale: 0.86 1.14;
+  }
+  58% {
+    scale: 1.1 0.9;
+  }
+  78% {
+    scale: 0.96 1.04;
+  }
+}
+[data-gesture='jelly'] .lia-eye {
+  animation: lia-silly-jelly 1150ms cubic-bezier(0.4, 0, 0.5, 1) both;
+}
+[data-gesture='jelly'] .lia-eye--right {
+  animation-delay: 80ms;
+}
+
+/* =============================================================================
+   Floating emote — the little glyph above the eyes ('?', '!', 'z', '…'),
+   same ink as the eyes. Pops in with a bounce, leaves with a shrink-fade;
+   the sleep 'z' keeps drifting upward while it stays.
+   ============================================================================= */
+
+.lia-emote {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-bottom: 0.08em;
+  translate: -50% 0;
+  color: var(--eyes-color);
+  font-size: 0.6em;
+  font-weight: 800;
+  line-height: 1;
+  animation: lia-emote-in 460ms cubic-bezier(0.34, 1.5, 0.6, 1) both;
+}
+@keyframes lia-emote-in {
+  0% {
+    opacity: 0;
+    scale: 0.3;
+    translate: -50% 0.35em;
+  }
+  60% {
+    opacity: 1;
+    scale: 1.15;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+    translate: -50% 0;
+  }
+}
+/* The sleep 'z' drifts up and fades, again and again — the classic zzz. */
+@keyframes lia-emote-zzz {
+  0%,
+  100% {
+    translate: -50% 0;
+    opacity: 0.9;
+  }
+  50% {
+    translate: -36% -0.4em;
+    opacity: 0.45;
+  }
+}
+[data-emote='z'].lia-emote {
+  animation:
+    lia-emote-in 460ms cubic-bezier(0.34, 1.5, 0.6, 1) both,
+    lia-emote-zzz 2600ms ease-in-out 600ms infinite;
+}
+/* Declared last: the leave animation must beat every enter/loop rule. */
+.lia-emote.is-leaving {
+  animation: lia-emote-out 250ms cubic-bezier(0.4, 0, 0.7, 1) both;
+}
+@keyframes lia-emote-out {
+  to {
+    opacity: 0;
+    scale: 0.5;
+    translate: -50% -0.4em;
+  }
+}
+
+/* =============================================================================
+   STYLE SHEETS — the base above IS the default style ('cozmo'). Each block
+   below re-skins the SAME morph system (sy/oy/rot/radius vars, blink layer,
+   gaze wrapper, gestures, emotes) for one registry id. Only geometry tokens
+   and the handful of expressions whose base values do not read well on the
+   new silhouette are overridden.
+   ============================================================================= */
+
+/* --- capsules: the original soft vertical pills, specular sheen, no halo. */
+[data-style='capsules'] {
+  --eye-w: 1em;
+  --eye-h: 1.4em;
+  --eye-gap: 0.55em;
+  --r-top: 0.5em;
+  --r-bot: 0.5em;
+  --rv-top: 0.5em;
+  --rv-bot: 0.5em;
+}
+[data-style='capsules'] .lia-eye-shape {
+  box-shadow: none;
+}
+[data-style='capsules'] .lia-eye-shape::after {
+  content: '';
+  position: absolute;
+  top: 12%;
+  left: 14%;
+  width: 0.34em;
+  height: 0.17em;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at 40% 40%,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.25) 55%,
+    transparent 78%
+  );
+  rotate: -18deg;
+  opacity: 0.7;
+}
+[data-style='capsules'][data-expression='joy'] .lia-eye,
+[data-style='capsules'][data-expression='wink'] .lia-eye--left {
+  --r-top: 0.55em;
+  --rv-top: 0.62em;
+  --r-bot: 0.34em;
+  --rv-bot: 0.18em;
+}
+[data-style='capsules'][data-expression='anger'] .lia-eye {
+  --r-top: 0.34em;
+  --rv-top: 0.26em;
+}
+[data-style='capsules'][data-expression='focused'] .lia-eye {
+  --r-top: 0.42em;
+  --r-bot: 0.42em;
+  --rv-top: 0.3em;
+  --rv-bot: 0.3em;
+}
+[data-style='capsules'][data-expression='bored'] .lia-eye {
+  --r-top: 0.42em;
+  --rv-top: 0.34em;
+}
+
+/* --- billes: naive circles with a big double catch-light. */
+[data-style='billes'] {
+  --eye-w: 1.15em;
+  --eye-h: 1.15em;
+  --eye-gap: 0.5em;
+  --r-top: 0.58em;
+  --r-bot: 0.58em;
+  --rv-top: 0.58em;
+  --rv-bot: 0.58em;
+}
+[data-style='billes'] .lia-eye-shape {
+  box-shadow: none;
+}
+[data-style='billes'] .lia-eye-shape::after {
+  content: '';
+  position: absolute;
+  top: 14%;
+  left: 16%;
+  width: 0.4em;
+  height: 0.4em;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 42% 42%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.15) 62%,
+    transparent 75%
+  );
+}
+[data-style='billes'] .lia-eye-shape::before {
+  content: '';
+  position: absolute;
+  bottom: 20%;
+  right: 18%;
+  width: 0.14em;
+  height: 0.14em;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+}
+[data-style='billes'][data-expression='joy'] .lia-eye,
+[data-style='billes'][data-expression='wink'] .lia-eye--left {
+  --r-top: 0.6em;
+  --rv-top: 0.62em;
+  --r-bot: 0.34em;
+  --rv-bot: 0.12em;
+}
+[data-style='billes'][data-expression='anger'] .lia-eye {
+  --r-top: 0.42em;
+  --rv-top: 0.3em;
+}
+
+/* --- amande: slanted feline ellipses — silhouette-only, extra base tilt. */
+[data-style='amande'] {
+  --eye-w: 1.1em;
+  --eye-h: 0.85em;
+  --eye-gap: 0.5em;
+  --r-top: 0.55em;
+  --r-bot: 0.55em;
+  --rv-top: 0.42em;
+  --rv-bot: 0.42em;
+  --style-rot-l: -12deg;
+  --style-rot-r: 12deg;
+}
+[data-style='amande'] .lia-eye-shape {
+  box-shadow: none;
+}
+[data-style='amande'][data-expression='anger'] .lia-eye--left {
+  --eye-rot: 12deg;
+}
+[data-style='amande'][data-expression='anger'] .lia-eye--right {
+  --eye-rot: -12deg;
+}
+[data-style='amande'][data-expression='sad'] .lia-eye--left {
+  --eye-rot: -14deg;
+}
+[data-style='amande'][data-expression='sad'] .lia-eye--right {
+  --eye-rot: 14deg;
+}
+[data-style='amande'][data-expression='surprise'] .lia-eye {
+  --style-rot-l: 0deg;
+  --style-rot-r: 0deg;
+}
+[data-style='amande'][data-expression='sleep'] .lia-eye {
+  --style-rot-l: 0deg;
+  --style-rot-r: 0deg;
+}
+
+/* --- traits: kawaii stroke language — bars, arches and rings. The shape
+   turns into a stroke via transparent background + borders per expression. */
+[data-style='traits'] {
+  --eye-w: 0.42em;
+  --eye-h: 1.1em;
+  --eye-gap: 0.6em;
+  --r-top: 0.21em;
+  --r-bot: 0.21em;
+  --rv-top: 0.21em;
+  --rv-bot: 0.21em;
+}
+[data-style='traits'] .lia-eye-shape {
+  box-shadow: none;
+}
+[data-style='traits'][data-expression='joy'] .lia-eye,
+[data-style='traits'][data-expression='wink'] .lia-eye--left {
+  --eye-w: 0.95em;
+  --eye-h: 0.5em;
+  --eye-sy: 1;
+  --eye-oy: 50%;
+  --eye-ty: 0em;
+}
+[data-style='traits'][data-expression='joy'] .lia-eye-shape,
+[data-style='traits'][data-expression='wink'] .lia-eye--left .lia-eye-shape {
+  background: transparent;
+  border: 0 solid var(--eyes-color);
+  border-top-width: 0.3em;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  box-sizing: border-box;
+}
+[data-style='traits'][data-expression='sad'] .lia-eye {
+  --eye-w: 0.95em;
+  --eye-h: 0.5em;
+  --eye-sy: 1;
+  --eye-oy: 50%;
+  --eye-ty: 0.08em;
+  --eye-rot: 0deg;
+}
+[data-style='traits'][data-expression='sad'] .lia-eye-shape {
+  background: transparent;
+  border: 0 solid var(--eyes-color);
+  border-bottom-width: 0.3em;
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  box-sizing: border-box;
+}
+[data-style='traits'][data-expression='surprise'] .lia-eye {
+  --eye-w: 0.85em;
+  --eye-h: 0.85em;
+}
+[data-style='traits'][data-expression='surprise'] .lia-eye-shape {
+  background: transparent;
+  border: 0.24em solid var(--eyes-color);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+[data-style='traits'][data-expression='anger'] .lia-eye {
+  --eye-h: 0.8em;
+  --eye-sy: 1;
+  --eye-oy: 50%;
+}
+[data-style='traits'][data-expression='anger'] .lia-eye--left {
+  --eye-rot: 24deg;
+}
+[data-style='traits'][data-expression='anger'] .lia-eye--right {
+  --eye-rot: -24deg;
+}
+[data-style='traits'][data-expression='sleepy'] .lia-eye,
+[data-style='traits'][data-expression='sleep'] .lia-eye,
+[data-style='traits'][data-expression='wink'] .lia-eye--right {
+  --eye-w: 0.95em;
+  --eye-h: 0.28em;
+  --eye-sy: 1;
+  --eye-oy: 50%;
+}
+
+/* --- anneaux: outlined rings with a live pupil that follows the gaze. */
+[data-style='anneaux'] {
+  --eye-w: 1.05em;
+  --eye-h: 1.05em;
+  --eye-gap: 0.5em;
+  --r-top: 0.53em;
+  --r-bot: 0.53em;
+  --rv-top: 0.53em;
+  --rv-bot: 0.53em;
+}
+[data-style='anneaux'] .lia-eye-shape {
+  background: transparent;
+  border: 0.17em solid var(--eyes-color);
+  box-sizing: border-box;
+  box-shadow: none;
+}
+[data-style='anneaux'] .lia-eye-shape::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0.34em;
+  height: 0.34em;
+  border-radius: 50%;
+  background: var(--eyes-color);
+  translate: calc(var(--gaze-x) * 0.12em) calc(var(--gaze-y) * 0.1em);
+  transition: translate var(--gaze-ms, 380ms) cubic-bezier(0.36, 0.6, 0.25, 1);
+}
+[data-style='anneaux'][data-expression='joy'] .lia-eye,
+[data-style='anneaux'][data-expression='wink'] .lia-eye--left {
+  --eye-h: 0.6em;
+  --eye-sy: 1;
+  --eye-oy: 50%;
+  --eye-ty: -0.06em;
+}
+[data-style='anneaux'][data-expression='joy'] .lia-eye-shape,
+[data-style='anneaux'][data-expression='wink'] .lia-eye--left .lia-eye-shape {
+  border-bottom-color: transparent;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+[data-style='anneaux'][data-expression='joy'] .lia-eye-shape::after,
+[data-style='anneaux'][data-expression='wink'] .lia-eye--left .lia-eye-shape::after {
+  display: none;
+}
+[data-style='anneaux'][data-expression='surprise'] .lia-eye-shape::after {
+  width: 0.26em;
+  height: 0.26em;
+}
+[data-style='anneaux'][data-expression='sleepy'] .lia-eye-shape::after {
+  height: 0.16em;
+}
+[data-style='anneaux'][data-expression='sleep'] .lia-eye-shape,
+[data-style='anneaux'][data-expression='wink'] .lia-eye--right .lia-eye-shape {
+  background: var(--eyes-color);
+  border: none;
+}
+[data-style='anneaux'][data-expression='sleep'] .lia-eye-shape::after,
+[data-style='anneaux'][data-expression='wink'] .lia-eye--right .lia-eye-shape::after {
+  display: none;
+}
+
+/* =============================================================================
+   Reduced motion — static poses only, no loops, no transitions
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .lia-eyes .lia-eyes-gaze,
+  .lia-eyes .lia-eye,
+  .lia-eyes .lia-eye-blink,
+  .lia-eyes .lia-eye-shape,
+  .lia-eyes .lia-emote {
+    animation: none !important;
+    transition: none !important;
+  }
+}

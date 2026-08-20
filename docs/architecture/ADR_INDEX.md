@@ -4218,3 +4218,12 @@ graph TD
 **Décision** : inventaire de clôture des 7 lots (ADR-234→238 livrés). **Requalifié avec preuve, aucune action** : C1 (l'ambient événementiel EST ADR-175 — évaluateurs mail/météo/document/calendrier, idempotence par fingerprint `last_fingerprint`, LLM payé au seul déclenchement ; la variante « sans opt-in » est REJETÉE au nom du pilier souveraineté : créer l'action conditionnelle EST le consentement). **Réservé à l'arbitrage propriétaire, évidence prête** : C3 missions à jalons (objet produit nouveau — maquette d'abord), C6 producer-critic (le seul candidat est le chemin auto-approuvé, qui journalise DÉJÀ last_error/consecutive_failures — un critic LLM récurrent sans taux de faux-succès mesuré = coût spéculatif), B5 compilation en skills (la forme sûre existe déjà via P12→scheduled actions ; le contenu d'un skill généré = voix produit, à voir avant livraison), B4 enregistrements de périmètres (sur l'évidence `adaptive_candidate_top_score` qui s'accumule désormais), D3-canal et D5 (ADR-237). Chaque réservé porte son déclencheur écrit.
 
 ---
+
+### ADR-240 : widget yeux expressifs — moteur d'expressions pur sur signaux existants
+
+**Statut**: ✅ ACTÉ (2026-08-20)
+**Fichier**: `docs/architecture/ADR-240-expressive-eyes-widget.md`
+
+**Décision** : deux yeux cartoon pleins, flottants sur la page chat (déplaçables, redimensionnables S/M/L, masquables → point de restauration), 100 % frontend. Toute l'expressivité dérive de signaux EXISTANTS (FSM du chat + `streaming.phase`, `execution_step` reasoning/outil, HITL, FSM vocale, notifications, psyché) via un moteur pur à table de priorités (20 expressions, RNG et horloges injectés — testé par matrice exhaustive). Réaction par tour : le self-report psyché du `done` (`active_emotions`) d'abord, heuristique de contenu neutre en langue (ponctuation/émoji/structure uniquement, zh pleine chasse inclus) en secours de la course fire-and-forget. Rendu 100 % CSS (`clip-path: polygon()` pour les paupières — indépendant du fond, squash & stretch, désynchronisation G/D 40-80 ms), tout timer coupé si onglet caché, widget réduit ou `prefers-reduced-motion`. Préférences en localStorage (hors registre SEC-035 : préférence d'affichage pure, décision documentée). La météo v1 est ÉCARTÉE (seule source = `/briefing/cards` qui déclenche les 9 fetchers) — un « peek » Redis read-only est la voie v2 documentée.
+
+---

@@ -85,7 +85,9 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // +15 administration sections (phase 2 of ADR-172, master-detail program).
     // The document-generation toggle (ADR-226) was removed 2026-08-18: the
     // owner judged the per-user opt-in not useful (admin capability only).
-    expect(TOKENS).toHaveLength(50);
+    // 51 since the expressive-eyes style picker joined Personalization
+    // (2026-08-20).
+    expect(TOKENS).toHaveLength(51);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

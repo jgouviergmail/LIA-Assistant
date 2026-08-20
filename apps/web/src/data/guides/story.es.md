@@ -4,7 +4,7 @@
 
 **Versión**: 1.7
 **Fecha**: 2026-08-20
-**Aplicación**: LIA v1.30.15
+**Aplicación**: LIA v1.30.16
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -108,6 +108,8 @@ El ciclo 1.30.6 dirigió la misma disciplina hacia fuera: hacia el estándar que
 El ciclo 1.30.7 completó el movimiento: después de hablar el protocolo del ecosistema, hablar su formato de paquete. El estándar abierto Agent Plugins — dirigido por AWS, Microsoft, OpenAI, Cursor y Vercel — acababa de dar a todo el ecosistema una forma portátil de enviar juntos skills y servidores MCP, y el trabajo siguió la disciplina ya familiar: el texto normativo leído sección por sección, cada hipótesis de integración probada contra el código por simulación antes de escribir una línea, y luego un cliente construido casi por completo con capas en las que LIA ya confiaba — el importador de skills endurecido, el registro MCP por usuario, el sistema de cuotas. La revisión encontró y eliminó dos bugs reales antes de que llegaran a ejecutarse, y el ciclo de vida completo se probó en runtime contra la base real, dos veces. Lo entregado es discretamente radical: un plugin preparado para ChatGPT o VS Code se instala en LIA sin cambios, informa exactamente de lo que aportó — y de lo que no pudo aportar, con el motivo — y se va sin dejar rastro.
 
 El ciclo 1.30.11 produjo la lección más inesperada: diseñar una exportación puede revelar que el sistema no sabe responder a su propia pregunta. Administrar ciento veinticuatro modelos de IA con un cuadro de diálogo cada vez había dejado de ser sostenible, y la idea era simple — exportar la tabla de tarifas a un libro, corregirla sin conexión, reimportarla. Pero escribirla exigía responder a «¿cuál es la tarifa de este modelo?». No había respuesta: nada imponía una única tarifa activa, y dos rutas de lectura podían devolver precios distintos para el mismo modelo, en el mismo instante, sobre la misma base. Dos errores de facturación llevaban meses corriendo en producción sin que nadie pudiera verlos. Poner orden produjo una regla que trasciende este dominio: una migración nunca inventa un dato de negocio. La regla intuitiva — conservar la fila más reciente — resultó falsa en los cuatro casos reales; por eso la migración fusiona lo estrictamente idéntico y se detiene nombrando el resto, dejando el arbitraje a una persona. El archivo entregado mantiene la misma exigencia: nada se borra implícitamente, la vista previa que se aprueba es la que se escribe, y lo que no cambió no se reescribe.
+
+El ciclo 1.30.16 desplazó la exigencia de prueba a un terreno nuevo: la estética. Dar una mirada al asistente — dos ojos de dibujo animado que observan mientras escribes, se entornan mientras piensa, barren mientras busca y reaccionan al tono de cada respuesta — fue primero un proyecto de animación, donde la mitad del éxito se juega en la fluidez. La disciplina no cambió por ello: todo el comportamiento cabe en un motor puro alimentado por señales que la aplicación ya emitía — la máquina de estados del chat, los pasos de ejecución transmitidos, el motor emocional — sin una llamada de modelo ni un punto de acceso más, cada expresión gobernada por tablas de decisión probadas con relojes y azar inyectados. Y cuando el panel de usuarios no zanjó el estilo, el arbitraje se dictó como todos los demás: sobre pruebas, un tablero interactivo de estilos previsualizados de verdad. El ganador se convirtió en el predeterminado, los demás en una opción de ajustes — y añadir uno nuevo es una entrada de registro, no un proyecto.
 
 
 ## 7. Convicciones

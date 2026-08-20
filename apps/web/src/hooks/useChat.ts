@@ -70,6 +70,13 @@ import { DEBUG_PANEL_TOTAL_WIDTH_PX } from '@/lib/constants';
 export interface UseChatReturn {
   messages: Message[];
   isTyping: boolean;
+  /**
+   * Raw FSM status of the chat lifecycle. `isTyping` folds the in-flight
+   * states together for the input lock; consumers that need the distinction
+   * (the expressive-eyes widget maps each state to its own expression) read
+   * this instead.
+   */
+  chatStatus: ChatState['status'];
   /** Id of the assistant message currently receiving stream updates (null when idle). */
   activeStreamId: string | null;
   /** 'progress' while the active message shows execution steps, 'answer' on real tokens. */
@@ -970,6 +977,7 @@ export const useChat = ({
   return {
     messages: state.messages,
     isTyping,
+    chatStatus: state.status,
     activeStreamId: state.status === 'streaming' ? state.streaming.currentMessageId : null,
     streamPhase: state.streaming.phase,
     isConnected,

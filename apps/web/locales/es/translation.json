@@ -651,8 +651,7 @@
         "unavailable": "Servicio no disponible",
         "waiting": "Esperando...",
         "hint": "Enter para enviar • Shift+Enter para nueva línea",
-        "offline": "Desconectado",
-        "processing": "Procesando..."
+        "offline": "Desconectado"
       }
     },
     "voice": {
@@ -735,11 +734,6 @@
       "connected": "Conectado",
       "disconnected": "Desconectado",
       "reconnecting": "Reconectando..."
-    },
-    "ack": {
-      "bright": "¡Voy con ello — buena pregunta!",
-      "soft": "Voy con ello — me encargo.",
-      "steady": "Voy con ello…"
     },
     "assistant_typing": "El asistente está escribiendo...",
     "tab_title_writing": "LIA está escribiendo…",
@@ -3401,7 +3395,8 @@
         "rag-spaces-admin": "RAG, espacios, conocimiento, reindexar, documentos, embeddings",
         "admin-capabilities": "capacidades, funciones, interruptores, funciones de la plataforma",
         "admin-public-demo-link": "demo, demostrador, enlace público, sala de exposición, compartir",
-        "debug-settings": "depuración, diagnóstico, registros, panel, seguimiento de tokens"
+        "debug-settings": "depuración, diagnóstico, registros, panel, seguimiento de tokens",
+        "eyes-style": "ojos, avatar, animación, estilo, mirada, compañero, cozmo"
       }
     },
     "haptics": {
@@ -3458,6 +3453,10 @@
       },
       "via_plugin": "Vía plugin",
       "component_locked": "«{{name}}» pertenece a un plugin instalado — desinstala el plugin para eliminarlo."
+    },
+    "eyes_style": {
+      "title": "Estilo de los ojos",
+      "description": "Elige la apariencia de los ojos expresivos del chat."
     }
   },
   "relations": {
@@ -3964,6 +3963,38 @@
     "restore": "Mostrar el acompañante LIA",
     "aria_state": "LIA — {{count}} notificación(es) pendiente(s)"
   },
+  "eyes": {
+    "widget_label": "Ojos expresivos de LIA — mover con las flechas",
+    "minimize": "Ocultar los ojos",
+    "restore": "Mostrar los ojos",
+    "cycle_size": "Cambiar el tamaño de los ojos",
+    "styles": {
+      "cozmo": {
+        "name": "Cozmo",
+        "description": "Pantallas luminosas de robotito — nítido, expresivo, entrañable."
+      },
+      "capsules": {
+        "name": "Cápsulas",
+        "description": "Cápsulas verticales suaves con brillo — el estilo original."
+      },
+      "billes": {
+        "name": "Canicas",
+        "description": "Círculos ingenuos con gran reflejo — el más adorable."
+      },
+      "amande": {
+        "name": "Almendra",
+        "description": "Elipses felinas inclinadas — picardía y carácter."
+      },
+      "traits": {
+        "name": "Trazos",
+        "description": "Barras y arcos minimalistas — espíritu kawaii."
+      },
+      "anneaux": {
+        "name": "Anillos",
+        "description": "Contornos con pupila móvil — la mirada más legible."
+      }
+    }
+  },
   "faq": {
     "title": "Preguntas frecuentes",
     "subtitle": "Encuentra respuestas a las preguntas más comunes sobre LIA",
@@ -4235,6 +4266,10 @@
         "adaptiveThresholds": {
           "title": "🎚️ Umbrales adaptativos por usuario",
           "description": "Un umbral de similitud fijo es estructuralmente injusto: la distribución de puntuaciones depende del vocabulario y del acervo de cada usuario. Por eso un controlador genérico aprende un umbral <b>por usuario</b> — primero para la inyección del diario — bajo cuatro salvaguardas innegociables: <b>límites duros</b> (0,55–0,70), <b>histéresis</b> (como máximo un paso de 0,01 cada 24 h, sea cual sea el error), <b>observabilidad</b> (cada ajuste se contabiliza y el valor efectivo se publica en el panel de depuración) y un <b>interruptor de apagado</b> que congela todo en los valores estáticos. El estado es consultivo (Redis, TTL deslizante de 90 días): un fallo de lectura siempre recae en el valor por defecto, nunca en un error. La convergencia se simuló sobre la distribución real de producción antes de activarla: la tasa de inyección vuelve a la banda objetivo sin ninguna oscilación."
+        },
+        "expressiveEyes": {
+          "title": "Ojos expresivos",
+          "description": "Un motor de decisión puro dirige un par de ojos de dibujos animados a partir de señales que la aplicación ya emite — la máquina de estados del chat, los pasos de ejecución SSE, HITL, la voz y el motor psicológico. Veinte expresiones, una reacción por respuesta leída del autoinforme emocional del modelo, una vida de espera hecha de parpadeos, sacadas y raras travesuras, y seis estilos seleccionables respaldados por un registro genérico. Ninguna llamada LLM extra, ningún endpoint nuevo: los ojos son una vista gratuita sobre la telemetría existente."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -4243,6 +4278,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_30_16": {
+          "title": "v1.30.16 — 👀 LIA te devuelve la mirada",
+          "date": "Agosto 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>👀 Ojos expresivos en el chat</b> — un pequeño par de ojos de dibujos animados vive ahora en la página del chat y reacciona a todo: siguen tu escritura, se entornan cuando LIA piensa, barren cuando busca y reaccionan al tono emocional de cada respuesta. Si los dejas tranquilos, parpadean, miran alrededor, se van durmiendo — y de vez en cuando hacen una auténtica travesura (hasta pueden intercambiarse de sitio).",
+            "i2": "<b>🎨 Seis estilos a elegir</b> — pantallas luminosas Cozmo por defecto, más Cápsulas, Canicas, Almendra, Trazos y Anillos con pupila móvil. Elige el tuyo con vistas previas animadas en Ajustes › Personalización › Estilo de los ojos.",
+            "i3": "<b>🖐️ Totalmente tuyos</b> — arrastra los ojos a donde quieras (las flechas del teclado también funcionan), cambia su tamaño u ocúltalos en un puntito de recuperación. Por defecto se colocan entre el campo de búsqueda y la insignia de conocimientos, y siempre vuelven exactamente a su sitio.",
+            "i4": "<b>🧹 Una cabecera de chat más ligera</b> — la píldora ámbar «Procesando…» y la pequeña frase de espera desaparecen: ese estado ahora lo llevan los ojos, y dicen más (pensar, buscar y responder son tres miradas distintas). La píldora de sin conexión se queda — esa dice algo que los ojos no pueden decir."
+          }
+        },
         "v1_30_15": {
           "title": "v1.30.15 — 🛡️ Más robusta en el mundo real",
           "date": "Agosto 2026",
@@ -6248,7 +6294,7 @@
       "chat": {
         "title": "Conversaciones",
         "description": "Uso del chat y conversaciones",
-        "count": "24",
+        "count": "25",
         "questions": {
           "q1": {
             "question": "¿Puedo tener varias conversaciones al mismo tiempo?",
@@ -6345,6 +6391,10 @@
           "q24": {
             "question": "¿Qué pasa si LIA no consigue ejecutar mi petición?",
             "answer": "<p>LIA prepara un plan antes de actuar y lo relee antes de ejecutarlo. Cuando ese plan <strong>escribe</strong> algo — enviar un correo, crear una cita, llamar a alguien — y no consigue corregirlo por sí misma, <strong>se niega a ejecutarlo</strong> y te hace una pregunta. Escribir un dato falso cuesta más que preguntar.</p><p>Esa pregunta está redactada en tu idioma y dice exactamente qué falta: qué destinatario, qué fecha, sobre qué elementos actuar. Nunca contiene jerga técnica, una ruta de código ni una dirección de ejemplo: lo que LIA te muestra es una pregunta, no su diagnóstico interno.</p><p>Puedes responder, reformular o dejarlo: no se envía nada hasta que decidas.</p>"
+          },
+          "q25": {
+            "question": "¿Qué son los ojitos animados de la página del chat?",
+            "answer": "Son los <strong>ojos expresivos</strong> de LIA — un pequeño widget compañero que refleja lo que el asistente hace y siente. Miran el campo de escritura mientras tecleas, se entornan cuando LIA piensa, barren de lado a lado cuando busca y reaccionan al tono de cada respuesta; si los dejas tranquilos, parpadean, echan vistazos, se adormecen y de vez en cuando hacen una travesura.<br><br><strong>Hazlos tuyos:</strong> arrástralos a donde quieras (las flechas del teclado también funcionan, y nunca se desvían de donde los dejaste), tócalos en el móvil para mostrar los botones de tamaño y ocultar, o redúcelos a un puntito de recuperación. Hay seis estilos visuales en <strong>Ajustes › Personalización › Estilo de los ojos</strong>, con vistas previas animadas. Con la reducción de movimiento del sistema activada, los ojos permanecen quietos."
           }
         }
       },
@@ -7534,6 +7584,10 @@
         "title": "Suéltalo donde quieras",
         "desc": "Arrastra un archivo a la ventana: LIA lo recoge, limpiamente."
       },
+      "expressive_eyes": {
+        "title": "Ojos que siguen la conversación",
+        "desc": "Una pequeña mirada animada en el chat: observa, piensa, busca — y se ilumina con la respuesta."
+      },
       "followup_chips": {
         "title": "El siguiente paso, a un clic",
         "desc": "Bajo la respuesta, sugerencias de continuación clicables — nunca impuestas."
@@ -7614,10 +7668,10 @@
         "title": "Vete — ella sigue",
         "desc": "Cierra la pestaña: la respuesta termina y te alcanza a tu regreso."
       },
-        "activity_timeline": {
-          "title": "El diario de trabajo",
-          "desc": "Lo que LIA hace por ti en segundo plano — recuerdos aprendidos, rutinas verificadas, briefings preparados — aparece como un hilo cronológico en tu panel. El trabajo invisible, hecho visible."
-        },
+      "activity_timeline": {
+        "title": "El diario de trabajo",
+        "desc": "Lo que LIA hace por ti en segundo plano — recuerdos aprendidos, rutinas verificadas, briefings preparados — aparece como un hilo cronológico en tu panel. El trabajo invisible, hecho visible."
+      },
       "widgets_travel": {
         "title": "Tus widgets viajan",
         "desc": "Mapas, gráficos, mini-apps: sobreviven a las recargas y te siguen de un dispositivo a otro."
@@ -7743,11 +7797,11 @@
       "background_response": {
         "ready": "Respuesta lista"
       },
-        "activity_timeline": {
-          "entry1": "Recuerdo aprendido",
-          "entry2": "Rutina verificada",
-          "entry3": "Briefing listo"
-        },
+      "activity_timeline": {
+        "entry1": "Recuerdo aprendido",
+        "entry2": "Rutina verificada",
+        "entry3": "Briefing listo"
+      },
       "peer_actions": {
         "reply": "Responder"
       },
@@ -8781,7 +8835,7 @@
       },
       "psyche": {
         "title": "Inteligencia emocional viviente",
-        "description": "LIA no recita — siente. 14 estados de ánimo, 22 emociones, una relación que se profundiza mensaje tras mensaje. Su vocabulario se calienta cuando se conmueve, sus frases se acortan bajo tensión, el humor surge cuando el intercambio es ligero. Y se ve: la cara de humor de LIA se anima en la respuesta actual. Y te sigue: un acompañante flotante mantiene a LIA presente por todo el panel."
+        "description": "LIA no recita — siente. 14 estados de ánimo, 22 emociones, una relación que se profundiza mensaje tras mensaje. Su vocabulario se calienta cuando se conmueve, sus frases se acortan bajo tensión, el humor surge cuando el intercambio es ligero. Y se ve: la cara de humor de LIA se anima en la respuesta actual. Y te sigue: un acompañante flotante mantiene a LIA presente por todo el panel. En el chat, un par de ojos expresivos observa, piensa, busca y se ilumina con cada respuesta — seis estilos a elegir."
       },
       "mcp": {
         "title": "Extensible (MCP)",
@@ -9664,7 +9718,7 @@
       "psyche-engine": {
         "title": "Psyche Engine: la inteligencia emocional de LIA",
         "excerpt": "LIA posee un motor psicológico que simula emociones, estados de ánimo y rasgos de personalidad. 22 emociones, 5 rasgos Big Five y directivas graduadas dan forma a cada respuesta.",
-        "body": "<h2>Un motor psicológico completo</h2><p>El Psyche Engine es el corazón emocional de LIA. Inspirado en la investigación de Anthropic sobre \"Emotion Concepts\", simula un <strong>estado psicológico dinámico</strong> que evoluciona con cada interacción. No es roleplay: es un sistema paramétrico que influye concretamente en el tono, la formulación y el comportamiento del asistente.</p><h2>22 emociones validadas PAD</h2><p>LIA dispone de una paleta de <strong>22 emociones</strong>, cada una definida por un vector en el espacio PAD (Pleasure-Arousal-Dominance): alegría, curiosidad, empatía, orgullo, gratitud, picardía, protección, alivio, nerviosismo, asombro, determinación y más. Cada emoción tiene su propia intensidad y duración de decaimiento.</p><h2>Rasgos de personalidad Big Five</h2><p>Cinco rasgos fundamentales modulan el comportamiento base:</p><ul><li><strong>Apertura</strong> — curiosidad intelectual y creatividad</li><li><strong>Responsabilidad</strong> — rigor y organización</li><li><strong>Extraversión</strong> — expresividad y entusiasmo</li><li><strong>Amabilidad</strong> — empatía y cooperación</li><li><strong>Neuroticismo</strong> — sensibilidad emocional y reactividad</li></ul><p>Estos rasgos se persisten y son ajustables por el usuario en la configuración.</p><h2>Directivas graduadas</h2><p>El Psyche Engine genera <strong>directivas de prompt</strong> cuya verbosidad se adapta a la intensidad emocional. Cuatro niveles: <strong>compact</strong> (baja intensidad), <strong>medium</strong>, <strong>rich</strong> y <strong>reinforced</strong> (alta intensidad). Cuando LIA está ligeramente curioso, la directiva es breve. Cuando está intensamente entusiasmado, es detallada y expresiva.</p><h2>Suelo de serenidad</h2><p>En ausencia de emoción activa, LIA mantiene un <strong>suelo de serenidad</strong>: una disposición calmada y estable que evita que el asistente parezca emocionalmente \"vacío\". Este suelo está modulado por el rasgo de Neuroticismo.</p><h2>Ancla emocional</h2><p>Un mecanismo de anclaje previene las <strong>espirales emocionales negativas</strong>. Si las emociones negativas se acumulan, se inyecta una directiva de recentraje, modulada por la Responsabilidad. El asistente recupera el equilibrio sin ignorar el contexto emocional.</p><h2>Resonancia y multi-emociones</h2><p>LIA puede expresar <strong>1 a 3 emociones simultáneas</strong> por mensaje, con pesos decrecientes (1.0, 0.5, 0.25). La <strong>resonancia emocional</strong> mide la alineación entre el estado del usuario y del asistente en un eje [-1, +1], alimentando la calidez y confianza relacional.</p><h2>Una psique visible</h2><p>Esta vida interior ahora se ve en el chat: en la respuesta actual, el emoji de humor es una cara animada real (Noto Animated Emoji autoalojados), el anillo de color late cuando el humor cambia, y los hitos de la relación se celebran con una notificación discreta. Los mensajes anteriores conservan su instantánea de humor congelada — despierta al pasar el ratón. Una emoción fuerte incluso libera algunas partículas del avatar — una sola vez.</p><h2>158 tests unitarios</h2><p>El Psyche Engine está cubierto por <strong>158 tests unitarios</strong> que validan vectores PAD, funciones de decaimiento, directivas graduadas, transiciones narrativas y protecciones anti-inflación. Es uno de los subsistemas más exhaustivamente testeados de LIA.</p>"
+        "body": "<h2>Un motor psicológico completo</h2><p>El Psyche Engine es el corazón emocional de LIA. Inspirado en la investigación de Anthropic sobre \"Emotion Concepts\", simula un <strong>estado psicológico dinámico</strong> que evoluciona con cada interacción. No es roleplay: es un sistema paramétrico que influye concretamente en el tono, la formulación y el comportamiento del asistente.</p><h2>22 emociones validadas PAD</h2><p>LIA dispone de una paleta de <strong>22 emociones</strong>, cada una definida por un vector en el espacio PAD (Pleasure-Arousal-Dominance): alegría, curiosidad, empatía, orgullo, gratitud, picardía, protección, alivio, nerviosismo, asombro, determinación y más. Cada emoción tiene su propia intensidad y duración de decaimiento.</p><h2>Rasgos de personalidad Big Five</h2><p>Cinco rasgos fundamentales modulan el comportamiento base:</p><ul><li><strong>Apertura</strong> — curiosidad intelectual y creatividad</li><li><strong>Responsabilidad</strong> — rigor y organización</li><li><strong>Extraversión</strong> — expresividad y entusiasmo</li><li><strong>Amabilidad</strong> — empatía y cooperación</li><li><strong>Neuroticismo</strong> — sensibilidad emocional y reactividad</li></ul><p>Estos rasgos se persisten y son ajustables por el usuario en la configuración.</p><h2>Directivas graduadas</h2><p>El Psyche Engine genera <strong>directivas de prompt</strong> cuya verbosidad se adapta a la intensidad emocional. Cuatro niveles: <strong>compact</strong> (baja intensidad), <strong>medium</strong>, <strong>rich</strong> y <strong>reinforced</strong> (alta intensidad). Cuando LIA está ligeramente curioso, la directiva es breve. Cuando está intensamente entusiasmado, es detallada y expresiva.</p><h2>Suelo de serenidad</h2><p>En ausencia de emoción activa, LIA mantiene un <strong>suelo de serenidad</strong>: una disposición calmada y estable que evita que el asistente parezca emocionalmente \"vacío\". Este suelo está modulado por el rasgo de Neuroticismo.</p><h2>Ancla emocional</h2><p>Un mecanismo de anclaje previene las <strong>espirales emocionales negativas</strong>. Si las emociones negativas se acumulan, se inyecta una directiva de recentraje, modulada por la Responsabilidad. El asistente recupera el equilibrio sin ignorar el contexto emocional.</p><h2>Resonancia y multi-emociones</h2><p>LIA puede expresar <strong>1 a 3 emociones simultáneas</strong> por mensaje, con pesos decrecientes (1.0, 0.5, 0.25). La <strong>resonancia emocional</strong> mide la alineación entre el estado del usuario y del asistente en un eje [-1, +1], alimentando la calidez y confianza relacional.</p><h2>Una psique visible</h2><p>Esta vida interior ahora se ve en el chat: en la respuesta actual, el emoji de humor es una cara animada real (Noto Animated Emoji autoalojados), el anillo de color late cuando el humor cambia, y los hitos de la relación se celebran con una notificación discreta. Los mensajes anteriores conservan su instantánea de humor congelada — despierta al pasar el ratón. Una emoción fuerte incluso libera algunas partículas del avatar — una sola vez. Y desde que llegaron los ojos expresivos, la mirada misma participa: los pequeños ojos de dibujo animado del chat leen la autoevaluación emocional del asistente y reaccionan en el segundo en que llega cada respuesta.</p><h2>158 tests unitarios</h2><p>El Psyche Engine está cubierto por <strong>158 tests unitarios</strong> que validan vectores PAD, funciones de decaimiento, directivas graduadas, transiciones narrativas y protecciones anti-inflación. Es uno de los subsistemas más exhaustivamente testeados de LIA.</p>"
       },
       "progressive-steps": {
         "title": "Pasos de ejecución en tiempo real: observa a LIA trabajar",
@@ -9848,7 +9902,8 @@
       "habits": "Aprendizaje de hábitos",
       "governance": "Gobernar una instancia",
       "tabular_admin": "Administrar por archivo",
-        "evolution": "Programa de evolución"
+      "evolution": "Programa de evolución",
+      "expressive_eyes": "Ojos expresivos"
     }
   },
   "healthMetrics": {
@@ -10251,15 +10306,15 @@
     "advanced_title": "Ajustes avanzados",
     "advanced_hint": "Cada sección se configura en detalle en los ajustes.",
     "sections": {
-        "offers": {
-          "title": "Propuestas",
-          "subtitle": "Rutinas que LIA propone encargarse — a la espera de tu decisión.",
-          "empty": "Ninguna propuesta abierta por ahora.",
-          "error": "No se pudieron cargar las propuestas.",
-          "accept": "Me encargo — abrir el chat",
-          "dismiss": "Ahora no",
-          "menu": "Acciones de la propuesta"
-        },
+      "offers": {
+        "title": "Propuestas",
+        "subtitle": "Rutinas que LIA propone encargarse — a la espera de tu decisión.",
+        "empty": "Ninguna propuesta abierta por ahora.",
+        "error": "No se pudieron cargar las propuestas.",
+        "accept": "Me encargo — abrir el chat",
+        "dismiss": "Ahora no",
+        "menu": "Acciones de la propuesta"
+      },
       "peer_messages": {
         "title": "Mensajes retransmitidos",
         "subtitle": "Mensajes intercambiados con tus conexiones LIA, del más reciente al más antiguo.",

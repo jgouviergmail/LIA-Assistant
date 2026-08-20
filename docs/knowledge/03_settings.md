@@ -560,3 +560,10 @@ The old fact is **superseded, not silently erased**. When you correct something 
 **🚫 Stops using the stale fact** — invalidated memories are excluded from recall, so old information can no longer leak into answers.
 
 **🧾 Keeps the trail** — the history of what changed and when remains inspectable in **Settings > Memory**, so you can always audit what LIA believes and since when.
+
+## Can I change the look of the expressive eyes?
+Yes. **Settings > Personalization > Eyes style** offers several visual styles for the animated eyes shown on the chat page — each card renders a **live preview** of the style (neutral and joyful) so you pick by seeing, not by name.
+
+**🎨 One style, every behavior:** whichever look you choose, the eyes keep the same expressions, reactions and idle life; only the shapes change.
+
+**💾 Remembered on this device:** the choice is stored locally in your browser, alongside the widget's position, size and visibility.

@@ -33,6 +33,7 @@ import {
   SlidersHorizontal,
   Scale,
   Shield,
+  Smile,
   Sparkles,
   Target,
   UserCheck,
@@ -97,6 +98,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'governance', icon: SlidersHorizontal },
   { id: 'tabular_admin', icon: FileSpreadsheet },
   { id: 'evolution', icon: Eye },
+  { id: 'expressive_eyes', icon: Smile },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

@@ -6,7 +6,7 @@
 
 **Versione**: 4.5
 **Data**: 2026-08-20
-**Applicazione**: LIA v1.30.15
+**Applicazione**: LIA v1.30.16
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -44,6 +44,7 @@
 29. [Amministrare per file: la cartella è il modulo](#29-amministrare-per-file-la-cartella-è-il-modulo)
 
 30. [Il programma di evoluzione: lavoro visibile, apprendimento governato](#30-il-programma-di-evoluzione-lavoro-visibile-apprendimento-governato)
+31. [Occhi espressivi: un personaggio guidato dai segnali](#31-occhi-espressivi-un-personaggio-guidato-dai-segnali)
 ---
 
 ## 1. Contesto e scelte fondanti
@@ -58,7 +59,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 473 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 238 ADRs, ~19.844 test raccolti da pytest in 1.119 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 239 ADRs, ~19.844 test raccolti da pytest in 1.119 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -1300,7 +1301,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-238 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+239 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1404,7 +1405,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 238 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.844 test in 1.119 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 239 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.844 test in 1.119 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1413,6 +1414,10 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 La pagina Attività è un **read-model puro**: fetcher paralleli (una sessione per fonte — una AsyncSession non è sicura in concorrenza) aggregano sette tabelle di audit esistenti, i totali sono `COUNT(*)` esatti sull'intera finestra, i limiti sono dichiarati (`truncated`) e una fonte guasta viene elencata anziché completata in silenzio — il conteggio onesto (ADR-185) applicato da capo a fondo. La memoria segue una **scia di supersessione** (ADR-235): una correzione automatica crea un successore e archivia il vecchio fatto (`superseded_by_id`), ogni lettura filtra l'insieme attivo tramite un predicato centrale, e la scia si epura dopo la ritenzione; la modifica manuale conserva la sua autorità di sovrascrittura. Le regole apprese sono una **settima categoria di memoria** iniettata in testa al prompt, sotto le stesse protezioni (fissaggio, ritenzione, GDPR). La prosodia vocale è una **modulazione delimitata** (banda morta, limiti rigidi, flag) delle impostazioni amministrate — mai una sostituzione. L'autonomia resta con un tetto: il budget di iterazioni ReAct si adatta all'ampiezza di domini della richiesta senza mai superare il tetto configurato, e la complessità sconosciuta riceve il tetto intero — il risparmio si applica solo al dimostrabilmente semplice.
 
 
+## 31. Occhi espressivi: un personaggio guidato dai segnali
+
+Il widget degli occhi della chat (ADR-240) poggia su un unico principio: **nessun segnale nuovo, nessun costo nuovo**. Un motore puro — tabelle di decisione con RNG e orologi iniettati — deriva una di venti espressioni da una catena di priorità (errore > domanda HITL > voce > interazione > reazione del turno > notifica > digitazione > inattività > umore × ora) alimentata esclusivamente dalla macchina esistente: la macchina a stati della chat, i passi di esecuzione SSE (riflessione vs. ricerca di strumenti), la scheda HITL, la macchina vocale e il motore psicologico. La reazione a ogni risposta legge l'autovalutazione emotiva che il modello allega già al proprio turno, con un ripiego euristico rigorosamente neutro rispetto alla lingua (punteggiatura, emoji, struttura — larghezza piena cinese inclusa). Il rendering è dichiarativo — un attributo di espressione, variabili CSS e un foglio di animazione dove le palpebre sono **morph geometrici puri** (compressione verticale ancorata, rotazione per occhio, modellazione dei raggi): nessun clipping da nessuna parte, ogni stato intermedio resta una curva liscia. La vita tra gli eventi — battiti di ciglia, saccadi dello sguardo, gesti ponderati per umore, microscene di fantasticheria, raro slapstick — vive in scheduler con timer propri, in pausa quando la scheda è nascosta o il widget ridotto, congelati sotto `prefers-reduced-motion`. I sei stili selezionabili condividono questo unico scheletro: un registro generico dove aggiungere uno sguardo costa un id, un foglio CSS con scope e sei voci di locale — la completezza è un test, non una convenzione.
+
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 238 ADRs e del changelog (da v1.0 a v1.30.15). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 239 ADRs e del changelog (da v1.0 a v1.30.16). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

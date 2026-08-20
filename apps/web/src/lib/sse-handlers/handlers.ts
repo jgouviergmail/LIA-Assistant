@@ -11,6 +11,7 @@ import { generateFallbackHitlQuestion } from '@/lib/hitl-utils';
 import { normalizeHitlPayload } from '@/lib/hitl-payload';
 import { generateUUID } from '@/lib/utils';
 import { usePsycheStore } from '@/stores/psycheStore';
+import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import type { PsycheStateSummary } from '@/types/psyche';
 import {
   ChatStreamChunk,
@@ -499,6 +500,20 @@ function handleConnectorNoticeStep(chunk: ChatStreamChunk, context: SSEHandlerCo
   return true;
 }
 
+/**
+ * Expressive eyes: mirror the step kind so the widget can distinguish
+ * "thinking" (reasoning) from "searching" (tool work) during the progress
+ * phase. Pure signal recording — no dispatch, no rendering impact. Extracted
+ * from handleExecutionStep to keep that hotspot under the CC ratchet.
+ */
+function recordEyesStepSignal(metadata: ProgressMessageMetadata | undefined): void {
+  if (metadata?.step_type === 'reasoning') {
+    useEyesSignalsStore.getState().recordStep('reasoning');
+  } else if (metadata?.tool_name || metadata?.category === 'tool') {
+    useEyesSignalsStore.getState().recordStep('tool');
+  }
+}
+
 export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
   // Intercept compaction-specific events first — they drive the chat-input
   // lock + sonner toast rather than the generic execution_step accumulator.
@@ -532,6 +547,8 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
   );
 
   const metadata = chunk.metadata as ProgressMessageMetadata | undefined;
+
+  recordEyesStepSignal(metadata);
 
   // --- Live reasoning sub-type (💭): accumulate the model's chain-of-thought ---
   // These events stream continuously during a thinking node; they are appended

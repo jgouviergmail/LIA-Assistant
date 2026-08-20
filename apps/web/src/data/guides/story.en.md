@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Date**: 2026-08-20
-**Application**: LIA v1.30.15
+**Application**: LIA v1.30.16
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -108,6 +108,8 @@ Cycle 1.30.6 turned the same discipline outward, toward the standard the entire 
 Cycle 1.30.7 completed the movement: after speaking the ecosystem's wire protocol, speak its package format. The Agent Plugins open standard — steered by AWS, Microsoft, OpenAI, Cursor and Vercel — had just given the whole ecosystem one portable way to ship skills and MCP servers together, and the work followed the now-familiar discipline: the normative text read section by section, every integration hypothesis proven against the code by simulation before a line was written, then a client built almost entirely out of layers LIA already trusted — the hardened skill importer, the per-user MCP registry, the quota system. The review found and killed two real bugs before they ever ran, and the whole lifecycle was proven at runtime against the real database, twice. What shipped is quietly radical: a plugin packaged for ChatGPT or VS Code installs into LIA unchanged, reports exactly what it brought — and what it could not bring, with the reason — and leaves without a trace.
 
 Cycle 1.30.11 produced the most unexpected lesson: designing an export can reveal that the system cannot answer its own question. Administering a hundred and twenty-four AI models one dialog at a time had stopped being tenable, and the idea was simple — export the pricing grid into a workbook, fix it offline, import it back. Writing it, though, required answering "what is this model's tariff?". There was no answer: nothing enforced a single active tariff, and two read paths could return different prices for the same model, at the same instant, on the same database. Two billing errors had been running in production for months with nobody able to see them. Putting it back in order produced a rule that outlives this domain: a migration never invents business data. The intuitive rule — keep the most recent row — proved wrong on all four real cases; so the migration merges what is strictly identical and stops, naming the rest, leaving the arbitration to a human. The delivered file holds the same standard: nothing is deleted implicitly, the preview you approve is the one that gets written, and what did not change is not rewritten.
+
+The 1.30.16 cycle moved the proof requirement onto new ground: aesthetics. Giving the assistant a gaze — two cartoon eyes that watch while you type, squint while it thinks, sweep while it searches and react to the tone of each answer — was first an animation project, where half the success lives in fluidity. The discipline did not change for that: the entire behavior fits in a pure engine fed by signals the application already emitted — the chat state machine, the streamed execution steps, the emotional engine — with no extra model call and no new endpoint, every expression driven by decision tables tested with injected clocks and randomness. And when the user panel could not settle on a style, the arbitration was rendered like every other one: on evidence, an interactive board of styles previewed for real. The winner became the default, the others a settings choice — and adding a new one is a registry entry, not a project.
 
 
 ## 7. Convictions

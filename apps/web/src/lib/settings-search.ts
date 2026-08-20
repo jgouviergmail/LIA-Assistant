@@ -129,6 +129,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'personalization',
     gate: { kind: 'always' },
   },
+  'eyes-style': {
+    titleKey: 'settings.eyes_style.title',
+    descriptionKey: 'settings.eyes_style.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.eyes-style`,
+    group: 'personalization',
+    gate: { kind: 'always' },
+  },
   'display-mode': {
     titleKey: 'settings.preferences.display_mode.title',
     descriptionKey: 'settings.preferences.display_mode.description',

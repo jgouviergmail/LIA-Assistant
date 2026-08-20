@@ -404,3 +404,17 @@ jargon, a code path or an example address — what LIA shows you is a question,
 not its internal diagnosis.
 
 You can answer, rephrase, or drop it: nothing is sent until you decide.
+
+## What are the little animated eyes on the chat page?
+
+They are LIA's **expressive eyes** — a small companion widget that mirrors what
+the assistant is doing and feeling. They watch the input while you type, squint
+while LIA thinks, scan side to side while it searches, and react to the tone of
+each answer; left alone they blink, glance around, doze off, and occasionally
+pull a prank.
+
+**Make them yours:** drag them anywhere (arrow keys work too, and they never
+drift from where you put them), tap them on mobile to reveal the size and hide
+buttons, or dismiss them to a small restore dot. Six visual styles are available
+in **Settings > Personalization > Eyes style**, with live previews. Under
+reduced-motion system settings the eyes stay still.

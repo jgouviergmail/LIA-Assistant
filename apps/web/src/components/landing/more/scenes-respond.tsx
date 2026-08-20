@@ -432,8 +432,53 @@ function ProvenanceWhyScene({ active }: SceneProps) {
   );
 }
 
+type EyesPhase = 'watch' | 'think' | 'search' | 'joy';
+const EYES_STEPS: readonly TimelineStep<EyesPhase>[] = [
+  { at: 0, state: 'watch' },
+  { at: 1100, state: 'think' },
+  { at: 2300, state: 'search' },
+  { at: 3500, state: 'joy' },
+];
+
+/** One glowing Cozmo-style eye of the micro-demo, morphing per phase. */
+function MiniEye({ phase, right }: { phase: EyesPhase; right?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'block h-4 w-5 rounded-[5px] bg-primary shadow-[0_0_8px] shadow-primary/40',
+        'transition-all duration-500 ease-out',
+        phase === 'watch' && 'translate-y-0.5',
+        phase === 'think' && 'h-2.5 -translate-y-0.5',
+        phase === 'search' && (right ? 'translate-x-1' : '-translate-x-1'),
+        phase === 'joy' && 'h-2 -translate-y-1 rounded-t-[8px] rounded-b-[2px]'
+      )}
+    />
+  );
+}
+
+/**
+ * The expressive eyes follow the turn: they watch the input, squint upward
+ * while thinking, sweep while searching, then smile at the finished answer.
+ */
+function ExpressiveEyesScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(EYES_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'items-center justify-center gap-2.5')}>
+      <div className="flex items-center gap-2">
+        <MiniEye phase={phase} />
+        <MiniEye phase={phase} right />
+      </div>
+      <MiniBubble side="assistant" className="w-3/5 space-y-1">
+        <SkeletonLine w={phase === 'joy' ? 'w-full' : 'w-1/3'} />
+        <SkeletonLine w={phase === 'joy' ? 'w-2/3' : 'w-1/5'} className="opacity-60" />
+      </MiniBubble>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   provenance_why: ProvenanceWhyScene,
+  expressive_eyes: ExpressiveEyesScene,
   followup_chips: FollowupChipsScene,
   scroll_return: ScrollReturnScene,
   bubble_actions: BubbleActionsScene,
