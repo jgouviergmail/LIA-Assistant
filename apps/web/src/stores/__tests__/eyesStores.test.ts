@@ -144,4 +144,38 @@ describe('eyesWidgetStore', () => {
     expect(after.size).toBe('auto');
     expect(after.position).toBeNull();
   });
+
+  it('setStyle applies a registry style and ignores an unknown one', () => {
+    useEyesWidgetStore.getState().setStyle('billes');
+    expect(useEyesWidgetStore.getState().style).toBe('billes');
+    // A stale/foreign id (e.g. from a downgraded build) must be a no-op.
+    useEyesWidgetStore.getState().setStyle('vintage' as never);
+    expect(useEyesWidgetStore.getState().style).toBe('billes');
+  });
+
+  it('rehydrating a persisted style keeps it when the registry still has it', async () => {
+    localStorage.setItem(
+      EYES_WIDGET_PREFS_KEY,
+      JSON.stringify({ state: { visible: true, size: 'md', style: 'anneaux', position: null } })
+    );
+    await useEyesWidgetStore.persist.rehydrate();
+    expect(useEyesWidgetStore.getState().style).toBe('anneaux');
+    expect(useEyesWidgetStore.getState().size).toBe('md');
+  });
+
+  it('rehydrating a stale persisted style falls back to the default', async () => {
+    localStorage.setItem(
+      EYES_WIDGET_PREFS_KEY,
+      JSON.stringify({ state: { visible: true, size: 'md', style: 'retired-style', position: null } })
+    );
+    await useEyesWidgetStore.persist.rehydrate();
+    expect(useEyesWidgetStore.getState().style).toBe('cozmo');
+  });
+
+  it('rehydrating with nothing persisted keeps the defaults (merge undefined branch)', async () => {
+    localStorage.removeItem(EYES_WIDGET_PREFS_KEY);
+    await useEyesWidgetStore.persist.rehydrate();
+    expect(useEyesWidgetStore.getState().style).toBe('cozmo');
+    expect(useEyesWidgetStore.getState().size).toBe('auto');
+  });
 });
