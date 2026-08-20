@@ -235,6 +235,9 @@ describe('EyesWidget — expression wiring', () => {
   });
 
   it('dozes off from mount without any user gesture (progressive sleep)', () => {
+    // Pinned for the same reason as the wake-startle test: a free-RNG flicker
+    // during the long doze can hold the frame at the assertion instant.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     renderWidget();
     expect(eyesRoot().dataset.expression).toBe('neutral');
     act(() => {
@@ -455,6 +458,9 @@ describe('EyesWidget — emotes & slapstick', () => {
   });
 
   it('deep sleep floats the drifting "z"', () => {
+    // Pinned for the same reason as the wake-startle test: a free-RNG flicker
+    // during the long doze can hold the frame at the assertion instant.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     renderWidget();
     act(() => {
       vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
@@ -495,6 +501,12 @@ describe('EyesWidget — character moments', () => {
   });
 
   it('activity on dozing eyes plays the wake startle: jolt, look around, settle', () => {
+    // 0.5 keeps the idle life benign across the long doze + settle window:
+    // silly roll declines (0.5 > SILLY_PROBABILITY) and every gesture pick
+    // lands on saccade/glance/perk, none of which touch data-expression —
+    // free RNG here let a flicker steal the frame right at the settle
+    // assertion (seen only on CI runners).
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     renderWidget();
     act(() => {
       vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
