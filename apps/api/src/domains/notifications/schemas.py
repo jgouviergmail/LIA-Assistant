@@ -152,3 +152,10 @@ class HubCountsResponse(BaseModel):
         ),
     )
     scheduled: int = Field(ge=0, description="Scheduled routines the account owns.")
+    offers: int = Field(
+        ge=0,
+        description=(
+            "UNDECIDED missed-routine offers (Lot 5-C2). Like reminders, a "
+            "to-decide set, never a history."
+        ),
+    )

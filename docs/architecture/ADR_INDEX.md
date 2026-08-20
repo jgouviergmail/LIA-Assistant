@@ -4164,3 +4164,57 @@ graph TD
 ---
 
 **Fin de ADR_INDEX.md** - Index consolidé des Architecture Decision Records LIA.
+
+### ADR-234 : timeline d'activité — le travail proactif devient visible
+
+**Statut**: ✅ IMPLÉMENTÉ (2026-08-19)
+**Fichier**: `docs/architecture/ADR-234-activity-timeline.md`
+
+**Décision** : un contexte borné en lecture seule `domains/activity/` agrège les tables d'audit existantes (heartbeat, intérêts, journal automatique, habitudes détectées, cycle de vie des open loops, dernières exécutions d'actions planifiées) en une chronologie fusionnée paginée — doctrine briefing (fetchers parallèles à session propre, zéro LangGraph, zéro table, zéro LLM, zéro cache). Comptage ADR-185 de bout en bout : totaux exacts `COUNT(*)` par kind sur toute la fenêtre, cap par source **déclaré** (`truncated`), source en panne **listée** (`failed_kinds`), jamais complétée en silence. Les reminders sont **absents à dessein** (éphémères : aucune trace persistée, donc aucun événement inventé). Constructeurs de requêtes purs épinglés par tests SQL compilés. API `GET /activity/timeline` sous flag `ACTIVITY_TIMELINE_ENABLED`, kinds stables résolus en libellés côté client (×6 locales). Frontend : fil accumulant (`useActivityTimeline`, reset sur offset 0, dédup (kind, ref_id)), groupement par jour local, puces de totaux exacts, avertissement de données partielles ; portes d'entrée = CTA du hub notifications + pied de la carte « For you », toutes deux sous flag (ADR-061), aucun slot de nav ajouté (rangée saturée, piège ADR-229).
+
+---
+
+### ADR-235 : piste de supersession mémoire — les corrections automatiques préservent l'historique
+
+**Statut**: ✅ IMPLÉMENTÉ (2026-08-19)
+**Fichier**: `docs/architecture/ADR-235-memory-supersession-trail.md`
+
+**Décision** : les chemins AUTOMATIQUES de correction mémoire cessent d'être destructifs (l'update d'extraction écrasait en place, la fusion de consolidation supprimait le perdant). Deux colonnes nullables sur `memories` (`invalidated_at`, `superseded_by_id` FK SET NULL, migration `7f8a9b0c1d2e`, index actif déclaré modèle+migration — piège ADR-228) ; extraction update → `supersede_with_update` (successeur hérite des champs non fournis, embeddings régénérés), extraction delete → `invalidate_memory`, fusion → `_apply_merge` (perdant supersédé par le survivant) ; le PATCH/DELETE manuel garde son autorité (une correction utilisateur n'est pas une évolution). TOUTES les lectures filtrent le set actif via le prédicat central `_active()` — oracle = tests capturant les statements et compilant le SQL. La piste se purge après `MEMORY_INVALIDATED_RETENTION_DAYS` (90 j) dans le job de nettoyage. Ratchet CC préservé par extraction de helpers (décomposer, jamais relever). Prépare D1 (continuité : « tu me disais avant… ») sans jamais re-servir un fait périmé.
+
+---
+
+### ADR-236 : mémoire procédurale — l'assistant apprend COMMENT travailler pour son utilisateur
+
+**Statut**: ✅ IMPLÉMENTÉ (2026-08-19)
+**Fichier**: `docs/architecture/ADR-236-procedural-memory.md`
+
+**Décision** : septième catégorie de mémoire `procedural` — instruction permanente EXPLICITE sur le comportement de l'assistant (« réponds plus court », « ne me propose plus X »), critères d'extraction stricts (intention durable adressée à l'assistant ; jamais déduite d'une humeur ; les habitudes de l'utilisateur restent `pattern`) ; une instruction contradictoire émet un `update` → supersession avec piste (ADR-235). Injectée comme directives contraignantes JUSTE APRÈS les zones sensibles (fichier d'en-têtes = source unique, complétude assertée contre l'enum) — aucune mécanique nouvelle : mêmes caps, même rétention, mêmes protections. Directive de réparation (D6) dans le prompt de base : une correction fraîche est reconnue UNE fois, sans sur-excuse, et appliquée DANS la même réponse — le côté psyché (rupture-repair + bonus de confiance) était déjà câblé, vérifié. B3 (auto-réflexion sur ToolErrorCode) est explicitement REPORTÉ au chantier budget ReAct (Lot 5-C4) : un self-critique LLM sur chemin d'erreur sans borne de coût, ou une leçon déterministe robotique, seraient pires que l'attente. Aucune migration (colonne string ouverte) ; l'utilisateur voit et supprime chaque règle apprise dans l'UI mémoires (doctrine ADR-184).
+
+---
+
+### ADR-237 : prosodie vocale paramétrique, et l'inventaire de la modulation de forme
+
+**Statut**: ✅ IMPLÉMENTÉ (D4) + PÉRIMÉTRÉ (2026-08-19)
+**Fichier**: `docs/architecture/ADR-237-voice-prosody-and-form.md`
+
+**Décision** : la voix respire avec l'humeur — `domains/voice/prosody.py` pur (arousal→style+/stability−, gains doux, bornes dures [0,1], dead-band ±0,1 qui rend l'objet de base = « aucun override »), résolu UNE fois par stream (best-effort : un échec psyché ne coûte jamais l'audio), passé par appel via les kwargs du protocole TTS, flag `VOICE_PSYCHE_PROSODY_ENABLED` ; parité : OpenAI TTS n'a pas de surface équivalente — asymétrie documentée, jamais silencieuse ; `pleasure` réservé (la chaleur exige une calibration par voix). **Deux constats vérifiés-déjà-satisfaits consignés pour que les audits futurs ne les re-proposent pas** (doctrine de requalification ADR-232) : D2 (les 4 directives de stade relationnel modulent DÉJÀ la forme) et D3-PAD (la clause <InnerVoice> du prompt de base module DÉJÀ longueur/chaleur/suggestions). **A2 livré ensuite dans le même ADR** : `POST /briefing/synthesis/audio` (bouton « écouter » la synthèse — readout complet possédé par `voice/text_readout.py`, un premier jet dans le router briefing fermait un cycle `briefing<->chat` attrapé par le garde F009 ; bornes de coût env, audio bufferisé, toggle front avec révocation d'object-URL). **Périmétrés hors de ce lot avec motif** : D3-canal (aucun paramètre de surface de sortie dans stream_chat_response ; à réconcilier avec le mécanisme display-mode existant — chantier propre) et D5 (registre de goûts dérivés Big Five = décision de voix produit, l'œil du propriétaire sur le contenu avant livraison).
+
+---
+
+### ADR-238 : inbox de propositions et budget ReAct adaptatif (autonomie bornée)
+
+**Statut**: ✅ IMPLÉMENTÉ (2026-08-20)
+**Fichier**: `docs/architecture/ADR-238-proposals-inbox-adaptive-react.md`
+
+**Décision** : **C2** — l'inbox de propositions est une VUE sur l'existant, jamais une seconde autorité : une proposition ouverte EST une notification heartbeat à `habit_offer_id` sans `user_feedback` dans la fenêtre `HEARTBEAT_OFFERS_WINDOW_DAYS` ; `GET /heartbeat/offers` (builder pur testé au SQL, total exact ADR-185) ; décider passe par le endpoint feedback EXISTANT (accepter = 👍 puis chat PRÉREMPLI — rien ne s'envoie seul, HITL intact ; refuser = 👎), les signaux bayésiens ADR-214 continuent d'apprendre ; 6ᵉ section du hub EN TÊTE (un ensemble à décider prime sur les historiques — à montrer au propriétaire) + 6ᵉ badge dans la lecture unique des compteurs ; PULL pur donc aucune garde d'éligibilité. **C4** — budget d'itérations ReAct adaptatif (flag OFF par défaut) : le max configuré devient PLAFOND, budget par tour = base + (domaines−1)×pas depuis l'analyse, calculé au setup dans la clé d'état DÉCLARÉE `react_max_iterations_effective` ; complexité inconnue ⇒ plafond (on n'économise que sur le prouvé-simple, on ne sous-budgète jamais un dur). **B3 intra-run** : le message du garde de répétition exige désormais UNE phrase de diagnostic avant la prochaine action (pas Reflexion au coût zéro — aucun appel LLM ajouté sur chemin d'erreur) ; les leçons inter-sessions restent sur l'extraction `procedural` (ADR-236).
+
+---
+
+### ADR-239 : clôture du programme évolution — requalifications et arbitrages réservés
+
+**Statut**: ✅ ACTÉ (2026-08-20)
+**Fichier**: `docs/architecture/ADR-239-evolution-program-closure.md`
+
+**Décision** : inventaire de clôture des 7 lots (ADR-234→238 livrés). **Requalifié avec preuve, aucune action** : C1 (l'ambient événementiel EST ADR-175 — évaluateurs mail/météo/document/calendrier, idempotence par fingerprint `last_fingerprint`, LLM payé au seul déclenchement ; la variante « sans opt-in » est REJETÉE au nom du pilier souveraineté : créer l'action conditionnelle EST le consentement). **Réservé à l'arbitrage propriétaire, évidence prête** : C3 missions à jalons (objet produit nouveau — maquette d'abord), C6 producer-critic (le seul candidat est le chemin auto-approuvé, qui journalise DÉJÀ last_error/consecutive_failures — un critic LLM récurrent sans taux de faux-succès mesuré = coût spéculatif), B5 compilation en skills (la forme sûre existe déjà via P12→scheduled actions ; le contenu d'un skill généré = voix produit, à voir avant livraison), B4 enregistrements de périmètres (sur l'évidence `adaptive_candidate_top_score` qui s'accumule désormais), D3-canal et D5 (ADR-237). Chaque réservé porte son déclencheur écrit.
+
+---

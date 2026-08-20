@@ -8,6 +8,7 @@
 #
 # Completeness against MemoryCategory is asserted by a unit test.
 sensitivity|### ZONES SENSIBLES (Attention requise)
+procedural|### RÈGLES DE FONCTIONNEMENT (instructions permanentes de l'utilisateur — à appliquer)
 relationship|### RELATIONS CONNUES
 preference|### PRÉFÉRENCES & GOÛTS
 personal|### INFORMATIONS PERSONNELLES

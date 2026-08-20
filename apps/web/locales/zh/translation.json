@@ -91,6 +91,47 @@
       "tooltip_disabled": "令牌使用量和费用已隐藏"
     }
   },
+  "activity": {
+    "title": "活动",
+    "subtitle": "LIA 在过去 {{days}} 天为您主动完成的一切。",
+    "refresh": "刷新",
+    "load_more": "显示更多",
+    "retry": "重试",
+    "error_description": "无法加载活动记录。",
+    "empty_title": "暂无内容",
+    "empty_description": "当 LIA 为您采取行动时——通知、日志、习惯、承诺、例行任务——都会显示在这里。",
+    "empty_action": "设置主动服务",
+    "partial_warning": "部分来源未响应——此视图可能不完整。",
+    "truncated_hint": "部分较早的条目未显示。",
+    "status_expired": "已过期",
+    "hub_cta": "活动时间线",
+    "see_all": "查看 LIA 所做的一切",
+    "rows": {
+      "heartbeat_notification": "主动通知",
+      "interest_notification": "兴趣发现",
+      "journal_entry": "日志记录",
+      "habit_detected": "检测到习惯",
+      "open_loop_created": "已跟踪承诺",
+      "open_loop_closed": "已完成承诺",
+      "scheduled_action_run": "已执行例行任务"
+    },
+    "kinds": {
+      "heartbeat_notification_one": "{{count}} 条主动通知",
+      "heartbeat_notification_other": "{{count}} 条主动通知",
+      "interest_notification_one": "{{count}} 条兴趣发现",
+      "interest_notification_other": "{{count}} 条兴趣发现",
+      "journal_entry_one": "{{count}} 条日志记录",
+      "journal_entry_other": "{{count}} 条日志记录",
+      "habit_detected_one": "{{count}} 个检测到的习惯",
+      "habit_detected_other": "{{count}} 个检测到的习惯",
+      "open_loop_created_one": "{{count}} 个已跟踪承诺",
+      "open_loop_created_other": "{{count}} 个已跟踪承诺",
+      "open_loop_closed_one": "{{count}} 个已完成承诺",
+      "open_loop_closed_other": "{{count}} 个已完成承诺",
+      "scheduled_action_run_one": "{{count}} 个已执行例行任务",
+      "scheduled_action_run_other": "{{count}} 个已执行例行任务"
+    }
+  },
   "dashboard": {
     "title": "控制面板",
     "welcome": "欢迎，{{name}}",
@@ -190,6 +231,9 @@
       "capabilities_sub": "你的星座"
     },
     "briefing": {
+      "synthesis_audio_error": "语音播放失败——语音服务未返回音频。请检查语音设置。",
+      "synthesis_listen": "收听摘要",
+      "synthesis_stop": "停止朗读",
       "section_title": "我的仪表盘",
       "skeleton_loading": "正在准备您的简报…",
       "refresh_all": "全部刷新",
@@ -704,6 +748,11 @@
       "connected": "已连接",
       "disconnected": "已断开",
       "reconnecting": "重新连接中..."
+    },
+    "ack": {
+      "bright": "马上来——好问题！",
+      "soft": "马上来——我来处理。",
+      "steady": "马上来……"
     },
     "assistant_typing": "助手正在输入...",
     "tab_title_writing": "LIA 正在输入…",
@@ -3059,6 +3108,11 @@
       "description": "LIA 学到的你的节奏和重复请求——在这里可以查看、纠正和删除。",
       "enabled_label": "学习我的习惯",
       "enabled_hint": "活动节奏和重复请求，每晚根据你自己的消息计算。任何数据都不会离开你的账户。",
+      "streak_current_one": "连续 {{count}} 天",
+      "streak_current_other": "连续 {{count}} 天",
+      "streak_badge": "{{days}} 天里程碑",
+      "streak_meta": "纪录：{{longest}} · 下一个里程碑：{{next}}",
+      "streak_meta_final": "纪录：{{longest}}",
       "rhythm_title": "活动节奏",
       "computed_at": "更新于 {{date}}",
       "recompute_label": "立即重新计算",
@@ -3313,7 +3367,7 @@
         "briefing-grid": "首页, 主页, 仪表板, 小组件, 卡片, 简报, 板块顺序",
         "chat-shortcuts": "斜杠, 快捷指令, 命令, 快速请求, 宏, /命令, 消息模板, 编辑, 重命名",
         "open-loops": "承诺, 待办承诺, 待处理, 跟进, 未完成",
-        "habits": "习惯, 节奏, 例行, 时间表, 学习, 活动时段, 重复请求, 自动化建议、检测阈值、为什么没有习惯",
+        "habits": "习惯, 节奏, 例行, 时间表, 学习, 活动时段, 重复请求, 自动化建议、检测阈值、为什么没有习惯, 连续天数, 里程碑, 纪录",
         "notifications": "推送, 提醒, 通知, 手机, FCM",
         "channels": "WhatsApp, Telegram, 短信, 邮件, 消息渠道, 集成",
         "security-auth": "2FA, MFA, TOTP, 通行密钥, 密码, 安全, 登录, 身份验证, 双因素",
@@ -3328,10 +3382,10 @@
         "debug-panel": "开发者, 诊断, 调试, 技术, 故障排查, 瀑布图, 异常, 时间线, 流水线",
         "personality": "语气, 风格, 性格, 行为, 人设, 声音",
         "psyche": "情绪, 心情, 感受, 情感",
-        "memories": "记忆, 长期记忆, 记住, 遗忘, 事实, 来源, 为什么, 出处, 信号, 起源, 更正、导出",
+        "memories": "记忆, 长期记忆, 记住, 遗忘, 事实, 来源, 为什么, 出处, 信号, 起源, 更正、导出, 规则, 指令, 永久指示, 程序性",
         "interests": "兴趣, 话题, 爱好, 主题, 偏好，历史记录，最近的通知, 来源, 为什么, 权重, 解释, 衰减, 出处、导出",
         "peer-connections": "联系人, 好友, 家人, 网络, 共享日历, 空闲状态, 屏蔽, 查找用户, 连接，我的姓名，复制姓名，连接请求，访问日志，转达消息，已屏蔽用户，亲友，社交网络，peer，可发现性，发现，共享我的地址，邮箱可见，我的邮箱，360 概览, 可见性",
-        "heartbeat": "主动, 自发, 主动联系, 自主消息, 心跳，通知主题，来源，历史记录，最近的通知, 优先级, 紧急, 高, 中, 低, 颜色, 天气, 频率, 时段",
+        "heartbeat": "主动, 自发, 主动联系, 自主消息, 心跳，通知主题，来源，历史记录，最近的通知, 优先级, 紧急, 高, 中, 低, 颜色, 天气, 频率, 时段, 建议, 提议, 错过的例行",
         "scheduled-actions": "定时任务, cron, 计划, 重复, 自动化, 定时器",
         "journals": "日记, 日志, 画像, 反思, 笔记, 来源, 为什么, 出处, 信号, 起源, 更正, 配置, 整理、导出",
         "health-metrics": "健康, 心率, 步数, 睡眠, iPhone, Apple 健康, 运动",
@@ -3959,7 +4013,7 @@
         },
         "memory": {
           "title": "💾 短期/长期双重记忆",
-          "description": "短期：滑动消息窗口，自动总结对话上下文。该摘要具有韧性 — 每个分块和全局都有超时、指数退避重试、若 LLM 失败则触发显式截断回退；执行期间会显示一个可见的 toast,输入框在此过程中被锁定,并且聊天标题栏的胶囊持续显示 token/阈值的比率。长期：提取关于你的信息（偏好、关系、习惯）使用语义嵌入向量存储。双向量语义检索实现最佳召回：记忆的内容与其触发关键词分别与你的问题比对，取两者中更贴近的一路。 即使一次交流触发了某项操作，它同样会被计入：请求发送一条消息、并在其中提到关于自己的长期事实，与普通对话一样会写入记忆。反过来，系统为自身生成的消息则被排除在外 — LIA 记住的内容来自你，而非它自己的指令。"
+          "description": "短期：滑动消息窗口，自动总结对话上下文。该摘要具有韧性 — 每个分块和全局都有超时、指数退避重试、若 LLM 失败则触发显式截断回退；执行期间会显示一个可见的 toast,输入框在此过程中被锁定,并且聊天标题栏的胶囊持续显示 token/阈值的比率。长期：提取关于你的信息（偏好、关系、习惯）使用语义嵌入向量存储。双向量语义检索实现最佳召回：记忆的内容与其触发关键词分别与你的问题比对，取两者中更贴近的一路。 即使一次交流触发了某项操作，它同样会被计入：请求发送一条消息、并在其中提到关于自己的长期事实，与普通对话一样会写入记忆。反过来，系统为自身生成的消息则被排除在外 — LIA 记住的内容来自你，而非它自己的指令。 记忆还承载永久规则：告诉 LIA 一次它应如何为您工作（程序性类别），规则便会应用于每次对话。当事实发生变化时，旧事实会被带日期地取代——不再参与回忆，但作为可查的痕迹保留。"
         },
         "interests": {
           "title": "✨ 智能兴趣学习",
@@ -4184,6 +4238,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_30_14": {
+          "title": "v1.30.14 — 👁️ 无形的工作变得可见",
+          "date": "2026年8月",
+          "count": "6",
+          "items": {
+            "i1": "<b>🕐 全新活动页面</b>——LIA 为您所做的一切，汇成一条时间线：已发送的通知、兴趣发现、日志记录、检测到的习惯、跟踪与完成的承诺、已执行的例行任务。数字精确，绝不含糊。",
+            "i2": "<b>💡 等待您批准的建议</b>——提醒中心新增「建议」板块：LIA 主动提出代办、而您尚未决定的例行事项。「交给我」会打开预填好的聊天——未经您确认不会发送任何内容。「暂不」则让它学会少些打扰。",
+            "i3": "<b>📌 说一次，永久记住</b>——「回答短一点」「晚上别再推荐这个」：您的指示会成为持久规则，在记忆面板（「规则与指令」类别）中可见、可编辑。当您纠正 LIA 时，它确认一次、不反复道歉——直接改正。",
+            "i4": "<b>🧠 会记日期的记忆</b>——LIA 能自然地说「上周您告诉我……」。当事实变化（搬家、换工作），旧信息不再被覆盖：它整齐地归档在新信息之后，搜索中不会再出现。",
+            "i5": "<b>🔊 晨间简报可以朗读</b>——晨间摘要上新增「收听」按钮，语音的表现力会随助手的心情变化。若合成失败，您会收到明确提示——不再有静默失败。",
+            "i6": "<b>📈 您的习惯连续天数有了里程碑</b>——习惯面板显示「连续 9 天，达成 7 天里程碑，下一个：30」。聊天建议下方，LIA 还会说明推荐理由（「因为您关注……」）。"
+          }
+        },
         "v1_30_13": {
           "title": "v1.30.13 — 🔄 自我改进闭环正式打通",
           "date": "2026年8月",
@@ -7530,6 +7597,10 @@
         "title": "尽管离开——它继续",
         "desc": "关掉标签页：回复会完成，并在你回来时找到你。"
       },
+        "activity_timeline": {
+          "title": "工作日志",
+          "desc": "LIA 在后台为您所做的一切——学到的记忆、核对的例行、准备好的简报——以时间线的形式呈现在您的仪表盘上。看不见的工作，变得看得见。"
+        },
       "widgets_travel": {
         "title": "widget 随你而行",
         "desc": "地图、图表、迷你应用：它们经得起刷新，并跟随你跨设备同行。"
@@ -7655,6 +7726,11 @@
       "background_response": {
         "ready": "回复已就绪"
       },
+        "activity_timeline": {
+          "entry1": "已学到记忆",
+          "entry2": "已核对例行",
+          "entry3": "简报已就绪"
+        },
       "peer_actions": {
         "reply": "回复"
       },
@@ -7853,7 +7929,8 @@
       "relationship": "人际关系",
       "event": "事件",
       "pattern": "行为模式",
-      "sensitivity": "敏感区域"
+      "sensitivity": "敏感区域",
+      "procedural": "规则与指令"
     },
     "emotional_states": {
       "comfort": "积极领域",
@@ -9753,7 +9830,8 @@
       "psyche": "心理引擎",
       "habits": "习惯学习",
       "governance": "治理一个实例",
-      "tabular_admin": "按文件管理"
+      "tabular_admin": "按文件管理",
+        "evolution": "演进计划"
     }
   },
   "healthMetrics": {
@@ -10156,6 +10234,15 @@
     "advanced_title": "高级设置",
     "advanced_hint": "每个板块都可在设置中详细调整。",
     "sections": {
+        "offers": {
+          "title": "建议",
+          "subtitle": "LIA 主动提出代办的例行事项——等待您的决定。",
+          "empty": "当前没有待决建议。",
+          "error": "无法加载建议。",
+          "accept": "交给我——打开聊天",
+          "dismiss": "暂不",
+          "menu": "建议操作"
+        },
       "peer_messages": {
         "title": "转达的消息",
         "subtitle": "与你的 LIA 连接往来的消息，最新在前。",

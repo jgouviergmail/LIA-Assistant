@@ -46,6 +46,7 @@ import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
 import {
+  MEMORY_CATEGORIES,
   useMemories,
   getEmotionalEmoji,
   type MemoryCategory,
@@ -72,13 +73,14 @@ import {
 } from '@/components/ui/accordion';
 import type { BaseSettingsProps } from '@/types/settings';
 
-const CATEGORY_ICONS: Record<MemoryCategory, string> = {
+export const CATEGORY_ICONS: Record<MemoryCategory, string> = {
   preference: '💡',
   personal: '📋',
   relationship: '👥',
   event: '📅',
   pattern: '🔄',
   sensitivity: '⚠️',
+  procedural: '📌',
 };
 
 interface EditFormData {
@@ -685,24 +687,11 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                       <SelectValue placeholder={t('memories.select_category')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="preference">
-                        {CATEGORY_ICONS.preference} {getCategoryLabel('preference')}
-                      </SelectItem>
-                      <SelectItem value="personal">
-                        {CATEGORY_ICONS.personal} {getCategoryLabel('personal')}
-                      </SelectItem>
-                      <SelectItem value="relationship">
-                        {CATEGORY_ICONS.relationship} {getCategoryLabel('relationship')}
-                      </SelectItem>
-                      <SelectItem value="event">
-                        {CATEGORY_ICONS.event} {getCategoryLabel('event')}
-                      </SelectItem>
-                      <SelectItem value="pattern">
-                        {CATEGORY_ICONS.pattern} {getCategoryLabel('pattern')}
-                      </SelectItem>
-                      <SelectItem value="sensitivity">
-                        {CATEGORY_ICONS.sensitivity} {getCategoryLabel('sensitivity')}
-                      </SelectItem>
+                      {MEMORY_CATEGORIES.map(category => (
+                        <SelectItem key={category} value={category}>
+                          {CATEGORY_ICONS[category]} {getCategoryLabel(category)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -825,24 +814,11 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                       <SelectValue placeholder={t('memories.select_category')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="preference">
-                        {CATEGORY_ICONS.preference} {getCategoryLabel('preference')}
-                      </SelectItem>
-                      <SelectItem value="personal">
-                        {CATEGORY_ICONS.personal} {getCategoryLabel('personal')}
-                      </SelectItem>
-                      <SelectItem value="relationship">
-                        {CATEGORY_ICONS.relationship} {getCategoryLabel('relationship')}
-                      </SelectItem>
-                      <SelectItem value="event">
-                        {CATEGORY_ICONS.event} {getCategoryLabel('event')}
-                      </SelectItem>
-                      <SelectItem value="pattern">
-                        {CATEGORY_ICONS.pattern} {getCategoryLabel('pattern')}
-                      </SelectItem>
-                      <SelectItem value="sensitivity">
-                        {CATEGORY_ICONS.sensitivity} {getCategoryLabel('sensitivity')}
-                      </SelectItem>
+                      {MEMORY_CATEGORIES.map(category => (
+                        <SelectItem key={category} value={category}>
+                          {CATEGORY_ICONS[category]} {getCategoryLabel(category)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

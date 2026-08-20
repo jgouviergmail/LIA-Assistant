@@ -21,6 +21,8 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     BRIEFING_AGENDA_LOOKAHEAD_HOURS_DEFAULT,
+    BRIEFING_AUDIO_MAX_CHARS_DEFAULT,
+    BRIEFING_AUDIO_MAX_SENTENCES_DEFAULT,
     BRIEFING_HEALTH_WINDOW_DAYS_DEFAULT,
     BRIEFING_LAST_GOOD_TTL_SECONDS_DEFAULT,
     BRIEFING_MAX_AGENDA_ITEMS_DEFAULT,
@@ -119,6 +121,18 @@ class BriefingSettings(BaseSettings):
         ge=1,
         le=20,
         description="Max recently-modified Drive files on the documents card.",
+    )
+    briefing_audio_max_chars: int = Field(
+        default=BRIEFING_AUDIO_MAX_CHARS_DEFAULT,
+        ge=100,
+        le=10000,
+        description="Max characters accepted by POST /briefing/synthesis/audio (cost bound).",
+    )
+    briefing_audio_max_sentences: int = Field(
+        default=BRIEFING_AUDIO_MAX_SENTENCES_DEFAULT,
+        ge=1,
+        le=50,
+        description="Max sentences synthesized for the briefing listen button (cost bound).",
     )
     briefing_last_good_ttl_seconds: int = Field(
         default=BRIEFING_LAST_GOOD_TTL_SECONDS_DEFAULT,

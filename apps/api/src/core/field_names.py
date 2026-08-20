@@ -134,6 +134,7 @@ FIELD_INJECTED_JOURNAL_IDS = "injected_journal_ids"
 # carried in BOTH the SSE done chunk and the archived message metadata so the
 # chips render live and survive a reload while the answer stays the latest.
 FIELD_FOLLOWUP_SUGGESTIONS = "followup_suggestions"
+FIELD_INITIATIVE_MOTIVATION = "initiative_motivation"
 
 # Data Registry & Correlation (Correlated Display)
 FIELD_REGISTRY_ID = "_registry_id"  # Internal registry item ID (enriched in structured_data)

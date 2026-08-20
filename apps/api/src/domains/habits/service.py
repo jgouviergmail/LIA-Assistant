@@ -15,7 +15,7 @@ across concurrent tasks).
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -38,6 +38,7 @@ from src.domains.habits.rhythm import (
     RhythmThresholds,
     compute_rhythm_profile_with_diagnostics,
 )
+from src.domains.habits.streaks import StreakSummary, compute_streaks
 
 logger = structlog.get_logger(__name__)
 
@@ -321,6 +322,20 @@ class HabitsService:
         profile = await self.repository.get_profile(user_id)
         habits = await self.repository.list_habits(user_id)
         return profile, habits
+
+    async def get_streaks(self, user_id: UUID, *, today: date) -> StreakSummary:
+        """Streak facts from the activity ledger (Lot 1-A4, display only).
+
+        Args:
+            user_id: Owner of the ledger.
+            today: The user's LOCAL today (timezone resolved by the caller).
+
+        Returns:
+            Current/longest streaks and milestone positions; milestones come
+            from settings, never hardcoded here.
+        """
+        dates = await self.repository.fetch_activity_dates(user_id)
+        return compute_streaks(dates, today=today, milestones=settings.habits_streak_milestones)
 
     def build_explanation(self, habit: UserHabit) -> dict[str, Any]:
         """Publish the numbers behind a habit — the interests doctrine.

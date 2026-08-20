@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { usePsycheStore } from '@/stores/psycheStore';
 
 export interface TypingIndicatorProps {
   className?: string;
@@ -79,8 +80,19 @@ function VariantShapes({ variant }: { variant: TypingVariant }) {
   }
 }
 
+/** Valence band → acknowledgment tone (Lot 1-A5). The band is deliberately
+ * wide (±0.15) so the phrase only shifts on a CLEAR mood, never flickers. */
+export function ackTone(moodPleasure: number): 'bright' | 'soft' | 'steady' {
+  if (moodPleasure > 0.15) return 'bright';
+  if (moodPleasure < -0.15) return 'soft';
+  return 'steady';
+}
+
 export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ className }) => {
   const { t } = useTranslation();
+  // Live mood from the psyche store (fed by /psyche/state + SSE) — ZERO
+  // extra fetch: the wait acknowledgment simply reuses what the avatar has.
+  const moodPleasure = usePsycheStore(state => state.moodPleasure);
 
   // Stable per mount: ChatMessageList renders this component only while
   // isTyping is true, so each response gets one randomly picked variant.
@@ -94,7 +106,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ className }) =
       aria-live="polite"
       aria-label={t('chat.assistant_typing')}
       data-variant={variant}
-      className={cn('flex items-center text-gray-400', className)}
+      className={cn('flex items-center gap-2 text-gray-400', className)}
     >
       <div className="motion-reduce:hidden">
         <VariantShapes variant={variant} />
@@ -105,6 +117,9 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ className }) =
         <div className="w-2 h-2 rounded-full bg-current" />
         <div className="w-2 h-2 rounded-full bg-current" />
       </div>
+      {/* Mood-tinted acknowledgment (Lot 1-A5): a short phrase while the
+          pipeline works — template text, never an LLM call. */}
+      <span className="text-xs text-muted-foreground">{t(`chat.ack.${ackTone(moodPleasure)}`)}</span>
     </div>
   );
 };

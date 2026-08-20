@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 4.5
-**Date**: 2026-08-19
-**Application**: LIA v1.30.13
+**Date**: 2026-08-20
+**Application**: LIA v1.30.14
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -43,6 +43,7 @@
 28. [Governing an instance: spend, capabilities, installation](#28-governing-an-instance-spend-capabilities-installation)
 29. [Administering by file: the workbook is the form](#29-administering-by-file-the-workbook-is-the-form)
 
+30. [The evolution program: visible work, governed learning](#30-the-evolution-program-visible-work-governed-learning)
 ---
 
 ## 1. Context and founding choices
@@ -57,7 +58,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 473 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 232 ADRs, ~19,894 pytest-collected tests across 1,131 files, native observability, 6-level HITL |
+| Production reliability | 238 ADRs, ~19,291 pytest-collected tests across 1,073 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -75,7 +76,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~19,894 (collected by pytest across 1,131 test files) + 5,816 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | ~19,291 (collected by pytest across 1,073 test files) + 5,862 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | Reusable fixtures | 170+ |
 | Documentation documents | 490+ |
 | ADRs (Architecture Decision Records) | 229 |
@@ -1293,7 +1294,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-232 ADRs in MADR format document the major architectural decisions. Some representative examples:
+238 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1426,10 +1427,15 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 232 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,894 tests across 1,131 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 238 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~19,291 tests across 1,073 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
+## 30. The evolution program: visible work, governed learning
+
+The Activity page is a **pure read-model**: parallel fetchers (one session per source — an AsyncSession is not concurrency-safe) aggregate seven existing audit tables, totals are exact `COUNT(*)` over the whole window, caps are stated (`truncated`) and a failing source is listed rather than silently completed — honest counting (ADR-185) applied end to end. Memory follows a **supersession trail** (ADR-235): an automated correction creates a successor and archives the old fact (`superseded_by_id`), every read filters the active set through one central predicate, and the trail purges after retention; manual edits keep their overwrite authority. Learned rules are a **seventh memory category** injected at the head of the prompt, under the same protections (pinning, retention, GDPR). Voice prosody is a **bounded modulation** (dead band, hard bounds, flag) of the administered settings — never a replacement. Autonomy stays capped: the ReAct iteration budget adapts to the query's domain span without ever exceeding the configured ceiling, and unknown complexity receives the full ceiling — savings only apply to the provably simple.
+
+
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 232 ADRs, and the changelog (v1.0 to v1.30.13). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 238 ADRs, and the changelog (v1.0 to v1.30.14). All metrics, versions, and patterns cited are verifiable in the codebase.*

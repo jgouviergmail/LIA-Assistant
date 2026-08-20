@@ -53,6 +53,8 @@ class HubCounts:
         reminders: Reminders still waiting — this one is the FUTURE, not a
             history: a reminder is deleted the instant it fires.
         scheduled: Scheduled routines the account owns.
+        offers: UNDECIDED missed-routine offers (Lot 5-C2) — like reminders,
+            this one is a to-decide set, not a history.
     """
 
     peer_messages: int
@@ -60,6 +62,7 @@ class HubCounts:
     interests: int
     reminders: int
     scheduled: int
+    offers: int
 
 
 async def _safe_count(section: str, probe: Coroutine[None, None, int]) -> int:
@@ -125,6 +128,25 @@ async def _scheduled(user_id: UUID) -> int:
         return await ScheduledActionRepository(db).count_for_user(user_id)
 
 
+async def _offers(user_id: UUID) -> int:
+    """Open missed-routine offers — 0 without a query when heartbeat is off."""
+    if not settings.heartbeat_enabled:
+        return 0
+    from datetime import UTC, datetime, timedelta
+
+    async with get_db_context() as db:
+        from sqlalchemy import func, select
+
+        from src.domains.heartbeat.repository import (
+            open_offers_stmt,
+        )
+
+        since = datetime.now(UTC) - timedelta(days=settings.heartbeat_offers_window_days)
+        stmt = open_offers_stmt(user_id, since, limit=1).order_by(None).limit(None)
+        result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+        return int(result.scalar_one())
+
+
 async def resolve_hub_counts(user: User) -> HubCounts:
     """Every hub badge, in one pass.
 
@@ -135,12 +157,13 @@ async def resolve_hub_counts(user: User) -> HubCounts:
         One exact total per section; 0 for any section whose read failed.
     """
     user_id: UUID = user.id
-    peer_messages, proactive, interests, reminders, scheduled = await asyncio.gather(
+    peer_messages, proactive, interests, reminders, scheduled, offers = await asyncio.gather(
         _safe_count("peer_messages", _peer_messages(user_id)),
         _safe_count("proactive", _proactive(user_id)),
         _safe_count("interests", _interests(user_id)),
         _safe_count("reminders", _reminders(user_id)),
         _safe_count("scheduled", _scheduled(user_id)),
+        _safe_count("offers", _offers(user_id)),
     )
     return HubCounts(
         peer_messages=peer_messages,
@@ -148,4 +171,5 @@ async def resolve_hub_counts(user: User) -> HubCounts:
         interests=interests,
         reminders=reminders,
         scheduled=scheduled,
+        offers=offers,
     )

@@ -23,7 +23,9 @@ Observability:
 """
 
 import time
-from typing import Any
+from contextlib import suppress
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -36,6 +38,9 @@ from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
 )
+
+if TYPE_CHECKING:
+    from src.domains.memories.repository import MemoryRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -97,6 +102,27 @@ def _should_skip(
         return "emotional_diff"
 
     return None
+
+
+def _count_pair(outcome: str) -> None:
+    """Count one examined pair (best-effort — metrics never fail the job)."""
+    with suppress(Exception):
+        from src.infrastructure.observability.metrics_extractions import (
+            memory_consolidation_pairs_total,
+        )
+
+        memory_consolidation_pairs_total.labels(outcome=outcome).inc()
+
+
+async def _apply_merge(repo: "MemoryRepository", survivor: Memory, loser: Memory) -> None:
+    """Supersede the loser with the survivor (Lot 2-B1, ADR-235).
+
+    The loser leaves the active set pointing at the survivor — the merge
+    keeps its trail instead of destroying the row.
+    """
+    loser.invalidated_at = datetime.now(UTC)
+    loser.superseded_by_id = survivor.id
+    await repo.update(loser)
 
 
 async def consolidate_memories() -> dict[str, Any]:
@@ -189,11 +215,13 @@ async def consolidate_memories() -> dict[str, Any]:
 
                     if str(mem_a.id) in consumed_ids or str(mem_b.id) in consumed_ids:
                         stats["skipped_already_consumed"] += 1
+                        _count_pair("stale")
                         continue
 
                     skip_reason = _should_skip(mem_a, mem_b, emotional_diff_skip)
                     if skip_reason == "categories_differ":
                         stats["skipped_categories_differ"] += 1
+                        _count_pair("skipped_category")
                         logger.debug(
                             "memory_pair_skipped",
                             user_id=str(user_id),
@@ -205,6 +233,7 @@ async def consolidate_memories() -> dict[str, Any]:
                         continue
                     if skip_reason == "emotional_diff":
                         stats["skipped_emotional_diff"] += 1
+                        _count_pair("skipped_emotional")
                         logger.debug(
                             "memory_pair_skipped",
                             user_id=str(user_id),
@@ -218,7 +247,8 @@ async def consolidate_memories() -> dict[str, Any]:
                     survivor, loser = _pick_survivor(mem_a, mem_b)
 
                     try:
-                        await repo.delete(loser)
+                        await _apply_merge(repo, survivor, loser)
+                        _count_pair("merged")
                         stats["merges_applied"] += 1
                         consumed_ids.add(str(loser.id))
 

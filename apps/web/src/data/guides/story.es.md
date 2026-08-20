@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 1.7
-**Fecha**: 2026-08-19
-**Aplicación**: LIA v1.30.13
+**Fecha**: 2026-08-20
+**Aplicación**: LIA v1.30.14
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -120,3 +120,5 @@ Lo que esta experiencia cambia en una práctica de dirección:
 - **Un directivo que practica arbitra mejor.** Hacer o mandar hacer, deuda aceptable o no, promesa de proveedor creíble o no — estas decisiones ganan en acierto cuando se ha probado la materia. Este proyecto es una forma de mantener esa proximidad con el terreno.
 
 *Proyecto personal, llevado a cabo fuera de toda actividad profesional. Cifras procedentes de la auditoría técnica de julio de 2026 — tests ejecutados, mediciones efectuadas sobre el código, hallazgos contraverificados. Repositorio: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+
+Después el asistente aprendió a mostrar su propio trabajo: una página de Actividad que recoge todo lo que hace por sí mismo, reglas aprendidas que se pueden leer y corregir, una memoria que fecha sus recuerdos y archiva sin borrar, una voz que respira con su ánimo. La autonomía creció exactamente como exigía la filosofía del proyecto: dentro del marco, bajo la mirada del usuario.

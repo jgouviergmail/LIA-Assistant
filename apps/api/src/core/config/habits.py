@@ -38,6 +38,7 @@ from src.core.constants import (
     HABITS_RECENT_MIN_DEFAULT,
     HABITS_SELECTIVITY_MIN_DEFAULT,
     HABITS_SPARSE_ACTIVE_DAYS_MIN_DEFAULT,
+    HABITS_STREAK_MILESTONES_DEFAULT,
     HABITS_WAKING_HOURS_DEFAULT,
     HABITS_WILSON_FLOOR_DEFAULT,
     HABITS_WINDOW_DAYS_DEFAULT,
@@ -169,6 +170,12 @@ class HabitsSettings(BaseSettings):
         le=20,
         description="Recurrence candidates shown 'under observation' in the "
         "settings panel; the remainder is counted, never silently dropped.",
+    )
+    habits_streak_milestones: list[int] = Field(
+        default_factory=lambda: list(HABITS_STREAK_MILESTONES_DEFAULT),
+        description="Streak milestone lengths (days) celebrated in the UI. "
+        "DISPLAY thresholds only — detection calibration (ADR-214) is a "
+        "separate authority. Env format: JSON list, e.g. [7,30,100].",
     )
     habits_profile_job_hour_utc: int = Field(
         default=HABITS_PROFILE_JOB_HOUR_UTC_DEFAULT,

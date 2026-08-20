@@ -18,6 +18,7 @@ Created: 2026-03-30
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -187,6 +188,96 @@ class MemoryService:
     # =========================================================================
     # Update
     # =========================================================================
+
+    async def invalidate_memory(self, memory: Memory) -> Memory:
+        """Soft-delete an obsolete fact without a successor (Lot 2-B1).
+
+        The row leaves the active set (``invalidated_at``) but keeps
+        existing — automated corrections never destroy history. Manual
+        API deletion keeps its hard-delete semantics elsewhere.
+
+        Args:
+            memory: The fact to invalidate.
+
+        Returns:
+            The invalidated memory.
+
+        Raises:
+            ValueError: On a pinned (user-locked) memory — callers must
+                skip them; reaching here is a contract breach.
+        """
+        if memory.pinned:
+            raise ValueError(f"memory {memory.id} is pinned (user-locked)")
+        memory.invalidated_at = datetime.now(UTC)
+        updated = await self.repo.update(memory)
+        logger.info(
+            "memory_invalidated",
+            memory_id=str(memory.id),
+            user_id=str(memory.user_id),
+            category=memory.category,
+        )
+        return updated
+
+    async def supersede_with_update(
+        self,
+        memory: Memory,
+        content: str | None = None,
+        category: str | None = None,
+        emotional_weight: int | None = None,
+        trigger_topic: str | None = None,
+        usage_nuance: str | None = None,
+        importance: float | None = None,
+    ) -> Memory:
+        """Replace a fact with a successor, preserving the old row (Lot 2-B1).
+
+        A NEW row carries the updated fields (missing ones inherited from
+        the superseded row, embeddings regenerated); the old row leaves
+        the active set and points at its successor. This is the automated
+        counterpart of ``update_memory`` (which stays in-place for manual
+        API edits).
+
+        Args:
+            memory: The fact being replaced.
+            content: New content (None inherits).
+            category: New category (None inherits).
+            emotional_weight: New emotional weight (None inherits).
+            trigger_topic: New trigger topic (None inherits).
+            usage_nuance: New usage nuance (None inherits).
+            importance: New importance (None inherits).
+
+        Returns:
+            The successor memory.
+
+        Raises:
+            ValueError: On a pinned memory (user-locked) or an already
+                invalidated one (stale write) — both are contract breaches.
+        """
+        if memory.pinned:
+            raise ValueError(f"memory {memory.id} is pinned (user-locked)")
+        if memory.invalidated_at is not None:
+            raise ValueError(f"memory {memory.id} is already invalidated (stale write)")
+        successor = await self.create_memory(
+            user_id=memory.user_id,
+            content=content if content is not None else memory.content,
+            category=category if category is not None else memory.category,
+            emotional_weight=(
+                emotional_weight if emotional_weight is not None else memory.emotional_weight
+            ),
+            trigger_topic=(trigger_topic if trigger_topic is not None else memory.trigger_topic),
+            usage_nuance=usage_nuance if usage_nuance is not None else memory.usage_nuance,
+            importance=importance if importance is not None else memory.importance,
+        )
+        memory.invalidated_at = datetime.now(UTC)
+        memory.superseded_by_id = successor.id
+        await self.repo.update(memory)
+        logger.info(
+            "memory_superseded",
+            memory_id=str(memory.id),
+            successor_id=str(successor.id),
+            user_id=str(memory.user_id),
+            category=successor.category,
+        )
+        return successor
 
     async def update_memory(
         self,

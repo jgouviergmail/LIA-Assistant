@@ -139,3 +139,28 @@ class TestShouldSkip:
         result = _should_skip(mem_a, mem_b, self.EMOTIONAL_DIFF_SKIP)
 
         assert result == "categories_differ"
+
+
+@pytest.mark.unit
+class TestApplyMerge:
+    """The merge SUPERSEDES the loser (Lot 2-B1) — it never deletes."""
+
+    async def test_loser_is_superseded_never_deleted(self):
+        from unittest.mock import AsyncMock, MagicMock
+
+        from src.infrastructure.scheduler.memory_consolidation import _apply_merge
+
+        repo = MagicMock()
+        repo.update = AsyncMock(side_effect=lambda m: m)
+        repo.delete = AsyncMock()
+        survivor = MagicMock()
+        loser = MagicMock()
+        loser.invalidated_at = None
+        loser.superseded_by_id = None
+
+        await _apply_merge(repo, survivor, loser)
+
+        assert loser.invalidated_at is not None
+        assert loser.superseded_by_id == survivor.id
+        repo.update.assert_awaited_once_with(loser)
+        repo.delete.assert_not_awaited()

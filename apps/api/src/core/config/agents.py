@@ -92,6 +92,7 @@ from src.core.constants import (
     HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT,
     HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT,
     HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES_DEFAULT,
+    HEARTBEAT_OFFERS_WINDOW_DAYS_DEFAULT,
     HEARTBEAT_RECENT_WINDOW_COUNT_DEFAULT,
     HEARTBEAT_RECENT_WINDOW_DAYS_DEFAULT,
     HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH_DEFAULT,
@@ -198,6 +199,7 @@ from src.core.constants import (
     MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT,
     MEMORY_EXTRACTION_PRESENCE_PENALTY_DEFAULT,
     MEMORY_EXTRACTION_TOP_P_DEFAULT,
+    MEMORY_INVALIDATED_RETENTION_DAYS_DEFAULT,
     MEMORY_MAX_RESULTS_DEFAULT,
     MEMORY_MIN_AGE_FOR_CLEANUP_DAYS_DEFAULT,
     MEMORY_MIN_SEARCH_SCORE_DEFAULT,
@@ -252,6 +254,8 @@ from src.core.constants import (
     REACT_AGENT_MAX_ITERATIONS_DEFAULT,
     REACT_AGENT_MAX_TOOLS_DEFAULT,
     REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
+    REACT_ITERATIONS_BASE_DEFAULT,
+    REACT_ITERATIONS_PER_EXTRA_DOMAIN_DEFAULT,
     REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
     REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT,
     REACT_REPEATED_CALL_TERMINAL_THRESHOLD_DEFAULT,
@@ -585,6 +589,26 @@ class AgentsSettings(BaseSettings):
             )
         return v
 
+    react_adaptive_budget_enabled: bool = Field(
+        default=False,
+        description=(
+            "Scale the ReAct iteration budget with the query's domain span "
+            "(ADR-238). react_agent_max_iterations stays the hard ceiling; "
+            "unknown complexity falls back to it. Off = historical fixed cap."
+        ),
+    )
+    react_iterations_base: int = Field(
+        default=REACT_ITERATIONS_BASE_DEFAULT,
+        ge=1,
+        le=50,
+        description="Adaptive budget of a single-domain query (ADR-238).",
+    )
+    react_iterations_per_extra_domain: int = Field(
+        default=REACT_ITERATIONS_PER_EXTRA_DOMAIN_DEFAULT,
+        ge=0,
+        le=20,
+        description="Extra iterations granted per additional domain (ADR-238).",
+    )
     react_agent_max_tools: int = Field(
         default=REACT_AGENT_MAX_TOOLS_DEFAULT,
         ge=5,
@@ -1891,6 +1915,24 @@ class AgentsSettings(BaseSettings):
         description=(
             "Grace period (in days) before a memory becomes eligible for purge evaluation. "
             "Memories younger than this are never purged. Default: 7 days."
+        ),
+    )
+    heartbeat_offers_window_days: int = Field(
+        default=HEARTBEAT_OFFERS_WINDOW_DAYS_DEFAULT,
+        ge=1,
+        le=90,
+        description=(
+            "Days an UNDECIDED missed-routine offer stays listed in the "
+            "proposals inbox (Lot 5-C2). Older offers age out silently."
+        ),
+    )
+    memory_invalidated_retention_days: int = Field(
+        default=MEMORY_INVALIDATED_RETENTION_DAYS_DEFAULT,
+        ge=7,
+        le=730,
+        description=(
+            "Days an invalidated memory (supersession trail, ADR-235) is kept "
+            "before purge. Successors carry the live facts. Default: 90 days."
         ),
     )
     memory_recency_decay_days: int = Field(

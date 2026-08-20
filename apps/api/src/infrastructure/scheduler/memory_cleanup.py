@@ -39,6 +39,18 @@ from src.infrastructure.observability.metrics import (
 logger = structlog.get_logger(__name__)
 
 
+async def _purge_invalidated_trail() -> int:
+    """Purge invalidated rows past retention (Lot 2-B1, ADR-235). Own session."""
+    from src.infrastructure.database.session import get_db_context
+
+    async with get_db_context() as db:
+        from src.domains.memories.repository import MemoryRepository
+
+        return await MemoryRepository(db).delete_invalidated_older_than(
+            days=settings.memory_invalidated_retention_days
+        )
+
+
 async def cleanup_memories() -> dict[str, Any]:
     """Daily memory cleanup job.
 
@@ -72,10 +84,15 @@ async def cleanup_memories() -> dict[str, Any]:
         "protected": 0,
         "by_category": {},
         "users_processed": 0,
+        "invalidated_purged": 0,
     }
 
     try:
         now = datetime.now(UTC)
+
+        # Lot 2-B1 (ADR-235): purge the stale supersession trail first —
+        # invalidated rows past the retention window, all users, one DELETE.
+        stats["invalidated_purged"] = await _purge_invalidated_trail()
 
         # Get config from settings
         min_age_for_cleanup_days = settings.memory_min_age_for_cleanup_days

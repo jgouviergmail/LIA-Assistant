@@ -176,6 +176,9 @@ export interface DoneMetadata {
   // 0-3 short user-language requests; also persisted in the archived
   // message_metadata so the chips survive a reload while latest.
   followup_suggestions?: string[];
+  // Lot 1-A3: provenance line of the chips — the initiative's own stated
+  // trigger, persisted in the archived message_metadata like the chips.
+  initiative_motivation?: string;
   // Token tracking metadata
   tokens_in?: number;
   tokens_out?: number;

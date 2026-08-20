@@ -142,3 +142,57 @@ class TestLabelAndObligationAgree:
             )
         else:
             assert "OBLIGATION" not in line
+
+
+@pytest.mark.unit
+class TestContinuityAnchors:
+    """D1 (evolution program): dated anchors + continuity directive.
+
+    Each injected memory line carries its ISO date (bare, language-neutral —
+    the words explaining it live in the versioned directive). The continuity
+    directive joins the NORMAL behavioral directive only: a DANGER state
+    must never invite reminiscence (EmotionalState gate, ADR-235 companion).
+    """
+
+    def test_memory_line_carries_its_iso_date(self):
+        from datetime import UTC, datetime
+        from types import SimpleNamespace
+
+        from src.domains.agents.middleware.memory_injection import _format_memory_item
+
+        memory = SimpleNamespace(
+            content="il prépare un marathon",
+            emotional_weight=2,
+            usage_nuance="",
+            category="personal",
+            created_at=datetime(2026, 7, 12, 9, 30, tzinfo=UTC),
+        )
+
+        line = _format_memory_item(memory, 0.9)
+
+        assert "(2026-07-12)" in line
+
+    def test_memory_line_survives_a_missing_date(self):
+        from types import SimpleNamespace
+
+        from src.domains.agents.middleware.memory_injection import _format_memory_item
+
+        memory = SimpleNamespace(
+            content="il prépare un marathon",
+            emotional_weight=0,
+            usage_nuance="",
+            category="personal",
+            created_at=None,
+        )
+
+        line = _format_memory_item(memory, 0.9)
+
+        assert "il prépare un marathon" in line
+        assert "None" not in line
+
+    def test_continuity_directive_is_registered_and_loadable(self):
+        from src.domains.agents.prompts.prompt_loader import load_prompt
+
+        text = str(load_prompt("memory_continuity_directive"))
+
+        assert "one" in text.lower() or "single" in text.lower()

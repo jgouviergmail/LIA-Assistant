@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 45 cards in
+ * Single source of truth for the "/more" small-attentions page: 46 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (45 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (46 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -39,6 +39,7 @@ import {
   LayoutGrid,
   Link2,
   ListChecks,
+  ListTree,
   Menu,
   PanelLeft,
   PanelsTopLeft,
@@ -152,6 +153,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     tinted: true,
     cards: [
       'background_response',
+      'activity_timeline',
       'capability_map',
       'capability_honesty',
       'plugin_report',
@@ -203,6 +205,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   empty_starters: Sparkles,
   pwa: MonitorSmartphone,
   background_response: Radio,
+  activity_timeline: ListTree,
   widgets_travel: AppWindow,
   cost_transparency: Coins,
   pricing_workbook: FileSpreadsheet,
@@ -256,6 +259,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   empty_starters: ['s1', 's2', 's3'],
   pwa: [],
   background_response: ['ready'],
+  activity_timeline: ['entry1', 'entry2', 'entry3'],
   widgets_travel: [],
   cost_transparency: [],
   pricing_workbook: ['preview'],

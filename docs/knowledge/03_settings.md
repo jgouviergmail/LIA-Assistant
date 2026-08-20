@@ -542,3 +542,21 @@ still wait for you to unfold a section.
 
 A section your instance has disabled is not counted at all — it is absent from
 the page, so counting it would be work for a badge nobody can see.
+
+## Can I give LIA standing rules or instructions?
+Yes. Beyond facts and preferences, LIA's memory has a **procedural** category for standing directives — rules about *how* it should work for you:
+
+**📐 Examples:** "always answer me in French", "never schedule meetings before 10am", "summarize emails in bullet points".
+
+**🔁 Applied continuously:** procedural memories are injected into every conversation as working rules, not just recalled when relevant. Say the rule once; LIA keeps applying it.
+
+**🛡️ You stay in charge:** rules are visible, editable and deletable in **Settings > Memory** under their own category — nothing is applied that you cannot see and revoke.
+
+## What happens when a fact I told LIA changes?
+The old fact is **superseded, not silently erased**. When you correct something ("I'm at Meta now", "my daughter's name is Elsa, not Emma"), LIA:
+
+**📅 Dates the change** — the previous memory is marked invalidated with a timestamp, and the new one takes over from that date.
+
+**🚫 Stops using the stale fact** — invalidated memories are excluded from recall, so old information can no longer leak into answers.
+
+**🧾 Keeps the trail** — the history of what changed and when remains inspectable in **Settings > Memory**, so you can always audit what LIA believes and since when.

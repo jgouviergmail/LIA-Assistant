@@ -11,7 +11,7 @@
  * during streaming, history view, or while the input is disabled.
  */
 
-import { CornerDownRight } from 'lucide-react';
+import { CornerDownRight, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { Message } from '@/types/chat';
@@ -35,22 +35,40 @@ export function visibleFollowups(messages: Message[], blocked: boolean): string[
   return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : [];
 }
 
+/** Provenance line of the latest answer's chips (Lot 1-A3): the initiative's
+ * own stated trigger ("Parce que tu suis la F1"). Same latest-only gate as
+ * the chips — a motivation without chips is never shown. */
+export function visibleMotivation(messages: Message[], blocked: boolean): string | null {
+  if (visibleFollowups(messages, blocked).length === 0) return null;
+  const last = messages[messages.length - 1];
+  const raw = last?.metadata?.initiative_motivation;
+  return typeof raw === 'string' && raw.trim() ? raw : null;
+}
+
 export interface FollowupChipsProps {
   /** Sanitized suggestions (0-3, server-bounded). */
   suggestions: string[];
+  /** Provenance line naming the memory/interest that motivated the chips. */
+  motivation?: string | null;
   /** Prefill handler — receives the chip's text verbatim. */
   onPick: (text: string) => void;
 }
 
-export function FollowupChips({ suggestions, onPick }: FollowupChipsProps) {
+export function FollowupChips({ suggestions, motivation, onPick }: FollowupChipsProps) {
   const { t } = useTranslation();
   if (suggestions.length === 0) return null;
   return (
     <div
       role="group"
       aria-label={t('chat.followups.aria')}
-      className="flex flex-wrap gap-2 px-2 pb-2 mobile:px-6"
+      className="flex flex-wrap items-center gap-2 px-2 pb-2 mobile:px-6"
     >
+      {motivation && (
+        <span className="flex w-full items-center gap-1.5 text-xs italic text-muted-foreground">
+          <Sparkles className="h-3 w-3 shrink-0 text-primary/70" aria-hidden />
+          {motivation}
+        </span>
+      )}
       {suggestions.map(text => (
         <button
           key={text}

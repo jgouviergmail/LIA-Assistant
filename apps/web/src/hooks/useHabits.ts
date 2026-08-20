@@ -70,9 +70,19 @@ export interface HabitCandidate {
   required_days: number;
 }
 
+export interface HabitsStreak {
+  /** Consecutive active days ending today or yesterday (grace rule). */
+  current: number;
+  longest: number;
+  milestone_reached: number | null;
+  next_milestone: number | null;
+}
+
 export interface HabitsOverview {
   habits_enabled: boolean;
   profile: HabitsProfile;
+  /** Ledger-derived streaks (Lot 1-A4) — display only. */
+  streak: HabitsStreak;
   habits: Habit[];
   /** Recurrence signatures under observation (capped server-side). */
   candidates: HabitCandidate[];

@@ -26,6 +26,7 @@ from src.core.constants import (
 )
 
 from .account_export import AccountExportSettings
+from .activity import ActivitySettings
 from .adaptive import AdaptiveSettings
 from .advanced import AdvancedSettings
 from .agents import AgentsSettings
@@ -109,6 +110,7 @@ class Settings(
     ChannelsSettings,
     AttachmentsSettings,
     BriefingSettings,
+    ActivitySettings,
     RAGSpacesSettings,
     RelationsSettings,
     SkillsSettings,
@@ -430,6 +432,7 @@ __all__ = [
     "AttachmentsSettings",
     "PluginsSettings",
     "SkillsSettings",
+    "ActivitySettings",
     "RAGSpacesSettings",
     "BrowserSettings",
     "JournalsSettings",

@@ -271,6 +271,37 @@ describe('chatReducer — STREAM_DONE', () => {
     expect(next.messages[0].metadata?.followup_suggestions).toBeUndefined();
   });
 
+  it('carries the initiative motivation onto the live bubble (Lot 1-A3)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: {
+        messageId: 'a-1',
+        metadata: {
+          ...fullMetadata,
+          followup_suggestions: ['Montre le calendrier F1'],
+          initiative_motivation: 'Parce que tu suis la Formule 1',
+        },
+      },
+    });
+
+    expect(next.messages[0].metadata?.initiative_motivation).toBe(
+      'Parce que tu suis la Formule 1'
+    );
+  });
+
+  it('drops an absent motivation instead of writing a hollow field (Lot 1-A3)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: { ...fullMetadata } },
+    });
+
+    expect(next.messages[0].metadata?.initiative_motivation).toBeUndefined();
+  });
+
   it('flags the partial bubble as interrupted on a cancelled done (ADR-117 Lot 3)', () => {
     const state = streamingState('a-1', 'partial', [makeMessage('a-1', 'assistant', 'partial')]);
 

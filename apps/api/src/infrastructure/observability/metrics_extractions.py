@@ -43,3 +43,14 @@ extraction_action_rejected_total = Counter(
     # reason: delete_cap        — more deletions than one turn can justify
     #         blocked_interest  — the subject matches an interest the user blocked
 )
+
+
+# Lot 2-B6 (evolution program): consolidation effectiveness census. The merge
+# job logged its per-pair decisions but nothing aggregated them — a dedup
+# mechanism whose yield nobody can read cannot be judged (lot-0 doctrine:
+# instrument before tuning; a third dedup layer is refused until this says so).
+memory_consolidation_pairs_total = Counter(
+    "memory_consolidation_pairs_total",
+    "Near-duplicate memory pairs examined by the consolidation job, by outcome.",
+    ["outcome"],  # merged | skipped_category | skipped_emotional | stale
+)

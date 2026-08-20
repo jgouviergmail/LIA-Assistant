@@ -96,6 +96,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'habits', icon: CalendarClock },
   { id: 'governance', icon: SlidersHorizontal },
   { id: 'tabular_admin', icon: FileSpreadsheet },
+  { id: 'evolution', icon: Eye },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

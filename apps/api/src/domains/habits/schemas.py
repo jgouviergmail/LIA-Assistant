@@ -95,11 +95,27 @@ class HabitsCandidateSchema(BaseModel):
     required_days: int = Field(ge=1, description="Enforced existence threshold (published).")
 
 
+class HabitsStreakSchema(BaseModel):
+    """Streak facts from the activity ledger (Lot 1-A4, display only)."""
+
+    current: int = Field(ge=0, description="Consecutive active days ending today or yesterday.")
+    longest: int = Field(ge=0, description="Longest run ever recorded in the ledger.")
+    milestone_reached: int | None = Field(
+        default=None, description="Highest settings-driven milestone at or below current."
+    )
+    next_milestone: int | None = Field(
+        default=None, description="Smallest settings-driven milestone above current."
+    )
+
+
 class HabitsOverviewResponse(BaseModel):
     """Settings-surface payload: preference + profile + habits + candidates."""
 
     habits_enabled: bool = Field(description="User preference (feature master toggle).")
     profile: HabitsProfileSchema
+    streak: HabitsStreakSchema = Field(
+        description="Activity streaks + milestone positions (ledger-derived, display only)."
+    )
     habits: list[HabitResponse] = Field(default_factory=list)
     candidates: list[HabitsCandidateSchema] = Field(
         default_factory=list,

@@ -11,6 +11,7 @@
 
 import {
   Blocks,
+  Brain,
   Check,
   Coins,
   EyeOff,
@@ -19,6 +20,7 @@ import {
   Map as MapIcon,
   Mic,
   Server,
+  Sun,
   Vibrate,
 } from 'lucide-react';
 
@@ -688,7 +690,56 @@ function PricingWorkbookScene({ active, labels }: SceneProps) {
   );
 }
 
+type ActivityPhase = 'first' | 'second' | 'third' | 'hold';
+const ACTIVITY_STEPS: readonly TimelineStep<ActivityPhase>[] = [
+  { at: 0, state: 'first' },
+  { at: 900, state: 'second' },
+  { at: 1800, state: 'third' },
+  { at: 2700, state: 'hold' },
+];
+const ACTIVITY_ORDER: readonly ActivityPhase[] = ['first', 'second', 'third', 'hold'];
+
+/** Background-work feed: entries surface one by one along a timeline rail. */
+function ActivityTimelineScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(ACTIVITY_STEPS, { active });
+  const reached = (p: ActivityPhase) => ACTIVITY_ORDER.indexOf(phase) >= ACTIVITY_ORDER.indexOf(p);
+  const entry = (visible: boolean, icon: React.ReactNode, label: string) => (
+    <div
+      className={cn(
+        'flex items-center gap-1.5 transition-all duration-300 motion-reduce:transition-none',
+        visible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+      )}
+    >
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+      {icon}
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+    </div>
+  );
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center')}>
+      <div className="space-y-1.5 border-l border-border pl-2">
+        {entry(
+          reached('first'),
+          <Brain className="h-3 w-3 text-primary" aria-hidden="true" />,
+          labels.entry1
+        )}
+        {entry(
+          reached('second'),
+          <Check className="h-3 w-3 text-primary" aria-hidden="true" />,
+          labels.entry2
+        )}
+        {entry(
+          reached('third'),
+          <Sun className="h-3 w-3 text-primary" aria-hidden="true" />,
+          labels.entry3
+        )}
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
+  activity_timeline: ActivityTimelineScene,
   readable_at_a_glance: ReadableAtAGlanceScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,

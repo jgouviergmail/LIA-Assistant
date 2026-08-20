@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 1.7
-**Date** : 2026-08-19
-**Application** : LIA v1.30.13
+**Date** : 2026-08-20
+**Application** : LIA v1.30.14
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -120,3 +120,5 @@ Ce que cette expérience change dans une pratique de direction :
 - **Un dirigeant qui pratique arbitre mieux.** Faire ou faire faire, dette acceptable ou non, promesse fournisseur crédible ou non — ces décisions gagnent en justesse quand on a éprouvé la matière. Ce projet est une façon d'entretenir cette proximité avec le terrain.
 
 *Projet personnel, mené en dehors de toute activité professionnelle. Chiffres issus de l'audit technique de juillet 2026 — tests exécutés, mesures effectuées sur le code, constats contre-vérifiés. Dépôt : [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+
+Puis l'assistant a appris à montrer son propre travail : une page Activité qui recense tout ce qu'il fait de lui-même, des règles apprises que l'on peut lire et corriger, une mémoire qui date ses souvenirs et archive sans effacer, une voix qui respire avec son humeur. L'autonomie a grandi exactement comme le voulait la philosophie du projet : dans le cadre, sous le regard de l'utilisateur.

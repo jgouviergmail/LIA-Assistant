@@ -24,6 +24,8 @@ export interface HubCounts {
   /** Reminders still WAITING — the future, never a history. */
   reminders: number;
   scheduled: number;
+  /** Undecided missed-routine offers (Lot 5-C2) — a to-decide set. */
+  offers: number;
 }
 
 export interface UseHubCountsResult {

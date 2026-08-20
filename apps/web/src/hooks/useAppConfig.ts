@@ -39,6 +39,8 @@ export interface AppConfig {
     habits_enabled?: boolean;
     // Peers program — gates the « Connexions » settings section.
     peers_enabled?: boolean;
+    // Activity timeline (Lot 1-A1) — gates its entry links.
+    activity_timeline_enabled?: boolean;
   };
   api_version: string;
 }

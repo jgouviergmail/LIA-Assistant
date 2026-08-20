@@ -353,3 +353,23 @@ class TestUnreadBroadcastsResponse:
 
         assert len(response.broadcasts) == 1
         assert response.total == 1
+
+
+@pytest.mark.unit
+class TestHubCountsResponseCarriesOffers:
+    """Lot 5-C2 regression: the internal dataclass gained `offers` but the
+    API response schema did not — the badge showed an eternal em-dash.
+    Caught by the VISUAL review; this pins the full dataclass→schema map."""
+
+    def test_response_schema_covers_every_dataclass_field(self):
+        import dataclasses
+
+        from src.domains.notifications.hub_counts import HubCounts
+        from src.domains.notifications.schemas import HubCountsResponse
+
+        dataclass_fields = {f.name for f in dataclasses.fields(HubCounts)}
+        schema_fields = set(HubCountsResponse.model_fields)
+
+        assert (
+            dataclass_fields <= schema_fields
+        ), f"response schema misses: {dataclass_fields - schema_fields}"

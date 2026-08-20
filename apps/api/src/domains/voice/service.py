@@ -23,7 +23,7 @@ import time
 from collections.abc import AsyncGenerator
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
 from langchain_core.runnables import RunnableConfig
@@ -159,6 +159,34 @@ class VoiceCommentService:
         if self._tts_client is None:
             self._tts_client = await get_tts_client()
         return self._tts_client
+
+    async def _resolve_prosody_settings(self, tts_config: TTSConfig) -> dict[str, Any] | None:
+        """Mood-bent voice_settings for this stream (ADR-237), or ``None``.
+
+        ``None`` means "use the client's constructor settings unchanged":
+        flag off, anonymous synthesis, psyche unavailable, or a neutral
+        mood inside the dead-band. Best-effort: a psyche failure must
+        never cost the user their audio.
+        """
+        if not settings.voice_psyche_prosody_enabled or not self._user_id:
+            return None
+        with suppress(Exception):
+            from uuid import UUID
+
+            from src.domains.psyche.service import PsycheService
+            from src.domains.voice.prosody import modulate_voice_settings
+            from src.infrastructure.database.session import get_db_context
+
+            async with get_db_context() as db:
+                state = await PsycheService(db).get_or_create_state(UUID(self._user_id))
+                modulated = modulate_voice_settings(
+                    tts_config.voice_settings,
+                    pleasure=state.mood_pleasure,
+                    arousal=state.mood_arousal,
+                )
+            # Same object back = dead-band hit: nothing to override.
+            return None if modulated is tts_config.voice_settings else modulated
+        return None
 
     async def _get_tts_config(self) -> TTSConfig:
         """Get TTS configuration for current voice mode."""
@@ -302,6 +330,10 @@ class VoiceCommentService:
         # Determine voice name based on language, gender, and current mode
         voice_name = await self._get_voice_for_language(user_language)
 
+        # ADR-237: bend the configured voice_settings by the live mood —
+        # resolved ONCE per stream (one DB read), best-effort by design.
+        prosody_settings = await self._resolve_prosody_settings(tts_config)
+
         # Track total characters for HD mode cost tracking
         total_characters_synthesized = 0
 
@@ -314,6 +346,7 @@ class VoiceCommentService:
                 audio_base64 = await tts_client.synthesize_base64(
                     text=sentence,
                     voice_name=voice_name,
+                    voice_settings=prosody_settings,
                 )
 
                 # Accumulate characters for cost tracking

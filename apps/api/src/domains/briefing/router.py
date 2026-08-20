@@ -15,11 +15,15 @@ Each fetcher acquires its own session via ``get_db_context()`` to safely
 run in parallel (SQLAlchemy AsyncSession is not concurrent-safe).
 """
 
-from fastapi import APIRouter, Depends
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Response
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.dependencies import get_db
-from src.core.exceptions import raise_invalid_input
+from src.core.exceptions import raise_internal_error, raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
 from src.domains.briefing.preferences import (
     BriefingPreferences,
@@ -33,6 +37,7 @@ from src.domains.briefing.schemas import (
 )
 from src.domains.briefing.service import BriefingService
 from src.domains.users.models import User
+from src.domains.voice.text_readout import synthesize_user_text
 
 router = APIRouter(prefix="/briefing", tags=["briefing"])
 
@@ -166,3 +171,57 @@ async def put_briefing_preferences(
     db.add(current_user)
     await db.commit()
     return sanitize_briefing_preferences(current_user.briefing_preferences)
+
+
+class SynthesisAudioRequest(BaseModel):
+    """The synthesis text the frontend is displaying, sent back for TTS."""
+
+    text: str = Field(description="The rendered synthesis text to read aloud.")
+    lia_gender: Literal["male", "female"] | None = Field(
+        default=None,
+        description="Avatar gender preference (drives TTS voice selection, as in chat).",
+    )
+
+    @field_validator("text")
+    @classmethod
+    def _bounded_non_blank(cls, value: str) -> str:
+        """Reject blank input and enforce the settings-driven cost bound."""
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("text must not be blank")
+        if len(stripped) > settings.briefing_audio_max_chars:
+            raise ValueError(
+                f"text exceeds briefing_audio_max_chars ({settings.briefing_audio_max_chars})"
+            )
+        return stripped
+
+
+@router.post(
+    "/synthesis/audio",
+    summary="Read the displayed briefing synthesis aloud (TTS, no LLM)",
+)
+async def synthesis_audio(
+    payload: SynthesisAudioRequest,
+    current_user: User = Depends(get_current_active_session),
+) -> Response:
+    """Synthesize the displayed synthesis and return the MP3 bytes.
+
+    A2 (evolution program): reading is free of generation — the text is
+    the one the user is looking at, bounded by settings, sanitized, and
+    cost-tracked like every paid voice path (all owned by the voice
+    domain's ``synthesize_user_text``). The audio is buffered (a briefing
+    synthesis is a short paragraph) so failures surface as real HTTP
+    errors instead of a broken stream.
+    """
+    try:
+        audio = await synthesize_user_text(
+            user_id=current_user.id,
+            user_language=current_user.language or settings.default_language,
+            text=payload.text,
+            lia_gender=payload.lia_gender,
+            max_sentences=settings.briefing_audio_max_sentences,
+            run_prefix="briefing_audio",
+        )
+    except Exception as exc:  # noqa: BLE001 - mapped to the API error contract
+        raise_internal_error(f"briefing_audio_tts_failed: {type(exc).__name__}")
+    return Response(content=audio, media_type="audio/mpeg")

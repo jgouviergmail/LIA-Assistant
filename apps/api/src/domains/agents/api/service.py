@@ -43,7 +43,9 @@ from src.domains.agents.services.orchestration.approval_decision import (
 )
 from src.domains.agents.services.streaming.followup_metadata import (
     pop_followups,
+    pop_motivation,
     with_followup_suggestions,
+    with_initiative_motivation,
 )
 from src.domains.agents.services.streaming.trace_capture import with_persisted_trace
 from src.domains.agents.services.streaming.voice_coordinator import (
@@ -1044,6 +1046,9 @@ class AgentService(
                     # consumed by both the archived metadata and the done
                     # chunk below. Empty when the initiative did not emit any.
                     followup_suggestions = pop_followups(run_id)
+                    # Lot 1-A3: provenance line of the initiative, same
+                    # pop-once doctrine as the chips.
+                    initiative_motivation = pop_motivation(run_id)
 
                     # NOTE (ADR-117): attachment metadata and STT kwargs are now
                     # built BEFORE graph execution (archive-first block above).
@@ -1263,6 +1268,12 @@ class AgentService(
                             assistant_metadata = with_followup_suggestions(
                                 assistant_metadata,
                                 followup_suggestions,
+                            )
+                            # Lot 1-A3: the provenance line survives a reload
+                            # the same way (branch-free, new-dict).
+                            assistant_metadata = with_initiative_motivation(
+                                assistant_metadata,
+                                initiative_motivation,
                             )
 
                             archived_msg = await conv_service.archive_message(
@@ -1554,6 +1565,8 @@ class AgentService(
                     # mirrored in BOTH frontend DoneMetadata types).
                     if followup_suggestions:
                         done_metadata[FIELD_FOLLOWUP_SUGGESTIONS] = followup_suggestions
+                    # Lot 1-A3: branch-free by design — the enricher no-ops on None.
+                    done_metadata = with_initiative_motivation(done_metadata, initiative_motivation)
                     # Resolve includes the Route 3 fallback (activate_skill_tool
                     # called directly by the response LLM, no planner involved)
                     resolved_skill_name = streaming_service.resolve_activated_skill_name()

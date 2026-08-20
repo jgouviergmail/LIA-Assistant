@@ -111,7 +111,7 @@ class ElevenLabsTTSClient:
         self,
         text: str,
         voice_name: str | None = None,
-        **_: Any,
+        **kwargs: Any,
     ) -> bytes:
         """Synthesise ``text`` to audio bytes using ``voice_name`` (= voice_id).
 
@@ -127,8 +127,11 @@ class ElevenLabsTTSClient:
             "text": text,
             "model_id": self.model,
         }
-        if self._voice_settings:
-            body["voice_settings"] = self._voice_settings
+        # ADR-237: a per-call override (mood-bent settings) wins over the
+        # constructor block; both absent = provider defaults, as before.
+        effective_settings = kwargs.get("voice_settings") or self._voice_settings
+        if effective_settings:
+            body["voice_settings"] = effective_settings
 
         # Align with the shared voice_tts_* Prometheus counters which carry
         # ["voice_name"] (latency / requests) and ["error_type", "voice_name"]

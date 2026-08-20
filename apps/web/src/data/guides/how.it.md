@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 4.5
-**Data**: 2026-08-19
-**Applicazione**: LIA v1.30.13
+**Data**: 2026-08-20
+**Applicazione**: LIA v1.30.14
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -43,6 +43,7 @@
 28. [Governare un'istanza: spesa, capacità, installazione](#28-governare-unistanza-spesa-capacità-installazione)
 29. [Amministrare per file: la cartella è il modulo](#29-amministrare-per-file-la-cartella-è-il-modulo)
 
+30. [Il programma di evoluzione: lavoro visibile, apprendimento governato](#30-il-programma-di-evoluzione-lavoro-visibile-apprendimento-governato)
 ---
 
 ## 1. Contesto e scelte fondanti
@@ -57,7 +58,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 473 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 232 ADRs, ~19.844 test raccolti da pytest in 1.119 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 238 ADRs, ~19.844 test raccolti da pytest in 1.119 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -1299,7 +1300,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-232 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+238 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1403,10 +1404,15 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 232 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.844 test in 1.119 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 238 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~19.844 test in 1.119 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
+## 30. Il programma di evoluzione: lavoro visibile, apprendimento governato
+
+La pagina Attività è un **read-model puro**: fetcher paralleli (una sessione per fonte — una AsyncSession non è sicura in concorrenza) aggregano sette tabelle di audit esistenti, i totali sono `COUNT(*)` esatti sull'intera finestra, i limiti sono dichiarati (`truncated`) e una fonte guasta viene elencata anziché completata in silenzio — il conteggio onesto (ADR-185) applicato da capo a fondo. La memoria segue una **scia di supersessione** (ADR-235): una correzione automatica crea un successore e archivia il vecchio fatto (`superseded_by_id`), ogni lettura filtra l'insieme attivo tramite un predicato centrale, e la scia si epura dopo la ritenzione; la modifica manuale conserva la sua autorità di sovrascrittura. Le regole apprese sono una **settima categoria di memoria** iniettata in testa al prompt, sotto le stesse protezioni (fissaggio, ritenzione, GDPR). La prosodia vocale è una **modulazione delimitata** (banda morta, limiti rigidi, flag) delle impostazioni amministrate — mai una sostituzione. L'autonomia resta con un tetto: il budget di iterazioni ReAct si adatta all'ampiezza di domini della richiesta senza mai superare il tetto configurato, e la complessità sconosciuta riceve il tetto intero — il risparmio si applica solo al dimostrabilmente semplice.
+
+
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 232 ADRs e del changelog (da v1.0 a v1.30.13). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 238 ADRs e del changelog (da v1.0 a v1.30.14). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

@@ -292,3 +292,20 @@ async def observe_score(user_id: UUID, perimeter: str, top_score: float) -> None
         )
     except Exception as exc:  # noqa: BLE001 — advisory state, never blocks a turn
         logger.debug("adaptive_threshold_observe_failed", perimeter=perimeter, error=str(exc))
+
+
+def record_candidate_score(perimeter: str, top_score: float) -> None:
+    """Aggregate calibration evidence for a CANDIDATE perimeter (Lot 7-B4).
+
+    No per-user state, no threshold effect: registering a perimeter stays
+    an owner arbitration — this histogram is what that arbitration reads.
+    Best-effort by doctrine: a turn never pays for its own optimization.
+    """
+    with suppress(Exception):
+        if not perimeter or not (0.0 <= top_score <= 1.0):
+            return
+        from src.infrastructure.observability.metrics_registry import (
+            adaptive_candidate_top_score,
+        )
+
+        adaptive_candidate_top_score.labels(perimeter=perimeter).observe(top_score)

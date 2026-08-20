@@ -533,4 +533,5 @@ async def get_hub_counts(
         interests=counts.interests,
         reminders=counts.reminders,
         scheduled=counts.scheduled,
+        offers=counts.offers,
     )

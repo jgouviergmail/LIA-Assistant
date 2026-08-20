@@ -87,3 +87,32 @@ describe('FollowupChips', () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+
+describe('initiative motivation (Lot 1-A3)', () => {
+  it('renders the provenance line above the chips', () => {
+    render(
+      <FollowupChips
+        suggestions={['Cherche un plombier']}
+        motivation="Parce que tu suis la Formule 1"
+        onPick={() => {}}
+      />
+    );
+
+    expect(screen.getByText('Parce que tu suis la Formule 1')).toBeInTheDocument();
+  });
+
+  it('renders nothing extra when the motivation is absent', () => {
+    render(<FollowupChips suggestions={['Cherche un plombier']} onPick={() => {}} />);
+
+    expect(screen.queryByText(/Parce que/)).not.toBeInTheDocument();
+  });
+
+  it('never shows a motivation without chips (page-level contract)', () => {
+    const { container } = render(
+      <FollowupChips suggestions={[]} motivation="orpheline" onPick={() => {}} />
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
+});

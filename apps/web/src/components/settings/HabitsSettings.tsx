@@ -15,7 +15,7 @@
  * (ADR-207). Renders nothing when the instance flag is off.
  */
 
-import { CalendarClock, CircleSlash, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { CalendarClock, CircleSlash, Flame, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -199,6 +199,29 @@ function HabitsOverviewBody({
   const { t, i18n } = useTranslation(lng);
   return (
     <>
+      {/* Streak block (Lot 1-A4): rendered only when a run is CURRENT —
+          a broken streak is not a fact worth a permanent banner. */}
+      {overview.streak.current > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-4 py-3">
+          <Flame className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+          <span className="text-sm font-semibold text-foreground">
+            {t('settings.habits.streak_current', { count: overview.streak.current })}
+          </span>
+          {overview.streak.milestone_reached !== null && (
+            <Badge variant="default">
+              {t('settings.habits.streak_badge', { days: overview.streak.milestone_reached })}
+            </Badge>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {overview.streak.next_milestone !== null
+              ? t('settings.habits.streak_meta', {
+                  longest: overview.streak.longest,
+                  next: overview.streak.next_milestone,
+                })
+              : t('settings.habits.streak_meta_final', { longest: overview.streak.longest })}
+          </span>
+        </div>
+      )}
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t('settings.habits.rhythm_title')}

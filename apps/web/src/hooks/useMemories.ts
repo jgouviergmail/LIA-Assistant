@@ -5,13 +5,19 @@ import { useApiMutation } from './useApiMutation';
 /**
  * Memory category types matching backend schema.
  */
-export type MemoryCategory =
-  | 'preference'
-  | 'personal'
-  | 'relationship'
-  | 'event'
-  | 'pattern'
-  | 'sensitivity';
+export const MEMORY_CATEGORIES = [
+  'preference',
+  'personal',
+  'relationship',
+  'event',
+  'pattern',
+  'sensitivity',
+  // ADR-236: standing user instructions the assistant learned — the rules
+  // surface HERE so their owner can read, edit and delete every one.
+  'procedural',
+] as const;
+
+export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
 
 /**
  * Memory item from the API.

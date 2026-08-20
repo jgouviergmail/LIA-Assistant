@@ -106,6 +106,7 @@ function overview(over: Partial<HabitsOverview> = {}): HabitsOverview {
     habits: [habit()],
     candidates: [],
     candidates_more: 0,
+    streak: { current: 0, longest: 0, milestone_reached: null, next_milestone: 7 },
     ...over,
   };
 }
@@ -375,5 +376,29 @@ describe('formatWindow', () => {
 
   it('keeps a midnight-wrapping window honest', () => {
     expect(formatWindow({ start_hour: 22, end_hour: 1, presence: 0.5 })).toBe('22:00–01:00');
+  });
+});
+
+
+describe('streaks (Lot 1-A4)', () => {
+  it('shows the current run, its meta line and the milestone badge', () => {
+    state.overview = overview({
+      streak: { current: 12, longest: 21, milestone_reached: 7, next_milestone: 30 },
+    });
+
+    renderSection();
+
+    expect(screen.getByText('settings.habits.streak_current')).toBeVisible();
+    expect(screen.getByText('settings.habits.streak_meta')).toBeVisible();
+    expect(screen.getByText('settings.habits.streak_badge')).toBeVisible();
+  });
+
+  it('renders no streak block while the ledger is empty', () => {
+    state.overview = overview();
+
+    renderSection();
+
+    expect(screen.getByText('settings.habits.rhythm_title')).toBeVisible();
+    expect(screen.queryByText('settings.habits.streak_current')).not.toBeInTheDocument();
   });
 });

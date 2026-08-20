@@ -33,6 +33,7 @@ export interface ChatConditionalSurfacesProps {
   surfaces: ReadonlySet<ChatSurface>;
   /** Suggestions of the latest answer — already filtered for staleness. */
   followupSuggestions: FollowupChipsProps['suggestions'];
+  followupMotivation?: FollowupChipsProps['motivation'];
   /** A chip click PREFILLS the composer; it never sends (A2 contract). */
   onFollowupPick: FollowupChipsProps['onPick'];
   /** Current composer text — the geolocation prompt derives its own trigger. */
@@ -46,6 +47,7 @@ export interface ChatConditionalSurfacesProps {
 export function ChatConditionalSurfaces({
   surfaces,
   followupSuggestions,
+  followupMotivation,
   onFollowupPick,
   currentMessage,
   hitl,
@@ -56,7 +58,11 @@ export function ChatConditionalSurfaces({
   return (
     <>
       {surfaces.has('followups') && (
-        <FollowupChips suggestions={followupSuggestions} onPick={onFollowupPick} />
+        <FollowupChips
+          suggestions={followupSuggestions}
+          motivation={followupMotivation}
+          onPick={onFollowupPick}
+        />
       )}
 
       {surfaces.has('geolocation') && <GeolocationPrompt currentMessage={currentMessage} />}

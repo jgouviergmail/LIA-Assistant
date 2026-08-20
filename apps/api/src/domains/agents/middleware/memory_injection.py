@@ -121,7 +121,11 @@ def _format_memory_item(memory: Memory, score: float) -> str:
     category = memory.category or "personal"
 
     label = _get_emotional_label(emotional)
-    line = f"- {label} {content}"
+    # D1 (evolution program): bare ISO date anchor — language-neutral by
+    # design; the words explaining it live in memory_continuity_directive.
+    recorded = getattr(memory, "created_at", None)
+    date_anchor = f" ({recorded:%Y-%m-%d})" if recorded else ""
+    line = f"- {label} {content}{date_anchor}"
 
     if nuance:
         # Sensitive or negative memories: format nuance as imperative obligation
@@ -196,12 +200,22 @@ async def build_psychological_profile(
                     )
 
                 try:
+                    from src.infrastructure.adaptive.threshold_controller import (
+                        record_candidate_score,
+                    )
+
                     results: list[tuple[Memory, float]] = await repo.search_by_relevance(
                         user_id=UUID(user_id),
                         query_embedding=query_embedding,
                         limit=limit,
                         min_score=min_score,
                     )
+                    # Lot 7-B4: calibration evidence for the CANDIDATE
+                    # perimeter — aggregate only, no threshold effect.
+                    if results:
+                        record_candidate_score(
+                            "memory_injection", max(score for _, score in results)
+                        )
                 finally:
                     if session_id:
                         clear_embedding_context()
@@ -245,7 +259,13 @@ async def build_psychological_profile(
             if emotional_state == EmotionalState.DANGER:
                 behavioral_directive = load_prompt("memory_danger_directive")
             else:
-                behavioral_directive = load_prompt("memory_normal_directive")
+                # D1: the continuity invitation joins the NORMAL directive
+                # only — a DANGER state never invites reminiscence.
+                behavioral_directive = (
+                    str(load_prompt("memory_normal_directive"))
+                    + "\n\n"
+                    + str(load_prompt("memory_continuity_directive"))
+                )
 
             profile_text = load_prompt("memory_profile_template").format(
                 profile_sections="\n\n".join(sections),

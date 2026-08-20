@@ -118,8 +118,10 @@ def repeated_call_message(verdict: str) -> str:
     return (
         "ERROR: This exact call (same tool, same arguments) has already been made "
         "several times and returned the same thing, so it was not run again. Do not "
-        "retry it. Either change the approach — different arguments, a different "
-        "tool — or conclude with the information you already have."
+        "retry it. First state in ONE short sentence why this approach did not "
+        "work (Reflexion step — it will guide your next action), then either "
+        "change the approach — different arguments, a different tool — or "
+        "conclude with the information you already have."
     )
 
 

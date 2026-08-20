@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 1.7
-**Data**: 2026-08-19
-**Applicazione**: LIA v1.30.13
+**Data**: 2026-08-20
+**Applicazione**: LIA v1.30.14
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -120,3 +120,5 @@ Ciò che questa esperienza cambia in una pratica di direzione:
 - **Un dirigente che pratica arbitra meglio.** Fare o far fare, debito accettabile o no, promessa del fornitore credibile o no — queste decisioni guadagnano in giustezza quando si è messa alla prova la materia. Questo progetto è un modo di mantenere questa vicinanza al terreno.
 
 *Progetto personale, condotto al di fuori di ogni attività professionale. Cifre provenienti dall'audit tecnico di luglio 2026 — test eseguiti, misurazioni effettuate sul codice, rilievi contro-verificati. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+
+Poi l'assistente ha imparato a mostrare il proprio lavoro: una pagina Attività che elenca tutto ciò che fa da solo, regole apprese che si possono leggere e correggere, una memoria che data i suoi ricordi e archivia senza cancellare, una voce che respira con il suo umore. L'autonomia è cresciuta esattamente come voleva la filosofia del progetto: dentro la cornice, sotto lo sguardo dell'utente.

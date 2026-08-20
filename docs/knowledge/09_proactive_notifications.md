@@ -164,3 +164,19 @@ mid-conversation genuinely holds proactive pushes back — LIA waits its turn.
 No. On each cycle, candidate accounts are selected in a randomized order and
 accounts that disabled the feature never take a slot. No account can end up
 systematically served last, however many users the instance hosts.
+
+## What are LIA's proposals (offers)?
+Sometimes LIA notices it *could* do something useful but the action is not urgent enough for a notification. These become **proposals**: standing offers listed on your dashboard that wait for your decision.
+
+**💡 Examples:** "you usually review your inbox around now — want a summary?", "a routine you follow was missed yesterday — should I check on it?".
+
+**✅ You decide:** each proposal can be accepted (LIA performs it immediately) or dismissed (it disappears without side effects). Nothing runs until you say so.
+
+**🔕 No pressure:** proposals do not ping you — they wait quietly on the dashboard, with a counter in the hub so you know when something is waiting.
+
+## How can I see what LIA does in the background?
+The **activity timeline** on your dashboard shows the assistant's otherwise invisible work as a chronological feed: memories learned, routines checked, briefings prepared, proposals made, habits confirmed.
+
+**🔎 Honest by construction:** every entry comes from a real recorded event — the timeline is a read model over LIA's own activity ledger, with exact counts (never estimates).
+
+**🕰️ In your timezone:** entries are displayed in your configured timezone and language.

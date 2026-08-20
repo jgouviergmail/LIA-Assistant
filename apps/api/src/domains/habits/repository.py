@@ -226,6 +226,17 @@ class HabitsRepository:
     # Durable activity rollup (survives conversation resets)
     # ------------------------------------------------------------------
 
+    async def fetch_activity_dates(self, user_id: UUID) -> list[date]:
+        """Local dates with recorded activity, from the persisted rollup.
+
+        Streak input (Lot 1-A4): dates only — hour distributions stay in
+        ``fetch_activity_rollup`` for the profile job.
+        """
+        result = await self.db.execute(
+            select(UserActivityDay.local_date).where(UserActivityDay.user_id == user_id)
+        )
+        return [row[0] for row in result.all()]
+
     async def fetch_activity_rollup(self, user_id: UUID) -> dict[date, dict[int, int]]:
         """All stored rollup days for the user (bounded by pruning)."""
         result = await self.db.execute(

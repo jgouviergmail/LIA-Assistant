@@ -86,6 +86,10 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/briefing/cards",
         "GET /api/v1/briefing/preferences",
         "PUT /api/v1/briefing/preferences",
+        # Lot 4-A2 (ADR-237): the listen button reads the DISPLAYED synthesis
+        # aloud — auth-gated, cost-bounded (BRIEFING_AUDIO_MAX_*), usage-limits
+        # apply. The demo visitor gets the real product, bounded like everyone.
+        "POST /api/v1/briefing/synthesis/audio",
         "POST /api/v1/briefing/refresh",
         "POST /api/v1/briefing/refresh-cards",
         "GET /api/v1/briefing/synthesis",
@@ -112,6 +116,10 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "POST /api/v1/health-metrics/tokens",
         "DELETE /api/v1/health-metrics/tokens/{token_id}",
         "GET /api/v1/heartbeat/history",
+        # Lot 5-C2 (ADR-238): the proposals inbox — a pull-only VIEW over the
+        # visitor's own undecided habit offers; deciding rides the feedback
+        # route already exposed below.
+        "GET /api/v1/heartbeat/offers",
         "PATCH /api/v1/heartbeat/notifications/{notification_id}/feedback",
         "GET /api/v1/heartbeat/settings",
         "PATCH /api/v1/heartbeat/settings",

@@ -130,7 +130,8 @@ We adopt a **Service Layer Pattern** for complex LangGraph nodes, combined with 
 **Implementation**:
 
 ```python
-# apps/api/src/domains/agents/services/planner_service.py
+# Historical layout — today's equivalent lives in
+# apps/api/src/domains/agents/services/planner/
 class PlannerService:
     """Service for execution plan generation and validation."""
 
@@ -523,15 +524,14 @@ async def planner_node(state, config) -> dict:
 ## References
 
 ### Sessions
-- [SESSION_16_FINAL.md](../optim/SESSION_16_FINAL.md) - Initial analysis
-- [SESSION_17_SUMMARY.md](../optim/SESSION_17_SUMMARY.md) - Phase 1: Helpers
-- [SESSION_18_SUMMARY.md](../optim/SESSION_18_SUMMARY.md) - Phase 2: Service
-- [SESSION_18_QUICK_WIN.md](../optim/SESSION_18_QUICK_WIN.md) - Catalogue helper
-- [SESSION_18_CONTINUATION_TO_100_LINES.md](../optim/SESSION_18_CONTINUATION_TO_100_LINES.md) - Final extraction
+Historical working notes (SESSION_16 through SESSION_18) documented the initial analysis,
+helper extraction, service extraction, catalogue helper and final trimming. They were
+purged from `docs/optim/` during documentation cleanup; the outcome they describe is
+captured in this ADR.
 
 ### Code
-- [planner_node.py](../../apps/api/src/domains/agents/nodes/planner_node.py) - Refactored node (76 lines)
-- [planner_service.py](../../apps/api/src/domains/agents/services/planner_service.py) - Service class (554 lines)
+- [planner_node_v3.py](../../apps/api/src/domains/agents/nodes/planner_node_v3.py) - Current planner node (successor of the refactored `planner_node.py`)
+- [planner/](../../apps/api/src/domains/agents/services/planner/) - Planner service package (successor of the extracted `planner_service.py`)
 
 ---
 

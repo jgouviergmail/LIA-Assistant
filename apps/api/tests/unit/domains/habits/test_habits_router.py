@@ -30,6 +30,7 @@ class _StubRepo:
 
     profile: Any = None
     habits: list[Any] = []
+    activity_dates: list[Any] = []
     owned: Any = None
     deleted_all: int = 0
     rollup_wiped: bool = False
@@ -39,6 +40,9 @@ class _StubRepo:
 
     async def get_profile(self, user_id: uuid.UUID) -> Any:
         return _StubRepo.profile
+
+    async def fetch_activity_dates(self, user_id: uuid.UUID) -> list[Any]:
+        return list(_StubRepo.activity_dates)
 
     async def list_habits(self, user_id: uuid.UUID, kind: str | None = None) -> list[Any]:
         return list(_StubRepo.habits)
@@ -93,6 +97,7 @@ def client(monkeypatch: pytest.MonkeyPatch, candidates_mock: AsyncMock) -> TestC
     monkeypatch.setattr(service_module, "HabitsRepository", _StubRepo)
     _StubRepo.profile = None
     _StubRepo.habits = []
+    _StubRepo.activity_dates = []
     _StubRepo.owned = None
     _StubRepo.deleted_all = 0
     _StubRepo.rollup_wiped = False
@@ -375,3 +380,21 @@ def test_insufficient_verdict_publishes_the_unlock_threshold(client: TestClient)
     assert body["profile"]["weekday"]["n_eff"] == 0.0
     assert body["profile"]["weekday"]["required_n_eff"] > 0
     assert body["profile"]["weekend"]["required_n_eff"] > 0
+
+
+def test_overview_carries_the_streak_block(client: TestClient) -> None:
+    """The ledger's streak facts reach the panel (Lot 1-A4): current and
+    longest runs plus the settings-driven milestone positions."""
+    from datetime import date, timedelta
+
+    from src.core.config import settings
+
+    today = date.today()
+    _StubRepo.activity_dates = [today - timedelta(days=offset) for offset in range(3)]
+
+    body = client.get("/habits").json()
+
+    assert body["streak"]["current"] >= 3
+    assert body["streak"]["longest"] >= 3
+    assert body["streak"]["next_milestone"] == min(settings.habits_streak_milestones)
+    assert body["streak"]["milestone_reached"] is None

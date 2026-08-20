@@ -44,6 +44,13 @@ When you cannot search precisely, prefer other high-value checks instead.
 For suggestions: if you spot something that would need a WRITE action
 (create event, send reply), phrase it as a helpful question.
 
+PROVENANCE ("motivation") - whenever you emit chips or a suggestion, also
+fill "motivation": ONE short sentence in the user's language naming the
+stored memory, interest or visible result that motivated them (e.g.
+"Parce que tu suis la Formule 1" / "Because your calendar shows a trip to
+Lyon"). Ground it ONLY in context actually shown to you - never invent a
+memory. Leave it null when you emit neither chips nor suggestion.
+
 FOLLOW-UP CHIPS ("followup_suggestions") — INDEPENDENT of should_act: ALWAYS
 consider proposing 0-3 short follow-up requests the user might naturally send
 next, grounded in the execution results and the user context. Rules:

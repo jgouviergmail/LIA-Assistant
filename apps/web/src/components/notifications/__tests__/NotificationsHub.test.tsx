@@ -103,11 +103,12 @@ describe('NotificationsHub', () => {
       interests: 0,
       reminders: 7,
       scheduled: 2,
+      offers: 5,
     });
 
     renderWithProviders(<NotificationsHub lng="fr" />);
 
-    for (const total of ['3', '12', '7', '2']) {
+    for (const total of ['3', '12', '7', '2', '5']) {
       expect(screen.getByText(total)).toBeInTheDocument();
     }
     // Zero is a REAL answer: an empty section reads as empty, never as unknown.
@@ -120,7 +121,7 @@ describe('NotificationsHub', () => {
     // shape of "not known".
     renderWithProviders(<NotificationsHub lng="fr" />);
 
-    expect(screen.getAllByText('—')).toHaveLength(5);
+    expect(screen.getAllByText('—')).toHaveLength(6);
   });
 
   it('fetches only the section the reader opened', async () => {

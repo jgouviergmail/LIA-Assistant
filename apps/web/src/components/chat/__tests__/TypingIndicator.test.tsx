@@ -3,9 +3,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 import { TypingIndicator, TYPING_VARIANTS } from '../TypingIndicator';
+import { usePsycheStore } from '@/stores/psycheStore';
 
 function root(container: HTMLElement): HTMLElement {
   return container.querySelector('[role="status"]') as HTMLElement;
@@ -38,5 +39,32 @@ describe('TypingIndicator', () => {
     const { container } = render(<TypingIndicator />);
     expect(container.querySelector('.motion-reduce\\:hidden')).not.toBeNull();
     expect(container.querySelector('.motion-reduce\\:flex')).not.toBeNull();
+  });
+});
+
+
+describe('psyche-tinted acknowledgment (Lot 1-A5)', () => {
+  it('speaks a bright acknowledgment when the mood is positive', () => {
+    usePsycheStore.setState({ moodPleasure: 0.5, moodColor: '#22c55e' });
+
+    render(<TypingIndicator />);
+
+    expect(screen.getByText('chat.ack.bright')).toBeInTheDocument();
+  });
+
+  it('speaks a soft acknowledgment when the mood is negative', () => {
+    usePsycheStore.setState({ moodPleasure: -0.5, moodColor: '#64748b' });
+
+    render(<TypingIndicator />);
+
+    expect(screen.getByText('chat.ack.soft')).toBeInTheDocument();
+  });
+
+  it('stays steady around the neutral band', () => {
+    usePsycheStore.setState({ moodPleasure: 0.05 });
+
+    render(<TypingIndicator />);
+
+    expect(screen.getByText('chat.ack.steady')).toBeInTheDocument();
   });
 });

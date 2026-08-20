@@ -63,6 +63,15 @@ class VoiceSettings(BaseSettings):
     and the ElevenLabs Scribe transport defaults.
     """
 
+    voice_psyche_prosody_enabled: bool = Field(
+        default=True,
+        description=(
+            "Bend the ElevenLabs voice_settings by the live PAD mood "
+            "(ADR-237). Other providers ignore the block gracefully. "
+            "Off = the admin-configured settings are used verbatim."
+        ),
+    )
+
     # ========================================================================
     # Voice Comment LLM Configuration
     # ========================================================================

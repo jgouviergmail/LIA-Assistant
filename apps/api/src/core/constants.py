@@ -2451,6 +2451,18 @@ MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT = 0.7
 MEMORY_RETENTION_WEIGHT_RECENCY_DEFAULT = 0.3
 MEMORY_MIN_AGE_FOR_CLEANUP_DAYS_DEFAULT = 7  # Memories younger than this are not eligible for purge
 MEMORY_RECENCY_DECAY_DAYS_DEFAULT = 45  # Horizon over which recency_factor decays from 1.0 to 0.0
+# Lot 2-B1 (ADR-235): how long an INVALIDATED row (supersession trail) is
+# kept before purge — successors carry the live facts.
+MEMORY_INVALIDATED_RETENTION_DAYS_DEFAULT = 90
+
+# Voice prosody modulation (Lot 4-D4, ADR-237): PAD arousal bends the
+# ElevenLabs voice_settings inside hard [0,1] bounds. Gains are deliberately
+# gentle — the voice should breathe with the mood, never caricature it.
+VOICE_PROSODY_AROUSAL_DEADBAND = 0.1
+VOICE_PROSODY_STYLE_GAIN = 0.25
+VOICE_PROSODY_STABILITY_GAIN = 0.2
+VOICE_PROSODY_DEFAULT_STABILITY = 0.5
+VOICE_PROSODY_DEFAULT_STYLE = 0.0
 MEMORY_USAGE_PENALTY_AGE_DAYS_DEFAULT = 30  # Age threshold for applying zero-usage penalty
 MEMORY_USAGE_PENALTY_FACTOR_DEFAULT = (
     0.5  # Multiplier on score when usage_count==0 beyond threshold
@@ -2970,6 +2982,9 @@ STATE_KEY_INITIATIVE_SUGGESTION = "initiative_suggestion"
 STATE_KEY_INITIATIVE_FOLLOWUPS = "initiative_followups"
 INITIATIVE_FOLLOWUPS_MAX = 3  # Chips rendered under the assistant answer
 INITIATIVE_FOLLOWUP_MAX_CHARS = 200  # Server-side clamp per suggestion
+# Provenance line of the initiative (Lot 1-A3): one short user-language
+# sentence naming the memory/interest that motivated the proposals.
+INITIATIVE_MOTIVATION_MAX_CHARS = 160
 INITIATIVE_ENABLED_DEFAULT = True
 INITIATIVE_MAX_ITERATIONS_DEFAULT = 1  # Conservative: one evaluation pass
 INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
@@ -3042,6 +3057,33 @@ BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT = 5
 # kept as a fallback shown alongside a connector error. Long on purpose — it
 # only ever surfaces when the live fetch FAILS, clearly labeled as stale.
 BRIEFING_LAST_GOOD_TTL_SECONDS_DEFAULT = 172800  # 48 h
+
+# Activity timeline ("what LIA did for you", Lot 1-A1) — read-only aggregation.
+# Same placement doctrine as the BRIEFING_* block above: config must import
+# these without importing the activity domain package (router → circular).
+ACTIVITY_TIMELINE_WINDOW_DAYS_DEFAULT = 30  # look-back window of the timeline
+ACTIVITY_TIMELINE_SOURCE_CAP_DEFAULT = 200  # max rows fetched per source
+# (exact per-kind totals are computed by COUNT(*) over the whole window; the
+# cap bounds the payload and is surfaced as an explicit `truncated` flag)
+ACTIVITY_TIMELINE_PAGE_SIZE_DEFAULT = 25  # default page size of the API
+
+# Briefing synthesis audio (Lot 4-A2): the "listen" button TTS-es the text
+# the user is looking at. Bounds are cost bounds (paid TTS providers).
+BRIEFING_AUDIO_MAX_CHARS_DEFAULT = 1600
+BRIEFING_AUDIO_MAX_SENTENCES_DEFAULT = 12
+
+# Missed-routine offers inbox (Lot 5-C2): how far back an UNDECIDED offer
+# stays listed. Old offers age out silently — a stale proposal is noise.
+HEARTBEAT_OFFERS_WINDOW_DAYS_DEFAULT = 7
+
+# Adaptive ReAct budget (Lot 5-C4, ADR-238): iteration budget grows with the
+# query's domain span; react_agent_max_iterations stays the hard ceiling.
+REACT_ITERATIONS_BASE_DEFAULT = 6
+REACT_ITERATIONS_PER_EXTRA_DOMAIN_DEFAULT = 3
+
+# Habit streak milestones (Lot 1-A4) — DISPLAY thresholds only; the
+# detection calibration (ADR-214) is a separate authority and stays untouched.
+HABITS_STREAK_MILESTONES_DEFAULT = (7, 30, 100)
 
 # Relations (N-09) personal CRM — read-only aggregation caps.
 RELATIONS_MAX_ITEMS_DEFAULT = 30  # relationships listed on the overview

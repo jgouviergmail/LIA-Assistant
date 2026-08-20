@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione**: 5.0
-**Data**: 2026-08-19
-**Applicazione**: LIA v1.30.13
+**Data**: 2026-08-20
+**Applicazione**: LIA v1.30.14
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -492,3 +492,7 @@ LIA esiste perché al mondo manca un assistente IA che sia **tuo**. Davvero tuo.
 Come viene costruita LIA — un'IA che scrive il codice, un umano che dirige, rivede e verifica — è raccontato in dettaglio nel nostro [resoconto di esperienza](/it/story).
 
 **Your Life. Your AI. Your Rules.**
+
+### Il lavoro invisibile viene mostrato, l'apprendimento è amministrabile
+
+Un assistente proattivo lavora quando non guardi — e anche quel lavoro deve vedersi. La pagina **Attività** raccoglie tutto ciò che LIA ha fatto di propria iniziativa in un unico flusso cronologico, con totali esatti e guasti dichiarati: mai «circa», mai un silenzio. La stessa esigenza governa ciò che l'assistente impara da te: ogni regola duratura («rispondi più breve», «non propormelo la sera») è una memoria **visibile, modificabile ed eliminabile** — e quando un fatto cambia, il vecchio non si cancella: si archivia dietro il nuovo, perché correggere non significhi mai riscrivere la storia. Le routine che LIA propone di gestire attendono il tuo via libera in una casella dedicata: accettare precompila la chat, nulla parte senza di te, rifiutare le insegna a insistere meno.

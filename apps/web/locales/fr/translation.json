@@ -99,6 +99,47 @@
       "tooltip_disabled": "Tokens et coûts masqués"
     }
   },
+  "activity": {
+    "title": "Activité",
+    "subtitle": "Tout ce que LIA a fait pour vous ces {{days}} derniers jours.",
+    "refresh": "Actualiser",
+    "load_more": "Afficher plus",
+    "retry": "Réessayer",
+    "error_description": "Impossible de charger le fil d'activité.",
+    "empty_title": "Rien à afficher pour l'instant",
+    "empty_description": "Quand LIA agit pour vous — notifications, journal, habitudes, engagements, routines — cela apparaît ici.",
+    "empty_action": "Configurer la proactivité",
+    "partial_warning": "Certaines sources n'ont pas répondu — cette vue peut être incomplète.",
+    "truncated_hint": "Certains éléments plus anciens ne sont pas affichés.",
+    "status_expired": "expiré",
+    "hub_cta": "Chronologie d'activité",
+    "see_all": "Voir tout ce que LIA a fait",
+    "rows": {
+      "heartbeat_notification": "Notification proactive",
+      "interest_notification": "Découverte d'intérêt",
+      "journal_entry": "Note de journal",
+      "habit_detected": "Habitude détectée",
+      "open_loop_created": "Engagement suivi",
+      "open_loop_closed": "Engagement clos",
+      "scheduled_action_run": "Routine exécutée"
+    },
+    "kinds": {
+      "heartbeat_notification_one": "{{count}} notification proactive",
+      "heartbeat_notification_other": "{{count}} notifications proactives",
+      "interest_notification_one": "{{count}} découverte d'intérêt",
+      "interest_notification_other": "{{count}} découvertes d'intérêt",
+      "journal_entry_one": "{{count}} note de journal",
+      "journal_entry_other": "{{count}} notes de journal",
+      "habit_detected_one": "{{count}} habitude détectée",
+      "habit_detected_other": "{{count}} habitudes détectées",
+      "open_loop_created_one": "{{count}} engagement suivi",
+      "open_loop_created_other": "{{count}} engagements suivis",
+      "open_loop_closed_one": "{{count}} engagement clos",
+      "open_loop_closed_other": "{{count}} engagements clos",
+      "scheduled_action_run_one": "{{count}} routine exécutée",
+      "scheduled_action_run_other": "{{count}} routines exécutées"
+    }
+  },
   "dashboard": {
     "title": "Tableau de bord",
     "welcome": "Bienvenue, {{name}}",
@@ -198,6 +239,9 @@
       "capabilities_sub": "Votre constellation"
     },
     "briefing": {
+      "synthesis_audio_error": "La lecture vocale a échoué — le fournisseur de synthèse n'a pas renvoyé d'audio. Vérifiez les réglages de la voix.",
+      "synthesis_listen": "Écouter la synthèse",
+      "synthesis_stop": "Arrêter la lecture",
       "section_title": "Mon dashboard",
       "skeleton_loading": "Préparation de ton briefing…",
       "refresh_all": "Tout rafraîchir",
@@ -735,6 +779,11 @@
       "tts_tooltip_fallback": "Coût de la synthèse",
       "share_peer": "Partager à un pair",
       "share_peer_draft": "Transmets ceci à {{recipient}} :\n\n{{content}}"
+    },
+    "ack": {
+      "bright": "Je m'y mets — bonne question !",
+      "soft": "Je m'y mets — je m'en occupe.",
+      "steady": "Je m'y mets…"
     },
     "assistant_typing": "L'assistant est en train d'écrire...",
     "tab_title_writing": "LIA écrit…",
@@ -3078,6 +3127,11 @@
       "description": "Ce que LIA a appris de ton rythme et de tes demandes récurrentes — visible, corrigeable et supprimable ici.",
       "enabled_label": "Apprendre mes habitudes",
       "enabled_hint": "Rythme d'activité et demandes récurrentes, calculés chaque nuit à partir de tes propres messages. Rien ne quitte ton compte.",
+      "streak_current_one": "{{count}} jour d'affilée",
+      "streak_current_other": "{{count}} jours d'affilée",
+      "streak_badge": "Jalon {{days}} jours",
+      "streak_meta": "record : {{longest}} · prochain jalon : {{next}}",
+      "streak_meta_final": "record : {{longest}}",
       "rhythm_title": "Rythme d'activité",
       "computed_at": "Mis à jour {{date}}",
       "recompute_label": "Recalculer maintenant",
@@ -3333,7 +3387,7 @@
         "briefing-grid": "accueil, page d’accueil, tableau de bord, widgets, cartes, briefing, ordre des sections",
         "chat-shortcuts": "slash, raccourci, commande, demande rapide, macro, /commande, modèle de message, modifier, renommer",
         "open-loops": "engagements, boucles ouvertes, en attente, suivi, promesses, non terminé, relances",
-        "habits": "habitudes, rythme, routines, horaires, appris, fenêtres d'activité, demandes récurrentes, suggestions d'automatisation, seuil de détection, pourquoi aucune habitude",
+        "habits": "habitudes, rythme, routines, horaires, appris, fenêtres d'activité, demandes récurrentes, suggestions d'automatisation, seuil de détection, pourquoi aucune habitude, série, jours d'affilée, jalon, record",
         "notifications": "push, alertes, bannières, mobile, rappels, FCM",
         "channels": "whatsapp, telegram, sms, email, messagerie, intégrations",
         "security-auth": "2FA, MFA, TOTP, passkey, mot de passe, sécurité, connexion, authentification, double facteur",
@@ -3348,10 +3402,10 @@
         "debug-panel": "développeur, diagnostic, traces, technique, dépannage, waterfall, anomalies, chronologie, pipeline",
         "personality": "ton, style, caractère, comportement, persona, voix",
         "psyche": "émotions, humeur, sentiments, affect, émotionnel",
-        "memories": "mémoire, souvenirs, se souvenir, oublier, faits, provenance, pourquoi, source, signal, origine, corriger, exporter",
+        "memories": "mémoire, souvenirs, se souvenir, oublier, faits, provenance, pourquoi, source, signal, origine, corriger, exporter, règles, directives, instructions permanentes, procédural",
         "interests": "sujets, goûts, thèmes, curiosité, préférences, historique, notifications récentes, provenance, pourquoi, poids, explication, décroissance, source, exporter",
         "peer-connections": "contacts, amis, famille, réseau, partager calendrier, disponibilités, bloquer, découvrir utilisateurs, connecter, mon nom, copier mon nom, demande de connexion, journal des accès, relayer un message, utilisateurs bloqués, proches, réseau social, peer, découverte, se connecter à un proche, partager mon adresse, email visible, mon email, point 360, visibilité, demandes",
-        "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes, sujets des notifications, sources, historique, notifications récentes, priorité, urgence, haute, moyenne, basse, couleur, météo, fréquence, plage horaire",
+        "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes, sujets des notifications, sources, historique, notifications récentes, priorité, urgence, haute, moyenne, basse, couleur, météo, fréquence, plage horaire, propositions, offres, routine manquée",
         "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé",
         "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger, configuration, consolidation, exporter",
         "health-metrics": "fréquence cardiaque, pas, sommeil, iPhone, Apple Santé, forme, activité",
@@ -3978,7 +4032,7 @@
         },
         "memory": {
           "title": "💾 Double Mémoire Court/Long Terme",
-          "description": "Court terme : fenêtre glissante de messages avec résumé automatique du contexte conversationnel. Le résumé est résilient — timeouts par chunk et global, retry avec backoff exponentiel, repli explicite de troncature si le LLM échoue ; un toast visuel s'affiche pendant l'opération et l'envoi est verrouillé le temps qu'il faut, et une pastille dans l'en-tête montre en continu le ratio tokens/seuil. Long terme : extraction de faits sur te (préférences, relations, habitudes) stockés avec des embeddings sémantiques. Recherche sémantique à deux vecteurs pour un rappel optimal : le contenu du souvenir et ses mots-clés déclencheurs sont comparés séparément à ta question, et le meilleur des deux l'emporte. Un échange compte même lorsqu'il déclenche une action : demander l'envoi d'un message en y glissant un fait durable te concernant nourrit la mémoire comme une conversation ordinaire. À l'inverse, les messages que le système fabrique pour lui-même en sont exclus — ce que LIA retient vient de te, pas de ses propres consignes."
+          "description": "Court terme : fenêtre glissante de messages avec résumé automatique du contexte conversationnel. Le résumé est résilient — timeouts par chunk et global, retry avec backoff exponentiel, repli explicite de troncature si le LLM échoue ; un toast visuel s'affiche pendant l'opération et l'envoi est verrouillé le temps qu'il faut, et une pastille dans l'en-tête montre en continu le ratio tokens/seuil. Long terme : extraction de faits sur toi (préférences, relations, habitudes) stockés avec des embeddings sémantiques. Recherche sémantique à deux vecteurs pour un rappel optimal : le contenu du souvenir et ses mots-clés déclencheurs sont comparés séparément à ta question, et le meilleur des deux l'emporte. Un échange compte même lorsqu'il déclenche une action : demander l'envoi d'un message en y glissant un fait durable te concernant nourrit la mémoire comme une conversation ordinaire. À l'inverse, les messages que le système fabrique pour lui-même en sont exclus — ce que LIA retient vient de toi, pas de ses propres consignes. La mémoire porte aussi des règles permanentes : dis une fois à LIA comment travailler pour toi (catégorie procédurale) et la règle s'applique à chaque conversation. Et quand un fait change, l'ancien est supplanté avec une date — exclu du rappel mais conservé comme trace consultable."
         },
         "interests": {
           "title": "✨ Centres d'Intérêt Intelligents",
@@ -4203,6 +4257,19 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_30_14": {
+          "title": "v1.30.14 — 👁️ Le travail invisible devient visible",
+          "date": "Août 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🕐 Nouvelle page Activité</b> — tout ce que LIA a fait pour toi, en un seul fil chronologique : notifications envoyées, découvertes sur tes centres d'intérêt, notes de journal, habitudes détectées, engagements suivis et clos, routines exécutées. Avec les vrais totaux, jamais d'à-peu-près.",
+            "i2": "<b>💡 Des propositions qui attendent ton feu vert</b> — le hub Alertes gagne une section « Propositions » : les routines que LIA a offert de prendre en charge et que tu n'as pas encore tranchées. « Je m'en occupe » ouvre le chat prérempli — rien ne part sans toi. « Pas maintenant » lui apprend à moins insister.",
+            "i3": "<b>📌 Dis-le une fois, c'est retenu</b> — « réponds plus court », « ne me propose plus ça le soir » : tes instructions deviennent des règles durables, visibles et modifiables dans tes mémoires (catégorie « Règles et directives »). Et quand tu corriges LIA, elle le reconnaît une fois, sans s'excuser trois fois — elle change, tout simplement.",
+            "i4": "<b>🧠 Une mémoire qui date ses souvenirs</b> — LIA peut dire naturellement « la semaine dernière, tu me disais… ». Et quand un fait change (tu déménages, tu changes de travail), l'ancien n'est plus écrasé : il s'archive proprement derrière le nouveau, sans jamais ressortir dans les recherches.",
+            "i5": "<b>🔊 Ton briefing se lit à voix haute</b> — un bouton Écouter sur la synthèse du matin, et une voix dont l'expressivité suit l'humeur de l'assistant. En cas de souci de synthèse, un message clair — plus d'échec silencieux.",
+            "i6": "<b>📈 Tes séries d'habitudes comptent</b> — « 9 jours d'affilée, jalon 7 atteint, prochain : 30 » dans le panneau Habitudes. Et sous les suggestions du chat, LIA dit désormais pourquoi elle propose (« parce que tu suis… »)."
+          }
+        },
         "v1_30_13": {
           "title": "v1.30.13 — 🔄 Les boucles d'auto-amélioration se referment",
           "date": "Août 2026",
@@ -7549,6 +7616,10 @@
         "title": "Pars, elle continue",
         "desc": "Ferme l’onglet : la réponse se termine et te rattrape à ton retour."
       },
+        "activity_timeline": {
+          "title": "Le journal de bord",
+          "desc": "Ce que LIA fait pour vous en coulisses — souvenirs appris, routines vérifiées, briefings préparés — apparaît en fil chronologique sur votre tableau de bord. Le travail invisible, rendu visible."
+        },
       "widgets_travel": {
         "title": "Tes widgets voyagent",
         "desc": "Cartes, graphiques, mini-apps : ils survivent au rechargement et te suivent d’un appareil à l’autre."
@@ -7674,6 +7745,11 @@
       "background_response": {
         "ready": "Réponse prête"
       },
+        "activity_timeline": {
+          "entry1": "Souvenir appris",
+          "entry2": "Routine vérifiée",
+          "entry3": "Briefing prêt"
+        },
       "peer_actions": {
         "reply": "Répondre"
       },
@@ -7872,7 +7948,8 @@
       "relationship": "Relations",
       "event": "Événements",
       "pattern": "Patterns",
-      "sensitivity": "Zones sensibles"
+      "sensitivity": "Zones sensibles",
+      "procedural": "Règles et directives"
     },
     "emotional_states": {
       "comfort": "Terrain positif",
@@ -9764,7 +9841,8 @@
       "psyche": "Psyche Engine",
       "habits": "Apprentissage des habitudes",
       "governance": "Gouverner une instance",
-      "tabular_admin": "Administrer par le fichier"
+      "tabular_admin": "Administrer par le fichier",
+        "evolution": "Programme évolution"
     }
   },
   "healthMetrics": {
@@ -10167,6 +10245,15 @@
     "advanced_title": "Réglages avancés",
     "advanced_hint": "Chaque section se règle en détail dans les réglages.",
     "sections": {
+        "offers": {
+          "title": "Propositions",
+          "subtitle": "Des routines que LIA propose de prendre en charge — en attente de votre décision.",
+          "empty": "Aucune proposition ouverte pour le moment.",
+          "error": "Impossible de charger les propositions.",
+          "accept": "Je m'en occupe — ouvrir le chat",
+          "dismiss": "Pas maintenant",
+          "menu": "Actions de la proposition"
+        },
       "peer_messages": {
         "title": "Messages relayés",
         "subtitle": "Les messages échangés avec vos connexions LIA, du plus récent au plus ancien.",

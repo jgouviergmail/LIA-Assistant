@@ -93,3 +93,12 @@ Below the current conditions, a strip shows the next 5 days (today + 4) with wea
 The card's hero emoji also lives with the real sky: rain drops fall on rainy conditions, snowflakes drift on snow, and a subtle sun halo rotates on clear days. It's purely decorative, and it follows your system's reduced-motion preference.
 
 When you refresh a card, a discreet "updated ✨" badge briefly replaces the timestamp to confirm the data was just refreshed.
+
+## Can I listen to my briefing instead of reading it?
+Yes. The daily synthesis card has a **Listen** button that reads the briefing aloud with the same neural voices as voice mode.
+
+**🎙️ Natural prosody:** the text is prepared for speech before synthesis — numbers, times and abbreviations are expanded, and pauses follow the structure of the briefing — so it sounds like a spoken summary, not a screen reader.
+
+**🌍 In your language:** the readout uses your interface language and your configured voice provider (Edge TTS, OpenAI or ElevenLabs, set by the administrator).
+
+If synthesis fails (for example when the voice provider is unavailable), the card says so explicitly instead of playing silence.

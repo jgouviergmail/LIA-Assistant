@@ -107,6 +107,11 @@ if getattr(settings, "habits_enabled", False):
 
     api_router.include_router(habits_router)  # Learned habits control surface (ADR-214)
 
+if getattr(settings, "activity_timeline_enabled", False):
+    from src.domains.activity.router import router as activity_router
+
+    api_router.include_router(activity_router)  # Proactive activity timeline (Lot 1-A1)
+
 if getattr(settings, "product_analytics_enabled", False):
     from src.domains.product.router import router as product_router
     from src.domains.product.showroom_telemetry import router as showroom_router
@@ -286,6 +291,9 @@ async def get_client_config() -> dict:
             "habits_enabled": getattr(settings, "habits_enabled", False),
             # Peers program: gates the « Connexions » settings section.
             "peers_enabled": getattr(settings, "peers_enabled", False),
+            # Activity timeline (Lot 1-A1): gates its entry links (gate-keeper
+            # rule, ADR-061 — never offer a disabled subsystem).
+            "activity_timeline_enabled": getattr(settings, "activity_timeline_enabled", False),
         },
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }

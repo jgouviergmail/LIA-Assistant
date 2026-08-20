@@ -115,9 +115,21 @@ class _CountedNode:
     count_with: Callable[[UUID], Awaitable[int]] | None = None
 
 
+# Deliberately NOT nodes (audited 2026-08-20, evolution program): the
+# activity timeline and the proposals inbox are WINDOWS over other nodes'
+# state (proactivity, habits, journals, relations) — a node for them would
+# re-count what those nodes already count, making the map a second
+# authority on the same figures (ADR-185). The briefing readout rides the
+# "voice" switch; procedural memories ride the "memory" tally.
 COUNTED_NODES: tuple[_CountedNode, ...] = (
     _CountedNode("connectors", lambda: _import("connectors.models", "Connector")),
-    _CountedNode("memory", lambda: _import("memories.models", "Memory")),
+    _CountedNode(
+        "memory",
+        lambda: _import("memories.models", "Memory"),
+        # ADR-235: invalidated memories stay in the table (supersession
+        # trail) — the node counts the ACTIVE set, the figure the panel shows.
+        load_filters=lambda: {"invalidated_at": None},
+    ),
     _CountedNode(
         "interests",
         lambda: _import("interests.models", "UserInterest"),

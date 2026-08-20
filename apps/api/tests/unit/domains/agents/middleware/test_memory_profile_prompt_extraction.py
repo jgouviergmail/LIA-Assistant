@@ -62,6 +62,9 @@ class TestSectionHeaders:
         categories = [category for category, _ in _load_section_headers()]
         assert categories == [
             "sensitivity",
+            # Lot 3-B2: standing user instructions read right after the
+            # sensitivities — binding directives, before any factual section.
+            "procedural",
             "relationship",
             "preference",
             "personal",
@@ -88,6 +91,10 @@ class TestSectionHeaders:
     def test_headers_keep_their_exact_labels(self) -> None:
         assert dict(_load_section_headers()) == {
             "sensitivity": "### ZONES SENSIBLES (Attention requise)",
+            "procedural": (
+                "### RÈGLES DE FONCTIONNEMENT (instructions permanentes de "
+                "l'utilisateur — à appliquer)"
+            ),
             "relationship": "### RELATIONS CONNUES",
             "preference": "### PRÉFÉRENCES & GOÛTS",
             "personal": "### INFORMATIONS PERSONNELLES",

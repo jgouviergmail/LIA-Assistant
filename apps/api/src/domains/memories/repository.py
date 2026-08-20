@@ -20,15 +20,24 @@ Created: 2026-03-30
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, delete, distinct, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.domains.memories.models import Memory, MemoryCategory
 from src.infrastructure.observability.logging import get_logger
+
+
+# Active-set predicate (Lot 2-B1): every retrieval serves live facts only —
+# invalidated rows are the supersession trail, not searchable content.
+def _active() -> ColumnElement[bool]:
+    """SQLAlchemy predicate selecting live facts only."""
+    return Memory.invalidated_at.is_(None)
+
 
 logger = get_logger(__name__)
 
@@ -173,6 +182,7 @@ class MemoryRepository:
                 and_(
                     Memory.user_id == user_id,
                     Memory.embedding.isnot(None),
+                    _active(),
                 )
             )
             .order_by(best_distance)
@@ -237,6 +247,7 @@ class MemoryRepository:
                     Memory.user_id == user_id,
                     Memory.category == MemoryCategory.RELATIONSHIP.value,
                     Memory.embedding.isnot(None),
+                    _active(),
                 )
             )
             .order_by(best_distance)
@@ -275,7 +286,7 @@ class MemoryRepository:
         """
         stmt = (
             select(Memory)
-            .where(Memory.user_id == user_id)
+            .where(Memory.user_id == user_id, _active())
             .order_by(Memory.created_at.desc())
             .limit(limit)
         )
@@ -326,6 +337,7 @@ class MemoryRepository:
             select(Memory, func.count().over().label("total"))
             .where(
                 Memory.user_id == user_id,
+                _active(),
                 func.unaccent(Memory.content).ilike(func.unaccent(f"%{escaped}%"), escape="\\"),
             )
             .order_by(Memory.created_at.desc())
@@ -355,7 +367,7 @@ class MemoryRepository:
         """
         stmt = (
             select(Memory)
-            .where(Memory.user_id == user_id)
+            .where(Memory.user_id == user_id, _active())
             .order_by(Memory.created_at.desc())
             .limit(limit)
         )
@@ -384,6 +396,7 @@ class MemoryRepository:
                 and_(
                     Memory.user_id == user_id,
                     Memory.category == category,
+                    _active(),
                 )
             )
             .order_by(Memory.created_at.desc())
@@ -407,7 +420,7 @@ class MemoryRepository:
         Returns:
             Number of memories.
         """
-        stmt = select(func.count(Memory.id)).where(Memory.user_id == user_id)
+        stmt = select(func.count(Memory.id)).where(Memory.user_id == user_id, _active())
         result = await self.db.execute(stmt)
         return result.scalar() or 0
 
@@ -422,7 +435,7 @@ class MemoryRepository:
         """
         stmt = (
             select(Memory.category, func.count(Memory.id))
-            .where(Memory.user_id == user_id)
+            .where(Memory.user_id == user_id, _active())
             .group_by(Memory.category)
         )
         result = await self.db.execute(stmt)
@@ -491,6 +504,7 @@ class MemoryRepository:
                 and_(
                     Memory.user_id == user_id,
                     Memory.pinned.is_(False),
+                    _active(),
                 )
             )
             .order_by(Memory.created_at.asc())
@@ -554,6 +568,8 @@ class MemoryRepository:
                     mem_a.id < mem_b.id,
                     mem_a.pinned.is_(False),
                     mem_b.pinned.is_(False),
+                    mem_a.invalidated_at.is_(None),
+                    mem_b.invalidated_at.is_(None),
                     mem_a.embedding.is_not(None),
                     mem_b.embedding.is_not(None),
                     similarity_expr >= similarity_threshold,
@@ -569,6 +585,31 @@ class MemoryRepository:
     # =========================================================================
     # GDPR / Bulk Operations
     # =========================================================================
+
+    async def delete_invalidated_older_than(self, days: int) -> int:
+        """Purge invalidated rows older than the retention window (Lot 2-B1).
+
+        The supersession trail is a TRAIL, not an archive: successors carry
+        the live facts, so stale invalidated rows purge like any expired
+        audit data.
+
+        Args:
+            days: Retention window in days (settings-driven by the caller).
+
+        Returns:
+            Number of rows purged.
+        """
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        stmt = delete(Memory).where(
+            Memory.invalidated_at.is_not(None),
+            Memory.invalidated_at < cutoff,
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        # AsyncSession.execute is typed Result[Any]; rowcount lives on the
+        # CursorResult a DELETE actually returns (conversations precedent).
+        count: int = getattr(result, "rowcount", 0) or 0
+        return count
 
     async def delete_all_for_user(
         self,

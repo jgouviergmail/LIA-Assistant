@@ -6,6 +6,8 @@ before it enters the graph state; the archived-message / done-chunk enrichment
 (new-dict discipline mirrors the JSONB rule).
 """
 
+import pytest
+
 from src.core.constants import (
     INITIATIVE_FOLLOWUP_MAX_CHARS,
     INITIATIVE_FOLLOWUPS_MAX,
@@ -76,3 +78,48 @@ class TestFollowupHandoff:
         push_followups("run-c", ["Première passe"])
         push_followups("run-c", ["Seconde passe"])
         assert pop_followups("run-c") == ["Seconde passe"]
+
+
+@pytest.mark.unit
+class TestInitiativeMotivation:
+    """Provenance line of the initiative (Lot 1-A3): sanitize + handoff +
+    metadata enrichment, same pop-once doctrine as the follow-up chips."""
+
+    def test_sanitize_motivation_strips_flattens_and_clamps(self):
+        from src.core.constants import INITIATIVE_MOTIVATION_MAX_CHARS
+        from src.domains.agents.services.streaming.followup_metadata import (
+            sanitize_motivation,
+        )
+
+        assert sanitize_motivation("  parce que tu\n suis la F1  ") == ("parce que tu suis la F1")
+        assert sanitize_motivation("   ") is None
+        assert sanitize_motivation(None) is None
+        long = "x" * (INITIATIVE_MOTIVATION_MAX_CHARS + 50)
+        clamped = sanitize_motivation(long)
+        assert clamped is not None
+        assert len(clamped) == INITIATIVE_MOTIVATION_MAX_CHARS
+
+    def test_motivation_handoff_is_pop_once_per_run(self):
+        from src.domains.agents.services.streaming.followup_metadata import (
+            pop_motivation,
+            push_motivation,
+        )
+
+        push_motivation("run-a", "parce que tu suis la F1")
+
+        assert pop_motivation("run-a") == "parce que tu suis la F1"
+        assert pop_motivation("run-a") is None
+        assert pop_motivation("run-never") is None
+
+    def test_metadata_enricher_is_branch_free(self):
+        from src.core.field_names import FIELD_INITIATIVE_MOTIVATION
+        from src.domains.agents.services.streaming.followup_metadata import (
+            with_initiative_motivation,
+        )
+
+        base = {"kept": True}
+        assert with_initiative_motivation(base, None) is base
+        enriched = with_initiative_motivation(base, "parce que")
+        assert enriched is not base
+        assert enriched[FIELD_INITIATIVE_MOTIVATION] == "parce que"
+        assert base == {"kept": True}

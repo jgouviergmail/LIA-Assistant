@@ -204,3 +204,39 @@ describe('MemorySettings — pinned export', () => {
     expect(screen.queryByRole('button', { name: 'common.more_actions' })).toBeNull();
   });
 });
+
+
+describe('procedural category (ADR-236) — the learned-rules admin surface', () => {
+  it('every category of the type is offered by the edit selector', async () => {
+    const { MEMORY_CATEGORIES } = await import('@/hooks/useMemories');
+
+    // The single source the selectors must render from — `procedural`
+    // missing here is how learned rules became invisible to their owner.
+    expect(MEMORY_CATEGORIES).toContain('procedural');
+    // Icons stay complete by type, but assert the runtime map too.
+    const { CATEGORY_ICONS } = await import('../MemorySettings');
+    for (const category of MEMORY_CATEGORIES) {
+      expect(CATEGORY_ICONS[category], `icon for ${category}`).toBeTruthy();
+    }
+  });
+});
+
+
+describe('category labels exist in the REAL locales', () => {
+  // The i18n mock echoes keys, so a label landing under the wrong JSON
+  // parent is invisible to every component test — the user saw
+  // `memories.categories.procedural` raw on screen (2026-08-20). This
+  // loads the actual locale files: every category of the type must have
+  // its translation at the exact path getCategoryLabel reads.
+  it.each(['en', 'fr', 'de', 'es', 'it', 'zh'])('%s covers every category', async lng => {
+    const { MEMORY_CATEGORIES } = await import('@/hooks/useMemories');
+    const translation = (await import(`../../../../locales/${lng}/translation.json`)).default;
+
+    for (const category of MEMORY_CATEGORIES) {
+      expect(
+        translation.memories?.categories?.[category],
+        `${lng}: memories.categories.${category}`
+      ).toBeTruthy();
+    }
+  });
+});

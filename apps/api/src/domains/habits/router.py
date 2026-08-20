@@ -41,6 +41,7 @@ from src.domains.habits.schemas import (
     HabitsProfileSchema,
     HabitsRecomputeResponse,
     HabitsSettingsUpdate,
+    HabitsStreakSchema,
     HabitStatusUpdate,
     HabitWindowSchema,
 )
@@ -118,11 +119,13 @@ async def get_habits_overview(
     """The settings-surface payload for the current user."""
     service = HabitsService(db)
     profile, habits = await service.get_overview(current_user.id)
+    local_today = datetime.now(resolve_user_timezone(current_user)).date()
+    streak = await service.get_streaks(current_user.id, today=local_today)
     # Every existing row (any status) is excluded from candidates: a BLOCKED
     # tombstone must never resurface as "under observation".
     candidates, candidates_more = await list_recurrence_candidates(
         current_user.id,
-        local_today=datetime.now(resolve_user_timezone(current_user)).date(),
+        local_today=local_today,
         exclude_keys={h.key for h in habits},
         settings=settings,
         limit=settings.habits_candidates_display_max,
@@ -130,6 +133,12 @@ async def get_habits_overview(
     return HabitsOverviewResponse(
         habits_enabled=current_user.habits_enabled,
         profile=_profile_to_schema(profile),
+        streak=HabitsStreakSchema(
+            current=streak.current,
+            longest=streak.longest,
+            milestone_reached=streak.milestone_reached,
+            next_milestone=streak.next_milestone,
+        ),
         habits=[HabitResponse.model_validate(h) for h in habits],
         candidates=[
             HabitsCandidateSchema(

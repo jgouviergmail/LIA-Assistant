@@ -56,3 +56,12 @@ a full observation window holds far fewer weekend days than weekdays, so the
 confidence bound demands more presence before claiming anything. An enforced
 constraint is a published constraint — you should never face an unexplained
 "no habit".
+
+## What are streaks and milestones?
+When habit learning is enabled, LIA tracks how many consecutive days each confirmed habit has been honored — its **streak**.
+
+**🔥 Current streak** — the number of consecutive days the habit held, computed from the same activity ledger the habit was learned from (never guessed).
+
+**🏆 Milestones and record** — reaching 7, 30 or 100 days is highlighted, and your best-ever streak is kept as a record even after a break.
+
+**🤝 Honest by design:** a missed day resets the current streak but never erases the record, and days where LIA had no data are not counted against you. Streaks appear in **Settings → Learn my habits** next to each confirmed habit.

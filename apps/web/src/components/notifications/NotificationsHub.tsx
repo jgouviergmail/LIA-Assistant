@@ -31,12 +31,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, CalendarClock, MessageSquare, Sparkles, Star } from 'lucide-react';
+import { Bell, CalendarClock, History, Lightbulb, MessageSquare, Sparkles, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { InterestNotificationHistory } from '@/components/settings/InterestNotificationHistory';
-import { HubSection } from '@/components/notifications/HubSection';
+import { HubSection, type HubSectionProps } from '@/components/notifications/HubSection';
+import { OpenOffersList } from '@/components/notifications/OpenOffersList';
 import { PendingRemindersList } from '@/components/notifications/PendingRemindersList';
 import { RelayedMessagesList } from '@/components/notifications/RelayedMessagesList';
 import { ScheduledActionsList } from '@/components/notifications/ScheduledActionsList';
@@ -79,6 +80,19 @@ function useHubSections() {
   const isOpen = (key: string) => Boolean(open[key]);
   const track = (key: string) => (value: boolean) =>
     setOpen(previous => ({ ...previous, [key]: value }));
+
+  // Proposals inbox (Lot 5-C2): undecided missed-routine offers. Same
+  // fold-gated read as every section; the flag gate mirrors the backend
+  // (offers only exist when heartbeat runs).
+  const offers = usePagedSection<
+    { notifications: HeartbeatNotification[]; total: number },
+    HeartbeatNotification
+  >({
+    path: '/heartbeat/offers',
+    selectItems: payload => payload.notifications,
+    selectTotal: payload => payload.total,
+    enabled: isOpen('offers') && Boolean(config?.features?.heartbeat_enabled),
+  });
 
   const peers = usePagedSection<{ messages: RelayedMessage[]; total: number }, RelayedMessage>({
     path: '/peers/messages',
@@ -128,7 +142,7 @@ function useHubSections() {
     enabled: isOpen('scheduled'),
   });
 
-  return { config, counts, track, peers, proactive, interests, reminders, scheduled };
+  return { config, counts, track, offers, peers, proactive, interests, reminders, scheduled };
 }
 
 /**
@@ -165,25 +179,78 @@ function sectionShell<TItem>(
   };
 }
 
+/** The proposals section (Lot 5-C2), extracted so the hub component stays
+ * under the CC ratchet: the flag gate and the rows live here. */
+function ProposalsHubSection({
+  enabled,
+  section,
+  offers,
+  lng,
+  locale,
+}: {
+  enabled: boolean;
+  section: Omit<HubSectionProps, 'icon' | 'children'>;
+  offers: PagedSection<HeartbeatNotification>;
+  lng: string;
+  locale: string;
+}) {
+  if (!enabled) return null;
+  return (
+    <HubSection icon={Lightbulb} {...section}>
+      <OpenOffersList
+        offers={offers.items ?? []}
+        lng={lng}
+        locale={locale}
+        onDecided={offers.refetch}
+      />
+    </HubSection>
+  );
+}
+
 export function NotificationsHub({ lng }: { lng: string }) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language as Language);
-  const { config, counts, track, peers, proactive, interests, reminders, scheduled } =
+  const { config, counts, track, offers, peers, proactive, interests, reminders, scheduled } =
     useHubSections();
   const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
     sectionShell(key, section, t, track(key), counts?.[countKey]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-          <Bell className="h-7 w-7 text-primary" aria-hidden="true" />
-          {t('notifications_hub.title')}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('notifications_hub.subtitle')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
+            <Bell className="h-7 w-7 text-primary" aria-hidden="true" />
+            {t('notifications_hub.title')}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('notifications_hub.subtitle')}</p>
+        </div>
+        {/* Door to the merged activity timeline (Lot 1-A1). The hub answers
+            "what reached me?"; the timeline answers "what did LIA do?" —
+            siblings, so the door lives at the same altitude as the title.
+            Hub-shortcut altitude (ADR-207): solid themed CTA; a real anchor
+            via asChild keeps middle-click and open-in-new-tab. */}
+        {config?.features?.activity_timeline_enabled && (
+          <Button asChild variant="default" size="sm">
+            <Link href={`/${lng}/dashboard/activity`}>
+              <History className="h-4 w-4" aria-hidden="true" />
+              {t('activity.hub_cta')}
+            </Link>
+          </Button>
+        )}
       </div>
 
       <div className="space-y-2">
+        {/* Proposals first: a to-decide set outranks the histories below —
+            the reader can ACT here, everywhere else they can only read. */}
+        <ProposalsHubSection
+          enabled={Boolean(config?.features?.heartbeat_enabled)}
+          section={shell('offers', offers, 'offers')}
+          offers={offers}
+          lng={lng}
+          locale={locale}
+        />
+
         {config?.features?.peers_enabled && (
           <HubSection icon={MessageSquare} {...shell('peer_messages', peers, 'peer_messages')}>
             <RelayedMessagesList messages={peers.items ?? []} locale={locale} />

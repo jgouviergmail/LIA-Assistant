@@ -561,3 +561,14 @@ def track_open_loop_closure(action: str, count: int = 1) -> None:
         count: Number of loops closed (batch expiry).
     """
     open_loop_closures_total.labels(action=action).inc(count)
+
+
+# Lot 7-B4 (evolution program): calibration EVIDENCE for candidate adaptive
+# perimeters. Registering a perimeter (bounds, target band) is an owner
+# arbitration; this aggregate distribution is what the arbitration reads.
+adaptive_candidate_top_score = Histogram(
+    "adaptive_candidate_top_score",
+    "Top similarity score observed per search, by CANDIDATE adaptive perimeter.",
+    ["perimeter"],
+    buckets=(0.4, 0.45, 0.5, 0.55, 0.6, 0.63, 0.65, 0.7, 0.75, 0.8, 0.9),
+)

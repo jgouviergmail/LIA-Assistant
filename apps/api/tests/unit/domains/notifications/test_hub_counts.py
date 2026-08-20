@@ -45,6 +45,7 @@ async def _counts(**over: object):
     from src.domains.notifications.hub_counts import HubCounts
 
     defaults: dict[str, object] = {
+        "offers": 0,
         "peer_messages": 3,
         "proactive": 7,
         "interests": 2,
@@ -111,7 +112,7 @@ class TestTheProbesDegradeRatherThanFail:
 
         source = Path("src/domains/notifications/hub_counts.py").read_text(encoding="utf-8")
         # Five gathered probes, five context managers.
-        assert source.count("async with get_db_context()") == 5
+        assert source.count("async with get_db_context()") == 6
         assert "asyncio.gather" in source
 
 

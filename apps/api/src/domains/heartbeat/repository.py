@@ -14,12 +14,35 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import structlog
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import Select, and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.heartbeat.models import HeartbeatNotification
 
 logger = structlog.get_logger(__name__)
+
+
+def open_offers_stmt(
+    user_id: UUID, since: datetime, limit: int, offset: int = 0
+) -> "Select[tuple[HeartbeatNotification]]":
+    """Undecided missed-routine offers in the window (Lot 5-C2).
+
+    Pure builder (unit-testable WHERE): an offer is a notification carrying
+    a ``habit_offer_id`` and no ``user_feedback`` yet — deciding it rides
+    the existing feedback endpoint (ADR-214 Bayesian bump).
+    """
+    return (
+        select(HeartbeatNotification)
+        .where(
+            HeartbeatNotification.user_id == user_id,
+            HeartbeatNotification.habit_offer_id.is_not(None),
+            HeartbeatNotification.user_feedback.is_(None),
+            HeartbeatNotification.created_at >= since,
+        )
+        .order_by(HeartbeatNotification.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
 
 
 class HeartbeatNotificationRepository:
@@ -218,6 +241,19 @@ class HeartbeatNotificationRepository:
             query.order_by(HeartbeatNotification.created_at.desc()).limit(limit)
         )
         return list(result.scalars().all())
+
+    async def get_open_offers(
+        self, user_id: UUID, since: datetime, limit: int, offset: int = 0
+    ) -> tuple[list[HeartbeatNotification], int]:
+        """Open offers page + exact total over the whole window (ADR-185)."""
+        rows_stmt = open_offers_stmt(user_id, since, limit, offset)
+        rows = list((await self.db.execute(rows_stmt)).scalars().all())
+        total = (
+            await self.db.execute(
+                select(func.count()).select_from(rows_stmt.order_by(None).limit(None).subquery())
+            )
+        ).scalar_one()
+        return rows, int(total)
 
     async def get_history(
         self,

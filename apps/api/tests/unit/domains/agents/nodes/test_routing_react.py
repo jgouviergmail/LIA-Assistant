@@ -144,3 +144,36 @@ class TestRouteFromReactCallModel:
         """Falsy draft value (empty dict) → continue the loop, not a handoff."""
         state: dict = {"pending_draft_critique": {}}
         assert route_from_react_execute_tools(state) == NODE_REACT_CALL_MODEL
+
+
+@pytest.mark.unit
+class TestAdaptiveBudgetRouting:
+    """ADR-238: the router honors the per-turn effective budget, ceiling
+    fallback when the setup did not compute one (flag off / legacy state)."""
+
+    def test_effective_budget_stops_the_loop_early(self):
+        from src.core.config import settings
+        from src.domains.agents.constants import NODE_REACT_FINALIZE
+        from src.domains.agents.nodes.routing import route_from_react_call_model
+
+        state = {
+            "messages": [],
+            "react_iteration": 4,
+            "react_max_iterations_effective": 4,
+        }
+
+        assert settings.react_agent_max_iterations > 4
+        assert route_from_react_call_model(state) == NODE_REACT_FINALIZE
+
+    def test_missing_budget_falls_back_to_the_configured_ceiling(self):
+        from src.core.config import settings
+        from src.domains.agents.constants import NODE_REACT_FINALIZE
+        from src.domains.agents.nodes.routing import route_from_react_call_model
+
+        state = {
+            "messages": [],
+            "react_iteration": settings.react_agent_max_iterations,
+            "react_max_iterations_effective": None,
+        }
+
+        assert route_from_react_call_model(state) == NODE_REACT_FINALIZE

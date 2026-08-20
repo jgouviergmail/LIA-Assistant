@@ -716,7 +716,10 @@ async def extract_memories_background(
                                         memory_id=action.memory_id,
                                     )
                                     continue
-                                await service.update_memory(
+                                # Lot 2-B1: an automated correction supersedes —
+                                # the old fact leaves the active set pointing at
+                                # its successor, history preserved (ADR-235).
+                                await service.supersede_with_update(
                                     memory=memory,
                                     content=action.content,
                                     emotional_weight=action.emotional_weight,
@@ -789,7 +792,10 @@ async def extract_memories_background(
                                         memory_id=action.memory_id,
                                     )
                                     continue
-                                await service.delete_memory(memory)
+                                # Lot 2-B1: automated deletion is an invalidation
+                                # (soft, no successor) — manual API deletion keeps
+                                # its hard-delete semantics (ADR-235).
+                                await service.invalidate_memory(memory)
                                 applied_count += 1
                                 logger.info(
                                     "memory_action_applied",

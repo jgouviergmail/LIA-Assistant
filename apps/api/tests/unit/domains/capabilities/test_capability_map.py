@@ -209,3 +209,43 @@ class TestTheMapCoversWhatTheProductShips:
         assert {key: probes[key].detail for key in SWITCH_NODE_KEYS} == dict.fromkeys(
             SWITCH_NODE_KEYS, None
         )
+
+
+@pytest.mark.unit
+class TestMemoryNodeCountsActiveOnly:
+    """ADR-235 companion: invalidated memories STAY in the table (supersession
+    trail), so the memory node must count the ACTIVE set — the same figure the
+    memories panel shows. Found by the capability-map audit of 2026-08-20."""
+
+    async def test_memory_probe_filters_the_supersession_trail(self):
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from uuid import uuid4
+
+        from sqlalchemy.dialects import postgresql
+
+        from src.domains.capabilities import service as svc
+
+        node = next(n for n in svc.COUNTED_NODES if n.key == "memory")
+        captured: list = []
+
+        async def _execute(stmt):
+            captured.append(stmt)
+            result = MagicMock()
+            result.scalar.return_value = 0
+            return result
+
+        db = MagicMock()
+        db.execute = AsyncMock(side_effect=_execute)
+
+        from contextlib import asynccontextmanager
+
+        @asynccontextmanager
+        async def _ctx():
+            yield db
+
+        with patch.object(svc, "get_db_context", _ctx):
+            filters = node.load_filters() if node.load_filters else {}
+            await svc._count(node.load_model(), uuid4(), **filters)
+
+        sql = str(captured[0].compile(dialect=postgresql.dialect())).lower()
+        assert "invalidated_at is null" in sql

@@ -51,6 +51,7 @@ from src.domains.agents.utils.loop_guard import (
     register_call,
     repeated_call_message,
 )
+from src.domains.agents.utils.react_budget import effective_react_budget
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
@@ -551,10 +552,22 @@ async def react_setup_node(
         duration_ms=duration_ms,
     )
 
+    # ADR-238: adaptive iteration budget from the query's domain span —
+    # computed ONCE per turn here; the router reads it (ceiling fallback).
+    effective_budget: int | None = None
+    if settings.react_adaptive_budget_enabled:
+        effective_budget = effective_react_budget(
+            len(get_qi_attr(state, "domains", default=[]) or []),
+            base=settings.react_iterations_base,
+            per_extra_domain=settings.react_iterations_per_extra_domain,
+            ceiling=settings.react_agent_max_iterations,
+        )
+
     return {
         "react_tool_names": tool_names,
         "react_hitl_map": hitl_map,
         "react_iteration": 0,
+        "react_max_iterations_effective": effective_budget,
         "react_start_time": time.time(),
         # The turn's system blocks are STATE, not messages (ADR-169). Appending
         # them to `messages` persisted one copy per turn: the windowing hoisted

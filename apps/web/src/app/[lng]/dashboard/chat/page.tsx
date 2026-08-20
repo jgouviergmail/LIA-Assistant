@@ -26,7 +26,7 @@ import { logger } from '@/lib/logger';
 import { toPlainPreview, NOTIFICATION_PREVIEW_MAX_LENGTH } from '@/lib/notification-preview';
 import { sentHistoryOf } from '@/lib/sent-history';
 import { hitlAwaitsUser, visibleChatSurfaces } from '@/lib/chat-surfaces';
-import { visibleFollowups } from '@/components/chat/FollowupChips';
+import { visibleFollowups, visibleMotivation } from '@/components/chat/FollowupChips';
 import { ChatConditionalSurfaces } from '@/components/chat/ChatConditionalSurfaces';
 import { SelectionActions } from '@/components/chat/SelectionActions';
 import { ResetConversationConfirm } from '@/components/chat/ResetConversationConfirm';
@@ -546,6 +546,10 @@ export default function ChatPage() {
     () => visibleFollowups(messages, isTyping || !!activeStreamId || historyView),
     [messages, isTyping, activeStreamId, historyView]
   );
+  const followupMotivation = useMemo(
+    () => visibleMotivation(messages, isTyping || !!activeStreamId || historyView),
+    [messages, isTyping, activeStreamId, historyView]
+  );
 
   // S1: single priority rule for everything stacked between the thread and the
   // composer. Measured (S0): a pending HITL card plus chips takes the chrome to
@@ -1033,6 +1037,7 @@ export default function ChatPage() {
               <ChatConditionalSurfaces
                 surfaces={chatSurfaces}
                 followupSuggestions={followupSuggestions}
+                followupMotivation={followupMotivation}
                 onFollowupPick={handleFollowupPick}
                 currentMessage={currentMessage}
                 hitl={hitl}

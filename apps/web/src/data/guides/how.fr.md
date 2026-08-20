@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 4.5
-**Date** : 2026-08-19
-**Application** : LIA v1.30.13
+**Date** : 2026-08-20
+**Application** : LIA v1.30.14
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -43,6 +43,7 @@
 28. [Gouverner une instance : dépense, capacités, installation](#28-gouverner-une-instance--dépense-capacités-installation)
 29. [Administrer par le fichier : le classeur est le formulaire](#29-administrer-par-le-fichier--le-classeur-est-le-formulaire)
 
+30. [Le programme évolution : travail visible, apprentissage gouverné](#30-le-programme-évolution--travail-visible-apprentissage-gouverné)
 ---
 
 ## 1. Contexte et choix fondateurs
@@ -57,7 +58,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 473 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 232 ADRs, ~19 894 tests collectés par pytest sur 1 131 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 238 ADRs, ~19 291 tests collectés par pytest sur 1 073 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -75,7 +76,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~19 894 (collectés par pytest sur 1 131 fichiers de test) + 5 816 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | ~19 291 (collectés par pytest sur 1 073 fichiers de test) + 5 862 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures réutilisables | 170+ |
 | Documents de documentation | 490+ |
 | ADRs (Architecture Decision Records) | 229 |
@@ -1303,7 +1304,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-232 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+238 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1443,10 +1444,15 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 232 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~19 894 tests sur 1 131 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 238 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~19 291 tests sur 1 073 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
+## 30. Le programme évolution : travail visible, apprentissage gouverné
+
+La page Activité est un **read-model pur** : des fetchers parallèles (une session par source, l'AsyncSession n'étant pas concurrente) agrègent sept tables d'audit existantes, les totaux sont des `COUNT(*)` exacts sur toute la fenêtre, les caps sont déclarés (`truncated`) et une source en panne est listée plutôt que complétée en silence — le comptage honnête (ADR-185) appliqué de bout en bout. La mémoire suit une **piste de supersession** (ADR-235) : une correction automatique crée un successeur et archive l'ancien fait (`superseded_by_id`), chaque lecture filtre le set actif via un prédicat central, et la piste se purge après rétention ; l'édition manuelle, elle, garde son autorité d'écrasement. Les règles apprises sont une **7ᵉ catégorie de mémoire** injectée en tête de prompt, sous les mêmes protections (épinglage, rétention, RGPD). La prosodie vocale est une **modulation bornée** (bande morte, bornes dures, flag) des réglages administrés — jamais un remplacement. Enfin, l'autonomie reste plafonnée : le budget d'itérations ReAct s'adapte à l'étendue en domaines de la requête sans jamais dépasser le plafond configuré, et une complexité inconnue reçoit le plafond entier — l'économie ne s'applique qu'au prouvé-simple.
+
+
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 232 ADRs, et du changelog (v1.0 à v1.30.13). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 238 ADRs, et du changelog (v1.0 à v1.30.14). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

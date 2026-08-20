@@ -55,6 +55,10 @@ class MemoryCategory(str, Enum):
     EVENT = "event"
     PATTERN = "pattern"
     SENSITIVITY = "sensitivity"
+    # Lot 3-B2 (evolution program): rules about HOW the assistant should
+    # work for this user (explicit corrections, standing instructions) —
+    # procedural memory, injected as binding directives.
+    PROCEDURAL = "procedural"
 
 
 class PurgeRiskLevel(str, Enum):
@@ -193,6 +197,23 @@ class Memory(BaseModel):
         nullable=True,
     )
 
+    # Temporal supersession trail (Lot 2-B1, ADR-235): an AUTOMATED
+    # correction (extraction update/delete, consolidation merge) never
+    # destroys history — the old fact leaves the active set and, when a
+    # successor exists, points at it. Manual API edits stay in-place: a
+    # user correction is an authority, not an evolution.
+    invalidated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the fact left the active set; NULL = active.",
+    )
+    superseded_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("memories.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Successor row when the fact was replaced (NULL on plain invalidation).",
+    )
+
     # Relationships
     user: Mapped[User] = relationship(back_populates="memories")
 
@@ -207,6 +228,14 @@ class Memory(BaseModel):
             "ix_memories_user_category",
             "user_id",
             "category",
+        ),
+        # Active-set scans (every retrieval filters invalidated_at IS NULL).
+        # Declared HERE as well as in the migration: an index living only in
+        # the migration makes autogenerate propose its DROP (ADR-228 trap).
+        Index(
+            "ix_memories_user_invalidated",
+            "user_id",
+            "invalidated_at",
         ),
     )
 

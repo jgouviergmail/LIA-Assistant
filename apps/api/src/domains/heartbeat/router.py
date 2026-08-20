@@ -8,6 +8,7 @@ Endpoints:
 - PATCH /heartbeat/notifications/{id}/feedback: Submit notification feedback
 """
 
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -251,6 +252,34 @@ async def get_heartbeat_history(
     repo = HeartbeatNotificationRepository(db)
     notifications, total = await repo.get_history(user_id=user.id, limit=limit, offset=offset)
 
+    return HeartbeatHistoryResponse(
+        notifications=[HeartbeatNotificationResponse.from_model(n) for n in notifications],
+        total=total,
+    )
+
+
+@router.get(
+    "/offers",
+    response_model=HeartbeatHistoryResponse,
+    summary="Open missed-routine offers (proposals inbox)",
+    description=(
+        "Undecided habit offers (Lot 5-C2): notifications carrying a "
+        "habit_offer_id and no feedback yet, inside the recency window. "
+        "Deciding one rides PATCH /notifications/{id}/feedback (ADR-214)."
+    ),
+)
+async def get_open_offers(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> HeartbeatHistoryResponse:
+    """List the user's open missed-routine offers, newest first."""
+    since = datetime.now(UTC) - timedelta(days=settings.heartbeat_offers_window_days)
+    repo = HeartbeatNotificationRepository(db)
+    notifications, total = await repo.get_open_offers(
+        user_id=user.id, since=since, limit=limit, offset=offset
+    )
     return HeartbeatHistoryResponse(
         notifications=[HeartbeatNotificationResponse.from_model(n) for n in notifications],
         total=total,

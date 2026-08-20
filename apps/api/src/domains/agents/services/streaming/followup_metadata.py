@@ -17,8 +17,12 @@ from typing import Any
 from src.core.constants import (
     INITIATIVE_FOLLOWUP_MAX_CHARS,
     INITIATIVE_FOLLOWUPS_MAX,
+    INITIATIVE_MOTIVATION_MAX_CHARS,
 )
-from src.core.field_names import FIELD_FOLLOWUP_SUGGESTIONS
+from src.core.field_names import (
+    FIELD_FOLLOWUP_SUGGESTIONS,
+    FIELD_INITIATIVE_MOTIVATION,
+)
 
 
 def sanitize_followups(raw: list[str] | None) -> list[str]:
@@ -66,31 +70,74 @@ def sanitize_followups(raw: list[str] | None) -> list[str]:
 # `open_loop_extractor`'s debug cache).
 
 _HANDOFF_MAX_AGE_SECONDS = 300.0
-_pending_followups: dict[str, tuple[float, list[str]]] = {}
 
 
-def _evict_stale_followups() -> None:
-    now = _time.monotonic()
-    stale = [
-        run_id
-        for run_id, (ts, _s) in _pending_followups.items()
-        if now - ts > _HANDOFF_MAX_AGE_SECONDS
-    ]
-    for run_id in stale:
-        _pending_followups.pop(run_id, None)
+class PerRunHandoff[T]:
+    """Pop-once, TTL-evicted, per-run in-process cache (node → SSE generator).
+
+    Factored out of the follow-ups handoff so every initiative artifact
+    (chips, motivation) crosses the node/generator seam the same audited way.
+    """
+
+    def __init__(self) -> None:
+        self._pending: dict[str, tuple[float, T]] = {}
+
+    def _evict_stale(self) -> None:
+        now = _time.monotonic()
+        stale = [
+            run_id
+            for run_id, (ts, _v) in self._pending.items()
+            if now - ts > _HANDOFF_MAX_AGE_SECONDS
+        ]
+        for run_id in stale:
+            self._pending.pop(run_id, None)
+
+    def push(self, run_id: str, value: T) -> None:
+        """Store a run's value for the SSE generator (last wins)."""
+        self._evict_stale()
+        self._pending[run_id] = (_time.monotonic(), value)
+
+    def pop(self, run_id: str) -> T | None:
+        """Pop a run's value (once) — ``None`` when nothing was emitted."""
+        self._evict_stale()
+        entry = self._pending.pop(run_id, None)
+        return entry[1] if entry is not None else None
+
+
+_followups_handoff: PerRunHandoff[list[str]] = PerRunHandoff()
+_motivation_handoff: PerRunHandoff[str] = PerRunHandoff()
 
 
 def push_followups(run_id: str, suggestions: list[str]) -> None:
     """Store a run's sanitized follow-ups for the SSE generator (last wins)."""
-    _evict_stale_followups()
-    _pending_followups[run_id] = (_time.monotonic(), list(suggestions))
+    _followups_handoff.push(run_id, list(suggestions))
 
 
 def pop_followups(run_id: str) -> list[str]:
     """Pop a run's follow-ups (once) — empty list when none were emitted."""
-    _evict_stale_followups()
-    entry = _pending_followups.pop(run_id, None)
-    return entry[1] if entry is not None else []
+    return _followups_handoff.pop(run_id) or []
+
+
+def sanitize_motivation(raw: str | None) -> str | None:
+    """Normalize the initiative's provenance line (Lot 1-A3).
+
+    Whitespace collapsed, clamped to ``INITIATIVE_MOTIVATION_MAX_CHARS``;
+    ``None`` when nothing usable remains.
+    """
+    if not isinstance(raw, str):
+        return None
+    text = " ".join(raw.split())[:INITIATIVE_MOTIVATION_MAX_CHARS]
+    return text or None
+
+
+def push_motivation(run_id: str, motivation: str) -> None:
+    """Store a run's sanitized provenance line (last wins)."""
+    _motivation_handoff.push(run_id, motivation)
+
+
+def pop_motivation(run_id: str) -> str | None:
+    """Pop a run's provenance line (once) — ``None`` when absent."""
+    return _motivation_handoff.pop(run_id)
 
 
 def with_followup_suggestions(
@@ -113,3 +160,17 @@ def with_followup_suggestions(
     if not suggestions:
         return metadata
     return {**metadata, FIELD_FOLLOWUP_SUGGESTIONS: list(suggestions)}
+
+
+def with_initiative_motivation(
+    metadata: dict[str, Any],
+    motivation: str | None,
+) -> dict[str, Any]:
+    """Return metadata enriched with the provenance line (new dict).
+
+    Branch-free at the call site: ``None`` returns the input untouched
+    (same composable idiom as ``with_followup_suggestions``).
+    """
+    if not motivation:
+        return metadata
+    return {**metadata, FIELD_INITIATIVE_MOTIVATION: motivation}

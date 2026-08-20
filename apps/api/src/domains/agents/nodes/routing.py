@@ -836,12 +836,18 @@ def route_from_react_call_model(
     last_message = state["messages"][-1] if state.get("messages") else None
     iteration = state.get("react_iteration", 0)
 
-    # Safety limit 1: prevent infinite loops
-    if iteration >= settings.react_agent_max_iterations:
+    # Safety limit 1: prevent infinite loops. ADR-238: the effective budget
+    # is per-turn (domain-span adaptive) with the configured max as ceiling;
+    # None = the historical fixed cap.
+    iteration_budget = (
+        state.get("react_max_iterations_effective") or settings.react_agent_max_iterations
+    )
+    if iteration >= iteration_budget:
         logger.warning(
             "react_max_iterations_reached",
             iteration=iteration,
-            max_iterations=settings.react_agent_max_iterations,
+            max_iterations=iteration_budget,
+            adaptive=state.get("react_max_iterations_effective") is not None,
         )
         langgraph_conditional_edges_total.labels(
             edge_name="route_from_react_call_model",

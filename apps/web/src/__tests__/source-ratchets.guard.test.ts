@@ -86,6 +86,9 @@ const ALLOWED: Record<string, string> = {
   'hooks/useLLMPricingSheet.ts':
     'FormData workbook upload (the client forces application/json, and a multipart body needs ' +
     'the browser to set its own boundary)',
+  'hooks/useBriefingAudio.ts':
+    'binary MP3 response (A2, ADR-237): apiClient methods parse JSON by contract; the session ' +
+    'cookie rides along via credentials: include (BFF doctrine unchanged)',
   'hooks/useAPIHealth.ts':
     'availability probe: a 401 here means "API unreachable", it must not eject the user to /login',
   'lib/product-telemetry.ts':

@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 1.7
-**Datum**: 2026-08-19
-**Anwendung**: LIA v1.30.13
+**Datum**: 2026-08-20
+**Anwendung**: LIA v1.30.14
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -120,3 +120,5 @@ Was diese Erfahrung in einer Führungspraxis verändert:
 - **Eine Führungskraft, die praktiziert, entscheidet besser.** Selbst machen oder machen lassen, akzeptable Schulden oder nicht, glaubwürdiges Anbieterversprechen oder nicht — diese Entscheidungen gewinnen an Treffsicherheit, wenn man die Materie selbst erprobt hat. Dieses Projekt ist eine Art, diese Nähe zum Terrain zu pflegen.
 
 *Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Zahlen aus dem technischen Audit von Juli 2026 — Tests ausgeführt, Messungen am Code vorgenommen, Befunde gegengeprüft. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+
+Dann lernte der Assistent, seine eigene Arbeit zu zeigen: eine Aktivitätsseite, die alles auflistet, was er von selbst tut, gelernte Regeln, die man lesen und korrigieren kann, ein Gedächtnis, das seine Erinnerungen datiert und archiviert statt löscht, eine Stimme, die mit seiner Stimmung atmet. Die Autonomie wuchs genau so, wie es die Philosophie des Projekts verlangte: im Rahmen, unter den Augen des Nutzers.

@@ -85,6 +85,10 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
       ...(metadata.followup_suggestions?.length
         ? { followup_suggestions: metadata.followup_suggestions }
         : {}),
+      // Lot 1-A3: provenance line of the chips (same live/reload symmetry).
+      ...(metadata.initiative_motivation
+        ? { initiative_motivation: metadata.initiative_motivation }
+        : {}),
     },
   };
 }

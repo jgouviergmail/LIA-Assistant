@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 1.7
-**Date**: 2026-08-19
-**Application**: LIA v1.30.13
+**Date**: 2026-08-20
+**Application**: LIA v1.30.14
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -120,3 +120,5 @@ What this experience changes in a management practice:
 - **A leader who practices arbitrates better.** Build or buy, acceptable debt or not, credible vendor promise or not — these decisions gain accuracy when you have worked the material yourself. This project is a way of maintaining that proximity to the field.
 
 *Personal project, carried out outside any professional activity. Figures from the July 2026 technical audit — tests executed, measurements taken on the code, findings cross-checked. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+
+Then the assistant learned to show its own work: an Activity page listing everything it does on its own, learned rules you can read and correct, a memory that dates its recollections and archives without erasing, a voice that breathes with its mood. Autonomy grew exactly as the project's philosophy demanded: inside the frame, under the user's gaze.

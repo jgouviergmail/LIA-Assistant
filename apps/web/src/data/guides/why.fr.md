@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 5.0
-**Date** : 2026-08-19
-**Application** : LIA v1.30.13
+**Date** : 2026-08-20
+**Application** : LIA v1.30.14
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -492,3 +492,7 @@ LIA existe parce que le monde manque d'un assistant IA qui soit **à toi**. Vrai
 La façon dont LIA est construite — une IA qui écrit le code, un humain qui dirige, contrôle et audite — est racontée en détail dans notre [retour d'expérience](/story).
 
 **Your Life. Your AI. Your Rules.**
+
+### Le travail invisible est montré, l'apprentissage est administrable
+
+Un assistant proactif travaille quand tu ne regardes pas — et ce travail-là aussi doit se voir. La page **Activité** rassemble en un fil chronologique tout ce que LIA a fait de sa propre initiative, avec des totaux exacts et des pannes déclarées : jamais « environ », jamais un silence. La même exigence gouverne ce que l'assistant apprend de toi : chaque règle durable (« réponds plus court », « ne me propose plus ça le soir ») est une mémoire **visible, modifiable et supprimable** — et quand un fait change, l'ancien ne s'efface pas : il s'archive derrière le nouveau, pour que corriger ne soit jamais réécrire l'histoire. Les routines que LIA propose de prendre en charge attendent ton feu vert dans une boîte dédiée : accepter préremplit le chat, rien ne part sans toi, refuser lui apprend à moins insister.

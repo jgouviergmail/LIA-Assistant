@@ -31,13 +31,21 @@
  *   send_peer_message), which had never been carried into this tile.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-16
- *   (v1.30.1): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 473,
+ * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-20
+ *   (v1.30.14): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 480
+ *   (adaptive candidate evidence, consolidation census + the ADR-232/233
+ *   funnels). Previous re-measure 2026-08-16 (v1.30.1): 473,
  *   the no-usage accounting counter and the cache write-skip counter (ADR-220)
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.13: backend 19,894 (pytest, 1,131 files) +
+ *   Re-measured at v1.30.14: backend 19,291 (pytest, 1,073 files — the
+ *   ADR-233 ontology purge removed more collected items than the evolution
+ *   program added; ~155 new: activity timeline, memory supersession,
+ *   procedural memory, prosody/readout, proposals inbox, adaptive ReAct) +
+ *   frontend 5,859 vitest = 25,150 -> 25,100 (the honest figure goes DOWN
+ *   this release; zero oversell doctrine).
+ *   Previous re-measure at v1.30.13: backend 19,894 (pytest, 1,131 files) +
  *   frontend 5,816 vitest = 25,710.
  *   Re-measured at v1.30.11: backend 19,100 (1,042 files;
  *   `pytest tests/unit tests/agents --collect-only --no-cov`; +342 — the
@@ -123,12 +131,12 @@
  *   Re-measure every release: the value carried the backend count alone
  *   until v1.25.9.
  * - adrs: docs/architecture/ ADR files — recount every release, never carry it
- *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 232 files at
- *   v1.30.13, numbered up to ADR-233: ADR-008 has no separate file, so the
+ *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 238 files at
+ *   v1.30.14, numbered up to ADR-239: ADR-008 has no separate file, so the
  *   highest number runs one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   217 headings at v1.30.13, no Unreleased pending.
+ *   218 headings at v1.30.14, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -142,11 +150,11 @@ export const LANDING_STATS = {
   tools: 90,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 473,
+  metrics: 480,
   uiLanguages: 6,
-  tests: 25700,
-  adrs: 232,
-  releases: 217,
+  tests: 25100,
+  adrs: 238,
+  releases: 218,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

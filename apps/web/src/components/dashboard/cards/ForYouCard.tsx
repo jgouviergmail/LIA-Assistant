@@ -10,6 +10,7 @@ import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
 import { CommitmentEditor } from '@/components/commitments/CommitmentEditor';
 import { haptic } from '@/lib/haptics';
+import { useAppConfig } from '@/hooks/useAppConfig';
 import { useOpenLoops, type OpenLoopPatch } from '@/hooks/useOpenLoops';
 import { chatDraftHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
@@ -83,6 +84,7 @@ function ForYouContent({
   // about what is still open. `enabled: false` — this card renders the
   // BRIEFING section and needs only the mutations, never a second list.
   const { close, update } = useOpenLoops(false);
+  const { config } = useAppConfig();
 
   /** Take focus back into the card BEFORE the row disappears. */
   const anchorFocus = () => {
@@ -246,6 +248,20 @@ function ForYouContent({
             </li>
           </ul>
         </div>
+      )}
+      {/* Door to the full activity timeline (Lot 1-A1): this card previews
+          what LIA tracks; the timeline is where ALL of its proactive work
+          becomes visible. Gate-keeper rule (ADR-061): hidden when the
+          instance disables the subsystem. */}
+      {config?.features?.activity_timeline_enabled && (
+        <p className="text-xs">
+          <Link
+            href={`/${lng}/dashboard/activity`}
+            className="text-muted-foreground hover:text-primary hover:underline"
+          >
+            {t('activity.see_all')}
+          </Link>
+        </p>
       )}
     </div>
   );

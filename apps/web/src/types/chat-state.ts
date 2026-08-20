@@ -221,6 +221,9 @@ export type ChatAction =
           // UXR Lot 4 (A2): follow-up chips (mirror of
           // DoneMetadata.followup_suggestions — ADR-117: both types).
           followup_suggestions?: string[];
+          // Lot 1-A3: provenance line of the chips (mirror of
+          // DoneMetadata.initiative_motivation — ADR-117: both types).
+          initiative_motivation?: string;
           tokens_in?: number;
           tokens_out?: number;
           tokens_cache?: number;
