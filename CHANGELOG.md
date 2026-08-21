@@ -34,15 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Nom d'onglet contenant une apostrophe** : la notation A1 exige le doublement de l'apostrophe, sans quoi l'API refuse la lecture (`Bob's data`).
 - **Titres d'événements en clair dans les journaux** : les exécutions de brouillon d'agenda écrivaient le titre au niveau INFO, contrairement à la règle interne sur les données personnelles.
 - **Administration des connecteurs incomplète** : les deux services plateforme (Weather, Environnement) n'apparaissaient pas dans le panneau d'administration — un opérateur ne pouvait pas les désactiver. Ajoutés, avec une garde qui refuse toute future omission.
+- **Traces du démonstrateur rejetées à chaque envoi** : son collecteur ne déclarait qu'un tuyau de métriques, si bien que le serveur acceptait la connexion sans jamais enregistrer le service de traces — chaque lot revenait en erreur dans les journaux. Le démonstrateur ne conserve aucune trace, par choix ; elles sont désormais acceptées et abandonnées explicitement, ce qui énonce le sort du signal au lieu de le laisser échouer. Une garde exige qu'un signal accepté ait toujours une destination déclarée.
 
 ### Changed
 - **Rendu partagé pour la qualité de l'air et les pollens** : une implémentation unique sert la carte météo et la carte de lieu, pour que les règles d'honnêteté restent vraies aux deux endroits.
 - **Une carte météo résiste à un contenu antérieur** : la page d'accueil met ses sections en cache jusqu'à une heure et un déploiement progressif peut servir une charge utile plus ancienne — les nouveaux champs sont lus défensivement.
 - **Extraction structurelle** : les déclarations de manifestes d'agents quittent le chargeur du catalogue (659 → 343 lignes logiques), les enrichissements de carte de lieu (Street View, qualité de l'air) rejoignent un module cohésif, et la validation d'écriture de tableur est isolée — trois décompositions imposées par les cliquets de taille et de complexité, jamais un relèvement de plafond.
 - **Tarification Google** : dix-huit points d'appel tarifés (météo, qualité de l'air, pollens, Street View, Web Risk et les variantes de recherche de lieux), documentés dans `GOOGLE_API.md`.
+- **Chiffres publiés réalignés sur la mesure** : la page Récit annonçait encore 229 ADR, 210 versions et 23 900 tests, et le tableau de métriques du guide technique avait divergé d'une langue à l'autre. Tout est remesuré sur l'arbre publié — un tableau qui dérive par langue a cessé d'être une mesure. La ligne « fixtures réutilisables : 170+ », invérifiable dans les deux sens, cède la place au compte exact.
 
 ### Tests
-- Suites complètes vertes : 20 474 tests backend collectés, 6 076 tests frontend, MyPy strict sur 1 216 fichiers, parité stricte des six langues.
+- Suites complètes vertes : 20 474 tests backend collectés, 6 080 tests frontend, MyPy strict sur 1 216 fichiers, parité stricte des six langues.
 - Nouvelles gardes de non-récurrence : clé de cache qualifiée par classe, première exécution du travail de synchronisation, couverture du panneau d'administration des connecteurs par rapport à la surface du backend, tarification seedée pour chaque appel tracké.
 - Filet de caractérisation des aperçus de confirmation étendu aux cinq nouveaux types (répondeur, filtre, écriture de tableur, ajout au document), généré depuis l'implémentation puis épinglé au caractère près.
 - Cas réels intégrés après mesure en production : indice national sans valeur numérique, charge utile de cache antérieure à l'enrichissement, nom d'onglet à apostrophe.
