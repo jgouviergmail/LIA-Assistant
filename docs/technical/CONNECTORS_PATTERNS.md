@@ -269,6 +269,21 @@ emails = ContactsFormatter._extract_emails(person)
 | **OpenWeatherMapClient** | 630 | Current weather, forecast, geocoding |
 | **WikipediaClient** | 644 | Search, articles, multi-language |
 
+#### Platform-Key Clients (global GOOGLE_API_KEY — activation is a user toggle)
+
+| Connecteur | Key Features |
+|------------|--------------|
+| **GoogleWeatherClient** | Current conditions + hourly forecast, normalized to the OWM shape AT THE CLIENT BOUNDARY (icons mapped to OWM codes, km/h → m/s) so the 19 weather call sites are provider-agnostic |
+| **GoogleEnvironmentClient** | Air quality (universal + LOCAL national index) and pollen forecast; deliberately OUTSIDE the "weather" functional category, so an OpenWeatherMap user keeps it |
+
+#### Drive-token ride-along clients (no new scope)
+
+| Connecteur | Key Features |
+|------------|--------------|
+| **GoogleSheetsClient** | Read values, update a range, append rows (USER_ENTERED) |
+| **GoogleDocsClient** | Read structured content, append text via endOfSegmentLocation |
+| **GoogleGmailSettingsClient** | Vacation responder, filters, sendAs, users.watch — separate from GoogleGmailClient, which is size-frozen |
+
 #### Microsoft 365 Clients (OAuth — Microsoft Graph API)
 
 | Connecteur | Key Features |
