@@ -580,7 +580,9 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         (Get-Content (Join-Path $lab ".env") -Raw) | Should -Be $envText
 
         # Without .env the block is a silent no-op (first deploy decrypts later).
-        Remove-Item (Join-Path $lab ".env")
+        # -Force: on Linux runners a dotfile is a HIDDEN file — plain Remove-Item
+        # throws "item is hidden" there while passing on Windows.
+        Remove-Item (Join-Path $lab ".env") -Force
         & $script:BashExe -c "cd '$labBash' && sh ./run.sh" | Out-Null
         $LASTEXITCODE | Should -Be 0
         (Join-Path $lab ".env") | Should -Not -Exist
