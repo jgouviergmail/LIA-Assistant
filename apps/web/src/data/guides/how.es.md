@@ -77,7 +77,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 20.474 recopilados por pytest en 1.197 archivos de prueba + 6.080 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 20.478 recopilados por pytest en 1.198 archivos de prueba + 6.080 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 752, de las cuales 32 compartidas mediante conftest |
 | Documentos de documentación | 542 |
 | ADRs (Architecture Decision Records) | 240 |

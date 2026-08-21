@@ -77,7 +77,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 20.474 von pytest über 1.197 Testdateien gesammelt + 6.080 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 20.478 von pytest über 1.198 Testdateien gesammelt + 6.080 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 752, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 542 |
 | ADRs (Architecture Decision Records) | 240 |

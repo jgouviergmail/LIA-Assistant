@@ -77,7 +77,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 20,474 collected by pytest across 1,197 test files + 6,080 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 20,478 collected by pytest across 1,198 test files + 6,080 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 752, 32 of them shared through conftest |
 | Documentation documents | 542 |
 | ADRs (Architecture Decision Records) | 240 |

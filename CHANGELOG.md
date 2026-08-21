@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Chiffres publiés réalignés sur la mesure** : la page Récit annonçait encore 229 ADR, 210 versions et 23 900 tests, et le tableau de métriques du guide technique avait divergé d'une langue à l'autre. Tout est remesuré sur l'arbre publié — un tableau qui dérive par langue a cessé d'être une mesure. La ligne « fixtures réutilisables : 170+ », invérifiable dans les deux sens, cède la place au compte exact.
 
 ### Tests
-- Suites complètes vertes : 20 474 tests backend collectés, 6 080 tests frontend, MyPy strict sur 1 216 fichiers, parité stricte des six langues.
+- Suites complètes vertes : 20 478 tests backend collectés, 6 080 tests frontend, MyPy strict sur 1 216 fichiers, parité stricte des six langues.
 - Nouvelles gardes de non-récurrence : clé de cache qualifiée par classe, première exécution du travail de synchronisation, couverture du panneau d'administration des connecteurs par rapport à la surface du backend, tarification seedée pour chaque appel tracké.
 - Filet de caractérisation des aperçus de confirmation étendu aux cinq nouveaux types (répondeur, filtre, écriture de tableur, ajout au document), généré depuis l'implémentation puis épinglé au caractère près.
 - Cas réels intégrés après mesure en production : indice national sans valeur numérique, charge utile de cache antérieure à l'enrichissement, nom d'onglet à apostrophe.
