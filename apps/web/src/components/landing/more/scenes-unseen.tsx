@@ -773,19 +773,17 @@ function AirQualityHonestyScene({ active, labels }: SceneProps) {
         >
           72
         </span>
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+        <span
+          className={cn(
+            'rounded-full px-1.5 py-0.5 text-[10px] transition-colors duration-500 motion-reduce:transition-none',
+            numbered
+              ? 'bg-muted font-medium text-muted-foreground'
+              : 'bg-primary/15 font-semibold text-primary'
+          )}
+        >
           {labels.category}
         </span>
       </div>
-      <span
-        aria-hidden="true"
-        className={cn(
-          'self-center text-[9px] text-muted-foreground transition-opacity duration-500 motion-reduce:transition-none',
-          numbered ? 'opacity-0' : 'opacity-100'
-        )}
-      >
-        ——
-      </span>
     </div>
   );
 }
