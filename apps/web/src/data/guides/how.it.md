@@ -77,11 +77,11 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | ~19.844 (raccolti da pytest su 1.119 file di test) + 5.815 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
-| Fixture riutilizzabili | 170+ |
-| Documenti di documentazione | 490+ |
-| ADR (Architecture Decision Record) | 229 |
-| Metriche Prometheus | 473 definizioni |
+| Test | 20.474 raccolti da pytest su 1.197 file di test + 6.080 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Fixture pytest | 752, di cui 32 condivise tramite conftest |
+| Documenti di documentazione | 542 |
+| ADR (Architecture Decision Record) | 240 |
+| Metriche Prometheus | 483 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -726,7 +726,13 @@ Ogni provider restituisce dati nel proprio formato. Normalizer dedicati (`calend
 
 `BaseOAuthClient` (template method con 3 hook), `BaseGoogleClient` (paginazione tramite pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribuito, refresh token con double-check pattern e Redis locking contro il thundering herd.
 
-### 13.4. Telefonia agentica (ADR-127)
+### 13.4. Due percorsi di autenticazione
+
+Non tutti i connettori richiedono un account. Un **connettore OAuth** conserva le credenziali personali dell'utente: Gmail, Calendario, Contatti, Drive. Un **servizio a chiave di piattaforma** non conserva alcun dato per utente — lo si attiva e basta, e la chiave appartiene all'installazione: Percorsi, Luoghi, Meteo, Ambiente. `ConnectorType.uses_global_api_key` porta questa distinzione, e la base degli strumenti sceglie il percorso delle credenziali in base al tipo **risolto**. Una stessa categoria funzionale può quindi mescolare i due: il meteo accetta un fornitore a chiave personale così come un servizio di piattaforma, senza che il chiamante sappia chi ha risposto.
+
+Esiste un terzo caso: un client che **prende in prestito il token di un connettore vicino**. Fogli di calcolo e documenti leggono e scrivono con il token di Drive; le impostazioni Gmail con quello di Gmail. Nelle impostazioni non compare alcun connettore aggiuntivo, ed è voluto — l'utente ha autorizzato uno spazio di lavoro, non un'API. La conseguenza è stata misurata: la cache dei client era indicizzata su utente e tipo di connettore, così due classi che condividono un token si servivano a vicenda. Ora la chiave porta anche il nome della classe.
+
+### 13.5. Telefonia agentica (ADR-127)
 
 LIA può effettuare una chiamata in uscita per conto dell'utente, condurre una conversazione orientata all'obiettivo e reiniettare un riepilogo scritto nella chat. A differenza dei connettori di lettura/scrittura sopra, il connettore di telefonia guida un **agente vocale di terze parti** (ElevenLabs Agents) sulla rete telefonica, configurato per utente (credenziali personali) — LIA non effettua alcuna misurazione dei costi per proprio conto.
 

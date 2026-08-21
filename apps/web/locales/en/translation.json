@@ -7798,6 +7798,10 @@
         "title": "Switched off, and said so",
         "desc": "An operator can turn a capability off for the whole instance. When that happens LIA names it instead of quietly failing — and it stops offering the action in the first place, so you never get a refusal after the fact."
       },
+      "air_quality_honesty": {
+        "title": "Air quality, as the provider states it",
+        "desc": "Some indexes publish a value and a category; a national one may publish the category alone. It then stands on its own, never paired with a figure borrowed from another scale. An absent signal beats a false one."
+      },
       "readable_at_a_glance": {
         "title": "Readable at a glance",
         "desc": "An urgent alert does not look like an ordinary one: density separates them, not hue alone. It holds in greyscale too. And an action has the same shape everywhere: what creates is solid, what deletes carries its red without waiting for a hover, and every title announces itself with an icon."
@@ -7877,6 +7881,10 @@
       "capability_honesty": {
         "capability": "Dictation",
         "reason": "Off on this instance"
+      },
+      "air_quality_honesty": {
+        "index": "Air quality",
+        "category": "Moderate"
       },
       "plugin_report": {
         "skill": "Summarize skill",
@@ -10347,7 +10355,7 @@
   "story": {
     "meta": {
       "title": "Story — Directing an AI That Codes | LIA",
-      "description": "How LIA was built: ~100% AI-written code under human direction, 10,000+ tests, 100+ ADRs, an 8.3/10 technical audit. The complete field report."
+      "description": "How LIA was built: ~100% AI-written code under human direction, 26,500+ tests, 240 ADRs, an 8.3/10 technical audit. The complete field report."
     },
     "breadcrumb": "Story",
     "hero": {

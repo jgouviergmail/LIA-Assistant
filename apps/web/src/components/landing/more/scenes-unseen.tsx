@@ -22,6 +22,7 @@ import {
   Server,
   Sun,
   Vibrate,
+  Wind,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -738,11 +739,63 @@ function ActivityTimelineScene({ active, labels }: SceneProps) {
   );
 }
 
+type AirPhase = 'numbered' | 'switching' | 'categoryOnly';
+const AIR_STEPS: readonly TimelineStep<AirPhase>[] = [
+  { at: 0, state: 'numbered' },
+  { at: 1600, state: 'switching' },
+  { at: 2200, state: 'categoryOnly' },
+];
+
+/**
+ * Air quality, told the way the provider tells it.
+ *
+ * Some indexes publish a figure and a category; a national one may publish the
+ * category alone. The scene switches from the first to the second: the number
+ * leaves, the wording stays, and nothing converts one scale into another. The
+ * resting frame is the category standing on its own — an absent signal beats an
+ * invented one.
+ */
+function AirQualityHonestyScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(AIR_STEPS, { active });
+  const numbered = phase === 'numbered';
+
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+        <Wind className="h-4 w-4 text-primary" aria-hidden="true" />
+        <span className="flex-1 text-[10px] font-medium">{labels.index}</span>
+        <span
+          aria-hidden="true"
+          className={cn(
+            'rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-primary transition-all duration-500 motion-reduce:transition-none',
+            numbered ? 'opacity-100' : 'w-0 scale-75 overflow-hidden px-0 opacity-0'
+          )}
+        >
+          72
+        </span>
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+          {labels.category}
+        </span>
+      </div>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'self-center text-[9px] text-muted-foreground transition-opacity duration-500 motion-reduce:transition-none',
+          numbered ? 'opacity-0' : 'opacity-100'
+        )}
+      >
+        ——
+      </span>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   activity_timeline: ActivityTimelineScene,
   readable_at_a_glance: ReadableAtAGlanceScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,
+  air_quality_honesty: AirQualityHonestyScene,
   plugin_report: PluginReportScene,
   background_response: BackgroundResponseScene,
   widgets_travel: WidgetsTravelScene,

@@ -77,11 +77,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | ~19,335 (collected by pytest across 1,076 test files) + 5,869 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
-| Reusable fixtures | 170+ |
-| Documentation documents | 490+ |
-| ADRs (Architecture Decision Records) | 229 |
-| Prometheus metrics | 473 definitions |
+| Tests | 20,474 collected by pytest across 1,197 test files + 6,080 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| pytest fixtures | 752, 32 of them shared through conftest |
+| Documentation documents | 542 |
+| ADRs (Architecture Decision Records) | 240 |
+| Prometheus metrics | 483 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -726,7 +726,13 @@ Each provider returns data in its own format. Dedicated normalizers (`calendar_n
 
 `BaseOAuthClient` (template method with 3 hooks), `BaseGoogleClient` (pagination via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, distributed Redis rate limiting, refresh token with double-check pattern and Redis locking against thundering herd.
 
-### 13.4. Agentic telephony (ADR-127)
+### 13.4. Two credential paths
+
+Not every connector asks for an account. An **OAuth connector** holds the user's personal credentials: Gmail, Calendar, Contacts, Drive. A **platform-key service** holds no per-user data — the user simply switches it on, and the key belongs to the installation: Routes, Places, Weather, Environment. `ConnectorType.uses_global_api_key` carries the distinction, and the tool base picks the credentials path from the **resolved** type. One functional category can therefore mix both: weather accepts a personal-key provider as readily as a platform service, without the caller knowing which one answered.
+
+A third case exists: a client that **borrows a sibling connector's token**. Spreadsheets and documents read and write with Drive's token; Gmail settings with Gmail's. No extra connector appears in the settings, and that is deliberate — the user authorized a workspace, not an API. The consequence was measured: the client cache was keyed on the user and the connector type, so two classes sharing a token served each other. The key now carries the class name as well.
+
+### 13.5. Agentic telephony (ADR-127)
 
 LIA can place an outbound phone call on the user's behalf, hold a goal-directed conversation, and reinject a written summary back into the chat. Unlike the read/write connectors above, the telephony connector drives a **third-party voice agent** (ElevenLabs Agents) over the phone network, configured per user (bring-your-own credentials) — LIA performs no cost metering of its own.
 

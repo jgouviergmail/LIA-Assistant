@@ -7789,6 +7789,10 @@
         "title": "Abgeschaltet, und gesagt",
         "desc": "Eine Betreiberin kann eine Fähigkeit für die ganze Instanz abschalten. Dann nennt LIA sie beim Namen, statt still zu scheitern — und sie bietet die Aktion gar nicht erst an, damit du nie nachträglich eine Absage bekommst."
       },
+      "air_quality_honesty": {
+        "title": "Luftqualität, so wie der Dienst sie angibt",
+        "desc": "Manche Indizes veröffentlichen einen Wert und eine Kategorie; ein nationaler Index nennt womöglich nur die Kategorie. Dann steht sie für sich allein — nie neben einer Zahl aus einer anderen Skala. Ein fehlendes Signal ist besser als ein falsches."
+      },
       "readable_at_a_glance": {
         "title": "Auf einen Blick lesbar",
         "desc": "Ein dringender Hinweis sieht nicht aus wie ein gewöhnlicher: die Dichte trennt sie, nicht der Farbton allein. Das hält auch in Graustufen. Und eine Aktion hat überall dieselbe Form: Was erstellt, ist gefüllt; was löscht, trägt sein Rot ohne auf den Mauszeiger zu warten; und jeder Titel kündigt sich mit seinem Symbol an."
@@ -7868,6 +7872,10 @@
       "capability_honesty": {
         "capability": "Diktat",
         "reason": "Auf dieser Instanz aus"
+      },
+      "air_quality_honesty": {
+        "index": "Luftqualität",
+        "category": "Mittel"
       },
       "plugin_report": {
         "skill": "Zusammenfassungs-Skill",
@@ -10346,7 +10354,7 @@
   "story": {
     "meta": {
       "title": "Story — Eine KI führen, die programmiert | LIA",
-      "description": "Wie LIA entstand: ~100 % KI-geschriebener Code unter menschlicher Führung, 10.000+ Tests, 100+ ADRs, ein technisches Audit mit 8,3/10. Der vollständige Erfahrungsbericht."
+      "description": "Wie LIA entstand: ~100 % KI-geschriebener Code unter menschlicher Führung, 26.500+ Tests, 240 ADRs, ein technisches Audit mit 8,3/10. Der vollständige Erfahrungsbericht."
     },
     "breadcrumb": "Erfahrungsbericht",
     "hero": {

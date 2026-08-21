@@ -7791,6 +7791,10 @@
         "title": "Disattivata, e detta",
         "desc": "Un operatore può disattivare una capacità per l'intera istanza. Quando accade, LIA la nomina invece di fallire in silenzio — e smette prima di proporre l'azione, così non ricevi mai un rifiuto a posteriori."
       },
+      "air_quality_honesty": {
+        "title": "L'aria, come la dichiara il servizio",
+        "desc": "Alcuni indici pubblicano un valore e una categoria; un indice nazionale può pubblicare solo la categoria. Allora compare da sola, mai accanto a una cifra presa da un'altra scala. Un segnale assente vale più di un segnale falso."
+      },
       "readable_at_a_glance": {
         "title": "Leggibile a colpo d'occhio",
         "desc": "Un avviso urgente non somiglia a uno ordinario: a separarli è la densità, non la sola tonalità. Regge anche in scala di grigi. E un'azione ha la stessa forma ovunque: ciò che crea è pieno, ciò che elimina porta il suo rosso senza aspettare il puntatore, e ogni titolo si annuncia con la sua icona."
@@ -7870,6 +7874,10 @@
       "capability_honesty": {
         "capability": "Dettatura",
         "reason": "Disattivata su questa istanza"
+      },
+      "air_quality_honesty": {
+        "index": "Qualità dell'aria",
+        "category": "Media"
       },
       "plugin_report": {
         "skill": "Skill di sintesi",
@@ -10348,7 +10356,7 @@
   "story": {
     "meta": {
       "title": "Story — Dirigere un'IA che programma | LIA",
-      "description": "Come è stata costruita LIA: ~100 % di codice scritto da un'IA sotto direzione umana, 10.000+ test, 100+ ADR, un audit tecnico di 8,3/10. Il resoconto completo."
+      "description": "Come è stata costruita LIA: ~100 % di codice scritto da un'IA sotto direzione umana, 26.500+ test, 240 ADR, un audit tecnico di 8,3/10. Il resoconto completo."
     },
     "breadcrumb": "Resoconto",
     "hero": {

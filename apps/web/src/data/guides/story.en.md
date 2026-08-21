@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 43 functional domains | **570,000** |
-| Automated tests, run on every commit and release | **23,900+** |
-| Documented architecture decisions (ADR) | **229** |
-| Versions shipped at a steady pace | **210** |
+| Automated tests, run on every commit and release | **26,500+** |
+| Documented architecture decisions (ADR) | **240** |
+| Versions shipped at a steady pace | **222** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 229 documented:
+Three structural decisions, among the 240 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -62,7 +62,7 @@ Three structural decisions, among the 229 documented:
 
 A system flown on instruments:
 
-- **Observability**: twenty-five dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 470 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration.
+- **Observability**: twenty-six dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 480 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration.
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
 - **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.

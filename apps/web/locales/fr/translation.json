@@ -7803,6 +7803,10 @@
         "title": "Coupée, et dite",
         "desc": "Un exploitant peut couper une capacité pour toute l’instance. Quand cela arrive, LIA la nomme au lieu d’échouer en silence — et elle cesse d’abord de proposer l’action, pour que tu ne reçoives jamais un refus après coup."
       },
+      "air_quality_honesty": {
+        "title": "L’air, dit comme le service le dit",
+        "desc": "Certains indices publient une valeur et une catégorie ; un indice national peut ne publier que la catégorie. Elle s’affiche alors seule, jamais accompagnée d’un chiffre emprunté à une autre échelle. Un signal absent vaut mieux qu’un signal faux."
+      },
       "readable_at_a_glance": {
         "title": "Lisible d’un coup d’œil",
         "desc": "Une alerte urgente ne ressemble pas à une alerte ordinaire : c’est la densité qui les sépare, pas seulement la teinte. Ça tient aussi en niveaux de gris. Et une action a la même forme partout : ce qui crée est plein, ce qui supprime porte son rouge sans attendre le survol, et chaque titre s’annonce par son icône."
@@ -7882,6 +7886,10 @@
       "capability_honesty": {
         "capability": "Dictée",
         "reason": "Coupée sur cette instance"
+      },
+      "air_quality_honesty": {
+        "index": "Qualité de l’air",
+        "category": "Moyen"
       },
       "plugin_report": {
         "skill": "Skill de synthèse",
@@ -10352,7 +10360,7 @@
   "story": {
     "meta": {
       "title": "Story — Diriger une IA qui code | LIA",
-      "description": "Comment LIA a été construite : ~100 % de code écrit par une IA sous direction humaine, 10 000+ tests, 100+ ADRs, un audit technique à 8,3/10. Le retour d'expérience complet."
+      "description": "Comment LIA a été construite : ~100 % de code écrit par une IA sous direction humaine, 26 500+ tests, 240 ADRs, un audit technique à 8,3/10. Le retour d'expérience complet."
     },
     "breadcrumb": "Retour d'expérience",
     "hero": {

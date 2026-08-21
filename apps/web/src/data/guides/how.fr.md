@@ -77,11 +77,11 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | ~19 335 (collectés par pytest sur 1 076 fichiers de test) + 5 869 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
-| Fixtures réutilisables | 170+ |
-| Documents de documentation | 490+ |
-| ADRs (Architecture Decision Records) | 229 |
-| Métriques Prometheus | 473 définitions |
+| Tests | 20 474 collectés par pytest sur 1 197 fichiers de test + 6 080 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Fixtures pytest | 752, dont 32 partagées via conftest |
+| Documents de documentation | 542 |
+| ADRs (Architecture Decision Records) | 240 |
+| Métriques Prometheus | 483 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -725,7 +725,13 @@ Chaque provider retourne des données dans son propre format. Des normalizers d�
 
 `BaseOAuthClient` (template method avec 3 hooks), `BaseGoogleClient` (pagination via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribué, refresh token avec double-check pattern et Redis locking contre le thundering herd.
 
-### 13.4. Téléphonie agentique (ADR-127)
+### 13.4. Deux chemins d'authentification
+
+Tous les connecteurs ne demandent pas un compte. Un **connecteur OAuth** détient les identifiants personnels de l'utilisateur : Gmail, Agenda, Contacts, Drive. Un **service à clé de plateforme** n'a aucune donnée par utilisateur — l'utilisateur se contente de l'activer, et la clé appartient à l'installation : Itinéraires, Lieux, Météo, Environnement. `ConnectorType.uses_global_api_key` porte cette distinction, et la base des outils choisit le chemin d'identifiants d'après le type **résolu**. Une même catégorie fonctionnelle peut donc mélanger les deux : la météo accepte un fournisseur à clé personnelle comme un service de plateforme, sans que l'appelant sache lequel répond.
+
+Un troisième cas existe : un client qui **emprunte le jeton d'un connecteur voisin**. Les tableurs et les documents lisent et écrivent avec le jeton de Drive ; les paramètres Gmail avec celui de Gmail. Aucun connecteur supplémentaire n'apparaît dans les réglages, et c'est voulu — l'utilisateur a autorisé un espace, pas une API. La conséquence a été mesurée : le cache de clients était indexé sur l'utilisateur et le type de connecteur, si bien que deux classes partageant un jeton se servaient l'une l'autre. La clé porte désormais aussi le nom de la classe.
+
+### 13.5. Téléphonie agentique (ADR-127)
 
 LIA peut passer un appel sortant à la place de l'utilisateur, mener une conversation orientée objectif, puis réinjecter un résumé écrit dans le chat. Contrairement aux connecteurs lecture/écriture ci-dessus, le connecteur de téléphonie pilote un **agent vocal tiers** (ElevenLabs Agents) sur le réseau téléphonique, configuré par utilisateur (identifiants personnels) — LIA n'effectue aucune facturation de son côté.
 
