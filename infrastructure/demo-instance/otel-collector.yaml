@@ -17,6 +17,14 @@ processors:
 exporters:
   prometheus:
     endpoint: 0.0.0.0:8889
+  # The demonstrator keeps NO trace backend — that is the P2 boundary, not an
+  # omission. But the application wires its span exporter unconditionally
+  # (`configure_tracing`, no feature flag), so the spans arrive regardless.
+  # Without a traces pipeline the gRPC server never registers the trace
+  # service and answers UNIMPLEMENTED on every batch, which surfaced as a
+  # recurring error in production (2026-08-21). Accepting the spans and
+  # dropping them states the intent; silence that reads as a failure does not.
+  nop: {}
 
 service:
   pipelines:
@@ -24,3 +32,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [nop]
