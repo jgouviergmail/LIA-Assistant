@@ -24,14 +24,25 @@
  *   cross-check rather than grep alone: production logs 344
  *   `catalogue_tool_registered` events across 4 uvicorn workers = 86 per
  *   worker, matching `grep -rcE '^[A-Za-z_]+ = ToolManifest\(' src/domains/agents/`.
- *   Re-measured at v1.30.11: 90 (the two peer-facing manifests added since
- *   v1.27.0 had never been carried into this tile).
+ *   Re-measured at v1.31.1: 105. Production runtime logs 102 tool manifests
+ *   (`"tool_manifests": 102` in global_registry_set, 4 workers) BEFORE this
+ *   release, plus the three manifests this release registers unconditionally
+ *   through the family tuples (write_spreadsheet, append_document_text,
+ *   create_email_filter). The +15 over v1.30.11 is the Google API ecosystem
+ *   programme: contact groups (3), availability (1), Gmail settings (3),
+ *   workspace docs read+write (4), air quality / pollen (2), plus the two
+ *   above. Runtime figure, never the grep — the tile renders a raw number.
+ *   Previous re-measure at v1.30.11: 90 (the two peer-facing manifests added
+ *   since v1.27.0 had never been carried into this tile).
  *   The +4 over the v1.25.27 measurement of 82 is the peer tool family shipped
  *   in v1.27.0 (list_peer_connections, get_peer_availability, get_peer_tasks,
  *   send_peer_message), which had never been carried into this tile.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-20
+ * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-21
+ *   (v1.31.1): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 483
+ *   (+3: the two push-channel counters and the Web Risk screening counter).
+ *   Previous re-measure 2026-08-20
  *   (v1.30.14): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 480
  *   (adaptive candidate evidence, consolidation census + the ADR-232/233
  *   funnels). Previous re-measure 2026-08-16 (v1.30.1): 473,
@@ -126,7 +137,14 @@
  *   frontend 4,830 (+22 — the status-tone module, the priority density
  *   oracle, the tinted count pill and the clickable memories) = 22,846 →
  *   22,800, a strict round-DOWN to the hundred.
- *   Re-measured at v1.31.0: backend 19,378 (pytest --collect-only; +43 — the
+ *   Re-measured at v1.31.1: backend 20,474 (pytest --collect-only) + frontend
+ *   6,076 (vitest list) = 26,550 → 26,500, a strict round-DOWN to the hundred.
+ *   The +1,096 backend is the Google API ecosystem programme landing whole
+ *   (11 lots: Places SKU + field masks, Meet, contact groups, Web Risk,
+ *   freeBusy, Street View, Gmail history delta, Weather/AQ/Pollen, Sheets/Docs
+ *   read+write, Gmail settings, push channels) plus this release's air-quality
+ *   enrichment and admin-coverage guards.
+ *   Previous re-measure at v1.31.0: backend 19,378 (pytest --collect-only; +43 — the
  *   Python 3.14 migration guards (version-surface guard, native-wheel import
  *   smoke, hermetic Telegram audio pipeline, ADR-241), the rate-limiter
  *   request-id collision pins and the __main__ loop-branch pins) + frontend
@@ -151,7 +169,7 @@
  *   highest number runs one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   221 headings at v1.31.0, no Unreleased pending.
+ *   222 headings at v1.31.1, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -162,14 +180,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 90,
+  tools: 105,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 480,
+  metrics: 483,
   uiLanguages: 6,
-  tests: 25400,
+  tests: 26500,
   adrs: 240,
-  releases: 221,
+  releases: 222,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

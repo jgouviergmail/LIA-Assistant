@@ -295,7 +295,9 @@
             "SW": "SW",
             "W": "W",
             "NW": "NW"
-          }
+          },
+          "air_quality": "Air quality",
+          "pollen": "Pollen"
         },
         "agenda": {
           "title": "Agenda",
@@ -1636,7 +1638,17 @@
       },
       "disconnect": "Disconnect",
       "disconnect_title": "Disconnect {{name}}?",
-      "disconnect_description": "LIA will no longer be able to read or act on your {{name}} data. Nothing is deleted on {{name}}'s side, and you can reconnect at any time."
+      "disconnect_description": "LIA will no longer be able to read or act on your {{name}} data. Nothing is deleted on {{name}}'s side, and you can reconnect at any time.",
+      "google_weather": {
+        "label": "Google Weather",
+        "description": "Weather conditions and 10-day forecasts (Google)",
+        "no_key_required": "This service does not require an API key"
+      },
+      "google_environment": {
+        "label": "Google Environment",
+        "description": "Air quality and pollen forecasts",
+        "no_key_required": "This service does not require an API key"
+      }
     },
     "user": {
       "export": {
@@ -2019,7 +2031,9 @@
           "microsoft_tasks": "Manage your tasks and task lists in Microsoft To Do",
           "browser": "Interactive web browsing: navigate, click, fill forms",
           "philips_hue": "Control smart lights: on/off, brightness, colors, scenes and rooms",
-          "elevenlabs_telephony": "Agentic outbound phone calls via the user's ElevenLabs account (API key + webhook)"
+          "elevenlabs_telephony": "Agentic outbound phone calls via the user's ElevenLabs account (API key + webhook)",
+          "google_weather": "Weather conditions and forecasts via Google",
+          "google_environment": "Air quality and pollen forecasts"
         }
       },
       "personalities": {
@@ -3384,7 +3398,7 @@
         "security-export": "GDPR, archive, download, portability, backup, personal data, privacy",
         "voice-mode": "microphone, speech, dictation, STT, TTS, wake word, audio, talk",
         "image-generation": "images, pictures, drawing, illustration, generation, art",
-        "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services, position, location, geolocation, home address, location memory",
+        "connectors": "google, gmail, calendar, contacts, apple, microsoft, outlook, integrations, accounts, oauth, reconnect, disconnected, services, position, location, geolocation, home address, location memory, weather, air quality, pollen, environment, spreadsheet, document, auto-reply, out of office, filters",
         "telephony-calls": "phone, telephone, calls, call history, dial",
         "admin-mcp-servers": "MCP, model context protocol, application servers, built-in tools, connection, integration, server",
         "mcp-servers": "MCP, model context protocol, my servers, tools, extensions, oauth, authorization, connection, integration, server",
@@ -3407,7 +3421,7 @@
         "admin-usage-limits": "quotas, limits, ceilings, budget, tokens, consumption caps",
         "admin-consumption-export": "export, CSV, consumption, usage, costs, all accounts",
         "admin-broadcast": "broadcast, message, announcement, notify everyone",
-        "admin-connectors": "connectors, providers, Google, Apple, Microsoft, enable services",
+        "admin-connectors": "connectors, providers, Google, Apple, Microsoft, enable services, Google Weather, Google Environment, air quality, pollen, push notifications",
         "admin-llm-pricing": "pricing, price, tariff, tokens, text models, cost per token, Excel, spreadsheet, import, export, bulk update, workbook",
         "admin-google-api-pricing": "pricing, Google API, Maps, Places, routes, geocoding cost",
         "admin-image-pricing": "pricing, images, image generation, cost per image",
@@ -3960,7 +3974,20 @@
       "get_calls": "Reading past calls...",
       "get_open_loops": "Reading open commitments...",
       "get_peer_messages": "Reading relayed messages...",
-      "get_person_overview": "Building the 360° overview..."
+      "get_person_overview": "Building the 360° overview...",
+      "list_contact_groups": "Listing contact groups...",
+      "get_contact_group_members": "Fetching group members...",
+      "search_other_contacts": "Searching other contacts...",
+      "find_availability": "Finding free slots...",
+      "get_air_quality": "Checking air quality...",
+      "get_pollen_forecast": "Fetching pollen forecast...",
+      "read_spreadsheet": "Reading spreadsheet...",
+      "read_document": "Reading document...",
+      "get_gmail_settings": "Reading Gmail settings...",
+      "set_vacation_responder": "Preparing auto-reply...",
+      "create_email_filter": "Preparing email filter...",
+      "write_spreadsheet": "Preparing spreadsheet update...",
+      "append_document_text": "Preparing document note..."
     },
     "reasoning": {
       "title": "Reasoning"
@@ -4287,6 +4314,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_31_1": {
+          "title": "v1.31.1 — 🌍 The Google ecosystem widens",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>👥 Your contact groups are recognised</b> — \"email the family group\" now works: LIA finds your Google Contacts labels, expands them into addresses and shows the exact member count. It can also find someone you have exchanged with but never saved.",
+            "i2": "<b>📅 Free slots and video calls</b> — \"find me 30 minutes on Thursday\" computes real availability from your calendar, reading only your busy ranges and never the content of your meetings. And a meeting created as a video call carries its Meet link (or Teams, depending on your provider) — announced only if it was actually created.",
+            "i3": "<b>✉️ Your Gmail mailbox becomes steerable</b> — \"is my auto-reply on?\", \"turn on my out-of-office from the 24th to the 30th with this message\", \"archive and label everything from this sender\". As with every send, the preview shows the exact wording before anything is written, and nothing happens without your approval. You will be asked to reconnect Gmail once.",
+            "i4": "<b>📊 Your spreadsheets and documents become readable… and writable</b> — \"read my budget and answer\", \"summarise these minutes\", then \"add this expense\" or \"append this note\". The preview shows exactly the rows or text to be written; no new permission is requested.",
+            "i5": "<b>🌿 Weather answers the question you did not ask</b> — with the Google Environment connector on, a plain weather question also brings air quality and in-season pollen, on the chat card and on your home page. The index shown is your country's when one exists, with the category the service itself publishes — never an in-house interpretation.",
+            "i6": "<b>🛡️ Safety and freshness</b> — every web address LIA is about to open is checked against Google's threat lists, and a flagged page is refused. On freshness, calendar, files and messages can now tell LIA when they change instead of being polled periodically (an administration option, off by default)."
+          }
+        },
         "v1_31_0": {
           "title": "v1.31.0 — ⚙️ The engine room moves to Python 3.14",
           "date": "August 2026",
@@ -6718,7 +6758,7 @@
       "tool_examples_services": {
         "title": "Email, Calendar & Contacts Examples",
         "description": "How to use your connected services (Google, Apple iCloud or Microsoft 365): emails, contacts, calendar, Drive and Tasks",
-        "count": "16",
+        "count": "17",
         "questions": {
           "q1": {
             "question": "How do I search my contacts?",
@@ -6783,6 +6823,10 @@
           "q16": {
             "question": "What do the colors on email cards mean?",
             "answer": "<strong>Gmail</strong> - Email color coding:<br><br>Email cards use a <strong>colored border on the left side</strong> to indicate their status:<br><br><strong>📧 Color code:</strong><br>• <strong style=\"color: transparent; border-left: 4px solid #888; padding-left: 8px;\">No color</strong>: <strong>Read</strong> email (no special marking)<br>• <strong style=\"color: #f59e0b;\">🟠 Orange</strong>: <strong>Read and important</strong> email (marked important by Gmail)<br>• <strong style=\"color: #22c55e;\">🟢 Green</strong>: <strong>Unread</strong> email (new message to read)<br>• <strong style=\"color: #ef4444;\">🔴 Red</strong>: <strong>Unread AND important</strong> email (high priority)<br><br><strong>💡 Good to know:</strong><br>• The \"<em>important</em>\" status is automatically assigned by Gmail based on your habits<br>• Unread emails also have their <strong>subject in bold</strong> for better visibility<br>• The \"<em>Unread</em>\" badge also appears in the card's metadata<br><br><strong>📌 Quick summary:</strong><br>🟢 Green = To read | 🔴 Red = Urgent | 🟠 Orange = Important already read | Transparent = Already read"
+          },
+          "q17": {
+            "question": "How do I write into a spreadsheet or a document?",
+            "answer": "<strong>Google Sheets / Docs</strong> - Writing, always confirmed:<br><br><strong>✍️ What you can ask:</strong><br>• \"<em>Add the line Rent / 1200 to my budget sheet</em>\"<br>• \"<em>Put 1300 in B2 of the Expenses tab</em>\"<br>• \"<em>Append this note at the end of the meeting doc</em>\"<br><br><strong>🛡️ Nothing is written before you approve:</strong><br>The preview shows the EXACT rows or text that will land in the file — you read what you are approving, then confirm or cancel. No new permission is requested: the Drive access you already granted is enough.<br><br><strong>📐 Bounds:</strong><br>• Rows are added below the existing table, or a range is overwritten if you name one<br>• A chat-driven write is a correction or a small addition (up to 50 rows), not a bulk import"
           }
         }
       },
@@ -6793,7 +6837,7 @@
         "questions": {
           "q1": {
             "question": "How do I get the current weather?",
-            "answer": "<strong>OpenWeatherMap</strong> - Real-time weather:<br><br><strong>🌤️ Current weather:</strong><br>• \"<em>What's the weather in Paris?</em>\"<br>• \"<em>Current temperature in New York</em>\"<br>• \"<em>Is it raining in London?</em>\"<br>• \"<em>Weather here</em>\" (uses your configured position)<br><br><strong>📊 Information provided:</strong><br>• Temperature (feels like and actual)<br>• Conditions (sunny, cloudy, rain...)<br>• Humidity and pressure<br>• Wind speed and direction<br>• Visibility<br>• Sunrise/sunset times<br><br><strong>💡 Tip:</strong><br>Add the OpenWeatherMap connector (free) in Settings > Connectors to enable this feature."
+            "answer": "<strong>OpenWeatherMap</strong> - Real-time weather:<br><br><strong>🌤️ Current weather:</strong><br>• \"<em>What's the weather in Paris?</em>\"<br>• \"<em>Current temperature in New York</em>\"<br>• \"<em>Is it raining in London?</em>\"<br>• \"<em>Weather here</em>\" (uses your configured position)<br><br><strong>📊 Information provided:</strong><br>• Temperature (feels like and actual)<br>• Conditions (sunny, cloudy, rain...)<br>• Humidity and pressure<br>• Wind speed and direction<br>• Visibility<br>• Sunrise/sunset times<br><br><strong>🌿 Air quality and pollen:</strong><br>With the Google Environment connector on, a plain weather question also brings the air-quality index and in-season pollen — on the chat card and on your home page. The index shown is your country's when one exists, with the category the service itself publishes.<br><br><strong>💡 Tip:</strong><br>Two ways to get weather: the <strong>OpenWeatherMap</strong> connector (free, with your own API key) or <strong>Google Weather</strong> (a single toggle, no key to obtain). Both render identically. Add either in Settings > Connectors."
           },
           "q2": {
             "question": "How do I get the weather forecast?",
@@ -8868,7 +8912,7 @@
     "features": {
       "connected_services": {
         "title": "Google, Apple iCloud & Microsoft 365",
-        "description": "Emails, calendar and contacts via Google, Apple iCloud or Microsoft 365 — your choice. Plus Google Drive and tasks via Google Tasks or Microsoft To Do. All in natural language, regardless of your provider."
+        "description": "Email, calendar, contacts and tasks through Google, Apple iCloud or Microsoft 365 — your choice. Contact groups, free-slot search, a video link at meeting creation, plus reading and writing Drive spreadsheets and documents. All in natural language, whichever provider you use."
       },
       "smart_home": {
         "title": "Smart Home (Philips Hue)",
@@ -9029,6 +9073,10 @@
       "plugins": {
         "title": "Plugins (Agent Plugins standard)",
         "description": "Install portable plugins from the whole AI ecosystem — the open agent-plugins.org standard adopted by ChatGPT, Cursor, GitHub Copilot and VS Code. One package brings skills and MCP servers together, installs in one step from a zip or an https link, reports every component honestly (installed, skipped and why, removed), and uninstalls just as cleanly."
+      },
+      "environment": {
+        "title": "Weather, air quality and pollen",
+        "description": "A weather question also brings the air-quality index and in-season pollen, with the category the service itself publishes — your country's index when one exists. On the chat card, the forecast, your home page and a place's details."
       }
     },
     "use_cases": {
@@ -9122,6 +9170,10 @@
       "hitl": {
         "title": "Human-in-the-Loop",
         "description": "Six approval levels — plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review. Plan-level guardrails before execution rather than rollback after failure. Automatic risk classification and preview of affected items. The action type announced to the classifier is derived from the verb of the tool name rather than from substring matching: a deletion can no longer be presented as a send, which is what kept the prompt's own delete-safety rule from firing."
+      },
+      "honest_enrichment": {
+        "title": "Honest enrichments",
+        "description": "A provider sometimes publishes a category with no number: the French national air-quality index reads \"Moyen\" with no numeric value, while Google's universal index is inverted against the US scale — there, 100 means excellent. Two rules follow, enforced by a single renderer shared between the weather card and a place's details: the category shown is always the one the API publishes, never an interpretation derived from the number; and a figure never travels with a label from another scale. When only the category exists, it stands alone. An absent signal beats a false one."
       }
     },
     "architecture": {
@@ -9721,7 +9773,7 @@
       "google-workspace": {
         "title": "Google Workspace Integration: Gmail, Calendar, Contacts, Drive, Tasks",
         "excerpt": "LIA connects to your Google Workspace via OAuth 2.0 to manage your emails, calendar, contacts, Drive files and tasks in natural language.",
-        "body": "<h2>7 Google APIs, one conversation</h2><p>LIA integrates <strong>7 Google APIs</strong> covering your workspace and beyond: <strong>Gmail API</strong>, <strong>Calendar API</strong>, <strong>People API v1</strong> (contacts), <strong>Drive API</strong>, <strong>Tasks API</strong>, <strong>Routes API</strong> and <strong>Places API</strong>. You manage everything from a single interface in natural language.</p><h2>Complete operations per service</h2><p>Each service exposes a full set of CRUD operations:</p><ul><li><strong>Gmail</strong> — Search, read, send, reply, forward, label management. Scope: <code>gmail.modify</code></li><li><strong>Calendar</strong> — Search, create, update, delete events, attendee management. Scope: <code>calendar.events</code></li><li><strong>Contacts</strong> — Search, create, update, delete via People API v1. Scope: <code>contacts</code>. Field projections optimized to <strong>110 tokens per contact</strong> in list mode to minimize LLM consumption</li><li><strong>Drive</strong> — Search, list, download, share files. Scope: <code>drive.readonly</code></li><li><strong>Tasks</strong> — List, create, update, complete, delete. Scope: <code>tasks</code></li></ul><h2>Routes and Places: global APIs</h2><p>Beyond the Workspace, LIA integrates <strong>Google Routes API</strong> for route calculation (car, transit, bike, walking) and <strong>Google Places API</strong> for searching locations, businesses and points of interest. These APIs enrich the assistant's contextual responses.</p><h2>ConnectorTool architecture</h2><p>Each service uses a <code>ConnectorTool</code> base class that automatically handles OAuth authentication, token refresh, API client caching, and error handling. Field projections (<code>field masks</code>) are optimized per operation to reduce API response size and token consumption.</p><h2>OAuth 2.0 security</h2><p>Access tokens are encrypted in the database via Fernet (AES-128 CBC + HMAC). Token refresh is transparent: if a token expires during an operation, LIA renews it automatically. Requested OAuth scopes are <strong>strictly limited to the minimum necessary</strong> per service, following the principle of least privilege.</p>"
+        "body": "<h2>16 Google APIs, one conversation</h2><p>LIA integrates <strong>16 Google APIs</strong> covering your workspace and beyond: <strong>Gmail API</strong>, <strong>Calendar API</strong>, <strong>People API v1</strong> (contacts), <strong>Drive API</strong>, <strong>Tasks API</strong>, <strong>Routes API</strong> and <strong>Places API</strong>. You manage everything from a single interface in natural language.</p><h2>Complete operations per service</h2><p>Each service exposes a full set of CRUD operations:</p><ul><li><strong>Gmail</strong> — Search, read, send, reply, forward, label management. Scope: <code>gmail.modify</code></li><li><strong>Calendar</strong> — Search, create, update, delete events, attendee management. Scope: <code>calendar.events</code></li><li><strong>Contacts</strong> — Search, create, update, delete via People API v1. Scope: <code>contacts</code>. Field projections optimized to <strong>110 tokens per contact</strong> in list mode to minimize LLM consumption</li><li><strong>Drive</strong> — Search, list, download, share files. Scope: <code>drive.readonly</code></li><li><strong>Tasks</strong> — List, create, update, complete, delete. Scope: <code>tasks</code></li></ul><h2>Routes and Places: global APIs</h2><p>Beyond the Workspace, LIA integrates <strong>Google Routes API</strong> for route calculation (car, transit, bike, walking) and <strong>Google Places API</strong> for searching locations, businesses and points of interest. These APIs enrich the assistant's contextual responses.</p><h2>ConnectorTool architecture</h2><p>Each service uses a <code>ConnectorTool</code> base class that automatically handles OAuth authentication, token refresh, API client caching, and error handling. Field projections (<code>field masks</code>) are optimized per operation to reduce API response size and token consumption.</p><h2>OAuth 2.0 security</h2><p>Access tokens are encrypted in the database via Fernet (AES-128 CBC + HMAC). Token refresh is transparent: if a token expires during an operation, LIA renews it automatically. Requested OAuth scopes are <strong>strictly limited to the minimum necessary</strong> per service, following the principle of least privilege.</p><h2>What the tokens already allowed</h2><p>The August 2026 wave asked users for almost no new permission: it uses what the granted scopes already covered but LIA never called. <strong>Contact groups</strong> (People API) make a whole label addressable — \"email the family group\" — with an exact member count taken from the API aggregate, never from a truncated page. The <strong>freeBusy</strong> endpoint computes free slots while reading only busy ranges: less data than reading events, for a better answer. <strong>history.list</strong> replaces the heartbeat's periodic re-query with an exact delta anchored on a history id. And the <strong>Sheets</strong> and <strong>Docs</strong> APIs accept the Drive token already granted: read a spreadsheet, then write into it under confirmation, with no re-consent.</p><p>Two platform services complete the set, switchable in one toggle because they run on the instance key rather than a personal account: <strong>Weather</strong> (an alternative to OpenWeatherMap for anyone who would rather not obtain their own key) and <strong>Environment</strong> (air quality, pollen). Normalisation happens at the client boundary, so the nineteen surfaces that already consume weather did not change by a single line. <strong>Web Risk</strong> screens addresses before they are opened, <strong>Street View</strong> illustrates a place with no photo — after a free check that imagery exists — and <strong>watch</strong> channels plus <strong>Pub/Sub</strong> replace polling with notification when the operator turns them on.</p>"
       },
       "apple-microsoft": {
         "title": "Apple iCloud and Microsoft 365: Multi-Platform Connectors",

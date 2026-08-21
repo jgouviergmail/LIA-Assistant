@@ -8,8 +8,10 @@ meeting details are never even fetched. The summary is injected as the
 ``{{availability_summary}}`` dynamic variable so the agent can answer availability
 questions on the call without ever seeing what the user is actually doing.
 
-There is no ``freebusy`` endpoint in the calendar connectors — the summary is a
-projection over ``list_events`` (verified against the client protocol).
+Since lot B (2026-08) the Google client exposes ``query_freebusy``: when the
+resolved client offers it, busy ranges come from the freeBusy endpoint (even
+less data than the projection). Other providers keep the ``list_events``
+start/end projection.
 
 The pre-fetch is best-effort: any resolution/HTTP failure (or no calendar
 connector) yields the localized "unavailable" line and NEVER raises — a missing
@@ -167,19 +169,35 @@ async def build_availability_summary(
         client = client_class(user_id, credentials, connector_service)
 
         calendar_id = await _resolve_calendar_id(user_id, resolved_type, client, connector_service)
-        result = await client.list_events(
-            time_min=window_start.isoformat(),
-            time_max=window_end.isoformat(),
-            max_results=_MAX_EVENTS,
-            calendar_id=calendar_id,
-            # Minimization by capability: never fetch titles/attendees/locations.
-            fields=["start", "end"],
-        )
+        if hasattr(client, "query_freebusy"):
+            # Lot B (2026-08): the freeBusy endpoint returns busy ranges only —
+            # even less data than the start/end projection, so it wins when
+            # the provider offers it. Projected to the Google event shape so
+            # summarize_busy_periods stays the single rendering path.
+            freebusy = await client.query_freebusy(
+                time_min=window_start.isoformat(),
+                time_max=window_end.isoformat(),
+                calendar_ids=[calendar_id],
+            )
+            events = [
+                {"start": {"dateTime": block.get("start")}, "end": {"dateTime": block.get("end")}}
+                for calendar in (freebusy.get("calendars") or {}).values()
+                for block in calendar.get("busy", [])
+            ]
+        else:
+            result = await client.list_events(
+                time_min=window_start.isoformat(),
+                time_max=window_end.isoformat(),
+                max_results=_MAX_EVENTS,
+                calendar_id=calendar_id,
+                # Minimization by capability: never fetch titles/attendees/locations.
+                fields=["start", "end"],
+            )
+            events = result.get("items", []) or []
     except (TimeoutError, httpx.HTTPError, ValueError, KeyError, AttributeError) as exc:
         logger.warning(
             "telephony_availability_prefetch_failed", user_id=str(user_id), error=str(exc)
         )
         return phrases["unavailable"]
 
-    events = result.get("items", []) or []
     return summarize_busy_periods(events, user_timezone, user_language)

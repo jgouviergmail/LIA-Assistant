@@ -362,8 +362,116 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
     initiative_eligible=False,  # Too granular for proactive enrichment; forecast is sufficient
 )
 
+# ============================================================================
+# ENVIRONMENT — AIR QUALITY + POLLEN (lot E, 2026-08, GOOGLE_ENVIRONMENT toggle)
+# ============================================================================
+
+get_air_quality_catalogue_manifest = ToolManifest(
+    name="get_air_quality_tool",
+    agent="weather_agent",
+    description=(
+        "**Tool: get_air_quality_tool** - Current air quality at a location "
+        "(universal AQI + local national index, exact values). Use for 'can I "
+        "run tonight?', pollution questions, outdoor-activity health advice. "
+        "Empty location = the user's current position."
+    ),
+    semantic_keywords=[
+        "air quality index right now",
+        "is the air polluted today can I run outside",
+        "pollution level in my city",
+        "is it healthy to exercise outdoors today",
+    ],
+    parameters=[_LOC_PARAM],
+    outputs=[
+        OutputFieldSchema(path="indexes", type="array", description="Air quality indexes"),
+        OutputFieldSchema(path="indexes[].code", type="string", description="Index code"),
+        OutputFieldSchema(
+            path="indexes[].aqi", type="integer", nullable=True, description="Exact index value"
+        ),
+        OutputFieldSchema(path="indexes[].category", type="string", description="Band label"),
+        OutputFieldSchema(
+            path="indexes[].dominant_pollutant", type="string", description="Dominant pollutant"
+        ),
+    ],
+    cost=CostProfile(est_tokens_in=60, est_tokens_out=200, est_cost_usd=0.005, est_latency_ms=600),
+    permissions=PermissionProfile(
+        required_scopes=[], hitl_required=False, data_classification="PUBLIC"
+    ),
+    max_iterations=1,
+    supports_dry_run=True,
+    context_key="weathers",
+    reference_examples=["indexes[0].aqi", "indexes[0].category"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(emoji="🌬️", i18n_key="get_air_quality", visible=True, category="tool"),
+)
+
+get_pollen_forecast_catalogue_manifest = ToolManifest(
+    name="get_pollen_forecast_tool",
+    agent="weather_agent",
+    description=(
+        "**Tool: get_pollen_forecast_tool** - Pollen forecast (grass, tree, "
+        "weed) with per-day indices, up to 5 days. Use for allergy questions "
+        "('is the pollen bad this week?') and proactive allergy warnings. "
+        "Empty location = the user's current position."
+    ),
+    semantic_keywords=[
+        "pollen forecast for my allergies",
+        "is the grass pollen high this week",
+        "allergy risk from trees pollen today",
+        "hay fever pollen levels outlook",
+    ],
+    parameters=[
+        _LOC_PARAM,
+        ParameterSchema(
+            name="days",
+            type="integer",
+            required=False,
+            description="Forecast days (default 3)",
+            constraints=[
+                ParameterConstraint(kind="minimum", value=1),
+                ParameterConstraint(kind="maximum", value=5),
+            ],
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="days", type="array", description="Per-day pollen forecast"),
+        OutputFieldSchema(path="days[].date", type="string", description="Date (YYYY-MM-DD)"),
+        OutputFieldSchema(path="days[].types", type="array", description="Pollen types"),
+        OutputFieldSchema(
+            path="days[].types[].index_value",
+            type="integer",
+            nullable=True,
+            description="Exact pollen index (absent out of season)",
+        ),
+        OutputFieldSchema(path="days[].types[].category", type="string", description="Band label"),
+    ],
+    cost=CostProfile(est_tokens_in=60, est_tokens_out=250, est_cost_usd=0.01, est_latency_ms=600),
+    permissions=PermissionProfile(
+        required_scopes=[], hitl_required=False, data_classification="PUBLIC"
+    ),
+    max_iterations=1,
+    supports_dry_run=True,
+    context_key="weathers",
+    reference_examples=["days[0].date", "days[0].types[0].index_value"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(
+        emoji="🌾", i18n_key="get_pollen_forecast", visible=True, category="tool"
+    ),
+)
+
+# Registration collection for the catalogue loader (lot E family)
+ENVIRONMENT_TOOL_MANIFESTS: tuple[ToolManifest, ...] = (
+    get_air_quality_catalogue_manifest,
+    get_pollen_forecast_catalogue_manifest,
+)
+
 __all__ = [
     "get_current_weather_catalogue_manifest",
     "get_weather_forecast_catalogue_manifest",
     "get_hourly_forecast_catalogue_manifest",
+    "get_air_quality_catalogue_manifest",
+    "get_pollen_forecast_catalogue_manifest",
+    "ENVIRONMENT_TOOL_MANIFESTS",
 ]

@@ -12,6 +12,11 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.constants import (
+    GOOGLE_CONTACT_GROUP_MAX_MEMBERS,
+    GOOGLE_OTHER_CONTACTS_FIELDS,
+    GOOGLE_OTHER_CONTACTS_SEARCH_MAX,
+)
 from src.core.field_names import FIELD_CACHED_AT, FIELD_QUERY
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
@@ -612,6 +617,136 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         await cache.invalidate_user(self.user_id)
 
         return True
+
+    # =========================================================================
+    # OTHER CONTACTS & CONTACT GROUPS (lot C, 2026-08)
+    # =========================================================================
+
+    async def search_other_contacts(
+        self,
+        query: str,
+        max_results: int = GOOGLE_OTHER_CONTACTS_SEARCH_MAX,
+        use_cache: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Search "other contacts" (interacted-with but never saved).
+
+        Uses the ``contacts.other.readonly`` scope granted since the first
+        OAuth version. Only names/emailAddresses/phoneNumbers exist on other
+        contacts (API constraint).
+
+        Args:
+            query: Search query (name, email or phone prefix).
+            max_results: Max results (hard API cap applied).
+            use_cache: Whether to use Redis cache (default True).
+
+        Returns:
+            Dict with 'results' list (each item wraps a 'person').
+        """
+        cache = await self._get_cache()
+        cache_key = f"other:{query}"
+
+        if use_cache:
+            cached_data, from_cache, cached_at, _age = await cache.get_search(
+                self.user_id, cache_key
+            )
+            if from_cache and cached_data:
+                cached_data["from_cache"] = True
+                cached_data[FIELD_CACHED_AT] = cached_at
+                return cached_data
+
+        # Global volumetry cap first, then the endpoint's own hard limit.
+        max_results = apply_max_items_limit(max_results)
+        params = {
+            FIELD_QUERY: query,
+            "readMask": ",".join(GOOGLE_OTHER_CONTACTS_FIELDS),
+            "pageSize": min(max_results, GOOGLE_OTHER_CONTACTS_SEARCH_MAX),
+        }
+        response = await self._make_request("GET", "/otherContacts:search", params=params)
+
+        results = {
+            "results": response.get("results", []),
+            "totalItems": len(response.get("results", [])),
+            "from_cache": False,
+            FIELD_CACHED_AT: None,
+        }
+        if use_cache and results["totalItems"] > 0:
+            await cache.set_search(
+                self.user_id,
+                cache_key,
+                results,
+                ttl_seconds=settings.get_connector_cache_ttl("google_contacts_search"),
+            )
+
+        logger.info(
+            "other_contacts_search_success",
+            user_id=str(self.user_id),
+            total_results=results["totalItems"],
+        )
+        return results
+
+    async def list_contact_groups(self) -> dict[str, Any]:
+        """
+        List the user's contact groups (system + user groups, raw API shape).
+
+        Deliberately uncached: one small quota-free GET whose member counts
+        must stay exact (a count shown to the user is a claim).
+
+        Returns:
+            Dict with 'contactGroups' list (resourceName, groupType, name,
+            formattedName, memberCount).
+        """
+        response = await self._make_request("GET", "/contactGroups")
+        logger.info(
+            "contact_groups_listed",
+            user_id=str(self.user_id),
+            total=len(response.get("contactGroups", [])),
+        )
+        return response
+
+    async def get_contact_group(
+        self,
+        resource_name: str,
+        max_members: int = GOOGLE_CONTACT_GROUP_MAX_MEMBERS,
+    ) -> dict[str, Any]:
+        """
+        Fetch one contact group including its member resource names.
+
+        Args:
+            resource_name: Group resource name (e.g. "contactGroups/abc").
+            max_members: Max memberResourceNames returned.
+
+        Returns:
+            Group dict with 'memberResourceNames'.
+        """
+        return await self._make_request(
+            "GET",
+            f"/{resource_name}",
+            params={"maxMembers": max_members},
+        )
+
+    async def get_people_batch(
+        self,
+        resource_names: list[str],
+        fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Batch-fetch people by resource names (group member expansion).
+
+        Args:
+            resource_names: People resource names (e.g. ["people/1", ...]).
+            fields: personFields to fetch (default: names + emailAddresses).
+
+        Returns:
+            Dict with 'responses' list (each item wraps a 'person').
+        """
+        if not resource_names:
+            return {"responses": []}
+        params = {
+            "resourceNames": resource_names,
+            "personFields": ",".join(fields or ["names", "emailAddresses"]),
+        }
+        return await self._make_request("GET", "/people:batchGet", params=params)
 
     def anonymize_connector_id(self, connector_id: UUID) -> str:
         """

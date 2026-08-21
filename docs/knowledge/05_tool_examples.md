@@ -85,6 +85,23 @@ Say "*open the first one*" or "*read the report content*" to access the file.
 **💡 Tip:**
 For complex files, ask for a summary: "*Summarize the report content*"
 
+## How do I write into a spreadsheet or a document?
+**Google Sheets / Docs** - Writing, always confirmed:
+
+**✍️ What you can ask:**
+• "*Add the line Rent / 1200 to my budget sheet*"
+• "*Put 1300 in B2 of the Expenses tab*"
+• "*Append this note at the end of the meeting doc*"
+
+**🛡️ Nothing is written before you approve:**
+The preview shows the EXACT rows or text that will land in the file — you read
+what you are approving, then confirm or cancel. No new permission is requested:
+the Drive access you already granted is enough.
+
+**📐 Bounds:**
+• Rows are added below the existing table, or a range is overwritten if you name one
+• A chat-driven write is a correction or a small addition (up to 50 rows), not a bulk import
+
 ## How do I manage my tasks?
 **Google Tasks / Microsoft To Do** - Task management:
 

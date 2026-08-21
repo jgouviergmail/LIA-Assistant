@@ -23,10 +23,8 @@ return [] there instead of raising.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -351,7 +349,12 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
             >>> for day in result["daily"]:
             ...     print(f"{day['date']}: {day['temp_min']}°C - {day['temp_max']}°C")
         """
-        # Get full 3-hour forecast
+        # Get full 3-hour forecast, then aggregate through the shared helper
+        # (one implementation for every weather provider — lot E, 2026-08).
+        from src.domains.connectors.clients.weather_normalization import (
+            aggregate_daily_forecast,
+        )
+
         forecast = await self.get_forecast(
             lat=lat,
             lon=lon,
@@ -360,62 +363,7 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
             units=units,
             lang=lang,
         )
-
-        # Parse user timezone (fallback to UTC if invalid)
-        try:
-            tz: Any = ZoneInfo(user_timezone)
-        except KeyError, ValueError:
-            logger.warning("invalid_user_timezone", timezone=user_timezone, fallback="UTC")
-            tz = UTC
-
-        # Aggregate by day IN USER'S TIMEZONE
-        # This ensures "tomorrow" is correctly grouped according to user's local midnight
-        daily_data: dict[str, dict[str, Any]] = {}
-
-        for entry in forecast.get("list", []):
-            # Convert UTC timestamp to user's timezone before extracting date
-            dt_utc = datetime.fromtimestamp(entry["dt"], tz=UTC)
-            dt_user = dt_utc.astimezone(tz)
-            date_key = dt_user.strftime("%Y-%m-%d")
-
-            if date_key not in daily_data:
-                daily_data[date_key] = {
-                    "date": date_key,
-                    "temps": [],
-                    "conditions": [],
-                    "humidity": [],
-                    "wind_speed": [],
-                }
-
-            main = entry.get("main", {})
-            weather = entry.get("weather", [{}])[0]
-            wind = entry.get("wind", {})
-
-            daily_data[date_key]["temps"].append(main.get("temp", 0))
-            daily_data[date_key]["conditions"].append(weather.get("description", ""))
-            daily_data[date_key]["humidity"].append(main.get("humidity", 0))
-            daily_data[date_key]["wind_speed"].append(wind.get("speed", 0))
-
-        # Calculate daily summaries (sorted by date, limited to requested days)
-        daily_list = []
-        for _date_key, data in sorted(daily_data.items())[:days]:
-            temps = data["temps"]
-            daily_list.append(
-                {
-                    "date": data["date"],
-                    "temp_min": round(min(temps), 1),
-                    "temp_max": round(max(temps), 1),
-                    "temp_avg": round(sum(temps) / len(temps), 1),
-                    "condition": max(set(data["conditions"]), key=data["conditions"].count),
-                    "humidity_avg": round(sum(data["humidity"]) / len(data["humidity"])),
-                    "wind_speed_avg": round(sum(data["wind_speed"]) / len(data["wind_speed"]), 1),
-                }
-            )
-
-        return {
-            "daily": daily_list,
-            "city": forecast.get("city", {}),
-        }
+        return aggregate_daily_forecast(forecast, days, user_timezone)
 
     # =========================================================================
     # HELPER METHODS

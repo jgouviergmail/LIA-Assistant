@@ -15,11 +15,13 @@ from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.schemas import (
     AgendaEventItem,
+    AirQuality,
     DailyForecastItem,
     ForecastAlert,
     ForecastAlertKind,
     HealthSummaryItem,
     MailItem,
+    PollenItem,
     ReminderItem,
     WeatherData,
 )
@@ -73,6 +75,7 @@ def format_weather_data(
     city: str | None,
     user_tz: ZoneInfo,
     daily_forecast_days: int,
+    environment: dict[str, Any] | None = None,
 ) -> WeatherData:
     """Build a WeatherData payload from OpenWeatherMap responses.
 
@@ -88,6 +91,9 @@ def format_weather_data(
         daily_forecast_days: Number of forecast days to aggregate/return (caller
             passes ``settings.briefing_weather_daily_forecast_days`` — keeps this
             formatter pure / free of global state).
+        environment: Optional AQ/pollen extras (2026-08) as returned by
+            ``weather_environment_enrichment.environment_extras_or_none``.
+            ``None`` (the default) leaves the card exactly as before.
 
     Returns:
         WeatherData ready for the UI.
@@ -140,7 +146,41 @@ def format_weather_data(
         precipitation_probability=pop_first,
         forecast_alert=forecast_alert,
         daily_forecast=daily_forecast,
+        air_quality=_air_quality_from_extras(environment),
+        pollen=_pollen_from_extras(environment),
     )
+
+
+def _air_quality_from_extras(environment: dict[str, Any] | None) -> AirQuality | None:
+    """AirQuality from the enrichment extras, or None when unusable.
+
+    ``has_air_quality`` is the authority: a national index legitimately has a
+    category and no number, so truthiness of the value would drop it.
+    """
+    if not environment or not environment.get("has_air_quality"):
+        return None
+    value = environment.get("aqi")
+    return AirQuality(
+        value=int(value) if isinstance(value, int | float) else None,
+        category=str(environment.get("aqi_category", "")),
+        index_label=str(environment.get("aqi_label", "")),
+    )
+
+
+def _pollen_from_extras(environment: dict[str, Any] | None) -> list[PollenItem]:
+    """In-season pollen items from the enrichment extras ([] when absent)."""
+    if not environment:
+        return []
+    items = environment.get("pollen") or []
+    return [
+        PollenItem(
+            name=str(item.get("name", "")),
+            category=str(item.get("category", "")),
+            index=item.get("index") if isinstance(item.get("index"), int) else None,
+        )
+        for item in items
+        if isinstance(item, dict) and item.get("name")
+    ]
 
 
 # Conditions ranked by "severity" — when a day has a mix, we surface the more

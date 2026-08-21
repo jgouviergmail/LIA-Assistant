@@ -29,6 +29,10 @@ from src.domains.agents.display.components.base import (
     render_d_item,
     wrap_with_response,
 )
+from src.domains.agents.display.components.environment_row import (
+    air_quality_text,
+    pollen_text,
+)
 from src.domains.agents.display.icons import Icons, icon
 
 
@@ -377,16 +381,22 @@ class WeatherCard(BaseComponent):
                 sun_parts.append(f"{sunset_icon} {escape_html(sunset_fmt)}")
             detail_sections.append(render_d_item(Icons.SUNRISE, " · ".join(sun_parts)))
 
-        # Air quality (if available)
-        aqi = data.get("aqi") or data.get("air_quality", "")
-        if aqi:
-            aqi_level_label = self._get_aqi_label(aqi, ctx.language)
-            detail_sections.append(
-                render_d_item(
-                    Icons.WIND,
-                    f"{air_quality_label}: {escape_html(str(aqi))} ({aqi_level_label})",
-                )
-            )
+        # Air quality. Two shapes coexist:
+        #  - environment enrichment (2026-08): the API's own localized
+        #    category WINS — Google's universal index is inverted vs EPA
+        #    (100 = excellent), so a label is never re-derived from a number.
+        #    The national index often ships a category with NO number at all
+        #    (measured in prod), hence rendering on the category, not the value;
+        #  - legacy numeric payloads: EPA table, unchanged.
+        aqi_row = self._air_quality_row(data, air_quality_label, ctx.language)
+        if aqi_row:
+            detail_sections.append(render_d_item(Icons.WIND, aqi_row))
+
+        # In-season pollen (environment enrichment): one line per active type,
+        # the API's localized category verbatim — an honest, verifiable signal.
+        pollen_row = self._pollen_row(data, ctx.language)
+        if pollen_row:
+            detail_sections.append(render_d_item("allergy", pollen_row))
 
         # Precipitation probability
         precip = data.get("precipitation_probability") or data.get("pop", "")
@@ -469,6 +479,7 @@ class WeatherCard(BaseComponent):
 <div class="lia-weather__forecast-days">
 {chr(10).join(days_html)}
 </div>
+{self._environment_strip(data, ctx)}
 </div>"""
 
     def _render_hourly(self, data: dict[str, Any], ctx: RenderContext) -> str:
@@ -724,6 +735,35 @@ class WeatherCard(BaseComponent):
                 }.get(language, "Extreme")
         except ValueError, TypeError:
             return ""
+
+    def _pollen_row(self, data: dict[str, Any], language: str) -> str:
+        """In-season pollen line (shared renderer)."""
+        return pollen_text(data, language)
+
+    def _environment_strip(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Compact air-quality/pollen strip for cards without a details section.
+
+        The forecast and hourly layouts have no collapsible block, but the
+        signal that decides an outdoor plan ("can I run tomorrow?") belongs
+        there too — rendered inline, and only when the enrichment produced
+        something.
+        """
+        rows = [
+            self._air_quality_row(data, V3Messages.get_air_quality(ctx.language), ctx.language),
+            self._pollen_row(data, ctx.language),
+        ]
+        items = "\n".join(render_d_item(Icons.WIND, row) for row in rows if row)
+        if not items:
+            return ""
+        return f'<div class="lia-weather__environment">{items}</div>'
+
+    def _air_quality_row(self, data: dict[str, Any], label: str, language: str) -> str:
+        """Air-quality detail line (shared renderer + the legacy EPA table).
+
+        ``_get_aqi_label`` stays the fallback for LEGACY numeric payloads that
+        carry no provider category — the enrichment always ships one.
+        """
+        return air_quality_text(data, language, fallback_label=self._get_aqi_label)
 
     def _get_aqi_label(self, aqi: Any, language: str) -> str:
         """Get human-readable Air Quality Index label."""

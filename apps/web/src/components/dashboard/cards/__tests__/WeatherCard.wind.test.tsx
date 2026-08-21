@@ -74,6 +74,8 @@ function weatherSection(overrides: Partial<WeatherData> = {}): CardSection<Weath
       precipitation_probability: null,
       forecast_alert: null,
       daily_forecast: [],
+      air_quality: null,
+      pollen: [],
       ...overrides,
     },
     generated_at: '2026-07-25T08:00:00Z',

@@ -1231,6 +1231,7 @@ def create_event_draft(
     source_tool: str = "create_event_tool",
     user_language: str = "fr",
     user_timezone: str | None = None,
+    add_conference: bool = False,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an event draft.
@@ -1248,6 +1249,7 @@ def create_event_draft(
         source_tool: Source tool name
         user_language: Language for HITL
         user_timezone: User's IANA timezone for datetime display (defaults to timezone param)
+        add_conference: Attach a video-conference link (Meet/Teams) at creation
 
     Returns:
         UnifiedToolOutput with draft
@@ -1262,6 +1264,7 @@ def create_event_draft(
         attendees=attendees or [],
         timezone=timezone,
         calendar_id=calendar_id,
+        add_conference=add_conference,
         related_registry_ids=related_registry_ids or [],
         user_language=user_language,
         user_timezone=user_timezone or timezone,

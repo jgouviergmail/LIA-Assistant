@@ -96,6 +96,16 @@ cache_miss_total = Counter(
 # TTL-based evictions are automatic in Redis and don't need app-level tracking
 
 # ============================================================================
+# WEB RISK URL SCREENING (lot D, 2026-08)
+# ============================================================================
+
+web_risk_checks_total = Counter(
+    "web_risk_checks_total",
+    "Web Risk URL screening outcomes",
+    ["outcome"],  # clean, flagged, error, cache_hit
+)
+
+# ============================================================================
 # OAUTH LOCK METRICS
 # ============================================================================
 

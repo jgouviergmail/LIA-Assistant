@@ -68,6 +68,10 @@ class DraftType(str, Enum):
     SCHEDULED_ACTION = "scheduled_action"  # Recurring automation draft (ADR-140)
     DEVOPS_TASK = "devops_task"  # Remote server task via Claude CLI (FN-1)
     PEER_MESSAGE = "peer_message"  # Relayed message to a connected user (peers, A3)
+    VACATION_RESPONDER = "vacation_responder"  # Gmail auto-reply settings (lot I)
+    EMAIL_FILTER = "email_filter"  # Gmail filter creation (lot I)
+    SPREADSHEET_WRITE = "spreadsheet_write"  # Sheets range update / row append (lot F)
+    DOCUMENT_APPEND = "document_append"  # Docs text append (lot F)
 
 
 class DraftStatus(str, Enum):
@@ -258,6 +262,10 @@ class EventDraftInput(BaseDraftInput):
         default=None,
         description="Calendar ID to create event in. If None, uses user's default calendar preference.",
     )
+    add_conference: bool = Field(
+        default=False,
+        description="Attach a video-conference link (Meet/Teams) at creation",
+    )
 
     def to_create_event_args(self) -> dict[str, Any]:
         """Convert to args for create_event_tool."""
@@ -270,6 +278,7 @@ class EventDraftInput(BaseDraftInput):
             "attendees": self.attendees,
             "timezone": self.timezone,
             "calendar_id": self.calendar_id,
+            "add_conference": self.add_conference,
         }
 
 

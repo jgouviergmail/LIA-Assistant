@@ -671,6 +671,76 @@ CASES: tuple[PreviewCase, ...] = (
         {"recipient_name": "Marie Dupont"},
         language="en",
     ),
+    # Gmail vacation responder (lot I): enable shows the verbatim auto-reply
+    # (subject, body, date bounds as plain YYYY-MM-DD); disable is a single
+    # localized sentence.
+    PreviewCase(
+        "vacation_enable_full_fr",
+        DraftType.VACATION_RESPONDER,
+        {
+            "enable": True,
+            "subject": "Absent jusqu'au 30/08",
+            "body": "Je suis en congés, je répondrai à mon retour.",
+            "start_date": "2026-08-24",
+            "end_date": "2026-08-30",
+        },
+    ),
+    PreviewCase(
+        "vacation_enable_minimal_en",
+        DraftType.VACATION_RESPONDER,
+        {"enable": True, "body": "Away until Sept 1."},
+        language="en",
+    ),
+    PreviewCase(
+        "vacation_disable_fr",
+        DraftType.VACATION_RESPONDER,
+        {"enable": False},
+    ),
+    # Workspace writes (lot F phase write): the preview IS the write contract.
+    PreviewCase(
+        "spreadsheet_append_fr",
+        DraftType.SPREADSHEET_WRITE,
+        {
+            "spreadsheet_title": "Budget 2026",
+            "sheet_name": "Dépenses",
+            "mode": "append",
+            "values": [["Loyer", "1200"], ["EDF", "80"]],
+        },
+    ),
+    PreviewCase(
+        "spreadsheet_update_en",
+        DraftType.SPREADSHEET_WRITE,
+        {
+            "spreadsheet_title": "Budget 2026",
+            "sheet_name": "Dépenses",
+            "mode": "update",
+            "a1_range": "B2:B3",
+            "values": [["1300"], ["90"]],
+        },
+        language="en",
+    ),
+    PreviewCase(
+        "document_append_fr",
+        DraftType.DOCUMENT_APPEND,
+        {"document_title": "Compte-rendu", "text": "Décision: reporter la réunion."},
+    ),
+    # Gmail filter creation (lot I): criteria + only the requested actions.
+    PreviewCase(
+        "email_filter_full_fr",
+        DraftType.EMAIL_FILTER,
+        {
+            "criteria": {"from": "news@x.com", "subject": "promo"},
+            "label_name": "Newsletters",
+            "archive": True,
+            "mark_as_read": True,
+        },
+    ),
+    PreviewCase(
+        "email_filter_query_en",
+        DraftType.EMAIL_FILTER,
+        {"criteria": {"query": "has:attachment larger:5M"}, "archive": False},
+        language="en",
+    ),
     # Automation draft (ADR-140): title + pre-localized schedule + instruction.
     PreviewCase(
         "scheduled_action_full_fr",
@@ -766,6 +836,14 @@ EXPECTED: dict[str, str] = {
     "devops_task_full_fr": "<br/>**Serveur**: prod-rpi5<br/><br/>**Tâche**: Redémarre le conteneur lia-api-prod et vérifie les logs",
     "devops_task_minimal_en": "<br/>**Server**: staging",
     "devops_task_with_context_fr": "<br/>**Serveur**: prod-rpi5<br/><br/>**Tâche**: Vérifie les logs<br/><br/>**Consignes**: reste en lecture seule",
+    "vacation_enable_full_fr": "<br/>**Objet**: Absent jusqu'au 30/08<br/><br/>**Message**: Je suis en congés, je répondrai à mon retour.<br/><br/>**Début**: 2026-08-24<br/><br/>**Fin**: 2026-08-30",
+    "vacation_enable_minimal_en": "<br/>**Message**: Away until Sept 1.",
+    "vacation_disable_fr": "<br/>La réponse automatique sera désactivée",
+    "spreadsheet_append_fr": "<br/>**Fichier**: Budget 2026<br/><br/>**Feuille**: Dépenses<br/><br/>Loyer | 1200<br/><br/>EDF | 80",
+    "spreadsheet_update_en": "<br/>**File**: Budget 2026<br/><br/>**Sheet**: Dépenses<br/><br/>**Range**: B2:B3<br/><br/>1300<br/><br/>90",
+    "document_append_fr": "<br/>**Fichier**: Compte-rendu<br/><br/>**Texte**: Décision: reporter la réunion.",
+    "email_filter_full_fr": "<br/>**De**: news@x.com<br/><br/>**Objet**: promo<br/><br/>**Label**: Newsletters<br/><br/>Les messages seront archivés<br/><br/>Les messages seront marqués comme lus",
+    "email_filter_query_en": "<br/>**Query**: has:attachment larger:5M",
 }
 
 

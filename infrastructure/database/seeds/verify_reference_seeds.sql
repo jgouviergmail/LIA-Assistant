@@ -25,8 +25,8 @@ BEGIN
     END IF;
 
     SELECT COUNT(*) INTO c FROM google_api_pricing;
-    IF c < 9 THEN
-        RAISE EXCEPTION 'seed verification: google_api_pricing expected >= 9, got %', c;
+    IF c < 18 THEN
+        RAISE EXCEPTION 'seed verification: google_api_pricing expected >= 18, got %', c;
     END IF;
 
     SELECT COUNT(*) INTO c FROM image_generation_pricing;

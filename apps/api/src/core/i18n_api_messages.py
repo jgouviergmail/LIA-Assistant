@@ -1909,6 +1909,61 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def google_contacts_feature_only(language: SupportedLanguage = "fr") -> str:
+        """Contacts - feature only available with a connected Google account."""
+        messages = {
+            "fr": "Cette fonctionnalité n'est disponible qu'avec un compte Google Contacts connecté.",
+            "en": "This feature is only available with a connected Google Contacts account.",
+            "es": "Esta función solo está disponible con una cuenta de Google Contacts conectada.",
+            "de": "Diese Funktion ist nur mit einem verbundenen Google-Kontakte-Konto verfügbar.",
+            "it": "Questa funzione è disponibile solo con un account Google Contatti collegato.",
+            "zh-CN": "此功能仅在连接 Google 通讯录账户后可用。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def contact_group_not_found(
+        group_name: str, available: list[str], language: SupportedLanguage = "fr"
+    ) -> str:
+        """Contacts - requested group does not exist; list what does."""
+        options = ", ".join(available) if available else "-"
+        messages = {
+            "fr": f"Groupe de contacts '{group_name}' introuvable. Groupes disponibles : {options}",
+            "en": f"Contact group '{group_name}' not found. Available groups: {options}",
+            "es": f"Grupo de contactos '{group_name}' no encontrado. Grupos disponibles: {options}",
+            "de": f"Kontaktgruppe '{group_name}' nicht gefunden. Verfügbare Gruppen: {options}",
+            "it": f"Gruppo di contatti '{group_name}' non trovato. Gruppi disponibili: {options}",
+            "zh-CN": f"未找到联系人组'{group_name}'。可用的组：{options}",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def unsafe_url_blocked(language: SupportedLanguage = "fr") -> str:
+        """Security - URL flagged by Web Risk, fetch/browse refused."""
+        messages = {
+            "fr": "Cette URL est signalée comme dangereuse (hameçonnage ou logiciel malveillant) : accès bloqué pour votre sécurité.",
+            "en": "This URL is flagged as dangerous (phishing or malware): access blocked for your safety.",
+            "es": "Esta URL está señalada como peligrosa (phishing o malware): acceso bloqueado por su seguridad.",
+            "de": "Diese URL ist als gefährlich eingestuft (Phishing oder Malware): Zugriff zu Ihrer Sicherheit blockiert.",
+            "it": "Questo URL è segnalato come pericoloso (phishing o malware): accesso bloccato per la tua sicurezza.",
+            "zh-CN": "该网址被标记为危险（钓鱼或恶意软件）：为了您的安全已阻止访问。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def gps_required_for_nearby(language: SupportedLanguage = "fr") -> str:
+        """Validation - proximity search needs a center point (GPS or address)."""
+        messages = {
+            "fr": "Coordonnées GPS requises pour la recherche à proximité.",
+            "en": "GPS coordinates are required for nearby search.",
+            "es": "Se requieren coordenadas GPS para la búsqueda cercana.",
+            "de": "Für die Suche in der Nähe sind GPS-Koordinaten erforderlich.",
+            "it": "Per la ricerca nelle vicinanze sono necessarie le coordinate GPS.",
+            "zh-CN": "附近搜索需要GPS坐标。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def invalid_price_level(
         invalid_values: list[str], valid_values: list[str], language: SupportedLanguage = "fr"
     ) -> str:

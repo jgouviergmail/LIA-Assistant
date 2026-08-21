@@ -87,6 +87,130 @@ PLACES_VALID_PRICE_LEVELS = frozenset(
     ]
 )
 
+# Places API `businessStatus` value that needs no user-facing badge.
+PLACES_BUSINESS_STATUS_OPERATIONAL = "OPERATIONAL"
+
+# ============================================================================
+# CALENDAR AVAILABILITY / FREE SLOTS (lot B, 2026-08)
+# ============================================================================
+AVAILABILITY_MAX_SLOTS = 10  # hard cap on free slots returned to the LLM
+AVAILABILITY_DURATION_MIN_MINUTES = 5
+AVAILABILITY_DURATION_MAX_MINUTES = 480
+AVAILABILITY_WORK_START_HOUR_DEFAULT = 9
+AVAILABILITY_WORK_END_HOUR_DEFAULT = 19
+# Safety cap on events pulled by the projection fallback (providers without
+# a freeBusy endpoint) — same doctrine as telephony/availability.py.
+AVAILABILITY_PROJECTION_MAX_EVENTS = 250
+
+# ============================================================================
+# GOOGLE WEATHER API (lot E, 2026-08)
+# ============================================================================
+# Every call is billed $0.15/1000 (10,000 free/month), tracked per endpoint.
+GOOGLE_WEATHER_API_BASE_URL = "https://weather.googleapis.com"
+GOOGLE_WEATHER_FORECAST_PAGE_SIZE = 24  # API page cap for forecast/hours
+GOOGLE_WEATHER_MAX_FORECAST_HOURS = 240  # 10 days of hourly forecast
+
+# ============================================================================
+# GOOGLE ENVIRONMENT APIS — AIR QUALITY + POLLEN (lot E, 2026-08)
+# ============================================================================
+# Air Quality $5/1000 (10,000 free/month), Pollen $10/1000 (5,000 free/month).
+GOOGLE_AIR_QUALITY_API_URL = "https://airquality.googleapis.com/v1/currentConditions:lookup"
+GOOGLE_POLLEN_API_URL = "https://pollen.googleapis.com/v1/forecast:lookup"
+GOOGLE_POLLEN_MAX_DAYS = 5
+
+# ============================================================================
+# GOOGLE SHEETS / DOCS (lot F, 2026-08)
+# ============================================================================
+SHEETS_READ_DEFAULT_MAX_ROWS = 50
+SHEETS_READ_MAX_ROWS = 200
+SHEETS_READ_MAX_COLUMN = "ZZ"  # generous A1 column bound (702 columns)
+WORKSPACE_DOC_READ_MAX_CHARS = 20000  # LLM token budget guard
+# Phase write: cap on rows accepted in one HITL-drafted write — a chat-driven
+# write is a correction or a small addition, never a bulk import.
+SHEETS_WRITE_MAX_ROWS = 50
+WORKSPACE_DOC_APPEND_MAX_CHARS = 10000  # bound on one appended note
+
+# ============================================================================
+# GMAIL HISTORY DELTA SYNC (lot G, 2026-08)
+# ============================================================================
+# Redis TTL of the per-user historyId anchor. Gmail keeps history for at
+# least a week; an expired anchor 404s and is transparently re-anchored.
+GMAIL_HISTORY_ANCHOR_TTL_SECONDS = 7 * 24 * 3600
+
+# ============================================================================
+# GOOGLE STREET VIEW STATIC (lot SV, 2026-08)
+# ============================================================================
+# Metadata requests are FREE (availability check before rendering anything);
+# each rendered image is billed $2.00/1000 (10,000 free/month) through the
+# authenticated proxy endpoint. Both are tracked (metadata at $0).
+STREET_VIEW_IMAGE_URL = "https://maps.googleapis.com/maps/api/streetview"
+STREET_VIEW_METADATA_URL = "https://maps.googleapis.com/maps/api/streetview/metadata"
+STREET_VIEW_DEFAULT_WIDTH = 600
+STREET_VIEW_DEFAULT_HEIGHT = 300
+
+# ============================================================================
+# GOOGLE WEB RISK (URL screening, lot D 2026-08)
+# ============================================================================
+# uris:search is billed $0.50/1000 after 100,000 free calls/month — tracked
+# through the standard Google API tracker (seed row `web_risk`).
+WEB_RISK_API_URL = "https://webrisk.googleapis.com/v1/uris:search"
+WEB_RISK_THREAT_TYPES = ("MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE")
+WEB_RISK_TIMEOUT_SECONDS_DEFAULT = 3.0
+WEB_RISK_CLEAN_TTL_SECONDS_DEFAULT = 3600  # clean verdicts re-checked hourly
+# Threat verdict TTL honors the response expireTime, clamped to this window.
+WEB_RISK_THREAT_TTL_MIN_SECONDS = 300
+WEB_RISK_THREAT_TTL_MAX_SECONDS = 86400
+
+# ISO 4217 -> display symbol for compact money rendering (price ranges on
+# place cards). Unknown codes fall back to the code itself.
+CURRENCY_DISPLAY_SYMBOLS: dict[str, str] = {
+    "EUR": "€",
+    "USD": "$",
+    "GBP": "£",
+    "JPY": "¥",
+    "CNY": "¥",
+    "CHF": "CHF",
+}
+
+# Places search detail levels. The field mask decides the billed SKU tier:
+# "full" requests Enterprise + Atmosphere fields ($40/1000 for search),
+# "lite" stays within the Pro tier ($32/1000, larger free threshold) for
+# queries that need identity/location only. Tracked on distinct endpoints
+# (":lite" suffix) so the pricing table bills each tier exactly.
+PLACES_DETAIL_LEVEL_FULL = "full"
+PLACES_DETAIL_LEVEL_LITE = "lite"
+
+# Places API (New) attribute booleans -> i18n feature keys
+# (core.i18n_v3._DISPLAY_PLACE_FEATURES). These fields are paid for at the
+# Enterprise + Atmosphere tier: every fetched attribute must reach the card.
+# Completeness vs i18n is enforced by tests/unit/domains/agents/tools/
+# test_places_formatting.py.
+PLACES_FEATURE_FIELD_TO_I18N_KEY: dict[str, str] = {
+    "dineIn": "dine_in",
+    "takeout": "takeout",
+    "delivery": "delivery",
+    "curbsidePickup": "curbside_pickup",
+    "reservable": "reservable",
+    "outdoorSeating": "outdoor_seating",
+    "liveMusic": "live_music",
+    "restroom": "restroom",
+    "allowsDogs": "allows_dogs",
+    "goodForChildren": "good_for_children",
+    "goodForGroups": "good_for_groups",
+    "goodForWatchingSports": "good_for_watching_sports",
+    "menuForChildren": "menu_for_children",
+    "servesBeer": "serves_beer",
+    "servesBreakfast": "serves_breakfast",
+    "servesBrunch": "serves_brunch",
+    "servesCocktails": "serves_cocktails",
+    "servesCoffee": "serves_coffee",
+    "servesDessert": "serves_dessert",
+    "servesDinner": "serves_dinner",
+    "servesLunch": "serves_lunch",
+    "servesVegetarianFood": "serves_vegetarian_food",
+    "servesWine": "serves_wine",
+}
+
 WIKIPEDIA_TOOL_DEFAULT_LIMIT = 5
 WIKIPEDIA_TOOL_DEFAULT_MAX_RESULTS = 20
 WIKIPEDIA_SUMMARY_MAX_CHARS = 5000  # Max chars for article summaries in display/LLM context
@@ -247,6 +371,21 @@ GOOGLE_CONTACTS_SEARCH_FIELDS = [
     "addresses",  # Postal addresses (formatted value + type)
     "birthdays",  # Birth dates (day/month/year format)
 ]
+
+# People API "other contacts" (interacted-with but never saved). The API only
+# supports these three read-mask fields on /otherContacts — anything else 400s.
+GOOGLE_OTHER_CONTACTS_FIELDS = [
+    "names",
+    "emailAddresses",
+    "phoneNumbers",
+]
+
+# Hard cap for /otherContacts:search (People API pageSize limit is 50 there,
+# 30 being Google's recommended maximum for interactive search).
+GOOGLE_OTHER_CONTACTS_SEARCH_MAX = 30
+
+# Max members fetched when expanding a contact group for targeting.
+GOOGLE_CONTACT_GROUP_MAX_MEMBERS = 200
 
 # Complete field set organized by logical groups
 # Phase: Extended Contact Details Support
@@ -2213,6 +2352,10 @@ GOOGLE_GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.modify",
+    # Lot I (2026-08): vacation responder, filters, sendAs (read + vacation
+    # write). Adding a scope forces existing Gmail users to reconnect
+    # (prompt=consent full-scope flow) — accepted in beta.
+    "https://www.googleapis.com/auth/gmail.settings.basic",
 ]
 
 # Google Calendar API scopes
@@ -5085,3 +5228,28 @@ PEERS_ACCESS_LOG_RETENTION_DAYS_DEFAULT = 90
 SCHEDULER_JOB_PEERS_DELIVERY_SWEEP = "peers_delivery_sweep"
 # Hard cap on the optional context note attached to a connection request.
 PEERS_CONTEXT_MESSAGE_MAX_CHARS = 500
+
+# ============================================================================
+# Google push channels (lot H, 2026-08) — defaults for src/core/config/push.py
+# ============================================================================
+# Requested channel lifetime. Google may shorten it (the response's
+# `expiration` is authoritative); Gmail watches expire at 7 days regardless.
+PUSH_WATCH_TTL_SECONDS_DEFAULT = 604800  # 7 days
+# Channels expiring within this margin are renewed by the sync job.
+PUSH_RENEWAL_MARGIN_SECONDS_DEFAULT = 86400  # 1 day
+# Interval of the leader-elected channel sync job (ensure + renew).
+PUSH_SYNC_INTERVAL_MINUTES_DEFAULT = 360  # 6 h
+# Per-channel debounce against notification storms: at most one cache
+# invalidation per channel per window.
+PUSH_NOTIFICATION_DEBOUNCE_SECONDS_DEFAULT = 30
+SCHEDULER_JOB_PUSH_CHANNEL_SYNC = "push_channel_sync"
+# Delay of the FIRST sweep after boot (same doctrine as the product rollup):
+# long enough for the connector/registry startup steps to settle, short
+# enough that enabling the flag opens channels in minutes, not in one full
+# interval (ADR-178 starvation).
+PUSH_SYNC_INITIAL_DELAY_MINUTES = 2
+REDIS_KEY_PUSH_DEBOUNCE_PREFIX = "push:debounce:"
+
+# AQ/pollen enrichment of weather answers (2026-08) — both APIs are billed,
+# the cache bounds the spend to at most one call pair per point per TTL.
+WEATHER_ENVIRONMENT_ENRICHMENT_TTL_SECONDS_DEFAULT = 1800  # 30 min

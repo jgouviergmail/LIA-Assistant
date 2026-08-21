@@ -1,8 +1,14 @@
 # Google APIs - Documentation & Tarification
 
-> **Version** : 1.1 | **Date** : 2026-02-04
+> **Version** : 1.2 | **Date** : 2026-08-21
 >
 > Documentation des APIs Google utilisées dans LIA, avec détails de tarification pour la refacturation utilisateurs.
+>
+> **Correction 2026-08 (lot P0)** : les field masks Places incluent `reviews` et
+> `editorialSummary`, ce qui facture le SKU **Enterprise + Atmosphere** (et non
+> Pro comme documenté précédemment). Les prix et seuils gratuits ci-dessous
+> reflètent le SKU réellement déclenché. Un mode `detail_level="lite"`
+> (mask Pro uniquement) est disponible et tracké sur les endpoints `:lite`.
 
 ---
 
@@ -23,19 +29,31 @@ L'application utilise deux catégories d'APIs Google :
 
 ### Maps Platform (par compte de facturation, par mois)
 
-| API | Endpoint | Seuil Gratuit/mois | Coût après seuil (/1000 req) | Économie gratuite |
-|-----|----------|-------------------|------------------------------|-------------------|
-| **Places API** | `/places:searchText` | **5,000 req** | $32.00 | $160.00 |
-| **Places API** | `/places:searchNearby` | **5,000 req** | $32.00 | $160.00 |
-| **Places API** | `/places/{id}` (Details) | **5,000 req** | $17.00 | $85.00 |
-| **Places API** | `/places:autocomplete` | **10,000 req** | $2.83 | $28.30 |
-| **Places API** | `/{photo}/media` | **1,000 req** | $7.00 | $7.00 |
-| **Routes API** | `/directions/v2:computeRoutes` | **10,000 req** | $5.00 | $50.00 |
-| **Routes API** | `/distanceMatrix/v2:computeRouteMatrix` | **10,000 req** | $5.00 | $50.00 |
-| **Geocoding API** | `/geocode/json` | **10,000 req** | $5.00 | $50.00 |
-| **Static Maps API** | `/staticmap` | **10,000 req** | $2.00 | $20.00 |
+| API | Endpoint | Seuil Gratuit/mois | Coût après seuil (/1000 req) | SKU déclenché |
+|-----|----------|-------------------|------------------------------|---------------|
+| **Places API** | `/places:searchText` | **1,000 req** | $40.00 | Text Search Enterprise + Atmosphere |
+| **Places API** | `/places:searchText:lite` | **5,000 req** | $32.00 | Text Search Pro (mask allégé) |
+| **Places API** | `/places:searchNearby` | **1,000 req** | $40.00 | Nearby Search Enterprise + Atmosphere |
+| **Places API** | `/places:searchNearby:lite` | **5,000 req** | $32.00 | Nearby Search Pro (mask allégé) |
+| **Places API** | `/places/{id}` (Details) | **1,000 req** | $25.00 | Place Details Enterprise + Atmosphere |
+| **Places API** | `/places:autocomplete` | **10,000 req** | $2.83 | Autocomplete |
+| **Places API** | `/{photo}/media` | **1,000 req** | $7.00 | Place Details Photos |
+| **Routes API** | `/directions/v2:computeRoutes` | **10,000 req** | $5.00 | Compute Routes |
+| **Routes API** | `/distanceMatrix/v2:computeRouteMatrix` | **10,000 req** | $5.00 | Route Matrix |
+| **Geocoding API** | `/geocode/json` | **10,000 req** | $5.00 | Geocoding |
+| **Static Maps API** | `/staticmap` | **10,000 req** | $2.00 | Static Maps |
+| **Web Risk API** | `/v1/uris:search` | **100,000 req** | $0.50 | Web Risk Search (filtrage URL, lot D) |
+| **Weather API** | `/v1/currentConditions:lookup` | **10,000 req** | $0.15 | Météo actuelle (lot E, connecteur google_weather) |
+| **Weather API** | `/v1/forecast/hours:lookup` | **10,000 req** | $0.15 | Prévisions horaires 10 j (lot E) |
+| **Air Quality API** | `/v1/currentConditions:lookup` | **10,000 req** | $5.00 | Qualité de l'air (lot E, connecteur google_environment) |
+| **Pollen API** | `/v1/forecast:lookup` | **5,000 req** | $10.00 | Prévisions polliniques 5 j (lot E) |
+| **Street View Static** | `/streetview` (+metadata gratuit) | **10,000 req** | $2.00 | Vignettes lieux/adresses (lot SV) |
 
-**Économie totale gratuite potentielle : ~$610/mois**
+> **Règle Places API (New)** : le SKU facturé est celui du champ de plus haut
+> tier présent dans le field mask. Les masks "full" de LIA demandent
+> `reviews`/`editorialSummary` (tier Enterprise + Atmosphere, 1,000 gratuits/mois).
+> Le mode `detail_level="lite"` reste dans le tier Pro (identité/adresse/statut,
+> 5,000 gratuits/mois) — utilisé par le planner pour compter/lister des lieux.
 
 > **Important** : Ces seuils sont **par compte Google Cloud**, pas par utilisateur. Si vous avez 100 utilisateurs qui font chacun 100 recherches Places, vous consommez 10,000 requêtes sur le seuil de 5,000 gratuit.
 
@@ -63,20 +81,22 @@ Ces APIs utilisent la clé API globale et sont facturées au volume.
 
 | Endpoint | SKU | Coût /1000 req | Gratuit/mois | Usage dans l'app |
 |----------|-----|----------------|--------------|------------------|
-| `/places:searchText` | Text Search Pro | **$32.00** | 5,000 | Recherche de lieux par texte |
-| `/places:searchNearby` | Nearby Search Pro | **$32.00** | 5,000 | Recherche de lieux à proximité |
-| `/places/{id}` | Place Details Pro | **$17.00** | 5,000 | Détails d'un lieu |
+| `/places:searchText` | Text Search Enterprise + Atmosphere | **$40.00** | 1,000 | Recherche de lieux par texte (mask full) |
+| `/places:searchText:lite` | Text Search Pro | **$32.00** | 5,000 | Recherche allégée (`detail_level="lite"`) |
+| `/places:searchNearby` | Nearby Search Enterprise + Atmosphere | **$40.00** | 1,000 | Recherche de lieux à proximité (mask full) |
+| `/places:searchNearby:lite` | Nearby Search Pro | **$32.00** | 5,000 | Proximité allégée (`detail_level="lite"`) |
+| `/places/{id}` | Place Details Enterprise + Atmosphere | **$25.00** | 1,000 | Détails d'un lieu |
 | `/places:autocomplete` | Autocomplete | **$2.83** | 10,000 | Suggestions de saisie |
 | `/{photo}/media` | Place Details Photos | **$7.00** | 1,000 | Photos de lieux |
 
 > **Note** : Les tarifs indiqués sont les tarifs de base. Ils diminuent avec le volume (jusqu'à -92.5% à 5M+ requêtes).
 
-**Estimation mensuelle** (usage modéré par utilisateur) :
-- 50 recherches texte/mois × $0.032 = $1.60
-- 20 détails lieu/mois × $0.017 = $0.34
+**Estimation mensuelle** (usage modéré par utilisateur, masks full) :
+- 50 recherches texte/mois × $0.040 = $2.00
+- 20 détails lieu/mois × $0.025 = $0.50
 - 100 autocomplete/mois × $0.00283 = $0.28
 - 30 photos/mois × $0.007 = $0.21
-- **Total estimé : ~$2.43/utilisateur/mois**
+- **Total estimé : ~$2.99/utilisateur/mois**
 
 ---
 
@@ -134,9 +154,10 @@ Ces APIs utilisent la clé API globale et sont facturées au volume.
 
 | API | Coût principal /1000 | Seuil gratuit | Risque coût |
 |-----|---------------------|---------------|-------------|
-| **Places Text Search** | $32.00 | 5,000/mois | **ÉLEVÉ** |
-| **Places Nearby** | $32.00 | 5,000/mois | **ÉLEVÉ** |
-| **Places Details** | $17.00 | 5,000/mois | MOYEN |
+| **Places Text Search (full)** | $40.00 | 1,000/mois | **ÉLEVÉ** |
+| **Places Nearby (full)** | $40.00 | 1,000/mois | **ÉLEVÉ** |
+| **Places Search (lite)** | $32.00 | 5,000/mois | **ÉLEVÉ** |
+| **Places Details** | $25.00 | 1,000/mois | MOYEN |
 | **Places Photos** | $7.00 | 1,000/mois | MOYEN |
 | **Places Autocomplete** | $2.83 | 10,000/mois | FAIBLE |
 | **Routes** | $5.00-$10.00 | 5-10,000/mois | FAIBLE |
@@ -165,6 +186,16 @@ Ces APIs utilisent OAuth2 et sont **gratuites** dans les limites de quotas.
 | `/users/me/messages/{id}/modify` | 200 quota units/user/sec | **GRATUIT** |
 | `/users/me/messages/{id}/trash` | 10 quota units/user/sec | **GRATUIT** |
 | `/users/me/labels` | 1 quota unit/user/sec | **GRATUIT** |
+| `/users/me/profile` (lot G) | 1 quota unit/user/sec | **GRATUIT** |
+| `/users/me/history` (lot G, delta heartbeat) | 2 quota units/user/sec | **GRATUIT** |
+| `/users/me/settings/vacation` (lot I, GET/PUT) | 1 quota unit/user/sec | **GRATUIT** |
+| `/users/me/settings/filters` (lot I) | 1 quota unit/user/sec | **GRATUIT** |
+| `/users/me/settings/sendAs` (lot I) | 1 quota unit/user/sec | **GRATUIT** |
+| `/users/me/watch` / `/users/me/stop` (lot H phase 2) | 1 quota unit/user/sec | **GRATUIT** |
+
+**Clients** : `google_gmail_client.py` (messages/labels/history) et
+`google_gmail_settings_client.py` (settings + watch — le scope
+`gmail.settings.basic` a été ajouté au lot I ; reconnexion Gmail requise, bêta).
 
 **Quota global** : 1,000,000,000 quota units/jour/projet
 
@@ -184,6 +215,8 @@ Ces APIs utilisent OAuth2 et sont **gratuites** dans les limites de quotas.
 | `/calendars/{id}/events/{eventId}` (update) | 100 req/100sec/user | **GRATUIT** |
 | `/calendars/{id}/events/{eventId}` (delete) | 100 req/100sec/user | **GRATUIT** |
 | `/users/me/calendarList` | 100 req/100sec/user | **GRATUIT** |
+| `/freeBusy` (lot B, disponibilités) | 100 req/100sec/user | **GRATUIT** |
+| `/calendars/{id}/events/watch` + `/channels/stop` (lot H) | 100 req/100sec/user | **GRATUIT** |
 
 **Quota global** : 1,000,000 requêtes/jour/projet
 
@@ -203,6 +236,8 @@ Ces APIs utilisent OAuth2 et sont **gratuites** dans les limites de quotas.
 | `/people:createContact` | 60 req/min/user | **GRATUIT** |
 | `/{resourceName}:updateContact` | 60 req/min/user | **GRATUIT** |
 | `/{resourceName}:deleteContact` | 60 req/min/user | **GRATUIT** |
+| `/contactGroups` + `/contactGroups/{id}` (lot C) | 60 req/min/user | **GRATUIT** |
+| `/otherContacts:search` (lot C) | 60 req/min/user | **GRATUIT** |
 
 **Quota global** : 90,000 requêtes/jour/projet
 
@@ -219,8 +254,23 @@ Ces APIs utilisent OAuth2 et sont **gratuites** dans les limites de quotas.
 | `/files` (list) | 1000 req/100sec/user | **GRATUIT** |
 | `/files/{fileId}` (get) | 1000 req/100sec/user | **GRATUIT** |
 | `/files/{fileId}` (delete) | 1000 req/100sec/user | **GRATUIT** |
+| `/changes/startPageToken` + `/changes/watch` (lot H) | 1000 req/100sec/user | **GRATUIT** |
 
 **Quota global** : 12,000 requêtes/minute/projet
+
+---
+
+### 2.6 Google Sheets & Docs API (lot F — lecture)
+
+**Base URLs** : `https://sheets.googleapis.com/v4`, `https://docs.googleapis.com/v1`
+
+**Clients** : `google_sheets_client.py`, `google_docs_client.py` — mêmes jetons
+OAuth que Drive (scope `drive` ride-along, aucun re-consent).
+
+| Endpoint | Quota | Coût |
+|----------|-------|------|
+| `/spreadsheets/{id}` + `/values/{range}` (lecture) | 60 req/min/user | **GRATUIT** |
+| `/documents/{id}` (lecture) | 300 req/min/user | **GRATUIT** |
 
 ---
 
@@ -266,8 +316,8 @@ Ces APIs utilisent OAuth2 et sont **gratuites** dans les limites de quotas.
 1. **Seuil gratuit** : Inclure dans le forfait de base jusqu'au seuil Google gratuit (~5000 recherches Places/mois)
 
 2. **Au-delà** : Facturer avec marge de 20-30% :
-   - Places Search : $0.04/recherche (coût réel $0.032)
-   - Places Details : $0.02/détail (coût réel $0.017)
+   - Places Search : $0.05/recherche (coût réel $0.040 en full, $0.032 en lite)
+   - Places Details : $0.03/détail (coût réel $0.025)
    - Routes : $0.007/itinéraire (coût réel $0.005)
 
 3. **Forfait "Power User"** : $5-10/mois pour usage illimité raisonnable
@@ -333,5 +383,7 @@ class GoogleApiUsageLog(BaseModel):
 
 | Date | Version | Changement |
 |------|---------|------------|
+| 2026-08-21 | 1.3 | Programme d'enrichissement (spec 2026-08-21) : Weather/Air Quality/Pollen/Street View/Web Risk facturables seedés ; groupes de contacts + other contacts (lot C), freeBusy (lot B), Sheets/Docs lecture ET écriture HITL (lot F : update/append de plage, ajout de texte Docs), history delta (lot G), Gmail settings + vacation responder + création de filtres HITL (lot I, scope `gmail.settings.basic` ajouté), canaux push watch avec purge des canaux orphelins (lot H — voir [GOOGLE_PUSH_CHANNELS.md](./GOOGLE_PUSH_CHANNELS.md)) |
+| 2026-08-21 | 1.2 | Correction SKU Places (Enterprise + Atmosphere réellement déclenché par les masks), seuils gratuits 1,000/mois, mode `detail_level="lite"` (endpoints `:lite`, tier Pro), champs ajoutés aux masks (`businessStatus`, `priceRange`, `primaryTypeDisplayName`, `shortFormattedAddress`) |
 | 2026-02-04 | 1.1 | Références vers GOOGLE_API_TRACKING.md, tracking implémenté |
 | 2026-02-03 | 1.0 | Création initiale |

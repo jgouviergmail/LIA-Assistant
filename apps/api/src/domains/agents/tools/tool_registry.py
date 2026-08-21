@@ -328,9 +328,13 @@ def _import_tool_modules() -> None:
     tool_modules = [
         # Google Services (OAuth)
         ("src.domains.agents.tools.calendar_tools", "calendar_tools"),
+        ("src.domains.agents.tools.availability_tools", "availability_tools"),
         ("src.domains.agents.tools.drive_tools", "drive_tools"),
+        ("src.domains.agents.tools.workspace_docs_tools", "workspace_docs_tools"),
         ("src.domains.agents.tools.emails_tools", "emails_tools"),
+        ("src.domains.agents.tools.gmail_settings_tools", "gmail_settings_tools"),
         ("src.domains.agents.tools.google_contacts_tools", "google_contacts_tools"),
+        ("src.domains.agents.tools.contact_groups_tools", "contact_groups_tools"),
         ("src.domains.agents.tools.labels_tools", "labels_tools"),
         ("src.domains.agents.tools.tasks_tools", "tasks_tools"),
         # Google Services (API Key)
@@ -340,6 +344,7 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.brave_tools", "brave_tools"),
         ("src.domains.agents.tools.perplexity_tools", "perplexity_tools"),
         ("src.domains.agents.tools.weather_tools", "weather_tools"),
+        ("src.domains.agents.tools.environment_tools", "environment_tools"),
         ("src.domains.agents.tools.web_search_tools", "web_search_tools"),
         ("src.domains.agents.tools.web_fetch_tools", "web_fetch_tools"),
         ("src.domains.agents.tools.wikipedia_tools", "wikipedia_tools"),

@@ -30,7 +30,10 @@ from src.core.constants import (
     GMAIL_FORMAT_METADATA,
     HEALTH_METRICS_USER_TOGGLE_ATTR,
 )
-from src.core.exceptions import MaxRetriesExceededError
+from src.core.exceptions import ConnectorAPIError, MaxRetriesExceededError
+from src.domains.agents.tools.weather_environment_enrichment import (
+    environment_extras_or_none,
+)
 from src.domains.briefing.constants import (
     BRIEFING_WEATHER_FORECAST_CNT,
     ERROR_CODE_CONNECTOR_NETWORK,
@@ -67,11 +70,11 @@ from src.domains.briefing.schemas import (
     WeatherData,
 )
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
-from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
 from src.domains.connectors.clients.registry import ClientRegistry
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.provider_resolver import resolve_active_connector
 from src.domains.connectors.service import ConnectorService
+from src.domains.connectors.weather_provider import resolve_weather_client
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.heartbeat.geocoding import resolve_city_name
 from src.domains.reminders.service import ReminderService
@@ -117,15 +120,16 @@ async def fetch_weather(
     """Fetch current weather + short-term forecast for the user's effective location.
 
     Raises:
-        ConnectorNotConfiguredError: if OpenWeatherMap key is missing OR no usable location.
+        ConnectorNotConfiguredError: if no weather provider is active OR no
+            usable location. Both providers of the "weather" category (Google
+            Weather platform-key, OpenWeatherMap personal key) are OWM-shaped,
+            so everything below is provider-agnostic (lot E, 2026-08).
         ConnectorAccessError: on HTTP/network failure (token expired, rate-limit, etc.).
     """
     async with get_db_context() as db:
         connector_service = ConnectorService(db)
-        credentials = await connector_service.get_api_key_credentials(
-            user.id, ConnectorType.OPENWEATHERMAP
-        )
-        if not credentials:
+        client = await resolve_weather_client(user.id, connector_service)
+        if client is None:
             raise ConnectorNotConfiguredError("openweathermap")
 
         try:
@@ -133,7 +137,14 @@ async def fetch_weather(
         except NoLocationAvailableError:
             raise ConnectorNotConfiguredError("location") from None
 
-    client = OpenWeatherMapClient(api_key=credentials.api_key, user_id=user.id)
+        # AQ/pollen enrichment (2026-08) — inside THIS session's scope (an
+        # AsyncSession is not safe for concurrent use, so it must not join
+        # the gather below). Fail-quiet: returns None and the card renders
+        # exactly as before.
+        environment = await environment_extras_or_none(
+            user.id, connector_service, location.lat, location.lon, language
+        )
+
     try:
         results = await asyncio.gather(
             client.get_current_weather(
@@ -149,10 +160,10 @@ async def fetch_weather(
                 lang=language,
                 cnt=BRIEFING_WEATHER_FORECAST_CNT,
             ),
-            resolve_city_name(lat=location.lat, lon=location.lon, api_key=credentials.api_key),
+            resolve_city_name(lat=location.lat, lon=location.lon, client=client),
             return_exceptions=False,
         )
-    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
+    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
         # MaxRetriesExceededError: retry-exhaustion from the migrated OWM client
         # (BaseAPIKeyClient); classify from the underlying cause when available.
         cause = getattr(exc, "last_error", None) or exc
@@ -167,6 +178,7 @@ async def fetch_weather(
         city=city if isinstance(city, str) else None,
         user_tz=user_tz,
         daily_forecast_days=settings.briefing_weather_daily_forecast_days,
+        environment=environment,
     )
 
 

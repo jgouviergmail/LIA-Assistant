@@ -182,6 +182,14 @@ if getattr(settings, "telephony_enabled", False):
     from src.domains.telephony.router import router as telephony_router
 
     api_router.include_router(telephony_router)
+# Google push webhooks (lot H): mounted when either phase is on — the Pub/Sub
+# endpoint (phase 2) must exist even if phase 1 channels stay disabled.
+if getattr(settings, "push_channels_enabled", False) or getattr(
+    settings, "gmail_push_enabled", False
+):
+    from src.domains.push_channels.router import router as push_channels_router
+
+    api_router.include_router(push_channels_router)
 api_router.include_router(voice_router)
 api_router.include_router(voice_admin_router)
 api_router.include_router(user_export_router)

@@ -6,7 +6,7 @@
 
 **Version**: 4.5
 **Datum**: 2026-08-21
-**Application**: LIA v1.31.0
+**Application**: LIA v1.31.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -1418,4 +1418,4 @@ Das Augen-Widget des Chats (ADR-240) beruht auf einem einzigen Prinzip: **kein n
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 240 ADRs und des Changelogs (v1.0 bis v1.31.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 240 ADRs und des Changelogs (v1.0 bis v1.31.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

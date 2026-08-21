@@ -6,7 +6,7 @@
 
 **Version**: 4.5
 **Date**: 2026-08-21
-**Application**: LIA v1.31.0
+**Application**: LIA v1.31.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -1443,4 +1443,4 @@ The chat's eyes widget (ADR-240) is built on a single principle: **no new signal
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 240 ADRs, and the changelog (v1.0 to v1.31.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 240 ADRs, and the changelog (v1.0 to v1.31.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

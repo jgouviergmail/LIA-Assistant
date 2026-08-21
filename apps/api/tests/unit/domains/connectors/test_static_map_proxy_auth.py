@@ -23,12 +23,12 @@ import inspect
 import pytest
 
 from src.core.session_dependencies import get_current_active_session
-from src.domains.connectors.router import (
+from src.domains.connectors.media_proxy_router import (
     proxy_location_static_map,
     proxy_routes_static_map,
     rate_limit_static_map,
-    router,
 )
+from src.domains.connectors.router import router
 
 _STATIC_MAP_PATHS = {
     "/connectors/google-routes/static-map",

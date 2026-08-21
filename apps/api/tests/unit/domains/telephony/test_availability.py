@@ -178,3 +178,69 @@ async def test_build_summary_swallows_http_error(
         "en",
     )
     assert out.startswith("Availability unavailable")
+
+
+class _FakeFreeBusyClient:
+    """Calendar client exposing freeBusy: the fast-path must be preferred."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        self.freebusy_called = False
+        self.list_events_called = False
+
+    async def query_freebusy(self, **kwargs: object) -> dict:
+        self.freebusy_called = True
+        return {
+            "calendars": {
+                "primary": {
+                    "busy": [
+                        {
+                            "start": "2026-07-15T09:00:00+02:00",
+                            "end": "2026-07-15T10:30:00+02:00",
+                        }
+                    ]
+                }
+            }
+        }
+
+    async def list_events(self, **kwargs: object) -> dict:
+        self.list_events_called = True
+        return {"items": []}
+
+
+@pytest.mark.unit
+async def test_build_summary_prefers_freebusy_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Google-path (lot B): freeBusy returns busy ranges only — even less data
+    than the start/end projection, so it wins when the client offers it."""
+    resolved = SimpleNamespace(is_apple=False, value="google_calendar")
+
+    async def _resolve(*args: object, **kwargs: object) -> object:
+        return resolved
+
+    fake_client = _FakeFreeBusyClient()
+    monkeypatch.setattr(
+        "src.domains.connectors.provider_resolver.resolve_active_connector", _resolve
+    )
+    monkeypatch.setattr(
+        "src.domains.connectors.clients.registry.ClientRegistry.get_client_class",
+        staticmethod(lambda _t: (lambda *a, **k: fake_client)),
+    )
+
+    async def _primary(*args: object, **kwargs: object) -> str:
+        return "primary"
+
+    monkeypatch.setattr(availability, "_resolve_calendar_id", _primary)
+
+    out = await build_availability_summary(
+        uuid4(),
+        datetime(2026, 7, 14, tzinfo=UTC),
+        datetime(2026, 7, 21, tzinfo=UTC),
+        _fake_connector_service(),  # type: ignore[arg-type]
+        "Europe/Paris",
+        "fr",
+    )
+
+    assert fake_client.freebusy_called is True
+    assert fake_client.list_events_called is False
+    assert "09:00" in out

@@ -681,6 +681,15 @@ _DISPLAY_AIR_QUALITY: dict[str, str] = {
     "zh-CN": "空气质量",
 }
 
+_DISPLAY_POLLEN: dict[str, str] = {
+    "fr": "Pollen",
+    "en": "Pollen",
+    "es": "Polen",
+    "de": "Pollen",
+    "it": "Polline",
+    "zh-CN": "花粉",
+}
+
 _DISPLAY_PRECIPITATION: dict[str, str] = {
     "fr": "Précipitations",
     "en": "Precipitation",
@@ -2206,6 +2215,134 @@ _DISPLAY_PLACE_FEATURES: dict[str, dict[str, str]] = {
         "it": "🅿️ Parcheggio",
         "zh-CN": "🅿️ 停车场",
     },
+    "serves_dessert": {
+        "fr": "🍰 Desserts",
+        "en": "🍰 Desserts",
+        "es": "🍰 Postres",
+        "de": "🍰 Desserts",
+        "it": "🍰 Dolci",
+        "zh-CN": "🍰 甜点",
+    },
+    "serves_vegetarian_food": {
+        "fr": "🥗 Végétarien",
+        "en": "🥗 Vegetarian",
+        "es": "🥗 Vegetariano",
+        "de": "🥗 Vegetarisch",
+        "it": "🥗 Vegetariano",
+        "zh-CN": "🥗 素食",
+    },
+    "allows_dogs": {
+        "fr": "🐕 Chiens acceptés",
+        "en": "🐕 Dogs allowed",
+        "es": "🐕 Se admiten perros",
+        "de": "🐕 Hunde erlaubt",
+        "it": "🐕 Cani ammessi",
+        "zh-CN": "🐕 允许携犬",
+    },
+    "good_for_watching_sports": {
+        "fr": "🏟️ Diffusion de sport",
+        "en": "🏟️ Sports on screen",
+        "es": "🏟️ Deportes en pantalla",
+        "de": "🏟️ Sportübertragungen",
+        "it": "🏟️ Sport in TV",
+        "zh-CN": "🏟️ 观赛好去处",
+    },
+    "menu_for_children": {
+        "fr": "🧒 Menu enfant",
+        "en": "🧒 Kids' menu",
+        "es": "🧒 Menú infantil",
+        "de": "🧒 Kindermenü",
+        "it": "🧒 Menù bambini",
+        "zh-CN": "🧒 儿童菜单",
+    },
+    "restroom": {
+        "fr": "🚻 Toilettes",
+        "en": "🚻 Restroom",
+        "es": "🚻 Aseos",
+        "de": "🚻 Toiletten",
+        "it": "🚻 Servizi igienici",
+        "zh-CN": "🚻 洗手间",
+    },
+}
+
+# Business status labels (Places API `businessStatus`; OPERATIONAL is silent)
+_DISPLAY_BUSINESS_STATUS: dict[str, dict[str, str]] = {
+    "CLOSED_PERMANENTLY": {
+        "fr": "Définitivement fermé",
+        "en": "Permanently closed",
+        "es": "Cerrado definitivamente",
+        "de": "Dauerhaft geschlossen",
+        "it": "Chiuso definitivamente",
+        "zh-CN": "已永久停业",
+    },
+    "CLOSED_TEMPORARILY": {
+        "fr": "Temporairement fermé",
+        "en": "Temporarily closed",
+        "es": "Cerrado temporalmente",
+        "de": "Vorübergehend geschlossen",
+        "it": "Chiuso temporaneamente",
+        "zh-CN": "已暂时停业",
+    },
+}
+
+# Parking option labels (Places API `parkingOptions` booleans)
+_DISPLAY_PARKING_OPTIONS: dict[str, dict[str, str]] = {
+    "freeParkingLot": {
+        "fr": "Parking gratuit",
+        "en": "Free parking lot",
+        "es": "Aparcamiento gratuito",
+        "de": "Kostenloser Parkplatz",
+        "it": "Parcheggio gratuito",
+        "zh-CN": "免费停车场",
+    },
+    "paidParkingLot": {
+        "fr": "Parking payant",
+        "en": "Paid parking lot",
+        "es": "Aparcamiento de pago",
+        "de": "Kostenpflichtiger Parkplatz",
+        "it": "Parcheggio a pagamento",
+        "zh-CN": "收费停车场",
+    },
+    "freeStreetParking": {
+        "fr": "Stationnement gratuit dans la rue",
+        "en": "Free street parking",
+        "es": "Aparcamiento gratuito en la calle",
+        "de": "Kostenloses Parken an der Straße",
+        "it": "Parcheggio gratuito in strada",
+        "zh-CN": "免费路边停车",
+    },
+    "paidStreetParking": {
+        "fr": "Stationnement payant dans la rue",
+        "en": "Paid street parking",
+        "es": "Aparcamiento de pago en la calle",
+        "de": "Kostenpflichtiges Parken an der Straße",
+        "it": "Parcheggio a pagamento in strada",
+        "zh-CN": "收费路边停车",
+    },
+    "valetParking": {
+        "fr": "Service voiturier",
+        "en": "Valet parking",
+        "es": "Aparcacoches",
+        "de": "Parkservice",
+        "it": "Parcheggio con valletto",
+        "zh-CN": "代客泊车",
+    },
+    "freeGarageParking": {
+        "fr": "Garage gratuit",
+        "en": "Free garage parking",
+        "es": "Garaje gratuito",
+        "de": "Kostenlose Garage",
+        "it": "Garage gratuito",
+        "zh-CN": "免费车库停车",
+    },
+    "paidGarageParking": {
+        "fr": "Garage payant",
+        "en": "Paid garage parking",
+        "es": "Garaje de pago",
+        "de": "Kostenpflichtige Garage",
+        "it": "Garage a pagamento",
+        "zh-CN": "收费车库停车",
+    },
 }
 
 # Accessibility labels
@@ -3135,6 +3272,12 @@ class V3Messages:
         return _DISPLAY_AIR_QUALITY.get(lang, _DISPLAY_AIR_QUALITY["en"])
 
     @staticmethod
+    def get_pollen(language: str) -> str:
+        """Get 'Pollen' label."""
+        lang = V3Messages._normalize_language(language)
+        return _DISPLAY_POLLEN.get(lang, _DISPLAY_POLLEN["en"])
+
+    @staticmethod
     def get_precipitation(language: str) -> str:
         """Get 'Precipitation' label."""
         lang = V3Messages._normalize_language(language)
@@ -3637,6 +3780,34 @@ class V3Messages:
         lang = V3Messages._normalize_language(language)
         acc_dict = _DISPLAY_ACCESSIBILITY.get(key, {})
         return acc_dict.get(lang, acc_dict.get("en", ""))
+
+    @staticmethod
+    def get_business_status(language: str, status: str) -> str:
+        """Get localized business status label ('' for OPERATIONAL/unknown)."""
+        lang = V3Messages._normalize_language(language)
+        status_dict = _DISPLAY_BUSINESS_STATUS.get(status, {})
+        return status_dict.get(lang, status_dict.get("en", ""))
+
+    @staticmethod
+    def get_parking_option(language: str, key: str) -> str:
+        """Get localized parking option label ('' for unknown keys)."""
+        lang = V3Messages._normalize_language(language)
+        opt_dict = _DISPLAY_PARKING_OPTIONS.get(key, {})
+        return opt_dict.get(lang, opt_dict.get("en", ""))
+
+    @staticmethod
+    def get_parking_title(language: str) -> str:
+        """Get 'Parking' section title."""
+        lang = V3Messages._normalize_language(language)
+        titles = {
+            "fr": "Parking",
+            "en": "Parking",
+            "de": "Parken",
+            "es": "Aparcamiento",
+            "it": "Parcheggio",
+            "zh-CN": "停车",
+        }
+        return titles.get(lang, titles["en"])
 
     @staticmethod
     def get_payment(language: str, key: str) -> str:

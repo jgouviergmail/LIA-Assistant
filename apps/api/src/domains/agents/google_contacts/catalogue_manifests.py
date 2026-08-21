@@ -404,6 +404,175 @@ delete_contact_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(emoji="🗑️", i18n_key="delete_contact", visible=True, category="tool"),
 )
 
+# ============================================================================
+# CONTACT GROUPS & OTHER CONTACTS (lot C, 2026-08 — Google only)
+# ============================================================================
+
+list_contact_groups_catalogue_manifest = ToolManifest(
+    name="list_contact_groups_tool",
+    agent="contact_agent",
+    description=(
+        "**Tool: list_contact_groups_tool** - List the user's contact groups "
+        "(family, colleagues, clients, ...) with EXACT member counts. "
+        "Google Contacts only (clear unsupported message otherwise)."
+    ),
+    semantic_keywords=[
+        "list my contact groups labels",
+        "what groups of contacts do I have",
+        "show my family colleagues contact groups",
+        "contact group members count",
+    ],
+    parameters=[],
+    outputs=[
+        OutputFieldSchema(path="groups", type="array", description="User-defined groups"),
+        OutputFieldSchema(path="groups[].name", type="string", description="Group name"),
+        OutputFieldSchema(
+            path="groups[].member_count",
+            type="integer",
+            description="Exact member count (API aggregate)",
+        ),
+        OutputFieldSchema(path="total", type="integer", description="Number of groups"),
+    ],
+    cost=CostProfile(est_tokens_in=50, est_tokens_out=150, est_cost_usd=0.002, est_latency_ms=400),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_CONTACTS_SCOPES,
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    max_iterations=1,
+    supports_dry_run=True,
+    # Groups are plain structured data (no registry items) — reuse the
+    # registered "contacts" context type rather than inventing a new one.
+    context_key="contacts",
+    reference_examples=["groups[0].name", "groups[0].member_count", "total"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(
+        emoji="👥", i18n_key="list_contact_groups", visible=True, category="tool"
+    ),
+)
+
+get_contact_group_members_catalogue_manifest = ToolManifest(
+    name="get_contact_group_members_tool",
+    agent="contact_agent",
+    description=(
+        "**Tool: get_contact_group_members_tool** - Get the members of one "
+        "contact group with their email addresses. Use BEFORE sending an "
+        "email to a whole group ('send this to my family group'): the member "
+        "emails feed the email tool recipients. Google Contacts only."
+    ),
+    semantic_keywords=[
+        "send email to my family contact group",
+        "who is in my colleagues group",
+        "members of a contact group with emails",
+        "email everyone in a group of contacts",
+    ],
+    parameters=[
+        ParameterSchema(
+            name="group_name",
+            type="string",
+            required=True,
+            description=(
+                "Group name as the user says it (e.g. 'famille'). "
+                "Matched case-insensitively against the user's groups."
+            ),
+            constraints=[ParameterConstraint(kind="min_length", value=1)],
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="group", type="object", description="Resolved group"),
+        OutputFieldSchema(path="group.name", type="string", description="Resolved group name"),
+        OutputFieldSchema(path="members", type="array", description="Members"),
+        OutputFieldSchema(path="members[].name", type="string", description="Member name"),
+        OutputFieldSchema(
+            path="members[].emails",
+            type="array",
+            description="Member email addresses",
+            semantic_type="email_address",  # Cross-domain: feeds email recipients
+        ),
+        OutputFieldSchema(path="total", type="integer", description="Member count"),
+    ],
+    cost=CostProfile(est_tokens_in=80, est_tokens_out=300, est_cost_usd=0.004, est_latency_ms=800),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_CONTACTS_SCOPES,
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    max_iterations=1,
+    supports_dry_run=True,
+    context_key="contacts",
+    reference_examples=["members[0].emails", "members[0].name", "total"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(
+        emoji="👥", i18n_key="get_contact_group_members", visible=True, category="tool"
+    ),
+)
+
+search_other_contacts_catalogue_manifest = ToolManifest(
+    name="search_other_contacts_tool",
+    agent="contact_agent",
+    description=(
+        "**Tool: search_other_contacts_tool** - Search 'other contacts': "
+        "people the user has interacted with (email correspondents, meeting "
+        "attendees) but never saved as contacts. Use when get_contacts_tool "
+        "finds nobody for a person the user clearly knows. Google only."
+    ),
+    semantic_keywords=[
+        "find person I emailed but never saved as contact",
+        "search correspondents not in my contacts",
+        "who is this person I exchanged emails with",
+        "other contacts suggested people search",
+    ],
+    parameters=[
+        ParameterSchema(
+            name=FIELD_QUERY,
+            type="string",
+            required=True,
+            description="Name, email or phone prefix of the person to find",
+            constraints=[ParameterConstraint(kind="min_length", value=1)],
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="contacts", type="array", description="Matches"),
+        OutputFieldSchema(path="contacts[].name", type="string", description="Name"),
+        OutputFieldSchema(
+            path="contacts[].emails",
+            type="array",
+            description="Email addresses",
+            semantic_type="email_address",
+        ),
+        OutputFieldSchema(path="total", type="integer", description="Match count"),
+    ],
+    cost=CostProfile(est_tokens_in=60, est_tokens_out=200, est_cost_usd=0.003, est_latency_ms=500),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_CONTACTS_SCOPES,
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    max_iterations=1,
+    supports_dry_run=True,
+    context_key="contacts",
+    reference_examples=["contacts[0].name", "contacts[0].emails", "total"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(
+        emoji="🔎", i18n_key="search_other_contacts", visible=True, category="tool"
+    ),
+)
+
+# Registration collection for the catalogue loader (order inside the family
+# does not matter; agents are registered before any tool manifest).
+ALL_CONTACTS_TOOL_MANIFESTS: tuple[ToolManifest, ...] = (
+    get_contacts_catalogue_manifest,  # Unified (v2.0)
+    create_contact_catalogue_manifest,
+    update_contact_catalogue_manifest,
+    delete_contact_catalogue_manifest,
+    list_contact_groups_catalogue_manifest,
+    get_contact_group_members_catalogue_manifest,
+    search_other_contacts_catalogue_manifest,
+)
+
 __all__ = [
     # Unified tool (v2.0 - replaces search + list + details)
     "get_contacts_catalogue_manifest",
@@ -411,4 +580,10 @@ __all__ = [
     "create_contact_catalogue_manifest",
     "update_contact_catalogue_manifest",
     "delete_contact_catalogue_manifest",
+    # Groups & other contacts (lot C)
+    "list_contact_groups_catalogue_manifest",
+    "get_contact_group_members_catalogue_manifest",
+    "search_other_contacts_catalogue_manifest",
+    # Loader collection
+    "ALL_CONTACTS_TOOL_MANIFESTS",
 ]

@@ -296,6 +296,48 @@ async def reverse_geocode(
     return None
 
 
+async def google_reverse_city(lat: float, lon: float) -> tuple[str, str] | None:
+    """Resolve (city, country_code) for coordinates via Google Geocoding.
+
+    Locality-focused variant of :func:`reverse_geocode` (lot E, 2026-08):
+    weather surfaces need the CITY name, not a street address. Fail-quiet.
+
+    Args:
+        lat: Latitude.
+        lon: Longitude.
+
+    Returns:
+        (city, ISO country code) or None when unresolvable.
+    """
+    if not settings.google_api_key:
+        return None
+    try:
+        params = {
+            "latlng": f"{lat},{lon}",
+            "key": settings.google_api_key,
+            "result_type": "locality",
+        }
+        client = _get_geocoding_client()
+        response = await client.get(GOOGLE_GEOCODING_API_URL, params=params)
+        response.raise_for_status()
+        track_google_api_call("geocoding", "/geocode/json", cached=False)
+
+        results = response.json().get("results", [])
+        if not results:
+            return None
+        city, country = "", ""
+        for component in results[0].get("address_components", []):
+            types = component.get("types", [])
+            if "locality" in types:
+                city = component.get("long_name", "")
+            elif "country" in types:
+                country = component.get("short_name", "")
+        return (city, country) if city else None
+    except Exception as exc:
+        logger.warning("google_reverse_city_failed", error=str(exc))
+        return None
+
+
 # ============================================================================
 # EXPORTS
 # ============================================================================
@@ -304,5 +346,6 @@ __all__ = [
     "GOOGLE_GEOCODING_API_URL",
     "close_geocoding_client",
     "forward_geocode",
+    "google_reverse_city",
     "reverse_geocode",
 ]

@@ -4,7 +4,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-21
-**Application**: LIA v1.31.0
+**Application**: LIA v1.31.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -125,13 +125,14 @@ Talk to LIA as you would to a human assistant — no commands to memorize, no sy
 - **Calendar**: view, create, modify, delete events — via Google Calendar, Outlook Calendar or Apple Calendar
 - **Contacts**: search, create, modify contacts — via Google Contacts, Outlook Contacts or Apple Contacts
 - **Tasks**: manage your task lists — via Google Tasks or Microsoft To Do
-- **Files**: access Google Drive to search and read your documents
+- **Files**: access Google Drive to search and read your documents, read the content of a spreadsheet or a document, and write into it after your confirmation (adding rows, updating a range, appending a note)
 - **Smart Home**: control your Philips Hue lighting — on/off, brightness, colors, scenes, room management
 
 ### 3.3. Web intelligence and environment
 
 - **Web search**: multi-source search (Brave Search, Perplexity, Wikipedia) for comprehensive, sourced answers
 - **Weather**: current conditions and 5-day forecasts, with change detection (rain start/end, temperature drops, wind alerts)
+- **Air quality and pollen**: the air-quality index and in-season pollen types, attached to any weather answer when the service is enabled — with the category the provider itself publishes, and your country's index when one exists
 - **Places and businesses**: nearby location search with details, hours, reviews
 - **Routing**: multi-modal route calculation (car, walking, cycling, transit) with automatic geolocation
 - **Position on the move**: when your live position is unavailable (a mobile app left dormant), LIA uses your last remembered position — if you enabled it — rather than your home address, and always states that position's age instead of presenting it as current

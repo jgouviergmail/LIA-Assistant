@@ -141,6 +141,7 @@ READ_ONLY_ROUTES: dict[str, str] = {
     "/connectors/google-places/photo/{photo_name:path}": "photo of a place already returned",
     "/connectors/google-location/static-map": "map image for a location already resolved",
     "/connectors/google-routes/static-map": "map image for a route already computed",
+    "/connectors/street-view": "street view image for a location already resolved (lot SV)",
     # Administration, already behind a superuser dependency.
     "/connectors/admin/global-config": "operator configuration, superuser only",
     "/connectors/admin/global-config/{connector_type}": "same, one type",

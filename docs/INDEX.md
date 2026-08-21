@@ -121,6 +121,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [CONNECTOR_PHILIPS_HUE.md](./technical/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
 | [APPLE_ICLOUD_INTEGRATION.md](./technical/APPLE_ICLOUD_INTEGRATION.md) | Intégration Apple iCloud (Mail, Calendar, Contacts — app-specific password) | ✅ |
 | [GOOGLE_API.md](./technical/GOOGLE_API.md) | APIs Google utilisées — documentation et tarification (refacturation utilisateurs) | ✅ |
+| [GOOGLE_PUSH_CHANNELS.md](./technical/GOOGLE_PUSH_CHANNELS.md) | Notifications push Google (Calendar/Drive watch, Gmail Pub/Sub) — prérequis admin et architecture | ✅ |
 | [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) | Intégration Microsoft 365 (Outlook, Calendar, Contacts, To Do) | ✅ |
 | [VOICE.md](./technical/VOICE.md) | Voice/TTS catalogue-driven (Edge / OpenAI / ElevenLabs, ADR-081), per-message attribution, progressive sentence streaming (ADR-082) | ✅ |
 | [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT (local Sherpa + remote ElevenLabs Scribe), Wake Word, Push-to-Talk, voice_stt_mode opt-in (v1.20.x) | ✅ |

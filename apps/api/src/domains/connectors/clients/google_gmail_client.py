@@ -567,6 +567,32 @@ class GoogleGmailClient(BaseGoogleClient):
     # PUBLIC API METHODS
     # ========================================================================
 
+    async def get_profile(self) -> dict[str, Any]:
+        """Get the mailbox profile — the historyId anchor for delta sync (lot G)."""
+        return await self._make_request("GET", "/users/me/profile")
+
+    async def get_history(
+        self,
+        start_history_id: str,
+        max_results: int = 100,
+        page_token: str | None = None,
+    ) -> dict[str, Any]:
+        """List INBOX messageAdded changes since ``start_history_id`` (lot G).
+
+        Gmail 404s an expired history id — callers must fall back to a full
+        query and re-anchor (see heartbeat/gmail_delta.py).
+        """
+        params: dict[str, Any] = {
+            "startHistoryId": start_history_id,
+            "historyTypes": "messageAdded",
+            # INBOX only: sent, spam and archived mail are not heartbeat signal.
+            "labelId": "INBOX",
+            "maxResults": apply_max_items_limit(max_results),
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        return await self._make_request("GET", "/users/me/history", params=params)
+
     async def search_emails(
         self,
         query: str,

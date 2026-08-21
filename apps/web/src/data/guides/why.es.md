@@ -4,7 +4,7 @@
 
 **Versión**: 5.0
 **Fecha**: 2026-08-21
-**Aplicación**: LIA v1.31.0
+**Aplicación**: LIA v1.31.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -125,13 +125,14 @@ Habla con LIA como lo harías con un asistente humano — sin comandos que memor
 - **Calendario**: consultar, crear, modificar y eliminar eventos — vía Google Calendar, Outlook Calendar o Apple Calendar
 - **Contactos**: buscar, crear y modificar contactos — vía Google Contacts, Outlook Contacts o Apple Contacts
 - **Tareas**: gestionar tus listas de tareas — vía Google Tasks o Microsoft To Do
-- **Archivos**: acceder a Google Drive para buscar y leer tus documentos
+- **Archivos**: acceder a Google Drive para buscar y leer tus documentos, consultar el contenido de una hoja de cálculo o un documento, y escribir en ellos tras tu confirmación (añadir filas, actualizar un rango, añadir una nota al final)
 - **Hogar conectado**: controlar tu iluminación Philips Hue — encender/apagar, brillo, colores, escenas, gestión por habitación
 
 ### 3.3. Inteligencia web y entorno
 
 - **Búsqueda web**: búsqueda multi-fuente (Brave Search, Perplexity, Wikipedia) para respuestas completas y con referencias
 - **Tiempo**: condiciones actuales y previsiones a 5 días, con detección de cambios (inicio/fin de lluvia, bajada de temperatura, alertas de viento)
+- **Calidad del aire y polen**: índice de calidad del aire y tipos de polen de temporada, añadidos a cualquier respuesta meteorológica cuando el servicio está activado — con la categoría que publica el propio proveedor y el índice de tu país cuando existe
 - **Lugares y comercios**: búsqueda de lugares cercanos con detalles, horarios y reseñas
 - **Rutas**: cálculo de rutas multimodales (coche, a pie, bicicleta, transporte público) con geolocalización automática
 - **Posición en movimiento**: cuando tu posición en vivo no está disponible (una app móvil que quedó en reposo), LIA usa tu última posición memorizada — si la activaste — en lugar de tu dirección personal, y siempre anuncia la antigüedad de esa posición en vez de presentarla como actual

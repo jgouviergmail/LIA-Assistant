@@ -118,6 +118,7 @@ from src.core.constants import (
     TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
     WEATHER_CACHE_CURRENT_TTL,
     WEATHER_CACHE_FORECAST_TTL,
+    WEATHER_ENVIRONMENT_ENRICHMENT_TTL_SECONDS_DEFAULT,
     WEATHER_FORECAST_MAX_DAYS,
     WIKIPEDIA_CACHE_ARTICLE_TTL,
     WIKIPEDIA_CACHE_SEARCH_TTL,
@@ -198,6 +199,14 @@ class ConnectorsSettings(BaseSettings):
         ge=1,
         le=16,
         description="Maximum days for weather forecast (OpenWeatherMap free tier: 5, paid: up to 16)",
+    )
+    weather_environment_enrichment_ttl_seconds: int = Field(
+        default=WEATHER_ENVIRONMENT_ENRICHMENT_TTL_SECONDS_DEFAULT,
+        gt=0,
+        description=(
+            "Cache TTL for the AQ/pollen enrichment of weather answers "
+            "(seconds). Both APIs are billed — the cache bounds the spend."
+        ),
     )
 
     # ========================================================================
@@ -607,6 +616,14 @@ class ConnectorsSettings(BaseSettings):
     place_carousel_enabled: bool = Field(
         default=PLACE_CAROUSEL_ENABLED_DEFAULT,
         description="Enable multi-photo carousel per place (false = 1 photo, accurate billing)",
+    )
+    street_view_enabled: bool = Field(
+        default=True,
+        description=(
+            "Street View thumbnails on location/place cards (lot SV, 2026-08). "
+            "Availability is checked through the FREE metadata endpoint; each "
+            "rendered image is billed $2/1000 (10k free/month) via the proxy."
+        ),
     )
     drive_tool_default_max_results: int = Field(
         default=DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,

@@ -91,6 +91,36 @@ class ForecastAlert(BaseModel):
     )
 
 
+class AirQuality(BaseModel):
+    """Air-quality reading of ONE index (2026-08).
+
+    Value and category always come from the same index: national indexes
+    (e.g. ``fra_atmo``) routinely ship a localized category with NO numeric
+    value, and pairing that label with the universal index's number would
+    state a figure on the wrong scale.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    value: int | None = Field(None, description="Index value, when the chosen index provides one")
+    category: str = Field(
+        ..., description="Provider's own localized category (never re-derived from the value)"
+    )
+    index_label: str = Field(
+        "", description="Display name of the index ('IQA (FR)', 'Universal AQI')"
+    )
+
+
+class PollenItem(BaseModel):
+    """One in-season pollen type with its localized severity."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = Field(..., description="Localized pollen type name")
+    category: str = Field("", description="Localized severity category")
+    index: int | None = Field(None, description="Index value (1-5 scale)")
+
+
 class WeatherData(BaseModel):
     """Weather payload, fully UI-ready (description already localized).
 
@@ -146,6 +176,18 @@ class WeatherData(BaseModel):
     daily_forecast: list[DailyForecastItem] = Field(
         default_factory=list,
         description="5-day daily forecast (today + next 4 days), ordered chronologically",
+    )
+    air_quality: AirQuality | None = Field(
+        None,
+        description=(
+            "Air quality of the weather point (2026-08). Present only when the "
+            "Google Environment connector is active and the fetch succeeded — "
+            "the enrichment is fail-quiet by contract."
+        ),
+    )
+    pollen: list[PollenItem] = Field(
+        default_factory=list,
+        description="In-season pollen types for today (empty when none or not enriched)",
     )
 
 

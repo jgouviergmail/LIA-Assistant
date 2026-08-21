@@ -61,6 +61,7 @@ class PlacesCache:
         location_bias: dict[str, Any] | None = None,
         min_rating: float | None = None,
         price_levels: list[str] | None = None,
+        detail_level: str = "full",
     ) -> str:
         """
         Generate cache key for search_text.
@@ -73,6 +74,8 @@ class PlacesCache:
             location_bias: Optional location bias.
             min_rating: Optional minimum rating filter.
             price_levels: Optional price level filter.
+            detail_level: Search detail level ("full"/"lite") — a cached lite
+                result must never be served to a full-mode request.
 
         Returns:
             Cache key with robust hash.
@@ -85,6 +88,7 @@ class PlacesCache:
             "bias": location_bias,
             "min_rating": min_rating,
             "price_levels": sorted(price_levels) if price_levels else None,
+            "detail": detail_level,
         }
 
         # Hash payload using centralized helper
@@ -95,7 +99,9 @@ class PlacesCache:
 
         return f"places_search:{user_id}:{query_prefix}:{query_hash}"
 
-    def _make_nearby_key(self, user_id: UUID, lat: float, lon: float, radius: int) -> str:
+    def _make_nearby_key(
+        self, user_id: UUID, lat: float, lon: float, radius: int, detail_level: str = "full"
+    ) -> str:
         """
         Generate cache key for search_nearby.
 
@@ -104,6 +110,8 @@ class PlacesCache:
             lat: Latitude.
             lon: Longitude.
             radius: Radius in meters.
+            detail_level: Search detail level ("full"/"lite") — keyed so a lite
+                result is never served to a full-mode request.
 
         Returns:
             Cache key.
@@ -111,7 +119,7 @@ class PlacesCache:
         # Round coordinates to ~11m precision (4 decimal places) to improve cache hit rate
         lat_rounded = round(lat, 4)
         lon_rounded = round(lon, 4)
-        return f"places_nearby:{user_id}:{lat_rounded}:{lon_rounded}:{radius}"
+        return f"places_nearby:{user_id}:{lat_rounded}:{lon_rounded}:{radius}:{detail_level}"
 
     def _make_details_key(self, user_id: UUID, place_id: str) -> str:
         """Generate cache key for get_place_details."""
@@ -126,6 +134,7 @@ class PlacesCache:
         location_bias: dict[str, Any] | None = None,
         min_rating: float | None = None,
         price_levels: list[str] | None = None,
+        detail_level: str = "full",
     ) -> tuple[dict[str, Any] | None, bool, str | None, int | None]:
         """
         Get cached search results with metadata.
@@ -138,12 +147,20 @@ class PlacesCache:
             location_bias: Optional location bias.
             min_rating: Optional minimum rating filter.
             price_levels: Optional price level filter.
+            detail_level: Search detail level ("full"/"lite").
 
         Returns:
             Tuple of (data, from_cache, cached_at, cache_age_seconds).
         """
         key = self._make_search_key(
-            user_id, query, include_type, open_now, location_bias, min_rating, price_levels
+            user_id,
+            query,
+            include_type,
+            open_now,
+            location_bias,
+            min_rating,
+            price_levels,
+            detail_level=detail_level,
         )
         try:
             cached = await self.redis.get(key)
@@ -192,6 +209,7 @@ class PlacesCache:
         min_rating: float | None = None,
         price_levels: list[str] | None = None,
         ttl_seconds: int | None = None,
+        detail_level: str = "full",
     ) -> None:
         """
         Cache search results with metadata wrapper.
@@ -206,12 +224,20 @@ class PlacesCache:
             min_rating: Optional minimum rating filter.
             price_levels: Optional price level filter.
             ttl_seconds: Time-to-live in seconds.
+            detail_level: Search detail level ("full"/"lite").
         """
         if ttl_seconds is None:
             ttl_seconds = settings.get_connector_cache_ttl("google_places_search")
 
         key = self._make_search_key(
-            user_id, query, include_type, open_now, location_bias, min_rating, price_levels
+            user_id,
+            query,
+            include_type,
+            open_now,
+            location_bias,
+            min_rating,
+            price_levels,
+            detail_level=detail_level,
         )
         try:
             cache_entry = create_cache_entry(data, ttl_seconds)
@@ -233,7 +259,7 @@ class PlacesCache:
             )
 
     async def get_nearby(
-        self, user_id: UUID, lat: float, lon: float, radius: int
+        self, user_id: UUID, lat: float, lon: float, radius: int, detail_level: str = "full"
     ) -> tuple[dict[str, Any] | None, bool, str | None, int | None]:
         """
         Get cached nearby search results with metadata.
@@ -243,11 +269,12 @@ class PlacesCache:
             lat: Latitude.
             lon: Longitude.
             radius: Radius in meters.
+            detail_level: Search detail level ("full"/"lite").
 
         Returns:
             Tuple of (data, from_cache, cached_at, cache_age_seconds).
         """
-        key = self._make_nearby_key(user_id, lat, lon, radius)
+        key = self._make_nearby_key(user_id, lat, lon, radius, detail_level=detail_level)
         try:
             cached = await self.redis.get(key)
             if cached:
@@ -296,6 +323,7 @@ class PlacesCache:
         radius: int,
         data: dict[str, Any],
         ttl_seconds: int | None = None,
+        detail_level: str = "full",
     ) -> None:
         """
         Cache nearby search results.
@@ -307,11 +335,12 @@ class PlacesCache:
             radius: Radius in meters.
             data: Results to cache.
             ttl_seconds: Time-to-live in seconds.
+            detail_level: Search detail level ("full"/"lite").
         """
         if ttl_seconds is None:
             ttl_seconds = settings.get_connector_cache_ttl("google_places_nearby")
 
-        key = self._make_nearby_key(user_id, lat, lon, radius)
+        key = self._make_nearby_key(user_id, lat, lon, radius, detail_level=detail_level)
         try:
             cache_entry = create_cache_entry(data, ttl_seconds)
             await self.redis.set(key, json.dumps(cache_entry), ex=ttl_seconds)

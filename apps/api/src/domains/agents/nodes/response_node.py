@@ -641,7 +641,12 @@ def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
                 # stray dash). <br/> survives the copy verbatim and renders as a
                 # hard break in every display mode (sanitize schema keeps `br`,
                 # same convention as the draft preview_renderer).
-                details.append(f"<br/>{field.emoji} **{label}** : {str_value}")
+                if str_value.startswith(("http://", "https://")):
+                    # URL-valued fields (e.g. conference_link) read as a link,
+                    # never as a raw URL dump.
+                    details.append(f"<br/>{field.emoji} [{label}]({str_value})")
+                else:
+                    details.append(f"<br/>{field.emoji} **{label}** : {str_value}")
 
         html_link = data.get("html_link")
         if html_link:

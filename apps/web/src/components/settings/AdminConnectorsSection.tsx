@@ -32,7 +32,7 @@ export interface ConnectorConfig {
  * Only includes REAL connectors that are actually implemented in the backend.
  * Future connectors (slack, notion, github) are excluded until implemented.
  */
-const ADMIN_CONNECTOR_CATEGORIES = {
+export const ADMIN_CONNECTOR_CATEGORIES = {
   google_oauth: [
     'google_gmail',
     'google_calendar',
@@ -48,7 +48,9 @@ const ADMIN_CONNECTOR_CATEGORIES = {
     'microsoft_contacts',
     'microsoft_tasks',
   ],
-  google_api: ['google_routes'],
+  // Platform-key Google services (global GOOGLE_API_KEY, no per-user OAuth):
+  // the operator switches them on for the whole deployment.
+  google_api: ['google_routes', 'google_weather', 'google_environment'],
   external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
   smart_home: ['philips_hue'],
   telephony: ['elevenlabs_telephony'],

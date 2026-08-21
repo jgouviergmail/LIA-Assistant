@@ -175,6 +175,9 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
             DraftDisplayField("end_datetime", "\U0001f3c1", "end", is_datetime=True),
             DraftDisplayField("location", "\U0001f4cd", "location"),
             DraftDisplayField("attendees", "\U0001f465", "attendees"),
+            # Filled by execute_event_draft from the provider response (the
+            # join URL actually created — never the requested flag).
+            DraftDisplayField("conference_link", "\U0001f3a5", "video_conference"),
             DraftDisplayField("description", "\U0001f4dd", "body"),
         ),
         noun_key="event",
@@ -354,6 +357,59 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         ),
         noun_key="peer_message",
         verb_past_key="sent",
+    ),
+    # Gmail settings (lot I): changing the vacation responder rewrites how the
+    # mailbox answers every sender — the draft IS the confirmation,
+    # `execute_vacation_responder_draft` writes only once the user approved.
+    DraftType.VACATION_RESPONDER: DraftDisplayConfig(
+        emoji="🌴",  # 🌴
+        item_label_fields=("subject",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("subject", "📧", "subject"),
+            DraftDisplayField("body", "💬", "body"),
+            DraftDisplayField("start_date", "📅", "start"),
+            DraftDisplayField("end_date", "🏁", "end"),
+        ),
+        noun_key="auto_reply",
+        verb_past_key="updated",
+    ),
+    # Gmail filters (lot I): a filter rewrites how every future matching
+    # email is handled — the draft IS the confirmation.
+    DraftType.EMAIL_FILTER: DraftDisplayConfig(
+        emoji="📥",  # 📥
+        item_label_fields=("filter_summary",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("filter_summary", "📥", "type"),
+            DraftDisplayField("label_name", "🏷️", "label"),
+        ),
+        noun_key="filter",
+        verb_past_key="created",
+    ),
+    # Workspace writes (lot F phase write): the draft IS the confirmation —
+    # nothing touches the user's file until they approve.
+    DraftType.SPREADSHEET_WRITE: DraftDisplayConfig(
+        emoji="📊",  # 📊
+        item_label_fields=("spreadsheet_title",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("spreadsheet_title", "📄", "file"),
+            DraftDisplayField("sheet_name", "📑", "sheet"),
+        ),
+        noun_key="spreadsheet",
+        verb_past_key="updated",
+    ),
+    DraftType.DOCUMENT_APPEND: DraftDisplayConfig(
+        emoji="📝",  # 📝
+        item_label_fields=("document_title",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("document_title", "📄", "file"),
+            DraftDisplayField("text", "💬", "text"),
+        ),
+        noun_key="document",
+        verb_past_key="updated",
     ),
     DraftType.SCHEDULED_ACTION: DraftDisplayConfig(
         emoji="⏰",  # ⏰

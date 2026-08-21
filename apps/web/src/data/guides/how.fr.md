@@ -6,7 +6,7 @@
 
 **Version** : 4.5
 **Date** : 2026-08-21
-**Application** : LIA v1.31.0
+**Application** : LIA v1.31.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -1460,4 +1460,4 @@ Le widget d'yeux du chat (ADR-240) repose sur un principe unique : **aucun signa
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 240 ADRs, et du changelog (v1.0 à v1.31.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 240 ADRs, et du changelog (v1.0 à v1.31.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

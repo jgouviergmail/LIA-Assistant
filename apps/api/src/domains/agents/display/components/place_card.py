@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.constants import CURRENCY_DISPLAY_SYMBOLS
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import CONTEXT_DOMAIN_PLACES
 from src.domains.agents.display.components.base import (
@@ -39,6 +40,7 @@ from src.domains.agents.display.components.base import (
     safe_url,
     wrap_with_response,
 )
+from src.domains.agents.display.components.environment_row import air_quality_text
 from src.domains.agents.display.icons import Icons
 from src.infrastructure.observability.logging import get_logger
 
@@ -188,6 +190,24 @@ class PlaceCard(BaseComponent):
 
         return actions
 
+    def _closure_label(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Localized closure badge label ('' when the place is operational)."""
+        business_status = data.get("business_status") or data.get("businessStatus") or ""
+        if not business_status:
+            return ""
+        return V3Messages.get_business_status(ctx.language, str(business_status))
+
+    def _parking_labels(self, parking: Any, language: str) -> list[str]:
+        """Localized labels of the available (True) parking options."""
+        if not isinstance(parking, dict) or not parking:
+            return []
+        labels = [
+            V3Messages.get_parking_option(language, option)
+            for option, available in parking.items()
+            if available is True
+        ]
+        return [label for label in labels if label]
+
     def _open_status_class(self, is_open: bool | None) -> str:
         """Return CSS class for open/closed status."""
         if is_open is True:
@@ -215,6 +235,13 @@ class PlaceCard(BaseComponent):
     ) -> str:
         """Unified place card using Design System v4 components."""
         nested_class = self._nested_class(ctx)
+
+        # Business status (audit 2026-08): a closed place must never render as
+        # a normal one. Any non-empty status suppresses the open/closed chips
+        # (a stale openNow must not contradict the closure).
+        status_label = self._closure_label(data, ctx)
+        if status_label:
+            is_open = False
         open_class = self._open_status_class(is_open)
 
         # --- Hero photo ---
@@ -222,17 +249,22 @@ class PlaceCard(BaseComponent):
 
         # --- Card top: illustration + name ---
         illus_color = "green" if is_open else ("red" if is_open is False else "gray")
-        type_tag = self._get_type_tag(types, ctx.language)
+        # Google's own localized primary type beats the hand-rolled mapping
+        type_tag = data.get("primary_type") or self._get_type_tag(types, ctx.language)
         illus_icon = self._get_place_icon(types)
         title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(name)}</a>'
         card_top_html = render_card_top(illus_icon, illus_color, title_html)
 
-        # --- Chip row 1: type + distance ---
         # --- Chip row 1: type + price + distance + stars (same line) ---
         chips_row1 = []
         if type_tag:
-            chips_row1.append(render_chip(type_tag, "indigo"))
-        if price_level:
+            # render_chip escapes its text; passing pre-escaped HTML would double-escape
+            chips_row1.append(render_chip(str(type_tag), "indigo"))
+        # Exact price range (audit-added) beats the legacy €€ approximation
+        price_range_text = self._format_price_range(data.get("price_range"))
+        if price_range_text:
+            chips_row1.append(render_chip(price_range_text, "", Icons.PAYMENTS))
+        elif price_level:
             chips_row1.append(
                 render_chip(self._format_price(price_level, ctx.language), "", Icons.PAYMENTS)
             )
@@ -242,9 +274,11 @@ class PlaceCard(BaseComponent):
             chips_row1.append(render_chip_stars(rating, reviews_count))
         chip_row_1 = render_chip_row(" ".join(chips_row1)) if chips_row1 else ""
 
-        # --- Chip row 3: open/closed + opens at (no separator) ---
+        # --- Chip row 3: closure badge OR open/closed + opens at ---
         chips_status = []
-        if is_open is True:
+        if status_label:
+            chips_status.append(render_chip(status_label, "red", "cancel"))
+        elif is_open is True:
             open_label = V3Messages.get_open(ctx.language)
             chips_status.append(render_chip(open_label, "green", "check_circle"))
             # Show closing time if available
@@ -450,7 +484,39 @@ class PlaceCard(BaseComponent):
                     )
                 )
 
-        # 5. Payment options
+        # 5. Parking options (audit 2026-08: paid data, previously dropped)
+        parking_labels = self._parking_labels(data.get("parkingOptions", {}), ctx.language)
+        if parking_labels:
+            detail_sections.append(
+                render_section_header(
+                    V3Messages.get_parking_title(ctx.language),
+                    "local_parking",
+                    "orange",
+                    first=is_first,
+                )
+            )
+            is_first = False
+            detail_sections.append(
+                render_d_item("check_circle", ", ".join(parking_labels), icon_style="color:#10b981")
+            )
+
+        # 6. Air quality AT THE PLACE (2026-08) — the signal that decides an
+        # outdoor plan. Same shared renderer as the weather card, so the
+        # honesty rules (provider category, no borrowed number) hold here too.
+        air_quality = air_quality_text(data, ctx.language)
+        if air_quality:
+            detail_sections.append(
+                render_section_header(
+                    V3Messages.get_air_quality(ctx.language),
+                    Icons.WIND,
+                    "teal",
+                    first=is_first,
+                )
+            )
+            is_first = False
+            detail_sections.append(render_d_item("check_circle", air_quality))
+
+        # 7. Payment options
         payment = data.get("paymentOptions", {})
         if payment:
             pay_methods = []
@@ -550,6 +616,27 @@ class PlaceCard(BaseComponent):
             except ValueError, IndexError, TypeError:
                 logger.debug("place_card_closing_time_parse_error")
         return ""
+
+    def _format_price_range(self, price_range: Any) -> str:
+        """Format the normalized price range ({start, end, currency}) as a chip.
+
+        Returns "" when the payload is absent or unusable, so callers can fall
+        back to the legacy price level. Open-ended ranges render the known
+        bound alone (e.g. "100 €").
+        """
+        if not isinstance(price_range, dict):
+            return ""
+        start = price_range.get("start")
+        end = price_range.get("end")
+        if start is None and end is None:
+            return ""
+        currency = price_range.get("currency") or ""
+        symbol = CURRENCY_DISPLAY_SYMBOLS.get(currency, currency)
+        if start is not None and end is not None:
+            amount = f"{start}–{end}"
+        else:
+            amount = str(start if start is not None else end)
+        return f"{amount} {symbol}".strip()
 
     def _format_price(self, price_level: str, language: str = "fr") -> str:
         """Convert price level to € symbols."""

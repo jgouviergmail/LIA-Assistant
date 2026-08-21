@@ -9,10 +9,13 @@ A **connector** is a secure gateway between LIA and your external services:
 • 📧 **Gmail**: read, send, reply to emails
 • 📅 **Calendar**: manage your events
 • 👥 **Contacts**: search and create contacts
-• 📁 **Drive**: explore your files
+• 📁 **Drive**: explore your files, read and write Sheets/Docs content
 • ✅ **Tasks**: manage your tasks
 • 📍 **Places**: search for locations
 • 🗺️ **Routes**: directions and routes
+• 👥 **Contact groups**: target a whole label ("email the family group")
+• 📆 **Free slots**: find real availability without reading meeting content
+• ✉️ **Gmail settings**: out-of-office responder and filters (both confirmed)
 
 **Apple iCloud services (app-specific password):**
 • 📮 **Apple Mail**: read, send, reply to emails (IMAP/SMTP)
@@ -24,6 +27,11 @@ A **connector** is a secure gateway between LIA and your external services:
 • 📅 **Microsoft Calendar**: manage your events
 • 👥 **Microsoft Contacts**: search and manage contacts
 • ✅ **Microsoft To Do**: manage tasks and lists
+
+**Google platform services (no personal key — a single toggle):**
+• 🌤️ **Google Weather**: current conditions and forecasts
+• 🌿 **Google Environment**: air quality and pollen forecasts
+• 🏞️ **Street View**: place thumbnails when imagery exists
 
 **External services (API key):**
 • 🌤️ **OpenWeatherMap**: weather and forecasts

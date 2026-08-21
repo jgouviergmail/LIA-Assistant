@@ -4,7 +4,7 @@
 
 **Versione**: 5.0
 **Data**: 2026-08-21
-**Applicazione**: LIA v1.31.0
+**Applicazione**: LIA v1.31.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -125,13 +125,14 @@ Parla a LIA come faresti con un assistente umano — niente comandi da memorizza
 - **Calendario**: consultare, creare, modificare, eliminare eventi — via Google Calendar, Outlook Calendar o Apple Calendar
 - **Contatti**: cercare, creare, modificare contatti — via Google Contacts, Outlook Contacts o Apple Contacts
 - **Attività**: gestire le tue liste di attività — via Google Tasks o Microsoft To Do
-- **File**: accedere a Google Drive per cercare e leggere i tuoi documenti
+- **File**: accedere a Google Drive per cercare e leggere i tuoi documenti, consultare il contenuto di un foglio di calcolo o di un documento e scrivervi dopo la tua conferma (aggiunta di righe, aggiornamento di un intervallo, nota finale)
 - **Casa connessa**: controllare la tua illuminazione Philips Hue — accensione/spegnimento, luminosità, colori, scene, gestione per stanza
 
 ### 3.3. Intelligenza web e ambiente
 
 - **Ricerca web**: ricerca multi-sorgente (Brave Search, Perplexity, Wikipedia) per risposte complete e con fonti citate
 - **Meteo**: condizioni attuali e previsioni a 5 giorni, con rilevamento dei cambiamenti (inizio/fine pioggia, calo di temperatura, allerte vento)
+- **Qualità dell'aria e pollini**: indice di qualità dell'aria e tipi di polline di stagione, allegati a ogni risposta meteo quando il servizio è attivo — con la categoria pubblicata dal fornitore stesso e l'indice del tuo paese quando esiste
 - **Luoghi e attività commerciali**: ricerca di luoghi nelle vicinanze con dettagli, orari, recensioni
 - **Itinerari**: calcolo di itinerari multi-modali (auto, a piedi, bici, trasporti pubblici) con geolocalizzazione automatica
 - **Posizione in movimento**: quando la tua posizione in tempo reale non è disponibile (un'app mobile rimasta in pausa), LIA usa la tua ultima posizione memorizzata — se l'hai attivata — invece del tuo indirizzo personale, e annuncia sempre l'età di quella posizione invece di presentarla come attuale

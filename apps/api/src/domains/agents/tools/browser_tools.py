@@ -396,6 +396,14 @@ async def browser_navigate_tool(
     if isinstance(config, UnifiedToolOutput):
         return config
 
+    # Web Risk screening (lot D, 2026-08): a flagged URL is never opened.
+    # Fail-open inside the gate — screening unavailability never blocks.
+    from src.domains.agents.tools.url_screening import web_risk_gate
+
+    blocked_output = await web_risk_gate(url, runtime)
+    if blocked_output is not None:
+        return blocked_output
+
     try:
         user_id = str(config.user_id)
         pool, session = await _get_session(runtime, user_id)

@@ -295,38 +295,19 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
                 effective_client_class = self.client_class
 
                 if self.functional_category:
-                    from src.domains.connectors.clients.registry import ClientRegistry
-                    from src.domains.connectors.provider_resolver import (
-                        find_error_connector_type,
-                        resolve_active_connector,
+                    resolution = await self._resolve_category_provider(
+                        user_uuid, connector_service, runtime
                     )
-
-                    resolved_type = await resolve_active_connector(
-                        user_uuid, self.functional_category, connector_service
-                    )
-                    if resolved_type is None:
-                        # ADR-134 V2: this path RETURNS a formatted error (no
-                        # exception → the central handler never sees it), so
-                        # the "Reconnect" banner is emitted directly when the
-                        # category's provider is in fact broken (status=ERROR).
-                        from src.domains.agents.services.connector_error_notice import (
-                            emit_connector_notice,
-                        )
-
-                        error_ct = await find_error_connector_type(
-                            user_uuid, self.functional_category, connector_service
-                        )
-                        if error_ct:
-                            emit_connector_notice(error_ct, "reconnect", self.tool_name)
-                        return self._format_category_not_activated_error(
-                            self.functional_category, _extract_runtime_language(runtime)
-                        )
-                    effective_connector_type = resolved_type
-                    resolved_class = ClientRegistry.get_client_class(resolved_type)
+                    if isinstance(resolution, UnifiedToolOutput):
+                        return resolution
+                    effective_connector_type, resolved_class = resolution
                     if resolved_class is not None:
                         effective_client_class = resolved_class
 
-                if self.uses_global_api_key:
+                # The RESOLVED type decides the credentials path: a category
+                # may mix a user-key provider (OpenWeatherMap) with a
+                # platform-key one (Google Weather) — lot E, 2026-08.
+                if self.uses_global_api_key or effective_connector_type.uses_global_api_key:
                     # Step 3 (API Key mode): Verify connector is enabled (no OAuth credentials)
                     if not await connector_service.is_connector_active(
                         user_uuid, effective_connector_type
@@ -336,7 +317,9 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
                         )
 
                     # Step 4 (API Key mode): Create client without credentials
-                    client_factory = self.create_api_key_client_factory(user_uuid)
+                    client_factory = self.create_api_key_client_factory(
+                        user_uuid, client_class=effective_client_class
+                    )
                 else:
                     # Step 3: Get connector credentials (OAuth, Apple, or Hue)
                     if effective_connector_type.is_apple:
@@ -368,7 +351,9 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
 
                 client = await deps.get_or_create_client(
                     effective_client_class,
-                    cache_key=(user_uuid, effective_connector_type),
+                    cache_key=self._client_cache_key(
+                        user_uuid, effective_connector_type, effective_client_class
+                    ),
                     factory=client_factory,
                 )
 
@@ -447,24 +432,78 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
 
         return create_client
 
-    def create_api_key_client_factory(self, user_uuid: UUID) -> Any:
+    @staticmethod
+    def _client_cache_key(
+        user_uuid: UUID, connector_type: ConnectorType, client_class: type
+    ) -> tuple[UUID, ConnectorType, str]:
+        """Class-qualified client cache key.
+
+        Several client classes can ride the same connector token (Drive /
+        Sheets / Docs on GOOGLE_DRIVE; Gmail / Gmail Settings on GOOGLE_GMAIL):
+        a (user, connector_type) key would hand one tool a cached instance of
+        another tool's client class. The connector type stays in position 1 —
+        ``ToolDependencies._get_cache_type`` reads ``cache_key[1]`` to label
+        the cache metrics.
+        """
+        return (user_uuid, connector_type, client_class.__name__)
+
+    async def _resolve_category_provider(
+        self, user_uuid: UUID, connector_service: Any, runtime: Any
+    ) -> tuple[ConnectorType, type | None] | UnifiedToolOutput:
+        """Resolve the category's active provider (type + client class).
+
+        ADR-134 V2: the no-provider path RETURNS a formatted error (no
+        exception → the central handler never sees it), so the "Reconnect"
+        banner is emitted directly when the category's provider is in fact
+        broken (status=ERROR).
+        """
+        from src.domains.connectors.clients.registry import ClientRegistry
+        from src.domains.connectors.provider_resolver import (
+            find_error_connector_type,
+            resolve_active_connector,
+        )
+
+        resolved_type = await resolve_active_connector(
+            user_uuid, self.functional_category, connector_service
+        )
+        if resolved_type is None:
+            from src.domains.agents.services.connector_error_notice import (
+                emit_connector_notice,
+            )
+
+            error_ct = await find_error_connector_type(
+                user_uuid, self.functional_category, connector_service
+            )
+            if error_ct:
+                emit_connector_notice(error_ct, "reconnect", self.tool_name)
+            return self._format_category_not_activated_error(
+                self.functional_category, _extract_runtime_language(runtime)
+            )
+        return resolved_type, ClientRegistry.get_client_class(resolved_type)
+
+    def create_api_key_client_factory(
+        self, user_uuid: UUID, client_class: type | None = None
+    ) -> Any:
         """
         Create an async factory for API Key client instantiation.
 
-        Used when uses_global_api_key=True. The client uses a global API key
-        from settings instead of per-user OAuth credentials.
+        Used when the tool (or the RESOLVED connector type of its category)
+        uses a global API key from settings instead of per-user credentials.
 
         Override this if your API Key client requires custom initialization.
 
         Args:
             user_uuid: User UUID (for caching and logging)
+            client_class: Resolved client class for category tools (defaults
+                to the tool's declared client_class)
 
         Returns:
             Async callable that creates API client
         """
+        effective_class = client_class or self.client_class
 
         async def create_client() -> ClientType:
-            return self.client_class(user_uuid)
+            return effective_class(user_uuid)
 
         return create_client
 
@@ -714,6 +753,11 @@ class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
     connector_type: ConnectorType
     client_class: type[ClientType]
 
+    # Optional functional category (lot E, 2026-08): when set, the active
+    # provider of the category is resolved per call and may be a platform-key
+    # type (no user credentials) — see execute().
+    functional_category: str | None = None
+
     # Data Registry mode flag - set to True to enable registry output
     registry_enabled: bool = False
 
@@ -774,19 +818,16 @@ class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
             using_injected_deps, deps = self._get_deps_or_fallback(runtime)
 
             if using_injected_deps and deps is not None:
-                # Step 3: Get API key credentials from database
                 connector_service = await deps.get_connector_service()
-                credentials = await connector_service.get_api_key_credentials(
-                    user_uuid, self.connector_type
+
+                # Steps 3-4: resolve the provider and build its client (the
+                # category may mix user-key and platform-key providers).
+                client_or_error = await self._resolve_api_key_client(
+                    user_uuid, connector_service, runtime
                 )
-
-                if credentials is None:
-                    return self._format_connector_not_activated_error(
-                        _extract_runtime_language(runtime)
-                    )
-
-                # Step 4: Create API client with user's key
-                client = self.create_client(credentials, user_uuid)
+                if isinstance(client_or_error, UnifiedToolOutput):
+                    return client_or_error
+                client = client_or_error
 
                 # Step 5: Execute API call (pass runtime for location resolution, etc.)
                 result = await self.execute_api_call(client, user_uuid, runtime=runtime, **kwargs)
@@ -804,6 +845,49 @@ class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
 
         except Exception as e:
             return self.handle_error(e, user_id_str, kwargs)
+
+    async def _resolve_api_key_client(
+        self, user_uuid: UUID, connector_service: Any, runtime: Any
+    ) -> Any | UnifiedToolOutput:
+        """Resolve the provider and build its client, or a formatted error.
+
+        Category resolution (lot E, 2026-08): a category may mix a user-key
+        provider (OWM) with a platform-key one (Google Weather) — the
+        RESOLVED type decides the credentials path.
+        """
+        effective_type = self.connector_type
+        if self.functional_category:
+            from src.domains.connectors.provider_resolver import resolve_active_connector
+
+            resolved = await resolve_active_connector(
+                user_uuid, self.functional_category, connector_service
+            )
+            if resolved is None:
+                return self._format_connector_not_activated_error(
+                    _extract_runtime_language(runtime)
+                )
+            effective_type = resolved
+
+        if effective_type.uses_global_api_key:
+            # Platform-key provider: toggle activation, no credentials.
+            if not await connector_service.is_connector_active(user_uuid, effective_type):
+                return self._format_connector_not_activated_error(
+                    _extract_runtime_language(runtime)
+                )
+            from src.domains.connectors.clients.registry import ClientRegistry
+
+            resolved_class = ClientRegistry.get_client_class(effective_type)
+            if resolved_class is None:
+                return self._format_error(
+                    "client_not_registered",
+                    f"No client registered for {effective_type.value}",
+                )
+            return resolved_class(user_uuid)
+
+        credentials = await connector_service.get_api_key_credentials(user_uuid, effective_type)
+        if credentials is None:
+            return self._format_connector_not_activated_error(_extract_runtime_language(runtime))
+        return self.create_client(credentials, user_uuid)
 
     @abstractmethod
     def create_client(

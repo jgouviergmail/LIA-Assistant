@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import {
+  CloudSun,
   GitBranch,
   Cpu,
   TrendingUp,
@@ -45,6 +46,11 @@ const TECH_ITEMS = [
     iconBg: 'bg-gradient-to-br from-purple-500/15 to-violet-500/15',
   },
   { key: 'realtime', icon: Radio, iconBg: 'bg-gradient-to-br from-rose-500/15 to-pink-500/15' },
+  {
+    key: 'honest_enrichment',
+    icon: CloudSun,
+    iconBg: 'bg-gradient-to-br from-teal-500/15 to-emerald-500/15',
+  },
   { key: 'stack', icon: Layers, iconBg: 'bg-gradient-to-br from-cyan-500/15 to-sky-500/15' },
   {
     key: 'rich_skills',

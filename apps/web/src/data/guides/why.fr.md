@@ -4,7 +4,7 @@
 
 **Version** : 5.0
 **Date** : 2026-08-21
-**Application** : LIA v1.31.0
+**Application** : LIA v1.31.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -125,13 +125,14 @@ Parle à LIA comme à un assistant humain — pas de commandes à mémoriser, pa
 - **Calendrier** : consulter, créer, modifier, supprimer des événements — via Google Calendar, Outlook Calendar ou Apple Calendar
 - **Contacts** : rechercher, créer, modifier des contacts — via Google Contacts, Outlook Contacts ou Apple Contacts
 - **Tâches** : gérer tes listes de tâches — via Google Tasks ou Microsoft To Do
-- **Fichiers** : accéder à Google Drive pour rechercher et lire tes documents
+- **Fichiers** : accéder à Google Drive pour rechercher et lire tes documents, consulter le contenu d'un tableur ou d'un document, et y écrire après ta confirmation (ajout de lignes, mise à jour d'une plage, note en fin de document)
 - **Maison connectée** : contrôler ton éclairage Philips Hue — allumer/éteindre, luminosité, couleurs, scènes, gestion par pièce
 
 ### 3.3. Intelligence web et environnement
 
 - **Recherche web** : recherche multi-sources (Brave Search, Perplexity, Wikipedia) pour des réponses complètes et sourcées
 - **Météo** : conditions actuelles et prévisions à 5 jours, avec détection de changements (début/fin de pluie, chute de température, alertes vent)
+- **Qualité de l'air et pollens** : indice de qualité de l'air et types de pollen en saison, joints à toute réponse météo quand le service est activé — avec la catégorie publiée par le fournisseur lui-même, et l'indice de ton pays quand il existe
 - **Lieux et commerces** : recherche de lieux à proximité avec détails, horaires, avis
 - **Itinéraires** : calcul d'itinéraires multi-modaux (voiture, marche, vélo, transports en commun) avec géolocalisation automatique
 - **Position en déplacement** : quand ta position en direct n'est pas disponible (application mobile restée en veille), LIA utilise ta dernière position mémorisée — si tu l'as activée — plutôt que ton adresse personnelle, et annonce toujours l'âge de cette position au lieu de la présenter comme courante

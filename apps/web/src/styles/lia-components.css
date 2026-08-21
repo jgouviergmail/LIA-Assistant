@@ -3850,6 +3850,18 @@ a.lia-email__sender-email:hover {
   scroll-behavior: smooth;
 }
 
+/* Air-quality / pollen strip (2026-08): the forecast and hourly layouts have
+   no collapsible details block, so the enrichment renders inline below the
+   strip. Same separator geometry as __stats, so the card keeps one rhythm. */
+.lia-weather__environment {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+  margin-top: var(--lia-space-md);
+  padding-top: var(--lia-space-md);
+  border-top: 1px solid var(--lia-border-light);
+}
+
 .lia-weather__day,
 .lia-weather__hour {
   display: flex;

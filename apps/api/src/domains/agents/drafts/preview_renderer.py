@@ -202,6 +202,8 @@ def _render_event(content: dict[str, Any], lbl: dict[str, str], format_dt: _Form
         lines.append(f"<br/>**{lbl['location']}**: {location}")
     if attendees:
         lines.append(f"<br/>**{lbl['attendees']}**: {', '.join(attendees)}")
+    if content.get("add_conference"):
+        lines.append(f"<br/>**{lbl['video_conference']}**: {lbl['video_conference_included']}")
     if description:
         lines.append(f"<br/>**{lbl['body']}**<br/>{description}")
     return lines
@@ -477,6 +479,117 @@ def _render_peer_message(
     return lines
 
 
+def _render_vacation_responder(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render a Gmail vacation-responder preview (lot I).
+
+    Enable: subject, full body and the activation window — the auto-reply is
+    sent verbatim to every correspondent, so the user must read every word
+    they are approving. Disable: a single localized sentence stating the
+    responder will be turned off (no other field is meaningful).
+
+    Dates are plain YYYY-MM-DD strings chosen by the user (not datetimes), so
+    they are shown as-is rather than through ``format_dt``.
+    """
+    if not content.get("enable", False):
+        return [f"<br/>{lbl['vacation_disabled']}"]
+
+    lines: list[str] = []
+    subject = content.get("subject", "")
+    body = content.get("body", "")
+    start_date = content.get("start_date", "")
+    end_date = content.get("end_date", "")
+
+    if subject:
+        lines.append(f"<br/>**{lbl['subject']}**: {subject}")
+    if body:
+        lines.append(f"<br/>**{lbl['body']}**: {body}")
+    if start_date:
+        lines.append(f"<br/>**{lbl['start']}**: {start_date}")
+    if end_date:
+        lines.append(f"<br/>**{lbl['end']}**: {end_date}")
+    return lines
+
+
+_SPREADSHEET_PREVIEW_MAX_ROWS = 10
+
+
+def _render_spreadsheet_write(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render a Sheets write preview (lot F phase write).
+
+    Shows the file, the sheet, the target range (update mode) and the rows
+    to write — pipe-joined, bounded to a readable page with the EXACT hidden
+    remainder stated (count doctrine): the user must know what will land in
+    their spreadsheet before confirming.
+    """
+    lines: list[str] = []
+    title = content.get("spreadsheet_title", "")
+    sheet = content.get("sheet_name", "")
+    a1_range = content.get("a1_range", "")
+    values = content.get("values") or []
+
+    if title:
+        lines.append(f"<br/>**{lbl['file']}**: {title}")
+    if sheet:
+        lines.append(f"<br/>**{lbl['sheet']}**: {sheet}")
+    if content.get("mode") == "update" and a1_range:
+        lines.append(f"<br/>**{lbl['range']}**: {a1_range}")
+    for row in values[:_SPREADSHEET_PREVIEW_MAX_ROWS]:
+        rendered = " | ".join(str(cell) for cell in row)
+        lines.append(f"<br/>{rendered}")
+    hidden = len(values) - _SPREADSHEET_PREVIEW_MAX_ROWS
+    if hidden > 0:
+        lines.append(f"<br/>… (+{hidden})")
+    return lines
+
+
+def _render_document_append(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render a Docs append preview (lot F phase write).
+
+    The text is shown in FULL and untruncated: it lands verbatim in the
+    user's document, so they must be able to read every word they approve.
+    """
+    lines: list[str] = []
+    title = content.get("document_title", "")
+    text = content.get("text", "")
+    if title:
+        lines.append(f"<br/>**{lbl['file']}**: {title}")
+    if text:
+        lines.append(f"<br/>**{lbl['text']}**: {text}")
+    return lines
+
+
+def _render_email_filter(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render a Gmail filter creation preview (lot I).
+
+    Criteria first (who it matches), then every requested action as a
+    localized sentence — unrequested actions are not mentioned, so the user
+    reads exactly what the filter will do and nothing else.
+    """
+    criteria = content.get("criteria") or {}
+    lines: list[str] = []
+    if criteria.get("from"):
+        lines.append(f"<br/>**{lbl['from']}**: {criteria['from']}")
+    if criteria.get("subject"):
+        lines.append(f"<br/>**{lbl['subject']}**: {criteria['subject']}")
+    if criteria.get("query"):
+        lines.append(f"<br/>**{lbl['query']}**: {criteria['query']}")
+    if content.get("label_name"):
+        lines.append(f"<br/>**{lbl['label']}**: {content['label_name']}")
+    if content.get("archive"):
+        lines.append(f"<br/>{lbl['filter_archive']}")
+    if content.get("mark_as_read"):
+        lines.append(f"<br/>{lbl['filter_mark_read']}")
+    return lines
+
+
 def _render_scheduled_action(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[str]:
@@ -524,6 +637,10 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.SCHEDULED_ACTION: _render_scheduled_action,
     DraftType.DEVOPS_TASK: _render_devops_task,
     DraftType.PEER_MESSAGE: _render_peer_message,
+    DraftType.VACATION_RESPONDER: _render_vacation_responder,
+    DraftType.EMAIL_FILTER: _render_email_filter,
+    DraftType.SPREADSHEET_WRITE: _render_spreadsheet_write,
+    DraftType.DOCUMENT_APPEND: _render_document_append,
 }
 
 

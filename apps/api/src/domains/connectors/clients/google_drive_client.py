@@ -411,3 +411,49 @@ class GoogleDriveClient(BaseGoogleClient):
         )
 
         return True
+
+    async def get_changes_start_page_token(self) -> str:
+        """Current changes baseline — the pageToken future changes start from."""
+        response = await self._make_request("GET", "/changes/startPageToken")
+        return str(response.get("startPageToken", ""))
+
+    async def watch_changes(
+        self,
+        channel_id: str,
+        token: str,
+        address: str,
+        ttl_seconds: int,
+        page_token: str,
+    ) -> dict[str, Any]:
+        """Open a push channel on the user's Drive changes feed (lot H phase 1).
+
+        Args:
+            channel_id: Our channel identifier (echoed in X-Goog-Channel-ID).
+            token: Opaque secret echoed in X-Goog-Channel-Token.
+            address: Public HTTPS webhook URL (domain must be verified).
+            ttl_seconds: Requested channel lifetime (Google may shorten it).
+            page_token: Changes baseline from :meth:`get_changes_start_page_token`.
+
+        Returns:
+            The channel resource returned by Google (resourceId, expiration).
+        """
+        return await self._make_request(
+            "POST",
+            "/changes/watch",
+            params={"pageToken": page_token},
+            json_data={
+                "id": channel_id,
+                "type": "web_hook",
+                "address": address,
+                "token": token,
+                "params": {"ttl": str(ttl_seconds)},
+            },
+        )
+
+    async def stop_channel(self, channel_id: str, resource_id: str) -> dict[str, Any]:
+        """Close a push channel (API-wide /channels/stop endpoint)."""
+        return await self._make_request(
+            "POST",
+            "/channels/stop",
+            json_data={"id": channel_id, "resourceId": resource_id},
+        )

@@ -19,6 +19,8 @@ crash the heartbeat job.
 
 from __future__ import annotations
 
+from typing import Any
+
 import structlog
 
 from src.core.constants import LAST_KNOWN_LOCATION_GEOCODE_CACHE_TTL_SECONDS
@@ -55,7 +57,8 @@ def _extract_city_name(entries: list[dict]) -> str | None:
 async def resolve_city_name(
     lat: float,
     lon: float,
-    api_key: str,
+    api_key: str | None = None,
+    client: Any | None = None,
 ) -> str | None:
     """Return a human-readable city name for the given coordinates.
 
@@ -67,7 +70,9 @@ async def resolve_city_name(
     Args:
         lat: Latitude in degrees.
         lon: Longitude in degrees.
-        api_key: OpenWeatherMap API key for the user.
+        api_key: OpenWeatherMap API key (legacy path — builds its own client).
+        client: Already-resolved weather client (Google Weather or OWM, same
+            reverse_geocode shape); the CALLER keeps ownership and closes it.
 
     Returns:
         The resolved city name, or ``None`` if unavailable.
@@ -91,16 +96,27 @@ async def resolve_city_name(
         user_location_geocode_total.labels(result="redis_down").inc()
 
     try:
-        from src.domains.connectors.clients.openweathermap_client import (
-            OpenWeatherMapClient,
-        )
+        # Lot E (2026-08): callers that already resolved a weather provider
+        # pass its client (Google Weather or OWM — same reverse_geocode
+        # shape) and keep OWNERSHIP of it; the api_key path stays for legacy
+        # callers and builds/closes its own OWM client.
+        owns_client = client is None
+        if client is None:
+            if not api_key:
+                user_location_geocode_total.labels(result="api_error").inc()
+                return None
+            from src.domains.connectors.clients.openweathermap_client import (
+                OpenWeatherMapClient,
+            )
 
-        client = OpenWeatherMapClient(api_key=api_key)
+            client = OpenWeatherMapClient(api_key=api_key)
+        active_client: Any = client
         try:
-            entries = await client.reverse_geocode(lat=lat, lon=lon, limit=1)
+            entries = await active_client.reverse_geocode(lat=lat, lon=lon, limit=1)
         finally:
-            # Deterministic close of the pooled httpx client (leak fix)
-            await client.close()
+            if owns_client:
+                # Deterministic close of the pooled httpx client (leak fix)
+                await active_client.close()
     except Exception as exc:
         logger.warning("geocode_api_failed", error=str(exc))
         user_location_geocode_total.labels(result="api_error").inc()

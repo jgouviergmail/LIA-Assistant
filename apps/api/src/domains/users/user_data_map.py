@@ -266,6 +266,12 @@ TABLE_RULES: dict[str, TableRule] = {
         export=ExportPolicy.EXCLUDED,
         reason="Push delivery credentials (FCM tokens) — device secrets.",
     ),
+    "webhook_channels": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.EXCLUDED,
+        reason="Google push channel registry (lot H): channel tokens are secret "
+        "material and the rows are transient plumbing with no portability value.",
+    ),
     "webauthn_credentials": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.EXCLUDED,

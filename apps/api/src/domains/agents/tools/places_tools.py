@@ -30,9 +30,9 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
-from src.core.config import get_settings, settings
+from src.core.config import get_settings
 from src.core.constants import (
-    PLACES_MAX_GALLERY_PHOTOS,
+    PLACES_DETAIL_LEVEL_FULL,
     PLACES_MIN_RATING_MAX,
     PLACES_MIN_RATING_MIN,
     PLACES_VALID_PRICE_LEVELS,
@@ -51,10 +51,18 @@ from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.places_environment import (
+    apply_street_view_fallback,
+    attach_place_air_quality,
+)
+from src.domains.agents.tools.places_formatting import (
+    _format_place,
+    _surface_status_and_identity,
+    format_place_details,
+)
 from src.domains.agents.tools.validation_helpers import validate_positive_int_or_default
 from src.domains.agents.utils.distance import calculate_distance_sync, circle_to_viewport
-from src.domains.agents.utils.i18n_location import DistanceSource, get_price_level
-from src.domains.connectors.clients.google_api_tracker import track_google_api_call
+from src.domains.agents.utils.i18n_location import DistanceSource
 from src.domains.connectors.clients.google_geocoding_helpers import forward_geocode
 from src.domains.connectors.clients.google_places_client import GooglePlacesClient
 from src.domains.connectors.models import ConnectorType
@@ -91,156 +99,6 @@ ContextTypeRegistry.register(
         icon="📍",
     )
 )
-
-
-# =============================================================================
-# PLACE FORMATTING
-# =============================================================================
-# Distance calculation is delegated to src.domains.agents.utils.distance
-# which provides an extensible architecture for future Google Routes API
-# =============================================================================
-
-
-def _format_place(
-    place: dict[str, Any],
-    center_lat: float | None = None,
-    center_lon: float | None = None,
-    distance_source: str | None = None,
-    language: str = settings.default_language,
-) -> dict[str, Any]:
-    """
-    Format a place for consistent output.
-
-    Args:
-        place: Raw place data from Google Places API
-        center_lat: Optional center latitude for distance calculation
-        center_lon: Optional center longitude for distance calculation
-        distance_source: Source of center coordinates ("browser", "home", or None)
-        language: Language for distance reference text
-
-    Returns:
-        Formatted place dict with optional distance fields
-    """
-    display_name = place.get("displayName", {})
-    location = place.get("location", {})
-    hours = place.get("currentOpeningHours", {})
-
-    place_id = place.get("id")
-    place_lat = location.get("latitude")
-    place_lon = location.get("longitude")
-
-    formatted = {
-        "id": place_id,
-        "place_id": place_id,  # Alias for planner compatibility
-        "name": display_name.get("text", "Unknown"),
-        "address": place.get("formattedAddress", ""),
-        "location": {
-            "lat": place_lat,
-            "lon": place_lon,
-        },
-        "types": place.get("types", []),
-        "google_maps_url": place.get("googleMapsUri"),
-    }
-
-    # Calculate distance from center point if provided AND source is known
-    if center_lat is not None and center_lon is not None and distance_source is not None:
-        if place_lat is not None and place_lon is not None:
-            # Use extensible distance calculation from distance module
-            distance_result = calculate_distance_sync(
-                origin_lat=center_lat,
-                origin_lon=center_lon,
-                dest_lat=place_lat,
-                dest_lon=place_lon,
-                source=distance_source,
-                language=language,
-            )
-            # Merge distance fields into formatted place
-            formatted.update(distance_result.to_dict())
-        else:
-            # Place has no coordinates - log warning and skip distance
-            logger.warning(
-                "place_missing_coordinates_for_distance",
-                place_id=place_id,
-                place_name=formatted.get("name"),
-                has_location=bool(location),
-            )
-
-    # Optional fields
-    if place.get("rating"):
-        formatted["rating"] = place.get("rating")
-        formatted["rating_count"] = place.get("userRatingCount", 0)
-
-    if place.get("priceLevel"):
-        # Use i18n for price level translation
-        formatted["price_level"] = get_price_level(place.get("priceLevel"), language)
-
-    if place.get("nationalPhoneNumber"):
-        formatted["phone"] = place.get("nationalPhoneNumber")
-
-    if place.get("websiteUri"):
-        formatted["website"] = place.get("websiteUri")
-
-    if hours.get("openNow") is not None:
-        formatted["open_now"] = hours.get("openNow")
-
-    # Opening hours (weekday descriptions)
-    if hours.get("weekdayDescriptions"):
-        formatted["opening_hours"] = hours.get("weekdayDescriptions")
-
-    # Editorial summary / description
-    summary = place.get("editorialSummary", {})
-    if summary.get("text"):
-        formatted["description"] = summary.get("text")
-
-    # Photos (resource names + proxy URL for first photo + gallery URLs)
-    photos = place.get("photos", [])
-    if photos:
-        photo_names = [p.get("name") for p in photos if p.get("name")]
-        if photo_names:
-            # First photo for card thumbnail
-            formatted["photo_url"] = f"/api/v1/connectors/google-places/photo/{photo_names[0]}"
-            # Track the thumbnail photo API call
-            track_google_api_call("places", "/{photo}/media", cached=False)
-
-            # Carousel photos (only if enabled via settings.place_carousel_enabled)
-            # When disabled: 1 photo per place = accurate billing
-            # When enabled: N photos per place but carousel photos are NOT tracked for billing
-            if settings.place_carousel_enabled:
-                formatted["photo_urls"] = [
-                    f"/api/v1/connectors/google-places/photo/{name}"
-                    for name in photo_names[:PLACES_MAX_GALLERY_PHOTOS]
-                ]
-            else:
-                # Single photo mode: photo_urls contains only the thumbnail
-                formatted["photo_urls"] = [formatted["photo_url"]]
-
-    # Reviews (up to 5 most recent, sorted by publishTime)
-    reviews = place.get("reviews", [])
-    if reviews:
-        sorted_reviews = sorted(
-            reviews,
-            key=lambda r: r.get("publishTime", ""),
-            reverse=True,
-        )
-        formatted["reviews"] = [
-            {
-                "rating": r.get("rating"),
-                "text": (
-                    r.get("text", {}).get("text", "")[:200]
-                    if isinstance(r.get("text"), dict)
-                    else str(r.get("text", ""))[:200]
-                ),
-                "relative_time": r.get("relativePublishTimeDescription"),
-                "author_name": (
-                    r.get("authorAttribution", {}).get("displayName", "")
-                    if isinstance(r.get("authorAttribution"), dict)
-                    else ""
-                ),
-            }
-            for r in sorted_reviews[:5]
-        ]
-
-    return formatted
 
 
 # ============================================================================
@@ -314,6 +172,10 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
         min_rating: float | None = kwargs.get("min_rating")
         price_levels: list[str] | None = kwargs.get("price_levels")
         force_refresh: bool = kwargs.get("force_refresh", False)
+        # "lite" keeps the search in the cheaper Pro SKU tier (identity/
+        # location/status only); anything else is repaired to "full" by the
+        # client (repair-before-validate: a typo costs money, never data).
+        detail_level: str = kwargs.get("detail_level") or PLACES_DETAIL_LEVEL_FULL
 
         # Normalize min_rating: 0 means "no filter" (LLM often sends 0 as default)
         if min_rating is not None and min_rating == 0:
@@ -492,7 +354,7 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 return {
                     "success": False,
                     "error": "location_required",
-                    "message": "Coordonnées GPS requises pour la recherche à proximité.",
+                    "message": APIMessages.gps_required_for_nearby(normalize_language(language)),
                 }
 
             # Parse place types
@@ -505,6 +367,7 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 include_types=types_list if types_list else None,
                 max_results=max_results,
                 use_cache=not force_refresh,
+                detail_level=detail_level,
             )
 
             # Format places with distance (use distance_lat/lon for display)
@@ -577,6 +440,7 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 min_rating=min_rating,
                 price_levels=price_levels,
                 use_cache=not force_refresh,
+                detail_level=detail_level,
             )
 
             # Format places for output with distance calculation
@@ -688,6 +552,12 @@ async def search_places_tool(
         "PRICE_LEVEL_EXPENSIVE, PRICE_LEVEL_VERY_EXPENSIVE. Can specify multiple.",
     ] = None,
     force_refresh: Annotated[bool, "Force refresh from API (bypass cache)"] = False,
+    detail_level: Annotated[
+        str,
+        "Response richness: 'full' (default: ratings, hours, contact, reviews) or "
+        "'lite' (identity, address, location, status only — cheaper, use when the "
+        "answer only needs names/addresses, e.g. counting or listing places).",
+    ] = PLACES_DETAIL_LEVEL_FULL,
 ) -> str:
     """
     Unified search for places combining text search and proximity search.
@@ -721,6 +591,7 @@ async def search_places_tool(
         min_rating: Minimum rating (1.0-5.0) to filter results
         price_levels: Price level filter (list of PRICE_LEVEL_* values)
         force_refresh: Bypass cache and force fresh API call
+        detail_level: "full" (rich results) or "lite" (identity-only, cheaper)
 
     Returns:
         List of matching places with details
@@ -743,6 +614,7 @@ async def search_places_tool(
         min_rating=min_rating,
         price_levels=price_levels,
         force_refresh=force_refresh,
+        detail_level=detail_level,
     )
 
 
@@ -827,119 +699,25 @@ class GetPlaceDetailsTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
             use_cache=not force_refresh,
         )
 
-        # Format the detailed place info
-        display_name = place.get("displayName", {})
-        location = place.get("location", {})
-        hours = place.get("regularOpeningHours", {})
+        # Normalize via the shared details formatter (2026-08 audit: the paid
+        # Enterprise + Atmosphere attributes must reach the card).
+        details = format_place_details(
+            place,
+            language=language,
+            center_lat=center_lat,
+            center_lon=center_lon,
+            distance_source=distance_source,
+        )
+        # Street View hero fallback (lot SV): only when Places has no photo.
+        await apply_street_view_fallback(details)
 
-        place_lat = location.get("latitude")
-        place_lon = location.get("longitude")
-
-        # BugFix 2025-11-30: Add place_id alias for consistency with _format_place
-        place_id_value = place.get("id")
-        details = {
-            "id": place_id_value,
-            "place_id": place_id_value,  # Alias for planner compatibility
-            "name": display_name.get("text", "Unknown"),
-            "address": place.get("formattedAddress", ""),
-            "location": {
-                "lat": place_lat,
-                "lon": place_lon,
-            },
-            "types": place.get("types", []),
-            "google_maps_url": place.get("googleMapsUri"),
-        }
-
-        # Calculate distance from user location if available
-        if (
-            center_lat is not None
-            and center_lon is not None
-            and distance_source is not None
-            and place_lat is not None
-            and place_lon is not None
-        ):
-            distance_result = calculate_distance_sync(
-                origin_lat=center_lat,
-                origin_lon=center_lon,
-                dest_lat=place_lat,
-                dest_lon=place_lon,
-                source=distance_source,
-                language=language,
+        # Air quality AT THE PLACE (2026-08) — detail only, fail-quiet. Reuses
+        # the tool's own dependency resolution (no second lookup path).
+        _injected, deps = self._get_deps_or_fallback(self.runtime)
+        if deps is not None:
+            await attach_place_air_quality(
+                details, await deps.get_connector_service(), user_id, language
             )
-            details.update(distance_result.to_dict())
-
-        # Contact info
-        if place.get("nationalPhoneNumber"):
-            details["phone"] = place.get("nationalPhoneNumber")
-        if place.get("internationalPhoneNumber"):
-            details["phone_international"] = place.get("internationalPhoneNumber")
-        if place.get("websiteUri"):
-            details["website"] = place.get("websiteUri")
-
-        # Ratings
-        if place.get("rating"):
-            details["rating"] = place.get("rating")
-            details["rating_count"] = place.get("userRatingCount", 0)
-
-        # Price level (i18n)
-        if place.get("priceLevel"):
-            details["price_level"] = get_price_level(place.get("priceLevel"), language)
-
-        # Opening hours
-        if hours.get("weekdayDescriptions"):
-            details["opening_hours"] = hours.get("weekdayDescriptions")
-
-        current_hours = place.get("currentOpeningHours", {})
-        if current_hours.get("openNow") is not None:
-            details["open_now"] = current_hours.get("openNow")
-
-        # Editorial summary
-        summary = place.get("editorialSummary", {})
-        if summary.get("text"):
-            details["description"] = summary.get("text")
-
-        # Photos (resource names + proxy URL for first photo + gallery URLs)
-        photos = place.get("photos", [])
-        if photos:
-            photo_names = [p.get("name") for p in photos if p.get("name")]
-            details["photos"] = photo_names
-            # Add photo_url for first photo using proxy endpoint
-            if photo_names:
-                # First photo for card thumbnail
-                details["photo_url"] = f"/api/v1/connectors/google-places/photo/{photo_names[0]}"
-                # Track the thumbnail photo API call
-                track_google_api_call("places", "/{photo}/media", cached=False)
-
-                # Carousel photos (only if enabled via settings.place_carousel_enabled)
-                # When disabled: 1 photo per place = accurate billing
-                # When enabled: N photos per place but carousel photos are NOT tracked for billing
-                if settings.place_carousel_enabled:
-                    details["photo_urls"] = [
-                        f"/api/v1/connectors/google-places/photo/{name}"
-                        for name in photo_names[:PLACES_MAX_GALLERY_PHOTOS]
-                    ]
-                else:
-                    # Single photo mode: photo_urls contains only the thumbnail
-                    details["photo_urls"] = [details["photo_url"]]
-
-        # Reviews (3 most recent, sorted by publishTime)
-        reviews = place.get("reviews", [])
-        if reviews:
-            # Sort by publishTime descending (most recent first)
-            # publishTime is ISO 8601 format, lexicographic sort works
-            sorted_reviews = sorted(
-                reviews,
-                key=lambda r: r.get("publishTime", ""),
-                reverse=True,
-            )
-            details["reviews"] = [
-                {
-                    "rating": r.get("rating"),
-                    "text": r.get("text", {}).get("text", "")[:200],
-                    "relative_time": r.get("relativePublishTimeDescription"),
-                }
-                for r in sorted_reviews[:3]
-            ]
 
         logger.info(
             "get_place_details_success",
@@ -1041,6 +819,9 @@ class GetPlaceDetailsTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 if place.get("rating"):
                     details["rating"] = place.get("rating")
                     details["rating_count"] = place.get("userRatingCount", 0)
+
+                # Status + primary type (a closed place must be visible in batch too)
+                _surface_status_and_identity(place, details)
 
                 return (pid, details, None)
             except Exception as e:
@@ -1300,6 +1081,7 @@ class LocationItem(BaseModel):
     latitude: float  # Latitude coordinate
     longitude: float  # Longitude coordinate
     static_map_url: str | None = None  # Proxy URL for static map image
+    street_view_url: str | None = None  # Proxy URL when imagery exists (lot SV)
 
 
 # Register Location context type for Data Registry support
@@ -1432,8 +1214,16 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
             "as_of": (resolved_loc.as_of.isoformat() if resolved_loc.as_of else None),
         }
 
-        logger.info(
-            "get_current_location_success",
+        # Street View thumbnail (lot SV): only set when the FREE metadata
+        # endpoint confirmed imagery exists at this point.
+        from src.domains.connectors.street_view import street_view_thumbnail_url
+
+        location_data["street_view_url"] = await street_view_thumbnail_url(latitude, longitude)
+
+        # No PII at INFO: the address is content (DEBUG only), counters at INFO.
+        logger.info("get_current_location_success", user_id=str(user_id))
+        logger.debug(
+            "get_current_location_details",
             user_id=str(user_id),
             formatted_address=location_data["formatted_address"][:50],
             locality=location_data.get("locality"),
@@ -1463,23 +1253,25 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
 
         data = result.get("data", {})
 
-        # Build concise summary for LLM
+        # Concise LLM scaffolding summary. Language-free technical markers
+        # (English), never inline French: the model answers in the user's
+        # language from these fields (CLAUDE.md, i18n & prompts).
         parts = []
         if data.get("formatted_address"):
-            parts.append(f"Adresse: {data['formatted_address']}")
+            parts.append(f"Address: {data['formatted_address']}")
         if data.get("locality"):
-            parts.append(f"Ville: {data['locality']}")
+            parts.append(f"City: {data['locality']}")
         if data.get("country"):
-            parts.append(f"Pays: {data['country']}")
+            parts.append(f"Country: {data['country']}")
         if data.get("location"):
             loc = data["location"]
-            parts.append(f"Coordonnées: {loc.get('lat'):.6f}, {loc.get('lon'):.6f}")
+            parts.append(f"Coordinates: {loc.get('lat'):.6f}, {loc.get('lon'):.6f}")
         if data.get("as_of"):
             # Language-free technical marker: the model states the position's
             # age in the user's language instead of claiming it is live.
             parts.append(f"Source: last known position, captured at {data['as_of']} (not live)")
 
-        summary = "\n".join(parts) if parts else "Position actuelle obtenue"
+        summary = "\n".join(parts) if parts else "Current location resolved"
 
         # Prepare registry update for frontend rendering
         lat = data.get("location", {}).get("lat", 0)
@@ -1500,6 +1292,7 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
             latitude=lat,
             longitude=lon,
             static_map_url=location_static_map_url,
+            street_view_url=data.get("street_view_url"),
         )
 
         # Generate unique registry ID for this location

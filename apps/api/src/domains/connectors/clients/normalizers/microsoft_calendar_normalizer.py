@@ -90,7 +90,7 @@ def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
     show_as = event.get("showAs", "busy")
     transparency = "transparent" if show_as == "free" else "opaque"
 
-    return {
+    normalized: dict[str, Any] = {
         "id": event_id,
         "summary": summary,
         "description": description,
@@ -107,6 +107,23 @@ def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
         "updated": event.get("lastModifiedDateTime", ""),
         "iCalUID": event.get("iCalUId", ""),
         "_provider": "microsoft",
+    }
+
+    normalized.update(_teams_conference_fields(event))
+
+    return normalized
+
+
+def _teams_conference_fields(event: dict[str, Any]) -> dict[str, Any]:
+    """Teams meeting → Google conference shape (parity: the event card reads
+    conferenceData.entryPoints[type=video].uri and hangoutLink only)."""
+    online_meeting = event.get("onlineMeeting") or {}
+    join_url = online_meeting.get("joinUrl") or event.get("onlineMeetingUrl")
+    if not join_url:
+        return {}
+    return {
+        "conferenceData": {"entryPoints": [{"entryPointType": "video", "uri": join_url}]},
+        "hangoutLink": join_url,
     }
 
 

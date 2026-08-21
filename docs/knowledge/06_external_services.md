@@ -17,8 +17,18 @@
 • Visibility
 • Sunrise/sunset times
 
+**🌿 Air quality and pollen (Google Environment connector):**
+With that connector on, a plain weather question also brings the air-quality
+index and in-season pollen — on the chat card, on the forecast and on the home
+page. The category shown is the one the service itself publishes, and the index
+is your country's when one exists.
+• "*Can I run tonight?*"
+• "*What's the pollen forecast this week?*"
+
 **💡 Tip:**
-Add the OpenWeatherMap connector (free) in Settings > Connectors to enable this feature.
+Two ways to get weather: the **OpenWeatherMap** connector (free, needs your own
+API key) or **Google Weather** (a single toggle, no key to obtain). Both render
+identically. Add either in Settings > Connectors.
 
 ## Which services work without configuration?
 Some services are **immediately available**, others require configuration:

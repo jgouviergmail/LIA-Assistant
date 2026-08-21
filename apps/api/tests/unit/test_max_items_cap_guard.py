@@ -51,6 +51,9 @@ CAP_MARKER_ATTRS = {"_paginate", "_paginate_list"}
 ALLOWED: set[tuple[str, str]] = {
     # Metadata enumeration for name→ID resolution (few, bounded) — capping at the
     # item ceiling would break resolution for users with many calendars/labels.
+    # Hourly forecast slots (lot E): bounded by GOOGLE_WEATHER_MAX_FORECAST_HOURS
+    # (240, an API constant) — weather data points, not user items.
+    ("google_weather_client.py", "get_forecast"),
     ("google_calendar_client.py", "list_calendars"),
     ("apple_calendar_client.py", "_list_calendars_impl"),
     ("microsoft_calendar_client.py", "list_calendars"),

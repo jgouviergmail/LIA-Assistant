@@ -10,6 +10,8 @@ Architecture Simplification (2026-01):
 
 from src.core.config import settings
 from src.core.constants import (
+    PLACES_DETAIL_LEVEL_FULL,
+    PLACES_DETAIL_LEVEL_LITE,
     PLACES_MIN_RATING_MAX,
     PLACES_MIN_RATING_MIN,
     PLACES_TOOL_DEFAULT_LIMIT,
@@ -78,7 +80,13 @@ _get_places_desc = (
     "- 'cheap restaurants' → query='restaurants', price_levels=['PRICE_LEVEL_INEXPENSIVE']\n"
     "- 'is this place open?' → place_id='ID from context'\n"
     "\n"
-    "**RETURNS**: Full place info (name, address, phone, hours, reviews, distance_km, etc.)."
+    "**DETAIL LEVEL**:\n"
+    "- `detail_level='full'` (default): ratings, hours, contact, reviews, price\n"
+    "- `detail_level='lite'`: identity, address, location, status only (cheaper API tier).\n"
+    "  Use 'lite' when the answer only needs names/addresses (counting, listing, mapping).\n"
+    "\n"
+    "**RETURNS**: Full place info (name, address, phone, hours, reviews, distance_km, "
+    "business_status when closed, features, price_range, etc.)."
 )
 
 get_places_catalogue_manifest = ToolManifest(
@@ -271,6 +279,22 @@ get_places_catalogue_manifest = ToolManifest(
                 + ". Example: 'cheap' → ['PRICE_LEVEL_INEXPENSIVE']"
             ),
         ),
+        ParameterSchema(
+            name="detail_level",
+            type="string",
+            required=False,
+            description=(
+                "'full' (default: ratings, hours, contact, reviews) or 'lite' "
+                "(identity/address/location/status only — cheaper API tier; use for "
+                "counting, listing or mapping places)"
+            ),
+            constraints=[
+                ParameterConstraint(
+                    kind="enum",
+                    value=[PLACES_DETAIL_LEVEL_FULL, PLACES_DETAIL_LEVEL_LITE],
+                )
+            ],
+        ),
     ],
     outputs=[
         # Full place outputs (merged from search + details)
@@ -339,6 +363,33 @@ get_places_catalogue_manifest = ToolManifest(
             nullable=True,
             description="Distance (km)",
             semantic_type="distance",
+        ),
+        OutputFieldSchema(
+            path="places[].business_status",
+            type="string",
+            nullable=True,
+            description=(
+                "Only present when the place is NOT operational "
+                "(CLOSED_PERMANENTLY or CLOSED_TEMPORARILY)"
+            ),
+        ),
+        OutputFieldSchema(
+            path="places[].primary_type",
+            type="string",
+            nullable=True,
+            description="Localized primary type label (e.g. 'Pizza restaurant')",
+        ),
+        OutputFieldSchema(
+            path="places[].price_range",
+            type="object",
+            nullable=True,
+            description="Exact price range {start, end, currency} when published",
+        ),
+        OutputFieldSchema(
+            path="places[].features",
+            type="array",
+            nullable=True,
+            description="Attribute keys (dine_in, takeout, serves_vegetarian_food, ...)",
         ),
         OutputFieldSchema(path="count", type="integer", description="Count"),
     ],

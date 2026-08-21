@@ -13,6 +13,11 @@ from src.core.constants import (
     CALENDAR_TOOL_DEFAULT_LIMIT,
     GOOGLE_CALENDAR_SCOPES,
 )
+
+# Re-export: the loader imports the whole calendar family from this module.
+from src.domains.agents.calendar.availability_manifest import (
+    find_availability_catalogue_manifest,
+)
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -232,7 +237,10 @@ get_events_catalogue_manifest = ToolManifest(
 _create_desc = (
     "**Tool: create_event_tool** - Create new calendar event. **REQUIRES HITL**.\n"
     "**Inputs**: 'start_datetime'/'end_datetime' specify the event timing.\n"
-    "**Timezone**: If ISO includes offset (+02:00), 'timezone' param is IGNORED."
+    "**Timezone**: If ISO includes offset (+02:00), 'timezone' param is IGNORED.\n"
+    "**Video call**: set add_conference=true when the user asks for a visio/"
+    "video call/online meeting — a Meet or Teams link is attached at creation "
+    "(not supported on Apple calendars: event created without a link)."
 )
 
 create_event_catalogue_manifest = ToolManifest(
@@ -306,6 +314,16 @@ create_event_catalogue_manifest = ToolManifest(
             description="List of attendee email addresses. MUST be emails, NOT person names. To invite a person, first get their email from contacts.",
             semantic_type="email_address",  # Cross-domain: can use contacts[].emails[].value
         ),
+        ParameterSchema(
+            name="add_conference",
+            type="boolean",
+            required=False,
+            description=(
+                "Attach a video-conference link (Meet/Teams by provider). Set true "
+                "when the user asks for a visio/video call/online meeting. "
+                "Unsupported on Apple calendars (event created without a link)."
+            ),
+        ),
     ],
     outputs=[
         OutputFieldSchema(
@@ -313,6 +331,13 @@ create_event_catalogue_manifest = ToolManifest(
         ),
         OutputFieldSchema(path="html_link", type="string", description="Link", semantic_type="URL"),
         OutputFieldSchema(path="summary", type="string", description="Title"),
+        OutputFieldSchema(
+            path="conference_link",
+            type="string",
+            nullable=True,
+            description="Video join URL, only when the provider actually created one",
+            semantic_type="URL",
+        ),
     ],
     cost=CostProfile(est_tokens_in=200, est_tokens_out=100, est_cost_usd=0.01, est_latency_ms=600),
     permissions=PermissionProfile(
@@ -325,7 +350,7 @@ create_event_catalogue_manifest = ToolManifest(
     max_iterations=1,
     supports_dry_run=True,
     reference_examples=["event_id", "html_link", "summary"],
-    version="1.1.0",
+    version="1.2.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="➕", i18n_key="create_event", visible=True, category="tool"),
 )
@@ -565,13 +590,27 @@ list_calendars_catalogue_manifest = ToolManifest(
     initiative_eligible=False,  # Structural tool, not useful for proactive enrichment
 )
 
+# Registration collection for the catalogue loader (whole calendar family)
+CALENDAR_TOOL_MANIFESTS: tuple[ToolManifest, ...] = (
+    get_events_catalogue_manifest,
+    find_availability_catalogue_manifest,
+    create_event_catalogue_manifest,
+    update_event_catalogue_manifest,
+    delete_event_catalogue_manifest,
+    list_calendars_catalogue_manifest,
+)
+
 __all__ = [
     # Unified tool (v2.0 - replaces search + details)
     "get_events_catalogue_manifest",
+    # Availability (lot B)
+    "find_availability_catalogue_manifest",
     # Action tools
     "create_event_catalogue_manifest",
     "update_event_catalogue_manifest",
     "delete_event_catalogue_manifest",
     # Metadata tools (list containers, not items)
     "list_calendars_catalogue_manifest",
+    # Loader collection
+    "CALENDAR_TOOL_MANIFESTS",
 ]

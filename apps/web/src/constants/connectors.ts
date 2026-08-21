@@ -39,6 +39,8 @@ export const CONNECTOR_TYPES = [
   'google_places',
   // Google API Key connectors (global key, not per-user)
   'google_routes',
+  'google_weather',
+  'google_environment',
   // Apple iCloud connectors
   'apple_email',
   'apple_calendar',
@@ -97,6 +99,8 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   microsoft_tasks: 'Microsoft To Do',
   // Google API Key connectors
   google_routes: 'Google Routes',
+  google_weather: 'Google Weather',
+  google_environment: 'Google Environment',
   // External API Key connectors
   openweathermap: 'OpenWeatherMap',
   wikipedia: 'Wikipedia',
@@ -133,6 +137,8 @@ export const CONNECTOR_CATEGORIES = {
     'google_tasks',
     'google_places',
     'google_routes',
+    'google_weather',
+    'google_environment',
   ],
   apple: ['apple_email', 'apple_calendar', 'apple_contacts'],
   microsoft: ['microsoft_outlook', 'microsoft_calendar', 'microsoft_contacts', 'microsoft_tasks'],

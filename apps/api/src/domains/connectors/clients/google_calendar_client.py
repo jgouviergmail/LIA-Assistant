@@ -9,7 +9,7 @@ Inherits from BaseGoogleClient for common functionality.
 """
 
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 
@@ -84,6 +84,7 @@ class GoogleCalendarClient(BaseGoogleClient):
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
+        add_conference: bool = False,
     ) -> dict[str, Any]:
         """
         Create a new calendar event in Google Calendar.
@@ -100,6 +101,10 @@ class GoogleCalendarClient(BaseGoogleClient):
             location: Event location (optional)
             attendees: List of attendee email addresses (optional)
             calendar_id: Target calendar ID (default: "primary" for user's main calendar)
+            add_conference: When True, ask Google to attach a Meet link
+                (conferenceData.createRequest + conferenceDataVersion=1).
+                Best-effort on Google's side: the event is created even if the
+                conference creation fails (the link is then simply absent).
 
         Returns:
             Created event data with event ID
@@ -143,12 +148,27 @@ class GoogleCalendarClient(BaseGoogleClient):
         if attendees:
             event_body["attendees"] = [{"email": email} for email in attendees]
 
+        # Meet link: Google dedupes conference creation by requestId, so a
+        # fresh UUID per event is required (a reused id would attach the SAME
+        # meeting to different events). conferenceDataVersion=1 opts into the
+        # conference-aware API behavior.
+        params: dict[str, Any] | None = None
+        if add_conference:
+            event_body["conferenceData"] = {
+                "createRequest": {
+                    "requestId": str(uuid4()),
+                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                }
+            }
+            params = {"conferenceDataVersion": 1}
+
         # Make API request to create event
         # POST /calendars/{calendarId}/events
         response = await self._make_request(
             "POST",
             f"/calendars/{calendar_id}/events",
             json_data=event_body,
+            params=params,
         )
 
         logger.info(
@@ -158,6 +178,39 @@ class GoogleCalendarClient(BaseGoogleClient):
             summary=summary,
         )
 
+        return response
+
+    async def query_freebusy(
+        self,
+        time_min: str,
+        time_max: str,
+        calendar_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Query busy time ranges over one or more calendars (freeBusy endpoint).
+
+        Returns busy ranges ONLY — strictly less data than listing events
+        (minimization by capability, same doctrine as telephony availability).
+
+        Args:
+            time_min: RFC3339 inclusive lower bound.
+            time_max: RFC3339 exclusive upper bound.
+            calendar_ids: Calendars to query (default: ["primary"]).
+
+        Returns:
+            Google freeBusy response: {"calendars": {id: {"busy": [...]}}}.
+        """
+        body: dict[str, Any] = {
+            "timeMin": time_min,
+            "timeMax": time_max,
+            "items": [{"id": calendar_id} for calendar_id in (calendar_ids or ["primary"])],
+        }
+        response = await self._make_request("POST", "/freeBusy", json_data=body)
+        logger.info(
+            "calendar_freebusy_queried",
+            user_id=str(self.user_id),
+            calendars=len(body["items"]),
+        )
         return response
 
     # =========================================================================
@@ -504,3 +557,47 @@ class GoogleCalendarClient(BaseGoogleClient):
             "event_id": event_id,
             "message": APIMessages.event_deleted_successfully(event_id),
         }
+
+    async def watch_events(
+        self,
+        channel_id: str,
+        token: str,
+        address: str,
+        ttl_seconds: int,
+        calendar_id: str = "primary",
+    ) -> dict[str, Any]:
+        """Open a push channel on a calendar's events (lot H phase 1).
+
+        Google's contract: ``type`` must be ``web_hook`` and ``ttl`` is a
+        STRING inside ``params``. The response carries ``resourceId`` and the
+        effective ``expiration`` (epoch ms — Google may shorten the asked TTL).
+
+        Args:
+            channel_id: Our channel identifier (echoed in X-Goog-Channel-ID).
+            token: Opaque secret echoed in X-Goog-Channel-Token.
+            address: Public HTTPS webhook URL (domain must be verified).
+            ttl_seconds: Requested channel lifetime.
+            calendar_id: Calendar to watch (default primary).
+
+        Returns:
+            The channel resource returned by Google.
+        """
+        return await self._make_request(
+            "POST",
+            f"/calendars/{calendar_id}/events/watch",
+            json_data={
+                "id": channel_id,
+                "type": "web_hook",
+                "address": address,
+                "token": token,
+                "params": {"ttl": str(ttl_seconds)},
+            },
+        )
+
+    async def stop_channel(self, channel_id: str, resource_id: str) -> dict[str, Any]:
+        """Close a push channel (API-wide /channels/stop endpoint)."""
+        return await self._make_request(
+            "POST",
+            "/channels/stop",
+            json_data={"id": channel_id, "resourceId": resource_id},
+        )

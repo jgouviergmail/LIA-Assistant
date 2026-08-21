@@ -350,3 +350,29 @@ def test_single_error_renders_cross_emoji() -> None:
 
     assert "❌" in rendered
     assert "Something broke" in rendered
+
+
+# =============================================================================
+# URL-valued detail fields (lot A, 2026-08: conference_link)
+# =============================================================================
+
+
+class TestUrlDetailFieldsRenderAsLinks:
+    def test_conference_link_renders_as_markdown_link_not_raw_url(self) -> None:
+        """A raw meet URL in the confirmation is unreadable — URL-valued detail
+        fields must render as [label](url), like the html_link line does."""
+        result = _single_success(
+            DraftType.EVENT,
+            draft_content={
+                "summary": "Point avec Marc",
+                "start_datetime": "2026-08-27T10:00:00",
+                "end_datetime": "2026-08-27T10:30:00",
+                "user_language": "fr",
+            },
+        )
+        result["data"]["conference_link"] = "https://meet.google.com/abc-defg-hij"
+
+        text = _format_draft_execution_result(result)
+
+        assert "[Visioconférence](https://meet.google.com/abc-defg-hij)" in text
+        assert "** : https://meet.google.com" not in text

@@ -6,6 +6,7 @@ import {
   CloudRain,
   CloudSun,
   Droplets,
+  Flower2,
   Snowflake,
   Wind,
 } from 'lucide-react';
@@ -15,10 +16,12 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { BriefingCard } from '../BriefingCard';
 import type {
+  AirQuality,
   CardSection,
   DailyForecastItem,
   ForecastAlert,
   ForecastAlertKind,
+  PollenItem,
   WeatherData,
 } from '@/types/briefing';
 
@@ -115,7 +118,11 @@ function WeatherContent({ data }: { data: WeatherData }) {
       : null;
   const windLabel = windLabelFor(data, t);
 
-  const showMetricsRow = windLabel !== null || popPct !== null || data.forecast_alert !== null;
+  // Enrichment fields (2026-08) read defensively: the briefing caches
+  // sections for up to an hour and a rolling deploy can serve a payload
+  // predating these fields.
+  const airQuality = data.air_quality ?? null;
+  const pollen = data.pollen ?? [];
 
   return (
     <div className="w-full flex flex-col items-center gap-2">
@@ -153,24 +160,9 @@ function WeatherContent({ data }: { data: WeatherData }) {
         )}
       </p>
 
-      {/* Metrics row: wind + rain probability + forecast alert (compact) */}
-      {showMetricsRow && (
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {windLabel !== null && (
-            <span className="inline-flex items-center gap-1">
-              <Wind className="h-3 w-3" aria-hidden="true" />
-              <span className="tabular-nums">{windLabel}</span>
-            </span>
-          )}
-          {popPct !== null && (
-            <span className="inline-flex items-center gap-1">
-              <Droplets className="h-3 w-3" aria-hidden="true" />
-              <span className="tabular-nums">{popPct}%</span>
-            </span>
-          )}
-          {data.forecast_alert && <ForecastAlertBadge alert={data.forecast_alert} />}
-        </div>
-      )}
+      <MetricsRow windLabel={windLabel} popPct={popPct} alert={data.forecast_alert} />
+
+      <EnvironmentRow airQuality={airQuality} pollen={pollen} />
 
       {/* 5-day forecast strip */}
       {data.daily_forecast.length > 0 && (
@@ -180,6 +172,95 @@ function WeatherContent({ data }: { data: WeatherData }) {
       )}
     </div>
   );
+}
+
+/** Wind + rain probability + forecast alert, in one compact row. */
+function MetricsRow({
+  windLabel,
+  popPct,
+  alert,
+}: {
+  windLabel: string | null;
+  popPct: number | null;
+  alert: ForecastAlert | null;
+}) {
+  if (windLabel === null && popPct === null && alert === null) return null;
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      {windLabel !== null && (
+        <span className="inline-flex items-center gap-1">
+          <Wind className="h-3 w-3" aria-hidden="true" />
+          <span className="tabular-nums">{windLabel}</span>
+        </span>
+      )}
+      {popPct !== null && (
+        <span className="inline-flex items-center gap-1">
+          <Droplets className="h-3 w-3" aria-hidden="true" />
+          <span className="tabular-nums">{popPct}%</span>
+        </span>
+      )}
+      {alert && <ForecastAlertBadge alert={alert} />}
+    </div>
+  );
+}
+
+/**
+ * Air quality + pollen (2026-08) — same compact metrics language as the wind
+ * row, so the card gains a signal without gaining a section. Rendering lives
+ * in its own component: the parent already carries the hero, the metrics row
+ * and the forecast strip.
+ */
+function EnvironmentRow({
+  airQuality,
+  pollen,
+}: {
+  airQuality: AirQuality | null;
+  pollen: PollenItem[];
+}) {
+  const { t } = useTranslation();
+  if (airQuality === null && pollen.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      {airQuality !== null && (
+        <span
+          className="inline-flex items-center gap-1"
+          data-testid="weather-air-quality"
+          title={t('dashboard.briefing.cards.weather.air_quality')}
+        >
+          <Wind className="h-3 w-3" aria-hidden="true" />
+          <span>{airQualityLabel(airQuality)}</span>
+        </span>
+      )}
+      {pollen.length > 0 && (
+        <span
+          className="inline-flex items-center gap-1"
+          data-testid="weather-pollen"
+          title={t('dashboard.briefing.cards.weather.pollen')}
+        >
+          <Flower2 className="h-3 w-3" aria-hidden="true" />
+          <span>{pollenLabel(pollen)}</span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Air-quality line: the provider's own localized category, prefixed by the
+ * index value when the chosen index carries one, and suffixed by the index
+ * name. Never re-derives a label from the number (Google's universal index is
+ * inverted vs EPA), and never invents a number a national index omitted.
+ */
+function airQualityLabel(air: AirQuality): string {
+  const head = air.value !== null ? `${air.value} · ${air.category}` : air.category;
+  return air.index_label ? `${head} (${air.index_label})` : head;
+}
+
+/** Pollen line: "Graminées Élevé, Ambroisie Faible" — categories verbatim. */
+function pollenLabel(pollen: PollenItem[]): string {
+  return pollen.map(item => [item.name, item.category].filter(Boolean).join(' ')).join(', ');
 }
 
 function ForecastAlertBadge({ alert }: { alert: ForecastAlert }) {

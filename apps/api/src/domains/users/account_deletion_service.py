@@ -180,6 +180,9 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("webauthn_credentials"),
         by_user("user_totp"),
         by_user("mfa_backup_codes"),
+        # Google push channel registry (lot H): channel tokens are secret
+        # material; live Google-side watches expire on their own TTL.
+        by_user("webhook_channels"),
         by_user("connectors"),
     ]
 

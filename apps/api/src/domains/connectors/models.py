@@ -48,6 +48,8 @@ class ConnectorType(str, enum.Enum):
     # Google services (API Key - global key, not per-user)
     GOOGLE_ROUTES = "google_routes"
     GOOGLE_PLACES = "google_places"  # Uses global GOOGLE_API_KEY
+    GOOGLE_WEATHER = "google_weather"  # Weather API (lot E, global key)
+    GOOGLE_ENVIRONMENT = "google_environment"  # Air Quality + Pollen (lot E, global key)
 
     # External API services (API Key)
     OPENWEATHERMAP = "openweathermap"
@@ -121,6 +123,21 @@ class ConnectorType(str, enum.Enum):
             True if Philips Hue smart home connector, False otherwise.
         """
         return self in _HUE_CONNECTOR_TYPES
+
+    @property
+    def uses_global_api_key(self) -> bool:
+        """
+        Check if this connector type uses the platform GOOGLE_API_KEY.
+
+        Platform-key connectors have no per-user credentials: the user simply
+        toggles them on. Lets a functional category mix a user-key provider
+        (OpenWeatherMap) with a platform-key one (Google Weather) — the
+        ConnectorTool base picks the credentials path from the RESOLVED type.
+
+        Returns:
+            True when the client authenticates with the global API key.
+        """
+        return self in _GLOBAL_API_KEY_CONNECTOR_TYPES
 
     @classmethod
     def get_oauth_types(cls) -> frozenset[ConnectorType]:
@@ -201,6 +218,17 @@ _APPLE_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
 # These connectors use a hybrid auth model (local: press-link API key, remote: OAuth2)
 _HUE_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset({ConnectorType.PHILIPS_HUE})
 
+# Platform-key connectors: authenticate with the global GOOGLE_API_KEY,
+# activation is a simple user toggle (no per-user credentials).
+_GLOBAL_API_KEY_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
+    {
+        ConnectorType.GOOGLE_ROUTES,
+        ConnectorType.GOOGLE_PLACES,
+        ConnectorType.GOOGLE_WEATHER,
+        ConnectorType.GOOGLE_ENVIRONMENT,
+    }
+)
+
 # Functional categories for mutual exclusivity
 # Only ONE connector per category can be ACTIVE at a time for a given user.
 CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
@@ -222,6 +250,11 @@ CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
         }
     ),
     "tasks": frozenset({ConnectorType.GOOGLE_TASKS, ConnectorType.MICROSOFT_TASKS}),
+    # Weather (lot E, 2026-08): Google Weather (platform key, default-friendly)
+    # vs OpenWeatherMap (personal key). One active provider at a time; AQ and
+    # pollen (GOOGLE_ENVIRONMENT) stay OUT of the category on purpose — they
+    # are platform services independent of the weather provider choice.
+    "weather": frozenset({ConnectorType.OPENWEATHERMAP, ConnectorType.GOOGLE_WEATHER}),
     "smart_home": frozenset({ConnectorType.PHILIPS_HUE}),
     # Single-member category today: gives telephony its own UI grouping and leaves
     # room for alternative providers later. No mutual-exclusivity effect while alone.
@@ -234,6 +267,7 @@ CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "calendar": "Calendar",
     "contacts": "Contacts",
     "tasks": "Tasks",
+    "weather": "Weather",
     "smart_home": "Smart Home",
     "telephony": "Telephony",
 }

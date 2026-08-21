@@ -46,6 +46,7 @@ def import_all_models() -> None:
     import src.domains.plugins.models  # noqa: F401
     import src.domains.product.models  # noqa: F401
     import src.domains.psyche.models  # noqa: F401
+    import src.domains.push_channels.models  # noqa: F401
     import src.domains.rag_spaces.models  # noqa: F401
     import src.domains.relations.models  # noqa: F401
     import src.domains.reminders.models  # noqa: F401

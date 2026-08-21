@@ -36,7 +36,6 @@ from src.core.constants import (
     GMAIL_FORMAT_METADATA,
     HEARTBEAT_CONTENT_EXCERPT_CHARS,
 )
-from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.heartbeat.context_sources import (
@@ -632,12 +631,14 @@ class ContextAggregator:
             Tuple of ``(current_weather, changes, location_source, city_name)``
             or ``None`` if unavailable.
         """
-        # Check OpenWeatherMap connector
+        # Resolve the active weather provider (lot E, 2026-08): Google
+        # Weather (platform key) or OpenWeatherMap (personal key) — both
+        # OWM-shaped, so everything below is provider-agnostic.
+        from src.domains.connectors.weather_provider import resolve_weather_client
+
         connector_service = ConnectorService(db)
-        credentials = await connector_service.get_api_key_credentials(
-            user_id, ConnectorType.OPENWEATHERMAP
-        )
-        if not credentials:
+        client = await resolve_weather_client(user_id, connector_service)
+        if client is None:
             return None
 
         # Resolve effective location via the Phase 3 cascade
@@ -659,12 +660,6 @@ class ContextAggregator:
         source = effective.source
         heartbeat_weather_location_source_total.labels(source=source).inc()
 
-        from src.domains.connectors.clients.openweathermap_client import (
-            OpenWeatherMapClient,
-        )
-
-        client = OpenWeatherMapClient(api_key=credentials.api_key, user_id=user_id)
-
         # Fetch current + forecast + city (reverse geocode) in parallel
         from src.domains.heartbeat.geocoding import resolve_city_name
 
@@ -672,7 +667,7 @@ class ContextAggregator:
             results = await asyncio.gather(
                 client.get_current_weather(lat=lat, lon=lon, units="metric"),
                 client.get_forecast(lat=lat, lon=lon, units="metric", cnt=16),
-                resolve_city_name(lat=lat, lon=lon, api_key=credentials.api_key),
+                resolve_city_name(lat=lat, lon=lon, client=client),
                 return_exceptions=True,
             )
         finally:
@@ -764,19 +759,27 @@ class ContextAggregator:
 
             max_emails = settings.heartbeat_context_emails_max
 
-            # Filter to today's unread emails only (user's local date).
-            # Gmail-style `after:` uses the date as a lower bound (inclusive).
-            user_tz = _resolve_user_tz(user)
-            today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
+            # Delta fast-path (lot G, 2026-08): Gmail's history.list gives the
+            # EXACT new INBOX mail since the last tick (anchored in Redis).
+            # None => legacy query path (first run, other provider, expired
+            # anchor, Redis down) — always fail-open. Id-only entries: the
+            # fetch loop below resolves full messages.
+            from src.domains.heartbeat.gmail_delta import delta_messages_or_none
 
-            # All providers accept Gmail-style query syntax (normalized internally)
-            result = await client.search_emails(
-                query=f"is:unread after:{today_str}",
-                max_results=max_emails,
-                use_cache=True,
-            )
+            messages = await delta_messages_or_none(client, user_id, max_emails)
+            if messages is None:
+                # Filter to today's unread emails only (user's local date).
+                # Gmail-style `after:` uses the date as a lower bound (inclusive).
+                user_tz = _resolve_user_tz(user)
+                today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
 
-            messages = result.get("messages", [])
+                # All providers accept Gmail-style query syntax (normalized internally)
+                result = await client.search_emails(
+                    query=f"is:unread after:{today_str}",
+                    max_results=max_emails,
+                    use_cache=True,
+                )
+                messages = result.get("messages", [])
             if not messages:
                 return None
 

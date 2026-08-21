@@ -120,6 +120,17 @@ class LocationCard(BaseComponent):
             else:
                 hero_html = f'<div class="lia-route__map">{map_img}</div>'
 
+        # --- Street View thumbnail (lot SV, 2026-08) ---
+        # Only present when the producer confirmed imagery exists (free
+        # metadata check) — the map shows WHERE, this shows WHAT it looks like.
+        street_view_url = data.get("street_view_url", "")
+        if street_view_url:
+            street_view_img = (
+                f'<img src="{safe_url(street_view_url)}" alt="Street View" '
+                f'class="lia-route__map-image" loading="lazy" />'
+            )
+            hero_html += f'<div class="lia-route__map">{street_view_img}</div>'
+
         # --- Card top: pin icon + display name ---
         title_html = escape_html(display_name)
         if maps_url:

@@ -203,7 +203,256 @@ get_files_catalogue_manifest = ToolManifest(
 )
 
 
+# ============================================================================
+# SHEETS / DOCS CONTENT READ (lot F phase read, 2026-08 — Drive token)
+# ============================================================================
+
+read_spreadsheet_catalogue_manifest = ToolManifest(
+    name="read_spreadsheet_tool",
+    agent="file_agent",
+    description=(
+        "**Tool: read_spreadsheet_tool** - Read the CELL VALUES of a Google "
+        "Sheets spreadsheet ('read this sheet and answer', budgets, lists, "
+        "trackers). Chain from get_files_tool: pass files[].id as file_id. "
+        "Returns the sheet list, one sheet's values (bounded page) and an "
+        "explicit truncation flag. Use get_files_tool for file METADATA."
+    ),
+    semantic_keywords=[
+        "read the values of my google sheet",
+        "what does this spreadsheet contain",
+        "answer from my budget tracking sheet",
+        "look up a number in my spreadsheet",
+    ],
+    parameters=[
+        ParameterSchema(
+            name="file_id",
+            type="string",
+            required=True,
+            description="Drive file id of the spreadsheet (from get_files_tool)",
+            semantic_type="file_id",
+        ),
+        ParameterSchema(
+            name="sheet_name",
+            type="string",
+            required=False,
+            description="Sheet (tab) name; empty = first sheet. Case-insensitive.",
+        ),
+        ParameterSchema(
+            name="max_rows",
+            type="integer",
+            required=False,
+            description="Max rows to read (default 50)",
+            constraints=[
+                ParameterConstraint(kind="minimum", value=1),
+                ParameterConstraint(kind="maximum", value=200),
+            ],
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="title", type="string", description="Spreadsheet title"),
+        OutputFieldSchema(path="sheet", type="string", description="Sheet actually read"),
+        OutputFieldSchema(path="sheets", type="array", description="Available sheets"),
+        OutputFieldSchema(path="values", type="array", description="Rows of cell values"),
+        OutputFieldSchema(path="returned_rows", type="integer", description="Exact rows returned"),
+        OutputFieldSchema(
+            path="truncated", type="boolean", description="True when more rows may exist"
+        ),
+    ],
+    cost=CostProfile(est_tokens_in=80, est_tokens_out=600, est_cost_usd=0.002, est_latency_ms=700),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_DRIVE_SCOPES, hitl_required=False, data_classification="CONFIDENTIAL"
+    ),
+    max_iterations=1,
+    supports_dry_run=True,
+    context_key="files",
+    reference_examples=["values[0]", "sheet", "returned_rows"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(emoji="📊", i18n_key="read_spreadsheet", visible=True, category="tool"),
+)
+
+read_document_catalogue_manifest = ToolManifest(
+    name="read_document_tool",
+    agent="file_agent",
+    description=(
+        "**Tool: read_document_tool** - Read a Google Doc's CONTENT as "
+        "structured text (headings, lists, tables). Chain from "
+        "get_files_tool: pass files[].id as file_id. Use to answer about, "
+        "summarize or compare a document's content."
+    ),
+    semantic_keywords=[
+        "read the content of my google doc",
+        "summarize this document from drive",
+        "what does the meeting notes doc say",
+        "compare information inside a document",
+    ],
+    parameters=[
+        ParameterSchema(
+            name="file_id",
+            type="string",
+            required=True,
+            description="Drive file id of the Google Doc (from get_files_tool)",
+            semantic_type="file_id",
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="title", type="string", description="Document title"),
+        OutputFieldSchema(path="content", type="string", description="Structured text content"),
+        OutputFieldSchema(
+            path="truncated", type="boolean", description="True when the content was cut"
+        ),
+    ],
+    cost=CostProfile(est_tokens_in=80, est_tokens_out=800, est_cost_usd=0.003, est_latency_ms=700),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_DRIVE_SCOPES, hitl_required=False, data_classification="CONFIDENTIAL"
+    ),
+    max_iterations=1,
+    supports_dry_run=True,
+    context_key="files",
+    reference_examples=["title", "content"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(emoji="📄", i18n_key="read_document", visible=True, category="tool"),
+)
+
+write_spreadsheet_catalogue_manifest = ToolManifest(
+    name="write_spreadsheet_tool",
+    agent="file_agent",
+    description=(
+        "**Tool: write_spreadsheet_tool** - WRITE into a Google Sheets "
+        "spreadsheet ('add this expense to my budget sheet'). mode='append' "
+        "adds rows below the table (default); mode='update' overwrites the "
+        "cells of a1_range. Chain from get_files_tool (files[].id as "
+        "file_id). Returns a confirmation draft: nothing is written until "
+        "the user approves the exact rows/cells shown."
+    ),
+    semantic_keywords=[
+        "add a row to my google sheet",
+        "write this expense into my budget spreadsheet",
+        "update a cell in my tracking sheet",
+        "record these values in the spreadsheet",
+    ],
+    parameters=[
+        ParameterSchema(
+            name="file_id",
+            type="string",
+            required=True,
+            description="Drive file id of the spreadsheet (from get_files_tool)",
+            semantic_type="file_id",
+        ),
+        ParameterSchema(
+            name="values",
+            type="array",
+            required=True,
+            description="Row-major cell values, e.g. [['Loyer','1200']]. Max 50 rows.",
+        ),
+        ParameterSchema(
+            name="mode",
+            type="string",
+            required=False,
+            description="'append' (default) or 'update'",
+            constraints=[ParameterConstraint(kind="enum", value=["append", "update"])],
+        ),
+        ParameterSchema(
+            name="a1_range",
+            type="string",
+            required=False,
+            description="Target range WITHOUT sheet prefix, e.g. 'B2:B3' (update mode)",
+        ),
+        ParameterSchema(
+            name="sheet_name",
+            type="string",
+            required=False,
+            description="Sheet (tab) name; empty = first sheet. Case-insensitive.",
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="success", type="boolean", description="Success"),
+    ],
+    cost=CostProfile(est_tokens_in=150, est_tokens_out=80, est_cost_usd=0.005, est_latency_ms=700),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_DRIVE_SCOPES,
+        # Draft-based: HITL is handled by draft_critique (preview before
+        # writing), like send_email. hitl_required MUST stay False — the flag
+        # only drives ReAct's pre-execution interrupt, redundant for drafts.
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    max_iterations=1,
+    supports_dry_run=False,
+    reference_examples=["success"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(
+        emoji="📊", i18n_key="write_spreadsheet", visible=True, category="tool"
+    ),
+)
+
+append_document_text_catalogue_manifest = ToolManifest(
+    name="append_document_text_tool",
+    agent="file_agent",
+    description=(
+        "**Tool: append_document_text_tool** - APPEND text at the end of a "
+        "Google Doc ('add this note to my meeting doc'). Chain from "
+        "get_files_tool (files[].id as file_id). Returns a confirmation "
+        "draft: nothing is written until the user approves the full text."
+    ),
+    semantic_keywords=[
+        "add a note to my google doc",
+        "append this text to the meeting document",
+        "write a paragraph into my doc",
+    ],
+    parameters=[
+        ParameterSchema(
+            name="file_id",
+            type="string",
+            required=True,
+            description="Drive file id of the Google Doc (from get_files_tool)",
+            semantic_type="file_id",
+        ),
+        ParameterSchema(
+            name="text",
+            type="string",
+            required=True,
+            description="Text appended verbatim at the end of the document",
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="success", type="boolean", description="Success"),
+    ],
+    cost=CostProfile(est_tokens_in=150, est_tokens_out=60, est_cost_usd=0.004, est_latency_ms=700),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_DRIVE_SCOPES,
+        # Draft-based (see write_spreadsheet_tool above).
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    max_iterations=1,
+    supports_dry_run=False,
+    reference_examples=["success"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(
+        emoji="📝", i18n_key="append_document_text", visible=True, category="tool"
+    ),
+)
+
+
+# Registration collection for the catalogue loader (lot F family)
+WORKSPACE_DOCS_TOOL_MANIFESTS: tuple[ToolManifest, ...] = (
+    read_spreadsheet_catalogue_manifest,
+    read_document_catalogue_manifest,
+    write_spreadsheet_catalogue_manifest,
+    append_document_text_catalogue_manifest,
+)
+
 __all__ = [
     # Unified tool (v2.0 - replaces search + list + details)
     "get_files_catalogue_manifest",
+    # Sheets/Docs content read (lot F)
+    "read_spreadsheet_catalogue_manifest",
+    "read_document_catalogue_manifest",
+    "write_spreadsheet_catalogue_manifest",
+    "append_document_text_catalogue_manifest",
+    "WORKSPACE_DOCS_TOOL_MANIFESTS",
 ]

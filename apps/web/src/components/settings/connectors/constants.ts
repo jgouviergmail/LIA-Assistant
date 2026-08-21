@@ -3,7 +3,7 @@
  * Extracted from UserConnectorsSection.tsx for DRY compliance.
  */
 
-import { Plug, Cloud, Book, Search, MapPin, Globe, type LucideIcon } from 'lucide-react';
+import { Plug, Cloud, Book, Search, MapPin, Globe, Wind, type LucideIcon } from 'lucide-react';
 
 // ============================================================================
 // CONNECTOR TYPES
@@ -25,6 +25,8 @@ export const API_KEY_CONNECTOR_TYPES = [
   'perplexity',
   'brave_search',
   'google_places', // Uses global API key, simple toggle activation
+  'google_weather', // Uses global API key, simple toggle activation (lot E)
+  'google_environment', // Air quality + pollen, global API key (lot E)
   'browser', // No API key required, headless browser automation
 ] as const;
 
@@ -133,6 +135,8 @@ export const CONNECTOR_ICONS: Record<string, ConnectorIconConfig> = {
   google_drive: { emoji: '📁', color: 'yellow' },
   google_tasks: { emoji: '✅', color: 'purple' },
   google_places: { icon: MapPin, color: 'emerald' },
+  google_weather: { icon: Cloud, color: 'sky' },
+  google_environment: { icon: Wind, color: 'teal' },
   // Apple iCloud Services (same icons as Google equivalents for consistency)
   apple_email: { emoji: '📧', color: 'slate' },
   apple_calendar: { emoji: '📅', color: 'slate' },
@@ -215,6 +219,18 @@ export const API_KEY_CONNECTORS: readonly ApiKeyConnectorConfig[] = [
     icon: MapPin,
     color: 'emerald',
     requiresKey: false, // Uses global API key configured on server
+  },
+  {
+    type: 'google_weather',
+    icon: Cloud,
+    color: 'sky',
+    requiresKey: false, // Uses global API key configured on server (lot E)
+  },
+  {
+    type: 'google_environment',
+    icon: Wind,
+    color: 'teal',
+    requiresKey: false, // Air quality + pollen, global API key (lot E)
   },
   {
     type: 'browser',

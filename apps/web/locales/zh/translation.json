@@ -287,7 +287,9 @@
             "SW": "西南",
             "W": "西",
             "NW": "西北"
-          }
+          },
+          "air_quality": "空气质量",
+          "pollen": "花粉"
         },
         "agenda": {
           "title": "日程",
@@ -1462,7 +1464,17 @@
       },
       "disconnect": "断开连接",
       "disconnect_title": "断开 {{name}} 的连接？",
-      "disconnect_description": "LIA 将无法再读取您的 {{name}} 数据或对其执行操作。{{name}} 侧不会删除任何内容，您可以随时重新连接。"
+      "disconnect_description": "LIA 将无法再读取您的 {{name}} 数据或对其执行操作。{{name}} 侧不会删除任何内容，您可以随时重新连接。",
+      "google_weather": {
+        "label": "Google 天气",
+        "description": "天气状况与10天预报（Google）",
+        "no_key_required": "此服务无需 API 密钥"
+      },
+      "google_environment": {
+        "label": "Google 环境",
+        "description": "空气质量与花粉预报",
+        "no_key_required": "此服务无需 API 密钥"
+      }
     },
     "user": {
       "export": {
@@ -1845,7 +1857,9 @@
           "microsoft_tasks": "在 Microsoft To Do 中管理任务和任务列表",
           "browser": "交互式网页浏览：导航、点击、填写表单",
           "philips_hue": "控制智能灯光：开关、亮度、颜色、场景和房间",
-          "elevenlabs_telephony": "通过用户的 ElevenLabs 账户进行代理式外呼电话（API 密钥 + Webhook）"
+          "elevenlabs_telephony": "通过用户的 ElevenLabs 账户进行代理式外呼电话（API 密钥 + Webhook）",
+          "google_weather": "通过 Google 获取天气状况与预报",
+          "google_environment": "空气质量与花粉预报"
         }
       },
       "personalities": {
@@ -3369,7 +3383,7 @@
         "security-export": "GDPR, 数据导出, 归档, 下载, 可携带性, 备份, 个人数据, 隐私",
         "voice-mode": "麦克风, 语音, 听写, STT, TTS, 唤醒词, 音频, 说话",
         "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
-        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆",
+        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆, 天气, 空气质量, 花粉, 环境, 电子表格, 文档, 自动回复, 外出, 过滤器",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
         "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具，连接，集成，服务器",
         "mcp-servers": "MCP, 模型上下文协议, 我的服务器, 工具, 扩展, oauth, 授权，连接，集成，服务器",
@@ -3392,7 +3406,7 @@
         "admin-usage-limits": "配额, 限制, 上限, 预算, 令牌, 消耗上限",
         "admin-consumption-export": "导出, CSV, 消耗, 使用, 成本, 所有账户",
         "admin-broadcast": "广播, 消息, 公告, 通知所有人",
-        "admin-connectors": "连接器, 提供商, Google, Apple, Microsoft, 启用服务",
+        "admin-connectors": "连接器, 提供商, Google, Apple, Microsoft, 启用服务, Google 天气, Google 环境, 空气质量, 花粉, 推送通知",
         "admin-llm-pricing": "定价, 价格, 费率, 令牌, 文本模型, 每令牌成本, Excel, 电子表格, 导入, 导出, 批量更新, 工作簿",
         "admin-google-api-pricing": "定价, Google API, 地图, 地点, 路线, 地理编码成本",
         "admin-image-pricing": "定价, 图片, 图片生成, 每张图片成本",
@@ -3946,7 +3960,20 @@
       "get_calls": "正在读取通话记录…",
       "get_open_loops": "正在读取未完成的约定…",
       "get_peer_messages": "正在读取转发的消息…",
-      "get_person_overview": "正在生成 360° 概览…"
+      "get_person_overview": "正在生成 360° 概览…",
+      "list_contact_groups": "正在列出联系人组...",
+      "get_contact_group_members": "正在获取组成员...",
+      "search_other_contacts": "正在搜索其他联系人...",
+      "find_availability": "正在查找空闲时段...",
+      "get_air_quality": "正在检查空气质量...",
+      "get_pollen_forecast": "正在获取花粉预报...",
+      "read_spreadsheet": "正在读取表格...",
+      "read_document": "正在读取文档...",
+      "get_gmail_settings": "正在读取 Gmail 设置...",
+      "set_vacation_responder": "正在准备自动回复...",
+      "create_email_filter": "正在准备邮件过滤器...",
+      "write_spreadsheet": "正在准备电子表格更新...",
+      "append_document_text": "正在准备文档笔记..."
     },
     "reasoning": {
       "title": "推理"
@@ -4273,6 +4300,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_31_1": {
+          "title": "v1.31.1 — 🌍 Google 生态系统扩展",
+          "date": "2026年8月",
+          "count": "6",
+          "items": {
+            "i1": "<b>👥 识别你的联系人分组</b> — “给家人分组发邮件”现在可用：LIA 会找到你的 Google 通讯录标签，展开为邮件地址，并显示准确的成员数量。它也能找到你曾联系过但从未保存的人。",
+            "i2": "<b>📅 空闲时段与视频会议</b> — “帮我在周四找 30 分钟”会根据你的日历计算真实空闲时间，只读取忙碌时段，从不读取会议内容。以视频方式创建的会议会自动带上 Meet 链接（或 Teams，取决于你的服务商）——只有在确实创建成功时才会告知。",
+            "i3": "<b>✉️ 可以操控你的 Gmail 邮箱</b> — “我的自动回复开着吗？”“把 24 到 30 日的外出回复打开，内容是这个”“把这个发件人的邮件归档并加标签”。与所有发送一样，预览会先展示确切内容，未经你确认不会写入任何东西。你需要重新连接一次 Gmail。",
+            "i4": "<b>📊 表格与文档变得可读……也可写</b> — “读我的预算表并回答”“总结这份纪要”，然后“添加这笔支出”或“在文末追加这条备注”。预览会精确显示将要写入的行或文本；无需新的授权。",
+            "i5": "<b>🌿 天气还回答你没问的问题</b> — 启用 Google 环境连接器后，一个简单的天气问题还会带来空气质量和当季花粉，聊天卡片和主页都会显示。显示的指数优先采用你所在国家的标准，类别文字直接来自服务本身——绝不自行解读。",
+            "i6": "<b>🛡️ 安全与实时性</b> — LIA 即将打开的每个网址都会对照 Google 威胁名单进行核查，被标记的页面将被拒绝。在实时性方面，日历、文件和邮件现在可以主动通知 LIA 有变化，而不再依赖周期性轮询（管理选项，默认关闭）。"
+          }
+        },
         "v1_31_0": {
           "title": "v1.31.0 — ⚙️ 底层引擎升级至 Python 3.14",
           "date": "2026年8月",
@@ -6704,7 +6744,7 @@
       "tool_examples_services": {
         "title": "邮件、日历和联系人示例",
         "description": "如何使用你的连接服务（Google、Apple iCloud 或 Microsoft 365）：邮件、联系人、日历、Drive 和 Tasks",
-        "count": "16",
+        "count": "17",
         "questions": {
           "q1": {
             "question": "如何搜索我的联系人？",
@@ -6769,6 +6809,10 @@
           "q16": {
             "question": "邮件卡片上的颜色代表什么？",
             "answer": "<strong>Gmail</strong> - 邮件颜色编码：<br><br>邮件卡片使用<strong>左侧彩色边框</strong>来指示其状态：<br><br><strong>📧 颜色代码：</strong><br>• <strong style=\"color: transparent; border-left: 4px solid #888; padding-left: 8px;\">无颜色</strong>：<strong>已读</strong>邮件（无特殊标记）<br>• <strong style=\"color: #f59e0b;\">🟠 橙色</strong>：<strong>已读且重要</strong>的邮件（被Gmail标记为重要）<br>• <strong style=\"color: #22c55e;\">🟢 绿色</strong>：<strong>未读</strong>邮件（新消息待阅读）<br>• <strong style=\"color: #ef4444;\">🔴 红色</strong>：<strong>未读且重要</strong>的邮件（高优先级）<br><br><strong>💡 需要了解：</strong><br>• \"<em>重要</em>\"状态是Gmail根据你的习惯自动分配的<br>• 未读邮件的<strong>主题也会加粗</strong>以提高可见性<br>• \"<em>未读</em>\"徽章也会显示在卡片的元数据中<br><br><strong>📌 快速摘要：</strong><br>🟢 绿色 = 待阅读 | 🔴 红色 = 紧急 | 🟠 橙色 = 重要已读 | 透明 = 已读"
+          },
+          "q17": {
+            "question": "如何写入电子表格或文档？",
+            "answer": "<strong>Google Sheets / Docs</strong> - 写入操作始终需要确认：<br><br><strong>✍️ 你可以这样说：</strong><br>• “<em>在我的预算表里加一行：房租 / 1200</em>”<br>• “<em>把支出表的 B2 改成 1300</em>”<br>• “<em>在会议纪要末尾追加这条备注</em>”<br><br><strong>🛡️ 未经确认不会写入任何内容：</strong><br>预览会显示将要写入文件的确切行或文本——你读到什么就是批准什么，然后确认或取消。无需新的授权：已授予的 Drive 权限就足够了。<br><br><strong>📐 边界：</strong><br>• 行会添加到现有表格下方；若你指定了区域，则覆盖该区域<br>• 通过聊天写入适用于更正或少量补充（最多 50 行），不适合批量导入"
           }
         }
       },
@@ -6779,7 +6823,7 @@
         "questions": {
           "q1": {
             "question": "如何获取当前天气？",
-            "answer": "<strong>OpenWeatherMap</strong> - 询问天气：<br><br>• \"<em>北京天气怎么样？</em>\"<br>• \"<em>纽约当前温度</em>\"<br>• \"<em>伦敦在下雨吗？</em>\"<br>• \"<em>这里天气如何？</em>\"（使用你配置的位置）<br><br>LIA显示温度、天气状况、湿度、风力等详细信息。"
+            "answer": "<strong>OpenWeatherMap</strong> - 询问天气：<br><br>• \"<em>北京天气怎么样？</em>\"<br>• \"<em>纽约当前温度</em>\"<br>• \"<em>伦敦在下雨吗？</em>\"<br>• \"<em>这里天气如何？</em>\"（使用你配置的位置）<br><br>LIA显示温度、天气状况、湿度、风力等详细信息。<br><br><strong>🌿 空气质量与花粉：</strong><br>启用 Google 环境连接器后，一个简单的天气问题还会带来空气质量指数和当季花粉——聊天卡片和主页都会显示。显示的指数优先采用你所在国家的标准，类别文字直接来自服务本身。<br><br><strong>💡 提示：</strong><br>获取天气有两种方式：<strong>OpenWeatherMap</strong>连接器（免费，需要你自己的 API 密钥）或 <strong>Google 天气</strong>（一个开关，无需申请密钥）。两者显示效果相同。在设置 > 连接器中添加任意一个。"
           },
           "q2": {
             "question": "如何获取天气预报？",
@@ -8783,7 +8827,7 @@
     "features": {
       "connected_services": {
         "title": "Google、Apple iCloud 与 Microsoft 365",
-        "description": "通过 Google、Apple iCloud 或 Microsoft 365 管理邮件、日历和联系人——由你选择。还有 Google Drive、Google Tasks 和 Microsoft To Do。全部通过自然语言操作，无论你使用哪个服务商。"
+        "description": "通过 Google、Apple iCloud 或 Microsoft 365 处理邮件、日历、联系人和任务——由你选择。支持联系人分组、空闲时段查找、创建会议时自动附带视频链接，以及读写 Drive 表格与文档。全部用自然语言完成，不受服务商限制。"
       },
       "smart_home": {
         "title": "智能家居 (Philips Hue)",
@@ -8944,6 +8988,10 @@
       "plugins": {
         "title": "插件（Agent Plugins 标准）",
         "description": "安装来自整个 AI 生态的便携式插件——被 ChatGPT、Cursor、GitHub Copilot 和 VS Code 采用的开放标准 agent-plugins.org。一个软件包打包技能和 MCP 服务器，通过 zip 文件或 https 链接一步安装，如实报告每个组件（已安装、已跳过及原因、已移除），卸载同样干净利落。"
+      },
+      "environment": {
+        "title": "天气、空气质量与花粉",
+        "description": "一个天气问题还会带来空气质量指数和当季花粉，类别文字直接来自服务本身——优先使用你所在国家的指数。聊天卡片、预报、主页以及地点详情中均可查看。"
       }
     },
     "use_cases": {
@@ -9037,6 +9085,10 @@
       "hitl": {
         "title": "Human-in-the-Loop",
         "description": "六个审批级别 — 计划审批、澄清、草稿评审、破坏性确认、FOR_EACH 确认、修改审查。在执行前进行计划级防护，而不是在失败后回滚。自动风险分类和受影响项目的预览。 告知分类器的操作类型由工具名称的动词推导得出，而非子串匹配：删除不会再被呈现为发送——正是这一点此前让提示词自身的删除审慎规则无法生效。"
+      },
+      "honest_enrichment": {
+        "title": "诚实的信息补充",
+        "description": "服务方有时会给出没有数值的类别：法国国家空气质量指数只显示“Moyen”而没有数字，而 Google 的通用指数与美国标准相反——在那里 100 表示优秀。由此产生两条规则，由天气卡片与地点详情共用的同一段渲染逻辑强制执行：显示的类别始终来自 API 本身，绝不由数字反推；数字也绝不与另一套标准的标签同时出现。当只有类别存在时，就单独显示类别。缺少一个信号，好过给出一个错误的信号。"
       }
     },
     "architecture": {
@@ -9636,7 +9688,7 @@
       "google-workspace": {
         "title": "Google Workspace集成：Gmail、Calendar、Contacts、Drive、Tasks",
         "excerpt": "LIA通过OAuth 2.0连接你的Google Workspace，用自然语言管理邮件、日历、联系人、Drive和任务。",
-        "body": "<h2>7个Google API，一次对话</h2><p>LIA集成<strong>7个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p>"
+        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p>"
       },
       "apple-microsoft": {
         "title": "Apple iCloud和Microsoft 365：多平台连接器",

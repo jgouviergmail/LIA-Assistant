@@ -159,8 +159,19 @@ class AppleCalendarClient(BaseAppleClient):
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
+        add_conference: bool = False,
     ) -> dict[str, Any]:
-        """Create a new event."""
+        """Create a new event.
+
+        ``add_conference`` is accepted for provider parity but ignored:
+        CalDAV/iCloud has no conference-creation concept (graceful
+        degradation — the event is created without a video link).
+        """
+        if add_conference:
+            logger.debug(
+                "apple_calendar_conference_not_supported",
+                user_id=str(self.user_id),
+            )
         return await self._execute_with_retry(
             "create_event",
             self._create_event_impl,

@@ -52,7 +52,6 @@ class TestGetConflictingConnectorType:
         "connector_type",
         [
             ConnectorType.GOOGLE_DRIVE,
-            ConnectorType.OPENWEATHERMAP,
             ConnectorType.WIKIPEDIA,
             ConnectorType.PERPLEXITY,
             ConnectorType.BRAVE_SEARCH,
@@ -170,7 +169,6 @@ class TestGetFunctionalCategory:
         "connector_type",
         [
             ConnectorType.GOOGLE_DRIVE,
-            ConnectorType.OPENWEATHERMAP,
             ConnectorType.WIKIPEDIA,
         ],
     )
@@ -308,6 +306,7 @@ class TestFunctionalCategoriesCompleteness:
             "calendar",
             "contacts",
             "tasks",
+            "weather",
             "smart_home",
             "telephony",
         }

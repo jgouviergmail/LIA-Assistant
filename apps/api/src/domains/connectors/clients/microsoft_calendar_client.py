@@ -220,6 +220,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
+        add_conference: bool = False,
     ) -> dict[str, Any]:
         """
         Create a new calendar event.
@@ -233,6 +234,9 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             location: Event location.
             attendees: List of attendee email addresses.
             calendar_id: Target calendar ID.
+            add_conference: When True, ask Graph to attach a Teams meeting
+                (isOnlineMeeting + onlineMeetingProvider). Parity with the
+                Google client's Meet creation.
 
         Returns:
             Created event in Google Calendar format.
@@ -265,6 +269,12 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
                 }
                 for email in attendees
             ]
+
+        if add_conference:
+            # Graph attaches the Teams join link asynchronously; the created
+            # event's onlineMeeting is surfaced by normalize_graph_event.
+            event_body["isOnlineMeeting"] = True
+            event_body["onlineMeetingProvider"] = "teamsForBusiness"
 
         if calendar_id == "primary":
             endpoint = "/me/calendar/events"

@@ -55,6 +55,25 @@ export interface ForecastAlert {
   time: string;
 }
 
+export interface AirQuality {
+  /**
+   * Index value when the CHOSEN index provides one. National indexes
+   * (e.g. `fra_atmo`) ship a category with no number — render on the
+   * category, never gate on this value.
+   */
+  value: number | null;
+  /** Provider's own localized category — never re-derive it from `value`. */
+  category: string;
+  /** Display name of the index ('IQA (FR)', 'Universal AQI'). */
+  index_label: string;
+}
+
+export interface PollenItem {
+  name: string;
+  category: string;
+  index: number | null;
+}
+
 export interface WeatherData {
   temperature_c: number;
   temperature_min_c: number | null;
@@ -77,6 +96,10 @@ export interface WeatherData {
   forecast_alert: ForecastAlert | null;
   /** 5-day daily forecast (today + next 4 days) */
   daily_forecast: DailyForecastItem[];
+  /** Air quality at the weather point. Null when not enriched. */
+  air_quality: AirQuality | null;
+  /** In-season pollen types for today (empty when none or not enriched). */
+  pollen: PollenItem[];
 }
 
 export interface AgendaEventItem {

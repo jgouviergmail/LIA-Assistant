@@ -126,6 +126,24 @@ def ensure_executors_registered() -> None:
 
         register_executor(DraftType.PEER_MESSAGE.value, execute_peer_message_draft)
 
+        # Gmail settings writes (lot I): the draft IS the confirmation gate
+        from src.domains.agents.tools.gmail_settings_tools import (
+            execute_email_filter_draft,
+            execute_vacation_responder_draft,
+        )
+
+        register_executor(DraftType.VACATION_RESPONDER.value, execute_vacation_responder_draft)
+        register_executor(DraftType.EMAIL_FILTER.value, execute_email_filter_draft)
+
+        # Workspace writes (lot F phase write): the draft IS the confirmation gate
+        from src.domains.agents.tools.workspace_docs_tools import (
+            execute_document_append_draft,
+            execute_spreadsheet_write_draft,
+        )
+
+        register_executor(DraftType.SPREADSHEET_WRITE.value, execute_spreadsheet_write_draft)
+        register_executor(DraftType.DOCUMENT_APPEND.value, execute_document_append_draft)
+
         logger.info(
             "draft_executors_initialized",
             registered_types=list(EXECUTOR_REGISTRY.keys()),

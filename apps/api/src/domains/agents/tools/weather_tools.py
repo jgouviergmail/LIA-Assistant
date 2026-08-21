@@ -45,6 +45,10 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.base import APIKeyConnectorTool
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.weather_environment_enrichment import (
+    attach_environment_extras,
+    environment_payload_fields,
+)
 from src.domains.agents.tools.weather_formatting import (
     _entry_local_date,
     _extract_location_from_geocode,
@@ -385,6 +389,10 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
 
     connector_type = ConnectorType.OPENWEATHERMAP
     client_class = OpenWeatherMapClient
+    # Lot E (2026-08): the active weather provider is resolved per call —
+    # OpenWeatherMap (user key) or Google Weather (platform key), both
+    # normalized to the same OWM shape at the client boundary.
+    functional_category = "weather"
     registry_enabled = True  # Enable Data Registry mode
 
     def create_client(
@@ -496,6 +504,9 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
             weather, resolved_name, country, lat, lon, units, user_timezone
         )
         formatted[self._LANGUAGE_RESULT_KEY] = language
+        # AQ/pollen enrichment (2026-08): active Google Environment connector
+        # ⇒ the answer also carries air quality + in-season pollen. Fail-quiet.
+        await attach_environment_extras(formatted, runtime, user_id, lat, lon, language)
         return formatted
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -543,6 +554,7 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 "temp_max": weather_info.get("temp_max"),
                 "feels_like": weather_info.get("feels_like"),
                 "type": "current",
+                **environment_payload_fields(data),
             },
             meta=RegistryItemMeta(
                 source="openweathermap",
@@ -582,6 +594,10 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
 
     connector_type = ConnectorType.OPENWEATHERMAP
     client_class = OpenWeatherMapClient
+    # Lot E (2026-08): the active weather provider is resolved per call —
+    # OpenWeatherMap (user key) or Google Weather (platform key), both
+    # normalized to the same OWM shape at the client boundary.
+    functional_category = "weather"
     registry_enabled = True  # Enable Data Registry mode
 
     def create_client(
@@ -747,6 +763,10 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
             daily_data, resolved_name, country, days, units, target_date
         )
         formatted[self._LANGUAGE_RESULT_KEY] = language
+        # Same enrichment as current weather: "can I run tomorrow?" is decided
+        # by air quality and pollen. Cached per point, so asking weather then
+        # forecast costs one fetch, not two.
+        await attach_environment_extras(formatted, runtime, user_id, lat, lon, language)
         return formatted
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -795,6 +815,10 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                     "humidity": day.get("humidity", "N/A"),
                     "wind_speed": day.get("wind_speed", "N/A"),
                     "type": "forecast",
+                    # Today's air quality / pollen ride on the FIRST day only:
+                    # both are same-day signals, and repeating them on every
+                    # day would state a measurement the API never made.
+                    **(environment_payload_fields(data) if idx == 0 else {}),
                 },
                 meta=RegistryItemMeta(
                     source="openweathermap",
@@ -857,6 +881,10 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
 
     connector_type = ConnectorType.OPENWEATHERMAP
     client_class = OpenWeatherMapClient
+    # Lot E (2026-08): the active weather provider is resolved per call —
+    # OpenWeatherMap (user key) or Google Weather (platform key), both
+    # normalized to the same OWM shape at the client boundary.
+    functional_category = "weather"
     registry_enabled = True  # Enable Data Registry mode
 
     def create_client(

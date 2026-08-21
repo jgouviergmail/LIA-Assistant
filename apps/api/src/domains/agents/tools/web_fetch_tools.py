@@ -25,6 +25,7 @@ Security (CRITICAL — multi-tenant):
 Architecture:
     fetch_web_page_tool (@tool)
         ├── validate_url()              → SSRF prevention (async DNS)
+        ├── web_risk_gate()             → Google Web Risk screening (lot D, fail-open)
         ├── httpx.AsyncClient.stream()  → HTTP fetch (header checks pre-download; body read in full)
         ├── validate_resolved_url()     → Post-redirect SSRF check
         ├── readability.Document()      → Content extraction (article mode)
@@ -77,6 +78,7 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
+from src.domains.agents.tools.url_screening import web_risk_gate
 from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.domains.agents.web_fetch.url_validator import validate_resolved_url, validate_url
@@ -373,6 +375,12 @@ async def fetch_web_page_tool(
             error_code="INVALID_INPUT",
         )
     safe_url = validation.url
+
+    # 5b. Web Risk screening (lot D, 2026-08): a flagged URL is never fetched.
+    # Fail-open inside the gate — screening unavailability never blocks.
+    blocked_output = await web_risk_gate(safe_url, runtime)
+    if blocked_output is not None:
+        return blocked_output
 
     # 6. Fetch page: stream() lets us check headers BEFORE downloading the
     # body, but the body itself is then read in full (no incremental cap)

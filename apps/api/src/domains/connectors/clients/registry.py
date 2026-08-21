@@ -242,9 +242,23 @@ class ClientRegistry:
 
             cls.register_client(ConnectorType.PHILIPS_HUE, PhilipsHueClient)
 
-            # Note: API key clients (OpenWeatherMap, Wikipedia, Perplexity, GooglePlaces)
-            # are not registered here as they use a different instantiation pattern
-            # (APIKeyConnectorTool or ConnectorTool with uses_global_api_key=True)
+            # Platform-key weather client (lot E, 2026-08): category tools
+            # resolve it through the registry (single-arg constructor).
+            from src.domains.connectors.clients.google_weather_client import (
+                GoogleWeatherClient,
+            )
+
+            cls.register_client(ConnectorType.GOOGLE_WEATHER, GoogleWeatherClient)
+
+            from src.domains.connectors.clients.google_environment_client import (
+                GoogleEnvironmentClient,
+            )
+
+            cls.register_client(ConnectorType.GOOGLE_ENVIRONMENT, GoogleEnvironmentClient)
+
+            # Note: user-key clients (OpenWeatherMap, Wikipedia, Perplexity)
+            # are not registered here as they use a different instantiation
+            # pattern (APIKeyConnectorTool create_client with the user's key)
 
             logger.info(
                 "client_registry_initialized",

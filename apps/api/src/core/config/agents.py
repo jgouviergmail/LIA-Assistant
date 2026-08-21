@@ -31,6 +31,8 @@ from src.core.constants import (
     APPROVAL_AUTO_APPROVE_ROLES_DEFAULT,
     APPROVAL_COST_THRESHOLD_USD_DEFAULT,
     APPROVAL_SENSITIVE_CLASSIFICATIONS_DEFAULT,
+    AVAILABILITY_WORK_END_HOUR_DEFAULT,
+    AVAILABILITY_WORK_START_HOUR_DEFAULT,
     BRIEFING_GREETING_PROMPT_VERSION_DEFAULT,
     BRIEFING_SYNTHESIS_PROMPT_VERSION_DEFAULT,
     BROADCAST_TRANSLATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
@@ -2956,6 +2958,23 @@ class AgentsSettings(BaseSettings):
             "so values below 0.85 will block most new content. "
             "Recommended: 0.90-0.95."
         ),
+    )
+
+    # ========================================================================
+    # Calendar availability / free-slot search (lot B, 2026-08)
+    # Working-hours clamp applied by find_availability_tool (user's timezone).
+    # ========================================================================
+    availability_work_start_hour: int = Field(
+        default=AVAILABILITY_WORK_START_HOUR_DEFAULT,
+        ge=0,
+        le=23,
+        description="Working-hours lower bound for free-slot search",
+    )
+    availability_work_end_hour: int = Field(
+        default=AVAILABILITY_WORK_END_HOUR_DEFAULT,
+        ge=1,
+        le=24,
+        description="Working-hours upper bound for free-slot search",
     )
 
     # ========================================================================

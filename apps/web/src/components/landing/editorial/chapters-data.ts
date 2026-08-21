@@ -15,6 +15,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
+  CloudSun,
   Activity,
   AppWindow,
   BellRing,
@@ -161,6 +162,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
 /** Commodity cards living in the basics band's own catalog. */
 export const BASICS_CATALOG: readonly string[] = [
   'connected_services',
+  'environment',
   'web_intelligence',
   'voice_mode',
   'languages',
@@ -239,6 +241,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'themes',
   // former hero cards
   'connected_services',
+  'environment',
   'smart_home',
   'web_intelligence',
   'voice_mode',
@@ -284,6 +287,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   simplicity: MousePointerClick,
   themes: Palette,
   connected_services: Mail,
+  environment: CloudSun,
   smart_home: Lightbulb,
   web_intelligence: Compass,
   voice_mode: Mic,

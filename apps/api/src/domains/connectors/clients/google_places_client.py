@@ -30,6 +30,8 @@ from src.core.config import settings
 from src.core.constants import (
     HTTP_MAX_CONNECTIONS,
     HTTP_MAX_KEEPALIVE_CONNECTIONS,
+    PLACES_DETAIL_LEVEL_FULL,
+    PLACES_DETAIL_LEVEL_LITE,
 )
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.core.field_names import FIELD_CACHED_AT
@@ -41,6 +43,58 @@ from src.domains.connectors.models import ConnectorType
 from src.infrastructure.cache import PlacesCache
 
 logger = structlog.get_logger(__name__)
+
+# Field masks decide the billed SKU tier: Places API (New) bills the highest
+# tier of any requested field (see docs/technical/GOOGLE_API.md).
+# - The lite mask stays within the Pro tier (identity, location, status).
+# - The full mask adds Enterprise (rating, hours, contact) and
+#   Enterprise + Atmosphere (reviews, editorial summary) fields.
+# Photo METADATA is Essentials-tier (free to request); each displayed photo
+# is billed separately through the photo proxy endpoint.
+_SEARCH_LITE_FIELDS: tuple[str, ...] = (
+    "id",
+    "displayName",
+    "formattedAddress",
+    "location",
+    "types",
+    "googleMapsUri",
+    "businessStatus",
+    "primaryTypeDisplayName",
+    "photos",
+)
+_SEARCH_FULL_EXTRA_FIELDS: tuple[str, ...] = (
+    "rating",
+    "userRatingCount",
+    "priceLevel",
+    "websiteUri",
+    "nationalPhoneNumber",
+    "currentOpeningHours",
+    "editorialSummary",
+    "reviews",
+)
+
+
+def _normalize_detail_level(detail_level: str) -> str:
+    """Repair-before-validate: any unknown value falls back to the full tier.
+
+    Falling back to "full" (not "lite") keeps the answer complete when a
+    caller sends a typo — the cost of the repair is money, never data loss.
+    """
+    is_lite = detail_level == PLACES_DETAIL_LEVEL_LITE
+    return PLACES_DETAIL_LEVEL_LITE if is_lite else PLACES_DETAIL_LEVEL_FULL
+
+
+def _search_field_mask(detail_level: str) -> str:
+    """Build the search field mask for the requested billing tier."""
+    is_lite = detail_level == PLACES_DETAIL_LEVEL_LITE
+    fields = _SEARCH_LITE_FIELDS if is_lite else _SEARCH_LITE_FIELDS + _SEARCH_FULL_EXTRA_FIELDS
+    return ",".join(f"places.{field}" for field in fields)
+
+
+def _tracked_search_endpoint(base_endpoint: str, detail_level: str) -> str:
+    """Suffix the tracked endpoint so each billing tier has its own SKU row."""
+    is_lite = detail_level == PLACES_DETAIL_LEVEL_LITE
+    return f"{base_endpoint}:lite" if is_lite else base_endpoint
 
 
 class GooglePlacesClient(CacheableMixin[PlacesCache]):
@@ -282,6 +336,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
         min_rating: float | None = None,
         price_levels: list[str] | None = None,
         use_cache: bool = True,
+        detail_level: str = PLACES_DETAIL_LEVEL_FULL,
     ) -> dict[str, Any]:
         """
         Search for places using text query.
@@ -298,6 +353,8 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 PRICE_LEVEL_INEXPENSIVE, PRICE_LEVEL_MODERATE,
                 PRICE_LEVEL_EXPENSIVE, PRICE_LEVEL_VERY_EXPENSIVE
             use_cache: Whether to use Redis cache (default True)
+            detail_level: "full" (default, Enterprise + Atmosphere tier) or
+                "lite" (Pro tier: identity/location/status only, cheaper SKU)
 
         Note:
             - location_restriction takes precedence over location_bias if both provided
@@ -312,6 +369,8 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             >>> for place in results["places"]:
             ...     print(place["displayName"]["text"])
         """
+        detail_level = _normalize_detail_level(detail_level)
+
         # Check cache first
         cache = await self._get_cache()
 
@@ -328,6 +387,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 location_bias=location_param,  # Pass location for cache key differentiation
                 min_rating=min_rating,
                 price_levels=price_levels,
+                detail_level=detail_level,
             )
             if from_cache and cached_data:
                 cached_data["from_cache"] = True
@@ -362,27 +422,8 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             # Google Places API accepts priceLevels as a list of enum strings
             body["priceLevels"] = price_levels
 
-        # Field mask for response (which fields to return)
-        # Full details mode: include opening hours, reviews, editorial summary
-        field_mask = ",".join(
-            [
-                "places.id",
-                "places.displayName",
-                "places.formattedAddress",
-                "places.location",
-                "places.rating",
-                "places.userRatingCount",
-                "places.priceLevel",
-                "places.types",
-                "places.websiteUri",
-                "places.nationalPhoneNumber",
-                "places.currentOpeningHours",
-                "places.googleMapsUri",
-                "places.photos",
-                "places.editorialSummary",
-                "places.reviews",
-            ]
-        )
+        # Field mask decides the billed SKU tier (module-level constants).
+        field_mask = _search_field_mask(detail_level)
 
         response = await self._make_request(
             "POST",
@@ -391,8 +432,11 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             extra_headers={"X-Goog-FieldMask": field_mask},
         )
 
-        # Track API call (only for non-cached responses)
-        track_google_api_call("places", "/places:searchText", cached=False)
+        # Track API call (only for non-cached responses); the ":lite" suffix
+        # routes the call to the Pro-tier pricing row.
+        track_google_api_call(
+            "places", _tracked_search_endpoint("/places:searchText", detail_level), cached=False
+        )
 
         places = response.get("places", [])
 
@@ -423,6 +467,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 location_bias=location_param,  # Same as used for cache key
                 min_rating=min_rating,
                 price_levels=price_levels,
+                detail_level=detail_level,
             )
 
         return result
@@ -435,6 +480,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
         include_types: list[str] | None = None,
         max_results: int = settings.places_tool_default_max_results,
         use_cache: bool = True,
+        detail_level: str = PLACES_DETAIL_LEVEL_FULL,
     ) -> dict[str, Any]:
         """
         Search for places near a location.
@@ -446,6 +492,8 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             include_types: List of place types to include
             max_results: Maximum results (1-20)
             use_cache: Whether to use Redis cache (default True)
+            detail_level: "full" (default, Enterprise + Atmosphere tier) or
+                "lite" (Pro tier: identity/location/status only, cheaper SKU)
 
         Returns:
             Dict with nearby places
@@ -454,13 +502,15 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             >>> results = await client.search_nearby(48.8584, 2.2945, radius_meters=500)
             >>> print(f"Found {len(results['places'])} places near Eiffel Tower")
         """
+        detail_level = _normalize_detail_level(detail_level)
+
         # Check cache first
         cache = await self._get_cache()
         can_cache = include_types is None  # Only cache basic nearby searches for now
 
         if use_cache and can_cache:
             cached_data, from_cache, cached_at, cache_age = await cache.get_nearby(
-                self.user_id, latitude, longitude, radius_meters
+                self.user_id, latitude, longitude, radius_meters, detail_level=detail_level
             )
             if from_cache and cached_data:
                 cached_data["from_cache"] = True
@@ -484,26 +534,8 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
         if include_types:
             body["includedTypes"] = include_types
 
-        # Field mask for response - include full details for unified tool
-        field_mask = ",".join(
-            [
-                "places.id",
-                "places.displayName",
-                "places.formattedAddress",
-                "places.location",
-                "places.rating",
-                "places.userRatingCount",
-                "places.priceLevel",
-                "places.types",
-                "places.websiteUri",
-                "places.nationalPhoneNumber",
-                "places.currentOpeningHours",
-                "places.googleMapsUri",
-                "places.photos",
-                "places.editorialSummary",
-                "places.reviews",
-            ]
-        )
+        # Field mask decides the billed SKU tier (module-level constants).
+        field_mask = _search_field_mask(detail_level)
 
         response = await self._make_request(
             "POST",
@@ -512,8 +544,11 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             extra_headers={"X-Goog-FieldMask": field_mask},
         )
 
-        # Track API call (only for non-cached responses)
-        track_google_api_call("places", "/places:searchNearby", cached=False)
+        # Track API call (only for non-cached responses); the ":lite" suffix
+        # routes the call to the Pro-tier pricing row.
+        track_google_api_call(
+            "places", _tracked_search_endpoint("/places:searchNearby", detail_level), cached=False
+        )
 
         places = response.get("places", [])
 
@@ -537,7 +572,9 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
 
         # Cache results if eligible
         if use_cache and can_cache and places:
-            await cache.set_nearby(self.user_id, latitude, longitude, radius_meters, result)
+            await cache.set_nearby(
+                self.user_id, latitude, longitude, radius_meters, result, detail_level=detail_level
+            )
 
         return result
 
@@ -578,10 +615,14 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 "id",
                 "displayName",
                 "formattedAddress",
+                "shortFormattedAddress",
                 "location",
+                "businessStatus",
+                "primaryTypeDisplayName",
                 "rating",
                 "userRatingCount",
                 "priceLevel",
+                "priceRange",
                 "types",
                 "websiteUri",
                 "nationalPhoneNumber",

@@ -61,6 +61,7 @@ from .peers import PeersSettings
 from .plugins import PluginsSettings
 from .product import ProductSettings
 from .psyche import PsycheSettings
+from .push import PushSettings
 from .rag_spaces import RAGSpacesSettings
 from .relations import RelationsSettings
 from .scheduler import SchedulerSettings
@@ -135,6 +136,7 @@ class Settings(
     AccountExportSettings,
     ProductSettings,
     DemoSettings,
+    PushSettings,
     BaseSettings,
 ):
     """
@@ -444,4 +446,5 @@ __all__ = [
     "LocksSettings",
     "MFASettings",
     "AccountExportSettings",
+    "PushSettings",
 ]

@@ -35,6 +35,8 @@ from src.core.constants import (
     SESSION_COOKIE_NAME,
     SESSION_DURATION_DEFAULT,
     SESSION_DURATION_REMEMBER_ME,
+    WEB_RISK_CLEAN_TTL_SECONDS_DEFAULT,
+    WEB_RISK_TIMEOUT_SECONDS_DEFAULT,
     JwtAlgorithm,
 )
 
@@ -44,6 +46,21 @@ class SecuritySettings(BaseSettings):
 
     # Environment
     environment: str = Field(default="development", description="Environment name")
+
+    # Google Web Risk URL screening (lot D, 2026-08). Fail-open by design:
+    # Web Risk unavailability never gates browsing, a flagged URL blocks it.
+    web_risk_enabled: bool = Field(
+        default=False,
+        description="Enable Google Web Risk screening of fetched/browsed URLs",
+    )
+    web_risk_timeout_seconds: float = Field(
+        default=WEB_RISK_TIMEOUT_SECONDS_DEFAULT,
+        description="HTTP timeout for Web Risk uris:search calls",
+    )
+    web_risk_clean_ttl_seconds: int = Field(
+        default=WEB_RISK_CLEAN_TTL_SECONDS_DEFAULT,
+        description="Redis TTL for clean (non-threat) Web Risk verdicts",
+    )
     debug: bool = Field(default=False, description="Debug mode")
     log_level: str = Field(default=LOG_LEVEL_DEFAULT, description="Logging level")
 

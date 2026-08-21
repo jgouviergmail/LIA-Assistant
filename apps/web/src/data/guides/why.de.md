@@ -4,7 +4,7 @@
 
 **Version**: 5.0
 **Datum**: 2026-08-21
-**Anwendung**: LIA v1.31.0
+**Anwendung**: LIA v1.31.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -125,13 +125,14 @@ Sprich mit LIA wie mit einem menschlichen Assistenten — keine Befehle auswendi
 - **Kalender**: Termine einsehen, erstellen, bearbeiten, löschen — via Google Calendar, Outlook Calendar oder Apple Calendar
 - **Kontakte**: Kontakte suchen, erstellen, bearbeiten — via Google Contacts, Outlook Contacts oder Apple Contacts
 - **Aufgaben**: Deine Aufgabenlisten verwalten — via Google Tasks oder Microsoft To Do
-- **Dateien**: Auf Google Drive zugreifen, um deine Dokumente zu suchen und zu lesen
+- **Dateien**: Auf Google Drive zugreifen, um deine Dokumente zu suchen und zu lesen, den Inhalt einer Tabelle oder eines Dokuments zu lesen und nach deiner Bestätigung hineinzuschreiben (Zeilen ergänzen, einen Bereich aktualisieren, eine Notiz anhängen)
 - **Smart Home**: Philips Hue-Beleuchtung steuern — ein-/ausschalten, Helligkeit, Farben, Szenen, raumweise Verwaltung
 
 ### 3.3. Web-Intelligenz und Umgebung
 
 - **Websuche**: Mehrquellensuche (Brave Search, Perplexity, Wikipedia) für vollständige und belegte Antworten
 - **Wetter**: Aktuelle Bedingungen und 5-Tage-Vorhersagen mit Erkennung von Wetteränderungen (Regenbeginn/-ende, Temperaturabfall, Windwarnungen)
+- **Luftqualität und Pollen**: Luftqualitätsindex und saisonale Pollenarten, jeder Wetterantwort beigefügt, sobald der Dienst aktiviert ist — mit der Kategorie, die der Anbieter selbst veröffentlicht, und dem Index deines Landes, sofern vorhanden
 - **Orte und Geschäfte**: Suche nach nahegelegenen Orten mit Details, Öffnungszeiten, Bewertungen
 - **Routen**: Berechnung multimodaler Routen (Auto, Fußweg, Fahrrad, ÖPNV) mit automatischer Geolokalisierung
 - **Position unterwegs**: Wenn deine Live-Position nicht verfügbar ist (eine mobile App im Ruhezustand), verwendet LIA deine zuletzt gespeicherte Position — sofern du sie aktiviert hast — statt deiner Heimatadresse, und nennt immer das Alter dieser Position, statt sie als aktuell auszugeben
