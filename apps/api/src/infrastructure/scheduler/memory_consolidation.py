@@ -114,7 +114,7 @@ def _count_pair(outcome: str) -> None:
         memory_consolidation_pairs_total.labels(outcome=outcome).inc()
 
 
-async def _apply_merge(repo: "MemoryRepository", survivor: Memory, loser: Memory) -> None:
+async def _apply_merge(repo: MemoryRepository, survivor: Memory, loser: Memory) -> None:
     """Supersede the loser with the survivor (Lot 2-B1, ADR-235).
 
     The loser leaves the active set pointing at the survivor — the merge

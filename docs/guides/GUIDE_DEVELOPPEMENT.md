@@ -26,7 +26,7 @@
 ### Setup Initial
 
 **Prérequis** :
-- Python 3.12+
+- Python 3.14
 - Node.js 24+
 - Docker & Docker Compose
 - Git 2.40+

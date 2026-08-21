@@ -114,7 +114,7 @@ class ConnectorService:
 
         return response
 
-    async def check_connector_health(self, user_id: UUID) -> "ConnectorHealthResponse":
+    async def check_connector_health(self, user_id: UUID) -> ConnectorHealthResponse:
         """
         Check the health of all connectors (OAuth + Apple) for a user.
 
@@ -249,8 +249,8 @@ class ConnectorService:
         return ConnectorResponse.model_validate(connector)
 
     async def update_connector(
-        self, user_id: UUID, connector_id: UUID, update_data: "ConnectorUpdate"
-    ) -> "ConnectorResponse":
+        self, user_id: UUID, connector_id: UUID, update_data: ConnectorUpdate
+    ) -> ConnectorResponse:
         """
         Update a connector's status or metadata.
 
@@ -299,7 +299,7 @@ class ConnectorService:
 
     async def refresh_connector_credentials(
         self, user_id: UUID, connector_id: UUID
-    ) -> "ConnectorResponse":
+    ) -> ConnectorResponse:
         """
         Refresh OAuth credentials for a connector using refresh token.
 

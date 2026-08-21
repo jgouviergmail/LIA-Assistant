@@ -64,7 +64,7 @@ def _parse_mcp_structured_items(raw_result: str) -> tuple[list[dict], str | None
     """
     try:
         parsed = json.loads(raw_result)
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         return None
 
     # Top-level list of dicts → direct structured items

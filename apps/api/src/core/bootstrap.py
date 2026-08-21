@@ -226,10 +226,10 @@ def log_event_loop_configuration() -> None:
     import asyncio
     import sys
 
-    # Get event loop policy (always available)
-    policy = asyncio.get_event_loop_policy()
-
-    # Try to get current loop info, handle case where no loop is running
+    # Try to get current loop info, handle case where no loop is running.
+    # (The policy system is deliberately not queried: asyncio.get_event_loop_policy
+    # is deprecated for removal in 3.16, and the running loop's class is the fact
+    # that matters for the psycopg-on-Windows constraint — ADR-241 follow-up.)
     try:
         loop = asyncio.get_running_loop()
         loop_type = type(loop).__name__
@@ -241,7 +241,6 @@ def log_event_loop_configuration() -> None:
         "event_loop_configured",
         platform=sys.platform,
         loop_type=loop_type,
-        policy_type=type(policy).__name__,
         is_windows=sys.platform == "win32",
         psycopg_compatible=(
             "Selector" in loop_type

@@ -153,7 +153,7 @@ async def _handle_message(data: str) -> None:
         payload = json.loads(data)
         cache_name: str = payload["cache_name"]
         publisher_pid: int = payload["publisher_pid"]
-    except (json.JSONDecodeError, KeyError):
+    except json.JSONDecodeError, KeyError:
         logger.warning("cache_invalidation_bad_message", raw=data[:200])
         return
 

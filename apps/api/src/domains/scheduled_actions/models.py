@@ -207,7 +207,7 @@ class ScheduledAction(BaseModel):
     )
 
     # Relationship
-    user: Mapped["User"] = relationship("User", back_populates="scheduled_actions", lazy="selectin")
+    user: Mapped[User] = relationship("User", back_populates="scheduled_actions", lazy="selectin")
 
     # Partial index for scheduler poll query (hot path)
     __table_args__ = (

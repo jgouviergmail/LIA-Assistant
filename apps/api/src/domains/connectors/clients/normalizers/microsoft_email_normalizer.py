@@ -99,7 +99,7 @@ def _parse_datetime_to_epoch_ms(dt_str: str | None) -> str:
         # Microsoft Graph returns ISO 8601 with timezone suffix (e.g., "2025-01-15T10:30:00Z")
         dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
         return str(int(dt.timestamp() * 1000))
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return "0"
 
 

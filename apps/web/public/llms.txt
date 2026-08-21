@@ -34,7 +34,7 @@
 
 ## Architecture
 
-- **Backend**: Python 3.12+ / FastAPI with Domain-Driven Design (31 bounded contexts)
+- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (43 bounded contexts)
 - **Frontend**: Next.js 16 / React 19 / TypeScript strict / TailwindCSS
 - **Orchestration**: LangGraph 1.x state machine — conditional routing, parallel execution waves, PostgreSQL checkpointing
 - **Database**: PostgreSQL 16 + pgvector (state, vectors) + Redis (cache, rate limiting, sessions)

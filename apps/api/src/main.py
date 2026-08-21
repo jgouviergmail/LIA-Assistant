@@ -55,7 +55,7 @@ scheduler = AsyncIOScheduler()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """
     Application lifespan context manager.
     Handles startup and shutdown events.
@@ -249,29 +249,43 @@ async def root() -> dict[str, str | None]:
 
 
 if __name__ == "__main__":
+    import asyncio
     import sys
-    from typing import Literal
 
     import uvicorn
 
-    # Configure event loop BEFORE uvicorn creates its own
-    # This fixes psycopg v3 incompatibility with Windows ProactorEventLoop
-    loop_type: Literal["asyncio", "uvloop", "auto", "none"] = "asyncio"  # Default for Unix/Linux
-
-    if sys.platform == "win32":
-        # On Windows, force SelectorEventLoop via asyncio policy
-        # Uvicorn will respect this policy when creating its event loop
-        import asyncio
-
-        # CRITICAL: Set policy BEFORE uvicorn.run()
-        # Uvicorn uses asyncio.new_event_loop() which respects the policy
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    uvicorn.run(
-        "src.main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=settings.debug,
-        log_level=settings.log_level.lower(),
-        loop=loop_type,  # Use asyncio (respects policy on Windows)
-    )
+    # Windows + psycopg v3 requires a SelectorEventLoop (Proactor has no
+    # add_reader; psycopg raises InterfaceError at connect — probed against the
+    # pinned psycopg 3.3.4). Three facts, measured on uvicorn 0.48 (ADR-241
+    # follow-up), dictate the shape below:
+    #   1. uvicorn runs its server through `asyncio.run(loop_factory=...)`, so
+    #      the old WindowsSelectorEventLoopPolicy block here had NO effect —
+    #      the policy is ignored whenever a loop_factory is passed.
+    #   2. `asyncio_loop_factory(use_subprocess=False)` returns ProactorEventLoop
+    #      on win32, so a non-reload `uvicorn.run` on Windows breaks psycopg.
+    #   3. Under --reload the app runs in a SUBPROCESS, where the same factory
+    #      returns SelectorEventLoop — which is why the everyday
+    #      `task dev:api` path never surfaced the breakage.
+    if settings.debug or sys.platform != "win32":
+        # Reload path (subprocess → SelectorEventLoop on win32) and every
+        # non-Windows platform: uvicorn's own factory does the right thing.
+        uvicorn.run(
+            "src.main:app",
+            host=settings.api_host,
+            port=settings.api_port,
+            reload=settings.debug,
+            log_level=settings.log_level.lower(),
+            loop="asyncio",
+        )
+    else:
+        # Windows without reload: drive the server through the public
+        # Server.serve() API with an explicit selector loop_factory — the
+        # modern, non-deprecated equivalent of the former policy block.
+        config = uvicorn.Config(
+            "src.main:app",
+            host=settings.api_host,
+            port=settings.api_port,
+            log_level=settings.log_level.lower(),
+            loop="asyncio",
+        )
+        asyncio.run(uvicorn.Server(config).serve(), loop_factory=asyncio.SelectorEventLoop)

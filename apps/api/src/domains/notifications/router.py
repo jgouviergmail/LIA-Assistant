@@ -240,7 +240,7 @@ async def stream_notifications(
     an HTTP status, a refusal would only feed a blind retry loop.
     """
 
-    async def event_generator() -> AsyncGenerator[str, None]:
+    async def event_generator() -> AsyncGenerator[str]:
         """Generate SSE events from Redis Pub/Sub."""
         from src.core.constants import SSE_CONNECTION_KEY_PREFIX
         from src.domains.notifications import stream_registry

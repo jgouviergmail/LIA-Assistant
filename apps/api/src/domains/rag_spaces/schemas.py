@@ -68,8 +68,8 @@ class RAGSpaceResponse(BaseModel):
 class RAGSpaceDetailResponse(RAGSpaceResponse):
     """Detailed space response with documents and Drive sources."""
 
-    documents: list["RAGDocumentResponse"] = Field(default_factory=list)
-    drive_sources: list["RAGDriveSourceResponse"] = Field(default_factory=list)
+    documents: list[RAGDocumentResponse] = Field(default_factory=list)
+    drive_sources: list[RAGDriveSourceResponse] = Field(default_factory=list)
 
 
 class RAGSpaceListResponse(BaseModel):

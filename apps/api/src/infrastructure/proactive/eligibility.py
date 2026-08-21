@@ -64,7 +64,7 @@ class EligibilityResult:
     details: dict[str, Any] | None = None
 
     @classmethod
-    def success(cls) -> "EligibilityResult":
+    def success(cls) -> EligibilityResult:
         """Create a successful eligibility result."""
         return cls(eligible=True, reason=EligibilityReason.ELIGIBLE)
 
@@ -73,7 +73,7 @@ class EligibilityResult:
         cls,
         reason: EligibilityReason,
         details: dict[str, Any] | None = None,
-    ) -> "EligibilityResult":
+    ) -> EligibilityResult:
         """Create a failed eligibility result."""
         return cls(eligible=False, reason=reason, details=details)
 
@@ -266,7 +266,7 @@ class EligibilityChecker:
         user_tz_str = getattr(user, "timezone", None) or "UTC"
         try:
             user_tz: ZoneInfo | timezone = ZoneInfo(user_tz_str)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             user_tz = UTC
 
         # Convert now to user's timezone
@@ -320,7 +320,7 @@ class EligibilityChecker:
         user_tz_str = getattr(user, "timezone", None) or "UTC"
         try:
             user_tz: ZoneInfo | timezone = ZoneInfo(user_tz_str)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             user_tz = UTC
 
         # Calculate start of today in user's timezone

@@ -167,10 +167,10 @@ class AgentService(
 
     @staticmethod
     async def _interleave_side_channel(
-        sse_stream: AsyncGenerator[tuple[Any, str], None],
+        sse_stream: AsyncGenerator[tuple[Any, str]],
         side_queue: asyncio.Queue,
         poll_interval: float = 0.3,
-    ) -> AsyncGenerator[tuple[Any, str], None]:
+    ) -> AsyncGenerator[tuple[Any, str]]:
         """Interleave SSE stream with side-channel queue polling.
 
         Ensures side-channel items (progressive screenshots, etc.) are yielded
@@ -257,7 +257,7 @@ class AgentService(
     async def _warmup_contacts_cache_if_active(
         self,
         user_id: uuid.UUID,
-        tool_deps: "ToolDependencies",
+        tool_deps: ToolDependencies,
     ) -> None:
         """
         Warmup contacts cache if a contacts provider is active (Google or Apple).
@@ -365,7 +365,7 @@ class AgentService(
     async def _patch_user_message_hitl_flags(
         self,
         *,
-        conv_service: "ConversationService",
+        conv_service: ConversationService,
         db: AsyncSession,
         archived_user_msg_id: uuid.UUID | None,
         is_hitl_resumption: bool,
@@ -447,7 +447,7 @@ class AgentService(
         hitl_decision: dict[str, Any] | None = None,
         directive: dict[str, str] | None = None,
         client_user_agent: str | None = None,
-    ) -> AsyncGenerator[ChatStreamChunk, None]:
+    ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Stream chat response with SSE chunks and conversation persistence.
         Executes graph and yields tokens, router decisions, and metadata in real-time.
@@ -563,7 +563,7 @@ class AgentService(
         hitl_decision: dict[str, Any] | None = None,
         directive: dict[str, str] | None = None,
         client_user_agent: str | None = None,
-    ) -> AsyncGenerator[ChatStreamChunk, None]:
+    ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Stream agent response using service-oriented architecture (Phase 3.3).
 

@@ -679,7 +679,7 @@ class PlanPatternLearner:
 
             return True
 
-        except (TimeoutError, Exception):
+        except TimeoutError, Exception:
             return False
 
     # =========================================================================

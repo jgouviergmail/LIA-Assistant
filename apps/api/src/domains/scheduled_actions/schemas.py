@@ -56,7 +56,7 @@ class ConditionConfig(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_per_type(self) -> "ConditionConfig":
+    def validate_per_type(self) -> ConditionConfig:
         """Refuse unknown types and per-type nonsense at the API boundary."""
         if self.type not in CONDITION_TYPES:
             raise ValueError(f"Unknown condition type: {self.type}")
@@ -119,7 +119,7 @@ class ScheduledActionCreate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_days(self) -> "ScheduledActionCreate":
+    def validate_days(self) -> ScheduledActionCreate:
         """Validate days_of_week contains valid ISO weekday numbers with no duplicates."""
         for d in self.days_of_week:
             if not (1 <= d <= 7):
@@ -129,7 +129,7 @@ class ScheduledActionCreate(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_condition(self) -> "ScheduledActionCreate":
+    def validate_condition(self) -> ScheduledActionCreate:
         """A condition routine needs its condition; a time routine refuses one."""
         if self.trigger_kind is TriggerKind.CONDITION and self.condition_config is None:
             raise ValueError("condition_config is required when trigger_kind is condition")
@@ -182,7 +182,7 @@ class ScheduledActionUpdate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_days(self) -> "ScheduledActionUpdate":
+    def validate_days(self) -> ScheduledActionUpdate:
         """Validate days_of_week if provided."""
         if self.days_of_week is not None:
             for d in self.days_of_week:
@@ -235,7 +235,7 @@ class ScheduledActionResponse(BaseModel):
     )
 
     @model_validator(mode="after")
-    def compute_schedule_display(self) -> "ScheduledActionResponse":
+    def compute_schedule_display(self) -> ScheduledActionResponse:
         """Compute the human-readable schedule and the upcoming runs."""
         if not self.schedule_display:
             self.schedule_display = format_schedule_display(

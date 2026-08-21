@@ -435,7 +435,7 @@ def _create_retry_middleware() -> Any | None:
             from langchain.agents.middleware import ModelRetryMiddleware
 
             return ModelRetryMiddleware(max_retries=settings.retry_max_attempts)
-        except (TypeError, ImportError, ValueError, RuntimeError):
+        except TypeError, ImportError, ValueError, RuntimeError:
             return None
     except (ImportError, ValueError, RuntimeError, AttributeError) as e:
         logger.error(
@@ -543,7 +543,7 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
                 model=summarization_llm_fallback,
                 keep=("messages", settings.summarization_keep_messages),
             )
-        except (TypeError, ImportError, ValueError, RuntimeError):
+        except TypeError, ImportError, ValueError, RuntimeError:
             return None
     except (ImportError, ValueError, RuntimeError, AttributeError) as e:
         logger.error(
@@ -681,7 +681,7 @@ def _create_tool_retry_middleware() -> Any | None:
             from langchain.agents.middleware import ToolRetryMiddleware
 
             return ToolRetryMiddleware(max_retries=settings.tool_retry_max_attempts)
-        except (TypeError, ImportError, ValueError, RuntimeError):
+        except TypeError, ImportError, ValueError, RuntimeError:
             return None
     except (ImportError, ValueError, RuntimeError, AttributeError) as e:
         logger.error(
@@ -743,7 +743,7 @@ def _create_call_limit_middleware() -> Any | None:
             from langchain.agents.middleware import ModelCallLimitMiddleware
 
             return ModelCallLimitMiddleware(run_limit=settings.model_call_run_limit)
-        except (TypeError, ImportError, ValueError, RuntimeError):
+        except TypeError, ImportError, ValueError, RuntimeError:
             return None
     except (ImportError, ValueError, RuntimeError, AttributeError) as e:
         logger.error(

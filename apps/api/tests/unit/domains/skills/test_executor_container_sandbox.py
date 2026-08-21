@@ -50,7 +50,7 @@ def _sandbox_settings(**overrides: object) -> Settings:
     base: dict[str, object] = {
         "skills_script_sandbox": "container",
         "skills_script_sandbox_image": "lia-api:local",
-        "skills_script_sandbox_pythonpath": "/home/appuser/.local/lib/python3.12/site-packages",
+        "skills_script_sandbox_pythonpath": "/home/appuser/.local/lib/python3.14/site-packages",
         "skills_script_sandbox_tmpfs_mb": 32,
         "skills_script_max_memory_mb": 512,
         "skills_script_max_processes": 64,
@@ -203,7 +203,7 @@ class TestSandboxCommand:
             settings=_sandbox_settings(),
         )
 
-        assert "PYTHONPATH=/home/appuser/.local/lib/python3.12/site-packages" in cmd
+        assert "PYTHONPATH=/home/appuser/.local/lib/python3.14/site-packages" in cmd
 
     def test_pythonpath_is_omitted_when_empty(self) -> None:
         """An empty setting must not export a bogus empty PYTHONPATH."""

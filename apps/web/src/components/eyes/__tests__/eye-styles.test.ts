@@ -42,6 +42,30 @@ describe('eye-style registry', () => {
     }
   });
 
+  it('generic expression recipes never declare radii — silhouettes are per-style', () => {
+    // A radius declared by an un-scoped `[data-expression=...] .lia-eye` rule
+    // out-inherits the silhouette every style sets on the root (the nearest
+    // custom-property definition wins), silently turning every style into the
+    // default one. Shipped exactly that way on 2026-08-21: in production the
+    // psyche-driven idle (tender/bored/focused...) rendered ALL six styles as
+    // Cozmo rectangles. Expression radii must live in `[data-style=...]`
+    // scoped blocks — the default style's included.
+    const eyesCss = readEyesCss();
+    const offenders: string[] = [];
+    for (const block of eyesCss.split('}')) {
+      const hasRadius = /--r(?:v)?-(?:top|bot)\s*:/.test(block);
+      const selector = block.slice(0, block.indexOf('{')).trim();
+      if (
+        hasRadius &&
+        selector.includes('[data-expression=') &&
+        !selector.includes('[data-style=')
+      ) {
+        offenders.push(selector.replace(/\s+/g, ' '));
+      }
+    }
+    expect(offenders, 'radius in un-scoped expression recipe').toEqual([]);
+  });
+
   it('every style ships its localized name and description (en + fr)', () => {
     const en = (enTranslations as { eyes: { styles: Record<string, Record<string, string>> } }).eyes
       .styles;

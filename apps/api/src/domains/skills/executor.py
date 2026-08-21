@@ -171,7 +171,7 @@ class SkillScriptExecutor:
         skill_name: str,
         container_name: str,
         timeout: int,
-        settings: "Settings",
+        settings: Settings,
     ) -> list[str]:
         """Build the `docker run` argv for one sandboxed script execution.
 
@@ -244,7 +244,7 @@ class SkillScriptExecutor:
         container_name: str,
         stdin_payload: str,
         timeout: int,
-    ) -> "subprocess.CompletedProcess[str]":
+    ) -> subprocess.CompletedProcess[str]:
         """Run the sandbox container, force-removing it if it outlives its budget.
 
         Runs entirely in a worker thread on purpose. ``subprocess.run`` kills
@@ -296,7 +296,7 @@ class SkillScriptExecutor:
         timeout: int,
         max_output: int,
         user_id: str | None,
-        settings: "Settings",
+        settings: Settings,
     ) -> ScriptResult:
         """Run a skill script in a throwaway container (SEC-001).
 

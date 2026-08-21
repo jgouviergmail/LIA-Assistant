@@ -134,7 +134,7 @@ class UserHabitProfile(BaseModel):
         comment="Delta-skip marker: newest source message the profile saw.",
     )
 
-    user: Mapped["User"] = relationship()
+    user: Mapped[User] = relationship()
 
     def __repr__(self) -> str:
         return f"<UserHabitProfile(user_id={self.user_id}, computed_at={self.computed_at})>"
@@ -202,7 +202,7 @@ class UserHabit(BaseModel):
         comment="Deviation stop-rule: type-1 offers muted until re-occurrence.",
     )
 
-    user: Mapped["User"] = relationship()
+    user: Mapped[User] = relationship()
 
     __table_args__ = (
         UniqueConstraint("user_id", "kind", "key", name="uq_user_habits_user_kind_key"),

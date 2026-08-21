@@ -99,7 +99,7 @@ class FakeTracker:
         self.commits = 0
         self.message_increments = 0
 
-    async def __aenter__(self) -> "FakeTracker":
+    async def __aenter__(self) -> FakeTracker:
         return self
 
     async def __aexit__(self, *exc: Any) -> bool:
@@ -115,7 +115,7 @@ class FakeTracker:
 class FakeTrackingContext:
     """Stand-in for the temp tracker created after the tracker context exits."""
 
-    instances: list["FakeTrackingContext"] = []
+    instances: list[FakeTrackingContext] = []
     tts_usage_script: list[dict | None] = []
     cleanup_calls: list[str] = []
 
@@ -185,7 +185,7 @@ class FakeStreamingService:
     """
 
     script: list[Any] = []
-    instances: list["FakeStreamingService"] = []
+    instances: list[FakeStreamingService] = []
 
     def __init__(
         self,
@@ -268,7 +268,7 @@ class FakeSentenceStreamer:
 class FakeVoiceCommentService:
     """VoiceCommentService stand-in covering every voice path."""
 
-    instances: list["FakeVoiceCommentService"] = []
+    instances: list[FakeVoiceCommentService] = []
     fail_direct_tts: bool = False
 
     def __init__(self, tracker=None, run_id=None, lia_gender=None, user_id=None) -> None:
@@ -307,7 +307,7 @@ class FakeVoiceCommentService:
 
 
 class FakeHITLStore:
-    instances: list["FakeHITLStore"] = []
+    instances: list[FakeHITLStore] = []
 
     def __init__(self, redis_client=None, ttl_seconds=None) -> None:
         self.cleared: list[str] = []

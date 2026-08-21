@@ -181,7 +181,7 @@ class StreamingMixin:
         user_id: Any,  # UUID
         conversation_id: Any,  # UUID
         tracker: Any = None,  # Optional TrackingContext
-    ) -> AsyncGenerator[ChatStreamChunk, None]:
+    ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Stream chunks immediately and enrich done chunk with aggregated tokens.
 

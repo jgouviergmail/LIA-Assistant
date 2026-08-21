@@ -90,7 +90,7 @@ task db:create-admin                     # Create admin user for first-time setu
 
 ### Monorepo Structure
 
-- `apps/api/` — Python 3.12+ FastAPI backend (source in `src/`, tests in `tests/`)
+- `apps/api/` — Python 3.14 FastAPI backend (source in `src/`, tests in `tests/`)
 - `apps/web/` — Next.js 16 + React 19 + TypeScript frontend
 - `infrastructure/` — Docker, database seeds, observability config (Prometheus, Grafana)
 - `docs/` — 260+ documentation files, ADRs, guides, runbooks
@@ -181,7 +181,7 @@ The HOW / WHY guides (`apps/web/src/data/guides/{how,why}.{lang}.md`) and any fu
 
 ## Code Standards
 
-- **Python**: Black (line-length=100), Ruff, MyPy strict. Target: Python 3.12+.
+- **Python**: Black (line-length=100), Ruff, MyPy strict. Target: Python 3.14.
 - **Ruff rules**: E (pycodestyle errors), W (warnings), F (pyflakes), I (isort), B (bugbear), C4 (comprehensions), UP (pyupgrade). E501 ignored (handled by Black).
 - **TypeScript**: ESLint + Prettier.
 - **Commits**: Conventional Commits (`feat(agents):`, `fix(auth):`, etc.)

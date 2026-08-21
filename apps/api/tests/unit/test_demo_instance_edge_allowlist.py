@@ -22,13 +22,14 @@ What must hold:
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
+from tests._repo_paths import repo_root_or_skip
+
 pytestmark = pytest.mark.unit
 
-CADDYFILE = Path(__file__).resolve().parents[4] / "infrastructure" / "demo-instance" / "Caddyfile"
+CADDYFILE = repo_root_or_skip() / "infrastructure" / "demo-instance" / "Caddyfile"
 
 #: Exactly what the demonstrator exposes. Adding an entry here is a decision
 #: that shows up in review; adding one only in the Caddyfile fails.
@@ -211,9 +212,7 @@ def test_the_edge_terminates_no_tls_and_publishes_no_host_port() -> None:
     )
     assert "auto_https off" in directives, "automatic HTTPS must stay off behind the tunnel"
 
-    compose = (Path(__file__).resolve().parents[4] / "docker-compose.demo-instance.yml").read_text(
-        encoding="utf-8"
-    )
+    compose = (repo_root_or_skip() / "docker-compose.demo-instance.yml").read_text(encoding="utf-8")
     edge_block = compose[
         compose.index("demo-instance-edge:") : compose.index("demo-instance-tunnel:")
     ]
@@ -225,9 +224,9 @@ def test_the_edge_terminates_no_tls_and_publishes_no_host_port() -> None:
 
 def test_the_dev_override_binds_to_loopback_only() -> None:
     """A demonstrator's administration must not answer the local network."""
-    override = (
-        Path(__file__).resolve().parents[4] / "docker-compose.demo-instance.dev.yml"
-    ).read_text(encoding="utf-8")
+    override = (repo_root_or_skip() / "docker-compose.demo-instance.dev.yml").read_text(
+        encoding="utf-8"
+    )
     published = [
         line.strip().strip("-").strip().strip('"')
         for line in override.splitlines()
@@ -256,9 +255,7 @@ def test_no_profiled_service_makes_a_variable_required() -> None:
     import yaml
 
     compose = yaml.safe_load(
-        (Path(__file__).resolve().parents[4] / "docker-compose.demo-instance.yml").read_text(
-            encoding="utf-8"
-        )
+        (repo_root_or_skip() / "docker-compose.demo-instance.yml").read_text(encoding="utf-8")
     )
     offenders = []
     for name, service in (compose.get("services") or {}).items():
@@ -288,9 +285,7 @@ def test_the_api_and_the_database_agree_on_who_connects() -> None:
     import yaml
 
     compose = yaml.safe_load(
-        (Path(__file__).resolve().parents[4] / "docker-compose.demo-instance.yml").read_text(
-            encoding="utf-8"
-        )
+        (repo_root_or_skip() / "docker-compose.demo-instance.yml").read_text(encoding="utf-8")
     )
 
     def _env(service: str) -> dict[str, str]:

@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 1.7
-**Date** : 2026-08-20
-**Application** : LIA v1.30.16
+**Date** : 2026-08-21
+**Application** : LIA v1.31.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,7 +18,7 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de code (hors tests) — 40 domaines fonctionnels | **520 000** |
+| Lignes de code (hors tests) — 43 domaines fonctionnels | **570 000** |
 | Tests automatisés, exécutés à chaque commit et livraison | **23 900+** |
 | Décisions d'architecture documentées (ADR) | **229** |
 | Versions livrées à rythme régulier | **210** |
@@ -109,7 +109,7 @@ Le cycle 1.30.7 a achevé le mouvement : après avoir parlé le protocole de l'�
 
 Le cycle 1.30.11 a produit la leçon la plus inattendue : concevoir un export peut révéler que le système ne sait pas répondre à sa propre question. Administrer cent vingt-quatre modèles d'IA une boîte de dialogue à la fois n'était plus tenable, et l'idée était simple — exporter la grille tarifaire dans un classeur, la corriger hors ligne, la réimporter. Encore fallait-il, pour l'écrire, répondre à « quel est le tarif de ce modèle ? ». Il n'y avait pas de réponse : rien n'imposait un tarif actif unique, et deux chemins de lecture pouvaient rendre des prix différents pour le même modèle, au même instant, sur la même base. Deux erreurs de facturation tournaient en production depuis des mois, sans que personne ne puisse les voir. La remise en ordre a produit une règle qui dépasse ce domaine : une migration n'invente jamais une donnée métier. La règle intuitive — garder la ligne la plus récente — s'est révélée fausse sur les quatre cas réels ; la migration fusionne donc ce qui est strictement identique et s'arrête en nommant le reste, laissant l'arbitrage à l'humain. Le fichier livré applique la même exigence : rien ne se supprime implicitement, l'aperçu qu'on approuve est celui qui s'écrit, et ce qui n'a pas changé n'est pas réécrit.
 
-Le cycle 1.30.16 a déplacé l’exigence de preuve sur un terrain neuf : l’esthétique. Donner un regard à l’assistant — deux yeux cartoon qui observent pendant la frappe, se plissent pendant la réflexion, balaient pendant la recherche et réagissent au ton de chaque réponse — était d’abord un chantier d’animation, où la moitié de la réussite se joue dans la fluidité. La discipline n’a pas changé pour autant : tout le comportement tient dans un moteur pur alimenté par des signaux que l’application émettait déjà — machine d’états du chat, étapes d’exécution diffusées, moteur émotionnel — sans un appel de modèle ni un point d’accès de plus, chaque expression pilotée par des tables de décision testées avec horloges et hasard injectés. Et quand le panel d’utilisateurs n’a pas tranché sur le style, l’arbitrage a été rendu comme tous les autres : sur pièces, une planche interactive de styles prévisualisés en vrai. Le gagnant est devenu le défaut, les autres un choix de réglage — et en ajouter un nouveau est une entrée de registre, pas un chantier.
+Le cycle 1.31.0 a déplacé l’exigence de preuve sur un terrain neuf : l’esthétique. Donner un regard à l’assistant — deux yeux cartoon qui observent pendant la frappe, se plissent pendant la réflexion, balaient pendant la recherche et réagissent au ton de chaque réponse — était d’abord un chantier d’animation, où la moitié de la réussite se joue dans la fluidité. La discipline n’a pas changé pour autant : tout le comportement tient dans un moteur pur alimenté par des signaux que l’application émettait déjà — machine d’états du chat, étapes d’exécution diffusées, moteur émotionnel — sans un appel de modèle ni un point d’accès de plus, chaque expression pilotée par des tables de décision testées avec horloges et hasard injectés. Et quand le panel d’utilisateurs n’a pas tranché sur le style, l’arbitrage a été rendu comme tous les autres : sur pièces, une planche interactive de styles prévisualisés en vrai. Le gagnant est devenu le défaut, les autres un choix de réglage — et en ajouter un nouveau est une entrée de registre, pas un chantier.
 
 
 ## 7. Convictions

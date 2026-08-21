@@ -73,7 +73,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-async def init_scheduler(scheduler: "AsyncIOScheduler") -> SchedulerLeaderElector:
+async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
     """Register all background jobs and start the scheduler behind leader election.
 
     Args:

@@ -100,7 +100,7 @@ def _extract_call_seconds(payload: dict[str, Any]) -> Decimal | None:
         return None
     try:
         return Decimal(str(raw))
-    except (InvalidOperation, ValueError):
+    except InvalidOperation, ValueError:
         return None
 
 
@@ -319,7 +319,7 @@ def build_appointment_suggestion(
 
     try:
         tz = ZoneInfo(user_timezone)
-    except (KeyError, ValueError, TypeError):
+    except KeyError, ValueError, TypeError:
         tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=tz)

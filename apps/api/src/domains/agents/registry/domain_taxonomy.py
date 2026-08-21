@@ -663,9 +663,9 @@ def is_mcp_domain(domain_name: str) -> bool:
 
 
 def filter_admin_mcp_disabled_manifests(
-    manifests: list["ToolManifest"],
+    manifests: list[ToolManifest],
     admin_disabled: set[str] | None = None,
-) -> list["ToolManifest"]:
+) -> list[ToolManifest]:
     """Filter out tool manifests belonging to admin MCP servers disabled by the user.
 
     Extracts the server key from each manifest's agent field (e.g. ``mcp_excalidraw_agent``
@@ -688,7 +688,7 @@ def filter_admin_mcp_disabled_manifests(
     if not admin_disabled:
         return manifests
 
-    def _is_disabled(manifest: "ToolManifest") -> bool:
+    def _is_disabled(manifest: ToolManifest) -> bool:
         # Extract domain from agent field: "mcp_excalidraw_agent" → "mcp_excalidraw"
         agent = getattr(manifest, "agent", None) or ""
         domain = agent.removesuffix("_agent") if agent else ""

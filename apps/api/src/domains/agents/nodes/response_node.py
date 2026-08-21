@@ -332,7 +332,7 @@ def _is_safe_photo_url(url: str | None) -> bool:
             return url.startswith("/")  # Must start with / for relative paths
         # Check domain against whitelist
         return parsed.netloc in ALLOWED_PHOTO_DOMAINS
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return False
 
 
@@ -671,7 +671,7 @@ def _format_batch_result(
     status: str,
     draft_type: str,
     domain_emoji: str,
-    config: "DraftDisplayConfig | None",
+    config: DraftDisplayConfig | None,
     data: dict[str, Any],
 ) -> str:
     """Render the batch (``CONFIRM_BATCH``) execution result block.
@@ -976,7 +976,7 @@ def _detect_result_domains_from_registry(
 
 def _filter_registry_by_types(
     data_registry: dict[str, Any] | None,
-    allowed_types: "frozenset[RegistryItemType]",
+    allowed_types: frozenset[RegistryItemType],
     *,
     include: bool,
 ) -> dict[str, Any]:

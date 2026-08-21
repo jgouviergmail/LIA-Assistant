@@ -65,7 +65,7 @@ _hitl_registry = None
 _hitl_question_generator = None
 
 
-def _get_hitl_registry() -> "type[HitlInteractionRegistry]":
+def _get_hitl_registry() -> type[HitlInteractionRegistry]:
     """Lazy load HitlInteractionRegistry to avoid circular imports."""
     global _hitl_registry
     if _hitl_registry is None:
@@ -75,7 +75,7 @@ def _get_hitl_registry() -> "type[HitlInteractionRegistry]":
     return _hitl_registry
 
 
-def _get_hitl_question_generator() -> "HitlQuestionGenerator":
+def _get_hitl_question_generator() -> HitlQuestionGenerator:
     """Lazy load HitlQuestionGenerator to avoid circular imports."""
     global _hitl_question_generator
     if _hitl_question_generator is None:
@@ -197,9 +197,9 @@ class StreamingService:
 
     def __init__(
         self,
-        conv_service: "ConversationService | None" = None,
-        hitl_store: "HITLStore | None" = None,
-        tracker: "TrackingContext | None" = None,
+        conv_service: ConversationService | None = None,
+        hitl_store: HITLStore | None = None,
+        tracker: TrackingContext | None = None,
         user_message: str | None = None,
         user_id: str | None = None,
         debug_panel_enabled: bool = False,
@@ -308,10 +308,10 @@ class StreamingService:
 
     async def stream_sse_chunks(
         self,
-        graph_stream: AsyncGenerator[tuple[str, Any], None],
+        graph_stream: AsyncGenerator[tuple[str, Any]],
         conversation_id: uuid.UUID,
         run_id: str,
-    ) -> AsyncGenerator[tuple[ChatStreamChunk, str], None]:
+    ) -> AsyncGenerator[tuple[ChatStreamChunk, str]]:
         """
         Convert OrchestrationService stream to SSE chunks.
 
@@ -737,7 +737,7 @@ class StreamingService:
 
     async def _emit_debug_metrics(
         self, state: dict[Any, Any], run_id: str
-    ) -> AsyncGenerator[tuple[ChatStreamChunk, str], None]:
+    ) -> AsyncGenerator[tuple[ChatStreamChunk, str]]:
         """Yield the debug-panel ``debug_metrics`` chunk at end of stream (if enabled).
 
         Extracted verbatim from ``stream_sse_chunks`` (behavior-preserving): gated on
@@ -860,7 +860,7 @@ class StreamingService:
 
     async def _emit_post_stream_registry(
         self, state: dict[Any, Any], sent_registry_ids: set[str], run_id: str
-    ) -> AsyncGenerator[tuple[ChatStreamChunk, str], None]:
+    ) -> AsyncGenerator[tuple[ChatStreamChunk, str]]:
         """Emit the post-streaming ``registry_update`` chunk for the final state.
 
         Data Registry LOT 5.2 BugFix (2025-11-26): the registry is added to state by
@@ -2050,7 +2050,7 @@ class StreamingService:
         chunk: dict,
         conversation_id: uuid.UUID,
         run_id: str,
-    ) -> AsyncGenerator[ChatStreamChunk, None]:
+    ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Handle HITL interrupt: emit chunks, archive message, store in Redis.
 

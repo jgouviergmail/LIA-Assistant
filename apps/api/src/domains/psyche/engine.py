@@ -1608,7 +1608,7 @@ def _safe_float(s: str, default: float = 0.0) -> float:
     """Parse string to float with fallback."""
     try:
         return float(s)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return default
 
 

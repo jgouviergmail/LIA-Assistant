@@ -89,7 +89,7 @@ class BaseAPIKeyClient(ABC):
     def __init__(
         self,
         user_id: UUID | None,
-        credentials: "APIKeyCredentials",
+        credentials: APIKeyCredentials,
         rate_limit_per_second: float = DEFAULT_RATE_LIMIT_PER_SECOND,
     ) -> None:
         """

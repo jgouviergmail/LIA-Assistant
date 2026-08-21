@@ -121,7 +121,7 @@ class NotificationResult:
     message_id: UUID | None = None
 
     @classmethod
-    def failure(cls, error: str) -> "NotificationResult":
+    def failure(cls, error: str) -> NotificationResult:
         """Create a failure result."""
         return cls(success=False, error=error)
 

@@ -1693,7 +1693,7 @@ async def proxy_places_photo(
             error=str(e),
         )
         raise_external_service_connection_error("google_places")
-    except (HTTPException, InternalServerError):
+    except HTTPException, InternalServerError:
         # Re-raise HTTP/API exceptions as-is
         raise
     except Exception as e:

@@ -34,8 +34,8 @@ class PlanningStrategy(Protocol):
 
     async def can_handle(
         self,
-        intelligence: "QueryIntelligence",
-        catalogue: "FilteredCatalogue | None" = None,
+        intelligence: QueryIntelligence,
+        catalogue: FilteredCatalogue | None = None,
     ) -> bool:
         """
         Check if this strategy can handle the given intelligence.
@@ -51,15 +51,15 @@ class PlanningStrategy(Protocol):
 
     async def plan(
         self,
-        intelligence: "QueryIntelligence",
-        config: "RunnableConfig",
-        catalogue: "FilteredCatalogue | None" = None,
+        intelligence: QueryIntelligence,
+        config: RunnableConfig,
+        catalogue: FilteredCatalogue | None = None,
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "Any | None" = None,
+        existing_plan: Any | None = None,
         journal_context: str = "",
-    ) -> "PlanningResult":
+    ) -> PlanningResult:
         """
         Execute planning strategy.
 

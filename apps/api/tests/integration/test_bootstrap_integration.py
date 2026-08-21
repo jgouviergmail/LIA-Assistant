@@ -31,7 +31,7 @@ class TestBootstrapStartup:
         # This is expected behavior - just verify the function exists and can be called
         try:
             validate_critical_configuration()
-        except (ValueError, AttributeError):
+        except ValueError, AttributeError:
             # Expected if settings are not fully configured in test environment
             # AttributeError if some settings fields don't exist
             pass  # This is expected behavior in test environment
@@ -79,7 +79,7 @@ class TestBootstrapValidation:
         validate_llm_configuration()
         try:
             validate_critical_configuration()
-        except (ValueError, AttributeError):
+        except ValueError, AttributeError:
             pass  # Expected in test environment
         log_rate_limiting_status()
         log_event_loop_configuration()

@@ -1893,7 +1893,7 @@ def _extract_field_group_metadata(
 
 async def _fetch_single_contact_details(
     resource_name: str,
-    runtime: "ToolRuntime",
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
     fields: list[str] | None = None,
     force_refresh: bool = False,
 ) -> dict[str, Any]:

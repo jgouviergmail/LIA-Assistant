@@ -345,7 +345,7 @@ def reasoning_effort_matches_widget(
     try:
         validate_reasoning_effort(caps, value)
         return True
-    except (HTTPException, RuntimeError):
+    except HTTPException, RuntimeError:
         # HTTPException: StructuredValidationError(422) IS-A HTTPException —
         # the documented "value invalid for this widget" outcome.
         # RuntimeError: validate_reasoning_effort's defensive guard for an

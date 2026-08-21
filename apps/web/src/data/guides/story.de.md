@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 1.7
-**Datum**: 2026-08-20
-**Anwendung**: LIA v1.30.16
+**Datum**: 2026-08-21
+**Anwendung**: LIA v1.31.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,7 +18,7 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Codezeilen (ohne Tests) — 40 Fachdomänen | **520.000** |
+| Codezeilen (ohne Tests) — 43 Fachdomänen | **570.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **23.900+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **229** |
 | In regelmäßigem Rhythmus gelieferte Versionen | **210** |
@@ -109,7 +109,7 @@ Zyklus 1.30.7 vollendete die Bewegung: Nachdem LIA das Protokoll des Ökosystems
 
 Zyklus 1.30.11 brachte die unerwartetste Lektion: Einen Export zu entwerfen kann offenlegen, dass das System seine eigene Frage nicht beantworten kann. Hundertvierundzwanzig KI-Modelle mit je einem Dialog zu verwalten war nicht mehr haltbar, und die Idee war einfach — die Preistabelle in eine Arbeitsmappe exportieren, offline korrigieren, zurückspielen. Um das zu schreiben, musste allerdings die Frage „Wie lautet der Tarif dieses Modells?“ beantwortet werden. Es gab keine Antwort: Nichts erzwang genau einen aktiven Tarif, und zwei Lesepfade konnten im selben Augenblick, auf derselben Datenbank, unterschiedliche Preise für dasselbe Modell liefern. Zwei Abrechnungsfehler liefen seit Monaten in Produktion, ohne dass jemand sie hätte sehen können. Das Aufräumen brachte eine Regel hervor, die über diese Domäne hinausreicht: Eine Migration erfindet niemals Fachdaten. Die intuitive Regel — die jüngste Zeile behalten — erwies sich in allen vier realen Fällen als falsch; deshalb führt die Migration nur streng Identisches zusammen und hält an, indem sie den Rest benennt und die Entscheidung dem Menschen überlässt. Die ausgelieferte Datei hält denselben Maßstab: Nichts wird implizit gelöscht, die genehmigte Vorschau ist die geschriebene, und was sich nicht geändert hat, wird nicht neu geschrieben.
 
-Der Zyklus 1.30.16 verlagerte die Beweispflicht auf neues Terrain: die Ästhetik. Dem Assistenten einen Blick zu geben — zwei Cartoon-Augen, die beim Tippen zusehen, beim Nachdenken blinzeln, bei der Suche schweifen und auf den Ton jeder Antwort reagieren — war zuerst ein Animationsprojekt, bei dem die halbe Miete in der Flüssigkeit liegt. Die Disziplin änderte sich deswegen nicht: Das gesamte Verhalten steckt in einer reinen Engine, gespeist von Signalen, die die Anwendung bereits aussendete — die Zustandsmaschine des Chats, die gestreamten Ausführungsschritte, die Emotions-Engine — ohne einen zusätzlichen Modellaufruf und ohne neuen Endpunkt, jede Expression gesteuert von Entscheidungstabellen, getestet mit injizierten Uhren und injiziertem Zufall. Und als das Nutzerpanel sich auf keinen Stil einigen konnte, wurde die Entscheidung wie jede andere gefällt: auf Belegen, mit einem interaktiven Board real vorgeführter Stile. Der Gewinner wurde der Standard, die anderen eine Einstellung — und einen neuen hinzuzufügen ist ein Registereintrag, kein Projekt.
+Der Zyklus 1.31.0 verlagerte die Beweispflicht auf neues Terrain: die Ästhetik. Dem Assistenten einen Blick zu geben — zwei Cartoon-Augen, die beim Tippen zusehen, beim Nachdenken blinzeln, bei der Suche schweifen und auf den Ton jeder Antwort reagieren — war zuerst ein Animationsprojekt, bei dem die halbe Miete in der Flüssigkeit liegt. Die Disziplin änderte sich deswegen nicht: Das gesamte Verhalten steckt in einer reinen Engine, gespeist von Signalen, die die Anwendung bereits aussendete — die Zustandsmaschine des Chats, die gestreamten Ausführungsschritte, die Emotions-Engine — ohne einen zusätzlichen Modellaufruf und ohne neuen Endpunkt, jede Expression gesteuert von Entscheidungstabellen, getestet mit injizierten Uhren und injiziertem Zufall. Und als das Nutzerpanel sich auf keinen Stil einigen konnte, wurde die Entscheidung wie jede andere gefällt: auf Belegen, mit einem interaktiven Board real vorgeführter Stile. Der Gewinner wurde der Standard, die anderen eine Einstellung — und einen neuen hinzuzufügen ist ein Registereintrag, kein Projekt.
 
 
 ## 7. Überzeugungen

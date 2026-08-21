@@ -16,6 +16,7 @@ Created: 2025-11-20
 
 import asyncio
 import time
+import uuid
 
 import structlog
 from redis.asyncio import Redis
@@ -191,9 +192,14 @@ class RedisRateLimiter:
             # Ensure script is loaded
             script_sha = await self._ensure_script_loaded()
 
-            # Generate unique request ID (timestamp + microseconds)
+            # Unique ZSET member per request: the timestamp alone collides when
+            # two acquisitions land in the same microsecond (routine under
+            # concurrent processes) — ZADD then OVERWRITES the existing member,
+            # ZCARD under-counts, and the limiter admits more than max_calls
+            # (measured 23/20 on the multiprocess suite, 2026-08-21). The
+            # timestamp stays as a prefix so entries remain human-orderable.
             current_time = time.time()
-            request_id = f"{current_time:.6f}"
+            request_id = f"{current_time:.6f}:{uuid.uuid4().hex[:12]}"
 
             script_args = (
                 1,  # Number of keys

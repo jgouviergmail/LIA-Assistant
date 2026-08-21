@@ -33,7 +33,7 @@ class HueOAuthProvider:
     app_id: str = ""
 
     @classmethod
-    def for_remote_control(cls, settings: Settings) -> "HueOAuthProvider":
+    def for_remote_control(cls, settings: Settings) -> HueOAuthProvider:
         """
         Create provider config for Hue Remote API access.
 

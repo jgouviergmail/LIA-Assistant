@@ -15,8 +15,10 @@ from pathlib import Path
 
 import pytest
 
+from tests._repo_paths import repo_root_or_skip
+
 # apps/api/tests/unit/<file> → repo root is four parents up.
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = repo_root_or_skip()
 _SECURITY_TXT = _REPO_ROOT / "apps" / "web" / "public" / ".well-known" / "security.txt"
 _SECURITY_MD = _REPO_ROOT / "SECURITY.md"
 

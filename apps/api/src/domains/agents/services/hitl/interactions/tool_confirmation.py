@@ -77,7 +77,7 @@ class ToolConfirmationInteraction:
         - HitlQuestionGenerator.generate_confirmation_question_stream()
     """
 
-    def __init__(self, question_generator: "HitlQuestionGenerator") -> None:
+    def __init__(self, question_generator: HitlQuestionGenerator) -> None:
         """
         Initialize ToolConfirmationInteraction.
 
@@ -97,7 +97,7 @@ class ToolConfirmationInteraction:
         user_language: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """
         Generate tool confirmation question via LLM streaming.
 

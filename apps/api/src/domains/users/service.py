@@ -756,7 +756,7 @@ class UserService:
     def _build_user_profile_with_stats(
         self,
         user: User,
-        stats: "UserStatistics | None",
+        stats: UserStatistics | None,
         active_connectors_count: int = 0,
         last_message_at: datetime | None = None,
         memories_count: int = 0,

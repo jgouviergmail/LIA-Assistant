@@ -274,7 +274,7 @@ class HitlQuestionGenerator:
         user_language: str = "fr",
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """Stream HITL question tokens progressively (TTFT optimization).
 
         This method uses LLM streaming to provide progressive rendering of confirmation
@@ -501,7 +501,7 @@ class HitlQuestionGenerator:
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
         personality_instruction: str | None = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """Stream plan approval question tokens progressively (TTFT optimization).
 
         This method uses LLM streaming to provide progressive rendering of plan approval

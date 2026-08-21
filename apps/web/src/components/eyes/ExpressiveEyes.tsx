@@ -15,7 +15,12 @@
  */
 
 import { cn } from '@/lib/utils';
-import type { EyeExpression, Gaze, IdleGesture } from '@/components/eyes/expression-engine';
+import type {
+  EyeExpression,
+  Gaze,
+  IdleGesture,
+  IdleMoodFamily,
+} from '@/components/eyes/expression-engine';
 import { DEFAULT_EYE_STYLE, type EyeStyleId } from '@/components/eyes/eye-styles';
 import type { EyesSize } from '@/stores/eyesWidgetStore';
 import type { CSSProperties } from 'react';
@@ -37,11 +42,33 @@ export interface ExpressiveEyesProps {
   emoteLeaving?: boolean;
   /** Visual style from the eye-style registry (CSS recipe sheet selector). */
   styleId?: EyeStyleId;
+  /** Mood family pacing the breathing loop (CSS `data-family` selector). */
+  idleFamily?: IdleMoodFamily;
   className?: string;
 }
 
 function clampAxis(value: number): number {
   return Math.min(1, Math.max(-1, value));
+}
+
+/** Gaze CSS custom properties (module-level: keeps the component under the
+ * CC ratchet). */
+function gazeStyle(gaze: Gaze | null, gazeDurationMs: number | undefined): CSSProperties {
+  return {
+    '--gaze-x': String(clampAxis(gaze?.x ?? 0)),
+    '--gaze-y': String(clampAxis(gaze?.y ?? 0)),
+    ...(gazeDurationMs !== undefined ? { '--gaze-ms': `${gazeDurationMs}ms` } : {}),
+  } as CSSProperties;
+}
+
+/** The floating emote glyph above the eyes ('?', '!', 'z', '…'). */
+function EyesEmote({ emote, leaving }: { emote: string | null; leaving: boolean }) {
+  if (!emote) return null;
+  return (
+    <span className={cn('lia-emote', leaving && 'is-leaving')} data-emote={emote}>
+      {emote}
+    </span>
+  );
 }
 
 export function ExpressiveEyes({
@@ -54,28 +81,22 @@ export function ExpressiveEyes({
   emote = null,
   emoteLeaving = false,
   styleId = DEFAULT_EYE_STYLE,
+  idleFamily = 'calm',
   className,
 }: ExpressiveEyesProps) {
-  const style = {
-    '--gaze-x': String(clampAxis(gaze?.x ?? 0)),
-    '--gaze-y': String(clampAxis(gaze?.y ?? 0)),
-    ...(gazeDurationMs !== undefined ? { '--gaze-ms': `${gazeDurationMs}ms` } : {}),
-  } as CSSProperties;
+  const style = gazeStyle(gaze, gazeDurationMs);
 
   return (
     <span
       aria-hidden="true"
       data-expression={expression}
       data-style={styleId}
+      data-family={idleFamily}
       data-gesture={gesture ?? undefined}
       className={cn('lia-eyes', `lia-eyes--${size}`, blinking && 'is-blinking', className)}
       style={style}
     >
-      {emote && (
-        <span className={cn('lia-emote', emoteLeaving && 'is-leaving')} data-emote={emote}>
-          {emote}
-        </span>
-      )}
+      <EyesEmote emote={emote} leaving={emoteLeaving} />
       <span className="lia-eyes-gaze">
         <span className="lia-eye lia-eye--left">
           <span className="lia-eye-blink">

@@ -608,37 +608,37 @@ class User(BaseModel):
     )
 
     # Per-user skill activation states (normalized in user_skill_states table)
-    skill_states: Mapped[list["UserSkillState"]] = relationship(
+    skill_states: Mapped[list[UserSkillState]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
     # Relationships
-    personality: Mapped["Personality | None"] = relationship(
+    personality: Mapped[Personality | None] = relationship(
         back_populates="users",
         foreign_keys=[personality_id],
     )
-    connectors: Mapped[list["Connector"]] = relationship(
+    connectors: Mapped[list[Connector]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    conversations: Mapped[list["Conversation"]] = relationship(
+    conversations: Mapped[list[Conversation]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    reminders: Mapped[list["Reminder"]] = relationship(
+    reminders: Mapped[list[Reminder]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    fcm_tokens: Mapped[list["UserFCMToken"]] = relationship(
+    fcm_tokens: Mapped[list[UserFCMToken]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    interests: Mapped[list["UserInterest"]] = relationship(
+    interests: Mapped[list[UserInterest]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    journal_entries: Mapped[list["JournalEntry"]] = relationship(
+    journal_entries: Mapped[list[JournalEntry]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    memories: Mapped[list["Memory"]] = relationship(
+    memories: Mapped[list[Memory]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    scheduled_actions: Mapped[list["ScheduledAction"]] = relationship(
+    scheduled_actions: Mapped[list[ScheduledAction]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
     # ADR-083 Phase 2 cleanup: `sub_agents` ORM relationship + table + the
@@ -649,12 +649,12 @@ class User(BaseModel):
     # (UserMCPServer mapper configuration requires User to be loaded first).
 
     # Usage limits (1:1, optional — no record means unlimited)
-    usage_limit: Mapped["UserUsageLimit | None"] = relationship(
+    usage_limit: Mapped[UserUsageLimit | None] = relationship(
         back_populates="user", lazy="noload", cascade="all, delete-orphan"
     )
 
     # Psyche state (1:1, optional — created on first interaction when psyche_enabled)
-    psyche_state: Mapped["PsycheState | None"] = relationship(
+    psyche_state: Mapped[PsycheState | None] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
@@ -708,7 +708,7 @@ class AdminAuditLog(Base, UUIDMixin):
     )
 
     # Relationship
-    admin_user: Mapped["User"] = relationship()
+    admin_user: Mapped[User] = relationship()
 
     def __repr__(self) -> str:
         return f"<AdminAuditLog(action={self.action}, resource={self.resource_type}, admin={self.admin_user_id})>"

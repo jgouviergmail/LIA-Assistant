@@ -10,7 +10,7 @@ from src.domains.agents.services.smart_catalogue_service import SmartCatalogueSe
 
 
 @pytest.fixture(autouse=True)
-def _reset_request_tool_manifests_ctx() -> Generator[None, None, None]:
+def _reset_request_tool_manifests_ctx() -> Generator[None]:
     """Reset request_tool_manifests_ctx after each test to prevent ContextVar leaks."""
     yield
     request_tool_manifests_ctx.set(None)

@@ -249,7 +249,7 @@ class TrackingContext:
             auto_commit=auto_commit,
         )
 
-    async def __aenter__(self) -> "TrackingContext":
+    async def __aenter__(self) -> TrackingContext:
         """Enter context manager - set ContextVar for implicit access from Google API clients."""
         # Set context var for implicit access from anywhere in the async call stack
         # This enables Google API clients to record usage without explicit tracker parameter

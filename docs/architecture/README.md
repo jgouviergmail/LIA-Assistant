@@ -109,7 +109,7 @@
 
 **Description**: Architecture système globale avec:
 - **Frontend**: Next.js 16 + React 19 + TypeScript 6 + Tailwind 4
-- **Backend**: FastAPI + Uvicorn (Python 3.12+)
+- **Backend**: FastAPI + Uvicorn (Python 3.14)
 - **AI/ML**: LangGraph 1.2 + LLM Providers catalogue-driven (OpenAI, Anthropic, Gemini, DeepSeek, Perplexity, Qwen, Ollama, ElevenLabs, Edge) + embeddings Gemini (ADR-069)
 - **Data**: PostgreSQL 16 + pgvector, Redis 7.4 (sessions, cache, patterns, Streams)
 - **External APIs**: Google (Gmail, Calendar, Contacts, Drive, Tasks, Places, Routes), Apple iCloud, Microsoft 365, OpenWeatherMap, Wikipedia, Perplexity, Brave

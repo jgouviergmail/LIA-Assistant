@@ -136,7 +136,7 @@ def upcoming_birthdays_from_connections(
                     age_at_next = next_occurrence.year - int(year)
                     if age_at_next < 0:
                         age_at_next = None
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     age_at_next = None
             else:
                 date_iso = f"--{int(month):02d}-{int(day):02d}"

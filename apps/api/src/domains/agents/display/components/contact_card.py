@@ -658,7 +658,7 @@ class ContactCard(BaseComponent):
 
             return date_str, age
 
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return "", None
 
     def _format_date_components(
@@ -685,6 +685,6 @@ class ContactCard(BaseComponent):
                 date_str += f"/{year}"
 
             return date_str
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             # Fallback to raw values
             return f"{day}/{month}" + (f"/{year}" if year else "")

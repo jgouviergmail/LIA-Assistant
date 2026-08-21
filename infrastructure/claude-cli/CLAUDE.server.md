@@ -14,7 +14,7 @@ Use `docker` commands directly (not `docker compose`).
 
 ## Docker Services
 
-- `lia-api-dev` / `lia-api-prod` — FastAPI backend (Python 3.12) — THIS container
+- `lia-api-dev` / `lia-api-prod` — FastAPI backend (Python 3.14) — THIS container
 - `lia-web-dev` / `lia-web-prod` — Next.js frontend (Node 24)
 - `postgres` or `lia-postgres-dev` / `lia-postgres-prod` — PostgreSQL 16 with pgvector
 - `redis` or `lia-redis-dev` / `lia-redis-prod` — Redis 7.4

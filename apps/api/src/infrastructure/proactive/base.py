@@ -101,9 +101,7 @@ class ProactiveTaskResult:
         self.tokens_cache += tokens_cache
 
     @classmethod
-    def failure(
-        cls, error: str, source: ContentSource | str | None = None
-    ) -> "ProactiveTaskResult":
+    def failure(cls, error: str, source: ContentSource | str | None = None) -> ProactiveTaskResult:
         """
         Create a failure result.
 

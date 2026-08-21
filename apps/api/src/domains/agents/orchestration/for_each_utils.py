@@ -121,7 +121,7 @@ def get_for_each_provider_step_id(for_each_ref: str) -> str | None:
 
 
 def is_for_each_ready_for_expansion(
-    step: "ExecutionStep",
+    step: ExecutionStep,
     completed_steps: dict[str, dict[str, Any]],
 ) -> bool:
     """

@@ -97,7 +97,7 @@ def _decrypt_home_coords(user: User) -> tuple[float, float] | None:
         return None
     try:
         payload = json.loads(decrypt_data(user.home_location_encrypted))
-    except (ValueError, json.JSONDecodeError):
+    except ValueError, json.JSONDecodeError:
         logger.warning("home_location_decrypt_failed", user_id=str(user.id))
         return None
     lat = payload.get("lat")
@@ -116,7 +116,7 @@ def _decrypt_last_known_coords(user: User) -> tuple[float, float, float | None] 
         return None
     try:
         payload = json.loads(decrypt_data(user.last_known_location_encrypted))
-    except (ValueError, json.JSONDecodeError):
+    except ValueError, json.JSONDecodeError:
         logger.warning("last_known_location_decrypt_failed", user_id=str(user.id))
         return None
     lat = payload.get("lat")

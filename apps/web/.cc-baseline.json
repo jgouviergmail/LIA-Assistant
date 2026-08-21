@@ -6,7 +6,7 @@
   "perFile": {
     "src/app/[lng]/dashboard/chat/page.tsx": {
       "count": 1,
-      "max": 31
+      "max": 30
     },
     "src/components/chat/ChatInput.tsx": {
       "count": 1,

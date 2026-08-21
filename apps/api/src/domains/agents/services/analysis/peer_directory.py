@@ -122,7 +122,7 @@ async def load_connected_peer_names(user_id: str | None) -> list[str]:
         return []
     try:
         peer_owner = UUID(str(user_id))
-    except (AttributeError, TypeError, ValueError):
+    except AttributeError, TypeError, ValueError:
         return []
     try:
         async with get_db_context() as db:

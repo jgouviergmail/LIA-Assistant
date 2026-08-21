@@ -329,7 +329,7 @@ def _try_compact_block(
     try:
         # Safe literal evaluation (no code execution)
         data = ast.literal_eval(block)
-    except (ValueError, SyntaxError, MemoryError, RecursionError):
+    except ValueError, SyntaxError, MemoryError, RecursionError:
         # Invalid Python literal - cannot compact
         return None
 

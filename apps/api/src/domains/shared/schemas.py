@@ -481,7 +481,7 @@ class ProvenanceResponse(BaseModel):
     )
 
     @classmethod
-    def from_references(cls, references: Sequence[Any]) -> "ProvenanceResponse":
+    def from_references(cls, references: Sequence[Any]) -> ProvenanceResponse:
         """Build the payload from resolved references.
 
         Three routes answer "why does LIA think this?" — one per subject — and

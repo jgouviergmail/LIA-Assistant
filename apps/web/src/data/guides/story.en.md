@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 1.7
-**Date**: 2026-08-20
-**Application**: LIA v1.30.16
+**Date**: 2026-08-21
+**Application**: LIA v1.31.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,7 +18,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Lines of code (excluding tests) — 40 functional domains | **520,000** |
+| Lines of code (excluding tests) — 43 functional domains | **570,000** |
 | Automated tests, run on every commit and release | **23,900+** |
 | Documented architecture decisions (ADR) | **229** |
 | Versions shipped at a steady pace | **210** |
@@ -109,7 +109,7 @@ Cycle 1.30.7 completed the movement: after speaking the ecosystem's wire protoco
 
 Cycle 1.30.11 produced the most unexpected lesson: designing an export can reveal that the system cannot answer its own question. Administering a hundred and twenty-four AI models one dialog at a time had stopped being tenable, and the idea was simple — export the pricing grid into a workbook, fix it offline, import it back. Writing it, though, required answering "what is this model's tariff?". There was no answer: nothing enforced a single active tariff, and two read paths could return different prices for the same model, at the same instant, on the same database. Two billing errors had been running in production for months with nobody able to see them. Putting it back in order produced a rule that outlives this domain: a migration never invents business data. The intuitive rule — keep the most recent row — proved wrong on all four real cases; so the migration merges what is strictly identical and stops, naming the rest, leaving the arbitration to a human. The delivered file holds the same standard: nothing is deleted implicitly, the preview you approve is the one that gets written, and what did not change is not rewritten.
 
-The 1.30.16 cycle moved the proof requirement onto new ground: aesthetics. Giving the assistant a gaze — two cartoon eyes that watch while you type, squint while it thinks, sweep while it searches and react to the tone of each answer — was first an animation project, where half the success lives in fluidity. The discipline did not change for that: the entire behavior fits in a pure engine fed by signals the application already emitted — the chat state machine, the streamed execution steps, the emotional engine — with no extra model call and no new endpoint, every expression driven by decision tables tested with injected clocks and randomness. And when the user panel could not settle on a style, the arbitration was rendered like every other one: on evidence, an interactive board of styles previewed for real. The winner became the default, the others a settings choice — and adding a new one is a registry entry, not a project.
+The 1.31.0 cycle moved the proof requirement onto new ground: aesthetics. Giving the assistant a gaze — two cartoon eyes that watch while you type, squint while it thinks, sweep while it searches and react to the tone of each answer — was first an animation project, where half the success lives in fluidity. The discipline did not change for that: the entire behavior fits in a pure engine fed by signals the application already emitted — the chat state machine, the streamed execution steps, the emotional engine — with no extra model call and no new endpoint, every expression driven by decision tables tested with injected clocks and randomness. And when the user panel could not settle on a style, the arbitration was rendered like every other one: on evidence, an interactive board of styles previewed for real. The winner became the default, the others a settings choice — and adding a new one is a registry entry, not a project.
 
 
 ## 7. Convictions

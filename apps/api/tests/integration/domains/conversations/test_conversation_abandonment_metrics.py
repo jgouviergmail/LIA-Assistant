@@ -68,7 +68,7 @@ class FakeSavepointTransaction:
 
         return _start().__await__()
 
-    async def __aenter__(self) -> "FakeSavepointTransaction":
+    async def __aenter__(self) -> FakeSavepointTransaction:
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> bool:

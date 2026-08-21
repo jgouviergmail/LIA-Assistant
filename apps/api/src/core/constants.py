@@ -4287,7 +4287,7 @@ SKILLS_SCRIPT_SANDBOX_IMAGE_DEFAULT = "lia-api:local"
 # 65534 resolves a DIFFERENT home and finds none of them: `segno` and `yaml`
 # would go missing and their skills would fail with a misleading "not installed".
 # Measured on the real image — do not remove without re-checking those two.
-SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT = "/home/appuser/.local/lib/python3.12/site-packages"
+SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT = "/home/appuser/.local/lib/python3.14/site-packages"
 
 # Unprivileged uid/gid the sandboxed process runs as (nobody:nogroup). It owns
 # nothing in the image, so even a mount added later by mistake stays unwritable.

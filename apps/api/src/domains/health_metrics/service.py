@@ -258,7 +258,7 @@ def _validate_sample(raw: dict[str, Any], kind: str) -> _SampleValidation:
 
     try:
         value = int(value_raw)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return _SampleValidation(
             valid=False,
             payload=None,

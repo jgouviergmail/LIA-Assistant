@@ -75,14 +75,12 @@ CI_ONLY: dict[str, str] = {
     "python -B scripts/install/tests_py310.py": (
         "the installer's 3.10-floor gate (ADR-215) must run under the BARE "
         "actions/setup-python 3.10 interpreter with no repo venv — running it "
-        "through a task would route it into apps/api/.venv (3.12) and prove "
+        "through a task would route it into apps/api/.venv (3.14) and prove "
         "nothing. Local equivalent: any python >= 3.10 runs the same file."
     ),
-    "pytest tests/unit/ -q --no-cov -p no:cacheprovider": (
-        "Python 3.13 forward-compatibility run (F041). The dev machine and every "
-        "other job are on 3.12; reproducing this locally would mean maintaining a "
-        "second interpreter for a check whose whole point is the version change."
-    ),
+    # NOTE: the F041 "pytest tests/unit/ ... on Python 3.13" entry was removed
+    # with the python-compat job (ADR-241): the single-version contract leaves
+    # no second interpreter to prove.
     "BAK_FILES=": "superseded by `task lint:hygiene` — remove if it reappears",
 }
 

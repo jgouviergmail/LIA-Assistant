@@ -328,7 +328,7 @@ def _get_expected_result_key_for_tool(tool_name: str) -> str | None:
     return get_result_key_for_tool(tool_name)
 
 
-def validate_steps_references(plan: "ExecutionPlan") -> tuple[bool, str | None]:
+def validate_steps_references(plan: ExecutionPlan) -> tuple[bool, str | None]:
     """
     Validate that $steps references in plan parameters use correct result_keys.
 

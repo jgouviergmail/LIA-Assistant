@@ -52,7 +52,7 @@ async def generate_fallback_response(
     config: Any = None,
     user_id: str | None = None,
     language: str | None = None,
-) -> AsyncGenerator[tuple["ChatStreamChunk", str], None]:
+) -> AsyncGenerator[tuple[ChatStreamChunk, str]]:
     """
     Generate an elegant fallback response via LLM.
 

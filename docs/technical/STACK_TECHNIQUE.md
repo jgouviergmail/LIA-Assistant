@@ -23,7 +23,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |-------------|-----------------|-------|
 | **Node.js** | >=22.0.0 | LTS recommande |
 | **pnpm** | 10.x | Workspace monorepo |
-| **Python** | >=3.12 | async/await natif |
+| **Python** | 3.14 (`>=3.14,<3.15`) | async/await natif |
 
 ---
 

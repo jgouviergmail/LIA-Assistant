@@ -18,13 +18,14 @@ from __future__ import annotations
 import importlib.util
 import io
 import sys
-from pathlib import Path
 
 import pytest
 
+from tests._repo_paths import repo_root_or_skip
+
 pytestmark = pytest.mark.unit
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
+REPO_ROOT = repo_root_or_skip()
 SKILLS_DIR = REPO_ROOT / "data" / "skills" / "system"
 GENERATOR = REPO_ROOT / "scripts" / "generate_skill_previews.py"
 

@@ -33,7 +33,7 @@ Trois exceptions seulement, chacune motivee par ecrit dans le dictionnaire
 |---|---|---|
 | `promtool` (binaire natif) | promtool n'est pas installe sur une machine de dev | `task test:alerts` — **meme version v3.0.0**, via conteneur |
 | Replay des migrations (bash, dans le conteneur) | le wrapper bash ne tourne pas sur l'hote Windows | `task db:migrate:replay-check` (portage Python, F048) |
-| Suite unitaire sur Python 3.13 (F041) | son objet **est** l'interpreteur different | aucun — maintenir un second interpreteur local n'a pas de sens |
+| Gate 3.10 de l'installateur (`tests_py310.py`, ADR-215) | doit tourner sous l'interpreteur 3.10 nu de setup-python, hors venv du repo | n'importe quel python >= 3.10 execute le meme fichier |
 
 Le reste des `run:` est du provisionnement de runner (checkout, venv, `pnpm
 install`). `task lint:ci-parity` echoue sur toute etape qui n'est ni un appel de
@@ -67,7 +67,7 @@ hook pre-commit (~5 min)                 ci.yml — 12 jobs, 15 appels `task`
                                              |                          task lint:lockfiles / lint:ci-parity
                                              +-- Observability Config .. task lint:observability + promtool
                                              +-- Docker Build .......... images API + Web (smoke)
-                                             +-- Python 3.13 (F041) .... (CI-only)
+                                             +-- Installateur 3.10 (ADR-215) (CI-only)
                                              +-- Secret Scan ........... Gitleaks
 ```
 
@@ -125,8 +125,7 @@ git commit --no-verify
 ```
 lint-backend ──> test-backend
              ├─> test-backend-integration
-             ├─> migration-replay
-             └─> python-compat
+             └─> migration-replay
 lint-frontend ─> test-frontend
 e2e-frontend   (independant)
 code-hygiene   (independant)
@@ -345,12 +344,20 @@ local. Le mecanisme differe, l'artefact verifie non.
 > moteur que celui de la production n'est pas valider — une regle pouvait franchir
 > la CI et se comporter autrement sur le Raspberry Pi.
 
-#### Python 3.13 Compatibility (F041)
+#### Installer Python 3.10 floor (ADR-215)
 
-CI-only declare : sous-ensemble unitaire rapide sur Python 3.13, ce qui prouve
-la moitie haute du contrat `requires-python` borne (`>=3.12,<3.14`). Reproduire
-ce job en local reviendrait a maintenir un second interpreteur pour un controle
-dont l'objet **est** le changement de version.
+CI-only declare : import de chaque module du wizard d'installation self-host
+sous l'interpreteur 3.10 **nu** (`python -B scripts/install/tests_py310.py`),
+hors venv du repo — toute syntaxe ou API 3.11+ echoue ici plutot que sur la
+machine d'un operateur.
+
+> Le job `python-compat` (F041, sous-ensemble unitaire sur Python 3.13) a ete
+> retire par l'ADR-241 : sous le contrat mono-version (`>=3.14,<3.15`), il ne
+> reste aucun second interpreteur a prouver — `test-backend` execute la meme
+> selection sur 3.14. La garde
+> `tests/unit/test_python_runtime_surfaces_guard.py` verrouille depuis toutes
+> les surfaces de version (pyproject, Dockerfiles, flags uv, sandbox skills,
+> workflows).
 
 #### Docker Build
 
@@ -575,7 +582,7 @@ venv local) depuis des **lockfiles compiles** avec hashes SHA256 :
   (pins souples autorises) ;
 - `apps/api/requirements.lock.txt` / `requirements-dev.lock.txt` — lockfiles
   universels compiles par `uv pip compile --universal` (un seul fichier pour
-  linux/amd64, linux/arm64, Windows, Python >= 3.12), installes par pip vanilla
+  linux/amd64, linux/arm64, Windows, Python >= 3.14), installes par pip vanilla
   avec `--require-hashes`.
 
 Deux builds du meme commit embarquent donc exactement les memes versions, verifiees
@@ -617,7 +624,7 @@ hook (`--no-verify`) ou clone sans installer les hooks, la CI rattrape.
 | E2E + a11y (Playwright) | — | — (dans `task ci`) | ✓ | Necessite un navigateur |
 | Regles Prometheus (promtool) | — | — (dans `task ci`) | ✓ | Conteneur en local, binaire natif en CI |
 | Build Docker | — | — | ✓ | CI-only (trop lent en local) |
-| Python 3.13 (F041) | — | — | ✓ | CI-only (autre interpreteur) |
+| Installateur 3.10 (ADR-215) | — | — | ✓ | CI-only (interpreteur 3.10 nu) |
 
 **Limite assumee** : cette iso porte sur les **commandes**, pas sur
 l'**environnement**. Le hote de dev est Windows, le runner est Linux ; une

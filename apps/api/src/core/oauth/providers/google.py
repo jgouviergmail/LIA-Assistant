@@ -36,7 +36,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
     provider_name: str = "google"
 
     @classmethod
-    def for_authentication(cls, settings: Settings) -> "GoogleOAuthProvider":
+    def for_authentication(cls, settings: Settings) -> GoogleOAuthProvider:
         """
         Create provider config for user authentication (OpenID Connect).
 
@@ -50,7 +50,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         )
 
     @classmethod
-    def for_gmail(cls, settings: Settings) -> "GoogleOAuthProvider":
+    def for_gmail(cls, settings: Settings) -> GoogleOAuthProvider:
         """
         Create provider config for Gmail connector.
 
@@ -67,7 +67,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         )
 
     @classmethod
-    def for_contacts(cls, settings: Settings) -> "GoogleOAuthProvider":
+    def for_contacts(cls, settings: Settings) -> GoogleOAuthProvider:
         """
         Create provider config for Google Contacts connector.
 
@@ -84,7 +84,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         )
 
     @classmethod
-    def for_calendar(cls, settings: Settings) -> "GoogleOAuthProvider":
+    def for_calendar(cls, settings: Settings) -> GoogleOAuthProvider:
         """
         Create provider config for Google Calendar connector.
 
@@ -101,7 +101,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         )
 
     @classmethod
-    def for_drive(cls, settings: Settings) -> "GoogleOAuthProvider":
+    def for_drive(cls, settings: Settings) -> GoogleOAuthProvider:
         """
         Create provider config for Google Drive connector.
 
@@ -118,7 +118,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         )
 
     @classmethod
-    def for_tasks(cls, settings: Settings) -> "GoogleOAuthProvider":
+    def for_tasks(cls, settings: Settings) -> GoogleOAuthProvider:
         """
         Create provider config for Google Tasks connector.
 

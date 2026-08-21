@@ -812,7 +812,7 @@ async def test_horizontal_scaling():
 
 **Setup** :
 - Redis 7.2 (localhost)
-- Python 3.12, asyncio
+- Python 3.14, asyncio
 - 1000 requêtes séquentielles
 
 | Metric | Value |

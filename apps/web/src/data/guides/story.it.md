@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 1.7
-**Data**: 2026-08-20
-**Applicazione**: LIA v1.30.16
+**Data**: 2026-08-21
+**Applicazione**: LIA v1.31.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,7 +18,7 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice (esclusi i test) — 40 domini funzionali | **520.000** |
+| Righe di codice (esclusi i test) — 43 domini funzionali | **570.000** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **23.900+** |
 | Decisioni di architettura documentate (ADR) | **229** |
 | Versioni rilasciate a ritmo regolare | **210** |
@@ -109,7 +109,7 @@ Il ciclo 1.30.7 ha completato il movimento: dopo aver parlato il protocollo dell
 
 Il ciclo 1.30.11 ha prodotto la lezione più inattesa: progettare un'esportazione può rivelare che il sistema non sa rispondere alla propria domanda. Amministrare centoventiquattro modelli di IA una finestra alla volta non era più sostenibile, e l'idea era semplice — esportare la griglia tariffaria in una cartella di lavoro, correggerla offline, reimportarla. Scriverla, però, richiedeva di rispondere a «qual è la tariffa di questo modello?». Non c'era risposta: nulla imponeva una sola tariffa attiva, e due percorsi di lettura potevano restituire prezzi diversi per lo stesso modello, nello stesso istante, sullo stesso database. Due errori di fatturazione giravano in produzione da mesi senza che nessuno potesse vederli. Il riordino ha prodotto una regola che va oltre questo dominio: una migrazione non inventa mai un dato di business. La regola intuitiva — tenere la riga più recente — si è rivelata falsa in tutti e quattro i casi reali; la migrazione fonde quindi ciò che è rigorosamente identico e si ferma nominando il resto, lasciando l'arbitrato a una persona. Il file consegnato tiene lo stesso standard: nulla viene cancellato implicitamente, l'anteprima approvata è quella che viene scritta, e ciò che non è cambiato non viene riscritto.
 
-Il ciclo 1.30.16 ha spostato l’esigenza di prova su un terreno nuovo: l’estetica. Dare uno sguardo all’assistente — due occhi cartoon che osservano mentre scrivi, si socchiudono mentre riflette, spazzano mentre cerca e reagiscono al tono di ogni risposta — è stato prima di tutto un cantiere di animazione, dove metà del successo si gioca nella fluidità. La disciplina non è cambiata per questo: tutto il comportamento sta in un motore puro alimentato da segnali che l’applicazione emetteva già — la macchina a stati della chat, i passi di esecuzione trasmessi, il motore emotivo — senza una chiamata di modello né un endpoint in più, ogni espressione governata da tabelle di decisione testate con orologi e casualità iniettati. E quando il panel di utenti non ha deciso sullo stile, l’arbitrato è stato reso come tutti gli altri: sulle prove, una tavola interattiva di stili visualizzati per davvero. Il vincitore è diventato il predefinito, gli altri una scelta nelle impostazioni — e aggiungerne uno nuovo è una voce di registro, non un cantiere.
+Il ciclo 1.31.0 ha spostato l’esigenza di prova su un terreno nuovo: l’estetica. Dare uno sguardo all’assistente — due occhi cartoon che osservano mentre scrivi, si socchiudono mentre riflette, spazzano mentre cerca e reagiscono al tono di ogni risposta — è stato prima di tutto un cantiere di animazione, dove metà del successo si gioca nella fluidità. La disciplina non è cambiata per questo: tutto il comportamento sta in un motore puro alimentato da segnali che l’applicazione emetteva già — la macchina a stati della chat, i passi di esecuzione trasmessi, il motore emotivo — senza una chiamata di modello né un endpoint in più, ogni espressione governata da tabelle di decisione testate con orologi e casualità iniettati. E quando il panel di utenti non ha deciso sullo stile, l’arbitrato è stato reso come tutti gli altri: sulle prove, una tavola interattiva di stili visualizzati per davvero. Il vincitore è diventato il predefinito, gli altri una scelta nelle impostazioni — e aggiungerne uno nuovo è una voce di registro, non un cantiere.
 
 
 ## 7. Convinzioni

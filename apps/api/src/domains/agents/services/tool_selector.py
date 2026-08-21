@@ -150,7 +150,7 @@ class SemanticToolSelector:
             print(f"{tool.tool_name}: {tool.score:.2f} ({tool.confidence})")
     """
 
-    _instance: "SemanticToolSelector | None" = None
+    _instance: SemanticToolSelector | None = None
     _lock: asyncio.Lock = asyncio.Lock()
 
     def __init__(self) -> None:
@@ -174,7 +174,7 @@ class SemanticToolSelector:
         self._hybrid_enabled: bool = True
 
     @classmethod
-    async def get_instance(cls) -> "SemanticToolSelector":
+    async def get_instance(cls) -> SemanticToolSelector:
         """Get or create the singleton instance."""
         if cls._instance is None:
             async with cls._lock:

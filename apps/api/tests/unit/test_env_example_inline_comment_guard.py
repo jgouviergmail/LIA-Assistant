@@ -14,11 +14,12 @@ variable.
 """
 
 import re
-from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+from tests._repo_paths import repo_root_or_skip
+
+REPO_ROOT = repo_root_or_skip()
 
 ENV_EXAMPLE_FILES = [".env.example", ".env.prod.example", ".env.min.prod.example"]
 

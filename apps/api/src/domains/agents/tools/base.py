@@ -90,7 +90,7 @@ def _extract_runtime_language(runtime: Any) -> SupportedLanguage:
     try:
         configurable = runtime.config.get("configurable") or {}
         raw = configurable.get("user_language") or settings.default_language
-    except (AttributeError, TypeError):
+    except AttributeError, TypeError:
         raw = settings.default_language
     return _normalize_language(raw)
 
@@ -878,7 +878,7 @@ class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
 
     def _get_deps_or_fallback(
         self, runtime: ToolRuntime[LiaRuntimeContext, Any]
-    ) -> tuple[bool, "ToolDependencies | None"]:
+    ) -> tuple[bool, ToolDependencies | None]:
         """Get injected dependencies."""
         try:
             deps = get_dependencies(runtime)

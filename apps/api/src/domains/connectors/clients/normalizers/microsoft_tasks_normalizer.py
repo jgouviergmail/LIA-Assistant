@@ -108,7 +108,7 @@ def _normalize_due_date(dt_str: str) -> str:
             clean = clean[:-1]
         dt = datetime.fromisoformat(clean)
         return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return dt_str
 
 

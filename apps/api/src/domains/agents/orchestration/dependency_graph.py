@@ -666,7 +666,7 @@ class DependencyGraph:
     def expand_for_each_steps(
         self,
         step_results: dict[str, Any],
-    ) -> tuple[list["ExecutionStep"], dict[str, list[str]]]:
+    ) -> tuple[list[ExecutionStep], dict[str, list[str]]]:
         """
         Expand for_each steps into multiple concrete steps at runtime.
 

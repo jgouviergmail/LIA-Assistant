@@ -668,7 +668,7 @@ class ProactiveTaskRunner:
         user_tz_str = getattr(user, "timezone", None) or "UTC"
         try:
             user_tz = ZoneInfo(user_tz_str)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             user_tz = ZoneInfo("UTC")
 
         user_now = now.astimezone(user_tz)
@@ -750,7 +750,7 @@ class ProactiveTaskRunner:
         user_tz_str = getattr(user, "timezone", None) or "UTC"
         try:
             user_tz: ZoneInfo | timezone = ZoneInfo(user_tz_str)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             from datetime import UTC
 
             user_tz = UTC

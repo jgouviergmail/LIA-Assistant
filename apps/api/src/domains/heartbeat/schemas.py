@@ -539,7 +539,7 @@ class HeartbeatNotificationResponse(BaseModel):
         """Create from ORM model, parsing JSON sources_used."""
         try:
             sources = json.loads(notification.sources_used)
-        except (json.JSONDecodeError, TypeError):
+        except json.JSONDecodeError, TypeError:
             sources = []
         return cls(
             id=notification.id,

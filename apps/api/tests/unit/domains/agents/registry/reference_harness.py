@@ -81,7 +81,7 @@ def _resolves(path: str, completed: dict[str, Any]) -> tuple[bool, Any]:
     """
     try:
         return True, ReferenceResolver().resolve(f"$steps.step_1.{path}", completed, None)
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         return False, None
 
 

@@ -518,7 +518,7 @@ class PlaceCard(BaseComponent):
                             if "–" in time_part:
                                 open_time = time_part.split("–")[0].strip()
                                 return open_time  # type: ignore[no-any-return]
-            except (ValueError, IndexError, TypeError):
+            except ValueError, IndexError, TypeError:
                 logger.debug("place_card_opening_hours_parse_error")
         return ""
 
@@ -547,7 +547,7 @@ class PlaceCard(BaseComponent):
                             if "–" in time_part:
                                 close_time = time_part.split("–")[1].strip()
                                 return close_time
-            except (ValueError, IndexError, TypeError):
+            except ValueError, IndexError, TypeError:
                 logger.debug("place_card_closing_time_parse_error")
         return ""
 

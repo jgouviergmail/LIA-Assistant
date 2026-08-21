@@ -76,7 +76,7 @@ class TestNoLegacyRegistryImports:
                                     f"line {node.lineno} imports {alias.name}"
                                 )
 
-            except (SyntaxError, UnicodeDecodeError):
+            except SyntaxError, UnicodeDecodeError:
                 # Skip files that can't be parsed (shouldn't happen in production code)
                 continue
 
@@ -329,7 +329,7 @@ class TestLegacyManifestFilesIsolation:
                         violations.append(
                             f"{file_path.relative_to(src_dir)}: uses '{manifest_name}'"
                         )
-            except (UnicodeDecodeError, PermissionError):
+            except UnicodeDecodeError, PermissionError:
                 continue
 
         if violations:

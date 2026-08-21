@@ -61,7 +61,7 @@ def _is_meet_url(text: str) -> bool:
         parsed = urlparse(text)
         domain = (parsed.netloc or parsed.path.split("/")[0]).lower()
         return domain == "meet.google.com"
-    except (ValueError, AttributeError, IndexError):
+    except ValueError, AttributeError, IndexError:
         return False
 
 
@@ -489,7 +489,7 @@ class EventCard(BaseComponent):
                     return dt.strftime("%m/%d")  # MM/DD for English
                 else:
                     return dt.strftime("%d/%m")  # DD/MM for others
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 return date_str  # type: ignore[no-any-return]
         else:
             dt_str = start.get("dateTime", "")

@@ -30,7 +30,7 @@ Data Registry Mode Support (Phase 5.2 BugFix 2025-11-26):
 import json
 from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from langchain.tools import ToolRuntime
 
@@ -133,7 +133,7 @@ def auto_save_context(
         @wraps(func)
         async def wrapper(
             *args: Any, **kwargs: Any
-        ) -> Union[str, "StandardToolOutput", "UnifiedToolOutput"]:
+        ) -> str | StandardToolOutput | UnifiedToolOutput:
             # Execute original tool
             tool_result = await func(*args, **kwargs)
 

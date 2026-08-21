@@ -164,7 +164,7 @@ def _load_state(raw: str | None) -> dict[str, Any] | None:
         if not isinstance(state, dict) or not isinstance(state.get("s"), list):
             return None
         return state
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return None
 
 

@@ -80,7 +80,7 @@ class UserFCMToken(BaseModel):
     )
 
     # Relationship
-    user: Mapped["User"] = relationship(back_populates="fcm_tokens")
+    user: Mapped[User] = relationship(back_populates="fcm_tokens")
 
     def __repr__(self) -> str:
         return (
@@ -142,8 +142,8 @@ class AdminBroadcast(BaseModel):
     )
 
     # Relationships
-    sender: Mapped["User"] = relationship("User", foreign_keys=[sent_by])
-    reads: Mapped[list["UserBroadcastRead"]] = relationship(
+    sender: Mapped[User] = relationship("User", foreign_keys=[sent_by])
+    reads: Mapped[list[UserBroadcastRead]] = relationship(
         back_populates="broadcast",
         cascade="all, delete-orphan",
     )
@@ -187,8 +187,8 @@ class UserBroadcastRead(BaseModel):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User")
-    broadcast: Mapped["AdminBroadcast"] = relationship(back_populates="reads")
+    user: Mapped[User] = relationship("User")
+    broadcast: Mapped[AdminBroadcast] = relationship(back_populates="reads")
 
     def __repr__(self) -> str:
         return f"<UserBroadcastRead(user_id={self.user_id}, broadcast_id={self.broadcast_id})>"

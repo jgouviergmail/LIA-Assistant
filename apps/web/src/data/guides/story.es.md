@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 1.7
-**Fecha**: 2026-08-20
-**Aplicación**: LIA v1.30.16
+**Fecha**: 2026-08-21
+**Aplicación**: LIA v1.31.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,7 +18,7 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código (sin tests) — 40 dominios funcionales | **520.000** |
+| Líneas de código (sin tests) — 43 dominios funcionales | **570.000** |
 | Tests automatizados, ejecutados en cada commit y entrega | **23.900+** |
 | Decisiones de arquitectura documentadas (ADR) | **229** |
 | Versiones entregadas a ritmo regular | **210** |
@@ -109,7 +109,7 @@ El ciclo 1.30.7 completó el movimiento: después de hablar el protocolo del eco
 
 El ciclo 1.30.11 produjo la lección más inesperada: diseñar una exportación puede revelar que el sistema no sabe responder a su propia pregunta. Administrar ciento veinticuatro modelos de IA con un cuadro de diálogo cada vez había dejado de ser sostenible, y la idea era simple — exportar la tabla de tarifas a un libro, corregirla sin conexión, reimportarla. Pero escribirla exigía responder a «¿cuál es la tarifa de este modelo?». No había respuesta: nada imponía una única tarifa activa, y dos rutas de lectura podían devolver precios distintos para el mismo modelo, en el mismo instante, sobre la misma base. Dos errores de facturación llevaban meses corriendo en producción sin que nadie pudiera verlos. Poner orden produjo una regla que trasciende este dominio: una migración nunca inventa un dato de negocio. La regla intuitiva — conservar la fila más reciente — resultó falsa en los cuatro casos reales; por eso la migración fusiona lo estrictamente idéntico y se detiene nombrando el resto, dejando el arbitraje a una persona. El archivo entregado mantiene la misma exigencia: nada se borra implícitamente, la vista previa que se aprueba es la que se escribe, y lo que no cambió no se reescribe.
 
-El ciclo 1.30.16 desplazó la exigencia de prueba a un terreno nuevo: la estética. Dar una mirada al asistente — dos ojos de dibujo animado que observan mientras escribes, se entornan mientras piensa, barren mientras busca y reaccionan al tono de cada respuesta — fue primero un proyecto de animación, donde la mitad del éxito se juega en la fluidez. La disciplina no cambió por ello: todo el comportamiento cabe en un motor puro alimentado por señales que la aplicación ya emitía — la máquina de estados del chat, los pasos de ejecución transmitidos, el motor emocional — sin una llamada de modelo ni un punto de acceso más, cada expresión gobernada por tablas de decisión probadas con relojes y azar inyectados. Y cuando el panel de usuarios no zanjó el estilo, el arbitraje se dictó como todos los demás: sobre pruebas, un tablero interactivo de estilos previsualizados de verdad. El ganador se convirtió en el predeterminado, los demás en una opción de ajustes — y añadir uno nuevo es una entrada de registro, no un proyecto.
+El ciclo 1.31.0 desplazó la exigencia de prueba a un terreno nuevo: la estética. Dar una mirada al asistente — dos ojos de dibujo animado que observan mientras escribes, se entornan mientras piensa, barren mientras busca y reaccionan al tono de cada respuesta — fue primero un proyecto de animación, donde la mitad del éxito se juega en la fluidez. La disciplina no cambió por ello: todo el comportamiento cabe en un motor puro alimentado por señales que la aplicación ya emitía — la máquina de estados del chat, los pasos de ejecución transmitidos, el motor emocional — sin una llamada de modelo ni un punto de acceso más, cada expresión gobernada por tablas de decisión probadas con relojes y azar inyectados. Y cuando el panel de usuarios no zanjó el estilo, el arbitraje se dictó como todos los demás: sobre pruebas, un tablero interactivo de estilos previsualizados de verdad. El ganador se convirtió en el predeterminado, los demás en una opción de ajustes — y añadir uno nuevo es una entrada de registro, no un proyecto.
 
 
 ## 7. Convicciones

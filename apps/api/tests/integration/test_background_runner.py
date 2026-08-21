@@ -71,7 +71,7 @@ def _token(content: str) -> ChatStreamChunk:
 async def test_producer_publishes_all_chunks_and_completed_marker(redis_client) -> None:
     run_id = f"test_{uuid.uuid4().hex[:8]}"
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         for i in range(5):
             yield _token(f"tok{i}")
             await asyncio.sleep(0.01)
@@ -92,7 +92,7 @@ async def test_producer_publishes_all_chunks_and_completed_marker(redis_client) 
 async def test_producer_failing_generator_ends_with_error_marker(redis_client) -> None:
     run_id = f"test_{uuid.uuid4().hex[:8]}"
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("partial")
         raise RuntimeError("llm exploded")
 
@@ -115,7 +115,7 @@ async def test_cancelled_producer_ends_killed_and_finalizes_partial(redis_client
     async def finalize_partial(content: str, reason: str) -> None:
         finalized.append((content, reason))
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("hello ")
         yield _token("world")
         await asyncio.sleep(30)  # cancellation lands here
@@ -149,7 +149,7 @@ async def test_content_replacement_replaces_accumulated_content(redis_client) ->
     async def finalize_partial(content: str, reason: str) -> None:
         finalized.append((content, reason))
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("raw ")
         yield ChatStreamChunk(type="content_replacement", content="FINAL enriched", metadata=None)
         await asyncio.sleep(30)
@@ -184,10 +184,10 @@ async def test_hitl_resumption_fresh_stream_avoids_stale_end_marker(redis_client
     stream_phase1 = f"{billing_run_id}_s1"
     stream_phase2 = f"{billing_run_id}_s2"
 
-    async def phase1() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def phase1() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("hitl question")  # interrupt phase ends cleanly
 
-    async def phase2() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def phase2() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("resumption ")
         yield _token("answer")
 
@@ -224,11 +224,11 @@ async def test_drain_chat_producers_waits_then_reports_pending(redis_client) -> 
     fast_id = f"test_{uuid.uuid4().hex[:8]}"
     slow_id = f"test_{uuid.uuid4().hex[:8]}"
 
-    async def fast() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def fast() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("quick")
         await asyncio.sleep(0.5)  # still in flight when the drain starts
 
-    async def slow() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def slow() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("slow")
         await asyncio.sleep(30)
 
@@ -262,7 +262,7 @@ async def test_producer_heartbeat_keeps_lock_then_releases_on_completion(
     conv = f"conv_{uuid.uuid4().hex[:8]}"
     stream_id = f"s_{uuid.uuid4().hex[:8]}"
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("start")
         await asyncio.sleep(3.5)  # > lock TTL: only the heartbeat keeps it alive
         yield _token("end")
@@ -292,7 +292,7 @@ async def test_killed_producer_releases_lock_immediately(redis_client, monkeypat
     conv = f"conv_{uuid.uuid4().hex[:8]}"
     stream_id = f"s_{uuid.uuid4().hex[:8]}"
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("start")
         await asyncio.sleep(60)
 
@@ -337,7 +337,7 @@ async def test_user_cancel_signal_ends_run_as_cancelled(redis_client) -> None:
     async def finalize_partial(content: str, reason: str) -> None:
         finalized.append((content, reason))
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("partial ")
         yield _token("answer")
         await asyncio.sleep(30)  # the cancel lands here
@@ -380,7 +380,7 @@ async def test_hard_kill_still_reports_killed_not_cancelled(redis_client) -> Non
     and archive metadata."""
     run_id = f"test_{uuid.uuid4().hex[:8]}"
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield _token("x")
         await asyncio.sleep(30)
 

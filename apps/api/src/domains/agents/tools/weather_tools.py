@@ -82,7 +82,7 @@ def _get_today_in_timezone(user_timezone: str) -> datetime:
     """
     try:
         tz = ZoneInfo(user_timezone)
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         tz = UTC
     return datetime.now(tz)
 
@@ -225,7 +225,7 @@ def _calculate_target_date(
         try:
             tz = ZoneInfo(user_timezone)
             parsed_local = parsed_dt.astimezone(tz)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             parsed_local = parsed_dt.astimezone(UTC)
 
         target_date = parsed_local.date()

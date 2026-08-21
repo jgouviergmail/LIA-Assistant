@@ -75,7 +75,7 @@ def _occurred_at(message: dict[str, Any]) -> datetime | None:
         return None
     try:
         return datetime.fromtimestamp(int(raw) / 1000, tz=UTC)
-    except (TypeError, ValueError, OSError, OverflowError):
+    except TypeError, ValueError, OSError, OverflowError:
         return None
 
 

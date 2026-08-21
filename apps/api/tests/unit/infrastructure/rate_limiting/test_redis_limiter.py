@@ -439,3 +439,58 @@ class TestSharedRateLimiterSingleton:
             rebuilt = await get_rate_limiter()
         assert rebuilt is not first, "a new client instance must rebuild the limiter"
         assert rebuilt.redis is client_b
+
+
+class TestRequestIdUniqueness:
+    """The ZSET member must be unique per request, or the window under-counts.
+
+    Bug found 2026-08-21 when the multiprocess suite was de-zombified
+    (ADR-241 follow-up): ``request_id`` was the bare ``f"{time.time():.6f}"``,
+    so two acquisitions landing in the same microsecond — routine under
+    concurrent processes — produced the SAME sorted-set member. The second
+    ``ZADD`` then overwrote the first instead of adding, ``ZCARD``
+    under-counted, and the limiter admitted MORE than ``max_calls``
+    (measured: 23/20 and 120/100 on the real multiprocess suite).
+    """
+
+    @pytest.fixture
+    def mock_redis(self):
+        redis = AsyncMock()
+        redis.script_load = AsyncMock(return_value="mock_script_sha")
+        redis.evalsha = AsyncMock(return_value=1)
+        return redis
+
+    @pytest.mark.asyncio
+    async def test_same_microsecond_yields_distinct_members(self, mock_redis):
+        """Two acquires at a FROZEN clock must send two DIFFERENT request ids."""
+        limiter = RedisRateLimiter(mock_redis)
+        frozen = 1700000000.123456
+        with patch(
+            "src.infrastructure.rate_limiting.redis_limiter.time.time",
+            return_value=frozen,
+        ):
+            await limiter.acquire("k", max_calls=10, window_seconds=60)
+            await limiter.acquire("k", max_calls=10, window_seconds=60)
+
+        first_args = mock_redis.evalsha.call_args_list[0].args
+        second_args = mock_redis.evalsha.call_args_list[1].args
+        # evalsha(sha, numkeys, key, max_calls, window, current_time, request_id)
+        assert first_args[5] == str(frozen) == second_args[5]  # score unchanged
+        assert first_args[6] != second_args[6], (
+            "identical ZSET members collapse into one entry — the window "
+            "under-counts and the limiter over-admits under concurrency"
+        )
+
+    @pytest.mark.asyncio
+    async def test_request_id_still_carries_the_timestamp_prefix(self, mock_redis):
+        """Keep the timestamp prefix: entries stay human-orderable in Redis."""
+        limiter = RedisRateLimiter(mock_redis)
+        frozen = 1700000000.123456
+        with patch(
+            "src.infrastructure.rate_limiting.redis_limiter.time.time",
+            return_value=frozen,
+        ):
+            await limiter.acquire("k", max_calls=10, window_seconds=60)
+
+        request_id = mock_redis.evalsha.call_args.args[6]
+        assert request_id.startswith(f"{frozen:.6f}")

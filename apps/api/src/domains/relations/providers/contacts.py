@@ -135,7 +135,7 @@ def _partial_date(date: Any) -> str | None:
     try:
         day, month = int(date["day"]), int(date["month"])
         year = int(date["year"]) if date.get("year") else None
-    except (KeyError, TypeError, ValueError):
+    except KeyError, TypeError, ValueError:
         # A date this shape cannot express is dropped, never half-shown: the
         # card would otherwise carry a fragment nobody can read as a date.
         return None

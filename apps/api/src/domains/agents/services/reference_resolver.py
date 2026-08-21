@@ -424,7 +424,7 @@ class ReferenceResolver:
                 if index is None and match.groups():
                     try:
                         resolved_index = int(match.group(1)) - 1  # 1-based to 0-based
-                    except (ValueError, IndexError):
+                    except ValueError, IndexError:
                         resolved_index = 0
 
                 references.append(

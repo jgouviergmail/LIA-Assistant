@@ -39,7 +39,7 @@ _NON_REASONING_DEFAULTS: dict[str, Any] = {
 
 
 @pytest.fixture(autouse=True)
-def reset_cache_between_tests() -> Generator[None, None, None]:
+def reset_cache_between_tests() -> Generator[None]:
     """Avoid bleed-over: reset the singleton between tests."""
     ModelCapabilitiesCache.reset()
     yield

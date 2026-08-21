@@ -96,7 +96,7 @@ class TestFindRepoRoot:
         link = tmp_path / "linked"
         try:
             link.symlink_to(real_root, target_is_directory=True)
-        except (OSError, NotImplementedError):
+        except OSError, NotImplementedError:
             pytest.skip("symlink creation not permitted on this platform")
         anchor = link / "apps" / "api" / "deep" / "file.py"
         anchor.parent.mkdir(parents=True, exist_ok=True)

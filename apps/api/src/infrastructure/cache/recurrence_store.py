@@ -65,7 +65,7 @@ async def load(redis: Any, key: str) -> dict[str, Any]:
         return {"days": {}, "suggested_at": None}
     try:
         data = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         return {"days": {}, "suggested_at": None}
     if not isinstance(data, dict):
         return {"days": {}, "suggested_at": None}
@@ -104,6 +104,6 @@ def parse_days(data: dict[str, Any]) -> dict[date, list[float]]:
     for iso, hours in (data.get("days") or {}).items():
         try:
             days[date.fromisoformat(iso)] = [float(h) for h in hours or []]
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
     return days

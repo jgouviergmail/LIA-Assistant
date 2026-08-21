@@ -125,7 +125,7 @@ class UserUsageLimit(BaseModel):
     )
 
     # --- Relationships ---
-    user: Mapped["User"] = relationship(back_populates="usage_limit")
+    user: Mapped[User] = relationship(back_populates="usage_limit")
 
     def __repr__(self) -> str:
         """Return string representation."""

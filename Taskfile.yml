@@ -12,7 +12,7 @@ vars:
   UV: uv  # Optional: faster pip alternative
   # Shared flags for Python lockfile compilation (deps:lock / deps:upgrade*).
   # --universal: single multi-platform lock (linux amd64/arm64, Windows, py>=3.12)
-  UV_COMPILE_FLAGS: --universal --python-version 3.12 --generate-hashes --custom-compile-command "task deps:lock"
+  UV_COMPILE_FLAGS: --universal --python-version 3.14 --generate-hashes --custom-compile-command "task deps:lock"
   # Pattern training settings (change these for different environments)
   PATTERNS_BASE_URL: https://localhost:8000/api/v1
   PATTERNS_SSL_FLAG: --insecure  # Use --insecure for self-signed certs, empty for valid certs

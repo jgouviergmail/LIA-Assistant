@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.14"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 24 LTS"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.136.3-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
@@ -41,7 +41,8 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.30.16</strong> — <strong>The assistant gets a gaze</strong>. A pair of expressive cartoon eyes now lives on the chat page — a floating widget you can drag, resize and dismiss, driven by a pure priority engine over signals the app already had: twenty expressions covering the whole conversation lifecycle (thinking, tool search and answering are three different looks), HITL questions, voice states, proactive notifications, your typing — and a per-turn reaction read from the model's own emotional self-report, with a language-neutral fallback across all six locales. Between events the eyes genuinely live: human-cadence blinks, wandering saccades, mood-weighted gestures, day-dream micro-scenes, floating emotes (« ? », « ! », a drifting « z »), a startled wake-up when activity catches them dozing — and, rarely, pure slapstick: the eyes swap places in a circus arc, bump together with a squash, pirouette. Six selectable looks ship in Settings › Personalization (Cozmo glowing screens by default), backed by a generic style registry where adding a look is one id, one scoped CSS sheet and six locale entries — completeness is test-enforced. The chat header gets lighter in the process: the amber “processing” pill and the wait phrase are gone, because that state now lives in the eyes, richer than a label ever was. — 20 August 2026.
+  <strong>Version 1.31.0</strong> — <strong>The runtime moves to Python 3.14 and Debian trixie — and comes out hardened</strong> (ADR-241). Every execution surface — the Windows dev venv, the dev container, the arm64 production image rebuilt on the Raspberry Pi 5, the skills sandbox and all CI jobs — now runs CPython 3.14 on <code>python:3.14-slim-trixie</code> under a single-version contract, audited before it was attempted: all 229 pinned packages verified wheel-by-wheel against PyPI for the three platforms LIA actually installs on, the lock recompilation dry-run proven to change exactly one thing (<code>audioop-lts</code>, closing a silent break: the stdlib module pydub needs was removed in Python 3.13, and the Telegram voice path survived only because Docker lagged behind). The migration's revived stress suite then exposed a real fairness bug in the distributed rate limiter — two requests landing in the same microsecond collided on the sliding window's member key and bursts could slip past their quota (measured 23/20); the window now counts every request exactly. Deployment provenance is reconciled automatically (the running instance reports the exact shipped version), the Windows non-reload launch path — silently broken since uvicorn moved to loop factories — works again, five unused libraries left the runtime, every Python API scheduled for removal in 3.16 was modernized ahead of time, and three permanent guards chain every version-bearing surface to the <code>requires-python</code> floor. The expressive eyes refined their idle life along the way: mood-family breathing, CSS-variable gaze, floating emotes as a dedicated component. — 21 August 2026.
+
 </p>
 
 ---
@@ -116,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **42** functional domains | **540,000** lines of code (excl. tests) | **25,300+** automated tests | **239** ADRs                                                           |
-| **215** versions shipped  | **6 languages**, parity enforced in CI  | **473** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **43** functional domains | **570,000** lines of code (excl. tests) | **25,400+** automated tests | **240** ADRs                                                           |
+| **221** versions shipped  | **6 languages**, parity enforced in CI  | **480** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -587,7 +588,7 @@ A 24-section debug panel embedded in the chat interface, organized into **6 logi
 
 | Software                      | Version | Required         |
 | ----------------------------- | ------- | ---------------- |
-| Python                        | 3.12+   | Yes              |
+| Python                        | 3.14    | Yes              |
 | Node.js                       | 24 LTS  | Yes              |
 | Docker                        | 24+     | Yes              |
 | pnpm                          | 10+     | Yes              |
@@ -859,7 +860,7 @@ apps/api/src/
 
 | Technology | Version       | Role                                         |
 | ---------- | ------------- | -------------------------------------------- |
-| Python     | 3.12+         | Primary runtime                              |
+| Python     | 3.14          | Primary runtime                              |
 | FastAPI    | 0.136.3       | REST API + SSE framework                     |
 | LangGraph  | 1.2.11        | Multi-agent orchestration                    |
 | LangChain  | 1.3.15        | LLM abstraction + tools                      |
@@ -959,7 +960,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-217 ADR files (ADR-001 through ADR-218 — ADR-008 has no separate file) documenting major architectural decisions:
+240 ADR files (ADR-001 through ADR-241 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

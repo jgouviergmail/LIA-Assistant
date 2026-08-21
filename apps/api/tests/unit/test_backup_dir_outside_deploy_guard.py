@@ -25,15 +25,16 @@ so no deployment can reach them, whatever it does to its own tree.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from posixpath import normpath
 
 import pytest
 import yaml
 
+from tests._repo_paths import repo_root_or_skip
+
 pytestmark = pytest.mark.unit
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = repo_root_or_skip()
 COMPOSE_PROD = REPO_ROOT / "docker-compose.prod.yml"
 ENV_TEMPLATES = (".env.prod.example", ".env.min.prod.example")
 

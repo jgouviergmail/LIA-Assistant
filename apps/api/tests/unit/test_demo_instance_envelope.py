@@ -18,13 +18,14 @@ What must hold:
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
+from tests._repo_paths import repo_root_or_skip
+
 pytestmark = pytest.mark.unit
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = repo_root_or_skip()
 COMPOSE = REPO_ROOT / "docker-compose.demo-instance.yml"
 
 

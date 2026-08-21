@@ -19,7 +19,7 @@ from src.domains.agents.services.hitl.interactions.draft_critique import (
 pytestmark = [pytest.mark.unit]
 
 
-async def _stream(chunks: list[str]) -> AsyncGenerator[str, None]:
+async def _stream(chunks: list[str]) -> AsyncGenerator[str]:
     for chunk in chunks:
         yield chunk
 

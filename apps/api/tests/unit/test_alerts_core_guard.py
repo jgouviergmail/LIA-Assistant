@@ -22,7 +22,6 @@ annotations) — that suite runs in the ``observability`` CI job.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -30,7 +29,9 @@ import yaml
 from dotenv import dotenv_values
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+from tests._repo_paths import repo_root_or_skip
+
+REPO_ROOT = repo_root_or_skip()
 PROMETHEUS_DIR = REPO_ROOT / "infrastructure" / "observability" / "prometheus"
 CORE_TEMPLATE = PROMETHEUS_DIR / "alerts-core.yml.template"
 CORE_RENDERED = PROMETHEUS_DIR / "alerts-core.yml"

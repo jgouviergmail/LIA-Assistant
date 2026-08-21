@@ -393,7 +393,7 @@ def _parse_birthday(bday: Any) -> dict[str, int] | None:
                 "month": int(bday_str[4:6]),
                 "day": int(bday_str[6:8]),
             }
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         logger.debug("birthday_parse_error", raw_value=bday_str)
 
     return None

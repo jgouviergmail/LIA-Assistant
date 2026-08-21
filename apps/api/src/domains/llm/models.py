@@ -213,7 +213,7 @@ class LLMModel(Base, UUIDMixin, TimestampMixin):
     # never want the ORM to attempt cascading deletes (would race with the DB
     # constraint and emit IntegrityError). Use lazy="raise" to make any N+1
     # access fail loud — callers must use selectinload(LLMModel.pricings).
-    pricings: Mapped[list["LLMModelPricing"]] = relationship(
+    pricings: Mapped[list[LLMModelPricing]] = relationship(
         "LLMModelPricing",
         back_populates="model",
         cascade="save-update, merge",
@@ -272,7 +272,7 @@ class LLMModelPricing(Base, TimestampMixin):
         comment="FK to llm_models.id",
     )
 
-    model: Mapped["LLMModel"] = relationship(
+    model: Mapped[LLMModel] = relationship(
         "LLMModel",
         back_populates="pricings",
         lazy="raise",

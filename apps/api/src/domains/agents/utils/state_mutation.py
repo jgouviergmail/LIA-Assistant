@@ -102,7 +102,7 @@ class StateMutationContext:
         self.result: dict[str, Any] = {}
         self._entered = False
 
-    def __enter__(self) -> "StateMutationContext":
+    def __enter__(self) -> StateMutationContext:
         """
         Enter the context and create selective deep copies for rollback.
 

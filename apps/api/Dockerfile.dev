@@ -3,7 +3,7 @@
 # =============================================================================
 # Model download stage - Downloads Sherpa-onnx Whisper Small INT8 STT model
 # =============================================================================
-FROM python:3.12-slim-bookworm AS model-downloader
+FROM python:3.14-slim-trixie AS model-downloader
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
@@ -33,7 +33,7 @@ RUN set -eu; \
 # =============================================================================
 # GeoIP database download stage - DB-IP Lite City (free, CC-BY-4.0)
 # =============================================================================
-FROM python:3.12-slim-bookworm AS geoip-downloader
+FROM python:3.14-slim-trixie AS geoip-downloader
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
@@ -65,7 +65,7 @@ RUN set -eu; \
 # =============================================================================
 # Development stage
 # =============================================================================
-FROM python:3.12-slim-bookworm
+FROM python:3.14-slim-trixie
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -93,7 +93,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     xz-utils \
     && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian trixie stable" > /etc/apt/sources.list.d/docker.list \
     && apt-get update && apt-get install -y docker-ce-cli \
     && rm -rf /var/lib/apt/lists/* \
     && pip install uv

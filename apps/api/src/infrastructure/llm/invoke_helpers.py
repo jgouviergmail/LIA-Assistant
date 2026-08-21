@@ -100,7 +100,7 @@ def _resolve_user_id_for_limit_check(
 
     try:
         return UUID(uid_str)
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return None
 
 

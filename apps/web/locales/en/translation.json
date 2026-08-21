@@ -4287,6 +4287,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_31_0": {
+          "title": "v1.31.0 — ⚙️ The engine room moves to Python 3.14",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>⚙️ A modernized foundation</b> — the whole assistant now runs on Python 3.14 and Debian 13, everywhere: your data is processed by a faster, current, long-supported runtime. Every one of the 229 underlying components was verified for the new platform before the switch — including on the little ARM server the public instance runs on.",
+            "i2": "<b>🎙️ Telegram voice messages made future-proof</b> — the audio layer that turns your voice notes into text relied on a piece Python removed in its newer versions; it was replaced before anything could break, and the exact audio conversion is now covered by automated tests so it can never regress silently.",
+            "i3": "<b>🛡️ Guards that keep it that way</b> — new permanent checks verify on every change that all parts of the system agree on the same Python version and that every native component loads correctly. A future upgrade that forgets a spot now fails loudly in development instead of quietly in production.",
+            "i4": "<b>⚡ A fairness bug in the rate limiter is fixed</b> — under simultaneous bursts, the shared request counter could let a few extra calls through its limit (two requests landing in the same microsecond collided). Reviving a long-dormant stress test surfaced it; the window now counts every request exactly, so quotas mean what they say.",
+            "i5": "<b>🧭 The instance now reports its true version</b> — the running server used to display a placeholder build identity in some deployments; the deployment script now reconciles it automatically, so what you see in diagnostics is exactly what was shipped.",
+            "i6": "<b>🧹 Leaner and future-proof</b> — five unused libraries were removed from the runtime (a smaller attack surface and faster installs), and every use of Python APIs scheduled for removal in future versions was modernized ahead of time. Test coverage grew again: the stress suite that found the limiter bug now actually runs."
+          }
+        },
         "v1_30_16": {
           "title": "v1.30.16 — 👀 LIA looks back at you",
           "date": "August 2026",

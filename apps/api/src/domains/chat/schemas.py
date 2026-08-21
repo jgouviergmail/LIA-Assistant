@@ -129,7 +129,7 @@ class TokenSummaryDTO:
     tts_cost_eur: float = 0.0
 
     @classmethod
-    def from_tracker(cls, tracker: Any) -> "TokenSummaryDTO":
+    def from_tracker(cls, tracker: Any) -> TokenSummaryDTO:
         """
         Create DTO from TrackingContext in-memory aggregation.
 
@@ -158,7 +158,7 @@ class TokenSummaryDTO:
         )
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TokenSummaryDTO":
+    def from_dict(cls, data: dict[str, Any]) -> TokenSummaryDTO:
         """
         Create DTO from dictionary (DB query result or API response).
 
@@ -186,7 +186,7 @@ class TokenSummaryDTO:
         )
 
     @classmethod
-    def zero(cls) -> "TokenSummaryDTO":
+    def zero(cls) -> TokenSummaryDTO:
         """
         Create zero-valued DTO for error fallback paths.
 

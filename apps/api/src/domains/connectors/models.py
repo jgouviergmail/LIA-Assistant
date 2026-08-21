@@ -123,7 +123,7 @@ class ConnectorType(str, enum.Enum):
         return self in _HUE_CONNECTOR_TYPES
 
     @classmethod
-    def get_oauth_types(cls) -> frozenset["ConnectorType"]:
+    def get_oauth_types(cls) -> frozenset[ConnectorType]:
         """
         Get all OAuth-based connector types.
 
@@ -133,7 +133,7 @@ class ConnectorType(str, enum.Enum):
         return _OAUTH_CONNECTOR_TYPES
 
     @classmethod
-    def get_apple_types(cls) -> frozenset["ConnectorType"]:
+    def get_apple_types(cls) -> frozenset[ConnectorType]:
         """
         Get all Apple iCloud connector types.
 
@@ -143,17 +143,17 @@ class ConnectorType(str, enum.Enum):
         return _APPLE_CONNECTOR_TYPES
 
     @classmethod
-    def get_google_types(cls) -> frozenset["ConnectorType"]:
+    def get_google_types(cls) -> frozenset[ConnectorType]:
         """Get all Google OAuth connector types."""
         return _GOOGLE_CONNECTOR_TYPES
 
     @classmethod
-    def get_microsoft_types(cls) -> frozenset["ConnectorType"]:
+    def get_microsoft_types(cls) -> frozenset[ConnectorType]:
         """Get all Microsoft 365 connector types."""
         return _MICROSOFT_CONNECTOR_TYPES
 
     @classmethod
-    def get_hue_types(cls) -> frozenset["ConnectorType"]:
+    def get_hue_types(cls) -> frozenset[ConnectorType]:
         """Get all Philips Hue connector types."""
         return _HUE_CONNECTOR_TYPES
 
@@ -407,7 +407,7 @@ class Connector(BaseModel):
     preferences_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="connectors")
+    user: Mapped[User] = relationship(back_populates="connectors")
 
     def __repr__(self) -> str:
         return f"<Connector(id={self.id}, user_id={self.user_id}, type={self.connector_type}, status={self.status})>"
@@ -424,7 +424,7 @@ from sqlalchemy.orm import Mapper as _SAMapper  # noqa: E402
 
 @_sa_event.listens_for(Connector, "before_insert")
 def _mark_connector_activation_start(
-    mapper: _SAMapper, connection: _SAConnection, target: "Connector"
+    mapper: _SAMapper, connection: _SAConnection, target: Connector
 ) -> None:
     """Stamp the activation start timestamp before INSERT.
 
@@ -444,7 +444,7 @@ def _mark_connector_activation_start(
 
 @_sa_event.listens_for(Connector, "after_insert")
 def _track_connector_activation(
-    mapper: _SAMapper, connection: _SAConnection, target: "Connector"
+    mapper: _SAMapper, connection: _SAConnection, target: Connector
 ) -> None:
     """Emit activation counter + duration histogram after INSERT.
 

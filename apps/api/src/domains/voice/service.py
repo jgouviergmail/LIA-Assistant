@@ -131,7 +131,7 @@ class VoiceCommentService:
     def __init__(
         self,
         tts_client: TTSClient | None = None,
-        tracker: "TrackingContext | None" = None,
+        tracker: TrackingContext | None = None,
         run_id: str | None = None,
         lia_gender: str | None = None,
         user_id: str | None = None,
@@ -303,7 +303,7 @@ class VoiceCommentService:
         user_language: str,
         metrics: _SynthesisMetrics,
         mode: SynthesisMode,
-    ) -> AsyncGenerator[VoiceAudioChunk, None]:
+    ) -> AsyncGenerator[VoiceAudioChunk]:
         """
         Synthesize sentences to audio chunks via TTS (DRY helper).
 
@@ -424,7 +424,7 @@ class VoiceCommentService:
     async def _build_voice_llm_invocation(
         self,
         request: VoiceCommentRequest,
-    ) -> tuple["BaseChatModel", str, RunnableConfig | None]:
+    ) -> tuple[BaseChatModel, str, RunnableConfig | None]:
         """Resolve the voice LLM, prompt and tracking config for a request.
 
         Shared by ``generate_voice_comment`` (non-streaming) and
@@ -532,7 +532,7 @@ class VoiceCommentService:
         current_datetime: str | None = None,
         user_query: str = "",
         user_timezone: str | None = None,
-    ) -> AsyncGenerator[VoiceAudioChunk, None]:
+    ) -> AsyncGenerator[VoiceAudioChunk]:
         """
         Stream voice comment as audio chunks using sentence-level pipelining.
 
@@ -744,7 +744,7 @@ class VoiceCommentService:
         text: str,
         user_language: str = "fr",
         max_sentences: int | None = None,
-    ) -> AsyncGenerator[VoiceAudioChunk, None]:
+    ) -> AsyncGenerator[VoiceAudioChunk]:
         """
         Stream text directly to TTS without voice LLM (chat mode optimization).
 

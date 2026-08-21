@@ -247,7 +247,7 @@ async def persist_embedding_tokens(
     # (Prometheus metrics still capture the volume).
     try:
         UUID(context.user_id)
-    except (ValueError, TypeError, AttributeError):
+    except ValueError, TypeError, AttributeError:
         logger.debug(
             "embedding_tokens_system_user_skipped",
             user_id=str(context.user_id),

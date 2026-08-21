@@ -46,7 +46,7 @@ def _manifest_or_none(tool_name: str) -> ToolManifest | None:
 
     try:
         return get_global_registry().get_tool_manifest(tool_name)
-    except (ToolManifestNotFound, KeyError, ValueError, AttributeError, RuntimeError):
+    except ToolManifestNotFound, KeyError, ValueError, AttributeError, RuntimeError:
         return None
 
 

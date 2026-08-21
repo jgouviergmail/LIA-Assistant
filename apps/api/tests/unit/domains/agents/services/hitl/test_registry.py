@@ -63,7 +63,7 @@ class MockPlanApprovalInteraction:
         user_language: str,
         user_timezone: str = "Europe/Paris",
         tracker=None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         yield "Mock question"
 
     def build_metadata_chunk(
@@ -95,7 +95,7 @@ class MockClarificationInteraction:
         user_language: str,
         user_timezone: str = "Europe/Paris",
         tracker=None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         yield "Clarification question"
 
     def build_metadata_chunk(

@@ -44,7 +44,7 @@ class SelectionConfig:
     lookback_days: int
 
     @classmethod
-    def from_settings(cls, settings: Any) -> "SelectionConfig":
+    def from_settings(cls, settings: Any) -> SelectionConfig:
         """Build the config from the application Settings object.
 
         Args:
@@ -176,7 +176,7 @@ def _resolve_recent_notifications(
 
 
 def _draw_subject(
-    eligible: dict[str, list[tuple["UserInterest", float]]],
+    eligible: dict[str, list[tuple[UserInterest, float]]],
     subject_counts: dict[str, int],
     config: SelectionConfig,
     draw: Any,
@@ -204,11 +204,11 @@ def _draw_subject(
 
 
 def _draw_member(
-    members: list[tuple["UserInterest", float]],
+    members: list[tuple[UserInterest, float]],
     interest_counts: dict[UUID, int],
     config: SelectionConfig,
     draw: Any,
-) -> "UserInterest":
+) -> UserInterest:
     """Level 2 draw: intra-subject rarity (V5) or weight-proportional.
 
     Args:
@@ -232,14 +232,14 @@ def _draw_member(
 
 
 def pick_varied_sample(
-    candidates: list["UserInterest"],
+    candidates: list[UserInterest],
     subject_by_interest: dict[UUID, str | None],
     recent_notifications: list[tuple[UUID | None, datetime]],
     now: datetime,
     sample_size: int,
     lookback_days: int,
     rng: random.Random | None = None,
-) -> list["UserInterest"]:
+) -> list[UserInterest]:
     """Pick a subject-diverse interest sample for context injection (ADR-135).
 
     One interest per subject, subjects ordered least-recently-served first
@@ -280,7 +280,7 @@ def pick_varied_sample(
             draw.random(),
         )
 
-    def member_rank(interest: "UserInterest") -> tuple[int, float]:
+    def member_rank(interest: UserInterest) -> tuple[int, float]:
         return (stats.interest_counts.get(interest.id, 0), draw.random())
 
     sample: list[UserInterest] = []
@@ -290,13 +290,13 @@ def pick_varied_sample(
 
 
 def select_interest_subject_rarity(
-    candidates: list[tuple["UserInterest", float]],
+    candidates: list[tuple[UserInterest, float]],
     subject_by_interest: dict[UUID, str | None],
     recent_notifications: list[tuple[UUID | None, datetime]],
     now: datetime,
     config: SelectionConfig,
     rng: random.Random | None = None,
-) -> tuple["UserInterest", SelectionDebug] | None:
+) -> tuple[UserInterest, SelectionDebug] | None:
     """Select an interest using the two-level subject-rarity draw (V5).
 
     Args:

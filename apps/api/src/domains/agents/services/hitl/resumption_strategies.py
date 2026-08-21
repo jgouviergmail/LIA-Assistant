@@ -276,9 +276,7 @@ def build_edit_reformulated_intent(
     return None
 
 
-async def resolve_user_language(
-    graph: "CompiledStateGraph", runnable_config: "RunnableConfig"
-) -> str:
+async def resolve_user_language(graph: CompiledStateGraph, runnable_config: RunnableConfig) -> str:
     """Read the user's language from the checkpointed graph state.
 
     Reformulations injected on resume must match the user's language, which was

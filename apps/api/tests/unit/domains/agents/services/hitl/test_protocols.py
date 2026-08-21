@@ -146,7 +146,7 @@ class TestHitlInteractionProtocol:
                 user_language: str,
                 user_timezone: str = "Europe/Paris",
                 tracker=None,
-            ) -> AsyncGenerator[str, None]:
+            ) -> AsyncGenerator[str]:
                 yield "Test"
 
             def build_metadata_chunk(

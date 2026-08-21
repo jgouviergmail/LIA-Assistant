@@ -4227,3 +4227,12 @@ graph TD
 **Décision** : deux yeux cartoon pleins, flottants sur la page chat (déplaçables, redimensionnables S/M/L, masquables → point de restauration), 100 % frontend. Toute l'expressivité dérive de signaux EXISTANTS (FSM du chat + `streaming.phase`, `execution_step` reasoning/outil, HITL, FSM vocale, notifications, psyché) via un moteur pur à table de priorités (20 expressions, RNG et horloges injectés — testé par matrice exhaustive). Réaction par tour : le self-report psyché du `done` (`active_emotions`) d'abord, heuristique de contenu neutre en langue (ponctuation/émoji/structure uniquement, zh pleine chasse inclus) en secours de la course fire-and-forget. Rendu 100 % CSS (`clip-path: polygon()` pour les paupières — indépendant du fond, squash & stretch, désynchronisation G/D 40-80 ms), tout timer coupé si onglet caché, widget réduit ou `prefers-reduced-motion`. Préférences en localStorage (hors registre SEC-035 : préférence d'affichage pure, décision documentée). La météo v1 est ÉCARTÉE (seule source = `/briefing/cards` qui déclenche les 9 fetchers) — un « peek » Redis read-only est la voie v2 documentée.
 
 ---
+
+### ADR-241 : migration Python 3.14 / Debian trixie — contrat runtime mono-version
+
+**Statut**: ✅ ACTÉ (2026-08-20)
+**Fichier**: `docs/architecture/ADR-241-Python-3.14-Trixie-Migration.md`
+
+**Décision** : toutes les surfaces d'exécution (venv hôte, Docker dev, Docker prod arm64/RPi5, sandbox skills, CI) convergent sur CPython 3.14 (build GIL standard — free-threading et JIT explicitement écartés) et `python:3.14-slim-trixie` : `requires-python = ">=3.14,<3.15"`, le job CI `python-compat` (F041) est retiré (plus de second interpréteur à prouver), l'installateur ADR-215 conserve son plancher 3.10 indépendant. Audit préalable intégral : 229 pins vérifiés wheel par wheel sur PyPI (win_amd64, manylinux x86_64, aarch64), delta de lock prouvé par dry-run = `+audioop-lts==0.2.2` seul (le stdlib `audioop` retiré en 3.13 cassait `import pydub` — voie vocale Telegram — silencieusement, zéro oracle de test). Trixie : dépôt Docker CE `trixie` + 5 renommages time64 (`libasound2t64`, `libcups2t64`, `libatk1.0-0t64`, `libatk-bridge2.0-0t64`, `libatspi2.0-0t64`). Trois gardes de non-récurrence : surfaces de version verrouillées sur le plancher pyproject (falsifiées avant adoption), smoke d'import des wheels natifs (audioop inclus), tests hermétiques de la chaîne audioop de `_ogg_to_pcm_float` (sans ffmpeg, classe ADR-155 respectée).
+
+---

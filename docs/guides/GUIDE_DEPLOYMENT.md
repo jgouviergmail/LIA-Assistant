@@ -140,7 +140,7 @@ graph TB
 
 | Composant | Technologie | Scaling | Haute Disponibilité |
 |-----------|-------------|---------|---------------------|
-| **API** | FastAPI (Python 3.12) | Horizontal (3+ instances) | ✅ Load balanced |
+| **API** | FastAPI (Python 3.14) | Horizontal (3+ instances) | ✅ Load balanced |
 | **Web** | Next.js 16 | Horizontal (2+ instances) | ✅ Load balanced |
 | **Database** | PostgreSQL 16 + pgvector | Vertical + Replicas | ✅ Primary + Replicas |
 | **Cache** | Redis 7 | Cluster mode | ✅ Redis Sentinel |
@@ -700,7 +700,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 FROM base AS production
 
 # Copy installed dependencies from dependencies stage
-COPY --from=dependencies /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=dependencies /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
 COPY --from=dependencies /usr/local/bin /usr/local/bin
 
 # Copy application code
@@ -1068,7 +1068,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -1120,7 +1120,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'

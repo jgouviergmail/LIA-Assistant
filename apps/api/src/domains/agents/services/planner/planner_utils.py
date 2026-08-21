@@ -18,11 +18,11 @@ if TYPE_CHECKING:
 
 
 def build_plan_from_steps(
-    steps: list["ExecutionStep"],
-    intelligence: "QueryIntelligence",
-    config: "RunnableConfig",
+    steps: list[ExecutionStep],
+    intelligence: QueryIntelligence,
+    config: RunnableConfig,
     catalogue_service: Any = None,
-) -> "ExecutionPlan":
+) -> ExecutionPlan:
     """
     Build ExecutionPlan from steps.
 
@@ -68,7 +68,7 @@ def create_virtual_catalogue(
     tool_names: list[str],
     domains: list[str],
     is_bypass: bool = False,
-) -> "FilteredCatalogue":
+) -> FilteredCatalogue:
     """
     Create a virtual catalogue for bypass scenarios.
 

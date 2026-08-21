@@ -84,7 +84,7 @@ class QueryIntelligence:
 
     # Conversational context
     turn_type: str = "ACTION"  # ACTION | REFERENCE_PURE | REFERENCE_ACTION
-    resolved_context: "ResolvedContext | None" = None  # ResolvedContext object (not dict)
+    resolved_context: ResolvedContext | None = None  # ResolvedContext object (not dict)
     source_turn_id: int | None = None
     source_domain: str | None = None
 
@@ -498,7 +498,7 @@ class ToolFilter:
     include_sub_agent_tools: bool = True  # F6: always include delegation tool
 
     @classmethod
-    def from_intelligence(cls, intelligence: QueryIntelligence) -> "ToolFilter":
+    def from_intelligence(cls, intelligence: QueryIntelligence) -> ToolFilter:
         """
         Create filter from query intelligence.
 

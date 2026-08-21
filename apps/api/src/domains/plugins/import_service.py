@@ -220,7 +220,7 @@ class PluginImportService:
         return report
 
     async def _check_plugin_quota(
-        self, existing: "UserPlugin | None", owner_id: UUID, settings: Any
+        self, existing: UserPlugin | None, owner_id: UUID, settings: Any
     ) -> None:
         """Enforce the installed-plugin cap — updates never re-count."""
         if existing is not None:
@@ -230,7 +230,7 @@ class PluginImportService:
             raise_plugin_quota_exceeded(settings.plugins_max_per_user)
 
     async def _previous_components(
-        self, existing: "UserPlugin | None", skill_repo: Any, mcp_service: Any
+        self, existing: UserPlugin | None, skill_repo: Any, mcp_service: Any
     ) -> tuple[set[str], list[Any]]:
         """Components of the existing installation (empty on a fresh install)."""
         if existing is None:
@@ -380,8 +380,8 @@ class PluginImportService:
     # ------------------------------------------------------------------
 
     async def _upsert_plugin_row(
-        self, existing: "UserPlugin | None", manifest: PluginManifest, owner_id: UUID
-    ) -> "UserPlugin":
+        self, existing: UserPlugin | None, manifest: PluginManifest, owner_id: UUID
+    ) -> UserPlugin:
         """Create the plugin row, or refresh the metadata of an existing one."""
         row_data = {
             "name": manifest.name,
@@ -466,7 +466,7 @@ class PluginImportService:
         mcp_service: Any,
         *,
         owner_id: UUID,
-        plugin_row: "UserPlugin",
+        plugin_row: UserPlugin,
         manifest: PluginManifest,
         prev_server_names: set[str],
     ) -> list[PluginComponentReport]:
@@ -661,6 +661,6 @@ class PluginImportService:
 
         logger.info("plugin_uninstalled", plugin_name=plugin.name, user_id=str(owner_id))
 
-    async def list_plugins(self, owner_id: UUID) -> list["UserPlugin"]:
+    async def list_plugins(self, owner_id: UUID) -> list[UserPlugin]:
         """List installed plugins for a user, ordered by name."""
         return await self.plugin_repo.get_all_for_user(owner_id)

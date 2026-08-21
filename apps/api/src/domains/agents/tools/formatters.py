@@ -410,7 +410,7 @@ def format_google_datetime(
             # Try parsing as ISO string first
             try:
                 dt = datetime.fromisoformat(timestamp_ms.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
+            except ValueError, AttributeError:
                 # Fallback: try as milliseconds string
                 timestamp_ms = int(timestamp_ms)
                 dt = datetime.fromtimestamp(timestamp_ms / 1000, tz=UTC)
@@ -493,7 +493,7 @@ def format_google_time_only(
         if isinstance(timestamp_ms, str):
             try:
                 dt = datetime.fromisoformat(timestamp_ms.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
+            except ValueError, AttributeError:
                 timestamp_ms = int(timestamp_ms)
                 dt = datetime.fromtimestamp(timestamp_ms / 1000, tz=UTC)
         else:

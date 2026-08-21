@@ -222,7 +222,7 @@ class DraftService:
 
     def create_email_delete_draft(
         self,
-        draft_input: "EmailDeleteDraftInput",
+        draft_input: EmailDeleteDraftInput,
         source_tool: str = "delete_email_tool",
         source_step_id: str | None = None,
     ) -> UnifiedToolOutput:
@@ -250,7 +250,7 @@ class DraftService:
 
     def create_reminder_delete_draft(
         self,
-        draft_input: "ReminderDeleteDraftInput",
+        draft_input: ReminderDeleteDraftInput,
         source_tool: str = "cancel_reminder_tool",
         source_step_id: str | None = None,
     ) -> UnifiedToolOutput:

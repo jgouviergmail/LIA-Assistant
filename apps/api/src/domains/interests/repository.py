@@ -838,7 +838,7 @@ class InterestNotificationRepository:
         # Calculate start of today in user's timezone
         try:
             user_tz: ZoneInfo | timezone = ZoneInfo(user_timezone)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             user_tz = UTC
 
         user_now = now.astimezone(user_tz)

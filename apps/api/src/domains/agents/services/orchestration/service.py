@@ -90,7 +90,7 @@ class OrchestrationService:
         graph: Any,  # CompiledGraph
         input_state: MessagesState,
         runnable_config: RunnableConfig,
-    ) -> AsyncGenerator[GraphChunk, None]:
+    ) -> AsyncGenerator[GraphChunk]:
         """
         Execute LangGraph and yield raw events.
 
@@ -685,7 +685,7 @@ class OrchestrationService:
         user_execution_mode: str = "pipeline",  # Execution mode (pipeline/react) — ADR-070
         is_automated_source: bool = False,  # True for automated runs (scheduled actions)
         side_channel_queue: asyncio.Queue | None = None,  # SSE side-channel for tools
-    ) -> AsyncGenerator[tuple[str, Any], None]:
+    ) -> AsyncGenerator[tuple[str, Any]]:
         """
         Execute graph with streaming and yield raw (mode, chunk) tuples.
 

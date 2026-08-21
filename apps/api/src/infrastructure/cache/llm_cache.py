@@ -88,7 +88,7 @@ llm_cache_cost_saved_total = Counter(
 # cancels it for the others. Each task deregisters itself, so the map is bounded
 # by the live key set. Not a multi-worker lock — no consumer needs cross-process
 # coalescing today (the sole consumer is semantic_pivot_service).
-_producer_inflight: dict[str, "asyncio.Task[Any]"] = {}
+_producer_inflight: dict[str, asyncio.Task[Any]] = {}
 
 
 def _record_cache_error(func_name: str, exc: Exception) -> None:
@@ -102,7 +102,7 @@ def _record_cache_error(func_name: str, exc: Exception) -> None:
     llm_cache_errors_total.labels(func_name=func_name, error_type=type(exc).__name__).inc()
 
 
-def _finalize_producer(cache_key: str, task: "asyncio.Task[Any]") -> None:
+def _finalize_producer(cache_key: str, task: asyncio.Task[Any]) -> None:
     """Producer-owned single-flight finalisation (F002).
 
     Runs when the producer task completes — regardless of whether the initiating
@@ -285,7 +285,7 @@ def _serialize_arg(arg: Any) -> Any:
                 # Recursively serialize, but skip non-serializable objects gracefully
                 try:
                     result[field.name] = _serialize_arg(value)
-                except (TypeError, AttributeError, ValueError):
+                except TypeError, AttributeError, ValueError:
                     # Skip fields that can't be serialized (e.g., PGconn)
                     result[field.name] = f"<non-serializable: {type(value).__name__}>"
             return result

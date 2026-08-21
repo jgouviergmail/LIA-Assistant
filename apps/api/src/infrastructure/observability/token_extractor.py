@@ -45,7 +45,7 @@ class TokenExtractor:
     """
 
     @staticmethod
-    def extract(response: LLMResult, llm: "BaseChatModel | None" = None) -> TokenUsage | None:
+    def extract(response: LLMResult, llm: BaseChatModel | None = None) -> TokenUsage | None:
         """
         Extract token usage and model name from LLMResult.
 

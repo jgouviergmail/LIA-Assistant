@@ -62,7 +62,7 @@ def _serialize_tool_data(data: Any, max_length: int = 2000) -> str:
             json_str = json_str[:max_length] + "... [truncated]"
 
         return json_str
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         # Fall back to repr for non-serializable objects
         repr_str = repr(data)
         if len(repr_str) > max_length:
@@ -76,7 +76,7 @@ def trace_tool_call(
     tool_input: dict[str, Any],
     agent_name: str | None = None,
     parent_trace_id: str | None = None,
-) -> Generator[dict[str, Any], None, None]:
+) -> Generator[dict[str, Any]]:
     """
     Context manager to trace tool call execution to Langfuse.
 

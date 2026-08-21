@@ -529,7 +529,7 @@ def raise_token_invalid(token_type: str = "token") -> NoReturn:
 
 def raise_token_already_used(
     token_type: str = "token",
-    language: "SupportedLanguage" = "fr",
+    language: SupportedLanguage = "fr",
 ) -> NoReturn:
     """
     Raise authentication error for already used token (single-use tokens).

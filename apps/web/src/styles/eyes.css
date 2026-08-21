@@ -1,13 +1,14 @@
 /**
  * Expressive eyes — the full animation system for the ExpressiveEyes component.
  *
- * Design language: two solid capsule eyes (Cozmo lineage, softened). ALL
- * expressivity is pure geometric morphing — vertical compression with a
- * variable anchor (`--eye-oy` decides WHICH lid closes), per-eye rotation
- * (slants), and border-radius morphs (dome = joy, lens = focus, ellipse =
- * surprise). There is deliberately NO clipping anywhere: a half-closed eye is
- * a SHORTER SMOOTH OVAL, never a squared-off cut — every intermediate state
- * of every transition stays a natural curve.
+ * Design language: two solid capsule eyes (Cozmo lineage, softened). DYNAMIC
+ * poses are geometric morphing — scale with a variable anchor, per-eye
+ * rotation (slants), border-radius morphs (dome = joy, ellipse = surprise).
+ * SUSTAINED squints and the blink are CURVED CLIP LIDS (`--lid-top/bot/r` on
+ * the shape, the blink keyframe on the blink layer): a lid COVERS an intact
+ * eye — scaleY squints compressed the whole artwork (catch-lights, rings)
+ * like a crushed image, and the closing blink flashed a squashed glow
+ * streak. Every lid edge is `round`-curved: no squared-off cut, ever.
  *
  * Motion doctrine: emotions land at their own speed (arrival dynamics below),
  * base morphs are unhurried (650 ms) with a whisper of overshoot, and the
@@ -87,6 +88,11 @@
   /* --style-rot: per-STYLE base tilt of the whole eye (e.g. the almond
      look), independent from the per-EXPRESSION --eye-rot on the shape. */
   transform: translateY(var(--eye-ty)) rotate(var(--style-rot, 0deg));
+  /* The Cozmo halo lives HERE as a drop-shadow (not a box-shadow on the
+     shape): drop-shadow follows the VISIBLE silhouette, so a lid-clipped or
+     blinking eye dims its own glow instead of flashing a squashed streak —
+     the blink artifact the box-shadow version produced. */
+  filter: drop-shadow(0 0 0.3em var(--eyes-glow));
   transition: transform 650ms cubic-bezier(0.32, 0.9, 0.35, 1.04);
 }
 .lia-eye--right {
@@ -97,12 +103,17 @@
 }
 
 /* Blink layer: independent from the expression morphs so a blink composes
-   with any recipe. Center-origin scaleY squash with a light scaleX stretch. */
+   with any recipe — its clip intersects the shape's own lid clip naturally.
+   The transform machinery stays for gesture keyframes (excited bounce).
+   will-change keeps the frequent blink on the compositor: an un-promoted
+   clip-path animation repaints on the main thread and reads as micro-jank
+   (two tiny elements — the promotion cost is negligible). */
 .lia-eye-blink {
   display: block;
   width: 100%;
   height: 100%;
   transform-origin: 50% 55%;
+  will-change: clip-path, transform;
   transition: transform 260ms cubic-bezier(0.4, 0, 0.6, 1);
 }
 
@@ -114,11 +125,13 @@
   background: var(--eyes-color);
   border-radius: var(--r-top) var(--r-top) var(--r-bot) var(--r-bot) / var(--rv-top) var(--rv-top)
     var(--rv-bot) var(--rv-bot);
-  /* The Cozmo halo: a flat glowing SCREEN, no specular sheen — the eyes read
-     as emissive, and the gaze is carried by whole-eye motion (the original
-     robot's language). box-shadow scales with the transform, so squashed
-     lids keep a coherent glow. */
-  box-shadow: 0 0 0.45em var(--eyes-glow);
+  /* LIDS: sustained squints are COVERED, never squashed. A scaleY squint
+     compresses the whole artwork (catch-lights, rings) like a crushed image;
+     these curved clip lids descend over an intact eye instead. Resting
+     inset(0) clips nothing (the radius silhouette sits inside the box) and
+     leaves no dead travel, so a closing lid covers from its first frame —
+     the halo is safe: it is a drop-shadow on the UNclipped parent. */
+  clip-path: inset(var(--lid-top, 0%) 0% var(--lid-bot, 0%) 0% round var(--lid-r, 0em));
   transform: scale(var(--eye-sx), var(--eye-sy)) rotate(var(--eye-rot));
   transform-origin: 50% var(--eye-oy);
   /* transform-origin deliberately NOT transitioned: interpolating the origin
@@ -126,15 +139,16 @@
      snaps instead — under the transition mask blink, invisibly. */
   transition:
     transform 650ms cubic-bezier(0.32, 0.9, 0.35, 1.04),
-    border-radius 650ms cubic-bezier(0.33, 0, 0.15, 1);
+    border-radius 650ms cubic-bezier(0.33, 0, 0.15, 1),
+    clip-path 560ms cubic-bezier(0.33, 0, 0.15, 1);
 }
 
 /* Dark mode: the screens burn brighter (stronger halo, wider throw). */
 .dark .lia-eyes {
   --eyes-glow: color-mix(in srgb, var(--eyes-color) 55%, transparent);
 }
-.dark .lia-eye-shape {
-  box-shadow: 0 0 0.6em var(--eyes-glow);
+.dark .lia-eye {
+  filter: drop-shadow(0 0 0.42em var(--eyes-glow));
 }
 
 /* =============================================================================
@@ -168,7 +182,9 @@
 /* Tactile response: pressing the eyes squashes them slightly — releasing
    springs back through the normal transform transition. */
 .lia-eyes-widget:active .lia-eye {
-  transform: translateY(var(--eye-ty)) scale(0.93);
+  /* Keeps the per-style tilt: dropping rotate() here would momentarily
+     straighten the almond look on every press. */
+  transform: translateY(var(--eye-ty)) rotate(var(--style-rot, 0deg)) scale(0.93);
   transition-duration: 130ms;
 }
 
@@ -176,21 +192,49 @@
    Blink (host toggles .is-blinking; right eye trails by 70 ms)
    ============================================================================= */
 
+/* The blink is a HYBRID: the curved clip lid does the clean closing (the
+   artwork is covered, never crushed — no smeared catch-lights, no glow
+   streak at the closed frame), while a 10% squash keeps the FLESH of the
+   motion (the whole mass moves — a pure clip reads dry) and the reopening
+   overshoots to 1.05 before settling: the organic bounce of the original
+   scaleY blink, without its artifacts. */
 @keyframes lia-eye-blink {
   0% {
-    transform: scaleY(1) scaleX(1);
+    clip-path: inset(0% round 0em);
+    transform: scaleY(1);
   }
-  42% {
-    transform: scaleY(0.06) scaleX(1.05);
+  35% {
+    clip-path: inset(46% 0% 40% 0% round 0.5em);
+    transform: scaleY(0.9);
   }
   56% {
-    transform: scaleY(0.06) scaleX(1.05);
+    clip-path: inset(46% 0% 40% 0% round 0.5em);
+    transform: scaleY(0.9);
   }
-  84% {
-    transform: scaleY(1.06) scaleX(0.99);
+  82% {
+    clip-path: inset(0% round 0em);
+    transform: scaleY(1.05);
   }
   100% {
+    clip-path: inset(0% round 0em);
+    transform: scaleY(1);
+  }
+}
+
+/* Rings have no fill to leave a closed-eye band from — a clipped ring reads
+   as dashed fragments. Their blink keeps the squash language: an oval ring
+   flattening into a line is the natural closed eye of that style. */
+@keyframes lia-eye-blink-squash {
+  0%,
+  100% {
     transform: scaleY(1) scaleX(1);
+  }
+  35%,
+  56% {
+    transform: scaleY(0.08) scaleX(1.05);
+  }
+  82% {
+    transform: scaleY(1.06) scaleX(0.99);
   }
 }
 
@@ -199,6 +243,15 @@
 }
 .lia-eyes.is-blinking .lia-eye--right .lia-eye-blink {
   animation-delay: 70ms;
+}
+/* Same specificity as the shorthand above — placed AFTER it so these
+   styles' squash animation-name wins by source order. Rings have no fill to
+   leave a curved band from (a clipped ring reads as dashed fragments), and
+   a bare stick flattens into a dash more gracefully than it gets cropped
+   into a square — both have no inner artwork a squash could crush. */
+[data-style='anneaux'].is-blinking .lia-eye-blink,
+[data-style='traits'].is-blinking .lia-eye-blink {
+  animation-name: lia-eye-blink-squash;
 }
 
 /* =============================================================================
@@ -212,7 +265,7 @@
     translate: 0 0;
   }
   50% {
-    scale: 1.025;
+    scale: var(--breathe-scale, 1.025);
     translate: 0 -0.03em;
   }
 }
@@ -227,7 +280,19 @@
     [data-expression='thinking']
   )
   .lia-eyes-gaze {
-  animation: lia-eyes-breathe 4600ms ease-in-out infinite;
+  animation: lia-eyes-breathe var(--breathe-ms, 4600ms) ease-in-out infinite;
+}
+
+/* Breathing follows the mood family (secondary action carrying the mood the
+   soft resting poses no longer show): lively breathes quicker and fuller,
+   drowsy slower and shallower. */
+[data-family='lively'] {
+  --breathe-ms: 3600ms;
+  --breathe-scale: 1.035;
+}
+[data-family='drowsy'] {
+  --breathe-ms: 6200ms;
+  --breathe-scale: 1.015;
 }
 
 /* =============================================================================
@@ -241,16 +306,15 @@
   --eye-ty: -0.03em;
 }
 
-/* --- joy: a rising dome-screen — round crown, flat base. The eye smiles. */
+/* --- joy: a rising dome-screen — round crown, flat base. The eye smiles.
+   Radii live in the per-style sheets (Cozmo's included): a generic radius set
+   on .lia-eye would out-inherit the silhouette every style declares on the
+   root, silently turning every style into Cozmo (shipped bug, 2026-08-21). */
 [data-expression='joy'] .lia-eye,
 [data-expression='wink'] .lia-eye--left {
   --eye-sy: 0.55;
   --eye-oy: 20%;
   --eye-ty: -0.08em;
-  --r-top: 0.42em;
-  --rv-top: 0.46em;
-  --r-bot: 0.12em;
-  --rv-bot: 0.1em;
 }
 
 /* --- excited: a livelier dome + bounce. */
@@ -258,10 +322,6 @@
   --eye-sy: 0.7;
   --eye-oy: 25%;
   --eye-sx: 1.05;
-  --r-top: 0.4em;
-  --rv-top: 0.42em;
-  --r-bot: 0.18em;
-  --rv-bot: 0.14em;
 }
 @keyframes lia-eye-bounce {
   0%,
@@ -285,15 +345,13 @@
   animation-delay: 90ms;
 }
 
-/* --- tender: soft low domes, a gentle inward lean — melted look. */
+/* --- tender: soft heavy lids, a gentle inward lean — melted look. */
 [data-expression='tender'] .lia-eye {
-  --eye-sy: 0.6;
+  --eye-sy: 0.94;
   --eye-oy: 30%;
   --eye-ty: -0.02em;
-  --r-top: 0.4em;
-  --rv-top: 0.42em;
-  --r-bot: 0.2em;
-  --rv-bot: 0.16em;
+  --lid-top: 26%;
+  --lid-r: 0.55em;
 }
 [data-expression='tender'] .lia-eye--left {
   --eye-rot: 3deg;
@@ -306,10 +364,6 @@
 [data-expression='surprise'] .lia-eye {
   --eye-sx: 1.12;
   --eye-sy: 1.25;
-  --r-top: 0.34em;
-  --r-bot: 0.34em;
-  --rv-top: 0.34em;
-  --rv-bot: 0.34em;
 }
 @keyframes lia-eyes-pop {
   0% {
@@ -330,10 +384,6 @@
 [data-expression='fear'] .lia-eye {
   --eye-sx: 0.85;
   --eye-sy: 0.85;
-  --r-top: 0.3em;
-  --r-bot: 0.3em;
-  --rv-top: 0.34em;
-  --rv-bot: 0.34em;
 }
 @keyframes lia-eyes-tremble {
   0%,
@@ -354,11 +404,11 @@
 /* --- anger: screens press down, corners SHARPEN, tips toward the nose —
    the slant is the brow, the hard corner is the scowl. */
 [data-expression='anger'] .lia-eye {
-  --eye-sy: 0.62;
+  --eye-sy: 0.95;
   --eye-oy: 100%;
   --eye-ty: 0.03em;
-  --r-top: 0.1em;
-  --rv-top: 0.08em;
+  --lid-top: 34%;
+  --lid-r: 0.28em;
 }
 [data-expression='anger'] .lia-eye--left {
   --eye-rot: 7deg;
@@ -434,12 +484,10 @@
 
 /* --- focused: concentrated slits — squeezed from both lids. */
 [data-expression='focused'] .lia-eye {
-  --eye-sy: 0.45;
   --eye-sx: 1.05;
-  --r-top: 0.16em;
-  --r-bot: 0.16em;
-  --rv-top: 0.14em;
-  --rv-bot: 0.14em;
+  --lid-top: 30%;
+  --lid-bot: 24%;
+  --lid-r: 0.45em;
 }
 
 /* --- speaking: alive and rhythmic — a gentle alternating bob whose two
@@ -463,16 +511,17 @@
 
 /* --- bored: heavy flat-ish lids from above — the stillness is the point. */
 [data-expression='bored'] .lia-eye {
-  --eye-sy: 0.5;
   --eye-oy: 100%;
-  --r-top: 0.16em;
-  --rv-top: 0.12em;
+  --lid-top: 46%;
+  --lid-r: 0.4em;
 }
 
 /* --- tired: heavy lids, a light outward droop. */
 [data-expression='tired'] .lia-eye {
-  --eye-sy: 0.52;
+  --eye-sy: 0.97;
   --eye-oy: 100%;
+  --lid-top: 38%;
+  --lid-r: 0.5em;
 }
 [data-expression='tired'] .lia-eye--left {
   --eye-rot: -2deg;
@@ -483,8 +532,10 @@
 
 /* --- sleepy: almost closed, everything slows down. */
 [data-expression='sleepy'] .lia-eye {
-  --eye-sy: 0.36;
   --eye-oy: 100%;
+  --lid-top: 58%;
+  --lid-bot: 5%;
+  --lid-r: 0.5em;
 }
 [data-expression='sleepy'] .lia-eyes-gaze {
   animation: lia-eyes-breathe 6000ms ease-in-out infinite;
@@ -492,8 +543,10 @@
 
 /* --- sleep: a soft closed lens, deep slow breathing. */
 [data-expression='sleep'] .lia-eye {
-  --eye-sy: 0.12;
   --eye-oy: 85%;
+  --lid-top: 82%;
+  --lid-bot: 4%;
+  --lid-r: 0.6em;
 }
 @keyframes lia-eyes-sleep-breathe {
   0%,
@@ -548,8 +601,22 @@
   animation-delay: 70ms;
 }
 
-/* Partial lid drop — "hm?" without commitment. */
+/* Partial lid drop — "hm?" without commitment. Same LID doctrine as the
+   blink: a curved clip covers the intact artwork (the squash variant below
+   serves the ring/stick styles, which have nothing inside to crush). */
 @keyframes lia-gesture-half-blink {
+  0%,
+  100% {
+    clip-path: inset(0% round 0em);
+    transform: scaleY(1);
+  }
+  40%,
+  60% {
+    clip-path: inset(38% 0% 8% 0% round 0.45em);
+    transform: scaleY(0.95);
+  }
+}
+@keyframes lia-gesture-half-blink-squash {
   0%,
   100% {
     transform: scaleY(1);
@@ -567,6 +634,16 @@
 @keyframes lia-gesture-squint {
   0%,
   100% {
+    clip-path: inset(0% round 0em);
+  }
+  30%,
+  70% {
+    clip-path: inset(24% 0% 18% 0% round 0.4em);
+  }
+}
+@keyframes lia-gesture-squint-squash {
+  0%,
+  100% {
     transform: scaleY(1);
   }
   30%,
@@ -576,6 +653,23 @@
 }
 [data-gesture='squint'] .lia-eye-blink {
   animation: lia-gesture-squint 740ms ease-in-out both;
+}
+
+/* Ring/stick styles blink and squint by squashing (see the blink note).
+   `data-style` and `data-gesture` live on the SAME root element — compound
+   selectors, no descendant space. Higher specificity than the generic
+   gesture rules, so order is free. */
+[data-style='anneaux'][data-gesture='slow-blink'] .lia-eye-blink,
+[data-style='traits'][data-gesture='slow-blink'] .lia-eye-blink {
+  animation-name: lia-eye-blink-squash;
+}
+[data-style='anneaux'][data-gesture='half-blink'] .lia-eye-blink,
+[data-style='traits'][data-gesture='half-blink'] .lia-eye-blink {
+  animation-name: lia-gesture-half-blink-squash;
+}
+[data-style='anneaux'][data-gesture='squint'] .lia-eye-blink,
+[data-style='traits'][data-gesture='squint'] .lia-eye-blink {
+  animation-name: lia-gesture-squint-squash;
 }
 
 /* Small head-tilt wobble with a spring back. */
@@ -853,12 +947,61 @@
 }
 
 /* =============================================================================
-   STYLE SHEETS — the base above IS the default style ('cozmo'). Each block
-   below re-skins the SAME morph system (sy/oy/rot/radius vars, blink layer,
-   gaze wrapper, gestures, emotes) for one registry id. Only geometry tokens
-   and the handful of expressions whose base values do not read well on the
-   new silhouette are overridden.
+   STYLE SHEETS — the base above IS the default style ('cozmo') for geometry
+   TOKENS, but radius MORPHS are per-style like everything silhouette-shaped:
+   a radius declared on `.lia-eye` by a generic recipe would out-inherit the
+   silhouette every style declares on the root (nearest definition wins), so
+   expression radii live here, scoped — Cozmo's first, as one style among six.
+   Each block re-skins the SAME morph system (sy/oy/rot/radius vars, blink
+   layer, gaze wrapper, gestures, emotes) for one registry id.
    ============================================================================= */
+
+/* --- cozmo: the default screens — expression radii of the base silhouette. */
+[data-style='cozmo'][data-expression='joy'] .lia-eye,
+[data-style='cozmo'][data-expression='wink'] .lia-eye--left {
+  --r-top: 0.42em;
+  --rv-top: 0.46em;
+  --r-bot: 0.12em;
+  --rv-bot: 0.1em;
+}
+[data-style='cozmo'][data-expression='excited'] .lia-eye {
+  --r-top: 0.4em;
+  --rv-top: 0.42em;
+  --r-bot: 0.18em;
+  --rv-bot: 0.14em;
+}
+[data-style='cozmo'][data-expression='tender'] .lia-eye {
+  --r-top: 0.4em;
+  --rv-top: 0.42em;
+  --r-bot: 0.2em;
+  --rv-bot: 0.16em;
+}
+[data-style='cozmo'][data-expression='surprise'] .lia-eye {
+  --r-top: 0.34em;
+  --r-bot: 0.34em;
+  --rv-top: 0.34em;
+  --rv-bot: 0.34em;
+}
+[data-style='cozmo'][data-expression='fear'] .lia-eye {
+  --r-top: 0.3em;
+  --r-bot: 0.3em;
+  --rv-top: 0.34em;
+  --rv-bot: 0.34em;
+}
+[data-style='cozmo'][data-expression='anger'] .lia-eye {
+  --r-top: 0.1em;
+  --rv-top: 0.08em;
+}
+[data-style='cozmo'][data-expression='focused'] .lia-eye {
+  --r-top: 0.16em;
+  --r-bot: 0.16em;
+  --rv-top: 0.14em;
+  --rv-bot: 0.14em;
+}
+[data-style='cozmo'][data-expression='bored'] .lia-eye {
+  --r-top: 0.16em;
+  --rv-top: 0.12em;
+}
 
 /* --- capsules: the original soft vertical pills, specular sheen, no halo. */
 [data-style='capsules'] {
@@ -870,8 +1013,8 @@
   --rv-top: 0.5em;
   --rv-bot: 0.5em;
 }
-[data-style='capsules'] .lia-eye-shape {
-  box-shadow: none;
+[data-style='capsules'] .lia-eye {
+  filter: none;
 }
 [data-style='capsules'] .lia-eye-shape::after {
   content: '';
@@ -922,8 +1065,8 @@
   --rv-top: 0.58em;
   --rv-bot: 0.58em;
 }
-[data-style='billes'] .lia-eye-shape {
-  box-shadow: none;
+[data-style='billes'] .lia-eye {
+  filter: none;
 }
 [data-style='billes'] .lia-eye-shape::after {
   content: '';
@@ -974,8 +1117,8 @@
   --style-rot-l: -12deg;
   --style-rot-r: 12deg;
 }
-[data-style='amande'] .lia-eye-shape {
-  box-shadow: none;
+[data-style='amande'] .lia-eye {
+  filter: none;
 }
 [data-style='amande'][data-expression='anger'] .lia-eye--left {
   --eye-rot: 12deg;
@@ -1009,8 +1152,8 @@
   --rv-top: 0.21em;
   --rv-bot: 0.21em;
 }
-[data-style='traits'] .lia-eye-shape {
-  box-shadow: none;
+[data-style='traits'] .lia-eye {
+  filter: none;
 }
 [data-style='traits'][data-expression='joy'] .lia-eye,
 [data-style='traits'][data-expression='wink'] .lia-eye--left {
@@ -1073,6 +1216,9 @@
   --eye-oy: 50%;
 }
 
+[data-style='anneaux'] .lia-eye {
+  filter: none;
+}
 /* --- anneaux: outlined rings with a live pupil that follows the gaze. */
 [data-style='anneaux'] {
   --eye-w: 1.05em;
@@ -1087,7 +1233,6 @@
   background: transparent;
   border: 0.17em solid var(--eyes-color);
   box-sizing: border-box;
-  box-shadow: none;
 }
 [data-style='anneaux'] .lia-eye-shape::after {
   content: '';

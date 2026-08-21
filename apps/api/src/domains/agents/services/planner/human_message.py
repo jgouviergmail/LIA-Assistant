@@ -46,7 +46,7 @@ def format_existing_plan_for_replan(existing_plan: ExecutionPlan) -> str:
         )
         try:
             params_str = json.dumps(params or {}, ensure_ascii=False, sort_keys=True)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             params_str = str(params)
         lines.append(f"- {step_id} {tool} {params_str}")
     return "PREVIOUS PLAN:\n" + "\n".join(lines)

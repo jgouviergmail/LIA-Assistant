@@ -89,7 +89,7 @@ class DestructiveConfirmInteraction:
         ...     print(token, end="", flush=True)
     """
 
-    def __init__(self, question_generator: "HitlQuestionGenerator") -> None:
+    def __init__(self, question_generator: HitlQuestionGenerator) -> None:
         """
         Initialize DestructiveConfirmInteraction.
 
@@ -108,8 +108,8 @@ class DestructiveConfirmInteraction:
         context: DestructiveConfirmContext | dict[str, Any],
         user_language: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-        tracker: "BaseCallbackHandler | None" = None,
-    ) -> AsyncGenerator[str, None]:
+        tracker: BaseCallbackHandler | None = None,
+    ) -> AsyncGenerator[str]:
         """
         Generate destructive confirmation warning via streaming.
 

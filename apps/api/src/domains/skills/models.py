@@ -82,12 +82,12 @@ class Skill(BaseModel):
     )
 
     # Relationships
-    owner: Mapped["User | None"] = relationship(
+    owner: Mapped[User | None] = relationship(
         "User",
         foreign_keys=[owner_id],
         lazy="selectin",
     )
-    user_skill_states: Mapped[list["UserSkillState"]] = relationship(
+    user_skill_states: Mapped[list[UserSkillState]] = relationship(
         back_populates="skill",
         cascade="all, delete-orphan",
     )
@@ -141,11 +141,11 @@ class UserSkillState(BaseModel):
     )
 
     # Relationships
-    skill: Mapped["Skill"] = relationship(
+    skill: Mapped[Skill] = relationship(
         back_populates="user_skill_states",
         lazy="selectin",
     )
-    user: Mapped["User"] = relationship(
+    user: Mapped[User] = relationship(
         "User",
         foreign_keys=[user_id],
         back_populates="skill_states",

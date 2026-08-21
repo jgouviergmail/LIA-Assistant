@@ -64,7 +64,7 @@ class BM25IndexManager:
         scores = bm25.get_scores(tokenize_text(query))
     """
 
-    def __init__(self, settings: "Settings") -> None:
+    def __init__(self, settings: Settings) -> None:
         self._local_cache: dict[str, tuple[BM25Okapi, list[str]]] = {}
         self._max_users = settings.memory_bm25_cache_max_users
         logger.info(

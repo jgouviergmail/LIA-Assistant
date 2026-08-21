@@ -19,7 +19,7 @@ def _attachment(mime: str, file_path: str, filename: str) -> MagicMock:
     return attachment
 
 
-async def _serve(tmp_path, mime: str, filename: str) -> "object":
+async def _serve(tmp_path, mime: str, filename: str) -> object:
     """Invoke the route handler with patched service + storage root."""
     relative = f"user/{filename}"
     stored = tmp_path / relative

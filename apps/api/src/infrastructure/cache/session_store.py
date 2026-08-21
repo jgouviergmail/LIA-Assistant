@@ -116,7 +116,7 @@ class UserSession:
         }
 
     @classmethod
-    def from_dict(cls, session_id: str, data: dict[str, Any]) -> "UserSession":
+    def from_dict(cls, session_id: str, data: dict[str, Any]) -> UserSession:
         """
         Create session from dictionary loaded from Redis.
 
@@ -460,7 +460,7 @@ class SessionStore:
                 continue  # expired session still indexed — harmless leftover
             try:
                 sessions.append(UserSession.from_dict(session_id, json.loads(payload)))
-            except (json.JSONDecodeError, KeyError):
+            except json.JSONDecodeError, KeyError:
                 logger.warning("session_list_parse_error", session_id=session_id)
         sessions.sort(key=lambda s: s.created_at, reverse=True)
         return sessions

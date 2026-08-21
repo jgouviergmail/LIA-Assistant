@@ -4278,6 +4278,19 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_31_0": {
+          "title": "v1.31.0 — ⚙️ Der Maschinenraum wechselt zu Python 3.14",
+          "date": "August 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>⚙️ Ein modernisiertes Fundament</b> — der gesamte Assistent läuft jetzt überall auf Python 3.14 und Debian 13: Ihre Daten werden von einer schnelleren, aktuellen und langfristig unterstützten Laufzeitumgebung verarbeitet. Jede der 229 zugrunde liegenden Komponenten wurde vor der Umstellung für die neue Plattform geprüft — auch auf dem kleinen ARM-Server, auf dem die öffentliche Instanz läuft.",
+            "i2": "<b>🎙️ Telegram-Sprachnachrichten zukunftssicher gemacht</b> — die Audioschicht, die Ihre Sprachnotizen in Text verwandelt, stützte sich auf einen Baustein, den Python in neueren Versionen entfernt hat; er wurde ersetzt, bevor etwas kaputtgehen konnte, und die exakte Audiokonvertierung ist nun durch automatisierte Tests abgesichert, damit sie nie stillschweigend ausfallen kann.",
+            "i3": "<b>🛡️ Wächter, damit es so bleibt</b> — neue dauerhafte Prüfungen stellen bei jeder Änderung sicher, dass alle Teile des Systems dieselbe Python-Version verwenden und jede native Komponente korrekt lädt. Ein künftiges Upgrade, das eine Stelle vergisst, schlägt jetzt laut in der Entwicklung fehl statt leise in der Produktion.",
+            "i4": "<b>⚡ Ein Fairness-Fehler im Rate-Limiter ist behoben</b> — bei gleichzeitigen Lastspitzen konnte der gemeinsame Zähler einige Aufrufe über sein Limit hinaus durchlassen (zwei Anfragen in derselben Mikrosekunde kollidierten). Die Wiederbelebung eines lange ruhenden Lasttests brachte ihn ans Licht; das Zeitfenster zählt nun jede Anfrage exakt, und Kontingente bedeuten, was sie anzeigen.",
+            "i5": "<b>🧭 Die Instanz meldet jetzt ihre echte Version</b> — der laufende Server zeigte in manchen Deployments eine generische Build-Identität; das Deployment-Skript gleicht sie nun automatisch ab, sodass die Diagnose genau das zeigt, was ausgeliefert wurde.",
+            "i6": "<b>🧹 Schlanker und zukunftssicher</b> — fünf ungenutzte Bibliotheken wurden aus der Laufzeitumgebung entfernt (kleinere Angriffsfläche, schnellere Installationen), und jede Verwendung von Python-APIs, die in künftigen Versionen entfallen, wurde vorausschauend modernisiert. Die Testabdeckung wächst weiter: die Lasttest-Suite, die den Limiter-Fehler fand, läuft jetzt wirklich."
+          }
+        },
         "v1_30_16": {
           "title": "v1.30.16 — 👀 LIA schaut zurück",
           "date": "August 2026",

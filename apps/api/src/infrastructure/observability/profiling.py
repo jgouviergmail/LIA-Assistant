@@ -7,8 +7,8 @@ Author: Claude Code (Sonnet 4.5)
 Date: 2025-11-15
 """
 
-import asyncio
 import functools
+import inspect
 import time
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
@@ -45,7 +45,7 @@ def profile_performance(
     def decorator(func: Callable) -> Callable:
         name = func_name or func.__name__
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -88,7 +88,7 @@ def profile_performance(
 
 
 @contextmanager
-def profile_block(block_name: str, log_threshold_ms: float = 100.0) -> Generator[None, None, None]:
+def profile_block(block_name: str, log_threshold_ms: float = 100.0) -> Generator[None]:
     """
     Profile code block performance.
 

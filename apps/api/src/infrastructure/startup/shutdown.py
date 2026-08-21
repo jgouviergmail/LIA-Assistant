@@ -50,11 +50,11 @@ class StartupHandles:
             (None if it never started).
     """
 
-    leader_elector: "SchedulerLeaderElector"
-    mcp_manager: "MCPClientManager | None"
-    telegram_bot: "Bot | None"
-    lifetime_metrics_task: "asyncio.Task[None] | None"
-    cache_invalidation_task: "asyncio.Task[None] | None"
+    leader_elector: SchedulerLeaderElector
+    mcp_manager: MCPClientManager | None
+    telegram_bot: Bot | None
+    lifetime_metrics_task: asyncio.Task[None] | None
+    cache_invalidation_task: asyncio.Task[None] | None
 
 
 async def shutdown_application(handles: StartupHandles) -> None:

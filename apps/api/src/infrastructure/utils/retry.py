@@ -23,6 +23,7 @@ Design:
 """
 
 import asyncio
+import inspect
 from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
@@ -151,7 +152,7 @@ def retry_with_backoff(
             )
 
         # Return appropriate wrapper based on function type
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper  # type: ignore[return-value]
         return sync_wrapper
 

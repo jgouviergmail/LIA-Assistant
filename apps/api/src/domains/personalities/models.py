@@ -78,12 +78,12 @@ class Personality(BaseModel):
     )
 
     # Relationships
-    translations: Mapped[list["PersonalityTranslation"]] = relationship(
+    translations: Mapped[list[PersonalityTranslation]] = relationship(
         back_populates="personality",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    users: Mapped[list["User"]] = relationship(
+    users: Mapped[list[User]] = relationship(
         back_populates="personality",
         foreign_keys="User.personality_id",
     )
@@ -96,7 +96,7 @@ class Personality(BaseModel):
     def __repr__(self) -> str:
         return f"<Personality(id={self.id}, code={self.code}, emoji={self.emoji})>"
 
-    def get_translation(self, language_code: str) -> "PersonalityTranslation | None":
+    def get_translation(self, language_code: str) -> PersonalityTranslation | None:
         """
         Get translation for a specific language with fallback.
 
@@ -148,7 +148,7 @@ class PersonalityTranslation(BaseModel):
     )
 
     # Relationships
-    personality: Mapped["Personality"] = relationship(back_populates="translations")
+    personality: Mapped[Personality] = relationship(back_populates="translations")
 
     __table_args__ = (
         UniqueConstraint("personality_id", "language_code", name="uq_personality_translation_lang"),

@@ -136,7 +136,7 @@ async def authenticate_and_reconcile(
     """
     try:
         payload = json.loads(body)
-    except (json.JSONDecodeError, ValueError):
+    except json.JSONDecodeError, ValueError:
         return WebhookAuth(WebhookOutcome.IGNORED_MALFORMED)
     if not isinstance(payload, dict):
         return WebhookAuth(WebhookOutcome.IGNORED_MALFORMED)

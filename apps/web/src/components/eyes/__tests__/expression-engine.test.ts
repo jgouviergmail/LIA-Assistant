@@ -14,12 +14,16 @@
 
 import { describe, it, expect } from 'vitest';
 
+import type { MoodLabel } from '@/types/psyche';
+
 import {
   deriveExpression,
   deriveReaction,
   contentHeuristicExpression,
   emotionToExpression,
   moodToIdleExpression,
+  idleFamilyForMood,
+  resolveIdleFamily,
   inactivityStageFor,
   hourBand,
   nextBlinkDelayMs,
@@ -31,6 +35,22 @@ import {
   gazeHoldMs,
   shouldChainGlance,
   WAKE_PERFORMANCE,
+  PRE_GAZE_BLINK_PROBABILITY,
+  PRE_GAZE_BLINK_LEAD_MS,
+  BLINK_DURATION_MS,
+  URGENT_ARRIVALS,
+  MIN_EXPRESSION_HOLD_MS,
+  MASK_APPLY_DELAY_MS,
+  moodShiftPerformance,
+  MOOD_SHIFT_RISE_PERFORMANCE,
+  MOOD_SHIFT_FALL_PERFORMANCE,
+  readingGazeAt,
+  READING_MOVE_MS,
+  READING_RETURN_MS,
+  wakePerformanceFor,
+  SHORT_NAP_MS,
+  WAKE_SHORT_PERFORMANCE,
+  shouldBlinkBeforeGaze,
   isSillyTime,
   pickSillyGesture,
   pickIdleFlicker,
@@ -180,9 +200,10 @@ describe('deriveExpression — priority chain', () => {
     expect(deriveExpression(inputs({ inactivityStage: 3 })).expression).toBe('sleep');
   });
 
-  it('idle with psyche mood falls through to the mood mapping', () => {
-    expect(deriveExpression(inputs({ moodLabel: 'playful' })).expression).toBe('joy');
-    expect(deriveExpression(inputs({ moodLabel: 'melancholic' })).expression).toBe('sad');
+  it('idle with psyche mood falls through to the mood mapping (soft poses only)', () => {
+    expect(deriveExpression(inputs({ moodLabel: 'playful' })).expression).toBe('attentive');
+    expect(deriveExpression(inputs({ moodLabel: 'reflective' })).expression).toBe('thinking');
+    expect(deriveExpression(inputs({ moodLabel: 'melancholic' })).expression).toBe('neutral');
   });
 
   it('idle without psyche: night leans sleepy, morning is fresh-attentive, day neutral', () => {
@@ -194,7 +215,7 @@ describe('deriveExpression — priority chain', () => {
 
   it('a non-neutral mood wins over the hour bias; a neutral mood does not', () => {
     expect(deriveExpression(inputs({ moodLabel: 'energized', hourOfDay: 23 })).expression).toBe(
-      'excited'
+      'attentive'
     );
     expect(deriveExpression(inputs({ moodLabel: 'neutral', hourOfDay: 23 })).expression).toBe(
       'sleepy'
@@ -247,20 +268,71 @@ describe('moodToIdleExpression', () => {
   it.each([
     ['serene', 'neutral'],
     ['curious', 'attentive'],
-    ['energized', 'excited'],
-    ['playful', 'joy'],
+    ['energized', 'attentive'],
+    ['playful', 'attentive'],
     ['reflective', 'thinking'],
-    ['agitated', 'worried'],
-    ['melancholic', 'sad'],
+    ['agitated', 'neutral'],
+    ['melancholic', 'neutral'],
     ['neutral', 'neutral'],
-    ['content', 'joy'],
-    ['determined', 'focused'],
-    ['defiant', 'focused'],
-    ['resigned', 'bored'],
-    ['overwhelmed', 'tired'],
-    ['tender', 'tender'],
+    ['content', 'neutral'],
+    ['determined', 'neutral'],
+    ['defiant', 'neutral'],
+    ['resigned', 'neutral'],
+    ['overwhelmed', 'neutral'],
+    ['tender', 'neutral'],
   ] as const)('%s → %s', (mood, expected) => {
     expect(moodToIdleExpression(mood)).toBe(expected);
+  });
+
+  it('resting poses stay SOFT — the style silhouette is always readable', () => {
+    // Owner arbitration 2026-08-21: a mood must never hold a squinted pose
+    // at rest (that hid the selected eye style and read as unsettling).
+    // Strong poses are per-turn accents; mood personality rides the gesture
+    // family instead. Widening this set is a design decision, not a tweak.
+    const SOFT_RESTING_POSES = new Set(['neutral', 'attentive', 'thinking']);
+    const ALL_MOODS: MoodLabel[] = [
+      'serene',
+      'curious',
+      'energized',
+      'playful',
+      'reflective',
+      'agitated',
+      'melancholic',
+      'neutral',
+      'content',
+      'determined',
+      'defiant',
+      'resigned',
+      'overwhelmed',
+      'tender',
+    ];
+    for (const mood of ALL_MOODS) {
+      expect(
+        SOFT_RESTING_POSES.has(moodToIdleExpression(mood)),
+        `mood '${mood}' rests on a strong pose`
+      ).toBe(true);
+    }
+  });
+});
+
+describe('idleFamilyForMood', () => {
+  it('maps each mood to its personality family (the mood channel at rest)', () => {
+    expect(idleFamilyForMood('playful')).toBe('lively');
+    expect(idleFamilyForMood('energized')).toBe('lively');
+    expect(idleFamilyForMood('agitated')).toBe('lively');
+    expect(idleFamilyForMood('serene')).toBe('calm');
+    expect(idleFamilyForMood('content')).toBe('calm');
+    expect(idleFamilyForMood('melancholic')).toBe('drowsy');
+    expect(idleFamilyForMood('resigned')).toBe('drowsy');
+    expect(idleFamilyForMood('overwhelmed')).toBe('drowsy');
+  });
+
+  it('resolveIdleFamily prefers the mood and falls back to the expression', () => {
+    expect(resolveIdleFamily('playful', 'neutral')).toBe('lively');
+    expect(resolveIdleFamily('overwhelmed', 'attentive')).toBe('drowsy');
+    expect(resolveIdleFamily(null, 'attentive')).toBe('lively');
+    expect(resolveIdleFamily(null, 'sleepy')).toBe('drowsy');
+    expect(resolveIdleFamily(null, 'neutral')).toBe('calm');
   });
 });
 
@@ -506,9 +578,9 @@ describe('idle gesture scheduling', () => {
   it('gesture picks are personality-consistent: no bounce when drowsy, no slow blink when lively', () => {
     const seen = { lively: new Set<string>(), calm: new Set<string>(), drowsy: new Set<string>() };
     for (let r = 0; r < 1; r += 0.01) {
-      seen.lively.add(pickIdleGesture(() => r, 'joy'));
-      seen.calm.add(pickIdleGesture(() => r, 'neutral'));
-      seen.drowsy.add(pickIdleGesture(() => r, 'sleepy'));
+      seen.lively.add(pickIdleGesture(() => r, 'lively'));
+      seen.calm.add(pickIdleGesture(() => r, 'calm'));
+      seen.drowsy.add(pickIdleGesture(() => r, 'drowsy'));
     }
     expect(seen.lively.has('bounce')).toBe(true);
     expect(seen.lively.has('slow-blink')).toBe(false);
@@ -523,9 +595,9 @@ describe('idle gesture scheduling', () => {
   });
 
   it('rng extremes stay inside each weight table', () => {
-    for (const expression of ['joy', 'neutral', 'sleepy'] as const) {
-      expect(typeof pickIdleGesture(() => 0, expression)).toBe('string');
-      expect(typeof pickIdleGesture(() => 0.999, expression)).toBe('string');
+    for (const family of ['lively', 'calm', 'drowsy'] as const) {
+      expect(typeof pickIdleGesture(() => 0, family)).toBe('string');
+      expect(typeof pickIdleGesture(() => 0.999, family)).toBe('string');
     }
   });
 
@@ -541,14 +613,14 @@ describe('idle gesture scheduling', () => {
   });
 
   it('mood flickers (mini idle scenes) belong to the awake families only', () => {
-    const gesturesFor = (expression: 'joy' | 'neutral' | 'sleepy') => {
+    const gesturesFor = (family: 'lively' | 'calm' | 'drowsy') => {
       const seen = new Set<string>();
-      for (let r = 0; r < 1; r += 0.005) seen.add(pickIdleGesture(() => r, expression));
+      for (let r = 0; r < 1; r += 0.005) seen.add(pickIdleGesture(() => r, family));
       return seen;
     };
-    expect(gesturesFor('joy').has('flicker')).toBe(true);
-    expect(gesturesFor('neutral').has('flicker')).toBe(true);
-    expect(gesturesFor('sleepy').has('flicker')).toBe(false);
+    expect(gesturesFor('lively').has('flicker')).toBe(true);
+    expect(gesturesFor('calm').has('flicker')).toBe(true);
+    expect(gesturesFor('drowsy').has('flicker')).toBe(false);
   });
 
   it('idle flickers are short scenes that always settle back to a free gaze', () => {
@@ -565,14 +637,14 @@ describe('idle gesture scheduling', () => {
   });
 
   it('the asymmetric brow raise belongs to the awake families only', () => {
-    const gesturesFor = (expression: 'joy' | 'neutral' | 'sleepy') => {
+    const gesturesFor = (family: 'lively' | 'calm' | 'drowsy') => {
       const seen = new Set<string>();
-      for (let r = 0; r < 1; r += 0.005) seen.add(pickIdleGesture(() => r, expression));
+      for (let r = 0; r < 1; r += 0.005) seen.add(pickIdleGesture(() => r, family));
       return seen;
     };
-    expect(gesturesFor('joy').has('brow')).toBe(true);
-    expect(gesturesFor('neutral').has('brow')).toBe(true);
-    expect(gesturesFor('sleepy').has('brow')).toBe(false);
+    expect(gesturesFor('lively').has('brow')).toBe(true);
+    expect(gesturesFor('calm').has('brow')).toBe(true);
+    expect(gesturesFor('drowsy').has('brow')).toBe(false);
   });
 
   it('silly beats are rare, RNG-gated, and picked from the whole silly set', () => {
@@ -631,5 +703,89 @@ describe('idle gesture scheduling', () => {
       expect(GESTURE_DURATION_MS[gesture]).toBeGreaterThan(300);
       expect(GESTURE_DURATION_MS[gesture]).toBeLessThan(1500);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Transition grammar & liveliness beats (2026-08-21 batch)
+// ---------------------------------------------------------------------------
+
+describe('transition grammar primitives', () => {
+  it('pre-gaze blink triggers under its probability, not above', () => {
+    expect(shouldBlinkBeforeGaze(() => PRE_GAZE_BLINK_PROBABILITY - 0.01)).toBe(true);
+    expect(shouldBlinkBeforeGaze(() => PRE_GAZE_BLINK_PROBABILITY)).toBe(false);
+    expect(shouldBlinkBeforeGaze(() => 0.99)).toBe(false);
+  });
+
+  it('the blink lead is shorter than the blink itself (the lid must cover the move)', () => {
+    expect(PRE_GAZE_BLINK_LEAD_MS).toBeLessThan(BLINK_DURATION_MS);
+  });
+
+  it('urgent arrivals bypass the minimum hold; idle poses do not', () => {
+    for (const urgent of ['worried', 'question', 'surprise', 'fear', 'wink'] as const) {
+      expect(URGENT_ARRIVALS.has(urgent), urgent).toBe(true);
+    }
+    expect(URGENT_ARRIVALS.has('neutral')).toBe(false);
+    expect(URGENT_ARRIVALS.has('joy')).toBe(false);
+    expect(MIN_EXPRESSION_HOLD_MS).toBeGreaterThan(MASK_APPLY_DELAY_MS);
+  });
+
+  it('blink cadence follows the family: lively blinks sooner than drowsy', () => {
+    expect(nextBlinkDelayMs(() => 0, 'lively')).toBeLessThan(nextBlinkDelayMs(() => 0, 'drowsy'));
+    expect(nextBlinkDelayMs(() => 1, 'lively')).toBeLessThan(nextBlinkDelayMs(() => 1, 'drowsy'));
+    // Default family is the calm reference band (compat call sites).
+    expect(nextBlinkDelayMs(() => 0)).toBe(BLINK_MIN_DELAY_MS);
+    expect(nextBlinkDelayMs(() => 1)).toBe(BLINK_MAX_DELAY_MS);
+  });
+});
+
+describe('mood shift beats', () => {
+  it('a cross-family rise plays the spark, a fall plays the settle', () => {
+    expect(moodShiftPerformance('content', 'playful')).toBe(MOOD_SHIFT_RISE_PERFORMANCE);
+    expect(moodShiftPerformance('resigned', 'serene')).toBe(MOOD_SHIFT_RISE_PERFORMANCE);
+    expect(moodShiftPerformance('playful', 'melancholic')).toBe(MOOD_SHIFT_FALL_PERFORMANCE);
+    expect(moodShiftPerformance('serene', 'overwhelmed')).toBe(MOOD_SHIFT_FALL_PERFORMANCE);
+  });
+
+  it('a same-family shift stays silent (the gesture cadence already moved)', () => {
+    expect(moodShiftPerformance('content', 'serene')).toBeNull();
+    expect(moodShiftPerformance('playful', 'energized')).toBeNull();
+    expect(moodShiftPerformance('resigned', 'overwhelmed')).toBeNull();
+  });
+
+  it('both beats settle back to a free frame (last step gaze: null)', () => {
+    for (const beat of [MOOD_SHIFT_RISE_PERFORMANCE, MOOD_SHIFT_FALL_PERFORMANCE]) {
+      expect(beat[beat.length - 1].gaze).toBeNull();
+    }
+  });
+});
+
+describe('reading pattern', () => {
+  it('walks the line left to right, slightly up, then carriage-returns', () => {
+    const first = readingGazeAt(1);
+    const second = readingGazeAt(2);
+    const third = readingGazeAt(3);
+    expect(second.gaze.x).toBeGreaterThan(first.gaze.x);
+    expect(third.gaze.x).toBeGreaterThan(second.gaze.x);
+    for (const step of [first, second, third]) {
+      expect(step.gaze.y).toBeLessThan(0);
+      expect(step.ms).toBe(READING_MOVE_MS);
+    }
+    // Step 0 (and every full cycle) is the quick carriage return to line start.
+    expect(readingGazeAt(0).ms).toBe(READING_RETURN_MS);
+    expect(readingGazeAt(4).gaze).toEqual(readingGazeAt(0).gaze);
+  });
+});
+
+describe('proportional wake', () => {
+  it('a short nap earns the quick recollection, deep sleep the full startle', () => {
+    expect(wakePerformanceFor(0)).toBe(WAKE_SHORT_PERFORMANCE);
+    expect(wakePerformanceFor(SHORT_NAP_MS - 1)).toBe(WAKE_SHORT_PERFORMANCE);
+    expect(wakePerformanceFor(SHORT_NAP_MS)).toBe(WAKE_PERFORMANCE);
+  });
+
+  it('the short wake never startles (no surprise beat)', () => {
+    expect(WAKE_SHORT_PERFORMANCE.some(s => s.expression === 'surprise')).toBe(false);
+    expect(WAKE_PERFORMANCE[0].expression).toBe('surprise');
   });
 });

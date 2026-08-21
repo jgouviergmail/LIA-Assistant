@@ -6,7 +6,7 @@
 # references it.
 services:
   fake-provider:
-    image: python:3.12-alpine
+    image: python:3.14-alpine
     container_name: lia-fake-provider-smoke
     restart: unless-stopped
     volumes:

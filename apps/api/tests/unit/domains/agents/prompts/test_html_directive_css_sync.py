@@ -11,25 +11,17 @@ always present.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
 from src.domains.agents.prompts import load_prompt
+from tests._repo_paths import repo_root_or_skip
 
 pytestmark = [pytest.mark.unit]
 
-
-def _repo_root() -> Path:
-    """Walk up from this file to the repository root (Taskfile.yml marker)."""
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "Taskfile.yml").exists():
-            return parent
-    raise AssertionError("repository root (Taskfile.yml) not found")
-
-
-_CSS_PATH = _repo_root() / "apps" / "web" / "src" / "styles" / "lia-components.css"
+# Shared helper instead of a private Taskfile.yml walk: skips cleanly under the
+# flat /app container mount instead of raising at import (ADR-241 follow-up).
+_CSS_PATH = repo_root_or_skip() / "apps" / "web" / "src" / "styles" / "lia-components.css"
 
 
 def _advertised_classes() -> set[str]:

@@ -364,7 +364,7 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         # Parse user timezone (fallback to UTC if invalid)
         try:
             tz: Any = ZoneInfo(user_timezone)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             logger.warning("invalid_user_timezone", timezone=user_timezone, fallback="UTC")
             tz = UTC
 

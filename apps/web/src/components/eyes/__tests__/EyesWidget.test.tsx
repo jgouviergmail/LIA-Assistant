@@ -24,9 +24,18 @@ import {
   IDLE_GESTURE_MAX_DELAY_MS,
   IDLE_GESTURE_MIN_DELAY_MS,
   INACTIVITY_ASLEEP_MS,
+  MASK_APPLY_DELAY_MS,
+  MIN_EXPRESSION_HOLD_MS,
+  READING_MOVE_MS,
+  READING_STEP_MS,
+  SHORT_NAP_MS,
+  WAKE_SHORT_PERFORMANCE,
   SACCADE_HOLD_MIN_MS,
   SACCADE_MOVE_MS,
   WAKE_PERFORMANCE,
+  RETURN_PERK_MIN_AWAY_MS,
+  WONDER_PERFORMANCE,
+  MOOD_SHIFT_RISE_PERFORMANCE,
   WINK_DURATION_MS,
 } from '../expression-engine';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
@@ -53,6 +62,14 @@ function renderWidget(
     vi.advanceTimersByTime(1);
   });
   return result;
+}
+
+/** Let a masked transition land — the three-beat swaps the face at the top
+ * of the lid sweep (MASK_APPLY_DELAY_MS after the change). */
+function settleMask(): void {
+  act(() => {
+    vi.advanceTimersByTime(MASK_APPLY_DELAY_MS + 5);
+  });
 }
 
 function eyesRoot(): HTMLElement {
@@ -204,16 +221,16 @@ describe('EyesWidget — expression wiring', () => {
       useEyesSignalsStore.getState().recordStep('tool');
     });
     renderWidget({ chatStatus: 'streaming', streamPhase: 'progress' });
+    settleMask();
     expect(eyesRoot().dataset.expression).toBe('searching');
   });
 
   it('streaming answer → speaking; HITL awaiting overrides it → question', () => {
     const { rerender } = renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    settleMask();
     expect(eyesRoot().dataset.expression).toBe('speaking');
     rerender(<EyesWidget chatStatus="streaming" streamPhase="answer" hitlAwaiting />);
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
+    settleMask();
     expect(eyesRoot().dataset.expression).toBe('question');
   });
 
@@ -223,6 +240,11 @@ describe('EyesWidget — expression wiring', () => {
     act(() => {
       useEyesSignalsStore.getState().setReaction('excited', Date.now());
     });
+    // A reaction is not urgent: the fresh mount frame holds its minimum
+    // beat first (anti-zapping), then the masked swap lands the reaction.
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+    });
     expect(eyesRoot().dataset.expression).toBe('excited');
   });
 
@@ -231,6 +253,7 @@ describe('EyesWidget — expression wiring', () => {
     act(() => {
       useVoiceModeStore.setState({ state: 'speaking' });
     });
+    settleMask();
     expect(eyesRoot().dataset.expression).toBe('speaking');
   });
 
@@ -248,6 +271,7 @@ describe('EyesWidget — expression wiring', () => {
 
   it('an error is worried, then decays back to idle after the hold', () => {
     renderWidget({ chatStatus: 'error' });
+    settleMask();
     expect(eyesRoot().dataset.expression).toBe('worried');
     act(() => {
       vi.advanceTimersByTime(ERROR_HOLD_MS + 1500);
@@ -259,12 +283,13 @@ describe('EyesWidget — expression wiring', () => {
 describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
   it('wanders the gaze with a saccade jump, holds, then eases back to center', () => {
     // Explicit rng sequence (mount order: blink delay, idle delay; tick
-    // order: silly roll, pick, target x, target y, hold).
+    // order: silly roll, pick, pre-gaze blink roll, target x, target y, hold).
     vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0.9) // blink delay (far away)
       .mockReturnValueOnce(0) // idle delay → MIN
       .mockReturnValueOnce(0.9) // silly roll → no
       .mockReturnValueOnce(0) // pick → saccade
+      .mockReturnValueOnce(0.9) // pre-gaze blink roll → no
       .mockReturnValueOnce(0) // target x → -0.35
       .mockReturnValueOnce(0) // target y → -0.22
       .mockReturnValueOnce(0) // hold → SACCADE_HOLD_MIN_MS
@@ -289,6 +314,7 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
       .mockReturnValueOnce(0) // idle delay → MIN
       .mockReturnValueOnce(0.9) // silly roll → no
       .mockReturnValueOnce(0) // pick → saccade
+      .mockReturnValueOnce(0.9) // pre-gaze blink roll → no
       .mockReturnValueOnce(0) // target x → -0.35
       .mockReturnValueOnce(0) // target y
       .mockReturnValueOnce(0) // hold → SACCADE_HOLD_MIN_MS
@@ -327,28 +353,40 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     expect(eyesRoot().dataset.gesture).toBeUndefined();
   });
 
-  it('speaking wanders its gaze too (saccades while talking, never posed gestures)', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0);
+  it('speaking walks a reading line (the eyes write their answer, no gestures)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
     renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    settleMask();
     expect(eyesRoot().dataset.expression).toBe('speaking');
+    // First reading beat: small left-to-right step, quick move, slightly up.
     act(() => {
-      vi.advanceTimersByTime(IDLE_GESTURE_MIN_DELAY_MS + 10);
+      vi.advanceTimersByTime(READING_STEP_MS + 10);
     });
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('-0.35');
-    expect(eyesRoot().style.getPropertyValue('--gaze-ms')).toBe(`${SACCADE_MOVE_MS}ms`);
+    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('-0.18');
+    expect(eyesRoot().style.getPropertyValue('--gaze-ms')).toBe(`${READING_MOVE_MS}ms`);
     expect(eyesRoot().dataset.gesture).toBeUndefined();
+    // Second beat walks further right along the same line.
+    act(() => {
+      vi.advanceTimersByTime(READING_STEP_MS);
+    });
+    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('0.2');
   });
 
-  it('an expression change is masked by a transition blink; a reflex is not', () => {
+  it('a masked change is a three-beat: blink starts, face swaps at lid-top, lids clear', () => {
     const { rerender } = renderWidget({ chatStatus: 'idle' });
     expect(eyesRoot().classList.contains('is-blinking')).toBe(false);
     rerender(<EyesWidget chatStatus="sending" streamPhase="answer" hitlAwaiting={false} />);
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    // neutral → attentive: masked by a blink that clears after its cycle.
-    expect(eyesRoot().dataset.expression).toBe('attentive');
+    // Beat 1: the lid sweep starts immediately — the face has NOT changed yet
+    // (the morph happens out of sight, at the top of the blink).
     expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+    expect(eyesRoot().dataset.expression).toBe('neutral');
+    // Beat 2: at lid-top the new face lands.
+    settleMask();
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    // Beat 3: the blink clears after its full cycle.
     act(() => {
       vi.advanceTimersByTime(BLINK_DURATION_MS + 10);
     });
@@ -445,10 +483,13 @@ describe('EyesWidget — touch toolbar (tap to summon)', () => {
 describe('EyesWidget — emotes & slapstick', () => {
   it('a HITL question floats a "?" above the eyes, and it leaves on resolution', () => {
     const { rerender } = renderWidget({ hitlAwaiting: true });
+    settleMask();
     expect(document.querySelector('.lia-emote')?.textContent).toBe('?');
     rerender(<EyesWidget chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />);
+    // The return to idle is not urgent: minimum hold first, then the masked
+    // swap — the "?" starts leaving when the idle face lands.
     act(() => {
-      vi.advanceTimersByTime(1);
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
     });
     expect(document.querySelector('.lia-emote')?.classList.contains('is-leaving')).toBe(true);
     act(() => {
@@ -500,7 +541,7 @@ describe('EyesWidget — character moments', () => {
     expect(eyesRoot().dataset.expression).not.toBe('surprise');
   });
 
-  it('activity on dozing eyes plays the wake startle: jolt, look around, settle', () => {
+  it('waking from DEEP sleep plays the full startle: jolt, look around, settle', () => {
     // 0.5 keeps the idle life benign across the long doze + settle window:
     // silly roll declines (0.5 > SILLY_PROBABILITY) and every gesture pick
     // lands on saccade/glance/perk, none of which touch data-expression —
@@ -509,7 +550,10 @@ describe('EyesWidget — character moments', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     renderWidget();
     act(() => {
-      vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
+      // Fall asleep, then STAY asleep past the short-nap threshold: the
+      // startle is earned by deep sleep, a quick doze only gets the short
+      // recollection (see the short-nap test).
+      vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + SHORT_NAP_MS + 1500);
     });
     expect(eyesRoot().dataset.expression).toBe('sleep');
     fireEvent.keyDown(document.body, { key: 'a' });
@@ -522,6 +566,27 @@ describe('EyesWidget — character moments', () => {
     });
     expect(eyesRoot().dataset.expression).toBe('attentive');
     const total = WAKE_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
+    act(() => {
+      vi.advanceTimersByTime(total + 1200);
+    });
+    expect(eyesRoot().dataset.expression).toBe('neutral');
+  });
+
+  it('waking from a SHORT nap is a quick recollection, not a startle', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    act(() => {
+      vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
+    });
+    expect(eyesRoot().dataset.expression).toBe('sleep');
+    // Woken moments after dozing off: attentive beat, then back to the room —
+    // never the full jolt.
+    fireEvent.keyDown(document.body, { key: 'a' });
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    const total = WAKE_SHORT_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
     act(() => {
       vi.advanceTimersByTime(total + 1200);
     });
@@ -575,5 +640,204 @@ describe('EyesWidget — motion one-shots', () => {
       vi.advanceTimersByTime(200);
     });
     expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+  });
+});
+
+describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
+  it('reflects the mood family on data-family (breathing/CSS channel)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    expect(eyesRoot().dataset.family).toBe('calm');
+    act(() => {
+      usePsycheStore.setState({ enabled: true, moodLabel: 'playful' });
+    });
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+    });
+    expect(eyesRoot().dataset.family).toBe('lively');
+  });
+
+  it('a cross-family mood shift plays its rise beat while idling', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    act(() => {
+      usePsycheStore.setState({ enabled: true, moodLabel: 'content' });
+    });
+    renderWidget();
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + 10);
+    });
+    act(() => {
+      usePsycheStore.setState({ moodLabel: 'playful' });
+    });
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    // First beat of MOOD_SHIFT_RISE_PERFORMANCE: an upward attentive spark.
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    expect(eyesRoot().style.getPropertyValue('--gaze-y')).toBe('-0.4');
+    act(() => {
+      vi.advanceTimersByTime(MOOD_SHIFT_RISE_PERFORMANCE[0].ms + 10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('joy');
+  });
+
+  it('typing that expires without a send plays the "you were saying?" wonder', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    act(() => {
+      useEyesSignalsStore.getState().recordTyping();
+    });
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    // Let the typing signal expire with the chat still idle (the heartbeat
+    // notices on its next second): the eyes come up from the input and
+    // wonder — first the centered attentive beat, then the question.
+    act(() => {
+      // Past the typing TTL AND the next heartbeat tick (the beat trigger).
+      vi.advanceTimersByTime(1500);
+    });
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    expect(eyesRoot().style.getPropertyValue('--gaze-y')).toBe('0');
+    act(() => {
+      vi.advanceTimersByTime(WONDER_PERFORMANCE[0].ms);
+    });
+    expect(eyesRoot().dataset.expression).toBe('question');
+  });
+
+  it('returning to the tab after a real absence earns a welcome perk', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    const hidden = vi.spyOn(document, 'hidden', 'get');
+    hidden.mockReturnValue(true);
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      vi.advanceTimersByTime(RETURN_PERK_MIN_AWAY_MS + 1000);
+    });
+    hidden.mockReturnValue(false);
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(eyesRoot().dataset.gesture).toBe('perk');
+    act(() => {
+      vi.advanceTimersByTime(GESTURE_DURATION_MS.perk + 10);
+    });
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('a short tab switch earns no perk', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    const hidden = vi.spyOn(document, 'hidden', 'get');
+    hidden.mockReturnValue(true);
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      vi.advanceTimersByTime(2000);
+    });
+    hidden.mockReturnValue(false);
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(eyesRoot().dataset.gesture).toBeUndefined();
+  });
+
+  it('a reading line torn down by minimizing STILL comes home (no gaze drift, ever)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    settleMask();
+    act(() => {
+      vi.advanceTimersByTime(READING_STEP_MS + 10);
+    });
+    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('-0.18');
+    // Minimize MID-LINE: the reading loop is torn down...
+    fireEvent.click(screen.getByRole('button', { name: 'eyes.minimize' }));
+    fireEvent.click(screen.getByRole('button', { name: 'eyes.restore' }));
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    // ...but the teardown sent the gaze home: restored eyes sit at center.
+    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('0');
+  });
+
+  it('overlapping blink pulses never cut the lid mid-cycle (last pulse wins)', () => {
+    // Force the pre-gaze blink (rng 0 < probability) on an immediate wander.
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.9) // blink delay (far away)
+      .mockReturnValueOnce(0) // idle delay -> MIN
+      .mockReturnValueOnce(0.9) // silly roll -> no
+      .mockReturnValueOnce(0) // pick -> saccade
+      .mockReturnValueOnce(0) // pre-gaze blink roll -> YES
+      .mockReturnValue(0.9);
+    renderWidget();
+    act(() => {
+      vi.advanceTimersByTime(IDLE_GESTURE_MIN_DELAY_MS + 10);
+    });
+    // The pre-gaze blink pulse is on.
+    expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+    // A masked transition lands 200 ms later and re-pulses the SAME timer:
+    // the lid must stay down past the first pulse's own 420 ms deadline.
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    act(() => {
+      useEyesSignalsStore.getState().setReaction('joy', Date.now());
+    });
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS - 200);
+    });
+    expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+    // ...and clears one full cycle after the LAST pulse, not the first.
+    act(() => {
+      vi.advanceTimersByTime(BLINK_DURATION_MS + 50);
+    });
+    expect(eyesRoot().classList.contains('is-blinking')).toBe(false);
+  });
+
+  it('a notification cuts a running idle beat short (the glance must not be hidden)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    act(() => {
+      useEyesSignalsStore.getState().recordTyping();
+    });
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+    });
+    // Let the wonder beat start (typing expired, heartbeat noticed)...
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    // ...then a notification lands mid-beat: the surprised glance wins.
+    act(() => {
+      useEyesSignalsStore.getState().recordNotification();
+    });
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('surprise');
+  });
+
+  it('anti-zapping: a non-urgent burst keeps the first face its minimum beat', () => {
+    renderWidget();
+    act(() => {
+      useEyesSignalsStore.getState().setReaction('joy', Date.now());
+    });
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('joy');
+    // A second, non-urgent frame right behind: it must WAIT the hold out.
+    act(() => {
+      useEyesSignalsStore.getState().setReaction('sad', Date.now());
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(eyesRoot().dataset.expression).toBe('joy');
+    act(() => {
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('sad');
   });
 });

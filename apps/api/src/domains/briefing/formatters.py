@@ -212,7 +212,7 @@ def _aggregate_daily_forecast(
             if slot_date.toordinal() > horizon_end:
                 continue
             date_key = slot_date.isoformat()
-        except (ValueError, TypeError, OSError):
+        except ValueError, TypeError, OSError:
             continue
 
         bucket = by_day.setdefault(date_key, {"temps": [], "conditions": [], "date_obj": slot_date})
@@ -274,7 +274,7 @@ def _today_min_max_from_forecast(
                 temps.append(float(t_min))
             if t_max is not None:
                 temps.append(float(t_max))
-        except (ValueError, TypeError, OSError):
+        except ValueError, TypeError, OSError:
             continue
     if not temps:
         return None, None
@@ -291,7 +291,7 @@ def _first_forecast_pop(forecast: dict[str, Any]) -> float | None:
         return None
     try:
         value = float(pop)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     # Clamp to [0, 1] just in case the API ever returns out-of-range values.
     return max(0.0, min(1.0, value))
@@ -338,7 +338,7 @@ def _detect_forecast_alert(
                 continue
             dt = datetime.fromtimestamp(int(ts), tz=user_tz)
             return ForecastAlert(kind=kind, time=dt.strftime("%H:%M"))
-        except (ValueError, TypeError, OSError):
+        except ValueError, TypeError, OSError:
             continue
     return None
 
@@ -379,7 +379,7 @@ def is_event_past(raw_event: dict[str, Any], now: datetime, user_tz: ZoneInfo) -
         try:
             end_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=user_tz)
             return end_date <= now.astimezone(user_tz)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
     raw = end_field.get("dateTime")
     if not raw:
@@ -390,10 +390,10 @@ def is_event_past(raw_event: dict[str, Any], now: datetime, user_tz: ZoneInfo) -
             event_tz_str = end_field.get("timeZone")
             try:
                 dt = dt.replace(tzinfo=ZoneInfo(event_tz_str) if event_tz_str else user_tz)
-            except (KeyError, ValueError):
+            except KeyError, ValueError:
                 dt = dt.replace(tzinfo=user_tz)
         return dt <= now.astimezone(dt.tzinfo or user_tz)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return False
 
 
@@ -463,7 +463,7 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo, langu
             if event_tz_str:
                 try:
                     event_tz = ZoneInfo(event_tz_str)
-                except (KeyError, ValueError):
+                except KeyError, ValueError:
                     event_tz = user_tz
             else:
                 event_tz = user_tz
@@ -480,7 +480,7 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo, langu
             include_year=True,
             time_first=True,
         ).lower()
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return str(raw)
 
 
@@ -605,7 +605,7 @@ def _format_email_internal_date(
             include_year=True,
             time_first=True,
         )
-    except (ValueError, TypeError, OSError):
+    except ValueError, TypeError, OSError:
         return "?"
 
 
@@ -669,7 +669,7 @@ def _format_trigger_at_local(
         # mid-line, not a sentence). Adjust here if a per-locale rule is
         # ever required.
         return formatted.lower()
-    except (ValueError, TypeError, AttributeError):
+    except ValueError, TypeError, AttributeError:
         return "?"
 
 
@@ -762,5 +762,5 @@ def extract_today_value_from_summary(
         return None
     try:
         return float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None

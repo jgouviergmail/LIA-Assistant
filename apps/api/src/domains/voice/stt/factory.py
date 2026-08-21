@@ -45,7 +45,7 @@ def _resolve_remote_base_url(provider_config_raw: object) -> str:
         return DEFAULT_ELEVENLABS_BASE_URL
     try:
         parsed = json.loads(provider_config_raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return DEFAULT_ELEVENLABS_BASE_URL
     if isinstance(parsed, dict):
         candidate = parsed.get("base_url")

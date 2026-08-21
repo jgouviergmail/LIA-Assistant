@@ -212,7 +212,7 @@ tests/agents/
 | **Context** | 6 | Context CRUD, cleanup, multi-key patterns |
 | **Message Handling** | 5 | Windowing, filtering, formatting |
 | **Registry** | 3 | Agent/tool registration, manifests |
-| **Integration** | 3 | E2E workflows, Python 3.12 compatibility |
+| **Integration** | 3 | E2E workflows, runtime compatibility |
 | **Performance** | 2 | State performance, concurrency |
 | **Other** | 17 | Utilities, mappers, validators |
 

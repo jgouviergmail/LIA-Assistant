@@ -30,7 +30,7 @@ class PlanningResult:
         filtered_catalogue: Filtered catalogue used (for debug panel)
     """
 
-    plan: "ExecutionPlan | None"
+    plan: ExecutionPlan | None
     success: bool
     error: str | None = None
     tokens_used: int = 0
@@ -38,7 +38,7 @@ class PlanningResult:
     used_template: bool = False
     used_panic_mode: bool = False
     used_generative: bool = False
-    filtered_catalogue: "FilteredCatalogue | None" = None  # For debug panel
+    filtered_catalogue: FilteredCatalogue | None = None  # For debug panel
 
 
 __all__ = [

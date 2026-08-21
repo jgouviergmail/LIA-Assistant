@@ -82,7 +82,7 @@ def wind_deg_to_cardinal(deg: float | int | str | None) -> str | None:
         return None
     try:
         bearing = float(deg) % 360
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     if math.isnan(bearing):
         return None

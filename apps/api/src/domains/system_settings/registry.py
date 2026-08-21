@@ -66,7 +66,7 @@ def _decode_positive_decimal(raw: str) -> Decimal | None:
     """
     try:
         value = Decimal(raw.strip())
-    except (InvalidOperation, ValueError):
+    except InvalidOperation, ValueError:
         return None
     return value if value > 0 else None
 

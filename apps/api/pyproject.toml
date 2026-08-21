@@ -1,15 +1,16 @@
 [project]
 name = "lia-api"
-version = "1.30.16"
+version = "1.31.0"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
     {name = "LIA Contributors"},
 ]
-# Bounded to the range actually exercised (audit F041): 3.12 in Docker/CI/prod,
-# 3.13 on developer hosts. Both are proven by the CI matrix (test-backend runs
-# on 3.12 and 3.13). Untested majors (3.14+) are excluded until added to CI.
-requires-python = ">=3.12,<3.14"
+# Bounded to the single version actually exercised (audit F041, ADR-241): 3.14
+# everywhere — host venv, Docker dev/prod, CI. Untested majors are excluded
+# until added to CI. The ADR-215 installer wizard keeps its own, independent
+# 3.10 floor (bare operator hosts, gated by scripts/install/tests_py310.py).
+requires-python = ">=3.14,<3.15"
 # NOTE: Dependencies are declared in requirements.txt / requirements-dev.txt
 # (intent manifests) and installed from the compiled lockfiles
 # requirements.lock.txt / requirements-dev.lock.txt (ADR-112, `task deps:lock`).
@@ -30,7 +31,7 @@ Repository = "https://github.com/jgouviergmail/LIA-Assistant"
 
 [tool.black]
 line-length = 100
-target-version = ['py312']
+target-version = ['py314']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -49,7 +50,7 @@ extend-exclude = '''
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.format]
 # Make Ruff format compatible with Black
@@ -88,7 +89,7 @@ ignore = [
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
-python_version = "3.12"
+python_version = "3.14"
 # Type-check against the DEPLOYMENT target (Linux containers), not the
 # developer host. Aligns the host pre-commit hook with the Linux CI runner so
 # POSIX-only APIs (resource, os.setuid/setgroups, os.fork) resolve identically
@@ -109,10 +110,8 @@ strict_optional = true
 
 [[tool.mypy.overrides]]
 module = [
-    # NOTE: "slowapi.*" was removed with the unenforced SlowAPI limiter (SEC-016).
-    # The `slowapi` package itself is still pinned in requirements.txt and is now
-    # unused — dropping it needs `task deps:lock` (ADR-112), so it is left for a
-    # dedicated dependency change rather than regenerating the lockfile here.
+    # NOTE: the dormant slowapi/passlib pins were dropped in the ADR-241
+    # follow-up dependency change (bcrypt is declared directly since).
     "prometheus_client.*",
     "pgvector.*",
     "langchain.agents.middleware.*",

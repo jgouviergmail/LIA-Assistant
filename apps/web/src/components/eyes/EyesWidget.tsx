@@ -100,7 +100,14 @@ function eyesDisplayProps(
   styleId: EyeStyleId
 ): ExpressiveEyesProps {
   if (dragging) {
-    return { expression: 'surprise', gaze: null, size, styleId, blinking: behavior.blinking };
+    return {
+      expression: 'surprise',
+      gaze: null,
+      size,
+      styleId,
+      idleFamily: behavior.family,
+      blinking: behavior.blinking,
+    };
   }
   return {
     expression: behavior.frame.expression,
@@ -108,6 +115,7 @@ function eyesDisplayProps(
     gazeDurationMs: resolved.ms,
     size,
     styleId,
+    idleFamily: behavior.family,
     blinking: behavior.blinking,
     gesture: behavior.gesture,
     emote: behavior.emote?.glyph ?? null,

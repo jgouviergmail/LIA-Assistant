@@ -983,7 +983,7 @@ Security:
 PII Filtering Performance Benchmarks
 
 Test environment:
-- Python 3.12
+- Python 3.14
 - MacBook Pro M1 (8-core CPU)
 - 1000 log events with PII
 

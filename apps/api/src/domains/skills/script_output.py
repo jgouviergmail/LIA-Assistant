@@ -191,7 +191,7 @@ def parse_skill_stdout(stdout: str) -> SkillScriptOutput:
     # Attempt JSON parse
     try:
         data = json.loads(stripped)
-    except (json.JSONDecodeError, ValueError):
+    except json.JSONDecodeError, ValueError:
         # Not JSON — wrap as plain text (backward compat)
         return SkillScriptOutput(text=stdout)
 

@@ -711,7 +711,7 @@ class ToolOutputMixin:
                     naive_dt = datetime.strptime(end["date"], "%Y-%m-%d")
                     local_dt = naive_dt.replace(hour=23, minute=59, second=59, tzinfo=tz)
                     end["dateTime"] = local_dt.isoformat()
-                except (KeyError, ValueError):
+                except KeyError, ValueError:
                     end["dateTime"] = f"{end['date']}T23:59:59Z"
 
             # Add 1-based index for ordinal reference resolution

@@ -45,9 +45,7 @@ logger = structlog.get_logger(__name__)
 class MCPNoAuth(httpx2.Auth):
     """Pass-through authentication (no headers added)."""
 
-    def auth_flow(
-        self, request: httpx2.Request
-    ) -> Generator[httpx2.Request, httpx2.Response, None]:
+    def auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response]:
         yield request
 
 
@@ -63,9 +61,7 @@ class MCPStaticTokenAuth(httpx2.Auth):
         self.header_name = header_name
         self.header_value = header_value
 
-    def auth_flow(
-        self, request: httpx2.Request
-    ) -> Generator[httpx2.Request, httpx2.Response, None]:
+    def auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response]:
         request.headers[self.header_name] = self.header_value
         yield request
 
@@ -229,7 +225,7 @@ def build_auth_for_server(server: UserMCPServer) -> httpx2.Auth:
 
     try:
         creds = json.loads(decrypt_data(server.credentials_encrypted))
-    except (ValueError, json.JSONDecodeError):
+    except ValueError, json.JSONDecodeError:
         logger.error(
             "mcp_auth_decrypt_failed",
             server_id=str(server.id),
@@ -278,7 +274,7 @@ def build_auth_for_server(server: UserMCPServer) -> httpx2.Auth:
                     try:
                         result: dict[str, Any] = json.loads(decrypt_data(srv.credentials_encrypted))
                         return result
-                    except (ValueError, json.JSONDecodeError):
+                    except ValueError, json.JSONDecodeError:
                         return None
             return None
 

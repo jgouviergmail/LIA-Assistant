@@ -61,7 +61,7 @@ class TokenUnregisterResponse(BaseModel):
 class UserTokensResponse(BaseModel):
     """Response listing user's registered tokens."""
 
-    tokens: list["TokenInfo"]
+    tokens: list[TokenInfo]
     total: int
 
 

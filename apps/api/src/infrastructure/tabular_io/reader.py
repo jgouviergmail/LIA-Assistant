@@ -126,7 +126,7 @@ def _open(
     try:
         # data_only=False on purpose: see the module docstring.
         return openpyxl.load_workbook(io.BytesIO(content), data_only=False)
-    except (zipfile.BadZipFile, KeyError, ValueError):
+    except zipfile.BadZipFile, KeyError, ValueError:
         issues.append(CellIssue(IssueCode.NOT_A_WORKBOOK))
         return None
 

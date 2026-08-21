@@ -163,7 +163,7 @@ def calculate_conversation_metrics(
 async def calculate_conversation_metrics_async(
     state: MessagesState,
     config: RunnableConfig | None = None,
-    db: "AsyncSession | None" = None,
+    db: AsyncSession | None = None,
 ) -> ConversationMetrics:
     """
     Calculate all business metrics for a conversation using DB pricing (ASYNC).
@@ -358,7 +358,7 @@ def calculate_total_cost_usd(messages: list[Any]) -> float:
 
 async def calculate_total_cost_usd_async(
     messages: list[Any],
-    db: "AsyncSession",
+    db: AsyncSession,
 ) -> float:
     """
     Calculate total cost in USD from token usage using DB pricing (ASYNC).

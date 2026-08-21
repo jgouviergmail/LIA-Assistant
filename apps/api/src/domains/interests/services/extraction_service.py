@@ -138,7 +138,7 @@ class InterestAnalysisResult:
         }
 
     @classmethod
-    def from_cache_dict(cls, data: dict) -> "InterestAnalysisResult":
+    def from_cache_dict(cls, data: dict) -> InterestAnalysisResult:
         """Deserialize from Redis cache dict."""
         extracted = []
         for item in data.get("extracted_interests", []):

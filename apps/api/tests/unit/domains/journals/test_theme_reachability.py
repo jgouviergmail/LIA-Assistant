@@ -229,7 +229,7 @@ def _hardcoded_theme_call_sites() -> list[str]:
     for path in _SRC_ROOT.rglob("*.py"):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (SyntaxError, UnicodeDecodeError):  # pragma: no cover — defensive
+        except SyntaxError, UnicodeDecodeError:  # pragma: no cover — defensive
             continue
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):

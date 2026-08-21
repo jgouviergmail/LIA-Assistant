@@ -90,7 +90,7 @@ def _resolved_limit(limit: object) -> int:
         return ceiling
     try:
         requested = int(limit)  # type: ignore[call-overload]
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return ceiling
     return max(1, min(requested, ceiling))
 

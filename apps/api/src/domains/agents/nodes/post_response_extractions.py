@@ -503,7 +503,7 @@ def _schedule_post_response_extractions(
 
             try:
                 user_tz = ZoneInfo(state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE))
-            except (KeyError, ValueError, TypeError):
+            except KeyError, ValueError, TypeError:
                 user_tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
             from datetime import datetime
 

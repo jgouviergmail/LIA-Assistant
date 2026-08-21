@@ -42,7 +42,7 @@ def trace_agent_handoff(
     handoff_reason: str,
     parent_trace_id: str | None = None,
     metadata: dict[str, Any] | None = None,
-) -> Generator[dict[str, Any], None, None]:
+) -> Generator[dict[str, Any]]:
     """
     Context manager to trace agent handoffs in multi-agent orchestration.
 

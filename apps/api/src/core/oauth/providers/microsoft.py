@@ -38,7 +38,7 @@ class MicrosoftOAuthProvider:
     provider_name: str = "microsoft"
 
     @classmethod
-    def for_outlook(cls, settings: Settings) -> "MicrosoftOAuthProvider":
+    def for_outlook(cls, settings: Settings) -> MicrosoftOAuthProvider:
         """Create provider config for Microsoft Outlook (email) connector."""
         tenant = settings.microsoft_tenant_id
         return cls(
@@ -53,7 +53,7 @@ class MicrosoftOAuthProvider:
         )
 
     @classmethod
-    def for_calendar(cls, settings: Settings) -> "MicrosoftOAuthProvider":
+    def for_calendar(cls, settings: Settings) -> MicrosoftOAuthProvider:
         """Create provider config for Microsoft Calendar connector."""
         tenant = settings.microsoft_tenant_id
         return cls(
@@ -68,7 +68,7 @@ class MicrosoftOAuthProvider:
         )
 
     @classmethod
-    def for_contacts(cls, settings: Settings) -> "MicrosoftOAuthProvider":
+    def for_contacts(cls, settings: Settings) -> MicrosoftOAuthProvider:
         """Create provider config for Microsoft Contacts connector."""
         tenant = settings.microsoft_tenant_id
         return cls(
@@ -83,7 +83,7 @@ class MicrosoftOAuthProvider:
         )
 
     @classmethod
-    def for_tasks(cls, settings: Settings) -> "MicrosoftOAuthProvider":
+    def for_tasks(cls, settings: Settings) -> MicrosoftOAuthProvider:
         """Create provider config for Microsoft To Do (tasks) connector."""
         tenant = settings.microsoft_tenant_id
         return cls(

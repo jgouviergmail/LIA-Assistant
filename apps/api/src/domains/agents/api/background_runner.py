@@ -57,7 +57,7 @@ def get_active_chat_producer_count() -> int:
 
 def spawn_chat_run_producer(
     *,
-    chat_stream: AsyncGenerator[ChatStreamChunk, None],
+    chat_stream: AsyncGenerator[ChatStreamChunk],
     run_id: str,
     stream_id: str,
     user_id: str,
@@ -116,7 +116,7 @@ def spawn_chat_run_producer(
 
 
 async def _produce(
-    chat_stream: AsyncGenerator[ChatStreamChunk, None],
+    chat_stream: AsyncGenerator[ChatStreamChunk],
     run_id: str,
     stream_id: str,
     user_id: str,

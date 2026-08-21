@@ -1912,7 +1912,7 @@ def _parse_tool_result(result: Any) -> dict[str, Any]:
                     "data": {FIELD_RESULT: parsed},
                     "message": content,
                 }
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError, ValueError:
             # Not JSON - treat as plain string (legacy format)
             return {
                 "success": True,
@@ -2347,7 +2347,7 @@ async def _execute_tool_step(
         tool_registry = ToolRegistry.get_instance()
         try:
             tool = tool_registry.get_tool(step.tool_name)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             # Fallback across the global registry (incl. hallucinated suffix) and
             # the per-request user MCP ContextVar — shared resolver, identical to
             # the ReAct path. Adopt the canonical name so downstream display and

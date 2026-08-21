@@ -31,7 +31,7 @@ class FilteringStrategy(Protocol):
 
     def can_handle(
         self,
-        intelligence: "QueryIntelligence",
+        intelligence: QueryIntelligence,
         panic_mode: bool = False,
     ) -> bool:
         """
@@ -48,9 +48,9 @@ class FilteringStrategy(Protocol):
 
     def filter(
         self,
-        intelligence: "QueryIntelligence",
+        intelligence: QueryIntelligence,
         tool_selection_result: dict | None = None,
-    ) -> "FilteredCatalogue":
+    ) -> FilteredCatalogue:
         """
         Execute filtering strategy.
 

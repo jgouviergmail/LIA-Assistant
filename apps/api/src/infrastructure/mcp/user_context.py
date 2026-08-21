@@ -264,7 +264,7 @@ def cleanup_user_mcp_tools(token: Token | None) -> None:
 async def user_mcp_session(
     user_id: UUID,
     db: AsyncSession,
-) -> AsyncGenerator[None, None]:
+) -> AsyncGenerator[None]:
     """
     Setup user MCP tools for a chat request (context manager variant).
 

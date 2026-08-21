@@ -192,7 +192,7 @@ def clear_registry_expired(
                     from datetime import datetime as dt_cls
 
                     timestamp = dt_cls.fromisoformat(ts_raw.replace("Z", "+00:00"))
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     result[item_id] = item
                     continue
             else:

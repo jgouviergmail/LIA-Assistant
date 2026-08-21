@@ -127,7 +127,7 @@ class ToolResponse(BaseModel):
         data: dict[str, Any],
         message: str | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> "ToolResponse":
+    ) -> ToolResponse:
         """
         Create a success response.
 
@@ -152,7 +152,7 @@ class ToolResponse(BaseModel):
     @classmethod
     def error_response(
         cls, error: str, message: str, metadata: dict[str, Any] | None = None
-    ) -> "ToolResponse":
+    ) -> ToolResponse:
         """
         Create an error response.
 

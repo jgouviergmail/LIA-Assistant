@@ -202,7 +202,7 @@ class UnitOfWork:
         self._rolled_back = True
 
     @asynccontextmanager
-    async def nested(self) -> AsyncGenerator[UnitOfWork, None]:
+    async def nested(self) -> AsyncGenerator[UnitOfWork]:
         """
         Create a nested transaction (savepoint).
 
@@ -287,7 +287,7 @@ def transactional[T](func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitab
 
 # Utility context manager for backward compatibility
 @asynccontextmanager
-async def get_transaction(db: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
+async def get_transaction(db: AsyncSession) -> AsyncGenerator[AsyncSession]:
     """
     Legacy context manager for transaction management.
 

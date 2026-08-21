@@ -20,8 +20,8 @@ Phase 3.2 Enhancement:
 - Business metrics: agent_tool_usage_total (with agent_type, outcome labels)
 """
 
-import asyncio
 import functools
+import inspect
 import time
 from collections.abc import Callable
 from typing import ParamSpec, TypeVar, cast
@@ -144,7 +144,7 @@ def track_metrics(
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         # Detect if function is async
-        is_async = asyncio.iscoroutinefunction(func)
+        is_async = inspect.iscoroutinefunction(func)
 
         if is_async:
 
@@ -365,7 +365,7 @@ def track_tool_metrics(
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         # Detect if function is async
-        is_async = asyncio.iscoroutinefunction(func)
+        is_async = inspect.iscoroutinefunction(func)
 
         if is_async:
 

@@ -106,7 +106,6 @@ def trace_node(node_name: str, llm_model: str | None = None) -> Any:
     """
     from collections.abc import Callable
     from functools import wraps
-    from typing import Any
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)

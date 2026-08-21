@@ -66,8 +66,8 @@ logger = get_logger(__name__)
 
 
 async def _with_markdown_hard_breaks(
-    stream: AsyncGenerator[str, None],
-) -> AsyncGenerator[str, None]:
+    stream: AsyncGenerator[str],
+) -> AsyncGenerator[str]:
     """Convert single newlines of a token stream into explicit ``<br/>`` breaks.
 
     The critique question is rendered as markdown, where a bare ``\\n`` is a
@@ -148,7 +148,7 @@ class DraftCritiqueInteraction:
         - LIAToolNode: Triggers interrupt for drafts
     """
 
-    def __init__(self, question_generator: "HitlQuestionGenerator") -> None:
+    def __init__(self, question_generator: HitlQuestionGenerator) -> None:
         """
         Initialize DraftCritiqueInteraction.
 
@@ -168,7 +168,7 @@ class DraftCritiqueInteraction:
         user_language: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """
         Generate draft review question via LLM streaming.
 
@@ -386,7 +386,7 @@ class DraftCritiqueInteraction:
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         batch_total: int = 1,
         tracker: Any | None = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """
         Generate critique question via LLM streaming.
 

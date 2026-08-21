@@ -193,7 +193,7 @@ def _entry_local_datetime(entry: dict[str, Any], user_timezone: str) -> datetime
         return None
     try:
         tz: Any = ZoneInfo(user_timezone)
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         tz = UTC
     return datetime.fromtimestamp(ts, tz=tz)
 

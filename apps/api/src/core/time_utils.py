@@ -320,7 +320,7 @@ def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | Non
 
     try:
         dt = datetime.fromisoformat(dt_str)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         logger.warning(
             "normalize_user_datetime_parse_failed",
             input=dt_str[:50],
@@ -1008,7 +1008,7 @@ def now_in_timezone(user_timezone: str | None = None) -> datetime:
 
     try:
         tz = ZoneInfo(user_timezone)
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         logger.warning(
             "invalid_timezone_fallback",
             timezone=user_timezone,
@@ -1423,5 +1423,5 @@ def resolve_user_timezone(user: Any) -> ZoneInfo:
 
     try:
         return ZoneInfo(user.timezone)
-    except (KeyError, ValueError, AttributeError, TypeError):
+    except KeyError, ValueError, AttributeError, TypeError:
         return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)

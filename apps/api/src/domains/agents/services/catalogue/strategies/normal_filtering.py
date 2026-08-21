@@ -49,7 +49,7 @@ class NormalFilteringStrategy:
     ensuring all necessary tools are available for the LLM.
     """
 
-    def __init__(self, service: "SmartCatalogueService"):
+    def __init__(self, service: SmartCatalogueService):
         """
         Initialize with service reference for helper methods.
 
@@ -60,7 +60,7 @@ class NormalFilteringStrategy:
 
     def can_handle(
         self,
-        intelligence: "QueryIntelligence",
+        intelligence: QueryIntelligence,
         panic_mode: bool = False,
     ) -> bool:
         """
@@ -79,9 +79,9 @@ class NormalFilteringStrategy:
 
     def filter(
         self,
-        intelligence: "QueryIntelligence",
+        intelligence: QueryIntelligence,
         tool_selection_result: dict | None = None,
-    ) -> "FilteredCatalogue":
+    ) -> FilteredCatalogue:
         """
         Execute normal filtering strategy.
 

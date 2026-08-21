@@ -80,7 +80,7 @@ class PlanApprovalInteraction:
         - approval_gate_node: Where interrupt is triggered
     """
 
-    def __init__(self, question_generator: "HitlQuestionGenerator") -> None:
+    def __init__(self, question_generator: HitlQuestionGenerator) -> None:
         """
         Initialize PlanApprovalInteraction.
 
@@ -100,7 +100,7 @@ class PlanApprovalInteraction:
         user_language: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """
         Generate plan approval question via LLM streaming.
 

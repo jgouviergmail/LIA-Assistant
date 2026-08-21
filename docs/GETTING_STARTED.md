@@ -4,8 +4,8 @@
 > Every default value in this guide is the **production-proven configuration** actually running in production; you can adopt them as-is with confidence.
 
 **Version**: 4.0
-**Last Updated**: 2026-08-20
-**Compatibility**: LIA v1.30.16
+**Last Updated**: 2026-08-21
+**Compatibility**: LIA v1.31.0
 
 ## Table of Contents
 
@@ -56,7 +56,7 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
-| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.11, LangChain 1.3.15, SQLAlchemy 2.0.50, Python 3.12 |
+| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.11, LangChain 1.3.15, SQLAlchemy 2.0.50, Python 3.14 |
 | **Frontend** | Next.js + React + TailwindCSS | Next.js 16.2.10, React 19.2.7 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector:pg16`) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
@@ -176,7 +176,7 @@ This runs three sub-tasks you can also invoke individually: `task setup:backend`
 ```bash
 cd apps/api
 
-# Create the Python 3.12+ virtual environment (named .venv)
+# Create the Python 3.14 virtual environment (named .venv)
 python -m venv .venv
 
 # Activate it

@@ -19,7 +19,6 @@ testcontainers==4.14.2
 debugpy==1.8.21
 
 # Type Stubs
-types-passlib==1.7.7.20260211
 types-python-jose==3.5.0.20260408
 
 # i18n tooling (used by scripts/i18n/compile_translations.py fallback

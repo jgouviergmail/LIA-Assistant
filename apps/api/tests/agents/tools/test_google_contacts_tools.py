@@ -290,7 +290,7 @@ def _parse_result(result):
         return {"success": False, "error": result.error_code, "message": result.message}
     try:
         data = json.loads(result) if isinstance(result, str) else result
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         return {"error": "parse_error", "raw": str(result)}
     if isinstance(data, dict) and data.get("success") is False and "error" not in data:
         data["error"] = data.get("error_code")

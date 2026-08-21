@@ -28,15 +28,16 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
 
+from tests._repo_paths import repo_root_or_skip
+
 pytestmark = pytest.mark.unit
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = repo_root_or_skip()
 PROMTAIL_CONFIG = (
     REPO_ROOT / "infrastructure" / "observability" / "promtail" / "promtail-config.yml"
 )

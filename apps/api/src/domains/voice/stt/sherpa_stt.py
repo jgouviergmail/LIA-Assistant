@@ -80,7 +80,7 @@ class SherpaSttService:
         text = await stt.transcribe_async(audio_float_samples, language="fr")
     """
 
-    def __init__(self, settings: "Settings") -> None:
+    def __init__(self, settings: Settings) -> None:
         """
         Initialize STT service with Sherpa-onnx Whisper model.
 
@@ -293,7 +293,7 @@ class SherpaSttService:
 
         try:
             with stt_transcription_duration_seconds.time():
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 text = await loop.run_in_executor(
                     _stt_executor,
                     self.transcribe,
@@ -334,7 +334,7 @@ class SherpaSttService:
         pcm_int16_bytes: bytes,
         sample_rate: int = 16000,
         language: str | None = None,
-    ) -> "STTResult":
+    ) -> STTResult:
         """Conform to ``SttServiceProtocol``.
 
         Converts the raw PCM Int16 LE buffer (the format streamed by the

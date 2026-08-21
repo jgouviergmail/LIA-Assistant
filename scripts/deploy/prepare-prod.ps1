@@ -345,6 +345,26 @@ set -e
 # the release manifest records exactly what was deployed.
 [ -f "provenance.env" ] && . ./provenance.env
 
+# --- provenance-upsert-begin ---
+# F030 regression (v1.31.0 shipped as 0.0.0-dev): compose `env_file: .env`
+# overrides the image's provenance ENV at `up`, and the real .env carried dead
+# example defaults. Make .env agree with provenance.env so the container and
+# the image tell the same story. Replace-or-append, newline-safe, idempotent.
+if [ -f "provenance.env" ] && [ -f ".env" ]; then
+    # `if` form on purpose: under `set -e`, a bare `[ cond ] && cmd` kills the
+    # script whenever cond is false (the list's status is 1).
+    if [ -n "$(tail -c1 .env)" ]; then printf '\n' >> .env; fi
+    for kv in "APP_VERSION=$APP_VERSION" "GIT_COMMIT_SHA=$GIT_COMMIT_SHA" "BUILD_DATE=$BUILD_DATE"; do
+        k="${kv%%=*}"
+        if grep -q "^${k}=" .env; then
+            sed -i "s|^${k}=.*|${kv}|" .env
+        else
+            printf '%s\n' "${kv}" >> .env
+        fi
+    done
+fi
+# --- provenance-upsert-end ---
+
 echo "============================================"
 echo "  Deploiement LIA - Production"
 echo "============================================"

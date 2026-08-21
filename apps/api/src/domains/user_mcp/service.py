@@ -827,7 +827,7 @@ class UserMCPServerService:
         try:
             result: dict[str, Any] = json.loads(decrypt_data(server.credentials_encrypted))
             return result
-        except (ValueError, json.JSONDecodeError):
+        except ValueError, json.JSONDecodeError:
             return {}
 
     @classmethod

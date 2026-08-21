@@ -1530,7 +1530,7 @@ def render_chip_stars(rating: float, count: int = 0) -> str:
     """
     try:
         numeric_rating = float(rating)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return ""
 
     full = max(0, min(5, int(numeric_rating)))

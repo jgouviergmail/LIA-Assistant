@@ -109,7 +109,7 @@ task db:create-admin                     # Create admin user for first-time setu
 
 ### Monorepo Structure
 
-- `apps/api/` — Python 3.12+ FastAPI backend (source in `src/`, tests in `tests/`)
+- `apps/api/` — Python 3.14 FastAPI backend (source in `src/`, tests in `tests/`)
 - `apps/web/` — Next.js 16 + React 19 + TypeScript frontend
 - `infrastructure/` — Docker, database seeds, observability config (Prometheus, Grafana)
 - `docs/` — 320+ documentation files, ADRs, guides, runbooks
@@ -205,7 +205,7 @@ The HOW / WHY guides (`apps/web/src/data/guides/{how,why}.{lang}.md`) and any fu
 
 ## Code Standards
 
-- **Python**: Black (line-length=100), Ruff, MyPy strict. Target: Python 3.12+.
+- **Python**: Black (line-length=100), Ruff, MyPy strict. Target: Python 3.14.
 - **Ruff rules**: E (pycodestyle errors), W (warnings), F (pyflakes), I (isort), B (bugbear), C4 (comprehensions), UP (pyupgrade). E501 ignored (handled by Black).
 - **TypeScript**: ESLint + Prettier.
 - **Commits**: Conventional Commits (`feat(agents):`, `fix(auth):`, etc.)
@@ -423,6 +423,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (239 ADR files, ADR-240 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (240 ADR files, ADR-241 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

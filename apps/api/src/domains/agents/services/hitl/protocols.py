@@ -75,7 +75,7 @@ class HitlInteractionType(str, Enum):
     )
 
     @classmethod
-    def from_action_type(cls, action_type: str) -> "HitlInteractionType":
+    def from_action_type(cls, action_type: str) -> HitlInteractionType:
         """
         Convert action_type string from interrupt payload to enum.
 
@@ -157,8 +157,8 @@ class HitlInteractionProtocol(Protocol):
         context: dict[str, Any],
         user_language: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-        tracker: "BaseCallbackHandler | None" = None,
-    ) -> AsyncGenerator[str, None]:
+        tracker: BaseCallbackHandler | None = None,
+    ) -> AsyncGenerator[str]:
         """
         Generate HITL question tokens via LLM streaming.
 

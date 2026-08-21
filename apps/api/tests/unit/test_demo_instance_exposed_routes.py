@@ -19,13 +19,14 @@ Read the list below as the answer to "what can an anonymous stranger reach".
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
+from tests._repo_paths import repo_root_or_skip
+
 pytestmark = pytest.mark.unit
 
-CADDYFILE = Path(__file__).resolve().parents[4] / "infrastructure" / "demo-instance" / "Caddyfile"
+CADDYFILE = repo_root_or_skip() / "infrastructure" / "demo-instance" / "Caddyfile"
 
 #: Every route the edge forwards, as "METHOD /path". Frozen on purpose: this
 #: is the demonstrator's public surface, and it changes only by decision.

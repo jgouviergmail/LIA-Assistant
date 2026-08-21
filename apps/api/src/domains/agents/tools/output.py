@@ -231,7 +231,7 @@ class StandardToolOutput(BaseModel):
         """
         return list(self.registry_updates.keys())
 
-    def merge(self, other: "StandardToolOutput") -> "StandardToolOutput":
+    def merge(self, other: StandardToolOutput) -> StandardToolOutput:
         """
         Merge another StandardToolOutput into this one.
 
@@ -305,7 +305,7 @@ class StandardToolOutput(BaseModel):
             f"metadata={list(self.tool_metadata.keys())})"
         )
 
-    def to_unified(self) -> "UnifiedToolOutput":
+    def to_unified(self) -> UnifiedToolOutput:
         """
         Convert to UnifiedToolOutput format.
 
@@ -418,7 +418,7 @@ class UnifiedToolOutput(BaseModel):
     # =========================================================================
 
     @model_validator(mode="after")
-    def validate_error_code_required_on_failure(self) -> "UnifiedToolOutput":
+    def validate_error_code_required_on_failure(self) -> UnifiedToolOutput:
         """Ensure error_code is provided when success=False."""
         if not self.success and not self.error_code:
             raise ValueError("error_code is required when success=False")
@@ -453,7 +453,7 @@ class UnifiedToolOutput(BaseModel):
         message: str,
         structured_data: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> "UnifiedToolOutput":
+    ) -> UnifiedToolOutput:
         """
         Create a success response for an action (no registry data).
 
@@ -491,7 +491,7 @@ class UnifiedToolOutput(BaseModel):
         registry_updates: dict[str, RegistryItem] | None = None,
         structured_data: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> "UnifiedToolOutput":
+    ) -> UnifiedToolOutput:
         """
         Create a success response with registry data.
 
@@ -530,7 +530,7 @@ class UnifiedToolOutput(BaseModel):
         message: str,
         error_code: str,
         metadata: dict[str, Any] | None = None,
-    ) -> "UnifiedToolOutput":
+    ) -> UnifiedToolOutput:
         """
         Create an error response.
 

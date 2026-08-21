@@ -197,7 +197,7 @@ LLMType = Literal[
 
 def get_llm(
     llm_type: LLMType,
-    config_override: "LLMConfig | LLMAgentConfig | None" = None,
+    config_override: LLMConfig | LLMAgentConfig | None = None,
 ) -> BaseChatModel:
     """
     Factory function to get LLM instance by type with optional config override.

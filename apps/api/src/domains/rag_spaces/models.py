@@ -137,14 +137,14 @@ class RAGSpace(BaseModel):
     )
 
     # Relationships
-    documents: Mapped[list["RAGDocument"]] = relationship(
+    documents: Mapped[list[RAGDocument]] = relationship(
         "RAGDocument",
         back_populates="space",
         cascade="all, delete-orphan",
         lazy="noload",
     )
 
-    drive_sources: Mapped[list["RAGDriveSource"]] = relationship(
+    drive_sources: Mapped[list[RAGDriveSource]] = relationship(
         "RAGDriveSource",
         back_populates="space",
         cascade="all, delete-orphan",
@@ -255,12 +255,12 @@ class RAGDriveSource(BaseModel):
     )
 
     # Relationships
-    space: Mapped["RAGSpace"] = relationship(
+    space: Mapped[RAGSpace] = relationship(
         "RAGSpace",
         back_populates="drive_sources",
     )
 
-    documents: Mapped[list["RAGDocument"]] = relationship(
+    documents: Mapped[list[RAGDocument]] = relationship(
         "RAGDocument",
         back_populates="drive_source",
         lazy="noload",
@@ -420,17 +420,17 @@ class RAGDocument(BaseModel):
     )
 
     # Relationships
-    space: Mapped["RAGSpace"] = relationship(
+    space: Mapped[RAGSpace] = relationship(
         "RAGSpace",
         back_populates="documents",
     )
 
-    drive_source: Mapped["RAGDriveSource | None"] = relationship(
+    drive_source: Mapped[RAGDriveSource | None] = relationship(
         "RAGDriveSource",
         back_populates="documents",
     )
 
-    chunks: Mapped[list["RAGChunk"]] = relationship(
+    chunks: Mapped[list[RAGChunk]] = relationship(
         "RAGChunk",
         back_populates="document",
         cascade="all, delete-orphan",
@@ -510,7 +510,7 @@ class RAGChunk(BaseModel):
     )
 
     # Relationships
-    document: Mapped["RAGDocument"] = relationship(
+    document: Mapped[RAGDocument] = relationship(
         "RAGDocument",
         back_populates="chunks",
     )

@@ -64,8 +64,8 @@ class PanicFilteringStrategy:
 
     def __init__(
         self,
-        service: "SmartCatalogueService",
-        normal_strategy: "NormalFilteringStrategy",
+        service: SmartCatalogueService,
+        normal_strategy: NormalFilteringStrategy,
     ):
         """
         Initialize with service and normal strategy reference.
@@ -79,7 +79,7 @@ class PanicFilteringStrategy:
 
     def can_handle(
         self,
-        intelligence: "QueryIntelligence",
+        intelligence: QueryIntelligence,
         panic_mode: bool = False,
     ) -> bool:
         """
@@ -100,9 +100,9 @@ class PanicFilteringStrategy:
 
     def filter(
         self,
-        intelligence: "QueryIntelligence",
+        intelligence: QueryIntelligence,
         tool_selection_result: dict | None = None,
-    ) -> "FilteredCatalogue":
+    ) -> FilteredCatalogue:
         """
         Execute panic filtering strategy.
 

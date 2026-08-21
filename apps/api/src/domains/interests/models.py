@@ -142,8 +142,8 @@ class UserInterest(BaseModel):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="interests")
-    notifications: Mapped[list["InterestNotification"]] = relationship(
+    user: Mapped[User] = relationship(back_populates="interests")
+    notifications: Mapped[list[InterestNotification]] = relationship(
         back_populates="interest",
         cascade="all, delete-orphan",
     )
@@ -252,7 +252,7 @@ class InterestNotification(Base, UUIDMixin):
     )
 
     # Relationships
-    interest: Mapped["UserInterest | None"] = relationship(
+    interest: Mapped[UserInterest | None] = relationship(
         back_populates="notifications",
     )
 

@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-async def _close_voice_service_safely(voice_service: "VoiceCommentService", run_id: str) -> None:
+async def _close_voice_service_safely(voice_service: VoiceCommentService, run_id: str) -> None:
     """Close an owned ``VoiceCommentService``, logging (never raising) on failure.
 
     ``VoiceCommentService.close()`` is idempotent (it drops the httpx TTS client),
@@ -94,7 +94,7 @@ class VoiceStreamContext:
     user_message: str
     lia_gender: str
     personality_instruction: str | None
-    user_obj: "UserProfile | None"
+    user_obj: UserProfile | None
     has_listeners: ListenerProbe | None
     start_time: float
 
@@ -109,7 +109,7 @@ class VoiceStreamCoordinator:
     stream is its business.
     """
 
-    def __init__(self, context: VoiceStreamContext, tracker: "TrackingContext") -> None:
+    def __init__(self, context: VoiceStreamContext, tracker: TrackingContext) -> None:
         """Initialize the coordinator with per-run context and the tracker.
 
         Args:
@@ -414,7 +414,7 @@ class VoiceStreamCoordinator:
         response_content: str,
         hitl_interrupted: bool,
         voice_context_registry: dict[str, Any] | None,
-    ) -> AsyncGenerator[ChatStreamChunk, None]:
+    ) -> AsyncGenerator[ChatStreamChunk]:
         """Emit remaining voice chunks or run the sync fallback (end of stream).
 
         Priority: 1) Progressive emission during streaming (may be complete)
@@ -726,8 +726,8 @@ class VoiceStreamCoordinator:
 
     async def backfill_tts_pass1(
         self,
-        temp_tracker: "TrackingContext",
-        conv_service: "ConversationService",
+        temp_tracker: TrackingContext,
+        conv_service: ConversationService,
         archived_assistant_msg_id: uuid.UUID | None,
     ) -> None:
         """Backfill the assistant row with TTS attribution (first pass).
@@ -753,8 +753,8 @@ class VoiceStreamCoordinator:
 
     async def backfill_tts_pass2(
         self,
-        temp_tracker: "TrackingContext",
-        conv_service: "ConversationService",
+        temp_tracker: TrackingContext,
+        conv_service: ConversationService,
         archived_assistant_msg_id: uuid.UUID | None,
     ) -> None:
         """Backfill the assistant row with TTS attribution (sync-fallback pass).
@@ -786,8 +786,8 @@ class VoiceStreamCoordinator:
 
     async def _run_tts_backfill(
         self,
-        temp_tracker: "TrackingContext",
-        conv_service: "ConversationService",
+        temp_tracker: TrackingContext,
+        conv_service: ConversationService,
         message_id: uuid.UUID,
         extra_log_fields: dict[str, Any],
     ) -> None:

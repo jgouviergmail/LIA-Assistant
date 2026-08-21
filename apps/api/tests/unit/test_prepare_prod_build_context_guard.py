@@ -26,7 +26,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+from tests._repo_paths import repo_root_or_skip
+
+REPO_ROOT = repo_root_or_skip()
 PREPARE_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "prepare-prod.ps1"
 COMPOSE_PROD = REPO_ROOT / "docker-compose.prod.yml"
 

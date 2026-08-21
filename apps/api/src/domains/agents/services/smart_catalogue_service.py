@@ -100,7 +100,7 @@ class SmartCatalogueService:
     TOKEN_ESTIMATES = V3_CATALOGUE_TOKEN_ESTIMATES
     DOMAIN_FULL_TOKENS = V3_CATALOGUE_DOMAIN_FULL_TOKENS
 
-    def __init__(self, registry: "AgentRegistry"):
+    def __init__(self, registry: AgentRegistry):
         self.registry = registry
 
         # Strategy Pattern: Filtering strategies
@@ -166,7 +166,7 @@ class SmartCatalogueService:
         panic_mode_used.set(False)  # ContextVar per-request isolation
         self._metrics = CatalogueMetrics()
 
-    def _extract_domain(self, manifest: "ToolManifest") -> str:
+    def _extract_domain(self, manifest: ToolManifest) -> str:
         """Extract domain from tool manifest."""
         # Try agent field first
         if hasattr(manifest, "agent") and manifest.agent:
@@ -180,7 +180,7 @@ class SmartCatalogueService:
 
         return "unknown"
 
-    def placement_domain(self, manifest: "ToolManifest", requested: "Container[str]") -> str | None:
+    def placement_domain(self, manifest: ToolManifest, requested: Container[str]) -> str | None:
         """Domain bucket this tool belongs to for a given request, or None.
 
         Both filtering strategies used to ask the same narrower question — "is
@@ -246,7 +246,7 @@ class SmartCatalogueService:
 
         return "utility"
 
-    def _manifest_to_dict(self, manifest: "ToolManifest") -> dict:
+    def _manifest_to_dict(self, manifest: ToolManifest) -> dict:
         """
         Convert manifest to COMPACT dict for prompt injection.
 

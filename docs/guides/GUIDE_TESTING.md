@@ -52,8 +52,8 @@ Ce guide fournit une approche complète et pratique pour **écrire, exécuter et
 
 ### Prérequis
 
-- **Python 3.12+** : tests backend
-- **Pytest 8.3+** : framework de tests
+- **Python 3.14** : tests backend
+- **Pytest 9.0+** : framework de tests
 - **Docker** : testcontainers pour PostgreSQL/Redis
 - **Connaissances** : async/await, fixtures, mocking
 
@@ -2127,7 +2127,7 @@ pytest --cov=src --cov-report=xml
 ### Interpréter Coverage Report
 
 ```
----------- coverage: platform win32, python 3.12.0 -----------
+---------- coverage: platform win32, python 3.14.7 -----------
 Name                                      Stmts   Miss  Cover   Missing
 -----------------------------------------------------------------------
 src/core/config/                           45      2    96%   67-68
@@ -2171,11 +2171,14 @@ Lancer la tâche en local, c'est exécuter littéralement ce que la CI exécute.
 
 | Job CI | Tâche appelée | Sélection | Gate |
 |---|---|---|---|
-| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 65 % |
+| `test-backend` | `task test:backend:unit:coverage` | `tests/unit/`, `-m "not integration and not slow and not e2e and not benchmark and not multiprocess"` | couverture ≥ 67 % |
 | `test-backend` (step 2) | `task test:backend:agents` | `tests/agents/`, `-m "not slow and not e2e and not benchmark and not multiprocess"`, `--no-cov` | tests verts |
 | `test-backend` (step 3) | `task test:markers` | tous les nodeids + leurs markers | aucun test ne tourne dans **zéro** job (F006) |
 | `test-backend-integration` | `task test:backend:integration` | `tests/integration/`, **puis** les tests marqués `integration` sous `tests/unit`/`tests/agents` (F006), `--no-cov` | tests verts |
-| `python-compat` | *(CI-only)* | `tests/unit/`, même sélection, sur Python 3.13 | tests verts (F041) |
+
+> Le job `python-compat` (Python 3.13, F041) a été retiré par l'ADR-241 : sous le
+> contrat mono-version (`>=3.14,<3.15`), `test-backend` prouve l'unique
+> interpréteur supporté.
 
 Points structurants :
 

@@ -151,8 +151,8 @@ git fetch upstream
 ```bash
 cd apps/api
 
-# Create Python 3.12 virtualenv
-python3.12 -m venv .venv
+# Create Python 3.14 virtualenv
+python3.14 -m venv .venv
 
 # Activate venv
 source .venv/bin/activate  # Linux/macOS

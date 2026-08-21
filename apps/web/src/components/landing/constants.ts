@@ -126,7 +126,13 @@
  *   frontend 4,830 (+22 — the status-tone module, the priority density
  *   oracle, the tinted count pill and the clickable memories) = 22,846 →
  *   22,800, a strict round-DOWN to the hundred.
- *   Re-measured at v1.30.16: backend 19,335 (1,076 files, pytest
+ *   Re-measured at v1.31.0: backend 19,378 (pytest --collect-only; +43 — the
+ *   Python 3.14 migration guards (version-surface guard, native-wheel import
+ *   smoke, hermetic Telegram audio pipeline, ADR-241), the rate-limiter
+ *   request-id collision pins and the __main__ loop-branch pins) + frontend
+ *   6,066 (475 files, vitest; the eyes idle-engine wave and the data-driven
+ *   changelog surfaces iterating the new key) = 25,444 → 25,400.
+ *   Previous re-measure at v1.30.16: backend 19,335 (1,076 files, pytest
  *   --collect-only, unchanged — frontend-only release) + frontend 6,035
  *   (475 files, vitest; the expressive-eyes wave) = 25,370 → 25,300.
  *   Previous re-measure at v1.30.12: backend 19,844 (1,119 files, pytest
@@ -141,11 +147,11 @@
  *   until v1.25.9.
  * - adrs: docs/architecture/ ADR files — recount every release, never carry it
  *   over (it was stranded at 183 from v1.27.0 to v1.27.4). 239 files at
- *   v1.30.16, numbered up to ADR-240: ADR-008 has no separate file, so the
+ *   v1.31.0, numbered up to ADR-241: ADR-008 has no separate file, so the
  *   highest number runs one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   220 headings at v1.30.16, no Unreleased pending.
+ *   221 headings at v1.31.0, no Unreleased pending.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -161,9 +167,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 480,
   uiLanguages: 6,
-  tests: 25300,
-  adrs: 239,
-  releases: 220,
+  tests: 25400,
+  adrs: 240,
+  releases: 221,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

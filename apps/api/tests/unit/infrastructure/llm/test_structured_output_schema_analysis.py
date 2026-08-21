@@ -80,7 +80,7 @@ class SelfReferential(BaseModel):
     """A recursive model — the walker must not loop forever."""
 
     name: str
-    child: "SelfReferential | None" = None
+    child: SelfReferential | None = None
 
 
 SelfReferential.model_rebuild()

@@ -70,8 +70,8 @@ class Conversation(BaseModel):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="conversations")
-    messages: Mapped[list["ConversationMessage"]] = relationship(
+    user: Mapped[User] = relationship(back_populates="conversations")
+    messages: Mapped[list[ConversationMessage]] = relationship(
         back_populates="conversation",
         cascade="all, delete-orphan",
         order_by="ConversationMessage.created_at.desc()",
@@ -151,7 +151,7 @@ class ConversationMessage(BaseModel):
     tts_usd_to_eur_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
 
     # Relationship
-    conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
     __table_args__ = (
         Index(

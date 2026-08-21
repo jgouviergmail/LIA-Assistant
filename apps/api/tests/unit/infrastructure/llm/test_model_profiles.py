@@ -19,7 +19,7 @@ from src.infrastructure.llm.model_profiles import (
 
 
 @pytest.fixture(autouse=True)
-def reset_cache_between_tests() -> Generator[None, None, None]:
+def reset_cache_between_tests() -> Generator[None]:
     ModelCapabilitiesCache.reset()
     yield
     ModelCapabilitiesCache.reset()

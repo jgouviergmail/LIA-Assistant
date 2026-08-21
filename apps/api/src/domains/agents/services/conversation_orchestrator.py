@@ -43,7 +43,7 @@ class ConversationContext:
     def __init__(
         self,
         conversation_id: uuid.UUID,
-        tracking_context: "TrackingContext",
+        tracking_context: TrackingContext,
         oauth_scopes: list[str],
         previous_tokens_summary: TokenSummaryDTO | None = None,
     ):
@@ -150,7 +150,7 @@ class ConversationOrchestrator:
 
     async def finalize_conversation(
         self,
-        tracking_context: "TrackingContext",
+        tracking_context: TrackingContext,
         final_state: dict[str, Any],
     ) -> ConversationSummary:
         """

@@ -127,7 +127,7 @@ async def test_user_cancel_clears_pending_hitl(redis_client: Redis) -> None:
     store = _store(redis_client)
     interrupt_saved = asyncio.Event()
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield ChatStreamChunk(type="token", content="thinking… ", metadata=None)
         # Real sequence: streaming service saves the pending interrupt while
         # the question is still being generated/streamed.
@@ -172,7 +172,7 @@ async def test_hard_kill_preserves_pending_hitl(redis_client: Redis) -> None:
     store = _store(redis_client)
     interrupt_saved = asyncio.Event()
 
-    async def stream() -> AsyncGenerator[ChatStreamChunk, None]:
+    async def stream() -> AsyncGenerator[ChatStreamChunk]:
         yield ChatStreamChunk(type="token", content="thinking… ", metadata=None)
         await store.save_interrupt(conversation_id, _valid_interrupt_data(stream_id))
         interrupt_saved.set()

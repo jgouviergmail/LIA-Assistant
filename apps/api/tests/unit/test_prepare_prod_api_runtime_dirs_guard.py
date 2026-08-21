@@ -30,13 +30,14 @@ from __future__ import annotations
 
 import re
 import subprocess
-from pathlib import Path
 
 import pytest
 
+from tests._repo_paths import repo_root_or_skip
+
 pytestmark = pytest.mark.unit
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = repo_root_or_skip()
 API_ROOT = REPO_ROOT / "apps" / "api"
 PREPARE_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "prepare-prod.ps1"
 DOCKERIGNORE = API_ROOT / ".dockerignore"

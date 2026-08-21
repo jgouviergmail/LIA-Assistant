@@ -399,7 +399,7 @@ def get_draft_display_config(draft_type: str) -> DraftDisplayConfig | None:
     """
     try:
         return DRAFT_DISPLAY_REGISTRY[DraftType(draft_type)]
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         return None
 
 

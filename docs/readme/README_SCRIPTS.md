@@ -224,7 +224,7 @@ Scripts pour analyse exhaustive du code et optimisation.
 | `analyze_performance.py` | Détecte opportunités optimisation | `docs/optim/07_OPTIMIZATION.md` | ~1-2h |
 
 **Prérequis** :
-- Python 3.12+
+- Python 3.14
 - Environnement virtuel activé (`apps/api/.venv`)
 - Dépendances : `pylint`, `radon` (optionnel)
 

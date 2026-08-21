@@ -38,7 +38,7 @@ logger = get_logger(__name__)
 _token_count_cache: dict[str, tuple[int, int]] = {}
 
 
-def _count_message_tokens(message: BaseMessage, encoding: "tiktoken.Encoding") -> int:
+def _count_message_tokens(message: BaseMessage, encoding: tiktoken.Encoding) -> int:
     """Count tokens for one message with per-message-id memoization.
 
     Args:

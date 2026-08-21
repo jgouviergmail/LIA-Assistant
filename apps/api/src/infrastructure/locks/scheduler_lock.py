@@ -63,7 +63,7 @@ class SchedulerLock:
         self.lock_key = f"scheduler_lock:{job_id}"
         self.acquired = False
 
-    async def __aenter__(self) -> "SchedulerLock":
+    async def __aenter__(self) -> SchedulerLock:
         """
         Try to acquire lock (non-blocking).
 

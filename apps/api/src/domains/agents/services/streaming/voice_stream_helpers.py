@@ -80,7 +80,7 @@ def _format_voice_audio_chunk(audio_chunk: Any) -> ChatStreamChunk:
 
 
 async def _should_start_voice(
-    user_obj: "UserProfile | None",
+    user_obj: UserProfile | None,
     has_listeners: ListenerProbe | None,
     run_id: str,
     voice_path: str,
@@ -184,10 +184,10 @@ async def _stream_voice_chunks_to_queue(
 
 
 async def _cleanup_chat_voice_pipeline(
-    streamer: "ProgressiveSentenceStreamer | None",
-    drain_task: "asyncio.Task[None] | None",
+    streamer: ProgressiveSentenceStreamer | None,
+    drain_task: asyncio.Task[None] | None,
     run_id: str,
-    service: "VoiceCommentService | None" = None,
+    service: VoiceCommentService | None = None,
 ) -> None:
     """Tear down the chat-mode sentence streaming pipeline.
 

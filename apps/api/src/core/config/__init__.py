@@ -349,7 +349,7 @@ class Settings(
         return v
 
     @model_validator(mode="after")
-    def _validate_body_ceiling_covers_uploads(self) -> "Settings":
+    def _validate_body_ceiling_covers_uploads(self) -> Settings:
         """Refuse to boot when the global body cap is below a legitimate upload.
 
         ``BodySizeLimitMiddleware`` (SEC-031) runs BEFORE any handler, so a cap

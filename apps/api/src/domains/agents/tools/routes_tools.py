@@ -1086,7 +1086,7 @@ def _format_route_response(
     if duration_minutes:
         try:
             tz = ZoneInfo(user_timezone)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
 
         now = datetime.now(tz)

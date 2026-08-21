@@ -555,7 +555,7 @@ class WebAuthnService:
         try:
             data: Any = json.loads(credential) if isinstance(credential, str) else credential
             transports = data.get("response", {}).get("transports")
-        except (json.JSONDecodeError, AttributeError):
+        except json.JSONDecodeError, AttributeError:
             return None
         if isinstance(transports, list) and all(isinstance(t, str) for t in transports):
             return transports
@@ -578,7 +578,7 @@ class WebAuthnService:
         try:
             data: Any = json.loads(credential) if isinstance(credential, str) else credential
             credential_id = data.get("rawId") or data.get("id")
-        except (json.JSONDecodeError, AttributeError):
+        except json.JSONDecodeError, AttributeError:
             credential_id = None
         if not isinstance(credential_id, str) or not credential_id:
             raise_invalid_credentials()

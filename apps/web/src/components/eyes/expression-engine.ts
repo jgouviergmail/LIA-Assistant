@@ -84,9 +84,12 @@ export interface ExpressionInputs {
 // Timing constants (idle loop + reaction hold)
 // =============================================================================
 
-/** Blink cadence bounds — resting humans blink every ~2.5-6 s. */
-export const BLINK_MIN_DELAY_MS = 2600;
-export const BLINK_MAX_DELAY_MS = 6200;
+/* Blink cadence: research on robot eyes places perceived aliveness around a
+ * 2-3 s mean inter-blink interval — the old 2.6-6.2 s band read sluggish.
+ * The band is per-family now (FAMILY_BLINK_RANGE_MS); these two constants
+ * remain the 'calm' reference band. */
+export const BLINK_MIN_DELAY_MS = 2200;
+export const BLINK_MAX_DELAY_MS = 4800;
 /** Chance that a blink is a quick double blink. */
 export const DOUBLE_BLINK_PROBABILITY = 0.12;
 /** One blink cycle length — MUST match the `lia-eye-blink` CSS duration. */
@@ -238,23 +241,60 @@ export function emotionToExpression(emotion: string): EyeExpression {
   return EMOTION_EXPRESSIONS[emotion] ?? 'neutral';
 }
 
-/** Idle baseline for each of the 14 canonical psyche moods. */
+/**
+ * Idle baseline for each of the 14 canonical psyche moods.
+ *
+ * Deliberately SOFT (owner arbitration 2026-08-21): the resting pose is the
+ * character's identity card, so idle only uses the readable base silhouettes
+ * (neutral / attentive / thinking). Strong poses (joy, focused, tender,
+ * sad...) are temporal ACCENTS — per-turn reactions, notifications,
+ * execution phases — never a held resting state; a permanently squinted
+ * standby read as unsettling and hid the selected eye style. The mood's
+ * personality lives in the GESTURE family instead (MOOD_IDLE_FAMILIES).
+ */
 const MOOD_IDLE_EXPRESSIONS: Record<MoodLabel, EyeExpression> = {
   serene: 'neutral',
   curious: 'attentive',
-  energized: 'excited',
-  playful: 'joy',
+  energized: 'attentive',
+  playful: 'attentive',
   reflective: 'thinking',
-  agitated: 'worried',
-  melancholic: 'sad',
+  agitated: 'neutral',
+  melancholic: 'neutral',
   neutral: 'neutral',
-  content: 'joy',
-  determined: 'focused',
-  defiant: 'focused',
-  resigned: 'bored',
-  overwhelmed: 'tired',
-  tender: 'tender',
+  content: 'neutral',
+  determined: 'neutral',
+  defiant: 'neutral',
+  resigned: 'neutral',
+  overwhelmed: 'neutral',
+  tender: 'neutral',
 };
+
+/**
+ * Gesture family carried by each mood while idling — the personality channel
+ * that replaced the strong resting poses: lively moods keep their bounces
+ * and pranks, low moods their slow blinks, on an intact silhouette.
+ */
+const MOOD_IDLE_FAMILIES: Record<MoodLabel, IdleMoodFamily> = {
+  serene: 'calm',
+  curious: 'lively',
+  energized: 'lively',
+  playful: 'lively',
+  reflective: 'calm',
+  agitated: 'lively',
+  melancholic: 'drowsy',
+  neutral: 'calm',
+  content: 'calm',
+  determined: 'calm',
+  defiant: 'lively',
+  resigned: 'drowsy',
+  overwhelmed: 'drowsy',
+  tender: 'calm',
+};
+
+/** Gesture family for a mood while idling (see MOOD_IDLE_FAMILIES). */
+export function idleFamilyForMood(mood: MoodLabel): IdleMoodFamily {
+  return MOOD_IDLE_FAMILIES[mood];
+}
 
 /** Map a psyche mood label to the idle-loop baseline expression. */
 export function moodToIdleExpression(mood: MoodLabel): EyeExpression {
@@ -355,9 +395,18 @@ export function hourBand(hour: number): HourBand {
 
 export type Rng = () => number;
 
-/** Delay until the next spontaneous blink. */
-export function nextBlinkDelayMs(rng: Rng): number {
-  return Math.round(BLINK_MIN_DELAY_MS + rng() * (BLINK_MAX_DELAY_MS - BLINK_MIN_DELAY_MS));
+/** Spontaneous-blink cadence band per mood family — livelier moods blink
+ * more often (alertness), drowsy ones slower and rarer. */
+export const FAMILY_BLINK_RANGE_MS: Record<IdleMoodFamily, readonly [number, number]> = {
+  lively: [1900, 4200],
+  calm: [BLINK_MIN_DELAY_MS, BLINK_MAX_DELAY_MS],
+  drowsy: [3000, 6500],
+};
+
+/** Delay until the next spontaneous blink, paced by the mood family. */
+export function nextBlinkDelayMs(rng: Rng, family: IdleMoodFamily = 'calm'): number {
+  const [min, max] = FAMILY_BLINK_RANGE_MS[family];
+  return Math.round(min + rng() * (max - min));
 }
 
 /** Whether the upcoming blink is a quick double blink. */
@@ -480,9 +529,21 @@ export function nextIdleGestureDelayMs(rng: Rng): number {
   );
 }
 
-/** Pick the next idle gesture from the current expression's family weights. */
-export function pickIdleGesture(rng: Rng, expression: EyeExpression): IdleGesture {
-  const weights = FAMILY_GESTURE_WEIGHTS[idleFamilyFor(expression)];
+/**
+ * Resolve the idle gesture family: the psyche mood is the primary personality
+ * channel (soft resting poses carry no mood of their own — see
+ * MOOD_IDLE_FAMILIES); the expression is the fallback when psyche is off.
+ */
+export function resolveIdleFamily(
+  mood: MoodLabel | null,
+  expression: EyeExpression
+): IdleMoodFamily {
+  return mood ? idleFamilyForMood(mood) : idleFamilyFor(expression);
+}
+
+/** Pick the next idle gesture from the family's personality weights. */
+export function pickIdleGesture(rng: Rng, family: IdleMoodFamily): IdleGesture {
+  const weights = FAMILY_GESTURE_WEIGHTS[family];
   const total = weights.reduce((sum, [, w]) => sum + w, 0);
   let cursor = rng() * total;
   for (const [gesture, weight] of weights) {
@@ -621,3 +682,138 @@ export const WAKE_PERFORMANCE: readonly PerformanceStep[] = [
   { expression: 'attentive', gaze: { x: 0.55, y: -0.1 }, ms: 430 },
   { expression: 'neutral', gaze: null, ms: 320 },
 ];
+
+/**
+ * Waking from a SHORT nap is a quick recollection, not a startle: a beat of
+ * attention, then back to the room. The full WAKE_PERFORMANCE is reserved
+ * for deep sleep (past SHORT_NAP_MS) — the reaction tells how long the eyes
+ * were gone.
+ */
+export const SHORT_NAP_MS = 120_000;
+export const WAKE_SHORT_PERFORMANCE: readonly PerformanceStep[] = [
+  { expression: 'attentive', gaze: null, ms: 320 },
+  { expression: 'neutral', gaze: null, ms: 260 },
+];
+
+/** Which wake performance a doze of `sleptMs` deserves. */
+export function wakePerformanceFor(sleptMs: number): readonly PerformanceStep[] {
+  return sleptMs >= SHORT_NAP_MS ? WAKE_PERFORMANCE : WAKE_SHORT_PERFORMANCE;
+}
+
+// =============================================================================
+// Transition grammar — cognitive-boundary blinks, minimum holds, mood beats
+// =============================================================================
+
+/**
+ * Humans blink right BEFORE moving their gaze (a cognitive boundary), not
+ * during. A fraction of wanders opens with a blink whose lid covers the
+ * saccade start — each move then reads as intentional.
+ */
+export const PRE_GAZE_BLINK_PROBABILITY = 0.4;
+export const PRE_GAZE_BLINK_LEAD_MS = 130;
+
+/** Whether the upcoming gaze wander opens with a blink. */
+export function shouldBlinkBeforeGaze(rng: Rng): boolean {
+  return rng() < PRE_GAZE_BLINK_PROBABILITY;
+}
+
+/**
+ * Masked transitions land the new face at the TOP of the lid sweep (lids
+ * closed) instead of alongside it — the morph happens out of sight, the
+ * classical three-beat: blink, swap, reveal.
+ */
+export const MASK_APPLY_DELAY_MS = 140;
+
+/**
+ * Anti-zapping: a non-urgent expression holds at least this long before the
+ * next one may replace it, so a burst of signals (stream end + notification)
+ * never flickers the face. Urgent arrivals bypass the hold — a reflex that
+ * waits is not a reflex.
+ */
+export const MIN_EXPRESSION_HOLD_MS = 400;
+export const URGENT_ARRIVALS: ReadonlySet<EyeExpression> = new Set([
+  'worried',
+  'question',
+  'surprise',
+  'fear',
+  'wink',
+  'attentive',
+  'speaking',
+]);
+
+/** Family rank used to read a mood change as rising or falling energy. */
+const FAMILY_ENERGY: Record<IdleMoodFamily, number> = { drowsy: 0, calm: 1, lively: 2 };
+
+/** Rising mood: a spark — double-take up, settle. */
+export const MOOD_SHIFT_RISE_PERFORMANCE: readonly PerformanceStep[] = [
+  { expression: 'attentive', gaze: { x: 0, y: -0.4 }, ms: 380 },
+  { expression: 'joy', gaze: null, ms: 460 },
+  { expression: 'neutral', gaze: null, ms: 300 },
+];
+
+/** Falling mood: a slow settle — the gaze drops, the lids ease. */
+export const MOOD_SHIFT_FALL_PERFORMANCE: readonly PerformanceStep[] = [
+  { expression: 'tired', gaze: { x: 0, y: 0.35 }, ms: 620 },
+  { expression: 'neutral', gaze: null, ms: 380 },
+];
+
+/**
+ * The beat played when the psyche mood shifts across families while idling —
+ * an internal state change becomes a readable event instead of a silent
+ * morph. Same-family shifts stay silent (the gesture cadence already moved).
+ */
+export function moodShiftPerformance(
+  prev: MoodLabel,
+  next: MoodLabel
+): readonly PerformanceStep[] | null {
+  const delta = FAMILY_ENERGY[idleFamilyForMood(next)] - FAMILY_ENERGY[idleFamilyForMood(prev)];
+  if (delta > 0) return MOOD_SHIFT_RISE_PERFORMANCE;
+  if (delta < 0) return MOOD_SHIFT_FALL_PERFORMANCE;
+  return null;
+}
+
+// =============================================================================
+// Reading pattern — the eyes "write" their streaming answer
+// =============================================================================
+
+/**
+ * While the answer streams, the gaze walks a reading line (left to right in
+ * small steps, quick carriage return) instead of random saccades — the most
+ * watched moment of the widget gets its own choreography. The line sits
+ * slightly UP: new text lands above the input-docked widget.
+ */
+const READING_LINE: readonly Gaze[] = [
+  { x: -0.55, y: -0.35 },
+  { x: -0.18, y: -0.35 },
+  { x: 0.2, y: -0.35 },
+  { x: 0.58, y: -0.35 },
+];
+export const READING_STEP_MS = 340;
+export const READING_MOVE_MS = 120;
+export const READING_RETURN_MS = 180;
+
+/** Gaze move for reading beat `step` (cycles the line; step 0 is the quick
+ * carriage return to line start). */
+export function readingGazeAt(step: number): { gaze: Gaze; ms: number } {
+  const index = ((step % READING_LINE.length) + READING_LINE.length) % READING_LINE.length;
+  return { gaze: READING_LINE[index], ms: index === 0 ? READING_RETURN_MS : READING_MOVE_MS };
+}
+
+// =============================================================================
+// Conversational micro-moments
+// =============================================================================
+
+/**
+ * The user typed, then paused without sending: after the typing signal
+ * expires the eyes come up from the input and wonder — "you were saying?".
+ */
+export const WONDER_PERFORMANCE: readonly PerformanceStep[] = [
+  { expression: 'attentive', gaze: { x: 0, y: 0 }, ms: 520 },
+  { expression: 'question', gaze: null, ms: 900 },
+];
+
+/**
+ * Coming back to the tab after a real absence earns a small welcome perk —
+ * awake families only (a drowsy character does not jump to attention).
+ */
+export const RETURN_PERK_MIN_AWAY_MS = 30_000;

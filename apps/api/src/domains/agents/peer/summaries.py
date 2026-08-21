@@ -44,7 +44,7 @@ def _viewer_zone(viewer_timezone: str) -> ZoneInfo | None:
     """Resolve an IANA name, or None when it is unusable."""
     try:
         return ZoneInfo(viewer_timezone)
-    except (ZoneInfoNotFoundError, ValueError, TypeError):
+    except ZoneInfoNotFoundError, ValueError, TypeError:
         return None
 
 
@@ -61,7 +61,7 @@ def _format_instant(raw: str, zone: ZoneInfo | None) -> str:
     """
     try:
         moment = datetime.fromisoformat(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return raw
     if zone is not None and moment.tzinfo is not None:
         moment = moment.astimezone(zone)

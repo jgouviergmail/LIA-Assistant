@@ -230,7 +230,7 @@ def handle_connector_api_error(
     params: dict[str, Any],
     user_id_str: str | None = None,
     metrics_counter: Any = None,
-) -> "UnifiedToolOutput":
+) -> UnifiedToolOutput:
     """
     Unified error handling for all connector API operations.
 
@@ -317,7 +317,7 @@ class ValidatedRuntimeConfig(NamedTuple):
 def validate_runtime_config(
     runtime: ToolRuntime[LiaRuntimeContext, Any] | None,
     tool_name: str,
-) -> "UnifiedToolOutput | ValidatedRuntimeConfig":
+) -> UnifiedToolOutput | ValidatedRuntimeConfig:
     """
     Validate and extract runtime configuration from ToolRuntime.
 
@@ -404,7 +404,7 @@ def handle_tool_exception(
     e: Exception,
     tool_name: str,
     context: dict[str, Any] | None = None,
-) -> "UnifiedToolOutput":
+) -> UnifiedToolOutput:
     """
     Handle unexpected exceptions in tools with consistent error logging and response.
 

@@ -1947,7 +1947,7 @@ directory = "htmlcov"
 - Pull requests to `main`, `develop`
 
 **Python Version Matrix:**
-- Python 3.12 only (aligned with project requirement)
+- Python 3.14 only (aligned with project requirement)
 
 ### 12.2 Test Execution Steps
 

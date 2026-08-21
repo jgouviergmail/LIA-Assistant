@@ -96,7 +96,7 @@ def get_agent_service() -> AgentService:
 
 
 async def _probe_orphan(
-    redis: "Redis",
+    redis: Redis,
     conversation_id: str,
     stream_id: str,
     lock_missing_since: float | None,
@@ -147,7 +147,7 @@ async def stream_run_as_sse(
     conversation_id: str | None = None,
     user_language: Language = DEFAULT_LANGUAGE,
     session_id: str | None = None,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str]:
     """Subscribe to a run stream and format events as SSE lines.
 
     Transport-only (ADR-117): chunks are relayed verbatim (already-serialized
@@ -280,7 +280,7 @@ async def stream_run_as_sse(
             await listener_decr(redis, stream_id)
 
 
-def _build_listener_probe(stream_id: str) -> "Callable[[], Awaitable[bool]]":
+def _build_listener_probe(stream_id: str) -> Callable[[], Awaitable[bool]]:
     """Async probe: is anyone currently subscribed to this run's stream?
 
     Injected into stream_chat_response (ADR-117 Lot 2) so voice synthesis
@@ -458,7 +458,7 @@ async def stream_chat(
         message_length=len(request.message),
     )
 
-    async def event_generator() -> AsyncGenerator[str, None]:
+    async def event_generator() -> AsyncGenerator[str]:
         """
         Generate SSE events with heartbeats.
         Yields formatted SSE data chunks and periodic heartbeat comments.
@@ -1188,7 +1188,7 @@ async def reattach_run_stream(
         user_language=getattr(current_user, "language", None),
     )
 
-    async def reattach_generator() -> AsyncGenerator[str, None]:
+    async def reattach_generator() -> AsyncGenerator[str]:
         yield "retry: 5000\n\n"
         async for sse_line in stream_run_as_sse(
             stream_id,

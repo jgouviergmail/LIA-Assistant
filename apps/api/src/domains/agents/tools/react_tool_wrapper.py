@@ -235,7 +235,7 @@ class ReactToolWrapper(BaseTool):
             if len(data_str) > 8000:
                 data_str = data_str[:8000] + "... (truncated)"
             return data_str
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return ""
 
     def _run(self, **kwargs: Any) -> str:

@@ -68,7 +68,7 @@ class OAuthLock:
         self.lock_key = f"oauth_lock:{user_id}:{connector_type.value}"
         self.lock_acquired = False
 
-    async def __aenter__(self) -> "OAuthLock":
+    async def __aenter__(self) -> OAuthLock:
         """
         Acquire lock with exponential backoff retry.
         Blocks until lock is acquired or raises TimeoutError.
@@ -79,7 +79,7 @@ class OAuthLock:
         Raises:
             TimeoutError: If lock cannot be acquired within timeout period.
         """
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
         max_wait_time = self.timeout_seconds
         connector_type_value = self.connector_type.value
 
@@ -107,7 +107,7 @@ class OAuthLock:
                     oauth_lock_acquired_total.labels(connector_type=connector_type_value).inc()
                     oauth_lock_wait_duration_seconds.labels(
                         connector_type=connector_type_value
-                    ).observe(asyncio.get_event_loop().time() - start_time)
+                    ).observe(asyncio.get_running_loop().time() - start_time)
                     if retry_count > 0:
                         oauth_lock_contention_total.labels(
                             connector_type=connector_type_value
@@ -121,7 +121,7 @@ class OAuthLock:
                 return self
 
             # Lock is busy - check if we should retry
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = asyncio.get_running_loop().time() - start_time
             if elapsed >= max_wait_time:
                 with suppress(Exception):
                     from src.infrastructure.observability.metrics import (

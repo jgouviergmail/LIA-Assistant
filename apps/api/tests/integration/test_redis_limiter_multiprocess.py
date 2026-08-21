@@ -106,18 +106,18 @@ def run_worker(
 @pytest.mark.asyncio
 @pytest.mark.integration
 @pytest.mark.multiprocess
-@pytest.mark.skipif(
-    not hasattr(pytest, "_redis_available") or not pytest._redis_available,
-    reason="Multi-process tests require Redis server running. Set pytest._redis_available=True after verifying Redis is available.",
-)
 class TestRedisRateLimiterMultiProcess:
     """Test rate limiter with actual multiple processes.
 
-    These tests require a running Redis server and spawn multiple OS processes
-    to test distributed rate limiting. They may be flaky in CI due to:
-    - Redis connection issues
-    - Multi-process timing variations
-    - OS-specific process spawning behavior
+    A running Redis is the ``integration`` contract (the task's preflight
+    guarantees it) — the tests fail loudly without it. The old
+    ``pytest._redis_available`` skipif was removed (ADR-241 follow-up): the
+    attribute was set NOWHERE, so the whole class had been silently skipped on
+    every runner since 2025-11 — green by absence, invisible to the
+    permanent-skip guard because the condition looked dynamic. The
+    ``multiprocess`` marker keeps the class out of PR CI (F006 allowlist);
+    run it explicitly with ``pytest -m multiprocess`` — proven green on
+    Python 3.14 under both Linux forkserver (dev container) and Windows spawn.
     """
 
     async def test_multiple_processes_respect_global_limit(self):

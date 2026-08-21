@@ -39,7 +39,7 @@ Le **catalogue de manifests** est une base de données déclarative qui décrit 
 - **Observabilité** : Tracking des coûts réels vs estimés
 
 **Standards utilisés** :
-- Dataclass-based schemas (Python 3.12+)
+- Dataclass-based schemas (Python 3.14)
 - Semantic versioning (SemVer)
 - JSONPath pour les output schemas
 - Builder pattern pour la construction

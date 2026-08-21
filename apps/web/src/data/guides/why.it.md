@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione**: 5.0
-**Data**: 2026-08-20
-**Applicazione**: LIA v1.30.16
+**Data**: 2026-08-21
+**Applicazione**: LIA v1.31.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---

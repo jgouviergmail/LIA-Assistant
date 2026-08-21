@@ -29,7 +29,6 @@ precisely how the first de-risking run of this fix measured a false negative.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 import yaml
@@ -38,10 +37,11 @@ from src.core.constants import (
     DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS,
     DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS,
 )
+from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = repo_root_or_skip()
 API_DOCKERFILE = REPO_ROOT / "apps" / "api" / "Dockerfile.prod"
 API_ENTRYPOINT = REPO_ROOT / "apps" / "api" / "docker-entrypoint.sh"
 COMPOSE_PROD = REPO_ROOT / "docker-compose.prod.yml"

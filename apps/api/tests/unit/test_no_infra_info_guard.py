@@ -162,7 +162,7 @@ class TestNoInfraInfoInRepo:
         for rel in files:
             try:
                 text = (REPO_ROOT / rel).read_text(encoding="utf-8")
-            except (UnicodeDecodeError, OSError):
+            except UnicodeDecodeError, OSError:
                 continue
             for lineno, token in _scan(text, matchers):
                 violations.append(f"{rel}:{lineno} contains forbidden token '{token}'")

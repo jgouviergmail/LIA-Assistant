@@ -24,7 +24,7 @@ logger = structlog.get_logger(__name__)
 
 def open_offers_stmt(
     user_id: UUID, since: datetime, limit: int, offset: int = 0
-) -> "Select[tuple[HeartbeatNotification]]":
+) -> Select[tuple[HeartbeatNotification]]:
     """Undecided missed-routine offers in the window (Lot 5-C2).
 
     Pure builder (unit-testable WHERE): an offer is a notification carrying
@@ -161,7 +161,7 @@ class HeartbeatNotificationRepository:
 
         try:
             user_tz: ZoneInfo | timezone = ZoneInfo(user_timezone)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             user_tz = UTC
 
         user_now = now.astimezone(user_tz)

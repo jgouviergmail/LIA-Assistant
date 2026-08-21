@@ -13,13 +13,14 @@ This guard makes that specific regression visible instead of invisible.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+from tests._repo_paths import repo_root_or_skip
+
+REPO_ROOT = repo_root_or_skip()
 COMPOSE_PROD = REPO_ROOT / "docker-compose.prod.yml"
 
 # Services that legitimately need the full secret file. The API is the component

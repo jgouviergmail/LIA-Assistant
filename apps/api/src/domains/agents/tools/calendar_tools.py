@@ -1010,7 +1010,7 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             try:
                 user_timezone, _, _ = await get_user_preferences(self.runtime)
                 timezone = user_timezone
-            except (ValueError, KeyError, AttributeError):
+            except ValueError, KeyError, AttributeError:
                 timezone = "UTC"
 
         # Normalize datetimes: strip wrong LLM offset and re-localize to user timezone.
@@ -1259,7 +1259,7 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             try:
                 user_timezone, _, _ = await get_user_preferences(self.runtime)
                 timezone = user_timezone
-            except (ValueError, KeyError, AttributeError):
+            except ValueError, KeyError, AttributeError:
                 timezone = "UTC"
 
         # Normalize datetimes: strip wrong LLM offset and re-localize to user timezone
@@ -1489,7 +1489,7 @@ class DeleteEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         # Convert event dates from UTC to user timezone for HITL display consistency
         try:
             user_timezone, _, _ = await get_user_preferences(self.runtime)
-        except (ValueError, KeyError, AttributeError):
+        except ValueError, KeyError, AttributeError:
             user_timezone = "UTC"
 
         if event and user_timezone:
@@ -1971,7 +1971,7 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         # Get user preferences for locale, falling back to the default locale
         try:
             _, _, locale = await get_user_preferences(self.runtime)
-        except (ValueError, KeyError, AttributeError):
+        except ValueError, KeyError, AttributeError:
             locale = settings.default_language
 
         return {

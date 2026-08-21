@@ -624,7 +624,7 @@ async def update_interest(
 
         return _interest_to_response(interest, repo)
 
-    except (ResourceNotFoundError, ResourceConflictError):
+    except ResourceNotFoundError, ResourceConflictError:
         raise
 
     except IntegrityError as e:
@@ -805,7 +805,7 @@ async def reactivate_interest(
 
         return _interest_to_response(interest, repo)
 
-    except (ResourceNotFoundError, ResourceConflictError):
+    except ResourceNotFoundError, ResourceConflictError:
         raise
 
     except Exception as e:

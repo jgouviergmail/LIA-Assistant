@@ -722,7 +722,7 @@ class WeatherCard(BaseComponent):
                     "it": "Estremo",
                     "zh-CN": "极端",
                 }.get(language, "Extreme")
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return ""
 
     def _get_aqi_label(self, aqi: Any, language: str) -> str:
@@ -783,5 +783,5 @@ class WeatherCard(BaseComponent):
                     "it": "Pericoloso",
                     "zh-CN": "危险",
                 }.get(language, "Hazardous")
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return ""

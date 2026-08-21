@@ -283,7 +283,7 @@ async def get_memory(
 
     except ResourceNotFoundError:
         raise
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         raise_memory_not_found(memory_id)
     except Exception as e:
         logger.error(
@@ -389,7 +389,7 @@ async def update_memory(
 
     except ResourceNotFoundError:
         raise
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         raise_memory_not_found(memory_id)
     except Exception as e:
         logger.error(
@@ -440,7 +440,7 @@ async def toggle_pin_memory(
 
     except ResourceNotFoundError:
         raise
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         raise_memory_not_found(memory_id)
     except Exception as e:
         logger.error(
@@ -486,7 +486,7 @@ async def delete_memory(
 
     except ResourceNotFoundError:
         raise
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         raise_memory_not_found(memory_id)
     except Exception as e:
         logger.error(

@@ -616,7 +616,7 @@ class TestRefreshOAuthToken:
             try:
                 await service._refresh_oauth_token(sample_connector, credentials)
                 raise AssertionError("Should have raised an exception")
-            except (HTTPException, TypeError):
+            except HTTPException, TypeError:
                 # Either HTTPException (expected) or TypeError (due to the raise_invalid_input bug)
                 pass
 

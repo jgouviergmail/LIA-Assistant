@@ -518,7 +518,7 @@ def _task_to_item(task: dict[str, Any], today_local: date) -> TaskItem | None:
             due_date = datetime.fromisoformat(str(raw_due).replace("Z", "+00:00")).date()
             due_date_iso = due_date.isoformat()
             days_until = (due_date - today_local).days
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             # Provider sent an unparseable due — keep the task, undated.
             logger.debug("briefing_task_due_unparseable", raw_due=str(raw_due)[:40])
     return TaskItem(
@@ -614,7 +614,7 @@ async def fetch_documents(
             try:
                 modified_dt = datetime.fromisoformat(str(raw_modified).replace("Z", "+00:00"))
                 modified_local = _format_trigger_at_local(modified_dt, user_tz, language)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 # Unparseable Drive timestamp — the '?' placeholder renders.
                 logger.debug("briefing_document_modified_unparseable")
         items.append(

@@ -58,7 +58,7 @@ def format_utc_datetime(dt: datetime | None, user_tz: ZoneInfo) -> str:
     try:
         local_dt = dt.astimezone(user_tz)
         return local_dt.strftime("%Y-%m-%d %H:%M")
-    except (ValueError, TypeError, AttributeError):
+    except ValueError, TypeError, AttributeError:
         return str(dt)
 
 
@@ -126,7 +126,7 @@ def detect_weather_changes(
     for entry in hourly:
         try:
             entry_time = datetime.fromtimestamp(entry["dt"], tz=user_tz)
-        except (KeyError, ValueError, OSError):
+        except KeyError, ValueError, OSError:
             continue
         entry_temp = entry.get("main", {}).get("temp")
         if entry_temp is None:
@@ -162,7 +162,7 @@ def detect_weather_changes(
         entry_pop = entry.get("pop", 0)
         try:
             entry_time = datetime.fromtimestamp(entry["dt"], tz=user_tz)
-        except (KeyError, ValueError, OSError):
+        except KeyError, ValueError, OSError:
             continue
 
         time_str = entry_time.strftime("%H:%M")
@@ -474,13 +474,13 @@ def _parse_event_start(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> da
         return None
     try:
         parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return None
     if parsed.tzinfo is None:
         tz_name = dt_field.get("timeZone")
         try:
             parsed = parsed.replace(tzinfo=ZoneInfo(tz_name) if tz_name else user_tz)
-        except (KeyError, ValueError):
+        except KeyError, ValueError:
             parsed = parsed.replace(tzinfo=user_tz)
     return parsed
 

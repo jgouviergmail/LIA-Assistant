@@ -103,7 +103,7 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> st
             if event_tz_str:
                 try:
                     event_tz = ZoneInfo(event_tz_str)
-                except (KeyError, ValueError):
+                except KeyError, ValueError:
                     event_tz = user_tz
             else:
                 event_tz = user_tz
@@ -115,7 +115,7 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> st
         if local_dt.date() != now_local.date():
             return local_dt.strftime("%Y-%m-%d %H:%M")
         return local_dt.strftime("%H:%M")
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return str(raw)
 
 
@@ -607,7 +607,7 @@ class ContextAggregator:
             # datetime.fromisoformat handles both "Z" (Python 3.11+) and "+00:00".
             due_dt = datetime.fromisoformat(due_str.replace("Z", "+00:00"))
             return due_dt < now
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
 
     # ------------------------------------------------------------------
@@ -849,7 +849,7 @@ class ContextAggregator:
             if dt.date() == now_local.date():
                 return dt.strftime("%H:%M")
             return dt.strftime("%Y-%m-%d %H:%M")
-        except (ValueError, TypeError, OSError):
+        except ValueError, TypeError, OSError:
             return "?"
 
     # ------------------------------------------------------------------

@@ -42,14 +42,15 @@ is the script itself.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 import yaml
 
+from tests._repo_paths import repo_root_or_skip
+
 pytestmark = pytest.mark.unit
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = repo_root_or_skip()
 ENTRYPOINT = REPO_ROOT / "apps" / "api" / "docker-entrypoint.sh"
 SEEDS_DIR = REPO_ROOT / "infrastructure" / "database" / "seeds"
 COMPOSE_PROD = REPO_ROOT / "docker-compose.prod.yml"

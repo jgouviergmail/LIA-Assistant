@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 # Context variable to access current tracker from anywhere in async call stack.
 # This enables implicit propagation of tracking context to Google API clients
 # without modifying their constructors or method signatures.
-current_tracker: ContextVar["TrackingContext | None"] = ContextVar("current_tracker", default=None)
+current_tracker: ContextVar[TrackingContext | None] = ContextVar("current_tracker", default=None)
 
 # Context variables for panic mode state per request
 # FIX 2026-02-06: Replaces instance variables on singletons for thread-safety
@@ -50,7 +50,7 @@ panic_mode_attempted: ContextVar[bool] = ContextVar("panic_mode_attempted", defa
 # and the planner reads them after its LLM awaits, so instance storage leaked
 # one request's metrics into another. None means "not filtered yet"; the
 # service's accessor lazily creates a fresh CatalogueMetrics per task.
-catalogue_metrics: ContextVar["CatalogueMetrics | None"] = ContextVar(
+catalogue_metrics: ContextVar[CatalogueMetrics | None] = ContextVar(
     "catalogue_metrics", default=None
 )
 
@@ -99,8 +99,8 @@ def strip_hallucinated_mcp_suffix(name: str) -> str | None:
 class UserMCPToolsContext:
     """Per-request context holding user MCP tool manifests, instances, and metadata."""
 
-    tool_manifests: list["ToolManifest"] = field(default_factory=list)
-    tool_instances: dict[str, "BaseTool"] = field(default_factory=dict)
+    tool_manifests: list[ToolManifest] = field(default_factory=list)
+    tool_instances: dict[str, BaseTool] = field(default_factory=dict)
     # Server-level domain descriptions for query_analyzer enrichment
     server_descriptions: dict[str, str] = field(default_factory=dict)
     # Per-server domain slugs: server_name → domain slug (e.g., "HuggingFace Hub" → "mcp_huggingface_hub")
@@ -137,7 +137,7 @@ class UserMCPToolsContext:
                     return stripped
         return None
 
-    def resolve_tool_manifest(self, name: str) -> "ToolManifest | None":
+    def resolve_tool_manifest(self, name: str) -> ToolManifest | None:
         """Resolve a tool name and return the matching ToolManifest.
 
         Combines resolve_tool_name + manifest lookup in a single call.
@@ -189,14 +189,14 @@ capability_directive_ctx: ContextVar[dict[str, str] | None] = ContextVar(
 # All consumers read via get_request_tool_manifests() instead of
 # registry.list_tool_manifests() + manual filtering.
 # ---------------------------------------------------------------------------
-request_tool_manifests_ctx: ContextVar[list["ToolManifest"] | None] = ContextVar(
+request_tool_manifests_ctx: ContextVar[list[ToolManifest] | None] = ContextVar(
     "request_tool_manifests_ctx", default=None
 )
 
 
 def build_request_tool_manifests(
-    registry: "AgentRegistry",
-) -> list["ToolManifest"]:
+    registry: AgentRegistry,
+) -> list[ToolManifest]:
     """Build the per-request available tool manifests list.
 
     Single source of truth for tool availability. Combines global registry
@@ -225,7 +225,7 @@ def build_request_tool_manifests(
     return manifests
 
 
-def get_request_tool_manifests() -> list["ToolManifest"]:
+def get_request_tool_manifests() -> list[ToolManifest]:
     """Get the per-request available tool manifests.
 
     Returns the pre-built list from request_tool_manifests_ctx.

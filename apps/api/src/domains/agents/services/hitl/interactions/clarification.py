@@ -86,7 +86,7 @@ class ClarificationInteraction:
         - clarification_node: Triggers clarification interrupt
     """
 
-    def __init__(self, question_generator: "HitlQuestionGenerator") -> None:
+    def __init__(self, question_generator: HitlQuestionGenerator) -> None:
         """
         Initialize ClarificationInteraction.
 
@@ -106,7 +106,7 @@ class ClarificationInteraction:
         user_language: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """
         Generate clarification question via LLM streaming.
 

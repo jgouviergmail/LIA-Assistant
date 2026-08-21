@@ -20,8 +20,12 @@ from pathlib import Path
 # the test environment identical whatever the launcher (task, direct pytest,
 # CI — where the root .env simply does not exist). Values tests DO need from
 # that file (e.g. REDIS_PASSWORD below) are re-read from the file explicitly.
-_root_env_file = Path(__file__).resolve().parents[3] / ".env"
-if _root_env_file.exists():
+# parents[3] only exists on deep layouts (host checkout, CI); inside the dev
+# container the suite lives at /app/tests and there is no repo root above it —
+# exactly the "root .env does not exist" case this block already tolerates.
+_conftest_parents = Path(__file__).resolve().parents
+_root_env_file = _conftest_parents[3] / ".env" if len(_conftest_parents) > 3 else None
+if _root_env_file is not None and _root_env_file.exists():
     for _raw_line in _root_env_file.read_text(encoding="utf-8").splitlines():
         _stripped = _raw_line.strip()
         if not _stripped or _stripped.startswith("#") or "=" not in _stripped:
@@ -386,7 +390,7 @@ def _redirect_process_db(async_url: str) -> None:
 
 
 @pytest.fixture(scope="session")
-def postgres_container() -> Generator[PostgresContainer | None, None, None]:
+def postgres_container() -> Generator[PostgresContainer | None]:
     """
     Create a PostgreSQL test container for integration tests.
 
@@ -582,7 +586,7 @@ def _provision_langgraph_tables(sync_url: str) -> None:
 
 
 @pytest.fixture(scope="session")
-def _db_schema_ready(test_database_url_sync: str) -> Generator[None, None, None]:
+def _db_schema_ready(test_database_url_sync: str) -> Generator[None]:
     """Build the test schema ONCE per session, via a SYNC engine (audit F049).
 
     Previously each DB test recreated the whole schema (``drop_all`` + ``create_all``
@@ -642,7 +646,7 @@ async def async_engine(_db_schema_ready: None, test_database_url: str):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
+async def async_session(async_engine) -> AsyncGenerator[AsyncSession]:
     """Per-test DB isolation via an external transaction + SAVEPOINT (audit F049).
 
     Even a test that calls ``commit()`` is undone: the session joins an outer
@@ -668,7 +672,7 @@ async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_session(async_session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(async_session: AsyncSession) -> AsyncGenerator[AsyncSession]:
     """
     Alias for async_session to maintain backward compatibility.
     Many tests use 'db_session' fixture name.
@@ -677,12 +681,12 @@ async def db_session(async_session: AsyncSession) -> AsyncGenerator[AsyncSession
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_client(async_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def async_client(async_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """
     Create async HTTP client for API tests.
     """
 
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield async_session
 
     app.dependency_overrides[get_db] = override_get_db
@@ -719,7 +723,7 @@ def sync_engine(test_database_url_sync: str):
 
 
 @pytest.fixture(scope="function")
-def sync_session(sync_engine) -> Generator[Session, None, None]:
+def sync_session(sync_engine) -> Generator[Session]:
     """
     Create sync database session for tests.
     """
@@ -733,12 +737,12 @@ def sync_session(sync_engine) -> Generator[Session, None, None]:
 
 
 @pytest.fixture(scope="function")
-def client(sync_session: Session) -> Generator[TestClient, None, None]:
+def client(sync_session: Session) -> Generator[TestClient]:
     """
     Create sync HTTP client for API tests.
     """
 
-    def override_get_db() -> Generator[Session, None, None]:
+    def override_get_db() -> Generator[Session]:
         yield sync_session
 
     app.dependency_overrides[get_db] = override_get_db
@@ -848,7 +852,7 @@ def test_admin_credentials() -> dict[str, str]:
 @pytest_asyncio.fixture
 async def authenticated_client(
     async_client: AsyncClient, test_user: User, test_user_credentials: dict[str, str]
-) -> AsyncGenerator[tuple[AsyncClient, User], None]:
+) -> AsyncGenerator[tuple[AsyncClient, User]]:
     """
     Create authenticated HTTP client with session cookie (BFF Pattern).
 
@@ -871,7 +875,7 @@ async def authenticated_client(
 @pytest_asyncio.fixture
 async def admin_client(
     async_client: AsyncClient, test_superuser: User, test_admin_credentials: dict[str, str]
-) -> AsyncGenerator[tuple[AsyncClient, User], None]:
+) -> AsyncGenerator[tuple[AsyncClient, User]]:
     """
     Create authenticated HTTP client with admin session cookie (BFF Pattern).
 
@@ -1017,7 +1021,7 @@ def extract_cookie_value(response, cookie_name: str) -> str:
 
 
 @pytest.fixture
-def psycopg_url_from_settings() -> Generator[None, None, None]:
+def psycopg_url_from_settings() -> Generator[None]:
     """Make ``resolve_psycopg_url()`` read ``settings`` again, for one test.
 
     ``_redirect_process_db_urls`` installs a PROCESS-WIDE psycopg URL override

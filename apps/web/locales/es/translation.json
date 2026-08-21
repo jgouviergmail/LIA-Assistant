@@ -4278,6 +4278,19 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_31_0": {
+          "title": "v1.31.0 — ⚙️ La sala de máquinas pasa a Python 3.14",
+          "date": "Agosto de 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>⚙️ Una base modernizada</b> — todo el asistente funciona ahora sobre Python 3.14 y Debian 13, en todas partes: tus datos se procesan con un motor más rápido, actualizado y con soporte duradero. Cada uno de los 229 componentes subyacentes fue verificado para la nueva plataforma antes del cambio — incluso en el pequeño servidor ARM que aloja la instancia pública.",
+            "i2": "<b>🎙️ Mensajes de voz de Telegram a prueba de futuro</b> — la capa de audio que convierte tus notas de voz en texto dependía de una pieza que Python eliminó en sus versiones recientes; se reemplazó antes de que nada se rompiera, y la conversión de audio exacta está ahora cubierta por pruebas automatizadas para que ninguna regresión silenciosa sea posible.",
+            "i3": "<b>🛡️ Guardas para que dure</b> — nuevos controles permanentes verifican en cada cambio que todas las partes del sistema coinciden en la misma versión de Python y que cada componente nativo se carga correctamente. Una futura actualización que olvide un rincón fallará ruidosamente en desarrollo en lugar de silenciosamente en producción.",
+            "i4": "<b>⚡ Corregido un fallo de equidad en el limitador de peticiones</b> — bajo ráfagas simultáneas, el contador compartido podía dejar pasar algunas llamadas por encima de su límite (dos peticiones en el mismo microsegundo colisionaban). Revivir una prueba de carga largamente dormida lo sacó a la luz; la ventana ahora cuenta cada petición con exactitud, y las cuotas significan lo que muestran.",
+            "i5": "<b>🧭 La instancia informa ahora de su versión real</b> — el servidor en ejecución mostraba en algunos despliegues una identidad de build genérica; el script de despliegue la reconcilia ahora automáticamente, y lo que muestran los diagnósticos es exactamente lo que se entregó.",
+            "i6": "<b>🧹 Más ligero y preparado para el futuro</b> — se retiraron cinco bibliotecas sin uso del runtime (menor superficie de ataque, instalaciones más rápidas), y cada uso de APIs de Python destinadas a desaparecer en versiones futuras se modernizó por adelantado. La cobertura de pruebas sigue creciendo: la suite de carga que encontró el fallo del limitador ahora se ejecuta de verdad."
+          }
+        },
         "v1_30_16": {
           "title": "v1.30.16 — 👀 LIA te devuelve la mirada",
           "date": "Agosto 2026",

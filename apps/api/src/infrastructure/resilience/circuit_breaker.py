@@ -88,7 +88,7 @@ circuit_breaker_open_duration_seconds = Gauge(
 class CircuitBreakerError(Exception):
     """Exception raised when circuit breaker is open."""
 
-    def __init__(self, service: str, state: "CircuitState", retry_after: float | None = None):
+    def __init__(self, service: str, state: CircuitState, retry_after: float | None = None):
         self.service = service
         self.state = state
         self.retry_after = retry_after
@@ -373,7 +373,7 @@ class CircuitBreaker:
             if not await self._should_allow_request():
                 await self._reject_request()
 
-    async def __aenter__(self) -> "CircuitBreaker":
+    async def __aenter__(self) -> CircuitBreaker:
         """Async context manager entry - check if request is allowed."""
         await self.check()
         return self

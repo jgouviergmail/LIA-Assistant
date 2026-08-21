@@ -176,7 +176,7 @@ class ElevenLabsTTSClient:
                 if retry_after_raw is not None:
                     try:
                         retry_after_seconds = float(retry_after_raw)
-                    except (TypeError, ValueError):
+                    except TypeError, ValueError:
                         retry_after_seconds = None
                 raise TTSProviderError(
                     code="provider_rate_limited",

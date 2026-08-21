@@ -61,7 +61,7 @@ _ACTIVE_INDEXES: tuple[str, ...] = (
 
 
 @pytest_asyncio.fixture
-async def without_active_indexes(async_session: AsyncSession) -> AsyncGenerator[None, None]:
+async def without_active_indexes(async_session: AsyncSession) -> AsyncGenerator[None]:
     """Run the test on the PRE-migration schema.
 
     Without this, staging two active rows raises `IntegrityError` before the

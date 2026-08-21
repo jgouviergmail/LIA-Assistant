@@ -232,7 +232,7 @@ async def subscribe(
     redis: Redis,
     run_id: str,
     from_id: str = "0-0",
-) -> AsyncGenerator[RunStreamEvent, None]:
+) -> AsyncGenerator[RunStreamEvent]:
     """Read the run stream from ``from_id``, then follow the live tail.
 
     Yields :class:`RunStreamEvent` items in order; yields a ``"keepalive"``
@@ -371,7 +371,7 @@ async def get_active_run(redis: Redis, conversation_id: str) -> dict[str, str] |
         return None
     try:
         data = json.loads(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return data if isinstance(data, dict) else None
 
@@ -451,5 +451,5 @@ async def has_listeners(redis: Redis, stream_id: str) -> bool:
     raw = await redis.get(listeners_key(stream_id))
     try:
         return int(raw or 0) > 0
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return False

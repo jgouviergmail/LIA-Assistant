@@ -222,7 +222,7 @@ class TestToolInvocationSmoke:
                     try:
                         parsed = json.loads(result)
                         payload = parsed if isinstance(parsed, dict) else None
-                    except (json.JSONDecodeError, ValueError):
+                    except json.JSONDecodeError, ValueError:
                         payload = None
                 if payload:
                     error_type = str(

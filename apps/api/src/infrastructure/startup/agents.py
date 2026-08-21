@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-async def init_checkpointer() -> "InstrumentedAsyncPostgresSaver | None":
+async def init_checkpointer() -> InstrumentedAsyncPostgresSaver | None:
     """Initialize the LangGraph checkpointer (non-fatal on failure).
 
     Returns:
@@ -46,9 +46,9 @@ async def init_checkpointer() -> "InstrumentedAsyncPostgresSaver | None":
 
 
 async def init_agent_registry(
-    checkpointer: "InstrumentedAsyncPostgresSaver | None",
-    scheduler: "AsyncIOScheduler",
-) -> "AgentRegistry | None":
+    checkpointer: InstrumentedAsyncPostgresSaver | None,
+    scheduler: AsyncIOScheduler,
+) -> AgentRegistry | None:
     """Initialize the AgentRegistry with checkpointer and store, register all agents.
 
     Note: Legacy tool catalogue (tools/catalogue.py) removed in Phase 5.
@@ -207,7 +207,7 @@ async def init_agent_registry(
     return registry
 
 
-async def init_semantic_services(registry: "AgentRegistry | None") -> None:
+async def init_semantic_services(registry: AgentRegistry | None) -> None:
     """Initialize v3.1 Semantic Services (Architecture v3.1 - LLM-Based Intelligence).
 
     Note: SemanticIntentDetector and SemanticDomainSelector removed in v3.1.

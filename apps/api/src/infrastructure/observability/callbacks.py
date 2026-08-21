@@ -458,7 +458,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         run_id: LangGraph run ID for logging
     """
 
-    def __init__(self, tracker: "TrackingContext", run_id: str) -> None:
+    def __init__(self, tracker: TrackingContext, run_id: str) -> None:
         """
         Initialize token tracking callback.
 

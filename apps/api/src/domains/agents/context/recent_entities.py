@@ -110,7 +110,7 @@ def _recent_item_ids(
         turn_part = str(key).split(":", 1)[0]
         try:
             turn_id = int(turn_part)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         age = current_turn_id - turn_id
         if age < 0 or age > max_age:

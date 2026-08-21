@@ -59,7 +59,7 @@ async def _resolve_recurrence_suggestion(
 
     try:
         user_tz = ZoneInfo(state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE))
-    except (KeyError, ValueError, TypeError):
+    except KeyError, ValueError, TypeError:
         user_tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
     # v2 (ADR-214): domain-only signature; the user's local date anchors the
     # observation window for the shape locks.

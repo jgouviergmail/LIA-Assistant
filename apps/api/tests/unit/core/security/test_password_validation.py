@@ -15,7 +15,6 @@ The parity guard at the bottom pins the shared constants.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
@@ -32,6 +31,7 @@ from src.core.security.password_validation import (
     validate_password,
     validate_password_strict,
 )
+from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
 
@@ -190,9 +190,7 @@ class TestRequirementsMessage:
 # Cross-stack parity guard
 # ============================================================================
 
-_TS_POLICY = (
-    Path(__file__).resolve().parents[4] / ".." / "web" / "src" / "lib" / "password-validation.ts"
-)
+_TS_POLICY = repo_root_or_skip() / "apps" / "web" / "src" / "lib" / "password-validation.ts"
 
 
 def _ts_constant(source: str, name: str) -> int | None:

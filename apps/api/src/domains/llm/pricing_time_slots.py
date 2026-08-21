@@ -179,7 +179,7 @@ def find_active_slot(
         try:
             start = _hhmm_to_minutes(str(slot["start_utc"]))
             end = _hhmm_to_minutes(str(slot["end_utc"]))
-        except (KeyError, ValueError, TypeError):
+        except KeyError, ValueError, TypeError:
             logger.debug("pricing_time_slot_malformed_skipped", slot=slot)
             continue
         for segment_start, segment_end in _segments(start, end):

@@ -7,7 +7,7 @@ the blocking sync one.
 
 from __future__ import annotations
 
-import asyncio
+import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -38,7 +38,7 @@ class TestGenerateInterestEmbedding:
 
     def test_is_a_coroutine_function(self) -> None:
         """The helper must be awaitable (called from async paths only)."""
-        assert asyncio.iscoroutinefunction(generate_interest_embedding)
+        assert inspect.iscoroutinefunction(generate_interest_embedding)
 
     async def test_uses_native_async_embedding(self) -> None:
         """Delegates to aembed_documents (non-blocking), returns first vector."""

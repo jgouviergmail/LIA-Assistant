@@ -675,7 +675,7 @@ class Draft(BaseModel):
 
     model_config = {}  # datetime serializes to ISO format by default in Pydantic v2
 
-    def mark_modified(self, new_content: dict[str, Any]) -> "Draft":
+    def mark_modified(self, new_content: dict[str, Any]) -> Draft:
         """Create a copy with updated content and MODIFIED status."""
         return self.model_copy(
             update={
@@ -685,7 +685,7 @@ class Draft(BaseModel):
             }
         )
 
-    def mark_confirmed(self) -> "Draft":
+    def mark_confirmed(self) -> Draft:
         """Create a copy with CONFIRMED status."""
         return self.model_copy(
             update={
@@ -693,7 +693,7 @@ class Draft(BaseModel):
             }
         )
 
-    def mark_executed(self, result: dict[str, Any]) -> "Draft":
+    def mark_executed(self, result: dict[str, Any]) -> Draft:
         """Create a copy with EXECUTED status and result."""
         return self.model_copy(
             update={
@@ -703,7 +703,7 @@ class Draft(BaseModel):
             }
         )
 
-    def mark_failed(self, error: str) -> "Draft":
+    def mark_failed(self, error: str) -> Draft:
         """Create a copy with FAILED status and error."""
         return self.model_copy(
             update={
@@ -712,7 +712,7 @@ class Draft(BaseModel):
             }
         )
 
-    def mark_cancelled(self) -> "Draft":
+    def mark_cancelled(self) -> Draft:
         """Create a copy with CANCELLED status."""
         return self.model_copy(
             update={

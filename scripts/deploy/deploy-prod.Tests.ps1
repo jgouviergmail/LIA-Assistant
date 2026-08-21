@@ -533,6 +533,59 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $prov | Should -Match "APP_VERSION=9.9.9-test"
     }
 
+    It "deploy.sh upserts the provenance keys into .env (env_file must not erase the image identity)" {
+        # F030 regression seen at v1.31.0: the image carried the right
+        # APP_VERSION/GIT_COMMIT_SHA build args, but compose `env_file: .env`
+        # overrode them at `up` with dead example defaults. The generated
+        # deploy.sh must therefore make .env agree with provenance.env, after
+        # sourcing it and before the build.
+        $deploySh = Get-Content (Join-Path $prod "deploy.sh") -Raw
+        $iSource = $deploySh.IndexOf('. ./provenance.env')
+        $iBegin = $deploySh.IndexOf('# --- provenance-upsert-begin ---')
+        $iEnd = $deploySh.IndexOf('# --- provenance-upsert-end ---')
+        $iBuild = $deploySh.IndexOf('docker compose -f docker-compose.prod.yml')
+        $iBegin | Should -BeGreaterThan $iSource
+        $iEnd | Should -BeGreaterThan $iBegin
+        $iBuild | Should -BeGreaterThan $iEnd
+    }
+
+    It "the upsert block replaces, appends, survives a missing final newline, and is idempotent" {
+        $deploySh = Get-Content (Join-Path $prod "deploy.sh") -Raw
+        $begin = $deploySh.IndexOf('# --- provenance-upsert-begin ---')
+        $end = $deploySh.IndexOf('# --- provenance-upsert-end ---')
+        $block = $deploySh.Substring($begin, $end - $begin)
+
+        $lab = Join-Path $TestDrive "upsert-lab"
+        New-Item -ItemType Directory -Path $lab -Force | Out-Null
+        Copy-Item (Join-Path $prod "provenance.env") (Join-Path $lab "provenance.env")
+        # Fixture: one key to REPLACE, two absent keys to APPEND, one foreign
+        # key to preserve — and NO final newline (the append edge case).
+        [IO.File]::WriteAllText((Join-Path $lab ".env"), "APP_VERSION=0.0.0-dev`nOTHER_KEY=keep-me")
+        # `set -e` mirrors the real deploy.sh: the block must survive every
+        # false condition (LF-terminated .env, key already up to date...).
+        [IO.File]::WriteAllText((Join-Path $lab "run.sh"), "set -e`n. ./provenance.env`n$block`n")
+
+        $labBash = ConvertTo-BashPath $lab
+        & $script:BashExe -c "cd '$labBash' && sh ./run.sh" | Out-Null
+        $LASTEXITCODE | Should -Be 0
+        $envText = Get-Content (Join-Path $lab ".env") -Raw
+        $envText | Should -Match "(?m)^APP_VERSION=9\.9\.9-test$"
+        $envText | Should -Match "(?m)^GIT_COMMIT_SHA=$sha$"
+        $envText | Should -Match "(?m)^BUILD_DATE="
+        $envText | Should -Match "(?m)^OTHER_KEY=keep-me$"
+        ($envText -split "`n" | Where-Object { $_ -match "^APP_VERSION=" }).Count | Should -Be 1
+
+        # Idempotent: a second run must leave the file byte-identical.
+        & $script:BashExe -c "cd '$labBash' && sh ./run.sh" | Out-Null
+        (Get-Content (Join-Path $lab ".env") -Raw) | Should -Be $envText
+
+        # Without .env the block is a silent no-op (first deploy decrypts later).
+        Remove-Item (Join-Path $lab ".env")
+        & $script:BashExe -c "cd '$labBash' && sh ./run.sh" | Out-Null
+        $LASTEXITCODE | Should -Be 0
+        (Join-Path $lab ".env") | Should -Not -Exist
+    }
+
     It "scrubbed the sensitive files from the bundle (keys, .sops.yaml)" {
         (Join-Path $prod "keys") | Should -Not -Exist
         (Join-Path $prod ".sops.yaml") | Should -Not -Exist

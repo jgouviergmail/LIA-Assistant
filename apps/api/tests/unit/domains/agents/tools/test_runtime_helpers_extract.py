@@ -94,7 +94,7 @@ class TestExtractValuePydantic:
 
     class Contact(BaseModel):
         name: str
-        emailAddresses: list["TestExtractValuePydantic.Email"]
+        emailAddresses: list[TestExtractValuePydantic.Email]
 
     def test_attribute_access_on_a_model(self) -> None:
         contact = self.Contact(name="Bob", emailAddresses=[self.Email(value="bob@x.com")])

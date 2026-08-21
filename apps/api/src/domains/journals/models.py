@@ -254,7 +254,7 @@ class JournalEntry(BaseModel):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="journal_entries")
+    user: Mapped[User] = relationship(back_populates="journal_entries")
 
     # Indexes for efficient queries
     __table_args__ = (

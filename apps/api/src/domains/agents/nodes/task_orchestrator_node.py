@@ -372,7 +372,7 @@ def _build_tool_registry() -> dict[str, Any]:
 
 
 async def _handle_execution_plan(
-    execution_plan: "ExecutionPlan", state: MessagesState, run_id: str, config: RunnableConfig
+    execution_plan: ExecutionPlan, state: MessagesState, run_id: str, config: RunnableConfig
 ) -> dict[str, Any]:
     """
     Handle ExecutionPlan using asyncio-based parallel execution (Phase 5.2B-asyncio).

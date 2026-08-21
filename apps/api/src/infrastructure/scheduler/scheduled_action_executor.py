@@ -91,7 +91,7 @@ async def _send_approval_notification(
     db: Any,
     *,
     user: Any,
-    action: "ScheduledAction",
+    action: ScheduledAction,
     user_language: str,
 ) -> None:
     """Propose-first notification (N-07): a markdown [Run it now](?intent=) link.

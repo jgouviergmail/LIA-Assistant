@@ -157,7 +157,7 @@ def _parse_provider_config(raw: object) -> dict[str, Any]:
         return {}
     try:
         parsed = json.loads(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.warning("tts_provider_config_invalid_json", raw_preview=str(raw)[:120])
         return {}
     return parsed if isinstance(parsed, dict) else {}
@@ -174,7 +174,7 @@ def _float_or_none(value: object) -> float | None:
         return None
     try:
         return float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 

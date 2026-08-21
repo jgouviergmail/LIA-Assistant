@@ -117,7 +117,7 @@ def _safe_oauth_error_code(response: httpx.Response) -> str | None:
     """
     try:
         payload = response.json()
-    except (json.JSONDecodeError, ValueError):
+    except json.JSONDecodeError, ValueError:
         return None
     if not isinstance(payload, dict):
         return None

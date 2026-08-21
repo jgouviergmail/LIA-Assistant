@@ -282,7 +282,7 @@ class ResolutionResult(BaseModel):
     @classmethod
     def success_result(
         cls, item: dict[str, Any], confidence: float, match_type: str
-    ) -> "ResolutionResult":
+    ) -> ResolutionResult:
         """
         Create success resolution result.
 
@@ -302,7 +302,7 @@ class ResolutionResult(BaseModel):
         error: Literal["not_found", "ambiguous", "no_context", "invalid_reference"],
         message: str,
         candidates: list[dict[str, Any]] | None = None,
-    ) -> "ResolutionResult":
+    ) -> ResolutionResult:
         """
         Create error resolution result.
 

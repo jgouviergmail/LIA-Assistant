@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import sys
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Mock pydub before importing voice module (pydub requires ffmpeg)
-_mock_pydub = MagicMock()
-sys.modules.setdefault("pydub", _mock_pydub)
-
-from src.infrastructure.channels.telegram.voice import (  # noqa: E402
+# NOTE: pydub is imported for real since audioop-lts joined the manifest
+# (ADR-241) — the old module-level ``sys.modules.setdefault("pydub", mock)``
+# hack polluted every later test in the session (a sequential run handed a
+# MagicMock AudioSegment to unrelated files). ffmpeg-dependent decoding
+# (``AudioSegment.from_ogg``) is patched per-test, scope-safe, instead.
+from src.infrastructure.channels.telegram.voice import (
     _MAX_VOICE_DURATION_SECONDS,
     _TARGET_SAMPLE_RATE,
     _download_voice_file,
@@ -219,14 +219,13 @@ class TestDownloadVoiceFileSize:
 # =============================================================================
 
 
-def _setup_mock_audio_segment(raw_data: bytes) -> MagicMock:
-    """Configure a mock AudioSegment for testing _ogg_to_pcm_float."""
+def _make_mock_audio_segment(raw_data: bytes) -> MagicMock:
+    """Build a mock AudioSegment whose transform chain yields ``raw_data``."""
     mock_audio = MagicMock()
     mock_audio.set_frame_rate.return_value = mock_audio
     mock_audio.set_channels.return_value = mock_audio
     mock_audio.set_sample_width.return_value = mock_audio
     mock_audio.raw_data = raw_data
-    _mock_pydub.AudioSegment.from_ogg.return_value = mock_audio
     return mock_audio
 
 
@@ -236,9 +235,10 @@ class TestOggToPcmFloat:
     def test_converts_to_16khz_mono(self) -> None:
         """Should set frame rate to 16kHz, channels to 1, sample width to 2."""
         # 2 samples: 0x0000 (0.0) and 0x4000 (0.5)
-        mock_audio = _setup_mock_audio_segment(b"\x00\x00\x00\x40")
+        mock_audio = _make_mock_audio_segment(b"\x00\x00\x00\x40")
 
-        result = _ogg_to_pcm_float(b"fake_ogg")
+        with patch("pydub.AudioSegment.from_ogg", return_value=mock_audio):
+            result = _ogg_to_pcm_float(b"fake_ogg")
 
         mock_audio.set_frame_rate.assert_called_once_with(_TARGET_SAMPLE_RATE)
         mock_audio.set_channels.assert_called_once_with(1)
@@ -250,16 +250,19 @@ class TestOggToPcmFloat:
     def test_normalizes_samples(self) -> None:
         """Samples should be normalized to [-1.0, 1.0] range."""
         # Max positive: 0x7FFF = 32767
-        _setup_mock_audio_segment(b"\xff\x7f")
+        mock_audio = _make_mock_audio_segment(b"\xff\x7f")
 
-        result = _ogg_to_pcm_float(b"fake_ogg")
+        with patch("pydub.AudioSegment.from_ogg", return_value=mock_audio):
+            result = _ogg_to_pcm_float(b"fake_ogg")
 
         assert len(result) == 1
         assert result[0] == pytest.approx(32767 / 32768.0, abs=0.001)
 
     def test_empty_audio(self) -> None:
         """Empty audio should return empty list."""
-        _setup_mock_audio_segment(b"")
+        mock_audio = _make_mock_audio_segment(b"")
 
-        result = _ogg_to_pcm_float(b"fake_ogg")
+        with patch("pydub.AudioSegment.from_ogg", return_value=mock_audio):
+            result = _ogg_to_pcm_float(b"fake_ogg")
+
         assert result == []

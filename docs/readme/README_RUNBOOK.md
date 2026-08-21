@@ -205,7 +205,7 @@ All runbooks follow a consistent 15-section structure:
 ## LIA Architecture Reference
 
 ### Components
-- **API**: FastAPI (Python 3.12+) on port 8000
+- **API**: FastAPI (Python 3.14) on port 8000
 - **Database**: PostgreSQL 16 with SQLAlchemy ORM
 - **Cache/Rate Limiting**: Redis
 - **LLM**: Anthropic Claude (Opus/Sonnet/Haiku)

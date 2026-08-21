@@ -350,5 +350,5 @@ class FileItem(BaseComponent):
             else:
                 unit = V3Messages.get_size_unit(language, "gb")
                 return f"{bytes_size // (1024 * 1024 * 1024)} {unit}"
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return str(size) if size else ""

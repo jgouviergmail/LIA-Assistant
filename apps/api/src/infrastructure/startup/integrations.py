@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-async def init_mcp(registry: "AgentRegistry | None") -> "MCPClientManager | None":
+async def init_mcp(registry: AgentRegistry | None) -> MCPClientManager | None:
     """Initialize the MCP Client Manager (evolution F2 — MCP Support).
 
     Discovers tools from configured MCP servers, adapts them and registers
@@ -99,7 +99,7 @@ async def init_user_mcp_pool() -> None:
             logger.error("user_mcp_pool_initialization_failed", error=str(exc), exc_info=True)
 
 
-async def init_telegram_bot() -> "Bot | None":
+async def init_telegram_bot() -> Bot | None:
     """Initialize the Telegram Bot (evolution F3 — Multi-Channel).
 
     Returns:

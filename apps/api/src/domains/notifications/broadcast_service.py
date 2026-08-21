@@ -245,7 +245,7 @@ class BroadcastService:
 
     async def _translate_message(
         self,
-        llm: "BaseChatModel",
+        llm: BaseChatModel,
         message: str,
         source_language: Language,
         target_language: str,

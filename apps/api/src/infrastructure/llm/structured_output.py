@@ -511,7 +511,7 @@ def _rescue_structured_from_text[T: BaseModel](
 
     try:
         instance = schema.model_validate(json.loads(payload_text))
-    except (json.JSONDecodeError, ValidationError):
+    except json.JSONDecodeError, ValidationError:
         return None
 
     logger.warning(

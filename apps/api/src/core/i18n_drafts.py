@@ -1309,7 +1309,7 @@ def format_hitl_item_preview(
                     include_time=True,
                     include_day_name=True,
                 )
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 dt_str = ""
 
     # Compose: "{emoji} {Noun[ connector recipient]} : {label}" + optional date.

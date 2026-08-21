@@ -37,7 +37,7 @@ tzdata==2026.2  # IANA timezone database for Windows/Python 3.9+
 
 # Authentication & Security
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
-passlib[bcrypt]==1.7.4
+bcrypt==5.0.0  # direct import (core/security/utils.py); was transitive-only via the removed passlib extra — dropping passlib without this line breaks auth at install (ADR-241 follow-up)
 webauthn==2.8.0  # Passkeys (WebAuthn/FIDO2) server-side ceremonies (security program D1); 3.x needs cryptography>=49
 pyotp==2.10.0  # TOTP second factor (security program D1, Lot 2)
 qrcode==8.2  # TOTP enrollment QR (PNG data-URI via existing Pillow; security program D1, Lot 2)
@@ -61,8 +61,8 @@ opentelemetry-exporter-otlp==1.42.1
 prometheus-client==0.25.0
 langfuse==4.7.1  # Phase 6 - LLM Observability
 
-# Rate Limiting
-slowapi==0.1.9
+# NOTE: slowapi was removed with its unused limiter (SEC-016) — rate limiting
+# is the in-house Redis sliding window (infrastructure/rate_limiting).
 
 # HTTP Client
 httpx==0.28.1
@@ -147,6 +147,7 @@ pytz==2026.2  # Timezone handling for reminders
 # Channels — Multi-Channel Messaging (evolution F3)
 python-telegram-bot>=21.0  # Telegram Bot API (async, v21+)
 pydub>=0.25.1  # Audio format conversion for voice messages (OGG→PCM, requires ffmpeg)
+audioop-lts==0.2.2  # stdlib `audioop` was removed in Python 3.13; pydub imports it at module load (Telegram voice OGG→PCM would break silently without this shim)
 
 # Apple iCloud Connectors — Email (IMAP), Calendar (CalDAV), Contacts (CardDAV)
 caldav>=3.0.1  # CalDAV client with async support (caldav.aio; the 2.x [async] extra was folded into the base package)

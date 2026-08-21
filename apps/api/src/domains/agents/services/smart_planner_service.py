@@ -122,7 +122,7 @@ class SmartPlannerService:
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         tool_selection_result: dict | None = None,
         exclude_tools: set[str] | None = None,
         journal_context: str = "",
@@ -287,7 +287,7 @@ class SmartPlannerService:
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         journal_context: str = "",
     ) -> PlanningResult:
         """Plan with given catalogue (filtered or panic mode)."""
@@ -321,7 +321,7 @@ class SmartPlannerService:
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         exclude_tools: set[str] | None = None,
         journal_context: str = "",
     ) -> PlanningResult:
@@ -390,7 +390,7 @@ class SmartPlannerService:
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         journal_context: str = "",
     ) -> PlanningResult:
         """
@@ -515,7 +515,7 @@ class SmartPlannerService:
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         journal_context: str = "",
     ) -> PlanningResult:
         """
@@ -554,7 +554,7 @@ class SmartPlannerService:
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         journal_context: str = "",
     ) -> PlanningResult:
         """
@@ -723,7 +723,7 @@ class SmartPlannerService:
         intelligence: QueryIntelligence,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
     ) -> str:
         """
         Build context string with optional clarification response injection.
@@ -1202,7 +1202,7 @@ class SmartPlannerService:
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         journal_context: str = "",
         *,
         is_multi_domain: bool = False,
@@ -1311,7 +1311,7 @@ class SmartPlannerService:
         validation_feedback: str | None = None,
         clarification_response: str | None = None,
         clarification_field: str | None = None,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         journal_context: str = "",
     ) -> str:
         """Build prompt for multi-domain planning (delegates to unified _build_prompt)."""
@@ -1345,9 +1345,9 @@ class SmartPlannerService:
         plan_data: dict,
         intelligence: QueryIntelligence,
         config: RunnableConfig,
-        existing_plan: "ExecutionPlan | None" = None,
+        existing_plan: ExecutionPlan | None = None,
         clarification_field: str | None = None,
-    ) -> "ExecutionPlan":
+    ) -> ExecutionPlan:
         """Build ExecutionPlan from LLM response.
 
         Args:
@@ -1724,11 +1724,11 @@ class SmartPlannerService:
 
     def _build_plan_from_steps(
         self,
-        steps: list["ExecutionStep"],
+        steps: list[ExecutionStep],
         intelligence: QueryIntelligence,
         config: RunnableConfig,
         execution_mode: str = "sequential",
-    ) -> "ExecutionPlan":
+    ) -> ExecutionPlan:
         """Build ExecutionPlan from steps.
 
         Args:

@@ -231,7 +231,7 @@ class ModelPriceCreate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _validate_time_slots(self) -> "ModelPriceCreate":
+    def _validate_time_slots(self) -> ModelPriceCreate:
         """Reject overlapping windows and windowed tariffs on audio units."""
         if self.time_slots:
             if self.pricing_unit != "per_1m_tokens":
@@ -243,7 +243,7 @@ class ModelPriceCreate(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _enforce_template_xor_custom(self) -> "ModelPriceCreate":
+    def _enforce_template_xor_custom(self) -> ModelPriceCreate:
         """Enforce reasoning template-mode vs custom-mode mutual exclusivity.
 
         The 4 reasoning shape fields must be wholly absent when
@@ -401,7 +401,7 @@ class ModelPriceUpdate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _validate_cached_price_clearing(self) -> "ModelPriceUpdate":
+    def _validate_cached_price_clearing(self) -> ModelPriceUpdate:
         """Refuse a payload that both clears and sets the cached price.
 
         Ranking two contradictory intents silently is how a price ends up
@@ -415,7 +415,7 @@ class ModelPriceUpdate(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _validate_time_slots(self) -> "ModelPriceUpdate":
+    def _validate_time_slots(self) -> ModelPriceUpdate:
         """Reject overlaps, and audio units combined with non-empty slots.
 
         The unit check here only covers payloads carrying BOTH fields; the
@@ -432,7 +432,7 @@ class ModelPriceUpdate(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _reject_template_with_explicit_reasoning(self) -> "ModelPriceUpdate":
+    def _reject_template_with_explicit_reasoning(self) -> ModelPriceUpdate:
         """Reject mixing template-mode with explicit reasoning fields.
 
         Per-widget cohesion (enum requires enum_values, budget_int requires

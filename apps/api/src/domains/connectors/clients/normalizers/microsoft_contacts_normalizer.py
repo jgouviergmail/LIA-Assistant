@@ -180,7 +180,7 @@ def _parse_birthday(birthday_str: str) -> dict[str, int] | None:
             if year <= 1604:
                 year = 0
             return {"year": year, "month": month, "day": day}
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         logger.warning("microsoft_birthday_parse_failed", birthday=birthday_str)
     return None
 

@@ -148,7 +148,7 @@ def parse_skill_file(path: Path) -> dict[str, Any] | None:
     """
     try:
         content = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+    except OSError, UnicodeDecodeError:
         logger.warning("skill_file_read_error", path=str(path))
         return None
 
@@ -230,7 +230,7 @@ def parse_skill_file(path: Path) -> dict[str, Any] | None:
                 isinstance(k, str) and isinstance(v, str) for k, v in raw.items()
             ):
                 translations = raw
-        except (OSError, ValueError):
+        except OSError, ValueError:
             logger.warning("skill_translations_load_error", path=str(translations_file))
 
     skill: dict[str, Any] = {
