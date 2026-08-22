@@ -219,7 +219,7 @@ class TestRetrieveRagContext:
             mock_s.rag_spaces_retrieval_limit = 5
             mock_s.rag_spaces_retrieval_min_score = 0.3
             mock_s.rag_spaces_max_context_tokens = 2000
-            mock_s.rag_spaces_hybrid_alpha = 0.7
+            mock_s.rag_spaces_bm25_bonus_weight = 0.05
             yield mock_s
 
     def _patch_metrics(self):
@@ -613,7 +613,7 @@ class TestRetrieveRagContext:
             )
 
         assert result is not None
-        # With alpha=0.7, semantic_score=0.9, bm25=0.0 → hybrid=0.63 > min_score 0.3
+        # Semantic 0.9 >= min_score 0.3; BM25 unavailable contributes no bonus.
         assert len(result.chunks) == 1
         assert result.chunks[0].content == "Relevant content."
 
@@ -687,7 +687,7 @@ class TestRetrieveRagContext:
             )
 
         assert result is not None
-        # hybrid = 0.7 * 0.1 + 0.3 * 0.0 = 0.07 < min_score 0.5
+        # Semantic 0.1 < min_score 0.5 → gated out before any BM25 bonus.
         assert len(result.chunks) == 0
 
     @pytest.mark.asyncio

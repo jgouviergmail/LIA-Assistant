@@ -233,6 +233,80 @@ class TestSystemRagDeferral:
 
 
 @pytest.mark.unit
+@pytest.mark.asyncio
+class TestUserRagDebugPayload:
+    """The RAG debug payload publishes the bounds it enforced (ADR-242).
+
+    A score shown next to a threshold nobody can see is unreadable: the debug
+    panel draws ``min_score`` as a tick on every bar, and explains an empty
+    result with the value that caused it. That only works if the backend ships
+    the number alongside the results.
+    """
+
+    async def _run(self, monkeypatch: pytest.MonkeyPatch, chunks: list[Any]) -> dict[str, Any]:
+        from uuid import uuid4
+
+        class _Ctx:
+            async def __aenter__(self) -> Any:
+                return object()
+
+            async def __aexit__(self, *_a: Any) -> bool:
+                return False
+
+        result = type(
+            "R",
+            (),
+            {
+                "chunks": chunks,
+                "spaces_searched": 1,
+                "total_results": len(chunks),
+                "to_prompt_context": lambda self: "CTX",
+            },
+        )()
+
+        async def _fake_retrieve(**_kw: Any) -> Any:
+            return result
+
+        monkeypatch.setattr(rc.settings, "rag_spaces_enabled", True, raising=False)
+        monkeypatch.setattr(rc.settings, "rag_spaces_retrieval_min_score", 0.62, raising=False)
+        monkeypatch.setattr(rc.settings, "rag_spaces_retrieval_limit", 5, raising=False)
+        monkeypatch.setattr(
+            "src.domains.rag_spaces.retrieval.retrieve_rag_context", _fake_retrieve, raising=False
+        )
+        monkeypatch.setattr(
+            "src.infrastructure.database.session.get_db_context", lambda: _Ctx(), raising=False
+        )
+
+        from langchain_core.messages import HumanMessage
+
+        bundle = await rc.fetch_response_context(
+            {"messages": [HumanMessage(content="what does my contract say?")]},
+            {"configurable": {"langgraph_user_id": str(uuid4()), "thread_id": "t-1"}},
+            "run-1",
+        )
+        return bundle.rag_injection_debug or {}
+
+    async def test_payload_carries_the_enforced_bounds(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        chunk = type(
+            "C", (), {"space_name": "Legal", "original_filename": "c.pdf", "score": 0.74}
+        )()
+
+        debug = await self._run(monkeypatch, [chunk])
+
+        assert debug.get("settings") == {"min_score": 0.62, "max_results": 5}
+
+    async def test_bounds_are_published_even_when_nothing_matched(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The empty case is precisely when the reader needs the threshold."""
+        debug = await self._run(monkeypatch, [])
+
+        assert debug == {} or debug.get("settings") == {"min_score": 0.62, "max_results": 5}
+
+
+@pytest.mark.unit
 class TestExtractLastUserMessage:
     """extract_last_user_message mirrors the response-node convention."""
 

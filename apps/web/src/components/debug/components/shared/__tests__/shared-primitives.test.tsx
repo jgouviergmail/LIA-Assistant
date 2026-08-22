@@ -19,6 +19,7 @@ import { DebugChip } from '../DebugChip';
 import { NodeChip } from '../NodeChip';
 import { ScoreBar } from '../ScoreBar';
 import { ScoreLegend } from '../ScoreLegend';
+import { RetrievalSettingsBar } from '../RetrievalSettingsBar';
 import { SubSectionHeader } from '../SubSectionHeader';
 import { SectionBadge } from '../badges/SectionBadge';
 import { ActionBadge } from '../ActionBadge';
@@ -92,6 +93,31 @@ describe('DebugChip / NodeChip', () => {
     const chip = screen.getByText('react_call_model');
     expect(chip.className).toContain('fuchsia');
     expect(chip.className).toContain('dark:text-fuchsia-300');
+  });
+});
+
+describe('RetrievalSettingsBar', () => {
+  it('shows the bounds raw, never reformatted as percentages', () => {
+    render(<RetrievalSettingsBar minScore={0.62} maxResults={5} />);
+    expect(screen.getByText('0.62')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.queryByText('62%')).not.toBeInTheDocument();
+  });
+
+  it('labels both bounds so the values are readable on their own', () => {
+    render(<RetrievalSettingsBar minScore={0.7} maxResults={3} />);
+    expect(screen.getByText('min_score:')).toBeInTheDocument();
+    expect(screen.getByText('max_results:')).toBeInTheDocument();
+  });
+
+  it('renders a zero threshold rather than treating it as absent', () => {
+    render(<RetrievalSettingsBar minScore={0} maxResults={5} />);
+    expect(screen.getByText('0')).toBeInTheDocument();
+  });
+
+  it('wraps instead of overflowing on a narrow panel', () => {
+    const { container } = render(<RetrievalSettingsBar minScore={0.62} maxResults={5} />);
+    expect(container.firstElementChild?.className).toContain('flex-wrap');
   });
 });
 

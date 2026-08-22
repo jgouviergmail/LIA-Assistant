@@ -100,10 +100,11 @@ describe('score tiers', () => {
     expect(scoreTier(0.79, 'similarity')).toBe('medium');
     expect(scoreTier(0.6, 'similarity')).toBe('medium');
     expect(scoreTier(0.59, 'similarity')).toBe('low');
-    // relevance space (RAG / journals): 0.7 / 0.5
-    expect(scoreTier(0.7, 'relevance')).toBe('high');
-    expect(scoreTier(0.5, 'relevance')).toBe('medium');
-    expect(scoreTier(0.49, 'relevance')).toBe('low');
+    // relevance space (RAG / journals): 0.75 / 0.68 — see SCORE_SPACES
+    expect(scoreTier(0.75, 'relevance')).toBe('high');
+    expect(scoreTier(0.74, 'relevance')).toBe('medium');
+    expect(scoreTier(0.68, 'relevance')).toBe('medium');
+    expect(scoreTier(0.67, 'relevance')).toBe('low');
     // confidence space (interest extraction): 0.8 / 0.5
     expect(scoreTier(0.8, 'confidence')).toBe('high');
     expect(scoreTier(0.5, 'confidence')).toBe('medium');

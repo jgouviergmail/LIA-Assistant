@@ -4314,6 +4314,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_31_2": {
+          "title": "v1.31.2 — 🔎 Document search finds its answers again",
+          "date": "August 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>📄 Your documents answer again</b> — search across your knowledge spaces was discarding one correct answer in three: ranking mixed meaning-based understanding with keyword matching, and the second signal could eliminate a perfectly relevant excerpt purely because it shared no word with your question. Asking \"is my data encrypted?\" returned nothing, while five passages answered it. Fixed.",
+            "i2": "<b>🌍 In all six languages, Chinese most of all</b> — the defect hit harder the further your question's language sat from your documents'. On Chinese-language documents, search found the right answer only 7% of the time; it now succeeds nearly 9 times out of 10. French, German, Spanish and Italian all improve markedly.",
+            "i3": "<b>🤫 Fewer off-topic excerpts</b> — when your message has nothing to do with your documents, LIA now slips fewer of them into its reasoning than before. The fix improves relevance and reduces noise at the same time; it does not trade one for the other.",
+            "i4": "<b>🛡️ A startup that refuses an inconsistent configuration</b> — if the semantic-search model is misconfigured, the application says so at boot instead of letting every write fail silently in production. The debug panel also shows the relevance threshold in force, drawn directly on each score bar."
+          }
+        },
         "v1_31_1": {
           "title": "v1.31.1 — 🌍 The Google ecosystem widens",
           "date": "August 2026",
@@ -7247,7 +7258,7 @@
           },
           "q5": {
             "question": "How does hybrid search work?",
-            "answer": "<p>LIA uses a <strong>hybrid search</strong> combining two complementary techniques:</p><ul><li><strong>Semantic search</strong> — finds content with similar meaning using vector embeddings (cosine similarity)</li><li><strong>BM25 keyword search</strong> — finds content with matching keywords (exact term matching)</li></ul><p>Results are merged using a weighted fusion formula. This ensures both conceptually relevant and keyword-accurate results are surfaced.</p><p><strong>Quality controls:</strong> minimum relevance score threshold, token budget limit (2000 tokens max), and configurable number of chunks per query.</p>"
+            "answer": "<p>LIA combines two signals, but they do not carry the same weight.</p><ul><li><strong>Semantic search decides</strong> — multilingual vector embeddings compare the <em>meaning</em> of your question with each passage (cosine similarity). That score alone determines whether an excerpt is relevant.</li><li><strong>BM25 breaks ties</strong> — exact word matching adds a bounded bonus that can lift a literal occurrence above a near-tie. It can neither admit nor evict an excerpt.</li></ul><p>This separation came out of a fix: blending both signals in comparable shares discarded one correct answer in three as soon as the question's language drifted from the documents'.</p><p>The relevance threshold was recalibrated across the <strong>six languages</strong> on real corpora. Space-less scripts (Chinese, Japanese, Korean) are split into character bigrams, without which a whole sentence would count as a single word.</p><p><strong>Quality controls:</strong> semantic relevance threshold, token budget limit (2000 tokens max), and configurable number of excerpts per query.</p>"
           },
           "q6": {
             "question": "How much does RAG cost?",
@@ -9157,7 +9168,7 @@
       },
       "hybrid_search": {
         "title": "Hybrid search",
-        "description": "BM25 + multilingual semantic embeddings over your knowledge spaces: exact words and meaning are fused over the same index generation. Your memories are retrieved by a dual semantic search instead."
+        "description": "Across your knowledge spaces, relevance is decided on meaning: a single threshold gates the multilingual embedding similarity, recalibrated over the six languages. BM25 keeps its useful role — surfacing an exact term over a near-tie — but as a bounded bonus, never as the arbiter: blending both signals in comparable shares discarded one correct answer in three as soon as the question's language drifted from the documents'. Space-less scripts are split into character bigrams, without which a whole Chinese sentence counts as a single word. Your memories are retrieved by a dual semantic search instead."
       },
       "realtime": {
         "title": "Real-time streaming",
@@ -9806,7 +9817,7 @@
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Turn Your Documents into AI Intelligence",
         "excerpt": "Import your PDFs, Word, Excel and other documents. LIA indexes them with hybrid semantic + BM25 search to answer your questions.",
-        "body": "<h2>15+ supported formats</h2><p>LIA's Knowledge Spaces accept over <strong>15 file formats</strong> with dedicated parsers:</p><ul><li><strong>PDF</strong> via PyMuPDF (fast and accurate extraction)</li><li><strong>Documents</strong> — DOCX, RTF, ODT</li><li><strong>Spreadsheets</strong> — XLSX, CSV, ODS</li><li><strong>Presentations</strong> — PPTX, ODP</li><li><strong>Web and text</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Intelligent chunking</h2><p>Documents are split by a <strong>RecursiveCharacterTextSplitter</strong> with optimized parameters: <strong>1000 characters</strong> per chunk, <strong>200 characters</strong> of overlap to preserve context between segments. Safety limit: <strong>500 chunks maximum per document</strong>, maximum size <strong>20 MB per file</strong>.</p><h2>Hybrid search: best of both worlds</h2><p>LIA combines two search approaches:</p><ul><li><strong>Semantic search</strong> — Embeddings via pgvector. Finds results by meaning similarity, even when words differ.</li><li><strong>BM25 search</strong> — Keyword matching. Ideal for technical terms, proper names, and identifiers.</li></ul><p>The final score is weighted with <strong>alpha = 0.7</strong> (70% semantic, 30% BM25). The minimum relevance score is <strong>0.5</strong> — results below are filtered out. By default, <strong>5 chunks</strong> are retrieved per query (configurable maximum: 20).</p><h2>Limits and quotas</h2><p>Each user has: <strong>10 spaces</strong> maximum, <strong>50 documents per space</strong>, <strong>20 MB per file</strong>. These limits ensure optimal search performance while offering sufficient capacity for most use cases.</p><h2>Google Drive sync</h2><p>You can connect a <strong>Google Drive folder</strong> to a Knowledge Space. Documents are automatically synced and re-indexed when they change. Synchronization detects additions, modifications, and deletions.</p><h2>Built-in FAQ</h2><p>LIA has a system Knowledge Space containing its own documentation (18 FAQ files). This allows it to answer questions about its own features with precision.</p>"
+        "body": "<h2>15+ supported formats</h2><p>LIA's Knowledge Spaces accept over <strong>15 file formats</strong> with dedicated parsers:</p><ul><li><strong>PDF</strong> via PyMuPDF (fast and accurate extraction)</li><li><strong>Documents</strong> — DOCX, RTF, ODT</li><li><strong>Spreadsheets</strong> — XLSX, CSV, ODS</li><li><strong>Presentations</strong> — PPTX, ODP</li><li><strong>Web and text</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Intelligent chunking</h2><p>Documents are split by a <strong>RecursiveCharacterTextSplitter</strong> with optimized parameters: <strong>1000 characters</strong> per chunk, <strong>200 characters</strong> of overlap to preserve context between segments. Safety limit: <strong>500 chunks maximum per document</strong>, maximum size <strong>20 MB per file</strong>.</p><h2>Hybrid search: best of both worlds</h2><p>LIA combines two search approaches:</p><ul><li><strong>Semantic search</strong> — Embeddings via pgvector. Finds results by meaning similarity, even when words differ.</li><li><strong>BM25 search</strong> — Keyword matching. Ideal for technical terms, proper names, and identifiers.</li></ul><p>The two signals do not carry the same weight, and that is deliberate. Relevance is decided on <strong>semantic similarity alone</strong>: an excerpt is kept if it reaches <strong>0.62</strong>, a threshold recalibrated across the six languages on real corpora. BM25 then adds only a <strong>bounded bonus (0.05)</strong> used to break ties — it can lift a literal occurrence above a near-tie, never admit or evict an excerpt. Blending both signals in comparable shares, as LIA did until August 2026, discarded one correct answer in three as soon as the question's language drifted from the documents'. By default, <strong>5 excerpts</strong> are retrieved per query (configurable maximum: 20).</p><h2>Limits and quotas</h2><p>Each user has: <strong>10 spaces</strong> maximum, <strong>50 documents per space</strong>, <strong>20 MB per file</strong>. These limits ensure optimal search performance while offering sufficient capacity for most use cases.</p><h2>Google Drive sync</h2><p>You can connect a <strong>Google Drive folder</strong> to a Knowledge Space. Documents are automatically synced and re-indexed when they change. Synchronization detects additions, modifications, and deletions.</p><h2>Built-in FAQ</h2><p>LIA has a system Knowledge Space containing its own documentation (18 FAQ files). This allows it to answer questions about its own features with precision.</p>"
       },
       "personal-journals": {
         "title": "Personal Journals: When Your AI Assistant Develops Its Own Memory",
@@ -10355,7 +10366,7 @@
   "story": {
     "meta": {
       "title": "Story — Directing an AI That Codes | LIA",
-      "description": "How LIA was built: ~100% AI-written code under human direction, 26,500+ tests, 240 ADRs, an 8.3/10 technical audit. The complete field report."
+      "description": "How LIA was built: ~100% AI-written code under human direction, 26,600+ tests, 241 ADRs, an 8.3/10 technical audit. The complete field report."
     },
     "breadcrumb": "Story",
     "hero": {

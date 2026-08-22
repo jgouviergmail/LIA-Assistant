@@ -15,8 +15,13 @@ Le Semantic Tool Router remplace le routing basé sur mots-clés par une approch
 ### Key Features
 
 - **Max-Pooling Strategy** : Évite la dilution sémantique
-- **Double Threshold** : Confiance haute (0.70) + zone d'incertitude (0.60)
-- **OpenAI Embeddings** : text-embedding-3-small (1536 dims, 100+ langues)
+- **Sélection relative** : les scores cosinus bruts sont étirés en min-max sur
+  l'ensemble des candidats puis passés en softmax ; la coupe se fait sur la
+  probabilité résultante (`V3_TOOL_CALIBRATED_PRIMARY_MIN`), pas sur un seuil
+  absolu. Les deux seuils absolus `SEMANTIC_TOOL_SELECTOR_{HARD,SOFT}_THRESHOLD`
+  ont été **supprimés** (ADR-242) : documentés depuis toujours, ils n'étaient
+  lus par aucun chemin de code.
+- **Gemini Embeddings** : gemini-embedding-001 (1536 dims, 100+ langues)
 - **Startup Caching** : Embeddings des tools pré-calculés
 
 ---
@@ -135,9 +140,8 @@ result = await selector.select_tools(
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SEMANTIC_TOOL_SELECTOR_HARD_THRESHOLD` | 0.70 | High confidence (injection directe) |
-| `SEMANTIC_TOOL_SELECTOR_SOFT_THRESHOLD` | 0.60 | Uncertainty zone (confidence reduite) |
 | `SEMANTIC_TOOL_SELECTOR_MAX_TOOLS` | 8 | Max tools retournes |
+| `V3_TOOL_CALIBRATED_PRIMARY_MIN` | — | Coupe sur le score **calibré** (softmax), seul seuil réellement appliqué |
 | `SEMANTIC_DOMAIN_HARD_THRESHOLD` | 0.75 | High confidence domain match |
 | `SEMANTIC_DOMAIN_SOFT_THRESHOLD` | 0.65 | Uncertainty zone domain |
 | `SEMANTIC_DOMAIN_MAX_DOMAINS` | 5 | Max domains retournes |

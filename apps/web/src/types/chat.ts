@@ -955,7 +955,27 @@ export interface RAGInjectionMetrics {
   spaces_searched: number;
   chunks_found: number;
   chunks_injected: number;
+  /**
+   * Retrieval thresholds in force for this turn. Optional: payloads produced
+   * before ADR-242 do not carry it, and the panel then simply omits the
+   * threshold marker rather than inventing one.
+   */
+  settings?: RAGInjectionSettings;
   chunks: RAGInjectionChunk[];
+}
+
+/**
+ * RAGInjectionSettings - Retrieval bounds published alongside the results
+ *
+ * Mirrors MemoryInjectionMetrics.settings: a threshold the backend enforces is
+ * shown to whoever reads the scores, so "why was this chunk dropped" is
+ * answerable from the panel alone.
+ */
+export interface RAGInjectionSettings {
+  /** Minimum semantic score a chunk needed to be injected. */
+  min_score: number;
+  /** Maximum number of chunks the turn could inject. */
+  max_results: number;
 }
 
 /**

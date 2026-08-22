@@ -29,11 +29,11 @@ from src.core.constants import (
     RAG_JOB_REAPER_INTERVAL_SECONDS_DEFAULT,
     RAG_REINDEX_LOCK_TTL_SECONDS_DEFAULT,
     RAG_SPACES_ALLOWED_TYPES_DEFAULT,
+    RAG_SPACES_BM25_BONUS_WEIGHT_DEFAULT,
     RAG_SPACES_CHUNK_OVERLAP_DEFAULT,
     RAG_SPACES_CHUNK_SIZE_DEFAULT,
     RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT,
     RAG_SPACES_EMBEDDING_MODEL_DEFAULT,
-    RAG_SPACES_HYBRID_ALPHA_DEFAULT,
     RAG_SPACES_MAX_CHUNKS_PER_DOCUMENT_DEFAULT,
     RAG_SPACES_MAX_CONTEXT_TOKENS_DEFAULT,
     RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT,
@@ -234,7 +234,12 @@ class RAGSpacesSettings(BaseSettings):
         default=RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT,
         ge=0.0,
         le=1.0,
-        description="Minimum hybrid score threshold to include a chunk.",
+        description=(
+            "Minimum SEMANTIC cosine similarity for a chunk to be injected. "
+            "Applies to the embedding score alone, before the BM25 bonus, so the "
+            "value means the same thing whether or not the query shares "
+            "vocabulary with the documents (ADR-242)."
+        ),
     )
 
     rag_spaces_max_context_tokens: int = Field(
@@ -244,11 +249,15 @@ class RAGSpacesSettings(BaseSettings):
         description="Hard cap on total RAG context tokens injected into the prompt.",
     )
 
-    rag_spaces_hybrid_alpha: float = Field(
-        default=RAG_SPACES_HYBRID_ALPHA_DEFAULT,
+    rag_spaces_bm25_bonus_weight: float = Field(
+        default=RAG_SPACES_BM25_BONUS_WEIGHT_DEFAULT,
         ge=0.0,
         le=1.0,
-        description=("Weight for hybrid search fusion. " "1.0 = pure semantic, 0.0 = pure BM25."),
+        description=(
+            "Maximum bonus BM25 may add on top of the semantic score, to "
+            "re-order the chunks that already passed the threshold. 0.0 "
+            "disables lexical re-ordering entirely (ADR-242)."
+        ),
     )
 
     # ========================================================================

@@ -434,10 +434,10 @@ class SemanticToolSelector:
         """
         Select tools matching the user query.
 
-        Uses semantic similarity with configurable double threshold:
-        - score >= hard_threshold: High confidence match
-        - soft_threshold <= score < hard_threshold: Medium confidence (uncertainty zone)
-        - score < soft_threshold: Not selected
+        Selection is RELATIVE, not absolute: raw cosine scores are min-max
+        stretched across the candidate set, softmaxed into a distribution, and
+        cut at ``v3_tool_calibrated_primary_min``. A tool scoring below 0.40
+        after calibration also raises ``has_uncertainty``.
 
         Args:
             query: User query to match

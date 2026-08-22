@@ -13,9 +13,14 @@
 > - **mémoires** — recherche sémantique multi-vecteurs (embedding du contenu +
 >   embedding des mots-clés, `LEAST(dist_content, dist_keyword)`), voir
 >   `domains/memories/repository.py::search_by_relevance` ;
-> - **RAG Spaces** — recherche hybride sémantique + BM25 bien vivante, voir
->   `domains/rag_spaces/retrieval.py` (c'est elle qui consomme
->   `infrastructure/store/bm25_index.py`).
+> - **RAG Spaces** — seul chemin encore vivant qui consomme
+>   `infrastructure/store/bm25_index.py`, voir `domains/rag_spaces/retrieval.py`.
+>   **Sa fusion n'a plus la forme décrite ci-dessous** : depuis ADR-242
+>   (2026-08-22) le seuil s'applique au score **sémantique** seul et BM25 n'est
+>   plus qu'un bonus borné de ré-ordonnancement (`semantic + β × BM25`,
+>   β = 0,05). La pondération `α × semantic + (1-α) × BM25` du corps de ce
+>   document donnait 1,0 au « moins mauvais » appariement lexical et écartait
+>   36 % des bonnes réponses — ne pas la reprendre comme modèle.
 >
 > Le corps ci-dessous est conservé comme trace de conception.
 

@@ -68,6 +68,14 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-08-22 after the RAG fusion lot
+        // (ADR-242: the shared RetrievalSettingsBar extracted from the two
+        // injection sections, the recalibrated relevance tiers, the threshold
+        // tick wired onto every score bar and the RAG section's settings /
+        // empty-result contract):
+        // statements 76.49 / branches 71.65 / functions 73.55 / lines 77.15.
+        // Unchanged 74/69/71/75 (floor(measured - 2) per axis — no axis crosses
+        // an integer step this time).
         // Global floor — re-measured 2026-08-20 after the prod-log remediation
         // lot (SSE superseded handling in useNotifications + BroadcastProvider
         // with visibility-driven resume, the live-demo CTA telemetry):

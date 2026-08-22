@@ -19,6 +19,7 @@ Created: 2026-04-02
 
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
@@ -27,6 +28,8 @@ from typing import Any, TypeVar
 from langchain_core.embeddings import Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+from src.core.constants import CJK_SCRIPT_RANGES
+from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.llm.tracked_embeddings import (
     embedding_api_calls_total,
     embedding_api_latency_seconds,
@@ -39,17 +42,23 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
-# Approximate token counting for cost tracking.
-# Gemini pricing: $0.15 per 1M input tokens.
-# Heuristic: ~4 chars per token for multilingual text (approximate).
-GEMINI_EMBEDDING_COST_PER_TOKEN_USD = 0.15 / 1_000_000
+# Characters belonging to a space-less script, counted one token each.
+_CJK_CHAR = re.compile(f"[{CJK_SCRIPT_RANGES}]")
+
+# Characters per token for space-separated scripts. Measured against the real
+# Gemini tokenizer over fr/en/de/es/it corpora (2026-08-22): 4 lands within a few
+# percent, so this half of the estimate is unchanged.
+_CHARS_PER_TOKEN = 4
 
 
 def _estimate_tokens(texts: list[str]) -> int:
-    """Estimate token count from text lengths.
+    """Estimate the Gemini token count of a batch, script by script.
 
-    Rough heuristic: ~4 chars per token for multilingual text.
-    Actual Gemini tokenization may differ for CJK or mixed-language text.
+    Space-less scripts (zh, ja, ko) tokenize at roughly one token per character,
+    space-separated ones at roughly one per four. Applying the 4-character rule
+    to Chinese under-counted it by 41-57%, and the whole multilingual corpus by
+    15%; splitting the two brings the aggregate to +1% (measured 2026-08-22 over
+    36 chunks across the 6 supported languages, ADR-242).
 
     Args:
         texts: List of text strings to estimate.
@@ -57,7 +66,35 @@ def _estimate_tokens(texts: list[str]) -> int:
     Returns:
         Estimated total token count.
     """
-    return sum(len(t) // 4 + 1 for t in texts)
+    total = 0
+    for text in texts:
+        cjk = len(_CJK_CHAR.findall(text))
+        total += cjk + (len(text) - cjk) // _CHARS_PER_TOKEN + 1
+    return total
+
+
+def _embedding_cost_usd(model_name: str, token_count: int) -> float:
+    """Price a batch from the administered tariff table.
+
+    An embedding model's price is configured in ``llm_model_pricing`` like every
+    other model's, and the persisted billing has always read it from there.
+    Metrics and logs used a frozen 0.15/1M constant instead, which lied the
+    moment the configured model or the tariff changed.
+
+    Args:
+        model_name: Model id as keyed in the pricing table (no ``models/``).
+        token_count: Input tokens consumed (embeddings produce no output).
+
+    Returns:
+        Cost in USD, or 0.0 when no price is cached — observability must never
+        be the reason an embedding call fails.
+    """
+    try:
+        cost_usd, _cost_eur = get_cached_cost_usd_eur(model_name, token_count, 0)
+    except Exception as e:  # pragma: no cover - defensive; the cache is in-memory
+        logger.debug("embedding_pricing_unavailable", model=model_name, error=str(e))
+        return 0.0
+    return float(cost_usd)
 
 
 class GeminiRetrievalEmbeddings(Embeddings):
@@ -212,10 +249,10 @@ class GeminiRetrievalEmbeddings(Embeddings):
         try:
             result = fn()
             latency = time.time() - start
-            self._emit_metrics(token_count, latency, operation, "success")
+            cost_usd = self._emit_metrics(token_count, latency, operation, "success")
 
             # Best-effort DB persistence from sync context
-            self._persist_cost_sync(token_count, operation, latency)
+            self._persist_cost_sync(token_count, cost_usd, operation, latency)
 
             return result
         except Exception as e:
@@ -244,10 +281,9 @@ class GeminiRetrievalEmbeddings(Embeddings):
         try:
             result = await coro
             latency = time.time() - start
-            self._emit_metrics(token_count, latency, operation, "success")
+            cost_usd = self._emit_metrics(token_count, latency, operation, "success")
 
             # Persist to DB for user billing
-            cost_usd = token_count * GEMINI_EMBEDDING_COST_PER_TOKEN_USD
             from src.infrastructure.llm.embedding_context import persist_embedding_tokens
 
             await persist_embedding_tokens(
@@ -267,6 +303,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
     def _persist_cost_sync(
         self,
         token_count: int,
+        cost_usd: float,
         operation: str,
         latency: float,
     ) -> None:
@@ -278,12 +315,12 @@ class GeminiRetrievalEmbeddings(Embeddings):
 
         Args:
             token_count: Number of tokens consumed.
+            cost_usd: Cost already priced by :meth:`_emit_metrics` for this batch.
             operation: Operation type.
             latency: API call latency in seconds.
         """
         import asyncio
 
-        cost_usd = token_count * GEMINI_EMBEDDING_COST_PER_TOKEN_USD
         # No event loop running (CLI context) — Prometheus metrics are sufficient
         with suppress(RuntimeError):
             loop = asyncio.get_running_loop()
@@ -305,14 +342,18 @@ class GeminiRetrievalEmbeddings(Embeddings):
         latency: float,
         operation: str,
         status: str,
-    ) -> None:
-        """Emit Prometheus metrics for embedding operation.
+    ) -> float:
+        """Emit Prometheus metrics for one embedding operation.
 
         Args:
             token_count: Estimated tokens consumed.
             latency: API call latency in seconds.
             operation: Operation type ("embed_documents" or "embed_query").
             status: Call status ("success" or "error").
+
+        Returns:
+            The cost in USD this batch was priced at, so the caller can reuse it
+            for persistence instead of pricing the same batch a second time.
         """
         embedding_tokens_consumed_total.labels(model=self.model_name, operation=operation).inc(
             token_count
@@ -320,7 +361,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
         embedding_api_calls_total.labels(model=self.model_name, status=status).inc()
         embedding_api_latency_seconds.labels(model=self.model_name).observe(latency)
 
-        cost_usd = token_count * GEMINI_EMBEDDING_COST_PER_TOKEN_USD
+        cost_usd = _embedding_cost_usd(self.model_name, token_count)
         embedding_cost_total.labels(model=self.model_name, currency="USD").inc(cost_usd)
 
         logger.debug(
@@ -331,3 +372,4 @@ class GeminiRetrievalEmbeddings(Embeddings):
             latency_seconds=round(latency, 3),
             cost_usd=round(cost_usd, 6),
         )
+        return cost_usd

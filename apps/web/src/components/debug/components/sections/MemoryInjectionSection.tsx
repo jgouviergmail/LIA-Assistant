@@ -11,6 +11,7 @@ import {
   DebugChip,
   DebugSection,
   EmptySection,
+  RetrievalSettingsBar,
   ScoreBar,
   ScoreLegend,
   SubSectionHeader,
@@ -37,9 +38,12 @@ function emotionalStateTone(state: string): DebugTone {
 const MemoryRow = React.memo(function MemoryRow({
   memory,
   index,
+  threshold,
 }: {
   memory: MemoryInjectionDebugItem;
   index: number;
+  /** min_score in force, drawn as a tick on the score bar. */
+  threshold: number;
 }) {
   const emotional = getEmotionalLabel(memory.emotional_weight);
 
@@ -54,7 +58,12 @@ const MemoryRow = React.memo(function MemoryRow({
         </span>
 
         {/* Score bar + value (shared primitive, similarity space) */}
-        <ScoreBar score={memory.score} space="similarity" className="flex-shrink-0" />
+        <ScoreBar
+          score={memory.score}
+          space="similarity"
+          threshold={threshold}
+          className="flex-shrink-0"
+        />
 
         {/* Category badge */}
         <DebugChip tone="info">{memory.category}</DebugChip>
@@ -110,15 +119,10 @@ export const MemoryInjectionSection = React.memo(function MemoryInjectionSection
       }
     >
       {/* Settings summary */}
-      <div className="flex flex-wrap items-center gap-3 rounded bg-muted/20 p-2 text-[10px] text-muted-foreground">
-        <span>
-          <strong>min_score:</strong> <span className="font-mono">{data.settings.min_score}</span>
-        </span>
-        <span>
-          <strong>max_results:</strong>{' '}
-          <span className="font-mono">{data.settings.max_results}</span>
-        </span>
-      </div>
+      <RetrievalSettingsBar
+        minScore={data.settings.min_score}
+        maxResults={data.settings.max_results}
+      />
 
       {/* Memories list */}
       {hasMemories ? (
@@ -126,7 +130,12 @@ export const MemoryInjectionSection = React.memo(function MemoryInjectionSection
           <SubSectionHeader label={`Injected memories (${data.memory_count})`} />
           <div className="max-h-[300px] space-y-1 overflow-y-auto">
             {data.memories.map((memory, index) => (
-              <MemoryRow key={`${memory.category}-${index}`} memory={memory} index={index} />
+              <MemoryRow
+                key={`${memory.category}-${index}`}
+                memory={memory}
+                index={index}
+                threshold={data.settings.min_score}
+              />
             ))}
           </div>
         </div>

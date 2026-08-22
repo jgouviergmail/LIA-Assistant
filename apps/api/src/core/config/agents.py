@@ -298,9 +298,7 @@ from src.core.constants import (
     SEMANTIC_PIVOT_LLM_PROVIDER_CONFIG_DEFAULT,
     SEMANTIC_PIVOT_LLM_TEMPERATURE_DEFAULT,
     SEMANTIC_PIVOT_LLM_TOP_P_DEFAULT,
-    SEMANTIC_TOOL_SELECTOR_HARD_THRESHOLD_DEFAULT,
     SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT,
-    SEMANTIC_TOOL_SELECTOR_SOFT_THRESHOLD_DEFAULT,
     SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT,
     SEMANTIC_VALIDATION_FALLBACK_CONFIDENCE_DEFAULT,
     SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT,
@@ -2211,27 +2209,10 @@ class AgentsSettings(BaseSettings):
     # Semantic Tool Selector (Router Enhancement)
     # ========================================================================
     # SemanticToolSelector provides domain hints to the router using embeddings.
-    # Used for semantic domain detection in router_node.
-    semantic_tool_selector_hard_threshold: float = Field(
-        default=SEMANTIC_TOOL_SELECTOR_HARD_THRESHOLD_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Hard threshold for semantic tool selection (high confidence). "
-            "Tools with similarity >= this threshold are directly injected. "
-            "Default: 0.70 for precise matching."
-        ),
-    )
-    semantic_tool_selector_soft_threshold: float = Field(
-        default=SEMANTIC_TOOL_SELECTOR_SOFT_THRESHOLD_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Soft threshold for semantic tool selection (uncertainty zone). "
-            "Tools between soft and hard thresholds are included with lower confidence. "
-            "Default: 0.60 for broader matching."
-        ),
-    )
+    # Selection is relative, not absolute: raw cosine scores are min-max
+    # stretched then softmaxed, and the cut is `v3_tool_calibrated_primary_min`
+    # on the resulting probability. The former absolute hard/soft thresholds
+    # were removed in ADR-242 — they had never been read by any code path.
     semantic_tool_selector_max_tools: int = Field(
         default=SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT,
         ge=1,

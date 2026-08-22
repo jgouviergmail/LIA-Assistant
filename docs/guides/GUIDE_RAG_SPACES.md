@@ -54,10 +54,10 @@ All settings are in `src/core/config/rag_spaces.py` with defaults in `src/core/c
 | `rag_spaces_chunk_size` | `1000` | Target chunk size (chars) |
 | `rag_spaces_chunk_overlap` | `200` | Overlap between chunks (chars) |
 | `rag_spaces_retrieval_limit` | `5` | Max chunks per query |
-| `rag_spaces_retrieval_min_score` | `0.5` | Minimum hybrid score threshold |
+| `rag_spaces_retrieval_min_score` | `0.62` | Minimum **semantic** score, applied before the BM25 bonus (ADR-242) |
 | `rag_spaces_max_context_tokens` | `2000` | Hard cap on RAG context tokens |
-| `rag_spaces_hybrid_alpha` | `0.7` | Semantic weight (1.0 = pure semantic) |
-| `rag_spaces_embedding_model` | `text-embedding-3-small` | OpenAI embedding model |
+| `rag_spaces_bm25_bonus_weight` | `0.05` | Max bonus BM25 adds on top of the semantic score, for re-ordering only (ADR-242) |
+| `rag_spaces_embedding_model` | `models/gemini-embedding-001` | Gemini embedding model |
 | `rag_spaces_embedding_dimensions` | `1536` | Vector dimensions |
 
 ---
@@ -124,13 +124,18 @@ The `retrieve_rag_context()` function performs:
 3. **Query embedding**: `embed_rag_query_cached()` (per served generation)
 4. **Semantic search**: pgvector cosine similarity (over-fetches 3x limit,
    filtered to the served generation)
-5. **BM25 scoring**: `BM25IndexManager` with per-user, per-generation cache
-6. **Hybrid fusion**: `score = α × semantic + (1-α) × BM25`
-7. **Filtering**: Remove chunks below `min_score` threshold
+5. **Semantic gate (ADR-242)**: drop chunks scoring below `min_score` on the
+   **semantic** score alone, before any lexical signal is mixed in. A turn that
+   matched nothing stops here — no BM25 index is built.
+6. **BM25 scoring**: `BM25IndexManager` with per-user, per-generation cache.
+   `tokenize_text` splits space-less scripts (zh, ja, ko) into character
+   bigrams; without that a whole Chinese sentence was one token.
+7. **Lexical bonus**: `score = semantic + β × BM25_normalised`, β = 0.05. BM25
+   re-orders what already passed; it never admits or evicts a chunk.
 8. **Truncation**: `truncate_to_token_budget()` via tiktoken
 9. **Formatting**: Structured prompt context with source citations
 
-**Score semantics**: The repository converts cosine distance to similarity (`1 - distance`), so all scores are in `[0, 1]` where higher = more relevant.
+**Score semantics**: The repository converts cosine distance to similarity (`1 - distance`), so the semantic score is in `[0, 1]` where higher = more relevant. The returned score adds the lexical bonus on top, so it can reach `1 + β`; the debug panel clamps it for display and draws `min_score` as a tick on the bar.
 
 ### Prompt Injection Format
 
@@ -441,7 +446,9 @@ Key log events: `rag_document_processing_started`, `rag_document_processing_comp
 
 1. Verify space is **active** (`is_active = true`)
 2. Check documents are in **ready** status (not processing/error)
-3. Lower `rag_spaces_retrieval_min_score` (default 0.5 may be too strict)
+3. Lower `rag_spaces_retrieval_min_score` (default 0.62; it gates the raw
+   semantic cosine, so 0.58-0.60 widens recall at the cost of more off-topic
+   chunks — see the calibration table in ADR-242)
 4. Check Redis for `rag_reindex_in_progress` flag
 5. Verify embedding model matches between indexed chunks and query
 

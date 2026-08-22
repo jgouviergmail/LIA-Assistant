@@ -329,6 +329,14 @@ async def fetch_response_context(
                     "spaces_searched": rag_result.spaces_searched,
                     "chunks_found": rag_result.total_results,
                     "chunks_injected": len(rag_result.chunks),
+                    # Publish the bounds that produced this result: a threshold
+                    # the retrieval enforced is meaningless to a reader who
+                    # cannot see it (same doctrine as the memory-injection
+                    # payload, and as ADR-184 for the planner catalogue).
+                    "settings": {
+                        "min_score": settings.rag_spaces_retrieval_min_score,
+                        "max_results": settings.rag_spaces_retrieval_limit,
+                    },
                     "chunks": [
                         {
                             "space": c.space_name,

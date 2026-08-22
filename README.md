@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.31.1</strong> — <strong>The Google ecosystem gains eleven surfaces, and the weather becomes breathable</strong>. Capabilities the granted tokens already allowed but LIA never used are now wired: contact groups and "other contacts", free-slot search through freeBusy, an exact new-mail delta (<code>history.list</code>), Gmail mailbox settings with an out-of-office responder and filter creation, Sheets/Docs reading AND writing, Meet/Teams video links at event creation, Street View thumbnails, Web Risk URL screening before any navigation, and two new platform services — Google Weather (a no-personal-key alternative to OpenWeatherMap) and Google Environment (air quality, pollen forecasts). Every write goes through the existing confirmation flow: the preview shows exactly what will be written, and nothing leaves before approval. A plain weather question now also answers the one nobody asks — air quality and in-season pollen ride along on the chat card, the forecast and the home card, with the provider's own localized category rather than a re-derived label (Google's universal index is inverted against the EPA scale) and never a number borrowed from another scale. Real-time finally arrives by notification instead of polling (Calendar/Drive watch channels, Gmail through Pub/Sub, off by default), and two billing defects close: the Places SKU the field masks actually trigger was under-charged, and a CI guard now refuses any tracked call without a priced line. — 21 August 2026.
+  <strong>Version 1.31.2</strong> — <strong>Document search finds its answers again, in all six languages</strong>. The fusion that blends semantic similarity with keyword matching carried two compounding defects: BM25 was normalised against the corpus maximum, so the least-bad lexical match always scored a perfect 1.0 — pure noise whenever the question's language differs from the documents' — and the relevance threshold was compared against a score already shrunk by the blend weight, so a passage sharing no word with the question needed 0.786 similarity to clear a bar documented at 0.55, above the median of a <em>correct</em> answer. Measured on the live database: <strong>36% of correct answers cleared the semantic threshold and were then discarded by the fusion</strong>. The threshold now gates the semantic score alone, recalibrated across the six languages on real corpora and 740 native-language questions; keyword matching keeps its useful role — surfacing an exact term over a near-tie — but can no longer admit or evict a passage. Chinese was worst hit for a separate reason: the keyword tokenizer treated an entire Chinese sentence as one word, so lexical search there amounted to exact-sentence matching. Space-less scripts are now split into character bigrams, Latin scripts byte-identical. Recall, measured per language: French 0.525 → 0.867, English 0.883 → 0.950, German 0.533 → 0.883, Spanish 0.425 → 0.867, Italian 0.450 → 0.842, Chinese 0.208 → 0.817 — and 0.075 → 0.887 on Chinese-language documents — while off-topic turns receive <em>fewer</em> stray excerpts than before. — 22 August 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **43** functional domains | **570,000** lines of code (excl. tests) | **25,400+** automated tests | **240** ADRs                                                           |
-| **221** versions shipped  | **6 languages**, parity enforced in CI  | **480** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **43** functional domains | **570,000** lines of code (excl. tests) | **26,600+** automated tests | **241** ADRs                                                           |
+| **223** versions shipped  | **6 languages**, parity enforced in CI  | **483** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -955,12 +955,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (18,254 backend tests across 990 files)  |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (20,565 backend tests across 1,202 files)  |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-240 ADR files (ADR-001 through ADR-241 — ADR-008 has no separate file) documenting major architectural decisions:
+241 ADR files (ADR-001 through ADR-242 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

@@ -1307,3 +1307,59 @@ PROVIDER_USAGE_CAPABILITIES: dict[str, str] = {
     "perplexity": "excluded",
     "ollama": "excluded",
 }
+
+# ============================================================================
+# EMBEDDING MODEL CAPABILITIES (ADR-242)
+# ============================================================================
+# Retrieval quality in LIA rests on two properties of the embedding model that
+# no API response ever reports back, so they are declared here and checked at
+# boot (ADR-085: a registry keyed by a domain value gets a completeness assert,
+# because a silent fallback on an unknown key is how a feature dies invisibly).
+#
+# ``supports_task_type`` is the load-bearing one. GeminiRetrievalEmbeddings
+# always sends ``task_type=RETRIEVAL_QUERY`` / ``RETRIEVAL_DOCUMENT``, and every
+# retrieval threshold in the codebase is calibrated on the asymmetric encodings
+# that produces. Verified against the live API on 2026-08-22:
+# ``gemini-embedding-001`` genuinely honours it — cos(QUERY, DOCUMENT) = 0.871
+# for the same text — while ``gemini-embedding-2`` validates the parameter and
+# then returns bit-identical vectors for every task type. Switching to a model
+# that ignores it is a legitimate choice, but it silently flattens the asymmetry
+# and invalidates the calibration, so it must be a *loud* one.
+#
+# Keys are the pricing-table ids, i.e. the model without its ``models/`` prefix.
+
+
+@dataclass(frozen=True)
+class EmbeddingModelCapability:
+    """What an embedding model can do, as far as LIA's retrieval depends on it.
+
+    Attributes:
+        supports_task_type: Whether ``task_type`` changes the returned vector.
+            False means query and document land in the same symmetric space.
+        max_input_tokens: Input ceiling. Gemini truncates silently past it —
+            no error, no warning, just a vector for the truncated prefix.
+        dimensions: Output widths the model accepts.
+    """
+
+    supports_task_type: bool
+    max_input_tokens: int
+    dimensions: tuple[int, ...]
+
+
+EMBEDDING_MODEL_CAPABILITIES: dict[str, EmbeddingModelCapability] = {
+    "gemini-embedding-001": EmbeddingModelCapability(
+        supports_task_type=True,
+        max_input_tokens=2048,
+        dimensions=(768, 1536, 3072),
+    ),
+    "gemini-embedding-2": EmbeddingModelCapability(
+        supports_task_type=False,
+        max_input_tokens=8192,
+        dimensions=(768, 1536, 3072),
+    ),
+    "gemini-embedding-2-preview": EmbeddingModelCapability(
+        supports_task_type=False,
+        max_input_tokens=8192,
+        dimensions=(768, 1536, 3072),
+    ),
+}

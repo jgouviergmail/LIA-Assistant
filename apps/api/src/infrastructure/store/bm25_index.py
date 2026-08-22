@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from rank_bm25 import BM25Okapi
 
 from src.core.config import get_settings
+from src.core.constants import CJK_SCRIPT_RANGES
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import (
     bm25_cache_hits_total,
@@ -30,16 +31,42 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Regex pattern for French-aware tokenization (compile once)
-_TOKEN_PATTERN = re.compile(r"[\w']+", re.UNICODE)
+# `\w` matches every space-less script, so a whole Chinese sentence came out as
+# ONE token and BM25 degenerated into exact-sentence matching (ADR-242). The
+# range list lives in core.constants because the embedding token estimator needs
+# exactly the same one.
+_CJK_RANGES = CJK_SCRIPT_RANGES
+
+# One alternation per token family, so a single pass keeps their relative order:
+#   group 1 = a run of space-less script, split into bigrams below
+#   group 2 = a word in a space-separated script, apostrophes kept only INSIDE
+#             the word (``l'assistant`` is one token, ``users'`` is ``users``)
+_TOKEN_PATTERN = re.compile(
+    rf"([{_CJK_RANGES}]+)|([^\W{_CJK_RANGES}]+(?:'[^\W{_CJK_RANGES}]+)*)",
+    re.UNICODE,
+)
+
+# Character n-gram width for space-less scripts. 2 is the standard choice for
+# CJK retrieval: it needs no dictionary or segmenter (no extra dependency, no
+# per-language model to ship on the Pi) and it makes any substring of the query
+# share tokens with the document. Measured on a zh corpus of 98 chunks with 80
+# native queries: BM25-only hit@5 0.062 -> 0.487 (2026-08-22).
+_CJK_NGRAM = 2
 
 
 def tokenize_text(text: str) -> list[str]:
     """
-    Tokenize text for BM25 scoring.
+    Tokenize text for BM25 scoring, across all 6 supported languages.
 
-    French-aware: keeps accents via UNICODE flag.
-    Filters tokens shorter than 2 chars (noise).
+    Space-separated scripts (fr, en, de, es, it) are split on word boundaries,
+    accents preserved via the UNICODE flag and intra-word apostrophes kept.
+    Space-less scripts (zh, and any Japanese/Korean content a user uploads) are
+    split into overlapping character bigrams, because word boundaries do not
+    exist there and a whole sentence would otherwise be a single token.
+
+    Single-character tokens are dropped as noise in space-separated scripts; a
+    lone CJK character is kept, since one ideograph is already a full morpheme
+    and there is no bigram to form.
 
     Args:
         text: Input text to tokenize
@@ -47,8 +74,18 @@ def tokenize_text(text: str) -> list[str]:
     Returns:
         List of lowercase tokens
     """
-    tokens = _TOKEN_PATTERN.findall(text.lower())
-    return [t for t in tokens if len(t) > 1]
+    tokens: list[str] = []
+    for cjk_run, word in _TOKEN_PATTERN.findall(text.lower()):
+        if cjk_run:
+            if len(cjk_run) <= _CJK_NGRAM:
+                tokens.append(cjk_run)
+            else:
+                tokens.extend(
+                    cjk_run[i : i + _CJK_NGRAM] for i in range(len(cjk_run) - _CJK_NGRAM + 1)
+                )
+        elif len(word) > 1:
+            tokens.append(word)
+    return tokens
 
 
 class BM25IndexManager:

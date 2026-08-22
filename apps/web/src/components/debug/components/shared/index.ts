@@ -18,6 +18,10 @@ export { InfoRow, type InfoRowProps, type ThresholdInfo } from './InfoRow';
 // Score visualization
 export { ScoreBar, type ScoreBarProps } from './ScoreBar';
 export { ScoreLegend, type ScoreLegendProps } from './ScoreLegend';
+export {
+  RetrievalSettingsBar,
+  type RetrievalSettingsBarProps,
+} from './RetrievalSettingsBar';
 
 // List components
 export { ScoresList, type ScoresListProps } from './ScoresList';

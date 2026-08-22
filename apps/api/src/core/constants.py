@@ -2650,8 +2650,6 @@ MEMORY_REFERENCE_RESOLUTION_LLM_TOP_P_DEFAULT = 1.0
 MEMORY_REFERENCE_RESOLUTION_LLM_FREQUENCY_PENALTY_DEFAULT = 0.0
 MEMORY_REFERENCE_RESOLUTION_LLM_PRESENCE_PENALTY_DEFAULT = 0.0
 MEMORY_REFERENCE_RESOLUTION_LLM_MAX_TOKENS_DEFAULT = 250
-SEMANTIC_TOOL_SELECTOR_HARD_THRESHOLD_DEFAULT = 0.70
-SEMANTIC_TOOL_SELECTOR_SOFT_THRESHOLD_DEFAULT = 0.60
 SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT = 8
 V3_TOOL_SELECTOR_HYBRID_ALPHA_DEFAULT = 0.6
 V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT = "first_line"
@@ -4233,11 +4231,32 @@ RAG_SPACES_CHUNK_SIZE_DEFAULT = 1000
 RAG_SPACES_CHUNK_OVERLAP_DEFAULT = 200
 RAG_SPACES_MAX_CHUNKS_PER_DOCUMENT_DEFAULT = 500
 
+# Unicode ranges of the scripts written without spaces: Hiragana/Katakana, CJK
+# ideographs (+ Extension A and Compatibility), halfwidth kana, Hangul. Used as a
+# regex character class by the two places that must not treat such a run as one
+# word: the BM25 tokenizer (bigram splitting) and the embedding token estimator
+# (~1 token per character instead of ~4 characters per token). ADR-242.
+CJK_SCRIPT_RANGES = r"぀-ヿ㐀-䶿一-鿿豈-﫿･-ﾟ가-힯"
+
 # Retrieval
 RAG_SPACES_RETRIEVAL_LIMIT_DEFAULT = 5
-RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT = 0.55  # Calibrated for Gemini embedding-001 (2026-04-09)
+# Minimum SEMANTIC cosine similarity for a chunk to be considered relevant
+# (ADR-242). Recalibrated 2026-08-22 over the 6 supported languages, on the real
+# lia-faq corpus (356 chunks) and on per-language prose corpora, with 740 native
+# queries: 0.62 is the only value that beats the previous behaviour on BOTH axes
+# at once — hit@5 up in every language, and no more chunks injected on off-topic
+# turns than before. 0.60 scores marginally higher but injects more noise; 0.64
+# starts costing recall. The optimum is flat across all 6 languages (gold p10
+# spans 0.610-0.696), which is why this is one global value and not a per-language
+# table: a per-language threshold would also be unkeyable, since the document's
+# language and the query's language are independent.
+RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT = 0.62
 RAG_SPACES_MAX_CONTEXT_TOKENS_DEFAULT = 2000
-RAG_SPACES_HYBRID_ALPHA_DEFAULT = 0.7  # Weight for semantic vs BM25
+# Share of the score BM25 may contribute, as a bonus on top of the semantic score
+# (ADR-242). Small on purpose: it must re-order near-ties and surface exact-term
+# matches without ever outranking a clearly better semantic match. Measured over
+# 0.00-0.30 on 4 scenarios, 0.05 maximises the worst case.
+RAG_SPACES_BM25_BONUS_WEIGHT_DEFAULT = 0.05
 
 # MIME types (comma-separated) — 15 document formats + text/xml variant
 RAG_SPACES_ALLOWED_TYPES_DEFAULT = (

@@ -65,6 +65,7 @@ describe('RAGInjectionSection v2', () => {
     spaces_searched: 1,
     chunks_found: 2,
     chunks_injected: 1,
+    settings: { min_score: 0.62, max_results: 5 },
     chunks: [{ space: 'Legal', file: 'contract.pdf', score: 0.74 }],
   };
 
@@ -73,7 +74,33 @@ describe('RAGInjectionSection v2', () => {
     expect(screen.getByText('RAG Knowledge Spaces')).toBeInTheDocument();
     expect(screen.getByText('contract.pdf')).toBeInTheDocument();
     expect(screen.getByTestId('score-bar-fill')).toBeInTheDocument();
-    expect(screen.getByText('≥0.70')).toBeInTheDocument();
+    expect(screen.getByText('≥0.75')).toBeInTheDocument();
+  });
+
+  it('marks the retrieval threshold on the score bar', () => {
+    open(['rag-injection'], <RAGInjectionSection data={DATA} />);
+    expect(screen.getByTestId('score-bar-threshold').style.left).toBe('62%');
+  });
+
+  it('shows the configured threshold and cap raw, never as a percentage', () => {
+    open(['rag-injection'], <RAGInjectionSection data={DATA} />);
+    expect(screen.getByText('0.62')).toBeInTheDocument();
+    expect(screen.queryByText('62%')).not.toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+
+  it('omits the threshold tick when the payload predates the settings block', () => {
+    const legacy: RAGInjectionMetrics = { ...DATA, settings: undefined };
+    open(['rag-injection'], <RAGInjectionSection data={legacy} />);
+    expect(screen.getByTestId('score-bar-fill')).toBeInTheDocument();
+    expect(screen.queryByTestId('score-bar-threshold')).not.toBeInTheDocument();
+  });
+
+  it('explains an empty result with the threshold that caused it', () => {
+    const empty: RAGInjectionMetrics = { ...DATA, chunks_injected: 0, chunks: [] };
+    open(['rag-injection'], <RAGInjectionSection data={empty} />);
+    const warning = screen.getByText(/No relevant chunks/).closest('div');
+    expect(warning).toHaveTextContent('min_score 0.62');
   });
 });
 
@@ -329,7 +356,7 @@ describe('JournalInjectionSection v2', () => {
     );
     expect(screen.getByText('Personal Journals')).toBeInTheDocument();
     expect(screen.getByTestId('score-bar-fill')).toBeInTheDocument();
-    expect(screen.getByText('≥0.70')).toBeInTheDocument();
+    expect(screen.getByText('≥0.75')).toBeInTheDocument();
   });
 });
 

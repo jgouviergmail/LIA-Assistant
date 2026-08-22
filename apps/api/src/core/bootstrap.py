@@ -306,6 +306,95 @@ def validate_tool_call_run_limits() -> None:
         raise RuntimeError(f"Invalid tool_call_run_limits setting: {exc}") from exc
 
 
+def validate_embedding_configuration() -> None:
+    """The embedding settings must fit both the columns and the model.
+
+    Two independent drifts are possible, and neither surfaces at boot today:
+
+    1. **Dimensionality vs pgvector column.** ``*_EMBEDDING_DIMENSIONS`` is
+       configurable per domain, but the column width is fixed in the SQLAlchemy
+       model (``Vector(1536)``). Raising the setting alone produced vectors the
+       column rejects — every write failing at runtime, in production, with no
+       boot-time signal. Only the pgvector-backed domains are checked this way;
+       interests store a plain float array, so their width is bounded by the
+       model's own offer instead.
+
+    2. **Model capability.** ``GeminiRetrievalEmbeddings`` always sends
+       ``task_type``, and every retrieval threshold is calibrated on the
+       asymmetric encodings it yields. A model that ignores the parameter
+       (``gemini-embedding-2``) is accepted — but never silently.
+
+    An unknown model refuses to boot: nobody has checked its task-type
+    behaviour, its input ceiling or its widths, so no threshold in the codebase
+    can be trusted against it (ADR-085, ADR-242).
+
+    Raises:
+        RuntimeError: On an unknown model, or a dimensionality that fits neither
+            the column nor the model.
+    """
+    from src.core.config import settings
+    from src.core.constants import RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT
+    from src.domains.journals.constants import JOURNAL_EMBEDDING_DIMENSIONS
+    from src.domains.llm_config.constants import EMBEDDING_MODEL_CAPABILITIES
+    from src.domains.memories.models import MEMORY_EMBEDDING_DIMENSIONS
+
+    # (settings model attr, settings dimension attr, pgvector column width or None)
+    surfaces = (
+        ("memory_embedding_model", "memory_embedding_dimensions", MEMORY_EMBEDDING_DIMENSIONS),
+        ("journal_embedding_model", "journal_embedding_dimensions", JOURNAL_EMBEDDING_DIMENSIONS),
+        (
+            "rag_spaces_embedding_model",
+            "rag_spaces_embedding_dimensions",
+            RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT,
+        ),
+        ("interest_embedding_model", "interest_embedding_dimensions", None),
+    )
+
+    errors: list[str] = []
+    for model_attr, dim_attr, column_width in surfaces:
+        configured = str(getattr(settings, model_attr, "") or "")
+        model = configured.removeprefix("models/")
+        dimensions = int(getattr(settings, dim_attr, 0) or 0)
+
+        capability = EMBEDDING_MODEL_CAPABILITIES.get(model)
+        if capability is None:
+            errors.append(
+                f"{model_attr}={configured!r} is not declared in "
+                f"EMBEDDING_MODEL_CAPABILITIES — declare its task_type support, "
+                f"input ceiling and output widths before configuring it"
+            )
+            continue
+
+        if column_width is not None and dimensions != column_width:
+            errors.append(
+                f"{dim_attr}={dimensions} does not match the pgvector column "
+                f"width ({column_width}); a migration must widen the column "
+                f"and re-embed before this value can change"
+            )
+        # Independent of the column check: a width the column accepts is still
+        # useless if the model cannot produce it.
+        if dimensions not in capability.dimensions:
+            errors.append(
+                f"{dim_attr}={dimensions} is not offered by {model!r} "
+                f"(supported: {list(capability.dimensions)})"
+            )
+
+        if not capability.supports_task_type:
+            logger.warning(
+                "embedding_model_ignores_task_type",
+                setting=model_attr,
+                model=model,
+                detail=(
+                    "the model returns the same vector for RETRIEVAL_QUERY and "
+                    "RETRIEVAL_DOCUMENT, so query/document asymmetry is lost and "
+                    "every similarity threshold calibrated on it must be redone"
+                ),
+            )
+
+    if errors:
+        raise RuntimeError("Invalid embedding configuration: " + "; ".join(errors))
+
+
 def validate_tool_error_codes() -> None:
     """
     Validate that all ToolErrorCode values used in the codebase exist in the enum.

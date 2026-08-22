@@ -107,7 +107,7 @@ des plus structurants, pas un inventaire) :
 15. **user_mcp** - Serveurs MCP utilisateur (CRUD per-user, Model Context Protocol, auto-génération de description LLM)
 16. **plugins** - Client Agent Plugins (standard ouvert agent-plugins.org, ADR-225) : import de paquets portables regroupant skills + serveurs MCP, rapport par composant, désinstallation groupée
 16. **channels** - Canaux de messagerie externes (Telegram) avec OTP linking, HITL inline keyboards, voice STT
-17. **rag_spaces** - Espaces de connaissances RAG : user spaces (upload, embedding OpenAI, recherche hybride, injection Response Node) et system spaces (FAQ built-in, App Identity, lazy-loaded au démarrage)
+17. **rag_spaces** - Espaces de connaissances RAG : user spaces (upload, embedding Gemini, recherche sémantique + bonus lexical BM25, injection Response Node) et system spaces (FAQ built-in, App Identity, lazy-loaded au démarrage)
 18. **sub_agents** - Sous-agents persistants spécialisés (F6) : délégation, templates, token guard-rails, pipeline simplifié
 19. **journals** - Carnets de bord personnels (Personal Journals) : extraction post-conversation, consolidation périodique, injection sémantique
 20. **peers** - Connexions entre utilisateurs de l'instance (ADR-180) : découverte opt-in par nom exact, cycle de vie demande/acceptation/blocage silencieux, relais de messages assistant-à-assistant (draft HITL, coût imputé à l'émetteur), partages lecture seule par connexion (calendrier, tâches) avec journal d'accès — moteur de livraison dans `infrastructure/scheduler/` (frontière F009)
@@ -3851,8 +3851,8 @@ async with TrackingContext(user_id, run_id) as tracker:
 | Couche | Composant | Rôle |
 |--------|-----------|------|
 | Domain | `domains/rag_spaces/` | Models, Repository, Service, Schemas, Router (CRUD spaces + documents) |
-| Processing | `domains/rag_spaces/processing.py` | Pipeline background : extraction texte → chunking → embedding OpenAI → bulk insert pgvector |
-| Retrieval | `domains/rag_spaces/retrieval.py` | Recherche hybride sémantique (pgvector cosine) + BM25 avec fusion alpha configurable |
+| Processing | `domains/rag_spaces/processing.py` | Pipeline background : extraction texte → chunking → embedding Gemini → bulk insert pgvector |
+| Retrieval | `domains/rag_spaces/retrieval.py` | Seuil sur la similarité sémantique seule (pgvector cosine), puis BM25 en bonus borné de ré-ordonnancement — jamais admettre ni évincer (ADR-242) |
 | Injection | `response_node.py` | Contexte RAG injecté dans le prompt de réponse (après mémoire, avant enrichment) |
 | Embedding | `infrastructure/llm/tracked_embeddings.py` | `TrackedOpenAIEmbeddings` avec tracking automatique tokens/coûts |
 | Observabilité | `metrics_rag_spaces.py` | 14 métriques Prometheus (processing RED, retrieval, lifecycle Gauges, reindex) |

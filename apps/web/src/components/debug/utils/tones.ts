@@ -150,12 +150,19 @@ export type ScoreTier = 'high' | 'medium' | 'low';
  *
  * - `similarity`: memory-injection cosine similarity (dense space, scores
  *   cluster high — 0.80/0.60).
- * - `relevance`: RAG chunk and journal retrieval relevance (0.70/0.50).
+ * - `relevance`: RAG chunk and journal retrieval relevance (0.75/0.68).
+ *   Recalibrated 2026-08-22 with ADR-242: retrieval now gates on the raw
+ *   semantic score (0.62 for RAG, per-user adaptive around 0.63 for
+ *   journals), so nothing below that can ever reach this bar. The old
+ *   0.70/0.50 boundaries left the `low` tier unreachable and painted almost
+ *   everything green. These sit on the measured distribution instead:
+ *   a correct answer's median lands at 0.73-0.81, while the 95th percentile
+ *   of non-answers reaches 0.68.
  * - `confidence`: LLM-reported extraction confidence (0.80/0.50).
  */
 export const SCORE_SPACES: Record<ScoreSpace, { high: number; medium: number }> = {
   similarity: { high: 0.8, medium: 0.6 },
-  relevance: { high: 0.7, medium: 0.5 },
+  relevance: { high: 0.75, medium: 0.68 },
   confidence: { high: 0.8, medium: 0.5 },
 };
 

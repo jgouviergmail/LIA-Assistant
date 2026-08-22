@@ -174,7 +174,10 @@ async def persist_embedding_tokens(
     Args:
         model_name: Embedding model used (e.g., "gemini-embedding-001")
         token_count: Number of tokens consumed
-        cost_usd: Cost in USD
+        cost_usd: Cost in USD, for the log lines only. The persisted cost is
+            recomputed by ``record_node_tokens`` from the pricing cache, so the
+            two agree only because the caller prices the batch from that same
+            cache (``_embedding_cost_usd``) — do not substitute another source.
         operation: Operation type (embed_query, embed_documents)
         duration_ms: Embedding API call duration in milliseconds
     """

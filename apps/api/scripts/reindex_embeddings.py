@@ -368,6 +368,17 @@ async def main() -> None:
     # Load API keys from DB (required — keys are stored in admin UI, not .env)
     await _load_api_keys_from_db()
 
+    # Warm the pricing cache: embedding cost is read from `llm_model_pricing`
+    # like every other model's (ADR-242). The API does this in its lifespan; a
+    # CLI reindex — by far the largest single embedding batch — would otherwise
+    # report a cost of zero for the whole run.
+    from src.infrastructure.cache.pricing_cache import refresh_pricing_cache
+
+    try:
+        await refresh_pricing_cache()
+    except Exception as exc:  # noqa: BLE001 - reporting must not block a reindex
+        print(f"WARNING: pricing cache unavailable, cost metrics will read 0 ({exc})")
+
     print(
         f"=== Embedding Reindex: "
         f"{settings.memory_embedding_model} ({settings.memory_embedding_dimensions}d) ==="

@@ -6,6 +6,7 @@
  * Shows:
  * - Number of active spaces searched
  * - Chunks found vs injected
+ * - The retrieval bounds in force, and the min_score drawn on every score bar
  * - Per-chunk details: space name, filename, relevance score
  */
 
@@ -16,6 +17,7 @@ import {
   DebugSection,
   EmptySection,
   MetricRow,
+  RetrievalSettingsBar,
   ScoreBar,
   ScoreLegend,
   SectionBadge,
@@ -72,6 +74,13 @@ export const RAGInjectionSection = React.memo(function RAGInjectionSection({
         </>
       }
     >
+      {data.settings && (
+        <RetrievalSettingsBar
+          minScore={data.settings.min_score}
+          maxResults={data.settings.max_results}
+        />
+      )}
+
       {/* Summary metrics */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
         <MetricRow label="Spaces searched" value={data.spaces_searched} />
@@ -93,7 +102,12 @@ export const RAGInjectionSection = React.memo(function RAGInjectionSection({
                       Space: {chunk.space}
                     </div>
                   </div>
-                  <ScoreBar score={chunk.score} space="relevance" className="shrink-0" />
+                  <ScoreBar
+                    score={chunk.score}
+                    space="relevance"
+                    threshold={data.settings?.min_score}
+                    className="shrink-0"
+                  />
                 </div>
               </div>
             ))}
@@ -107,8 +121,9 @@ export const RAGInjectionSection = React.memo(function RAGInjectionSection({
       {/* No results message */}
       {!hasChunks && data.spaces_searched > 0 && (
         <div className="mt-1 rounded border border-warning/30 bg-warning/10 p-2 text-xs text-warning">
-          <strong>No relevant chunks:</strong> No document content matched the query above the
-          minimum score threshold.
+          <strong>No relevant chunks:</strong> no document scored at or above the retrieval
+          threshold
+          {data.settings ? ` (min_score ${data.settings.min_score})` : ''}.
         </div>
       )}
     </DebugSection>

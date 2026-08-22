@@ -4,8 +4,8 @@
 > Every default value in this guide is the **production-proven configuration** actually running in production; you can adopt them as-is with confidence.
 
 **Version**: 4.0
-**Last Updated**: 2026-08-21
-**Compatibility**: LIA v1.31.1
+**Last Updated**: 2026-08-22
+**Compatibility**: LIA v1.31.2
 
 ## Table of Contents
 
@@ -935,8 +935,8 @@ RAG_SPACES_MAX_FILE_SIZE_MB=20
 RAG_SPACES_CHUNK_SIZE=1000
 RAG_SPACES_CHUNK_OVERLAP=200
 RAG_SPACES_RETRIEVAL_LIMIT=5
-RAG_SPACES_RETRIEVAL_MIN_SCORE=0.55
-RAG_SPACES_HYBRID_ALPHA=0.7           # BM25 + semantic hybrid weighting
+RAG_SPACES_RETRIEVAL_MIN_SCORE=0.62   # Minimum SEMANTIC similarity (ADR-242)
+RAG_SPACES_BM25_BONUS_WEIGHT=0.05     # BM25 re-ordering bonus, never a gate
 RAG_SPACES_DRIVE_SYNC_ENABLED=true
 RAG_DRIVE_MAX_SOURCES_PER_SPACE=5
 ```

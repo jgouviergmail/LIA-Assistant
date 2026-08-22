@@ -129,6 +129,61 @@ class RAGContext:
         )
 
 
+async def _bm25_bonus_map(
+    *,
+    chunk_repo: RAGChunkRepository,
+    chunk_user_id: UUID | None,
+    space_ids: list[UUID],
+    query: str,
+    filter_model: str | None,
+    bm25_cache_key: str,
+) -> dict[UUID, float]:
+    """Normalised BM25 score per chunk of one generation's corpus.
+
+    Normalises over the WHOLE space, not over the semantic candidates: a chunk's
+    lexical bonus must express "how good a match is this in the corpus", not
+    "how good is it among the few we happened to fetch". Because the caller
+    applies it as a bounded bonus that can neither admit nor evict a chunk, the
+    well-known weakness of max-normalisation — the least-bad match scoring 1.0 —
+    costs at most ``bm25_bonus_weight`` instead of deciding relevance (ADR-242).
+
+    Args:
+        chunk_repo: Repository serving the corpus.
+        chunk_user_id: Owner of the chunks, or None for system spaces.
+        space_ids: Spaces whose chunks form the corpus.
+        query: Raw user query, tokenized here.
+        filter_model: Embedding generation to restrict the corpus to (AC-001).
+        bm25_cache_key: Index cache key, carrying the generation so an old
+            corpus is never reused after a flip.
+
+    Returns:
+        Chunk id -> BM25 score in ``[0, 1]``. Empty when the corpus is empty or
+        scoring failed — RAG is enrichment, a lexical outage degrades the bonus
+        to zero and leaves the semantic ranking intact.
+    """
+    try:
+        corpus_data = await chunk_repo.get_corpus_for_spaces(
+            chunk_user_id, space_ids, embedding_model=filter_model
+        )
+        if not corpus_data:
+            return {}
+
+        corpus_ids = [str(cid) for cid, _ in corpus_data]
+        bm25, _bm25_ids = get_bm25_manager().get_or_build_index(
+            user_id=bm25_cache_key,
+            documents=[text for _, text in corpus_data],
+            document_ids=corpus_ids,
+        )
+        raw_scores = bm25.get_scores(tokenize_text(query))
+        max_bm25 = float(max(raw_scores)) if len(raw_scores) else 0.0
+        if max_bm25 <= 0:
+            return {}
+        return {UUID(corpus_ids[i]): float(s) / max_bm25 for i, s in enumerate(raw_scores)}
+    except Exception as e:
+        logger.warning("rag_bm25_scoring_failed", error=str(e))
+        return {}
+
+
 async def _search_and_score_generation(
     *,
     chunk_repo: RAGChunkRepository,
@@ -140,16 +195,23 @@ async def _search_and_score_generation(
     filter_model: str | None,
     limit: int,
     min_score: float,
-    alpha: float,
+    bm25_bonus_weight: float,
     bm25_cache_key: str,
 ) -> list[tuple[RAGRetrievedChunk, float]]:
-    """Semantic + BM25 hybrid search over ONE embedding generation.
+    """Semantic search with a BM25 re-ordering bonus, over ONE generation.
 
     Embeds the query with ``embed_model`` (the served generation's model) and
     restricts both the pgvector candidates and the BM25 corpus to
     ``filter_model`` so a query vector is never scored against chunks of a
     different generation (AC-001). ``filter_model`` None = steady state (single
-    generation, no filter). Returns ``(chunk, hybrid_score)`` above ``min_score``.
+    generation, no filter).
+
+    Relevance is decided by the **semantic** score alone: ``min_score`` gates on
+    it, so the threshold means what it says regardless of whether the query
+    happens to share vocabulary with the documents. BM25 then adds at most
+    ``bm25_bonus_weight`` to re-order what already passed — it can promote an
+    exact-term match above a near-tie, and it can never admit or evict a chunk
+    (ADR-242). Returns ``(chunk, score)`` for the chunks above ``min_score``.
     """
     # Embed the query with THIS generation's model (TTL cache + single-flight).
     query_embedding = await embed_rag_query_cached(query, model=embed_model)
@@ -159,7 +221,9 @@ async def _search_and_score_generation(
             user_id=chunk_user_id,
             space_ids=space_ids,
             query_embedding=query_embedding,
-            limit=limit * 3,  # Over-fetch for hybrid fusion
+            # Over-fetch so the semantic gate still has candidates to keep
+            # after filtering, and the lexical bonus has room to re-order.
+            limit=limit * 3,
             embedding_model=filter_model,
         )
     except Exception as e:
@@ -175,54 +239,43 @@ async def _search_and_score_generation(
     if not semantic_results:
         return []
 
-    # BM25 scoring over the SAME generation's corpus. The index cache key carries
-    # the generation so an old-generation corpus is never reused after a flip.
-    bm25_scores_map: dict[UUID, float] = {}
-    try:
-        corpus_data = await chunk_repo.get_corpus_for_spaces(
-            chunk_user_id, space_ids, embedding_model=filter_model
-        )
-        if corpus_data:
-            corpus_texts = [text for _, text in corpus_data]
-            corpus_ids = [str(cid) for cid, _ in corpus_data]
+    # Gate on the semantic score BEFORE any lexical signal is mixed in. Doing it
+    # here also means a query that matches nothing costs one pgvector round-trip
+    # and no BM25 index build at all.
+    relevant = [(chunk, score) for chunk, score in semantic_results if score >= min_score]
+    if not relevant:
+        return []
 
-            bm25_manager = get_bm25_manager()
-            bm25, _bm25_ids = bm25_manager.get_or_build_index(
-                user_id=bm25_cache_key,
-                documents=corpus_texts,
-                document_ids=corpus_ids,
-            )
-            query_tokens = tokenize_text(query)
-            raw_scores = bm25.get_scores(query_tokens)
-
-            max_bm25 = (
-                float(max(raw_scores))
-                if len(raw_scores) > 0 and float(max(raw_scores)) > 0
-                else 1.0
-            )
-            for idx, score in enumerate(raw_scores):
-                chunk_id = UUID(corpus_ids[idx])
-                bm25_scores_map[chunk_id] = float(score) / max_bm25
-    except Exception as e:
-        logger.warning("rag_bm25_scoring_failed", error=str(e))
+    bm25_scores_map = await _bm25_bonus_map(
+        chunk_repo=chunk_repo,
+        chunk_user_id=chunk_user_id,
+        space_ids=space_ids,
+        query=query,
+        filter_model=filter_model,
+        bm25_cache_key=bm25_cache_key,
+    )
 
     scored_chunks: list[tuple[RAGRetrievedChunk, float]] = []
-    for chunk, semantic_score in semantic_results:
+    for chunk, semantic_score in relevant:
         bm25_score = bm25_scores_map.get(chunk.id, 0.0)
-        hybrid_score = float(alpha * semantic_score + (1 - alpha) * bm25_score)
-        if hybrid_score < min_score:
-            continue
+        # The exact fused value orders the results; the PUBLISHED score is bounded
+        # to [0, 1]. A chunk that is both a near-perfect semantic match and the
+        # corpus's best lexical match sums past 1, and every consumer documents a
+        # 0-1 relevance: the repository, the `search_user_documents` tool, and the
+        # debug ScoreBar (which clamps anyway). Ordering keeps the exact value, so
+        # two chunks published at 1.0 still come out in the right order.
+        score = float(semantic_score + bm25_bonus_weight * bm25_score)
         metadata = chunk.metadata_ or {}
         scored_chunks.append(
             (
                 RAGRetrievedChunk(
                     content=chunk.content,
-                    score=round(hybrid_score, 4),
+                    score=round(min(score, 1.0), 4),
                     space_name=space_name_map.get(chunk.space_id, "Unknown"),
                     original_filename=metadata.get("original_filename", "unknown"),
                     chunk_index=chunk.chunk_index,
                 ),
-                hybrid_score,
+                score,
             )
         )
     return scored_chunks
@@ -281,7 +334,7 @@ async def retrieve_rag_context(
     limit = limit or settings.rag_spaces_retrieval_limit
     min_score = min_score if min_score is not None else settings.rag_spaces_retrieval_min_score
     max_context_tokens = max_context_tokens or settings.rag_spaces_max_context_tokens
-    alpha = settings.rag_spaces_hybrid_alpha
+    bm25_bonus_weight = settings.rag_spaces_bm25_bonus_weight
 
     space_repo = RAGSpaceRepository(db)
     chunk_repo = RAGChunkRepository(db)
@@ -345,7 +398,7 @@ async def retrieve_rag_context(
                 filter_model=gen_key,
                 limit=limit,
                 min_score=min_score,
-                alpha=alpha,
+                bm25_bonus_weight=bm25_bonus_weight,
                 bm25_cache_key=f"{base_bm25_key}:{gen_key or 'default'}",
             )
             scored_chunks.extend(group_scored)
@@ -389,7 +442,7 @@ async def retrieve_rag_context(
             system_only=system_only,
             spaces_searched=len(active_space_ids),
             generations=len(generation_groups),
-            hybrid_above_threshold=len(scored_chunks),
+            chunks_above_threshold=len(scored_chunks),
             chunks_returned=len(context.chunks),
         )
 

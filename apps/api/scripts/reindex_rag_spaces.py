@@ -57,6 +57,16 @@ async def main() -> None:
     # API keys live in the DB, not .env — load them before embedding
     await _load_api_keys_from_db()
 
+    # Warm the pricing cache before re-embedding: embedding cost is read from
+    # `llm_model_pricing` (ADR-242), and this script re-embeds every user
+    # document — the single largest batch the deployment ever runs.
+    from src.infrastructure.cache.pricing_cache import refresh_pricing_cache
+
+    try:
+        await refresh_pricing_cache()
+    except Exception as exc:  # noqa: BLE001 - reporting must not block a reindex
+        print(f"WARNING: pricing cache unavailable, cost metrics will read 0 ({exc})")
+
     print(
         f"=== RAG Spaces Reindex: {settings.rag_spaces_embedding_model} "
         f"({settings.rag_spaces_embedding_dimensions}d) ==="

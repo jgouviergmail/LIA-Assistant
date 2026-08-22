@@ -12,6 +12,7 @@ orchestration point — these functions are only called from there.
 import structlog
 
 from src.core.bootstrap import (
+    validate_embedding_configuration,
     validate_llm_configuration,
     validate_provider_usage_capabilities,
     validate_tool_call_run_limits,
@@ -38,7 +39,8 @@ def run_failfast_validations() -> None:
     """Run the fail-fast boot validations (die at boot, not at first request).
 
     Validates, in order: LLM configuration completeness, the provider
-    usage-accounting registry (ADR-220), ToolErrorCode enum
+    usage-accounting registry (ADR-220), the paid-tool call ceilings, the
+    embedding configuration (ADR-242), ToolErrorCode enum
     completeness, Draft Display Registry exhaustivity (ADR-085), Draft
     Preview Renderer exhaustivity (ADR-085 pattern), the evidence-driven
     expansion entity types (ADR-085 pattern), the HITL classifier few-shot
@@ -70,6 +72,16 @@ def run_failfast_validations() -> None:
         validate_tool_call_run_limits()
     except RuntimeError as exc:
         logger.error("tool_call_run_limits_invalid", error=str(exc), exc_info=True)
+        raise
+
+    # Validate the embedding configuration (ADR-242 / ADR-085): a dimensionality
+    # the pgvector column cannot hold makes every write fail at runtime, and an
+    # undeclared model means nobody checked whether it honours task_type — the
+    # property every retrieval threshold is calibrated on.
+    try:
+        validate_embedding_configuration()
+    except RuntimeError as exc:
+        logger.error("embedding_configuration_invalid", error=str(exc), exc_info=True)
         raise
 
     # Validate ToolErrorCode enum completeness (fail-fast if codes are missing)
