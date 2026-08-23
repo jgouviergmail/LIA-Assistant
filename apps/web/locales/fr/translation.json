@@ -67,7 +67,9 @@
     }
   },
   "theme": {
-    "toggle": "Changer de thème"
+    "to_light": "Passer en mode clair",
+    "to_dark": "Passer en mode sombre",
+    "to_oled": "Passer en noir OLED"
   },
   "executionMode": {
     "toggle": {
@@ -1119,7 +1121,7 @@
       "light": "Clair",
       "dark": "Sombre",
       "system": "Système",
-      "dark_mode_tip": "💡 Utilisez le bouton de mode sombre/clair pour basculer entre les deux variantes de chaque thème.",
+      "dark_mode_tip": "💡 Chaque thème ci-dessous possède une variante claire et une variante sombre — elles suivent le mode d’affichage choisi ci-dessus.",
       "themes": {
         "default": {
           "label": "Bleu Professionnel",
@@ -1141,7 +1143,11 @@
           "label": "Lavande",
           "description": "Violet doux, raffiné et créatif"
         }
-      }
+      },
+      "mode_label": "Mode d'affichage",
+      "oled": "Noir absolu (OLED)",
+      "oled_description": "Un fond parfaitement noir. Sur un écran OLED, ces pixels s'éteignent complètement.",
+      "oled_requires_dark": "Disponible une fois le mode sombre choisi."
     },
     "font": {
       "title": "Police",
@@ -3389,7 +3395,7 @@
       "keywords": {
         "language": "locale, traduction, langue de l’interface, idiome",
         "timezone": "UTC, GMT, horloge, heure, décalage, région, fuseau",
-        "theme": "thème, mode sombre, mode clair, nuit, couleurs, contraste, apparence",
+        "theme": "thème, mode sombre, mode clair, mode système, OLED, noir absolu, nuit, couleurs, contraste, apparence",
         "font": "police, typographie, taille du texte, lisibilité, caractères",
         "display-mode": "cartes, rendu, format des réponses, mise en page, markdown, texte brut",
         "briefing-grid": "accueil, page d’accueil, tableau de bord, widgets, cartes, briefing, ordre des sections",
@@ -3769,7 +3775,8 @@
     "spaces": {
       "title": "Erreur Espaces",
       "message": "Une erreur est survenue lors du chargement des espaces de connaissances."
-    }
+    },
+    "not_found_description": "Cette page n'existe pas, ou a été déplacée. Le lien est peut-être obsolète."
   },
   "validation": {
     "required": "Ce champ est requis",
@@ -4319,6 +4326,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_31_3": {
+          "title": "v1.31.3 — 🌑 Un noir vraiment noir, et des repères retrouvés",
+          "date": "Août 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🌑 Le mode OLED arrive</b> — un fond parfaitement noir, celui pour lequel les pixels d'un écran OLED s'éteignent réellement : moins de batterie consommée, et un confort net le soir. Le bouton de thème de l'en-tête devient circulaire : clair, sombre, noir absolu, puis clair de nouveau. Le passage se fait par un cercle qui s'ouvre depuis le bouton — animation escamotée si vous avez demandé à votre système de limiter les mouvements. Vos cinq thèmes de couleur restent intacts : seules les surfaces neutres s'assombrissent.",
+            "i2": "<b>🎨 Le mode d'affichage se choisit dans les Réglages</b> — Apparence propose désormais Clair, Sombre, Système et un interrupteur « Noir absolu ». « Système » suit votre appareil et redevient accessible : c'est le réglage par défaut de tout nouveau compte, et le bouton de l'en-tête seul ne permettait pas d'y revenir. L'interrupteur OLED n'est actif qu'en mode sombre explicite, plutôt que de changer votre mode sans vous le dire.",
+            "i3": "<b>⌨️ Le focus clavier redevient visible</b> — trois cases à cocher (se souvenir de moi, acceptation des conditions) n'affichaient aucun contour quand on les atteignait au clavier : impossible de savoir où l'on se trouvait dans le formulaire. Elles étaient aussi sans couleur d'accent. Corrigé, et le contour suit désormais votre thème.",
+            "i4": "<b>👀 Deux textes illisibles corrigés</b> — l'étiquette qui signale qu'une compétence a répondu était pratiquement invisible en mode clair, et son reflet animé restait figé sur le mot lorsque les animations sont réduites. Les intitulés de section les plus discrets — « essayez par exemple », les en-têtes de trace — étaient également trop pâles pour être lus confortablement.",
+            "i5": "<b>⚡ Pages plus légères, et plus de clignotement</b> — les neuf polices proposées au choix étaient toutes téléchargées à chaque visite, soit 618 Ko pour une seule affichée ; il n'en reste que 162 Ko, à rendu identique. Et votre thème de couleur s'applique désormais avant le premier affichage : le bref éclair bleu au chargement a disparu. Une page introuvable répond enfin dans votre langue."
+          }
+        },
         "v1_31_2": {
           "title": "v1.31.2 — 🔎 La recherche documentaire retrouve ses réponses",
           "date": "Août 2026",
@@ -6491,7 +6510,7 @@
           },
           "q3": {
             "question": "Comment personnaliser l'apparence (thèmes) ?",
-            "answer": "Personnalise l'apparence de LIA selon tes goûts :<br><br><strong>5 thèmes disponibles :</strong><br>• 💙 <strong>Bleu Professionnel</strong> : élégant et intemporel<br>• 🌊 <strong>Turquoise</strong> : bleu-cyan apaisant<br>• 🌿 <strong>Sauge</strong> : vert naturel et doux<br>• 🌸 <strong>Rose</strong> : rose chaleureux et moderne<br>• 💜 <strong>Lavande</strong> : violet sophistiqué<br><br><strong>Mode clair/sombre :</strong><br>Chaque thème existe en version claire et sombre. Bascule avec le bouton ☀️/🌙 dans la barre de titre.<br><br><strong>Pour changer de thème :</strong><br>Va dans <strong>Paramètres</strong> (icône ⚙️) et trouve la section <strong>Thème</strong>."
+            "answer": "Personnalise l'apparence de LIA selon tes goûts :<br><br><strong>5 thèmes disponibles :</strong><br>• 💙 <strong>Bleu Professionnel</strong> : élégant et intemporel<br>• 🌊 <strong>Turquoise</strong> : bleu-cyan apaisant<br>• 🌿 <strong>Sauge</strong> : vert naturel et doux<br>• 🌸 <strong>Rose</strong> : rose chaleureux et moderne<br>• 💜 <strong>Lavande</strong> : violet sophistiqué<br><br><strong>Clair, sombre, noir absolu :</strong><br>Chaque thème existe en version claire et sombre, et le sombre a deux profondeurs — le sombre ordinaire, et le <strong>noir absolu</strong> pour les écrans OLED, où ces pixels s'éteignent vraiment. Le bouton de la barre de titre fait le tour des trois, et son icône montre où mène la prochaine pression. Dans <strong>Paramètres › Apparence</strong>, tu peux aussi choisir le mode directement, <strong>Système</strong> compris (suivre ton appareil), avec un interrupteur <strong>Noir absolu</strong> disponible une fois le sombre choisi.<br><br><strong>Pour changer de thème :</strong><br>Va dans <strong>Paramètres</strong> (icône ⚙️) et trouve la section <strong>Thème</strong>."
           },
           "q4": {
             "question": "Comment mettre à jour mon profil ?",
@@ -7821,6 +7840,10 @@
       "readable_at_a_glance": {
         "title": "Lisible d’un coup d’œil",
         "desc": "Une alerte urgente ne ressemble pas à une alerte ordinaire : c’est la densité qui les sépare, pas seulement la teinte. Ça tient aussi en niveaux de gris. Et une action a la même forme partout : ce qui crée est plein, ce qui supprime porte son rouge sans attendre le survol, et chaque titre s’annonce par son icône."
+      },
+      "oled_black": {
+        "title": "Un noir qui éteint l’écran",
+        "desc": "Sur une dalle OLED, le noir n’est pas une couleur sombre : c’est un pixel éteint. Le mode noir absolu vise exactement cette valeur, et le bouton de thème devient un cycle — clair, sombre, noir. Le passage s’ouvre en cercle depuis le bouton pressé, et disparaît sans discussion si votre système demande moins de mouvement. Votre couleur d’accent, elle, ne bouge pas."
       },
       "plugin_report": {
         "title": "Un plugin qui rend des comptes",

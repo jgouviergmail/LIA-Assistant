@@ -1,74 +1,66 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Moon, Sun } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { Eclipse, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
-import { useApiMutation } from '@/hooks/useApiMutation';
-import type { User } from '@/lib/auth';
+import { useThemeMode } from '@/hooks/useThemeMode';
+import { nextInCycle } from '@/lib/theme-mode';
+
+/**
+ * The circular display-mode control: light → dark → OLED → light.
+ *
+ * Icon and accessible name describe the DESTINATION, not the current state —
+ * the convention this control already used (dark mode showed a sun). With three
+ * stops the name has to say where the press goes, because that is a different
+ * place each time.
+ *
+ * `system` is deliberately NOT in the cycle: three stops a user can predict
+ * beat four they cannot, and a circular control that sometimes lands on "follow
+ * the OS" reads as broken when the OS is already on the mode you just left.
+ * Settings › Theme keeps the full four-way choice, `system` included, so the
+ * column's default stays reachable.
+ */
+const STEPS = {
+  dark: { Icon: Moon, key: 'theme.to_dark' },
+  oled: { Icon: Eclipse, key: 'theme.to_oled' },
+  light: { Icon: Sun, key: 'theme.to_light' },
+} as const;
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
-  const [mounted, setMounted] = useState(false);
-  const { user, refreshUser } = useAuth();
+  const { mounted, resolved, oled, apply } = useThemeMode();
 
-  // API mutation to save theme preference
-  const { mutate: updateTheme } = useApiMutation<{ theme: string }, User>({
-    method: 'PATCH',
-    componentName: 'ThemeToggle',
-    onSuccess: async () => {
-      await refreshUser?.();
-    },
-  });
+  // Computed once and shared by the icon, the accessible name and the handler,
+  // so the label can never describe a different step from the one the click
+  // performs.
+  const next = nextInCycle(resolved, oled);
 
-  // Sync theme from user on mount (if user has a saved theme)
-  useEffect(() => {
-    if (user?.theme && user.theme !== 'system' && user.theme !== theme) {
-      setTheme(user.theme);
-    }
-  }, [user?.theme, theme, setTheme]);
-
-  // Avoid flash during loading
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const handleThemeChange = async () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-
-    // Save to backend if user is authenticated
-    if (user?.id) {
-      await updateTheme(`/users/${user.id}`, { theme: newTheme });
-    }
-  };
-
+  // Before mount neither the resolved theme nor the stored flag is known, so
+  // render the shell without a state-dependent icon rather than guess and flip.
   if (!mounted) {
     return (
       <Button variant="ghost" size="sm" className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9">
         <Sun className="h-[1.2rem] w-[1.2rem]" />
-        <span className="sr-only">{t('theme.toggle')}</span>
+        <span className="sr-only">{t('theme.to_dark')}</span>
       </Button>
     );
   }
 
+  const { Icon, key } = STEPS[next.oled ? 'oled' : next.mode];
   return (
     <Button
       variant="ghost"
       size="sm"
       className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9"
-      onClick={handleThemeChange}
-      aria-label={t('theme.toggle')}
+      onClick={event => {
+        // The reveal opens from the button's centre, so the wipe visibly
+        // starts where the user pressed rather than from an arbitrary point.
+        const box = event.currentTarget.getBoundingClientRect();
+        apply(next, { x: box.left + box.width / 2, y: box.top + box.height / 2 });
+      }}
+      aria-label={t(key)}
     >
-      {theme === 'dark' ? (
-        <Sun className="h-[1.2rem] w-[1.2rem] transition-all" />
-      ) : (
-        <Moon className="h-[1.2rem] w-[1.2rem] transition-all" />
-      )}
-      <span className="sr-only">{t('theme.toggle')}</span>
+      <Icon className="h-[1.2rem] w-[1.2rem] transition-all" />
     </Button>
   );
 }

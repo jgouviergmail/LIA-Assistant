@@ -15,6 +15,7 @@ import { TelemetryBootstrap } from '@/components/telemetry/TelemetryBootstrap';
 import { QueryProvider } from '@/lib/query-client';
 import { LoggingProvider } from '@/lib/logging-context';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeInitScript } from '@/components/theme-init-script';
 import { ColorThemeProvider } from '@/lib/theme-context';
 import { FontProvider } from '@/lib/font-context';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
@@ -101,6 +102,9 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
   return (
     <html lang={lng} className={`${inter.variable} ${fontVariables}`} suppressHydrationWarning>
       <head>
+        {/* Applies data-oled / data-theme before the first paint. Must stay
+            FIRST in <head>: everything below it can trigger a paint. */}
+        <ThemeInitScript />
         {/* SEO: Structured data (JSON-LD) */}
         <WebSiteJsonLd />
         <OrganizationJsonLd />

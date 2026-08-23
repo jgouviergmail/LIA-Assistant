@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 
@@ -152,10 +153,9 @@ export function LoginForm() {
         {/* Remember Me checkbox and Forgot Password */}
         <div className="space-y-2">
           <div className="flex items-center">
-            <input
+            <Checkbox
               id="remember-me"
               name="remember-me"
-              type="checkbox"
               // aria-labelledby: the htmlFor/id association below is real, but
               // static analysis cannot resolve it across elements (F012) — the
               // explicit reference makes the accessible name verifiable.
@@ -163,12 +163,11 @@ export function LoginForm() {
               checked={rememberMe}
               onChange={e => setRememberMe(e.target.checked)}
               disabled={isLoading}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             />
             <label
               id="remember-me-label"
               htmlFor="remember-me"
-              className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
+              className="ml-2 block text-sm text-foreground"
             >
               {t('auth.remember_me')}
             </label>

@@ -14,6 +14,7 @@ import {
   Brain,
   Check,
   Coins,
+  Eclipse,
   EyeOff,
   FileSpreadsheet,
   Info,
@@ -788,9 +789,86 @@ function AirQualityHonestyScene({ active, labels }: SceneProps) {
   );
 }
 
+type OledPhase = 'light' | 'dark' | 'oled';
+const OLED_STEPS: readonly TimelineStep<OledPhase>[] = [
+  { at: 0, state: 'light' },
+  { at: 1300, state: 'dark' },
+  { at: 2600, state: 'oled' },
+];
+
+/** One frame of the little screen, painted in the tones of a given stop. */
+function OledFrame({ ground, surface, dark }: { ground: string; surface: string; dark: boolean }) {
+  return (
+    <div className={cn('space-y-2 p-3', ground)}>
+      <div className="flex items-center justify-between">
+        {/* The accent bar is the same token in all three frames: only the
+            neutral surfaces move, which is the whole point of the card. */}
+        <span className="h-1.5 w-10 rounded-full bg-primary" />
+        <span
+          className={cn(
+            'flex h-5 w-5 items-center justify-center rounded-full border',
+            dark ? 'border-white/20 bg-white/10' : 'border-border bg-card'
+          )}
+        >
+          {dark ? (
+            <Eclipse className="h-3 w-3 text-primary" aria-hidden="true" />
+          ) : (
+            <Sun className="h-3 w-3 text-primary" aria-hidden="true" />
+          )}
+        </span>
+      </div>
+      <div className={cn('space-y-1.5 rounded-lg p-2', surface)}>
+        <SkeletonLine w="w-4/5" />
+        <SkeletonLine w="w-3/5" />
+      </div>
+      <div className={cn('rounded-lg p-2', surface)}>
+        <SkeletonLine w="w-2/3" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The three stops of the theme cycle, on one small screen.
+ *
+ * The last step is staged the way the real transition works rather than
+ * described: the black frame is a SECOND copy of the screen, stacked on the
+ * dark one and clipped by a circle that grows from the control in the corner.
+ * `motion-reduce` drops the growth, so the frame simply appears — exactly what
+ * the product does when the system asks for less motion.
+ */
+function OledBlackScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(OLED_STEPS, { active });
+  const light = phase === 'light';
+
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="relative w-full max-w-[190px] overflow-hidden rounded-xl border border-border">
+        <div className="transition-colors duration-700">
+          <OledFrame
+            ground={light ? 'bg-background' : 'bg-slate-900'}
+            surface={light ? 'bg-card' : 'bg-slate-800'}
+            dark={!light}
+          />
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 transition-[clip-path] duration-700 ease-out motion-reduce:transition-none"
+          style={{
+            clipPath: phase === 'oled' ? 'circle(140% at 86% 16%)' : 'circle(0% at 86% 16%)',
+          }}
+        >
+          <OledFrame ground="bg-black" surface="bg-neutral-950" dark />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   activity_timeline: ActivityTimelineScene,
   readable_at_a_glance: ReadableAtAGlanceScene,
+  oled_black: OledBlackScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,
   air_quality_honesty: AirQualityHonestyScene,

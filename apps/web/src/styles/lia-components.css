@@ -168,6 +168,28 @@
   --lia-danger-subtle: rgba(239, 68, 68, 0.15);
 }
 
+/* OLED — the V3 display layer's own greys.
+   This file is `@import`ed WITHOUT `layer()`, so everything in it is UNLAYERED,
+   and unlayered rules beat `@layer theme` no matter how specific the layered
+   one is. The OLED neutrals in globals.css therefore cannot reach these
+   variables: without this block the cards would stay slate-blue (#1f2937 on
+   #111827) floating on an absolute-black page. It has to live here, next to the
+   `.dark` values it overrides.
+
+   Values are the sRGB conversions of the same OKLCH steps globals.css uses, so
+   the two layers describe one surface, not two that merely look similar.
+   `--lia-border` / `--lia-border-light` are deliberately NOT overridden: like
+   their `--color-*` counterparts they read better against black than against
+   the dark ground. Text, shadows, weather gradients and the coloured `*-subtle`
+   tints are mode-independent and stay put. */
+html.dark[data-oled] {
+  --lia-background: #000000;
+  --lia-surface: #0e1011;
+  --lia-surface-elevated: #151618;
+  --lia-surface-hover: #1b1d1f;
+  --lia-surface-active: #27292b;
+}
+
 /* =============================================================================
    Base Card Component - Foundation
    ============================================================================= */

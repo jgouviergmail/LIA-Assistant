@@ -20,88 +20,36 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
-type Rgb = [number, number, number];
-type Palette = Record<string, Rgb>;
+import {
+  type Palette,
+  type Rgb,
+  allPalettes,
+  blend,
+  contrast,
+  css as cssSource,
+  oklchToSrgb,
+  oledPalettes,
+} from './contrast-math';
 
-// --- OKLCH -> sRGB -> WCAG relative luminance --------------------------------
+const palettes = { ...allPalettes(), ...oledPalettes() };
 
-function oklchToSrgb(L: number, C: number, H: number): Rgb {
-  const h = (H * Math.PI) / 180;
-  const a = C * Math.cos(h);
-  const b = C * Math.sin(h);
-  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
-  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
-  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
-  const l = l_ ** 3;
-  const m = m_ ** 3;
-  const s = s_ ** 3;
-  const r = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-  const g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-  const bl = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
-  const enc = (x: number) => {
-    const v = Math.max(0, Math.min(1, x));
-    return v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055;
-  };
-  return [enc(r), enc(g), enc(bl)];
-}
-
-function luminance([r, g, b]: Rgb): number {
-  const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-}
-
-function contrast(fg: Rgb, bg: Rgb): number {
-  const [l1, l2] = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
-  return (l1 + 0.05) / (l2 + 0.05);
-}
-
-/** Alpha-composite `top` at `alpha` over an opaque `bottom` (sRGB space, like the browser). */
-function blend(top: Rgb, bottom: Rgb, alpha: number): Rgb {
-  return [0, 1, 2].map(i => alpha * top[i] + (1 - alpha) * bottom[i]) as Rgb;
-}
-
-// --- globals.css token extraction --------------------------------------------
-
-const css = readFileSync(resolve(__dirname, '../globals.css'), 'utf-8');
-
-/** Extract `--color-*: oklch(...)` declarations from one selector block. */
-function extractBlock(startIndex: number): Record<string, Rgb> {
-  const open = css.indexOf('{', startIndex);
-  let depth = 1;
-  let i = open + 1;
-  while (depth > 0 && i < css.length) {
-    if (css[i] === '{') depth++;
-    if (css[i] === '}') depth--;
-    i++;
-  }
-  const body = css.slice(open + 1, i - 1);
-  const tokens: Record<string, Rgb> = {};
-  const re = /--color-([a-z-]+):\s*oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/g;
-  for (const m of body.matchAll(re)) {
-    tokens[m[1]] = oklchToSrgb(Number(m[2]) / 100, Number(m[3]), Number(m[4]));
-  }
-  return tokens;
-}
-
-function paletteFor(selector: string | RegExp): Palette {
-  const idx = typeof selector === 'string' ? css.indexOf(selector) : css.search(selector);
-  expect(idx, `selector ${selector} not found in globals.css`).toBeGreaterThan(-1);
-  return extractBlock(idx);
-}
-
-const THEMES = ['ocean', 'forest', 'sunset', 'slate'] as const;
-
-const palettes: Record<string, Palette> = {
-  'default-light': paletteFor('@theme {'),
-  'default-dark': paletteFor(/\.dark \{/),
+/**
+ * Tailwind's cyan ramp, copied verbatim from `tailwindcss/theme.css`.
+ *
+ * The skill badge is the product's one remaining FIXED-palette chrome element:
+ * cyan is the skill signal, in the chat and in the landing mockup alike, and it
+ * deliberately does not follow the user's accent. `badge.tsx` records why the
+ * other fixed variants were removed — they "ignore the five colour themes and
+ * sit outside the contrast guard, which reads `--color-*` pairs only". This
+ * block closes that hole for the one variant that legitimately stays fixed.
+ */
+const CYAN: Record<number, Rgb> = {
+  400: oklchToSrgb(0.789, 0.154, 211.53),
+  500: oklchToSrgb(0.715, 0.143, 215.221),
+  600: oklchToSrgb(0.609, 0.126, 221.723),
+  800: oklchToSrgb(0.45, 0.085, 224.283),
 };
-for (const t of THEMES) {
-  palettes[`${t}-light`] = paletteFor(`[data-theme='${t}'] {`);
-  palettes[`${t}-dark`] = paletteFor(`[data-theme='${t}'].dark {`);
-}
 
 // --- The pair matrix ----------------------------------------------------------
 
@@ -161,6 +109,11 @@ const CHECKS: Check[] = [
     bg: p => p['muted'],
     min: AA,
   },
+  // Dimmed text (`text-<token>/NN`) is NOT checked here: this matrix describes
+  // pairs the UI actually produces, and no opacity below 100 survives in the
+  // source. The invariant that keeps it that way — with the safe floor derived
+  // from these same palettes rather than hardcoded — lives in
+  // `text-opacity.guard.test.ts`.
   // Primary as text (links, outline/link buttons, icons-with-text).
   { label: 'primary on background', fg: p => p['primary'], bg: p => p['background'], min: AA },
   { label: 'primary on card', fg: p => p['primary'], bg: p => p['card'], min: AA },
@@ -289,8 +242,105 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
     });
   }
 
-  it('parses all 10 palettes with the full token set', () => {
-    expect(Object.keys(palettes)).toHaveLength(10);
+  /**
+   * The skill badge (`SkillBadge`): cyan text on a `cyan-500/20` wash over the
+   * assistant bubble, whose ground is the `card` token of the active palette.
+   * Light and dark need DIFFERENT ramp steps — a single value cannot clear AA
+   * on both a near-white and a near-black card, which is exactly how the
+   * original `text-cyan-400` shipped at 1.39:1 in light mode.
+   */
+  describe('skill badge (fixed cyan palette, all themes × modes)', () => {
+    for (const [name, palette] of Object.entries(palettes)) {
+      const isDark = !name.endsWith('-light');
+      const step = isDark ? 400 : 800;
+      it(`${name}: cyan-${step} on cyan-500/20 over card meets AA`, () => {
+        const ground = blend(CYAN[500], palette['card'], 0.2);
+        const ratio = contrast(CYAN[step], ground);
+        expect(ratio, `cyan-${step} on the badge wash in ${name}: ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(AA);
+      });
+    }
+  });
+
+  /**
+   * The sheen is a contrast parameter, not decoration: `.badge-glimmer` sweeps
+   * a cyan band across a badge whose own text is cyan, so the WORST moment for
+   * the reader is the band's peak — not the badge at rest. The alpha is read
+   * out of `globals.css` rather than restated here, so loosening the CSS fails
+   * this test instead of quietly dimming the label.
+   */
+  it('skill badge stays AA at the peak of the glimmer sheen', () => {
+    const literal = /\.badge-glimmer\s*\{[^}]*rgb\(34 211 238 \/ ([\d.]+)\)/.exec(cssSource);
+    expect(literal, '.badge-glimmer cyan sheen literal not found in globals.css').not.toBeNull();
+    const alpha = Number(literal![1]);
+    // rgb(34 211 238) — the sheen's own colour, as written in the stylesheet.
+    const sheen: Rgb = [34 / 255, 211 / 255, 238 / 255];
+
+    const failures: string[] = [];
+    for (const [name, palette] of Object.entries(palettes)) {
+      const wash = blend(CYAN[500], palette['card'], 0.2);
+      const peak = blend(sheen, wash, alpha);
+      const step = name.endsWith('-light') ? 800 : 400;
+      const ratio = contrast(CYAN[step], peak);
+      if (ratio < AA) failures.push(`${name}: ${ratio.toFixed(2)} < ${AA}`);
+    }
+    expect(failures, `\nglimmer peak contrast failures (alpha ${alpha}):\n  ${failures.join('\n  ')}\n`).toEqual(
+      []
+    );
+  });
+
+  /**
+   * Reduced motion must not merely stop the sheen: `animation: none` leaves the
+   * gradient at its INITIAL position, which parks the bright band on the label.
+   * The stop must also move it to the animation's end position.
+   */
+  it('parks the glimmer off the badge under prefers-reduced-motion', () => {
+    const endPosition = /@keyframes badge-glimmer[\s\S]*?100%\s*\{\s*background-position:\s*([^;]+);/.exec(
+      cssSource
+    );
+    expect(endPosition, 'badge-glimmer 100% keyframe not found').not.toBeNull();
+
+    // Scoping a regex "inside the reduced-motion media query" is unreliable —
+    // globals.css has several such blocks, and a lazy match walks into the
+    // ordinary rule instead. Identify the stop rule by what it DOES: the
+    // `.badge-glimmer` block that switches the animation off.
+    const stopRule = [...cssSource.matchAll(/\.badge-glimmer\s*\{([^}]*)\}/g)]
+      .map(m => m[1].replace(/\s+/g, ' '))
+      .find(body => /animation:\s*none/.test(body));
+
+    expect(stopRule, '.badge-glimmer has no rule that stops its animation').toBeDefined();
+    expect(stopRule).toContain(`background-position: ${endPosition![1].trim()}`);
+  });
+
+  /**
+   * Selected text: `foreground` over the accent-tinted selection ground.
+   *
+   * The alpha is read out of `globals.css` rather than restated, so darkening
+   * the highlight fails here instead of quietly making selected text harder to
+   * read than unselected text.
+   */
+  it('selected text stays AA on the accent-tinted highlight', () => {
+    const literal =
+      /::selection\s*\{[^}]*color-mix\(in oklch, var\(--color-primary\) (\d+)%/.exec(cssSource);
+    expect(literal, '::selection primary mix not found in globals.css').not.toBeNull();
+    const alpha = Number(literal![1]) / 100;
+
+    const failures: string[] = [];
+    for (const [name, palette] of Object.entries(palettes)) {
+      const ground = blend(palette['primary'], palette['background'], alpha);
+      const ratio = contrast(palette['foreground'], ground);
+      if (ratio < AA) failures.push(`${name}: ${ratio.toFixed(2)} < ${AA}`);
+    }
+    expect(
+      failures,
+      `\nselection contrast failures (primary/${literal![1]}):\n  ${failures.join('\n  ')}\n`
+    ).toEqual([]);
+  });
+
+  it('parses all 15 palettes with the full token set', () => {
+    // 5 accents x {light, dark, oled}. OLED palettes are merged onto their dark
+    // base, so they must expose the FULL token set even though the CSS block
+    // only overrides six neutrals.
+    expect(Object.keys(palettes)).toHaveLength(15);
     for (const [name, palette] of Object.entries(palettes)) {
       for (const t of ['background', 'foreground', 'primary', 'muted-foreground', 'ring']) {
         expect(palette[t], `token --color-${t} missing in ${name}`).toBeDefined();

@@ -224,8 +224,8 @@ Customize LIA's appearance to your taste:
 • 🌹 **Rose**: dusty rose, elegant and warm
 • 💜 **Lavender**: soft lavender, refined and creative
 
-**Light/dark mode:**
-Each theme exists in light and dark versions. Toggle with the ☀️/🌙 button in the title bar.
+**Light, dark, absolute black:**
+Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and **absolute black** for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In **Settings › Appearance** you can also pick the mode directly, including **System** (follow your device), with an **Absolute black** switch available once dark is selected.
 
 **To change theme:**
 Go to **Settings** (⚙️ icon) and find the **Theme** section.
@@ -237,7 +237,7 @@ Manage your personal information:
 • ✏️ **Full name**: your name displayed in the app
 • 🌍 **Timezone**: for date display
 • 🌐 **Language**: interface language
-• 🎨 **Theme**: color theme and light/dark mode
+• 🎨 **Theme**: color theme and display mode (light, dark, absolute black, or system)
 • 🔤 **Font**: choose from 9 font families (System, Noto Sans, Plus Jakarta Sans, IBM Plex Sans, Geist, Source Sans Pro, Merriweather, Libre Baskerville, Fira Code)
 
 **Not editable:**

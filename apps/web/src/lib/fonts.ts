@@ -17,6 +17,13 @@
  * (no next/font/google import may reappear) and the exported variables.
  */
 
+// preload: false on every family below — these are USER-SELECTABLE display
+// fonts, applied one at a time through `data-font`. Preloading them all made
+// the browser fetch 26 font files (618 KB, measured 2026-08-23) on a page that
+// renders only Inter. Next still emits the @font-face rules, so the family the
+// user actually picked loads on demand, exactly like any other webfont. Inter
+// itself is declared in layout.tsx and stays preloaded: it IS the default.
+
 import localFont from 'next/font/local';
 import { GeistSans } from 'geist/font/sans';
 
@@ -27,6 +34,7 @@ export const notoSans = localFont({
     { path: '../fonts/noto-sans/noto-sans-600.woff2', weight: '600', style: 'normal' },
     { path: '../fonts/noto-sans/noto-sans-700.woff2', weight: '700', style: 'normal' },
   ],
+  preload: false,
   variable: '--font-noto-sans',
   display: 'swap',
 });
@@ -54,6 +62,7 @@ export const plusJakartaSans = localFont({
       style: 'normal',
     },
   ],
+  preload: false,
   variable: '--font-plus-jakarta',
   display: 'swap',
 });
@@ -65,6 +74,7 @@ export const ibmPlexSans = localFont({
     { path: '../fonts/ibm-plex-sans/ibm-plex-sans-600.woff2', weight: '600', style: 'normal' },
     { path: '../fonts/ibm-plex-sans/ibm-plex-sans-700.woff2', weight: '700', style: 'normal' },
   ],
+  preload: false,
   variable: '--font-ibm-plex',
   display: 'swap',
 });
@@ -76,6 +86,7 @@ export const sourceSans3 = localFont({
     { path: '../fonts/source-sans-3/source-sans-3-600.woff2', weight: '600', style: 'normal' },
     { path: '../fonts/source-sans-3/source-sans-3-700.woff2', weight: '700', style: 'normal' },
   ],
+  preload: false,
   variable: '--font-source-sans',
   display: 'swap',
 });
@@ -85,6 +96,7 @@ export const merriweather = localFont({
     { path: '../fonts/merriweather/merriweather-400.woff2', weight: '400', style: 'normal' },
     { path: '../fonts/merriweather/merriweather-700.woff2', weight: '700', style: 'normal' },
   ],
+  preload: false,
   variable: '--font-merriweather',
   display: 'swap',
 });
@@ -102,6 +114,7 @@ export const libreBaskerville = localFont({
       style: 'normal',
     },
   ],
+  preload: false,
   variable: '--font-libre-baskerville',
   display: 'swap',
 });
@@ -112,6 +125,7 @@ export const firaCode = localFont({
     { path: '../fonts/fira-code/fira-code-500.woff2', weight: '500', style: 'normal' },
     { path: '../fonts/fira-code/fira-code-700.woff2', weight: '700', style: 'normal' },
   ],
+  preload: false,
   variable: '--font-fira-code',
   display: 'swap',
 });

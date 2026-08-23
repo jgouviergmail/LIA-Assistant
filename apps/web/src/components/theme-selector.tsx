@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { DisplayModeSelector } from '@/components/settings/DisplayModeSelector';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import type { User } from '@/lib/auth';
@@ -101,6 +102,10 @@ export function ThemeSelector({ lng }: ThemeSelectorProps) {
         <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
       ) : (
         <>
+          {/* Display mode first: it decides WHICH variant of the accents below
+              is on screen, so choosing an accent before a mode is backwards. */}
+          <DisplayModeSelector lng={lng} />
+
           <div className="grid gap-3">
             {THEMES.map(themeOption => {
               const isSelected = colorTheme === themeOption.name;

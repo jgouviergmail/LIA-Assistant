@@ -65,4 +65,29 @@ describe('self-hosted fonts contract', () => {
       expect(source).toContain(`variable: '${cssVar}'`);
     }
   });
+
+  /**
+   * Every optional family must opt OUT of preloading.
+   *
+   * These are user-selectable display fonts, applied one at a time through
+   * `data-font`. With the default `preload: true` the browser fetched 26 font
+   * files totalling 618 KB on a page that renders only Inter; opting out took
+   * it to 3 files and 162 KB (measured in the dev container, 2026-08-23) with
+   * an identical render. Inter is declared in `layout.tsx`, not here, and stays
+   * preloaded on purpose — it is the default face.
+   */
+  it('every optional family opts out of preloading', () => {
+    const source = readFileSync(FONTS_TS, 'utf-8');
+    const declarations = [...source.matchAll(/localFont\(\{([\s\S]*?)\n\}\);/g)].map(m => m[1]);
+    expect(declarations.length, 'no localFont() declarations found').toBeGreaterThanOrEqual(7);
+
+    const preloading = declarations.filter(body => !/preload:\s*false/.test(body));
+    const named = preloading.map(
+      body => /variable: '([^']+)'/.exec(body)?.[1] ?? '(unnamed family)'
+    );
+    expect(
+      named,
+      `\nThese optional families would be fetched on every page:\n  ${named.join('\n  ')}\n`
+    ).toEqual([]);
+  });
 });

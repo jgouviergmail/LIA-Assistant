@@ -138,16 +138,20 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
             <span>LIA</span>
           </Link>
 
-          {/* Desktop nav — compact: anchors + page links. px-2 (not 2.5): with
-              the 6th page link (More), the widest locale row (fr) exceeded a
-              880-900px viewport by 25px; the tighter padding buys ~36px. */}
+          {/* Desktop nav — compact: anchors + page links. px-1.5 (not 2, not
+              2.5): each added link costs the widest locale row (fr) more than
+              it costs the others, because French labels are the longest —
+              measured 2026-08-23 at the 880px breakpoint where the login and
+              BETA buttons first appear, the fr row ran 4px past the viewport
+              while es, the next widest, still had 24px to spare. Each step down
+              buys ~4px per link across the row. */}
           <div className="hidden mobile:flex items-center gap-0.5">
             {SECTION_ANCHORS.map(({ id, key, lgOnly }) => (
               <a
                 key={id}
                 href={buildAnchorHref(id)}
                 className={cn(
-                  'px-2 py-2 text-sm font-medium rounded-md transition-colors',
+                  'px-1.5 py-2 text-sm font-medium rounded-md transition-colors',
                   lgOnly && 'hidden lg:block',
                   activeSection === id
                     ? 'text-primary bg-primary/10'
@@ -162,7 +166,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               <Link
                 key={id}
                 href={buildLocalizedPath(href, lng as Language)}
-                className="px-2 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                className="px-1.5 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
               >
                 {t(key)}
               </Link>

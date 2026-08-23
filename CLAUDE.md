@@ -105,6 +105,26 @@ task db:reset                            # Drop all + migrate + seed
 task db:create-admin                     # Create admin user for first-time setup
 ```
 
+### Release surfaces
+
+The version lives in ~25 places (6 manifests, 18 guide stamps, README, GETTING_STARTED)
+and three public counts are derived from their source (ADR files, latest ADR number,
+CHANGELOG entries). All of it is mechanical, so none of it belongs in a checklist:
+
+```bash
+task release:check                # report any version/count drift (read-only)
+task release:bump -- 1.32.0       # write every mechanical surface + realign the counts
+task release:sync-counts          # realign the ADR/CHANGELOG counts alone
+```
+
+`scripts/release/version_surfaces.py` is the single declaration, shared by the bump
+script and the CI guard `test_version_surface_consistency_guard.py` — what a release
+writes is exactly what CI verifies. Guide stamps are **discovered**, so a new stamped
+guide must be declared tracked or exempt (with a reason) or the build reds. What the
+tool deliberately does NOT write is printed after every bump: the CHANGELOG entry, the
+FAQ changelog, the README theme sentence, and `LANDING_STATS.tests` (a real
+measurement, never derived).
+
 ## Architecture
 
 ### Monorepo Structure
@@ -423,6 +443,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (241 ADR files, ADR-242 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (242 ADR files, ADR-243 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

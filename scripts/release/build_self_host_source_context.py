@@ -110,6 +110,12 @@ def _excluded(rel: str) -> bool:
     parts = rel.split("/")
     if any(part in _EXCLUDED_DIR_NAMES for part in parts):
         return True
+    # Per-session e2e proof dists are named by suffix (.next-e2e, .next-e2e-md,
+    # .next-e2e-cap, and whatever the next session picks), so they are matched
+    # by prefix rather than enumerated — an unlisted one shipped ~11k build
+    # artefacts before (2026-08-23).
+    if any(part.startswith(".next-e2e") for part in parts):
+        return True
     if rel.startswith(_EXCLUDED_PATH_PREFIXES):
         return True
     if rel.endswith(_EXCLUDED_SUFFIXES):

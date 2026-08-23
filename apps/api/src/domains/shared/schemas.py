@@ -38,7 +38,19 @@ from src.core.security import validate_password_strict
 from src.core.validators import validate_timezone
 
 # Valid theme values (centralized constants)
-VALID_THEMES = ("light", "dark", "system")
+#
+# "oled" is the absolute-black refinement of dark, not a fourth mode: the
+# frontend keeps `.dark` on <html> and adds a `data-oled` attribute, so a stored
+# "oled" means "dark, with OLED". It is persisted here rather than in a separate
+# column because `User.theme` is already a String(20) and the pair is mutually
+# exclusive — `system + OLED` is deliberately not representable.
+#
+# This tuple is the SERVER half of a cross-layer contract; its mirror is
+# `PERSISTED` in apps/web/src/lib/theme-mode.ts. Adding a mode on one side only
+# is a silent failure: the UI applies the change locally and the PATCH answers
+# 422, so it looks correct until the next page load. Guarded by
+# tests/unit/domains/users/test_theme_preference_contract.py.
+VALID_THEMES = ("light", "dark", "system", "oled")
 VALID_COLOR_THEMES = ("default", "ocean", "forest", "sunset", "slate")
 VALID_FONT_FAMILIES = (
     "system",  # Default (Inter)

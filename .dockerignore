@@ -3,7 +3,10 @@
 
 # Build outputs
 **/.next
-**/.next-e2e
+# Trailing glob on purpose: per-session proof dists are named .next-e2e,
+# .next-e2e-md, .next-e2e-cap... A bare `.next-e2e` matched only the first one
+# and let ~22k files of the others into the context (2026-08-23).
+**/.next-e2e*
 **/dist
 **/out
 

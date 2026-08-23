@@ -65,7 +65,7 @@ export interface CardItemAction {
 
 /** Shared chip classes — kept for callers that style a matching control. */
 export const CARD_ITEM_ACTION_CLASS =
-  'p-1.5 rounded-md text-muted-foreground/70 hover:text-primary hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors';
+  'p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors';
 
 export interface CardItemActionsProps {
   actions: readonly CardItemAction[];

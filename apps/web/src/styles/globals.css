@@ -1,4 +1,18 @@
-@import 'tailwindcss';
+/* Tailwind's automatic source detection walks the whole working directory
+   (process.cwd() = apps/web) and declares EVERY file it finds as a webpack
+   dependency. In the dev container that directory is a 9p bind-mount where one
+   stat() costs ~1.5-2.8 ms, so any generated tree sitting next to the sources
+   is paid on every scan and on every cache validation. Measured 2026-08-23
+   with three leftover `.next-e2e*` dists present: 35 331 files scanned (96 %
+   of them build artefacts), 449 s to compile this file, 10 min 32 s for the
+   first page. Naming the sources explicitly bounds the scan to `src/`
+   whatever else happens to sit in the directory: 10 s, and a byte-identical
+   page. The 333 extra selectors the wide scan produced were all phantoms
+   extracted from minified bundles (`.backdrop-sepia`, `.oldstyle-nums`, ...)
+   — every class the app really uses is still generated, guarded by
+   src/styles/__tests__/tailwind-source-scope.test.ts. */
+@import 'tailwindcss' source(none);
+@source '../**/*.{ts,tsx,js,jsx,mjs,cjs,md,mdx,css}';
 @plugin "@tailwindcss/typography";
 
 /* V3 Display Architecture: Modern HTML components */
@@ -399,6 +413,47 @@
   }
 
   /* ========================================
+     OLED — absolute black, as a REFINEMENT of dark
+     ========================================
+     Selector, deliberately: `html.dark[data-oled]` scores (0,2,1), which beats
+     `[data-theme='ocean'].dark` at (0,2,0) whatever the source order. A plain
+     `.oled` class would score (0,1,0) and LOSE to every accent block, silently,
+     and only for users who picked an accent.
+
+     Requiring `.dark` in the selector is what makes light mode immune with no
+     application-side guard at all — there is no code path that can forget it.
+     It also keeps `resolvedTheme === 'dark'` true (9 call sites: CodeBlock,
+     Mermaid, Snowfall, useLiaGender…) and keeps the 9 `html:not(.dark) .cosmos`
+     rules on their dark branch. And `color-scheme: dark`, declared in `.dark`,
+     still applies — so native selects and scrollbars stay dark.
+
+     Only SIX neutrals are overridden. Every accent keeps its own primary /
+     success / warning / destructive, and `border` / `input` deliberately
+     inherit the dark values: measured 2026-08-23, oklch(32%) reads BETTER
+     against absolute black (1.66) than against the dark ground (1.48).
+
+     Surfaces are calibrated against the shipped dark mode rather than against
+     zero, so nothing separates less than it does today:
+       card vs background   1.10  (dark: 1.09)
+       border vs background 1.66  (dark: 1.48)
+       border vs card       1.51  (dark: 1.37)
+     All 25 contrast pairs × 5 accents are verified in
+     `design-contrast.guard.test.ts`. */
+  html.dark[data-oled] {
+    /* The point of the mode: a true zero, so OLED pixels are actually off. */
+    --color-background: oklch(0% 0 0);
+
+    /* Cards must still read against that zero — 17% is the lowest lift that
+       matches dark mode's own card/background separation. */
+    --color-card: oklch(17% 0.004 250);
+    --color-popover: oklch(20% 0.004 250);
+
+    --color-secondary: oklch(23% 0.005 250);
+    --color-muted: oklch(23% 0.005 250);
+    --color-accent: oklch(23% 0.005 250);
+  }
+
+  /* ========================================
      FONT FAMILY SELECTION
      Applied via data-font attribute on <html>
      ======================================== */
@@ -458,6 +513,37 @@
      browser that ignores `clip` still clips the page. */
   html {
     overflow-x: hidden;
+  }
+
+  /* Text selection follows the user's accent instead of the browser's own blue.
+     Without this, selecting text on any of the four non-default themes — and on
+     OLED especially — paints a colour that belongs to no palette in the product.
+
+     `color: inherit` on purpose: forcing a selection foreground would override
+     every syntax-highlighted token and every coloured badge the user drags
+     across. The ground is `primary/25`, which keeps `foreground` at 6.69:1
+     worst case across all 15 palettes — pinned in
+     `design-contrast.guard.test.ts`, which reads this literal. */
+  ::selection {
+    background-color: color-mix(in oklch, var(--color-primary) 25%, transparent);
+    color: inherit;
+  }
+
+  /* Theme change as a circular reveal (see `withThemeTransition`).
+     The default cross-fade is switched off so the two snapshots simply stack
+     and the NEW one is clipped open from the control that was pressed —
+     a cross-fade underneath would show both palettes at once, which on the
+     light → OLED step reads as a grey wash rather than a wipe. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+  ::view-transition-old(root) {
+    z-index: 1;
+  }
+  ::view-transition-new(root) {
+    z-index: 2;
   }
 
   body {
@@ -1300,11 +1386,16 @@
       background-position: 160px 0;
     }
   }
+  /* Sheen alpha is a CONTRAST parameter, not a taste one: the band lightens the
+     badge ground, and the badge's own text is cyan. Measured 2026-08-23 at the
+     sheen's peak across all ten palettes — 0.25 drops dark mode to 3.93:1,
+     under the 4.5:1 floor; 0.15 holds 4.89:1. Pinned by
+     `design-contrast.guard.test.ts`, which reads this literal. */
   .badge-glimmer {
     background-image: linear-gradient(
       100deg,
       transparent 20%,
-      rgb(34 211 238 / 0.25) 50%,
+      rgb(34 211 238 / 0.15) 50%,
       transparent 80%
     );
     background-size: 80px 100%;
@@ -1469,7 +1560,6 @@
     .animate-send-takeoff,
     .animate-greet-float,
     .animate-bell-ring,
-    .badge-glimmer,
     .animate-step-breathe,
     .animate-phase-fade,
     .animate-particle-up,
@@ -1477,6 +1567,16 @@
     .animate-token-tick,
     .progress-steps .markdown-content em:last-of-type {
       animation: none !important;
+    }
+    /* The skill badge's sheen is a moving BACKGROUND, not an opacity fade:
+       `animation: none` alone leaves it at its initial `background-position`,
+       which — with an 80px gradient whose bright band sits at 50% — parks the
+       highlight squarely on the label and makes it permanently harder to read.
+       Killing the motion therefore also means moving the band off the badge,
+       to the animation's own end position. */
+    .badge-glimmer {
+      animation: none !important;
+      background-position: 160px 0 !important;
     }
     /* step-in/step-dim are 'both'/'forwards' fill animations: killing them would
        freeze lines invisible/undimmed mid-state — jump them to their end state.

@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 1.7
-**Data**: 2026-08-22
-**Applicazione**: LIA v1.31.2
+**Data**: 2026-08-23
+**Applicazione**: LIA v1.31.3
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,7 +19,7 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 43 domini funzionali | **570.000** |
-| Test automatizzati, eseguiti a ogni commit e rilascio | **26.600+** |
+| Test automatizzati, eseguiti a ogni commit e rilascio | **26.800+** |
 | Decisioni di architettura documentate (ADR) | **240** |
 | Versioni rilasciate a ritmo regolare | **222** |
 | Lingue, parità verificata automaticamente | **6** |

@@ -45,6 +45,7 @@ import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { API_ENDPOINTS } from '@/lib/api-config';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
+import { SkillBadge } from '@/components/ui/skill-badge';
 import { downloadImage } from '@/lib/utils/download-image';
 import { AssistantAvatar, type AvatarTooltipLine } from '@/components/psyche/AssistantAvatar';
 import { ExecutionTraceDisclosure } from '@/components/chat/ExecutionTraceDisclosure';
@@ -964,9 +965,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {/* Skill indicator — top of bubble, always visible when a skill is active */}
             {message.skillName && (
               <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-border/30">
-                <span className="badge-glimmer text-[10px] px-1.5 py-0.5 rounded border bg-cyan-500/20 text-cyan-400 border-cyan-500/30 font-medium tracking-wide">
-                  ✦ {message.skillName}
-                </span>
+                <SkillBadge name={message.skillName} />
               </div>
             )}
             {/* Browser screenshot — displayed first as visual context for the response */}

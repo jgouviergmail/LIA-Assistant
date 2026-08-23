@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 5.0
-**Data**: 2026-08-22
-**Applicazione**: LIA v1.31.2
+**Versione**: 5.1
+**Data**: 2026-08-23
+**Applicazione**: LIA v1.31.3
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -57,7 +57,7 @@ Ogni utente ha il proprio spazio di configurazione, organizzato in due schede. U
 - **Canali**: collega Telegram per chattare e ricevere notifiche sul cellulare
 - **Generazione di immagini**: attiva e configura la creazione di immagini tramite IA
 - **Server MCP personali**: connetti i tuoi server MCP per estendere le capacità di LIA
-- **Aspetto**: lingua, fuso orario, tema (5 palette, modalità scura/chiara), font (9 scelte), formato di visualizzazione delle risposte (schede HTML, HTML, Markdown)
+- **Aspetto**: lingua, fuso orario, tema (5 palette, modalità chiara, scura o nero assoluto), font (9 scelte), formato di visualizzazione delle risposte (schede HTML, HTML, Markdown)
 - **La mia dashboard**: nascondi o riordina le 9 schede del briefing — una scheda nascosta non viene nemmeno più recuperata
 - **Debug**: accedi al pannello di debug per ispezionare ogni scambio (se abilitato dall'amministratore)
 

@@ -1,7 +1,8 @@
 # Design-System Contrast Architecture (AC-002)
 
 How LIA's theme tokens guarantee WCAG 2.x AA contrast across the 5 themes ×
-light/dark — and how that guarantee is enforced so it cannot silently regress.
+light/dark/OLED — and how that guarantee is enforced so it cannot silently
+regress.
 
 ## The contract
 
@@ -34,6 +35,37 @@ Two consequences, both deliberate:
    on the tint in the opposite mode — the pre-fix softWarning was 1.24:1 in
    dark mode).
 
+## The third depth: OLED
+
+`html.dark[data-oled]` is a **refinement** of dark, not a sixth theme
+(ADR-243). It overrides six neutral surfaces and nothing else, so every accent
+keeps the dark values the table above describes, and `border` / `input`
+deliberately inherit them: measured, `oklch(32%)` reads better against absolute
+black (1.66) than against the dark ground (1.48).
+
+Surfaces are calibrated against the **shipped dark mode**, never against zero,
+so nothing separates less than it already did:
+
+| pair | dark | OLED |
+|---|---|---|
+| card vs background | 1.09 | 1.10 |
+| border vs background | 1.48 | 1.66 |
+| border vs card | 1.37 | 1.51 |
+
+Two cascade facts constrain where those overrides may live, and both are
+load-bearing:
+
+- The selector must be `html.dark[data-oled]`, scoring (0,2,1). A bare `.oled`
+  class scores (0,1,0) and loses to `[data-theme='x'].dark` (0,2,0) — silently,
+  and only for users who picked an accent.
+- `lia-components.css` is `@import`ed **without `layer()`**, so its `.dark`
+  block is unlayered and beats `@layer theme` at any specificity. The V3
+  display layer's OLED overrides therefore live in that file, next to the
+  values they replace.
+
+Requiring `.dark` in the selector is also what makes light mode immune with no
+application-side guard at all.
+
 ## Forbidden patterns
 
 - **Alpha-diluted text tokens**: the composite drops below AA by
@@ -52,8 +84,11 @@ Two consequences, both deliberate:
 
 1. **Unit guard** — `apps/web/src/styles/__tests__/design-contrast.guard.test.ts`
    parses `globals.css`, converts OKLCH→sRGB, and asserts the full pair matrix
-   for all 10 palettes, including hover blends and self-tints. Any palette
-   edit below AA fails `pnpm test` before a browser ever renders it.
+   for all 15 palettes, including hover blends and self-tints. Any palette
+   edit below AA fails `pnpm test` before a browser ever renders it. A second
+   guard, `text-opacity.guard.test.ts`, freezes the dimmed-text debt per file
+   and **derives** its floor from these same palettes rather than hardcoding
+   one — re-tune a palette and the ratchet re-tunes with it.
 2. **Blocking axe scans** — `apps/web/e2e/a11y/` fails on ANY critical/serious
    violation, `color-contrast` included, on login, dashboard, chat, settings,
    spaces and admin, plus reflow (320 CSS px) and 200 % zoom (640 px). Each

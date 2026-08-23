@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.31.2
+**Compatibility**: LIA v1.31.3
 
 ## Table of Contents
 
@@ -472,9 +472,32 @@ task stop           # stop everything
 - Backend: https://localhost:8000 (Swagger: https://localhost:8000/docs)
 - Frontend: https://localhost:3000
 
+**Both services reload on a host edit, but only in polling mode.** The sources
+reach the containers through a bind mount that does not forward the host's
+filesystem events on Windows or macOS, so a native watcher sees nothing at all
+while the file on disk is already up to date — the edit simply never reaches
+the browser. The backend handles this by itself (watchfiles auto-enables
+polling on a WSL2 kernel); the frontend needs `WEB_WATCH_POLL_MS`, set to
+5000 ms in `.env.example`. **Do not lower it to "get a faster reload"** — a
+short interval stats the tree over a transport costing ~3 ms per stat and
+keeps webpack's graph invalidated, so every page view pays a rebuild. Three
+consecutive hits on an already compiled `/dashboard`, nothing edited between
+them: 44.5 s / 3.4 s / 2.0 s at 1000 ms, against 5.6 s / 313 ms / 200 ms at
+5000 ms. Reload lands in 12.4 s either way (4.8-14 s at 1000 ms). Set it to
+`false` on a Linux host, where native events work.
+
+**Never leave a generated tree inside `apps/web/`.** Tailwind detects its own
+sources from that directory and turns every file it finds into a webpack
+dependency, and each file costs a bind-mount round trip. Measured 2026-08-23,
+three leftover `.next-e2e*` proof dists (33 938 files, 96 % of the scan) took
+the first page compile from ~20 s to **10 min 32 s**. `apps/web/.gitignore`
+and the explicit `@source` in `globals.css` now keep them out, and
+`apps/web/src/styles/__tests__/tailwind-source-scope.test.ts` fails if that
+protection is dropped — but a dist parked under a new name still wastes your disk.
+
 ### Method 2: Hybrid (Infrastructure in Docker, App Manual)
 
-For debugging with local hot-reload:
+For debugging with a native (non-polling) hot-reload, or to attach a profiler:
 
 ```bash
 # Stop the containerized app, keep the infrastructure

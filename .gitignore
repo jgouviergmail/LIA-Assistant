@@ -333,3 +333,12 @@ infrastructure/caddy/Caddyfile
 
 # Public-demo ceremony artifacts (generated, NEVER committed):
 # the offline Ed25519 signing key and the signed cap attestation.
+
+# Security audits of the live demonstrator — NEVER commit these.
+# They are conducted against the running envelope, not the code: each finding
+# names a working abuse path (mass-signup rate, an inoperative spend cap, the
+# production mail credentials it reached). In a public repository that is an
+# attack map, not documentation. They stay on the author's disk; the FIXES ship
+# through the changelog like any other, described by what they now prevent.
+docs/superpowers/specs/*audit-securite*.md
+docs/superpowers/specs/*security-audit*.md

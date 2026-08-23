@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.31.2</strong> — <strong>Document search finds its answers again, in all six languages</strong>. The fusion that blends semantic similarity with keyword matching carried two compounding defects: BM25 was normalised against the corpus maximum, so the least-bad lexical match always scored a perfect 1.0 — pure noise whenever the question's language differs from the documents' — and the relevance threshold was compared against a score already shrunk by the blend weight, so a passage sharing no word with the question needed 0.786 similarity to clear a bar documented at 0.55, above the median of a <em>correct</em> answer. Measured on the live database: <strong>36% of correct answers cleared the semantic threshold and were then discarded by the fusion</strong>. The threshold now gates the semantic score alone, recalibrated across the six languages on real corpora and 740 native-language questions; keyword matching keeps its useful role — surfacing an exact term over a near-tie — but can no longer admit or evict a passage. Chinese was worst hit for a separate reason: the keyword tokenizer treated an entire Chinese sentence as one word, so lexical search there amounted to exact-sentence matching. Space-less scripts are now split into character bigrams, Latin scripts byte-identical. Recall, measured per language: French 0.525 → 0.867, English 0.883 → 0.950, German 0.533 → 0.883, Spanish 0.425 → 0.867, Italian 0.450 → 0.842, Chinese 0.208 → 0.817 — and 0.075 → 0.887 on Chinese-language documents — while off-topic turns receive <em>fewer</em> stray excerpts than before. — 22 August 2026.
+  <strong>Version 1.31.3</strong> — <strong>Dark mode gains a second depth, and the interface recovers landmarks it had lost</strong>. The new OLED mode paints a truly black background — <code>oklch(0% 0 0)</code>, the value at which an OLED panel's pixels actually switch off — and the header control becomes circular: light, dark, absolute black, light again, revealed by a circle opening from the button you pressed and skipped entirely under a reduced-motion preference. OLED is a <em>refinement</em> of dark, never a fourth theme: the <code>dark</code> class stays on the page and <code>data-oled</code> joins it, because making it a theme value of its own would have removed that class and flipped nine internal checks to their light branch — light syntax highlighting on a black page, white diagrams, invisible snowfall — then sent the whole public site back to its light variant. Only six neutral surfaces move, so each of the five colour themes keeps its accent, and borders keep their dark value, which reads <em>better</em> against absolute black (1.66) than against the dark ground (1.48). Settings regain <strong>System</strong>, which every new account starts on and a three-stop cycle could never return to. Three fixed defects were structurally invisible: three checkboxes carried classes that compile to no CSS rule at all, so they had no accent and <strong>no focus ring</strong>; the chat's skill badge rendered text at 1.39:1 against a 4.5:1 floor; and saving the display mode was rejected by the server with a perfectly silent failure — the screen turned black, and only the next reload revealed the loss. Fonts now load on demand: 26 files and 618 KB fetched for a page that renders one, down to 3 files and 162 KB, identical rendering. — 23 August 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **43** functional domains | **570,000** lines of code (excl. tests) | **26,600+** automated tests | **241** ADRs                                                           |
-| **223** versions shipped  | **6 languages**, parity enforced in CI  | **483** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **43** functional domains | **570,000** lines of code (excl. tests) | **26,800+** automated tests | **242** ADRs                                                           |
+| **224** versions shipped  | **6 languages**, parity enforced in CI  | **483** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -960,7 +960,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-241 ADR files (ADR-001 through ADR-242 — ADR-008 has no separate file) documenting major architectural decisions:
+242 ADR files (ADR-001 through ADR-243 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

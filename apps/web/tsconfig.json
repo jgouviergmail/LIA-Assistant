@@ -38,19 +38,24 @@
     "noImplicitThis": true,
     "alwaysStrict": true
   },
+  // Enumerated on purpose, never `**/*.ts`. A bare recursive glob makes tsc
+  // walk every generated tree that happens to sit in this directory
+  // (`.next-e2e*` proof dists, `coverage`, ...), and Next.js appends one
+  // `include` entry per NEXT_DIST_DIR it has ever seen — this list had
+  // accumulated dead `.next-e2e-md` / `.next-e2e-cap` entries pointing at
+  // directories that no longer exist. Measured 2026-08-23: those dists cost
+  // 10 min 32 s on the first dev page compile. Non-src TypeScript at this
+  // level is exactly three files, so name them.
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "next.config.ts",
+    "vitest.config.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-e2e/types/**/*.ts",
-    ".next-e2e/types/**/*.ts",
-    ".next-e2e/dev/types/**/*.ts",
-    ".next-e2e-md/types/**/*.ts",
-    ".next-e2e-md/dev/types/**/*.ts",
-    ".next-e2e-cap/types/**/*.ts",
-    ".next-e2e-cap/dev/types/**/*.ts"
+    ".next-e2e/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

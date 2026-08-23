@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 48 cards in
+ * Single source of truth for the "/more" small-attentions page: 49 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (48 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (49 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -17,6 +17,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Contrast,
+  Eclipse,
   Eye,
   Orbit,
   ToggleLeft,
@@ -166,6 +167,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'pricing_workbook',
       'haptics',
       'readable_at_a_glance',
+      'oled_black',
       'a11y_care',
       'frosted_glass',
       'narrow_screens',
@@ -215,6 +217,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   cost_transparency: Coins,
   pricing_workbook: FileSpreadsheet,
   readable_at_a_glance: Contrast,
+  oled_black: Eclipse,
   a11y_care: Accessibility,
   haptics: Vibrate,
   folded_settings: ChevronsDownUp,
@@ -273,6 +276,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   haptics: [],
   folded_settings: [],
   readable_at_a_glance: [],
+  oled_black: [],
   a11y_care: [],
   frosted_glass: [],
   provenance_why: [],

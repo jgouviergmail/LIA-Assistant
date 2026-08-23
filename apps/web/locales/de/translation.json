@@ -59,7 +59,9 @@
     "end_hour_label": "Endzeit"
   },
   "theme": {
-    "toggle": "Thema wechseln"
+    "to_light": "Zum hellen Modus wechseln",
+    "to_dark": "Zum dunklen Modus wechseln",
+    "to_oled": "Zu OLED-Schwarz wechseln"
   },
   "executionMode": {
     "toggle": {
@@ -1092,7 +1094,7 @@
       "light": "Hell",
       "dark": "Dunkel",
       "system": "System",
-      "dark_mode_tip": "💡 Verwenden Sie die Schaltfläche für den Dunkel-/Hellmodus, um zwischen den beiden Varianten jedes Designs zu wechseln.",
+      "dark_mode_tip": "💡 Jedes Thema unten hat eine helle und eine dunkle Variante — sie folgen dem oben gewählten Anzeigemodus.",
       "themes": {
         "default": {
           "label": "Professionelles Blau",
@@ -1114,7 +1116,11 @@
           "label": "Lavendel",
           "description": "Sanftes Lavendel, raffiniert und kreativ"
         }
-      }
+      },
+      "mode_label": "Anzeigemodus",
+      "oled": "Absolutes Schwarz (OLED)",
+      "oled_description": "Ein vollständig schwarzer Hintergrund. Auf einem OLED-Bildschirm schalten sich diese Pixel ganz ab.",
+      "oled_requires_dark": "Verfügbar, sobald der dunkle Modus gewählt ist."
     },
     "font": {
       "title": "Schriftart",
@@ -3362,7 +3368,7 @@
       "keywords": {
         "language": "Gebietsschema, Übersetzung, Oberflächensprache, Sprache",
         "timezone": "UTC, GMT, Uhr, Uhrzeit, Zeitverschiebung, Region, Zeitzone",
-        "theme": "Design, Theme, Dunkelmodus, Hellmodus, Nachtmodus, Farben, Kontrast, Erscheinungsbild",
+        "theme": "Theme, Dunkelmodus, Hellmodus, Systemmodus, OLED, absolutes Schwarz, Nacht, Farben, Kontrast, Erscheinungsbild",
         "font": "Schriftart, Typografie, Textgröße, Textgrosse, Lesbarkeit, Schrift",
         "display-mode": "Karten, Darstellung, Antwortformat, Layout, Markdown, Klartext",
         "briefing-grid": "Startseite, Übersicht, Dashboard, Widgets, Karten, Briefing, Reihenfolge",
@@ -3742,7 +3748,8 @@
     "spaces": {
       "title": "Spaces-Fehler",
       "message": "Beim Laden der Wissensräume ist ein Fehler aufgetreten."
-    }
+    },
+    "not_found_description": "Diese Seite existiert nicht oder wurde verschoben. Der Link ist möglicherweise veraltet."
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",
@@ -4305,6 +4312,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_31_3": {
+          "title": "v1.31.3 — 🌑 Ein wirklich schwarzes Schwarz, und wiedergefundene Orientierung",
+          "date": "August 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🌑 Der OLED-Modus ist da</b> — ein vollkommen schwarzer Hintergrund, genau der, bei dem sich die Pixel eines OLED-Bildschirms wirklich abschalten: weniger Akkuverbrauch und abends deutlich angenehmer. Die Themenschaltfläche in der Kopfzeile wird zum Kreislauf: hell, dunkel, absolutes Schwarz, dann wieder hell. Der Wechsel wird von einem Kreis enthüllt, der sich von der gedrückten Schaltfläche aus öffnet — vollständig übersprungen, wenn Sie Ihr System auf reduzierte Bewegung gestellt haben. Ihre fünf Farbthemen bleiben unberührt: nur die neutralen Flächen werden dunkler.",
+            "i2": "<b>🎨 Der Anzeigemodus wird jetzt in den Einstellungen gewählt</b> — Erscheinungsbild bietet Hell, Dunkel, System und einen Schalter „Absolutes Schwarz“. „System“ folgt Ihrem Gerät und ist wieder erreichbar: Damit startet jedes neue Konto, und die Kopfzeilen-Schaltfläche allein konnte nie dorthin zurückkehren. Der OLED-Schalter ist nur im ausdrücklichen Dunkelmodus aktiv, statt Ihren Modus unbemerkt zu ändern.",
+            "i3": "<b>⌨️ Der Tastaturfokus ist wieder sichtbar</b> — drei Kontrollkästchen (Angemeldet bleiben, Zustimmung zu den Bedingungen) zeigten beim Ansteuern per Tastatur überhaupt keinen Rahmen, sodass nicht erkennbar war, wo man sich im Formular befand. Sie hatten auch keine Akzentfarbe. Behoben, und der Rahmen folgt nun Ihrem Thema.",
+            "i4": "<b>👀 Zwei unlesbare Texte behoben</b> — die Kennzeichnung, dass eine Fähigkeit geantwortet hat, war im hellen Modus praktisch unsichtbar, und ihr animierter Glanz blieb bei reduzierten Animationen auf dem Wort stehen. Auch die leisesten Abschnittsüberschriften — „Versuchen Sie zum Beispiel“, die Ablaufüberschriften — waren zu blass zum bequemen Lesen.",
+            "i5": "<b>⚡ Leichtere Seiten, und kein Flackern mehr</b> — die neun wählbaren Schriften wurden bei jedem Besuch alle geladen, 618 KB für die eine angezeigte; es bleiben nur 162 KB bei identischer Darstellung. Und Ihr Farbthema wird jetzt vor dem ersten Bildaufbau angewendet: das kurze blaue Aufblitzen beim Laden ist verschwunden. Eine nicht gefundene Seite antwortet endlich in Ihrer Sprache."
+          }
+        },
         "v1_31_2": {
           "title": "v1.31.2 — 🔎 Die Dokumentensuche findet ihre Antworten wieder",
           "date": "August 2026",
@@ -6477,7 +6496,7 @@
           },
           "q3": {
             "question": "Was ist das Theme und wie ändere ich es?",
-            "answer": "Passe das Erscheinungsbild von LIA nach deinem Geschmack an:<br><br><strong>5 verfügbare Themes:</strong><br>• 💙 <strong>Professionelles Blau</strong>: elegant und zeitlos<br>• 🌊 <strong>Türkis</strong>: beruhigendes Blau-Cyan<br>• 🌿 <strong>Salbei</strong>: natürliches und sanftes Grün<br>• 🌸 <strong>Rose</strong>: warmes und modernes Rosa<br>• 💜 <strong>Lavendel</strong>: raffiniertes Violett<br><br><strong>Hell-/Dunkelmodus:</strong><br>Jedes Theme gibt es in heller und dunkler Version. Wechsle mit der Schaltfläche ☀️/🌙 in der Titelleiste.<br><br><strong>Zum Ändern des Themes:</strong><br>Geh zu <strong>Einstellungen</strong> (⚙️-Symbol) und finde den Abschnitt <strong>Theme</strong>."
+            "answer": "Passe das Erscheinungsbild von LIA nach deinem Geschmack an:<br><br><strong>5 verfügbare Themes:</strong><br>• 💙 <strong>Professionelles Blau</strong>: elegant und zeitlos<br>• 🌊 <strong>Türkis</strong>: beruhigendes Blau-Cyan<br>• 🌿 <strong>Salbei</strong>: natürliches und sanftes Grün<br>• 🌸 <strong>Rose</strong>: warmes und modernes Rosa<br>• 💜 <strong>Lavendel</strong>: raffiniertes Violett<br><br><strong>Hell, dunkel, absolutes Schwarz:</strong><br>Jedes Theme gibt es in heller und dunkler Version, und Dunkel hat zwei Tiefen — das gewöhnliche Dunkel und das <strong>absolute Schwarz</strong> für OLED-Bildschirme, bei dem sich diese Pixel wirklich abschalten. Die Schaltfläche in der Titelleiste geht der Reihe nach durch alle drei, und ihr Symbol zeigt, wohin der nächste Druck führt. Unter <strong>Einstellungen › Erscheinungsbild</strong> kannst du den Modus auch direkt wählen, einschließlich <strong>System</strong> (dem Gerät folgen), mit einem Schalter <strong>Absolutes Schwarz</strong>, sobald Dunkel gewählt ist.<br><br><strong>Zum Ändern des Themes:</strong><br>Geh zu <strong>Einstellungen</strong> (⚙️-Symbol) und finde den Abschnitt <strong>Theme</strong>."
           },
           "q4": {
             "question": "Wie aktualisiere ich mein Profil?",
@@ -7807,6 +7826,10 @@
       "readable_at_a_glance": {
         "title": "Auf einen Blick lesbar",
         "desc": "Ein dringender Hinweis sieht nicht aus wie ein gewöhnlicher: die Dichte trennt sie, nicht der Farbton allein. Das hält auch in Graustufen. Und eine Aktion hat überall dieselbe Form: Was erstellt, ist gefüllt; was löscht, trägt sein Rot ohne auf den Mauszeiger zu warten; und jeder Titel kündigt sich mit seinem Symbol an."
+      },
+      "oled_black": {
+        "title": "Ein Schwarz, das den Bildschirm abschaltet",
+        "desc": "Auf einem OLED-Display ist Schwarz keine dunkle Farbe, sondern ein abgeschaltetes Pixel. Das absolute Schwarz zielt genau auf diesen Wert, und die Themenschaltfläche wird zum Kreislauf — hell, dunkel, schwarz. Der Wechsel öffnet sich als Kreis von der gedrückten Schaltfläche aus und verschwindet widerspruchslos, wenn Ihr System weniger Bewegung verlangt. Ihre Akzentfarbe bleibt genau dort, wo sie war."
       },
       "plugin_report": {
         "title": "Ein Plugin, das Rechenschaft ablegt",

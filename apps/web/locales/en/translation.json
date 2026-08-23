@@ -67,7 +67,9 @@
     }
   },
   "theme": {
-    "toggle": "Toggle theme"
+    "to_light": "Switch to light mode",
+    "to_dark": "Switch to dark mode",
+    "to_oled": "Switch to OLED black"
   },
   "executionMode": {
     "toggle": {
@@ -1114,7 +1116,7 @@
       "light": "Light",
       "dark": "Dark",
       "system": "System",
-      "dark_mode_tip": "💡 Use the dark/light mode button to switch between the two variants of each theme.",
+      "dark_mode_tip": "💡 Every theme below has a light and a dark variant — they follow the display mode you chose above.",
       "themes": {
         "default": {
           "label": "Professional Blue",
@@ -1136,7 +1138,11 @@
           "label": "Lavender",
           "description": "Soft lavender, refined and creative"
         }
-      }
+      },
+      "mode_label": "Display mode",
+      "oled": "Absolute black (OLED)",
+      "oled_description": "A true black background. On an OLED screen those pixels switch off entirely.",
+      "oled_requires_dark": "Available once you pick dark mode."
     },
     "font": {
       "title": "Font",
@@ -3384,7 +3390,7 @@
       "keywords": {
         "language": "locale, translation, interface language, idiom",
         "timezone": "UTC, GMT, clock, hour, offset, region, time",
-        "theme": "theme, dark mode, light mode, night mode, colors, colours, contrast, appearance",
+        "theme": "theme, dark mode, light mode, system mode, OLED, absolute black, night, colors, contrast, appearance",
         "font": "typeface, lettering, text size, readability, typography",
         "display-mode": "cards, rendering, answer format, layout, markdown, plain text",
         "briefing-grid": "home, homepage, dashboard, widgets, cards, briefing, section order",
@@ -3764,7 +3770,8 @@
     "spaces": {
       "title": "Spaces Error",
       "message": "An error occurred while loading knowledge spaces."
-    }
+    },
+    "not_found_description": "This page does not exist, or has moved. The link may be out of date."
   },
   "validation": {
     "required": "This field is required",
@@ -4314,6 +4321,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_31_3": {
+          "title": "v1.31.3 — 🌑 A truly black black, and landmarks recovered",
+          "date": "August 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🌑 OLED mode arrives</b> — a perfectly black background, the one at which an OLED screen's pixels actually switch off: less battery drawn, and noticeably easier on the eyes at night. The header's theme button becomes circular: light, dark, absolute black, then light again. The switch is revealed by a circle opening from the button — skipped entirely if you have asked your system to reduce motion. Your five colour themes are untouched: only the neutral surfaces darken.",
+            "i2": "<b>🎨 The display mode is now chosen in Settings</b> — Appearance offers Light, Dark, System and an \"Absolute black\" switch. \"System\" follows your device and is reachable again: it is what every new account starts on, and the header button alone could never return to it. The OLED switch is only active in explicit dark mode, rather than changing your mode without telling you.",
+            "i3": "<b>⌨️ Keyboard focus is visible again</b> — three checkboxes (remember me, terms acceptance) showed no outline at all when reached with the keyboard, leaving no way to tell where you were in the form. They had no accent colour either. Fixed, and the outline now follows your theme.",
+            "i4": "<b>👀 Two unreadable texts fixed</b> — the badge marking that a skill answered was practically invisible in light mode, and its animated sheen stayed frozen over the word when animations are reduced. The quietest section headings — \"try for example\", the trace headers — were also too pale to read comfortably.",
+            "i5": "<b>⚡ Lighter pages, and no more flicker</b> — the nine selectable fonts were all downloaded on every visit, 618 KB for the single one displayed; only 162 KB remain, with identical rendering. And your colour theme is now applied before the first paint: the brief blue flash on load is gone. A missing page finally answers in your language."
+          }
+        },
         "v1_31_2": {
           "title": "v1.31.2 — 🔎 Document search finds its answers again",
           "date": "August 2026",
@@ -6486,7 +6505,7 @@
           },
           "q3": {
             "question": "How do I customize appearance (themes)?",
-            "answer": "Customize LIA's appearance to your taste:<br><br><strong>5 themes available:</strong><br>• 💙 <strong>Professional Blue</strong>: elegant and timeless<br>• 🌊 <strong>Teal</strong>: deep teal, sophisticated and calming<br>• 🌿 <strong>Sage</strong>: modern sage green, natural and organic<br>• 🌹 <strong>Rose</strong>: dusty rose, elegant and warm<br>• 💜 <strong>Lavender</strong>: soft lavender, refined and creative<br><br><strong>Light/dark mode:</strong><br>Each theme exists in light and dark versions. Toggle with the ☀️/🌙 button in the title bar.<br><br><strong>To change theme:</strong><br>Go to <strong>Settings</strong> (⚙️ icon) and find the <strong>Theme</strong> section."
+            "answer": "Customize LIA's appearance to your taste:<br><br><strong>5 themes available:</strong><br>• 💙 <strong>Professional Blue</strong>: elegant and timeless<br>• 🌊 <strong>Teal</strong>: deep teal, sophisticated and calming<br>• 🌿 <strong>Sage</strong>: modern sage green, natural and organic<br>• 🌹 <strong>Rose</strong>: dusty rose, elegant and warm<br>• 💜 <strong>Lavender</strong>: soft lavender, refined and creative<br><br><strong>Light, dark, absolute black:</strong><br>Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and <strong>absolute black</strong> for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In <strong>Settings › Appearance</strong> you can also pick the mode directly, including <strong>System</strong> (follow your device), with an <strong>Absolute black</strong> switch available once dark is selected.<br><br><strong>To change theme:</strong><br>Go to <strong>Settings</strong> (⚙️ icon) and find the <strong>Theme</strong> section."
           },
           "q4": {
             "question": "How do I update my profile?",
@@ -7816,6 +7835,10 @@
       "readable_at_a_glance": {
         "title": "Readable at a glance",
         "desc": "An urgent alert does not look like an ordinary one: density separates them, not hue alone. It holds in greyscale too. And an action has the same shape everywhere: what creates is solid, what deletes carries its red without waiting for a hover, and every title announces itself with an icon."
+      },
+      "oled_black": {
+        "title": "A black that turns the screen off",
+        "desc": "On an OLED panel, black is not a dark colour: it is a pixel switched off. Absolute black aims at exactly that value, and the theme button becomes a cycle — light, dark, black. The change opens as a circle from the button you pressed, and vanishes without argument if your system asks for less motion. Your accent colour stays exactly where it was."
       },
       "plugin_report": {
         "title": "A plugin that reports back",

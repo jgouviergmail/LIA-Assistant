@@ -59,7 +59,9 @@
     "end_hour_label": "Ora di fine"
   },
   "theme": {
-    "toggle": "Cambia tema"
+    "to_light": "Passa alla modalità chiara",
+    "to_dark": "Passa alla modalità scura",
+    "to_oled": "Passa al nero OLED"
   },
   "executionMode": {
     "toggle": {
@@ -1094,7 +1096,7 @@
       "light": "Chiaro",
       "dark": "Scuro",
       "system": "Sistema",
-      "dark_mode_tip": "💡 Usa il pulsante modalità scuro/chiaro per passare tra le due varianti di ciascun tema.",
+      "dark_mode_tip": "💡 Ogni tema qui sotto ha una variante chiara e una scura — seguono la modalità di visualizzazione scelta sopra.",
       "themes": {
         "default": {
           "label": "Blu Professionale",
@@ -1116,7 +1118,11 @@
           "label": "Lavanda",
           "description": "Viola tenue, raffinato e creativo"
         }
-      }
+      },
+      "mode_label": "Modalità di visualizzazione",
+      "oled": "Nero assoluto (OLED)",
+      "oled_description": "Uno sfondo perfettamente nero. Su uno schermo OLED quei pixel si spengono del tutto.",
+      "oled_requires_dark": "Disponibile dopo aver scelto la modalità scura."
     },
     "font": {
       "title": "Carattere",
@@ -3364,7 +3370,7 @@
       "keywords": {
         "language": "locale, traduzione, lingua dell'interfaccia, idioma",
         "timezone": "UTC, GMT, orologio, ora, fuso, scarto, regione",
-        "theme": "tema, modalità scura, modalità chiara, modalità notte, colori, contrasto, aspetto",
+        "theme": "tema, modalità scura, modalità chiara, modalità sistema, OLED, nero assoluto, notte, colori, contrasto, aspetto",
         "font": "carattere, tipografia, dimensione del testo, leggibilità, font",
         "display-mode": "schede, resa, formato delle risposte, layout, markdown, testo semplice",
         "briefing-grid": "home, pagina iniziale, cruscotto, widget, schede, briefing, ordine delle sezioni",
@@ -3744,7 +3750,8 @@
     "spaces": {
       "title": "Errore Spazi",
       "message": "Si è verificato un errore durante il caricamento degli spazi di conoscenza."
-    }
+    },
+    "not_found_description": "Questa pagina non esiste o è stata spostata. Il link potrebbe non essere più valido."
   },
   "validation": {
     "required": "Questo campo è obbligatorio",
@@ -4307,6 +4314,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_31_3": {
+          "title": "v1.31.3 — 🌑 Un nero davvero nero, e punti di riferimento ritrovati",
+          "date": "Agosto 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🌑 Arriva la modalità OLED</b> — uno sfondo perfettamente nero, quello in cui i pixel di uno schermo OLED si spengono davvero: meno batteria consumata e un comfort netto la sera. Il pulsante del tema nell'intestazione diventa circolare: chiaro, scuro, nero assoluto, poi di nuovo chiaro. Il passaggio è rivelato da un cerchio che si apre dal pulsante premuto, animazione del tutto omessa se avete chiesto al vostro sistema di ridurre il movimento. I vostri cinque temi di colore restano intatti: si scuriscono solo le superfici neutre.",
+            "i2": "<b>🎨 La modalità di visualizzazione si sceglie nelle Impostazioni</b> — Aspetto propone Chiaro, Scuro, Sistema e un interruttore «Nero assoluto». «Sistema» segue il vostro dispositivo ed è di nuovo raggiungibile: è l'impostazione con cui parte ogni nuovo account, e il solo pulsante dell'intestazione non permetteva di tornarci. L'interruttore OLED è attivo solo in modalità scura esplicita, invece di cambiare la vostra modalità senza dirvelo.",
+            "i3": "<b>⌨️ Il focus da tastiera torna visibile</b> — tre caselle (ricordami, accettazione delle condizioni) non mostravano alcun contorno quando le si raggiungeva da tastiera: impossibile capire dove ci si trovasse nel modulo. Erano anche prive di colore d'accento. Corretto, e il contorno segue ora il vostro tema.",
+            "i4": "<b>👀 Due testi illeggibili corretti</b> — l'etichetta che segnala che una competenza ha risposto era praticamente invisibile in modalità chiara, e il suo riflesso animato restava fermo sulla parola quando le animazioni sono ridotte. Anche le intestazioni di sezione più discrete — «provate ad esempio», le intestazioni di traccia — erano troppo pallide per essere lette comodamente.",
+            "i5": "<b>⚡ Pagine più leggere, e niente più sfarfallio</b> — i nove caratteri selezionabili venivano scaricati tutti a ogni visita, 618 KB per l'unico mostrato; ne restano solo 162 KB, con una resa identica. E il vostro tema di colore viene ora applicato prima del primo disegno: il breve lampo blu al caricamento è scomparso. Una pagina non trovata risponde finalmente nella vostra lingua."
+          }
+        },
         "v1_31_2": {
           "title": "v1.31.2 — 🔎 La ricerca documentale ritrova le sue risposte",
           "date": "Agosto 2026",
@@ -6479,7 +6498,7 @@
           },
           "q3": {
             "question": "Cos'è il tema e come lo cambio?",
-            "answer": "Il tema controlla l'aspetto visivo dell'applicazione:<br><br><strong>5 temi disponibili:</strong><br>• 💙 <strong>Blu Professionale</strong>: elegante e senza tempo<br>• 🌊 <strong>Turchese</strong>: teal profondo, sofisticato e rilassante<br>• 🌿 <strong>Salvia</strong>: verde salvia moderno e naturale<br>• 🌸 <strong>Rosa</strong>: rosa cipria, elegante e caldo<br>• 💜 <strong>Lavanda</strong>: viola tenue, raffinato e creativo<br><br><strong>Modalità chiara/scura:</strong><br>Ogni tema esiste in versione chiara e scura. Alterna con il pulsante ☀️/🌙 nella barra del titolo.<br><br><strong>Per cambiare tema:</strong><br>Vai su <strong>Impostazioni</strong> (icona ⚙️) e cerca la sezione <strong>Aspetto</strong>."
+            "answer": "Il tema controlla l'aspetto visivo dell'applicazione:<br><br><strong>5 temi disponibili:</strong><br>• 💙 <strong>Blu Professionale</strong>: elegante e senza tempo<br>• 🌊 <strong>Turchese</strong>: teal profondo, sofisticato e rilassante<br>• 🌿 <strong>Salvia</strong>: verde salvia moderno e naturale<br>• 🌸 <strong>Rosa</strong>: rosa cipria, elegante e caldo<br>• 💜 <strong>Lavanda</strong>: viola tenue, raffinato e creativo<br><br><strong>Chiaro, scuro, nero assoluto:</strong><br>Ogni tema esiste in versione chiara e scura, e lo scuro ha due profondità — lo scuro ordinario e il <strong>nero assoluto</strong> per gli schermi OLED, dove quei pixel si spengono davvero. Il pulsante nella barra del titolo percorre tutti e tre, e la sua icona mostra dove porta la prossima pressione. In <strong>Impostazioni › Aspetto</strong> puoi anche scegliere la modalità direttamente, <strong>Sistema</strong> compreso (segui il tuo dispositivo), con un interruttore <strong>Nero assoluto</strong> disponibile una volta scelto lo scuro.<br><br><strong>Per cambiare tema:</strong><br>Vai su <strong>Impostazioni</strong> (icona ⚙️) e cerca la sezione <strong>Aspetto</strong>."
           },
           "q4": {
             "question": "Come aggiorno il mio profilo?",
@@ -7809,6 +7828,10 @@
       "readable_at_a_glance": {
         "title": "Leggibile a colpo d'occhio",
         "desc": "Un avviso urgente non somiglia a uno ordinario: a separarli è la densità, non la sola tonalità. Regge anche in scala di grigi. E un'azione ha la stessa forma ovunque: ciò che crea è pieno, ciò che elimina porta il suo rosso senza aspettare il puntatore, e ogni titolo si annuncia con la sua icona."
+      },
+      "oled_black": {
+        "title": "Un nero che spegne lo schermo",
+        "desc": "Su un pannello OLED il nero non è un colore scuro: è un pixel spento. Il nero assoluto punta esattamente a quel valore, e il pulsante del tema diventa un ciclo — chiaro, scuro, nero. Il passaggio si apre come un cerchio dal pulsante premuto, e sparisce senza discutere se il vostro sistema chiede meno movimento. Il vostro colore d’accento resta esattamente dov’era."
       },
       "plugin_report": {
         "title": "Un plugin che rende conto",

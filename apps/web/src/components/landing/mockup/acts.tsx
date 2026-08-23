@@ -18,6 +18,7 @@ import {
   BsStem,
 } from './backstage';
 import { BACKSTAGE_COSTS, SCENARIO_FOOTERS } from './scenarios';
+import { SkillBadge } from '@/components/ui/skill-badge';
 
 /**
  * The four acts of the hero animation. Each act exposes a chat renderer
@@ -227,9 +228,7 @@ export function CreateChat({ reached }: ActProps) {
       {reached('user') && <UserBubble text={tm('s4_user')} voice />}
       {reached('reply') && (
         <AssistantRow footer={SCENARIO_FOOTERS.create}>
-          <span className="badge-glimmer inline-block rounded border border-cyan-500/30 bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-medium tracking-wide text-cyan-600 dark:text-cyan-400">
-            ✦ {tm('s4_skill_badge')}
-          </span>
+          <SkillBadge name={tm('s4_skill_badge')} size="sm" />
           <span className="mt-1 block">{tm('s4_reply')}</span>
           <HydrationWidget
             title={tm('s4_widget_title')}

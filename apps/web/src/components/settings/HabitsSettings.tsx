@@ -433,7 +433,7 @@ function RhythmHeatmap({ lng, bins }: { lng: Language; bins: number[] }) {
       </div>
       <div
         aria-hidden="true"
-        className="flex justify-between text-[9px] leading-none tracking-tight text-muted-foreground/70 tabular-nums"
+        className="flex justify-between text-[9px] leading-none tracking-tight text-muted-foreground tabular-nums"
       >
         <span>00</span>
         <span>06</span>

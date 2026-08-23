@@ -12,6 +12,16 @@
 # next.js
 /.next/
 /out/
+# Per-session E2E proof dists (`NEXT_DIST_DIR=.next-e2e*`, see e2e/README.md).
+# The root .gitignore already ignores them for git, but it is NOT inside the
+# container bind-mount (only ./apps/web is), and Tailwind's source detection
+# reads the .gitignore it finds next to the scanned tree. Without this entry a
+# single leftover dist adds ~11k files to every scan and to webpack's
+# dependency set: measured 2026-08-23, three of them turned the first page
+# compile into 10 min 32 s (9 s once excluded).
+/.next-e2e*/
+/test-results/
+/playwright-report/
 
 # production
 /build

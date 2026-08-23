@@ -182,7 +182,18 @@ services:
     # bind-mounted (tests/, htmlcov/, .pytest_cache/), so without this a test run
     # or coverage write triggers a reload storm — and the reloader can wedge in
     # restart()->join() waiting on a slow worker shutdown (2026-07 incident).
-    command: python -m debugpy --listen 0.0.0.0:5678 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem
+    # -Xfrozen_modules=off is NOT optional here, it is the flag debugpy prints a
+    # warning about on every boot. pydevd patches the import machinery, and on
+    # Python 3.14 that collides with the frozen importlib modules: the container
+    # then dies at import with a DIFFERENT error each time — SIGSEGV,
+    # "cannot use 'dict' as a dict key", "'_List' object is not callable",
+    # "'AdaptersMap' has no attribute 'oid'", "can only concatenate tuple (not
+    # \"int\") to tuple" — all of them inside third-party or importlib frames, none
+    # of them in application code (`python -c "import src.main"` in the same
+    # image and mounts succeeds every time).
+    # Measured 2026-08-23, same command, 4 cold starts each way:
+    # without the flag 2 boots / 2 crashes, with it 4 boots / 0 crashes.
+    command: python -Xfrozen_modules=off -m debugpy --listen 0.0.0.0:5678 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem
     depends_on:
       postgres:
         condition: service_healthy
@@ -230,6 +241,32 @@ services:
       # NODE_TLS_REJECT_UNAUTHORIZED=0 handles self-signed certs (set in next.config.ts)
       - API_URL_SERVER=https://api:8000
       - NODE_TLS_REJECT_UNAUTHORIZED=0
+      # Fast Refresh only works here in POLLING mode. The source tree reaches
+      # this container through a 9p/drvfs bind-mount, and that transport does
+      # not forward the host's filesystem events: measured 2026-08-23, an edit
+      # made on the host produced ZERO fs.watch events in the container while
+      # the file content was already updated — the exact trap documented for
+      # this container (edit invisible to Next, source correct on disk). The
+      # backend never had the problem because watchfiles auto-enables polling
+      # on a `microsoft-standard-WSL2` kernel; watchpack (bundled in Next)
+      # does not, but it reads this variable.
+      #
+      # 5000 ms, and the value is NOT arbitrary. Polling stats the whole
+      # watched tree over a transport where one stat costs ~3 ms, and a short
+      # interval keeps webpack's graph permanently invalidated: measured on
+      # three consecutive requests to an ALREADY COMPILED /dashboard, with
+      # nothing edited in between —
+      #     polling off   : 19.3 s, then 211 ms, 168 ms
+      #     polling 1000  : 44.5 s, then 3406 ms, 1958 ms
+      #     polling 5000  :  5.6 s, then 313 ms, 200 ms
+      # At 1000 ms every page view paid a rebuild, which is exactly the
+      # "compiling on every page" symptom this whole change set set out to
+      # remove. At 5000 ms navigation is back to 162-605 ms and Fast Refresh
+      # still lands in 12.4 s (4.8-14 s at 1000 ms). Lower this only from a
+      # fresh measurement of BOTH numbers, never from the reload latency
+      # alone. `false` disables polling: navigation is at its fastest and
+      # nothing reloads at all on a Windows/macOS host.
+      - WATCHPACK_POLLING=${WEB_WATCH_POLL_MS:-5000}
       # Other NEXT_PUBLIC_* variables are read from .env
     ports:
       - "${DEV_BIND_HOST_APP:-${DEV_BIND_HOST:-127.0.0.1}}:${WEB_HOST_PORT:-3000}:3000"

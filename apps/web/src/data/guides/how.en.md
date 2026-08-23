@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 4.5
-**Date**: 2026-08-22
-**Application**: LIA v1.31.2
+**Version**: 4.6
+**Date**: 2026-08-23
+**Application**: LIA v1.31.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -59,7 +59,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 473 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 241 ADRs, ~20,565 pytest-collected tests across 1,202 files, native observability, 6-level HITL |
+| Production reliability | 242 ADRs, ~20,586 pytest-collected tests across 1,204 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -77,10 +77,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 20,478 collected by pytest across 1,198 test files + 6,080 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 20,586 collected by pytest across 1,204 test files + 6,219 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 752, 32 of them shared through conftest |
-| Documentation documents | 542 |
-| ADRs (Architecture Decision Records) | 240 |
+| Documentation documents | 545 |
+| ADRs (Architecture Decision Records) | 242 |
 | Prometheus metrics | 483 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1276,7 +1276,7 @@ Rendering a status label — a priority, a direction, a role — looks trivial, 
 
 **The promised distinction may not exist.** Two levels rendered at 10 % opacity over tokens 23° apart in OKLCH hue are, on screen, the same level. No code review catches it: the two lines read differently in the source and identically on the display.
 
-**Hand-written classes bypass the contrast guard.** The design system's guard checks every pair the components actually produce, across five themes in light and dark. What is written elsewhere is not in it.
+**Hand-written classes bypass the contrast guard.** The design system's guard checks every pair the components actually produce, across five themes in light, dark and absolute black. What is written elsewhere is not in it.
 
 **An unknown status falls through to whatever the map's default happens to be**, which can render in red a value nobody ever called urgent.
 
@@ -1291,7 +1291,9 @@ A corollary about shape: a label is made for a **word**. The component pins its 
 
 ### The design system as a verified contract
 
-Three ADRs (206 through 208) turned visual consistency into a tooled contract rather than a review-time discipline. A status no longer picks its colour: it **names a tone** and a single table decides (`status-tone.ts`), covered by the contrast guard across five themes in light and dark. An action no longer picks its shape: its **altitude** does — solid to create, solid red for mass destruction, red at rest for a row delete, outline for a true secondary. And a list row exposes its actions **one way**, backed by a shared component.
+Three ADRs (206 through 208) turned visual consistency into a tooled contract rather than a review-time discipline. A status no longer picks its colour: it **names a tone** and a single table decides (`status-tone.ts`), covered by the contrast guard across five themes in light, dark and absolute black. An action no longer picks its shape: its **altitude** does — solid to create, solid red for mass destruction, red at rest for a row delete, outline for a true secondary. And a list row exposes its actions **one way**, backed by a shared component.
+
+Absolute black (ADR-243) extends that contract rather than widening it. Making it a third theme would have been the natural move; it would also have removed the `dark` class from the page, and with it flipped nine internal checks to their light branch — light syntax highlighting on a black page, white diagrams — then sent the whole public site back to its light variant. Absolute black is therefore a **refinement** of dark, carried by a distinct attribute whose selector outranks the five accents whatever the file order. Six neutral surfaces move and no accent colour does: borders even keep their dark value, which reads better against black than against the original grey. Surfaces are calibrated against the shipped dark mode rather than against zero, so nothing separates less than it did.
 
 The settings surface itself now follows the same doctrine of structure over discipline (ADR-227). The page renders as a master-detail shell — a permanent rail of sections beside a pane that mounts exactly one of them, an overview of descriptive cards when nothing is selected — and hand-lists nothing: rail order, grouping and the mounted component all derive from the deep-link table plus two compiler-complete registries, each proven against the section sources by tests. The consequence is architectural rather than cosmetic: a section exists on the page if and only if the tables declare it, the ~330-line duplicated layout the previous shell required is gone, and only the selected section fetches — twenty sections no longer fire their requests on a tab load. Absence stays honest: a section that legitimately renders nothing (an instance without MFA, no call ever placed) yields an explicit inline empty state that keeps polling, so data answering late replaces the message.
 
@@ -1301,7 +1303,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-241 ADRs in MADR format document the major architectural decisions. Some representative examples:
+242 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1434,7 +1436,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 241 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~20,565 tests across 1,202 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 242 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~20,586 tests across 1,204 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1449,4 +1451,4 @@ The chat's eyes widget (ADR-240) is built on a single principle: **no new signal
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 241 ADRs, and the changelog (v1.0 to v1.31.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 242 ADRs, and the changelog (v1.0 to v1.31.3). All metrics, versions, and patterns cited are verifiable in the codebase.*

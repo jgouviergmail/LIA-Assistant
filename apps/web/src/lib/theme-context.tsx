@@ -2,8 +2,15 @@
 
 import * as React from 'react';
 
+import {
+  COLOR_THEME_STORAGE_KEY,
+  DEFAULT_COLOR_THEME,
+  type ColorThemeName,
+  isColorThemeName,
+} from '@/lib/color-themes';
+
 // Types for theme context
-type ThemeName = 'default' | 'ocean' | 'forest' | 'sunset' | 'slate';
+type ThemeName = ColorThemeName;
 
 interface ThemeContextValue {
   colorTheme: ThemeName;
@@ -12,8 +19,10 @@ interface ThemeContextValue {
 
 const ThemeContext = React.createContext<ThemeContextValue | undefined>(undefined);
 
-const STORAGE_KEY = 'color-theme';
-const DEFAULT_THEME: ThemeName = 'default';
+// Shared with the blocking anti-FOUC script (`ThemeInitScript`), which must
+// apply the very same attribute before the first paint.
+const STORAGE_KEY = COLOR_THEME_STORAGE_KEY;
+const DEFAULT_THEME: ThemeName = DEFAULT_COLOR_THEME;
 
 export function ColorThemeProvider({ children }: { children: React.ReactNode }) {
   const [colorTheme, setColorThemeState] = React.useState<ThemeName>(DEFAULT_THEME);
@@ -21,8 +30,8 @@ export function ColorThemeProvider({ children }: { children: React.ReactNode }) 
 
   // Load theme from localStorage on mount
   React.useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as ThemeName | null;
-    if (stored && ['default', 'ocean', 'forest', 'sunset', 'slate'].includes(stored)) {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (isColorThemeName(stored)) {
       setColorThemeState(stored);
     }
     setMounted(true);

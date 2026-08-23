@@ -59,7 +59,9 @@
     "end_hour_label": "Hora de fin"
   },
   "theme": {
-    "toggle": "Cambiar tema"
+    "to_light": "Cambiar al modo claro",
+    "to_dark": "Cambiar al modo oscuro",
+    "to_oled": "Cambiar al negro OLED"
   },
   "executionMode": {
     "toggle": {
@@ -1092,7 +1094,7 @@
       "light": "Claro",
       "dark": "Oscuro",
       "system": "Sistema",
-      "dark_mode_tip": "💡 Usa el botón de modo oscuro/claro para cambiar entre las dos variantes de cada tema.",
+      "dark_mode_tip": "💡 Cada tema de abajo tiene una variante clara y otra oscura — siguen el modo de visualización elegido arriba.",
       "themes": {
         "default": {
           "label": "Azul Profesional",
@@ -1114,7 +1116,11 @@
           "label": "Lavanda",
           "description": "Violeta suave, refinado y creativo"
         }
-      }
+      },
+      "mode_label": "Modo de visualización",
+      "oled": "Negro absoluto (OLED)",
+      "oled_description": "Un fondo completamente negro. En una pantalla OLED esos píxeles se apagan por completo.",
+      "oled_requires_dark": "Disponible una vez elegido el modo oscuro."
     },
     "font": {
       "title": "Fuente",
@@ -3362,7 +3368,7 @@
       "keywords": {
         "language": "configuración regional, traducción, idioma de la interfaz, lengua",
         "timezone": "UTC, GMT, reloj, hora, desfase, región, zona horaria",
-        "theme": "tema, modo oscuro, modo claro, modo noche, colores, contraste, apariencia",
+        "theme": "tema, modo oscuro, modo claro, modo sistema, OLED, negro absoluto, noche, colores, contraste, apariencia",
         "font": "tipografía, fuente, tamaño del texto, legibilidad, letra",
         "display-mode": "tarjetas, representación, formato de respuestas, diseño, markdown, texto plano",
         "briefing-grid": "inicio, página de inicio, panel, widgets, tarjetas, briefing, orden de secciones",
@@ -3742,7 +3748,8 @@
     "spaces": {
       "title": "Error de Espacios",
       "message": "Se produjo un error al cargar los espacios de conocimiento."
-    }
+    },
+    "not_found_description": "Esta página no existe o se ha movido. Puede que el enlace esté obsoleto."
   },
   "validation": {
     "required": "Este campo es obligatorio",
@@ -4305,6 +4312,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_31_3": {
+          "title": "v1.31.3 — 🌑 Un negro realmente negro, y referencias recuperadas",
+          "date": "Agosto 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🌑 Llega el modo OLED</b> — un fondo perfectamente negro, aquel en el que los píxeles de una pantalla OLED se apagan de verdad: menos batería consumida y una comodidad clara por la noche. El botón de tema de la cabecera pasa a ser circular: claro, oscuro, negro absoluto y de nuevo claro. El cambio se revela mediante un círculo que se abre desde el botón pulsado, animación omitida por completo si ha pedido a su sistema que reduzca el movimiento. Sus cinco temas de color quedan intactos: solo se oscurecen las superficies neutras.",
+            "i2": "<b>🎨 El modo de visualización se elige en los Ajustes</b> — Apariencia ofrece Claro, Oscuro, Sistema y un interruptor «Negro absoluto». «Sistema» sigue a su dispositivo y vuelve a ser accesible: es el ajuste con el que arranca toda cuenta nueva, y el botón de la cabecera por sí solo no permitía regresar a él. El interruptor OLED solo está activo en modo oscuro explícito, en lugar de cambiar su modo sin avisarle.",
+            "i3": "<b>⌨️ El foco del teclado vuelve a verse</b> — tres casillas (recordarme, aceptación de las condiciones) no mostraban ningún contorno al alcanzarlas con el teclado: era imposible saber dónde se estaba en el formulario. Tampoco tenían color de acento. Corregido, y el contorno sigue ahora su tema.",
+            "i4": "<b>👀 Dos textos ilegibles corregidos</b> — la etiqueta que indica que una habilidad ha respondido era prácticamente invisible en modo claro, y su reflejo animado quedaba congelado sobre la palabra cuando las animaciones se reducen. Los encabezados de sección más discretos — «pruebe por ejemplo», las cabeceras de traza — también resultaban demasiado pálidos para leerse con comodidad.",
+            "i5": "<b>⚡ Páginas más ligeras, y sin parpadeo</b> — las nueve fuentes seleccionables se descargaban todas en cada visita, 618 KB para la única mostrada; solo quedan 162 KB, con una representación idéntica. Y su tema de color se aplica ahora antes del primer dibujado: el breve destello azul al cargar ha desaparecido. Una página no encontrada responde por fin en su idioma."
+          }
+        },
         "v1_31_2": {
           "title": "v1.31.2 — 🔎 La búsqueda documental recupera sus respuestas",
           "date": "Agosto 2026",
@@ -6477,7 +6496,7 @@
           },
           "q3": {
             "question": "¿Cómo personalizo la apariencia (temas)?",
-            "answer": "Personalice la apariencia de LIA a su gusto:<br><br><strong>5 temas disponibles:</strong><br>• 💙 <strong>Azul Profesional</strong>: elegante e intemporal<br>• 🌊 <strong>Turquesa</strong>: teal profundo, sofisticado y relajante<br>• 🌿 <strong>Salvia</strong>: verde suave, natural y apacible<br>• 🌸 <strong>Rosa</strong>: rosa empolvado, elegante y cálido<br>• 💜 <strong>Lavanda</strong>: violeta suave, sereno y refinado<br><br><strong>Modo claro/oscuro:</strong><br>Cada tema existe en versión clara y oscura. Cambie con el botón ☀️/🌙 en la barra de título.<br><br><strong>Para cambiar de tema:</strong><br>Ve a <strong>Configuración</strong> (icono ⚙️) y encuentre la sección <strong>Tema</strong>."
+            "answer": "Personalice la apariencia de LIA a su gusto:<br><br><strong>5 temas disponibles:</strong><br>• 💙 <strong>Azul Profesional</strong>: elegante e intemporal<br>• 🌊 <strong>Turquesa</strong>: teal profundo, sofisticado y relajante<br>• 🌿 <strong>Salvia</strong>: verde suave, natural y apacible<br>• 🌸 <strong>Rosa</strong>: rosa empolvado, elegante y cálido<br>• 💜 <strong>Lavanda</strong>: violeta suave, sereno y refinado<br><br><strong>Claro, oscuro, negro absoluto:</strong><br>Cada tema existe en versión clara y oscura, y el oscuro tiene dos profundidades — el oscuro habitual y el <strong>negro absoluto</strong> para pantallas OLED, donde esos píxeles se apagan de verdad. El botón de la barra de título recorre los tres, y su icono muestra adónde lleva la siguiente pulsación. En <strong>Configuración › Apariencia</strong> también puedes elegir el modo directamente, incluido <strong>Sistema</strong> (seguir tu dispositivo), con un interruptor <strong>Negro absoluto</strong> disponible una vez elegido el oscuro.<br><br><strong>Para cambiar de tema:</strong><br>Ve a <strong>Configuración</strong> (icono ⚙️) y encuentre la sección <strong>Tema</strong>."
           },
           "q4": {
             "question": "¿Cómo actualizo mi perfil?",
@@ -7807,6 +7826,10 @@
       "readable_at_a_glance": {
         "title": "Legible de un vistazo",
         "desc": "Una alerta urgente no se parece a una corriente: las separa la densidad, no solo el tono. Se mantiene también en escala de grises. Y una acción tiene la misma forma en todas partes: lo que crea es sólido, lo que borra lleva su rojo sin esperar al puntero, y cada título se anuncia con su icono."
+      },
+      "oled_black": {
+        "title": "Un negro que apaga la pantalla",
+        "desc": "En un panel OLED, el negro no es un color oscuro: es un píxel apagado. El negro absoluto apunta exactamente a ese valor, y el botón de tema se convierte en un ciclo — claro, oscuro, negro. El cambio se abre como un círculo desde el botón que ha pulsado, y desaparece sin discusión si su sistema pide menos movimiento. Su color de acento se queda exactamente donde estaba."
       },
       "plugin_report": {
         "title": "Un plugin que rinde cuentas",

@@ -10,6 +10,7 @@ import { useAuthFeatures } from '@/hooks/useWebAuthn';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { getBrowserTimezone, formatTimezoneDisplay } from '@/utils/timezone';
@@ -200,22 +201,20 @@ export function RegisterForm() {
 
         {/* Remember Me checkbox */}
         <div className="flex items-center">
-          <input
+          <Checkbox
             id="remember-me-register"
             name="remember-me"
-            type="checkbox"
             // aria-labelledby: same rationale as the login form (F012) — the
             // htmlFor/id association is real but invisible to static analysis.
             aria-labelledby="remember-me-register-label"
             checked={rememberMe}
             onChange={e => setRememberMe(e.target.checked)}
             disabled={isLoading}
-            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
           />
           <label
             id="remember-me-register-label"
             htmlFor="remember-me-register"
-            className="ml-2 block text-sm text-gray-700"
+            className="ml-2 block text-sm text-foreground"
           >
             {t('auth.remember_me')}
           </label>
@@ -223,9 +222,8 @@ export function RegisterForm() {
 
         {termsRequired && (
           <div className="flex items-start">
-            <input
+            <Checkbox
               id="terms-accepted-register"
-              type="checkbox"
               // aria-labelledby: same rationale as the fields above (F012) —
               // the htmlFor/id association is real but invisible to static
               // analysis.
@@ -234,12 +232,12 @@ export function RegisterForm() {
               onChange={e => setTermsAccepted(e.target.checked)}
               disabled={isLoading}
               aria-required="true"
-              className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              className="mt-1"
             />
             <label
               id="terms-accepted-register-label"
               htmlFor="terms-accepted-register"
-              className="ml-2 block text-sm text-gray-700"
+              className="ml-2 block text-sm text-foreground"
             >
               {t('auth.terms.accept_prefix')}{' '}
               <Link

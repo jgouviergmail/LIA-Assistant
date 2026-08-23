@@ -91,7 +91,7 @@ export function ErrorPage({
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{t(messageKey)}</p>
 
           {process.env.NODE_ENV === 'development' && (
-            <div className="mb-6 rounded-lg bg-gray-100 dark:bg-gray-800 p-4 text-left">
+            <div className="mb-6 rounded-lg bg-muted p-4 text-left">
               <p className="text-xs font-mono text-gray-800 dark:text-gray-200 break-all">
                 {error.message}
               </p>

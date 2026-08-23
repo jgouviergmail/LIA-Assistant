@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 4.5
-**Date** : 2026-08-22
-**Application** : LIA v1.31.2
+**Version** : 4.6
+**Date** : 2026-08-23
+**Application** : LIA v1.31.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -59,7 +59,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 473 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 241 ADRs, ~20 565 tests collectés par pytest sur 1 202 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 242 ADRs, ~20 586 tests collectés par pytest sur 1 204 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -77,10 +77,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 20 478 collectés par pytest sur 1 198 fichiers de test + 6 080 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | 20 586 collectés par pytest sur 1 204 fichiers de test + 6 219 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 752, dont 32 partagées via conftest |
-| Documents de documentation | 542 |
-| ADRs (Architecture Decision Records) | 240 |
+| Documents de documentation | 545 |
+| ADRs (Architecture Decision Records) | 242 |
 | Métriques Prometheus | 483 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1286,7 +1286,7 @@ Rendre une étiquette d'état — une priorité, un sens de circulation, un rôl
 
 **La distinction promise peut ne pas exister.** Deux niveaux rendus à 10 % d'opacité sur des jetons séparés de 23° de teinte en OKLCH sont, à l'écran, le même niveau. Aucune revue de code ne l'attrape : les deux lignes se lisent différemment dans le source et identiquement sur l'écran.
 
-**Des classes écrites à la main échappent au contrôle de contraste.** La garde du design system vérifie chaque paire réellement produite par les composants, sur cinq thèmes en clair et en sombre. Ce qui est écrit ailleurs n'y figure pas.
+**Des classes écrites à la main échappent au contrôle de contraste.** La garde du design system vérifie chaque paire réellement produite par les composants, sur cinq thèmes en clair, en sombre et en noir absolu. Ce qui est écrit ailleurs n'y figure pas.
 
 **Un statut inconnu tombe sur ce que le repli du dictionnaire donne**, ce qui peut afficher en rouge une valeur dont personne n'a dit qu'elle était urgente.
 
@@ -1301,7 +1301,9 @@ Corollaire de forme : une étiquette est faite pour un **mot**. Le composant fix
 
 ### Le design system comme contrat vérifié
 
-Trois ADR (206 à 208) ont transformé la cohérence visuelle en contrat outillé plutôt qu’en discipline de relecture. Un statut ne choisit plus sa couleur : il **nomme un ton** et une table unique décide (`status-tone.ts`), couverte par le contrôle de contraste sur cinq thèmes en clair et en sombre. Une action ne choisit plus sa forme : son **altitude** la choisit — plein pour créer, plein rouge pour détruire en masse, rouge au repos pour supprimer une ligne, contour pour la vraie secondaire. Et une rangée de liste expose ses actions **d’une seule façon**, composant partagé à l’appui.
+Trois ADR (206 à 208) ont transformé la cohérence visuelle en contrat outillé plutôt qu’en discipline de relecture. Un statut ne choisit plus sa couleur : il **nomme un ton** et une table unique décide (`status-tone.ts`), couverte par le contrôle de contraste sur cinq thèmes en clair, en sombre et en noir absolu. Une action ne choisit plus sa forme : son **altitude** la choisit — plein pour créer, plein rouge pour détruire en masse, rouge au repos pour supprimer une ligne, contour pour la vraie secondaire. Et une rangée de liste expose ses actions **d’une seule façon**, composant partagé à l’appui.
+
+Le mode noir absolu (ADR-243) prolonge ce contrat plutôt que de l'élargir. Il aurait été naturel d'en faire un troisième thème ; ce choix aurait retiré la classe `dark` de la page, et avec elle basculé neuf comparaisons internes vers leur branche claire — coloration syntaxique claire sur fond noir, diagrammes blancs — puis renvoyé tout le site public à sa variante claire. Le noir absolu est donc un **raffinement** du sombre, porté par un attribut distinct dont le sélecteur l'emporte sur les cinq accents quel que soit l'ordre du fichier. Six teintes neutres bougent, aucune couleur d'accent : les bordures conservent même leur valeur sombre, qui se détache mieux sur du noir que sur le gris d'origine. Les surfaces sont calibrées contre le mode sombre existant, non contre zéro, de sorte que rien ne se distingue moins qu'avant.
 
 La surface des réglages elle-même suit désormais la même doctrine de structure plutôt que de discipline (ADR-227). La page se rend en coquille master-détail — un rail permanent de sections à côté d’un panneau qui n’en monte qu’une, une vue d’ensemble de cartes descriptives quand rien n’est sélectionné — et ne liste rien à la main : l’ordre du rail, les groupes et le composant monté dérivent de la table des liens profonds et de deux registres à complétude vérifiée par le compilateur, chacun prouvé contre la source des sections par des tests. La conséquence est architecturale plus que cosmétique : une section existe sur la page si et seulement si les tables la déclarent, les ~330 lignes de layout dupliqué de l’ancienne coquille disparaissent, et seule la section choisie interroge le réseau — vingt sections ne tirent plus leurs requêtes au chargement d’un onglet. L’absence reste honnête : une section qui ne rend légitimement rien (instance sans MFA, aucun appel passé) produit un état vide explicite qui continue de sonder, si bien qu’une donnée tardive remplace le message.
 
@@ -1311,7 +1313,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-241 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+242 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1451,7 +1453,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 241 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~20 565 tests sur 1 202 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 242 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~20 586 tests sur 1 204 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1466,4 +1468,4 @@ Le widget d'yeux du chat (ADR-240) repose sur un principe unique : **aucun signa
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 241 ADRs, et du changelog (v1.0 à v1.31.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 242 ADRs, et du changelog (v1.0 à v1.31.3). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

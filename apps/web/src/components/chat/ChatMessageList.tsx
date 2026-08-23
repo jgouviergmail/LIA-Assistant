@@ -284,7 +284,7 @@ function EmptyConversationStarters({
 
   return (
     <div className="mt-6 flex w-full max-w-md flex-col items-center gap-2 max-[380px]:mt-4">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">
         {/* The heading tells the truth about what follows: "try for example"
             when the entries are generic, "from your day" once they name real
             things. Announcing invented context would be worse than none. */}

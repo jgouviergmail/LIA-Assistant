@@ -46,7 +46,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (223) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (242) |
 
 ### Pour les Product Managers
 
@@ -249,7 +249,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [CONTRAST_TOKENS.md](./a11y/CONTRAST_TOKENS.md) | Architecture contraste WCAG AA des tokens (5 thèmes × 2 modes) + garde unitaire et scans axe bloquants (AC-002) | ✅ |
+| [CONTRAST_TOKENS.md](./a11y/CONTRAST_TOKENS.md) | Architecture contraste WCAG AA des tokens (5 thèmes × 3 modes : clair, sombre, noir absolu) + garde unitaire et scans axe bloquants (AC-002) | ✅ |
 | [AT_CAMPAIGN.md](./a11y/AT_CAMPAIGN.md) | Protocole de campagne manuelle NVDA/Firefox + VoiceOver/Safari, versionné avec rapports | ✅ |
 
 ### CI/CD & Déploiement
@@ -312,7 +312,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-223 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-243 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 

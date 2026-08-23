@@ -35,6 +35,7 @@ import { useTranslation } from '@/i18n/client';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { LOCALE_MAP } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { Badge } from '@/components/ui/badge';
 import type { BaseSettingsProps } from '@/types/settings';
 
 // Language code to display label (universal, not translated)
@@ -97,6 +98,38 @@ export interface AdminUserRow {
   is_usage_blocked: boolean;
   deleted_at: string | null;
   is_deleted: boolean;
+}
+
+/**
+ * The lifecycle pill for one row.
+ *
+ * Extracted rather than inlined: the table's render function already sits at
+ * the top of the CC ratchet, and three branches of status are three branches it
+ * does not need to carry. It also replaces three hand-rolled
+ * `{colour}-100/{colour}-900` pairs — the exact fixed palette `badge.tsx`
+ * removed for ignoring the five colour themes and sitting outside the contrast
+ * guard. `secondary` for a deleted account follows the doctrine that grey is
+ * reserved for inactive states.
+ */
+function UserStatusBadge({
+  user,
+  t,
+}: {
+  user: AdminUserRow;
+  t: (key: string) => string;
+}) {
+  if (user.is_deleted) {
+    return (
+      <Badge variant="secondary" size="sm" className="line-through">
+        {t('settings.admin.users.status.deleted')}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant={user.is_active ? 'success' : 'destructive'} size="sm">
+      {t(`settings.admin.users.status.${user.is_active ? 'active' : 'inactive'}`)}
+    </Badge>
+  );
 }
 
 interface UserListResponse {
@@ -772,21 +805,7 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
                     </td>
                     {/* Status */}
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.is_deleted
-                            ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border border-gray-300 dark:border-gray-600 line-through'
-                            : user.is_active
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800'
-                        }`}
-                      >
-                        {user.is_deleted
-                          ? t('settings.admin.users.status.deleted')
-                          : user.is_active
-                            ? t('settings.admin.users.status.active')
-                            : t('settings.admin.users.status.inactive')}
-                      </span>
+                      <UserStatusBadge user={user} t={t} />
                       {user.is_superuser && (
                         <span className="ml-1 text-primary font-semibold text-xs">★</span>
                       )}

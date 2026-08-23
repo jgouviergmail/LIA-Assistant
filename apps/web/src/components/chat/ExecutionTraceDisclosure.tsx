@@ -88,7 +88,7 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
         <div className="w-full mt-1 space-y-3 rounded-md border border-border/40 bg-muted/20 px-3 py-2">
           {groups.map(group => (
             <div key={group.category}>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {t(`chat.trace.category.${group.category}`)}
               </p>
               <ul className="mt-1 space-y-0.5">
@@ -107,7 +107,7 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
 
           {trace.reasoning.trim() && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {t('chat.trace.reasoning_title')}
               </p>
               <p className="mt-1 whitespace-pre-line text-xs italic text-muted-foreground">

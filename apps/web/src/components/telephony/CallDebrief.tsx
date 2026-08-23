@@ -94,7 +94,7 @@ function DebriefList({
                   onClick={action.onSelect}
                   aria-label={name}
                   title={name}
-                  className="shrink-0 rounded-md p-1 text-muted-foreground/70 hover:text-primary hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-primary hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {/* A pen, not a paper plane: the click writes a draft. The
                       send icon promised a departure that never happened. */}

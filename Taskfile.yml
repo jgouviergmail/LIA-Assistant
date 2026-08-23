@@ -791,6 +791,42 @@ tasks:
       - task: test:release:self-host
       - task: test:install:backend-contracts
 
+  # Release surfaces (test_version_surface_consistency_guard.py): the version
+  # and the derived counts live in ~30 places. These tasks own the mechanical
+  # half; the editorial half (CHANGELOG, FAQ, README theme, measured stats) is
+  # printed as a reminder, never written.
+  release:check:
+    desc: "Release surfaces: report any version/count drift (read-only)"
+    env:
+      PYTHONUTF8: "1"  # F047: UTF-8 output regardless of the Windows console code page
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/release/bump_surfaces.py --check
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/release/bump_surfaces.py --check
+        platforms: [linux, darwin]
+
+  release:bump:
+    desc: 'Bump every mechanical release surface: task release:bump -- 1.32.0'
+    env:
+      PYTHONUTF8: "1"
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/release/bump_surfaces.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/release/bump_surfaces.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  release:sync-counts:
+    desc: "Realign the ADR/CHANGELOG counts quoted on public surfaces with their source"
+    env:
+      PYTHONUTF8: "1"
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/release/bump_surfaces.py --counts-only
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/release/bump_surfaces.py --counts-only
+        platforms: [linux, darwin]
+
   test:install:backend-contracts:
     desc: Focused backend contracts of the installer chain (Tasks 2/7/8/9 + CI parity)
     dir: "{{.API_DIR}}"

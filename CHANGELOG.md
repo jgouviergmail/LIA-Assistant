@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.31.3] - 2026-08-23
+
+**Le mode sombre gagne une seconde profondeur, et l'interface récupère des repères qu'elle avait perdus.** Le nouveau mode OLED pose un fond parfaitement noir — `oklch(0% 0 0)`, la valeur pour laquelle les pixels d'un écran OLED s'éteignent vraiment — et le bouton de l'en-tête devient circulaire : clair, sombre, noir absolu, puis clair de nouveau. Le passage se fait par une révélation en cercle qui s'ouvre depuis le bouton pressé, escamotée dès que le système signale une préférence pour un mouvement réduit.
+
+**OLED est un raffinement du mode sombre, jamais un quatrième thème.** Cette décision de conception n'est pas cosmétique : la classe `dark` reste posée sur la page et l'attribut `data-oled` s'y ajoute. En faire une valeur de thème à part entière aurait retiré cette classe, et avec elle basculé neuf comparaisons internes vers leur branche claire — coloration syntaxique claire sur fond noir, diagrammes blancs, flocons invisibles — puis renvoyé tout le site public à sa variante claire. Seules six teintes neutres changent : chacun des cinq thèmes de couleur garde son accent, et les bordures conservent leur valeur sombre, qui se détache mieux sur du noir absolu que sur le gris d'origine.
+
+**Les réglages retrouvent le mode « Système ».** Le cycle de l'en-tête n'offre que trois arrêts prévisibles, or « Système » est ce sur quoi démarre tout nouveau compte : sans un contrôle capable d'y revenir, une seule pression l'aurait perdu définitivement. Le panneau Apparence propose donc les quatre choix, et l'interrupteur « Noir absolu » n'y est actif qu'en mode sombre explicite — plutôt que d'épingler silencieusement un mode que l'utilisateur n'a pas demandé.
+
+**Trois défauts corrigés étaient structurellement invisibles.** Trois cases à cocher portaient des classes qui ne produisent aucune règle CSS : elles n'avaient donc ni couleur d'accent ni anneau de focus, et une navigation au clavier y perdait toute trace du curseur. Le badge de compétence du chat affichait un texte à 1,39:1 contre un plancher de 4,5:1. Et l'enregistrement du mode d'affichage était refusé par le serveur pour la nouvelle valeur, avec un échec parfaitement muet : l'écran devenait noir, seul le rechargement suivant révélait la perte.
+
+### Added
+
+- **Mode OLED** : fond `oklch(0% 0 0)`, six teintes neutres recalibrées pour que rien ne se distingue moins qu'en mode sombre — carte sur fond 1,10 contre 1,09, bordure sur carte 1,51 contre 1,37. Vérifié sur les vingt-cinq paires de contraste des cinq thèmes de couleur.
+- **Bouton de thème circulaire** : clair → sombre → OLED → clair. L'icône et le nom accessible annoncent la destination, pas l'état courant, et le cycle part de l'apparence réellement affichée — un compte resté sur « Système » avec un système sombre avançait auparavant sans que rien ne change à l'écran.
+- **Sélecteur de mode d'affichage dans les réglages** : Clair, Sombre, Système, plus un interrupteur « Noir absolu » actif seulement en mode sombre explicite. Boutons radio natifs, donc navigation aux flèches et gestion du focus fournies par le navigateur.
+- **Révélation circulaire au changement de thème** : ouverte depuis le contrôle pressé, désactivée sous préférence de mouvement réduit et absente des navigateurs sans l'API — une amélioration progressive, jamais une dépendance.
+- **Sélection de texte aux couleurs du thème** : surligner du texte n'affiche plus le bleu du navigateur, étranger aux cinq palettes et particulièrement discordant sur fond noir.
+- **Page « introuvable » dans les six langues**, avec un retour vers l'accueil de la langue en cours, et une frontière d'erreur de dernier recours pour le cas où la mise en page elle-même échoue.
+- **Anti-scintillement au chargement** : le mode OLED et le thème de couleur sont appliqués avant le premier affichage. Le clignotement de l'accent, présent depuis l'introduction des thèmes, disparaît par la même occasion.
+
+### Fixed
+
+- **Anneau de focus absent sur trois cases à cocher** (connexion, inscription, acceptation des conditions) : les classes utilisées ne compilent vers aucune règle. Remplacées par une primitive commune adossée aux jetons du thème.
+- **Badge de compétence illisible en mode clair** : 1,39:1 mesuré contre un plancher de 4,5:1. Le badge existait en deux exemplaires écrits à la main, déjà divergents ; il n'en reste qu'un, dont le contraste est vérifié sur les quinze palettes.
+- **Reflet du badge figé sur le texte** sous préférence de mouvement réduit : arrêter l'animation laissait la bande lumineuse posée sur le libellé. Son intensité passe aussi de 0,25 à 0,15, l'ancienne valeur ramenant le pic à 3,93:1.
+- **Texte atténué sous le seuil de lisibilité** : l'opacité la plus faible employée pour les intitulés de section mesurait 2,80:1 en clair et 3,61:1 en sombre. Supprimée de ses six emplacements.
+- **Étiquette « Se souvenir de moi » invisible en mode sombre** sur le formulaire d'inscription, où la variante sombre manquait — le formulaire de connexion l'avait.
+- **Enregistrement du mode d'affichage refusé par le serveur** : la nouvelle valeur n'était pas déclarée dans la liste des thèmes acceptés, si bien que chaque sauvegarde répondait une erreur de validation sans que rien ne le montre à l'écran.
+- **Choix de mode explicite non restauré** au chargement lorsqu'il coïncidait avec ce que « Système » affichait déjà : les réglages annonçaient « Système » alors que le compte disait « Sombre ».
+- **Changements de thème rapprochés** : trois pressions successives lançaient trois écritures concurrentes vers la même ligne, sans garantie d'ordre. Les écritures sont sérialisées et les états intermédiaires fusionnés.
+- **En-tête du site public débordant en français** : à 880 px — exactement la largeur où les boutons « Se connecter » et « Rejoins la BETA » apparaissent — la rangée dépassait de 4 px. La cause n'était pas cette rangée (l'espagnol est plus large sans déborder) mais la navigation de gauche, dont les libellés français sont les plus longs : 503 px contre 449. L'espacement des liens est resserré d'un cran, ce qui rend au français la marge que l'ajout d'un lien lui avait prise.
+- **Échec réseau lors de l'enregistrement du thème** : la promesse rejetée remontait jusqu'au gestionnaire de clic. L'échec reste journalisé, le changement local est conservé.
+
+### Changed
+
+- **Polices de caractères chargées à la demande** : les huit familles proposées au choix étaient toutes préchargées, soit 26 fichiers et 618 Ko téléchargés sur une page qui n'en affiche qu'une. Ramené à 3 fichiers et 162 Ko, rendu identique. La police par défaut reste préchargée.
+- **Surfaces grises figées converties en jetons de thème** (panneaux d'erreur, formulaire de téléphonie) : elles ignoraient les cinq thèmes de couleur et seraient restées grises sur fond noir.
+- **Pastille d'état des comptes dans l'administration** ramenée aux variantes de badge existantes, dont le contraste est vérifié, au lieu de trois paires de couleurs écrites à la main.
+
+### Developer experience
+
+- **Compilation du conteneur de développement** : Tailwind détecte ses sources depuis le dossier `apps/web` et transforme chaque fichier trouvé en dépendance de compilation, chacun coûtant un aller-retour de montage. Trois arborescences de preuve E2E oubliées — 33 938 fichiers, 96 % du balayage — portaient la première compilation de page à 10 min 32 s. Le périmètre est désormais borné aux sources, et ces arborescences sont exclues des trois côtés.
+- **Rechargement à chaud du frontend** : le montage ne transmet pas les événements du système de fichiers de l'hôte, si bien qu'aucune modification n'atteignait le navigateur. Un intervalle de veille est introduit, réglé à 5 000 ms — un intervalle court n'est pas « plus réactif », il maintient le graphe de compilation invalidé et fait payer une reconstruction à chaque affichage.
+- **Démarrage de l'API en développement** : le débogueur détourne la machinerie d'import de Python, ce qui entre en collision avec les modules figés de la version 3.14 et faisait échouer le conteneur au démarrage avec une erreur différente à chaque essai — toutes dans du code tiers, aucune dans le code applicatif. Mesuré sur quatre démarrages à froid : deux échecs sans le correctif, aucun avec.
+- **Outillage des surfaces de release** : `task release:check` signale toute dérive de version ou de compteur, `task release:bump` écrit les surfaces mécaniques et réaligne les compteurs publiés. Une garde vérifie en intégration continue exactement ce que l'outil écrit.
+- **Nouvelles gardes** : un contrôle de contraste étendu au mode OLED et au badge de compétence, un cliquet sur les opacités de texte dont le plancher est dérivé des palettes plutôt que codé en dur, et un contrat inter-couches qui compare la liste des modes acceptés par le serveur à celle que le frontend sait enregistrer.
+
 ## [1.31.2] - 2026-08-22
 
 **La recherche documentaire retrouve ses réponses, dans les six langues** (ADR-242). La fusion qui combinait similarité sémantique et correspondance de mots-clés comportait deux défauts qui se composaient. D'une part le score BM25 était ramené au maximum du corpus : le « moins mauvais » appariement lexical recevait donc la note parfaite, quelle que soit sa faiblesse réelle — du bruit pur dès que la langue de la question diffère de celle des documents. D'autre part le seuil de pertinence était comparé à un score déjà rétréci par la pondération, si bien qu'un passage sans mot commun avec la question devait atteindre 0,786 de similarité pour franchir une barre documentée à 0,55 — au-dessus de la médiane d'une bonne réponse. Résultat mesuré sur la base réelle : **36 % des bonnes réponses franchissaient le seuil sémantique puis étaient écartées par la fusion**. La question « est-ce que mes données sont chiffrées ? » ne remontait aucun extrait, alors que cinq passages y répondaient.

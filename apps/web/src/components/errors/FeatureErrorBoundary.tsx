@@ -105,7 +105,7 @@ class FeatureErrorBoundaryBase extends Component<Props, State> {
             </p>
 
             {process.env.NODE_ENV === 'development' && error && (
-              <div className="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800 p-3 text-left">
+              <div className="mb-4 rounded-lg bg-muted p-3 text-left">
                 <p className="text-xs font-mono text-gray-800 dark:text-gray-200 break-all">
                   {error.message}
                 </p>
