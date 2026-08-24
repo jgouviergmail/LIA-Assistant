@@ -39,14 +39,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 _SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
-#: (label, exact) — same order and thresholds as verify_reference_seeds.sql.
+#: (label, threshold, exact) — the SAME order and thresholds as
+#: ``verify_reference_seeds.sql``, which is the authority. The two are pinned
+#: together by ``test_reference_counts_mirror_the_seed_sql``: this copy had
+#: silently drifted on four of six rows, and the one that had become STRICTER
+#: than the SQL (``llm_config_overrides``, left at 41 when ADR-244 lowered the
+#: floor to 39) declared a correct fresh install broken.
 _REFERENCE_COUNTS: tuple[tuple[str, int, bool], ...] = (
     ("personalities", 14, True),
     ("personality_translations", 84, True),
-    ("google_api_pricing", 9, False),
+    ("google_api_pricing", 18, False),
     ("image_generation_pricing", 27, False),
-    ("llm_model_pricing", 96, False),
-    ("llm_config_overrides", 41, False),
+    ("llm_model_pricing", 139, False),
+    ("llm_config_overrides", 39, False),
+    ("llm_models", 124, False),
 )
 
 _REFERENCE_COUNTS_SQL = text(
@@ -56,7 +62,8 @@ _REFERENCE_COUNTS_SQL = text(
     " (SELECT COUNT(*) FROM google_api_pricing) AS google_api_pricing,"
     " (SELECT COUNT(*) FROM image_generation_pricing) AS image_generation_pricing,"
     " (SELECT COUNT(*) FROM llm_model_pricing) AS llm_model_pricing,"
-    " (SELECT COUNT(*) FROM llm_config_overrides) AS llm_config_overrides"
+    " (SELECT COUNT(*) FROM llm_config_overrides) AS llm_config_overrides,"
+    " (SELECT COUNT(*) FROM llm_models) AS llm_models"
 )
 
 
