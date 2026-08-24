@@ -1,0 +1,89 @@
+name: Mobile Shell
+
+# Builds the native shells whenever they change.
+#
+# This exists because the shell's native code had no guard at all: its only
+# check lived in a manual-dispatch workflow, so Swift that never compiled could
+# have sat on main indefinitely. A verification someone has to remember to
+# trigger is not a verification.
+#
+# Path-filtered on purpose. A macOS runner on every pull request would tax work
+# that has nothing to do with the shells; a pull request that touches them pays
+# for what it changes.
+#
+# Compilation IS the verification here: this repository has no Swift or Java
+# test harness, and saying otherwise would be pretending. What a WebView can and
+# cannot do is measured separately, by `mobile-webview-probe.yml`.
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/mobile-shell.yml"
+      - "Taskfile.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/mobile-shell.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android shell builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: "24"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
+
+      - name: Set up Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build the shell
+        run: task mobile:build:android
+
+  ios:
+    name: iOS shell builds
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: "24"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
+
+      - name: Set up Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Proves the plugin, the view controller and the store compile — and that
+      # the pbxproj transform actually declared them, which is the failure that
+      # is otherwise completely silent.
+      - name: Build the shell
+        run: task mobile:build:ios

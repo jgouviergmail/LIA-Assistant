@@ -391,11 +391,15 @@ export default defineConfig({
           lines: 93,
         },
         // Session boundary (BFF): the mount-time check skipped on the public
-        // auth pages, the logout that must land even when the API refuses, and
-        // the reference-stable refresh. Measured 100 / 90 / 100 / 100.
+        // auth pages, the logout that must land even when the API refuses, the
+        // reference-stable refresh, and — since the shells — the native
+        // handoff and the sign-in that must leave for the system browser
+        // instead of navigating a WebView Google refuses. Measured
+        // 100 / 94.11 / 100 / 100; floor raised from 88 with the branch
+        // coverage those paths added.
         'src/lib/auth.tsx': {
           statements: 98,
-          branches: 88,
+          branches: 92,
           functions: 98,
           lines: 98,
         },
