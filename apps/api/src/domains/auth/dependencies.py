@@ -19,6 +19,7 @@ from src.core.client_ip import resolve_client_ip
 from src.core.constants import (
     RATE_LIMIT_AUTH_LOGIN_PER_MINUTE,
     RATE_LIMIT_AUTH_REGISTER_PER_MINUTE,
+    RATE_LIMIT_NATIVE_CALLBACK_PER_MINUTE,
 )
 from src.core.exceptions import raise_rate_limit_exceeded
 from src.core.session_dependencies import get_current_active_session
@@ -143,6 +144,11 @@ rate_limit_login = create_auth_rate_limiter(
 rate_limit_register = create_auth_rate_limiter(
     action="register",
     max_calls=RATE_LIMIT_AUTH_REGISTER_PER_MINUTE,  # 5/min
+)
+
+rate_limit_native_callback = create_auth_rate_limiter(
+    action="native_callback",
+    max_calls=RATE_LIMIT_NATIVE_CALLBACK_PER_MINUTE,
 )
 
 rate_limit_password_reset_request = create_auth_rate_limiter(

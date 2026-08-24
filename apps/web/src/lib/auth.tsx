@@ -57,7 +57,12 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<LoginResult>;
-  verifyMfa: (mfaToken: string, code: string) => Promise<User>;
+  /**
+   * Second login step. `mfaToken` is null when the first step was a provider
+   * sign-in: its callback is a redirect, so the pending token travels in an
+   * httpOnly cookie and the API reads it from there.
+   */
+  verifyMfa: (mfaToken: string | null, code: string) => Promise<User>;
   register: (
     email: string,
     password: string,
@@ -230,9 +235,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * Complete a two-step login: pending token + TOTP or backup code.
    * On success the backend sets the session cookie and returns the user.
    */
-  const verifyMfa = async (mfaToken: string, code: string): Promise<User> => {
+  const verifyMfa = async (mfaToken: string | null, code: string): Promise<User> => {
     const response = await apiClient.post<{ user: User }>('/auth/mfa/verify', {
-      mfa_token: mfaToken,
+      // Omitted entirely when absent: the API falls back to the httpOnly
+      // cookie, and sending an explicit null would fail schema validation.
+      ...(mfaToken !== null && { mfa_token: mfaToken }),
       code,
     });
     setUser(response.user);

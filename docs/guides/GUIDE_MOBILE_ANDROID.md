@@ -5,11 +5,12 @@
 > updated, what recurs every year, and the platform behaviours that were
 > **measured** rather than assumed.
 >
-> **Status (2026-08-24).** The decision and the measurements are final; the app
-> itself is **planned**, not built. What exists today is the measurement harness
+> **Status (2026-08-24).** The decision and the measurements are final. Two
+> pieces already exist: the measurement harness
 > ([scripts/mobile-probe/README.md](../../scripts/mobile-probe/README.md)), which
-> already asserts the invariants this guide relies on. Sections marked
-> *(planned)* describe work still to be done.
+> asserts the invariants this guide relies on, and the **API-side session
+> handoff** that lets a shell complete a provider sign-in. The **app itself is
+> planned**, not built; sections marked *(planned)* describe what it still owes.
 >
 > iOS counterpart: [GUIDE_MOBILE_IOS.md](./GUIDE_MOBILE_IOS.md).
 
@@ -228,11 +229,22 @@ task mobile:probe:android -- --settle 25000
 
 Google refuses OAuth from embedded webviews (`disallowed_useragent`, enforced
 since 2023-07-24) — `android.webkit.WebView` explicitly. This breaks Google
-sign-in **and every connector**. The remedy is a system browser (Custom Tabs), a
-deep link back into the app, and a single-use session handoff on the API side
-*(planned)* modelled on `TOTPService.create_pending_token` /
-`consume_pending_token`, which already bridges two steps of a login through a
-Redis `GETDEL`.
+sign-in **and every connector**.
+
+**The API side is implemented.** `GET /auth/google/login?native_challenge=…`
+stores the challenge in the flow's server-side state; the callback returns
+`lia://auth-callback?code=…` instead of setting a browser session; and
+`POST /auth/native/callback` exchanges that code plus the verifier for the
+session cookie — in the WebView's own jar. See
+[apps/api/src/domains/auth/native_handoff.py](../../apps/api/src/domains/auth/native_handoff.py).
+
+What the shell still owes *(planned)*: opening the system browser (Custom Tabs),
+registering the custom scheme, drawing the verifier and keeping it, and handing
+the deep link back to the WebView.
+
+**Connectors need none of this.** Their callbacks are stateless — the user id
+travels in the server-side OAuth state — so they already succeed without a
+cookie. They only need the return trip.
 
 ### Emulator images
 

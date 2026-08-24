@@ -11,6 +11,7 @@ from fastapi import Request, Response
 
 from src.core.client_metadata import extract_client_meta
 from src.core.config import settings
+from src.core.constants import MFA_PENDING_COOKIE_NAME
 from src.core.field_names import FIELD_SESSION_ID, FIELD_USER_ID
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore, UserSession
@@ -191,6 +192,49 @@ def clear_session_cookie(response: Response) -> None:
     """
     response.delete_cookie(
         key=settings.session_cookie_name,
+        domain=settings.session_cookie_domain,
+        samesite=cast(Literal["lax", "strict", "none"], settings.session_cookie_samesite),
+    )
+
+
+def set_mfa_pending_cookie(response: Response, token: str, max_age: int) -> None:
+    """Carry a two-step pending token across a REDIRECT.
+
+    The password login answers with JSON and hands the pending token to the
+    client directly. A provider sign-in ends in a redirect, which cannot do
+    that — and putting the token in the query string would leave a single-use
+    credential in browser history, in referrers and in every proxy log on the
+    way. It travels in an httpOnly cookie instead, with the same security
+    attributes as the session cookie so a deployment tunes one policy, not two.
+
+    Args:
+        response: Redirect response handing control back to the frontend.
+        token: Pending token minted by ``TOTPService.create_pending_token``.
+        max_age: Lifetime in seconds; mirror the pending token's own TTL so the
+            cookie cannot outlive what it names.
+    """
+    response.set_cookie(
+        key=MFA_PENDING_COOKIE_NAME,
+        value=token,
+        max_age=max_age,
+        secure=settings.session_cookie_secure,
+        httponly=True,
+        samesite=cast(Literal["lax", "strict", "none"], settings.session_cookie_samesite),
+        domain=settings.session_cookie_domain,
+    )
+
+
+def clear_mfa_pending_cookie(response: Response) -> None:
+    """Drop the pending-token cookie once the second step is over.
+
+    Called on success AND on the terminal failures, so a spent or rejected
+    token never lingers in a browser waiting to be replayed.
+
+    Args:
+        response: Response of the second step.
+    """
+    response.delete_cookie(
+        key=MFA_PENDING_COOKIE_NAME,
         domain=settings.session_cookie_domain,
         samesite=cast(Literal["lax", "strict", "none"], settings.session_cookie_samesite),
     )

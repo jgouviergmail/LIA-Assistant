@@ -10,7 +10,6 @@ import asyncio
 import base64
 import hashlib
 import io
-import json
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -33,10 +32,10 @@ from src.core.constants import (
 from src.core.exceptions import raise_invalid_credentials, raise_invalid_input
 from src.core.field_names import FIELD_USER_ID
 from src.core.security.utils import decrypt_data, encrypt_data
+from src.core.single_use_token import SingleUseTokenStore
 from src.domains.auth.models import MFABackupCode, UserTOTP
 from src.domains.auth.totp_repository import TOTPRepository
 from src.domains.users.models import User
-from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.observability.metrics_mfa import track_totp_verification
 
 logger = structlog.get_logger(__name__)
@@ -72,6 +71,34 @@ class PendingLogin:
     # A4 attestation outcome computed at step one, applied at step two.
     known_device: bool = False
     fcm_token_id: str | None = None
+
+
+def _decode_pending_login(payload: dict[str, object]) -> PendingLogin:
+    """Rebuild a :class:`PendingLogin` from its stored mapping.
+
+    Args:
+        payload: Mapping read back from Redis.
+
+    Returns:
+        The typed payload.
+
+    Raises:
+        KeyError: When ``user_id`` is absent — the store reports that as an
+            unusable token rather than letting a half-formed login through.
+    """
+    return PendingLogin(
+        user_id=str(payload[FIELD_USER_ID]),
+        remember_me=bool(payload.get("remember_me", False)),
+        known_device=bool(payload.get("known_device", False)),
+        fcm_token_id=payload.get("fcm_token_id"),  # type: ignore[arg-type]
+    )
+
+
+#: The two-step login bridge, on the shared single-use mechanism.
+_PENDING_LOGIN_TOKENS: SingleUseTokenStore[PendingLogin] = SingleUseTokenStore(
+    prefix=REDIS_KEY_MFA_PENDING_PREFIX,
+    decode=_decode_pending_login,
+)
 
 
 class TOTPService:
@@ -293,21 +320,15 @@ class TOTPService:
         Returns:
             Opaque token to return to the client.
         """
-        token = str(uuid.uuid4())
-        redis = await get_redis_session()
-        await redis.set(
-            f"{REDIS_KEY_MFA_PENDING_PREFIX}{token}",
-            json.dumps(
-                {
-                    FIELD_USER_ID: str(user_id),
-                    "remember_me": remember_me,
-                    "known_device": known_device,
-                    "fcm_token_id": fcm_token_id,
-                }
-            ),
-            ex=settings.mfa_pending_ttl_seconds,
+        return await _PENDING_LOGIN_TOKENS.issue(
+            {
+                FIELD_USER_ID: str(user_id),
+                "remember_me": remember_me,
+                "known_device": known_device,
+                "fcm_token_id": fcm_token_id,
+            },
+            ttl_seconds=settings.mfa_pending_ttl_seconds,
         )
-        return token
 
     async def consume_pending_token(self, token: str) -> PendingLogin | None:
         """Consume (single-use) a pending-login token.
@@ -318,17 +339,7 @@ class TOTPService:
         Returns:
             The pending payload, or None when unknown/expired/replayed.
         """
-        redis = await get_redis_session()
-        raw = await redis.getdel(f"{REDIS_KEY_MFA_PENDING_PREFIX}{token}")
-        if not raw:
-            return None
-        payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-        return PendingLogin(
-            user_id=payload[FIELD_USER_ID],
-            remember_me=bool(payload.get("remember_me", False)),
-            known_device=bool(payload.get("known_device", False)),
-            fcm_token_id=payload.get("fcm_token_id"),
-        )
+        return await _PENDING_LOGIN_TOKENS.consume(token)
 
     # ------------------------------------------------------------------
     # Helpers

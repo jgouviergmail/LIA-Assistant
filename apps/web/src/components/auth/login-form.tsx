@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,9 +20,34 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  // Two-step login (TOTP active on the account): pending token + code entry.
-  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  /*
+   * Two-step login. The step is due whenever this is non-null; the token
+   * inside it may legitimately be absent.
+   *
+   * A password login receives the pending token in the JSON answer and holds
+   * it here. A PROVIDER sign-in cannot: its callback is a redirect, so the
+   * token travels in an httpOnly cookie and the browser simply lands on
+   * `?mfa=1`. Modelling "the step is due" and "we hold a token" as one nullable
+   * token would have made the second case unrepresentable.
+   */
+  const [mfaStep, setMfaStep] = useState<{ token: string | null } | null>(null);
   const [mfaCode, setMfaCode] = useState('');
+
+  /*
+   * Read once, from `window.location` rather than `useSearchParams`: the hook
+   * requires a <Suspense> boundary, and at prerender time the FALLBACK is what
+   * ships in the static HTML — the sign-in form would be missing from the page
+   * every visitor lands on. A single boolean read at mount costs nothing and
+   * keeps the form in the document.
+   */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('mfa') !== '1') return;
+    setMfaStep({ token: null });
+    // The flag is consumed here, so it stops describing the page: leaving it
+    // would reopen the code step on a refresh, against a pending cookie that
+    // may already be spent (ADR-210 — a consumed intent does not replay).
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,8 +56,8 @@ export function LoginForm() {
 
     try {
       const result = await login(email, password, rememberMe);
-      if (result.mfaRequired && result.mfaToken) {
-        setMfaToken(result.mfaToken);
+      if (result.mfaRequired) {
+        setMfaStep({ token: result.mfaToken ?? null });
         return;
       }
       router.push('/dashboard');
@@ -49,20 +74,20 @@ export function LoginForm() {
 
   const handleMfaSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!mfaToken) return;
+    if (!mfaStep) return;
     setError('');
     setIsLoading(true);
 
     try {
-      await verifyMfa(mfaToken, mfaCode);
+      await verifyMfa(mfaStep.token, mfaCode);
       router.push('/dashboard');
     } catch (err) {
       logger.error('MFA verification error', err as Error, {
         component: 'LoginForm',
       });
       // The pending token is single-use: a failed attempt requires a fresh
-      // password step, so send the user back with a clear message.
-      setMfaToken(null);
+      // first step, so send the user back with a clear message.
+      setMfaStep(null);
       setMfaCode('');
       setError(t('auth.mfa.invalid_code'));
     } finally {
@@ -70,7 +95,7 @@ export function LoginForm() {
     }
   };
 
-  if (mfaToken) {
+  if (mfaStep) {
     return (
       <Card>
         <form onSubmit={handleMfaSubmit} className="p-6 space-y-4">
@@ -104,7 +129,7 @@ export function LoginForm() {
             variant="ghost"
             className="w-full"
             onClick={() => {
-              setMfaToken(null);
+              setMfaStep(null);
               setMfaCode('');
               setError('');
             }}

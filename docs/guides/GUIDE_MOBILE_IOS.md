@@ -5,11 +5,13 @@
 > updated, what recurs every year, and the WKWebView behaviours that were
 > **measured** rather than assumed.
 >
-> **Status (2026-08-24).** The decision and the measurements are final; the app
-> itself is **planned**, not built. What exists today is the measurement harness
+> **Status (2026-08-24).** The decision and the measurements are final. Two
+> pieces already exist: the measurement harness
 > ([scripts/mobile-probe/README.md](../../scripts/mobile-probe/README.md)), whose
 > iOS leg runs on a GitHub-hosted macOS runner — the only way to reach WKWebView
-> without a Mac. Sections marked *(planned)* describe work still to be done.
+> without a Mac — and the **API-side session handoff** that lets a shell complete
+> a provider sign-in. The **app itself is planned**, not built; sections marked
+> *(planned)* describe what it still owes.
 >
 > Android counterpart: [GUIDE_MOBILE_ANDROID.md](./GUIDE_MOBILE_ANDROID.md).
 
@@ -231,13 +233,23 @@ platform refuses it.
 
 Google refuses OAuth from embedded webviews (`disallowed_useragent`, enforced
 since 2023-07-24) — `WKWebView` explicitly. This breaks Google sign-in **and
-every connector**. The remedy is `SFSafariViewController`, a Universal Link back
-into the app, and a single-use session handoff on the API side *(planned)*
-modelled on `TOTPService.create_pending_token` / `consume_pending_token`.
+every connector**.
 
 The cookie the system browser receives is **not** the WebView's, which is why the
-handoff must exchange a one-time code server-side rather than hoping the session
+handoff exchanges a one-time code server-side rather than hoping the session
 carries over.
+
+**The API side is implemented**: a challenge on
+`GET /auth/google/login`, a `lia://auth-callback?code=…` return, and
+`POST /auth/native/callback` to redeem it — see
+[apps/api/src/domains/auth/native_handoff.py](../../apps/api/src/domains/auth/native_handoff.py).
+The return uses a **custom scheme, not a Universal Link**: Universal Links pin
+domains at build time, and one published app serves every self-hosted server.
+That is exactly why the code is bound to a verifier the shell keeps — an
+intercepted link is inert.
+
+What the shell still owes *(planned)*: `SFSafariViewController`, the scheme
+registration, and keeping the verifier.
 
 ### Universal Links
 

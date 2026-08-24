@@ -361,9 +361,17 @@ class AuthService:
 
         return UserResponse.model_validate(user)
 
-    async def initiate_google_oauth(self) -> tuple[str, str]:
+    async def initiate_google_oauth(
+        self, metadata: dict[str, str] | None = None
+    ) -> tuple[str, str]:
         """
         Initiate Google OAuth flow with PKCE (Proof Key for Code Exchange).
+
+        Args:
+            metadata: Business-logic values to store alongside the state,
+                server-side. The callback reads them back to decide where to
+                send the user — a native shell supplies its handoff challenge
+                here rather than in the URL, where anyone could forge it.
 
         Returns:
             Tuple of (authorization_url, state_token)
@@ -382,7 +390,8 @@ class AuthService:
             additional_params={
                 "access_type": "offline",  # Get refresh token
                 "prompt": "consent",  # Force re-consent to get refresh token
-            }
+            },
+            metadata=metadata,
         )
 
         return auth_url, state

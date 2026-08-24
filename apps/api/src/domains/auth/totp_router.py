@@ -8,10 +8,11 @@ second login step is strictly IP-rate-limited (code brute force).
 import uuid
 
 import structlog
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import (
+    MFA_PENDING_COOKIE_NAME,
     RATE_LIMIT_MFA_VERIFY_PER_MINUTE,
     RATE_LIMIT_TOTP_MANAGE_PER_MINUTE,
 )
@@ -22,7 +23,10 @@ from src.core.session_dependencies import (
     get_current_active_session,
     require_recent_step_up,
 )
-from src.core.session_helpers import create_authenticated_session_with_cookie
+from src.core.session_helpers import (
+    clear_mfa_pending_cookie,
+    create_authenticated_session_with_cookie,
+)
 from src.domains.auth.dependencies import (
     create_auth_rate_limiter,
     create_user_rate_limiter,
@@ -165,11 +169,28 @@ async def mfa_verify(
     http_request: Request,
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(rate_limit_mfa_verify),
+    mfa_pending_cookie: str | None = Cookie(default=None, alias=MFA_PENDING_COOKIE_NAME),
 ) -> AuthResponseBFF:
-    """Verify the second factor and create the BFF session."""
+    """Verify the second factor and create the BFF session.
+
+    The pending token comes from the request body on the password path, and
+    from an httpOnly cookie when the first step was a provider sign-in — a
+    redirect cannot answer with JSON, and a single-use credential does not
+    belong in a URL. The body keeps priority, so the password path is
+    unchanged.
+    """
     service = TOTPService(db)
 
-    pending = await service.consume_pending_token(data.mfa_token)
+    pending_token = data.mfa_token or mfa_pending_cookie
+    # Whatever happens next, this cookie has done its job: clearing it here
+    # means a spent or rejected token never lingers in a browser.
+    clear_mfa_pending_cookie(response)
+
+    if not pending_token:
+        auth_attempts_total.labels(method="mfa_verify", status="error").inc()
+        raise_invalid_credentials()
+
+    pending = await service.consume_pending_token(pending_token)
     if pending is None:
         auth_attempts_total.labels(method="mfa_verify", status="error").inc()
         raise_invalid_credentials()

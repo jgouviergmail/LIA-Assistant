@@ -545,8 +545,22 @@ Invariants, each backed by a measurement in `scripts/mobile-probe/`:
   cross-**site** credentialed cookies (`lia.` / `lia-back.` under one registrable
   domain is fine; a different domain is not).
 - **OAuth never runs inside the WebView** (`disallowed_useragent` on both
-  engines): system browser + deep link + a single-use session handoff modelled on
-  `TOTPService.create_pending_token` / `consume_pending_token`.
+  engines). The API side exists: a `native_challenge` on `/auth/google/login`, a
+  `lia://auth-callback?code=…` return, and `POST /auth/native/callback` to redeem
+  it (`domains/auth/native_handoff.py` + `oauth_router.py`). The code is bound to
+  a verifier the shell keeps, because the return is a **custom scheme** — App
+  Links pin domains at build time and one app serves every self-hoster, so the
+  link must be assumed intercepted. Connectors need no handoff at all: their
+  callbacks are stateless, the user id travels in the server-side OAuth state.
+- **Provider sign-in enforces the second factor**, since 2026-08-24. It did not
+  before, so a TOTP-active account could walk past it by signing in with Google.
+  A redirect cannot answer with JSON, so the pending token travels in an httpOnly
+  cookie (`set_mfa_pending_cookie`) and `/auth/mfa/verify` reads it from there
+  when the body carries none.
+- **A new auth route's NAME is a security decision**: `forbid_federated_signin_in_demo`
+  classifies by path SHAPE (`…/auth/<provider>/<login|callback>`), so
+  `/auth/native/callback` inherits the demonstrator's refusal while
+  `/auth/native/handoff` would have bypassed it in silence.
 - **The shell's version is decoupled from LIA's** — do NOT add it to
   `scripts/release/version_surfaces.py`, or every LIA release would force a store
   submission. A LIA release ships nothing to the stores.

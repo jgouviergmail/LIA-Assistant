@@ -42,6 +42,11 @@ SESSION_DURATION_REMEMBER_ME = 86400 * 30  # 30 days (2,592,000 seconds)
 
 # Session cookie configuration
 SESSION_COOKIE_NAME = "lia_session"
+#: Carries the two-step pending token when the first step ends in a REDIRECT
+#: (provider sign-in) instead of a JSON response. httpOnly, and short-lived by
+#: the pending token's own TTL: a single-use credential in a URL would survive
+#: in history, referrers and logs.
+MFA_PENDING_COOKIE_NAME = "lia_mfa_pending"
 SESSION_COOKIE_SECURE_PRODUCTION = True  # HTTPS required in production
 SESSION_COOKIE_HTTPONLY = True  # Prevents XSS attacks
 SESSION_COOKIE_SAMESITE = "lax"  # CSRF protection
@@ -1050,6 +1055,18 @@ MFA_PENDING_TTL_SECONDS_DEFAULT = 300  # two-step login pending token lifetime
 REDIS_KEY_MFA_PENDING_PREFIX = "mfa:pending:"  # + opaque token (uuid4)
 RATE_LIMIT_MFA_VERIFY_PER_MINUTE = 5  # per-IP on /auth/mfa/verify (code brute force)
 RATE_LIMIT_TOTP_MANAGE_PER_MINUTE = 10  # per-user on TOTP management endpoints
+
+# Native shell session handoff (mobile apps): OAuth cannot run inside a WebView
+# (`disallowed_useragent` on both engines), so the flow goes through the system
+# browser and comes back through a deep link. The link carries a code, never a
+# session — and the code is worthless without the verifier the WebView kept.
+NATIVE_HANDOFF_TTL_SECONDS_DEFAULT = 60  # deep-link round trip, nothing more
+REDIS_KEY_NATIVE_HANDOFF_PREFIX = "native:handoff:"  # + opaque token
+NATIVE_APP_SCHEME_DEFAULT = "lia"  # custom scheme: App Links cannot follow a runtime server URL
+#: PKCE bounds (RFC 7636 §4.1), reused verbatim for the handoff verifier.
+NATIVE_HANDOFF_VERIFIER_MIN_LENGTH = 43
+NATIVE_HANDOFF_VERIFIER_MAX_LENGTH = 128
+RATE_LIMIT_NATIVE_CALLBACK_PER_MINUTE = 10  # per-IP on the handoff exchange
 
 # Account export (D3): GDPR-portability archives
 EXPORTS_STORAGE_PATH_DEFAULT = "data/exports"
