@@ -44,7 +44,7 @@
     "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_new_pattern_llm_agent_config_override",
     "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_planner_override_backward_compatibility",
     "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_response_node_with_centralized_config",
-    "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_router_llm_carries_no_static_metrics_callback",
+    "tests/agents/test_phase32_e2e_integration.py::TestLLMConfigE2E::test_a_factory_llm_carries_no_static_metrics_callback",
     "tests/integration/test_checkpointer_pool_benchmark.py::test_pooled_checkpointer_beats_single_connection[4096]",
     "tests/integration/test_checkpointer_pool_benchmark.py::test_pooled_checkpointer_beats_single_connection[65536]",
     "tests/integration/test_redis_limiter_integration.py::TestRedisRateLimiterPerformance::test_acquire_latency",
