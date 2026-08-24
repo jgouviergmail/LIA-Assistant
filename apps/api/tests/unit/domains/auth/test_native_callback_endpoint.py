@@ -171,6 +171,19 @@ class TestRefusals:
 
         assert exc.value.status_code == 401
 
+    async def test_a_corrupt_user_id_is_refused_not_a_500(self) -> None:
+        """A malformed payload must answer like any other bad code.
+
+        Nothing we write produces this, but a corrupted Redis value would
+        otherwise surface as an unhandled exception on an authentication
+        endpoint — a 500 where a 401 belongs.
+        """
+        handoff = NativeHandoff(user_id="not-a-uuid", challenge=_CHALLENGE, mfa_pending=False)
+        with pytest.raises(HTTPException) as exc:
+            await _call(handoff=handoff)
+
+        assert exc.value.status_code == 401
+
     async def test_a_deactivated_user_is_rejected(self) -> None:
         user = _make_user(active=False)
         handoff = NativeHandoff(user_id=str(user.id), challenge=_CHALLENGE, mfa_pending=False)

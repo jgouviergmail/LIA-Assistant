@@ -403,7 +403,17 @@ async def native_callback(
         auth_attempts_total.labels(method="native_callback", status="error").inc()
         raise_invalid_credentials()
 
-    user = await UserRepository(db).get_user_minimal_for_session(uuid.UUID(handoff.user_id))
+    # The payload is ours, so this cannot fail in practice — but a corrupted
+    # Redis value must answer 401 like every other unusable code, never surface
+    # as an unhandled exception on an authentication endpoint.
+    try:
+        user_id = uuid.UUID(handoff.user_id)
+    except ValueError:
+        logger.warning("native_callback_corrupt_payload")
+        auth_attempts_total.labels(method="native_callback", status="error").inc()
+        raise_invalid_credentials()
+
+    user = await UserRepository(db).get_user_minimal_for_session(user_id)
     if user is None or not user.is_active:
         auth_attempts_total.labels(method="native_callback", status="error").inc()
         raise_invalid_credentials()
