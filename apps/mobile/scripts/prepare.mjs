@@ -53,10 +53,19 @@ function parseArgs(argv) {
   return out;
 }
 
-/** Run a command in the mobile package, failing the process on a non-zero exit. */
+/**
+ * Run a command in the mobile package, failing the process on a non-zero exit.
+ *
+ * pnpm, not npm: this package is a member of the repository's pnpm workspace
+ * (`packages: ['apps/*']`), and a second lockfile beside `pnpm-lock.yaml` would
+ * be a second authority on the same dependencies — the shape this repository
+ * refuses everywhere else. It also broke CI outright: `pnpm install
+ * --frozen-lockfile` fails the moment a workspace member's manifest is not in
+ * the root lockfile.
+ */
 function run(command, args) {
-  // Node refuses to spawn `.cmd` without a shell (CVE-2024-27980); npm and npx
-  // ship as `.cmd` shims on Windows.
+  // Node refuses to spawn `.cmd` without a shell (CVE-2024-27980); pnpm ships
+  // as a `.cmd` shim on Windows.
   const resolved = WIN ? `${command}.cmd` : command;
   execFileSync(resolved, args, { cwd: ROOT, stdio: 'inherit', shell: WIN });
 }
@@ -154,13 +163,13 @@ async function main() {
   }
 
   if (!existsSync(join(ROOT, 'node_modules'))) {
-    run('npm', ['install', '--no-audit', '--no-fund']);
+    run('pnpm', ['install']);
   }
 
   if (existsSync(join(ROOT, platform))) {
-    run('npx', ['cap', 'sync', platform]);
+    run('pnpm', ['exec', 'cap', 'sync', platform]);
   } else {
-    run('npx', ['cap', 'add', platform]);
+    run('pnpm', ['exec', 'cap', 'add', platform]);
   }
 
   await overlay(platform, Boolean(args['accept-drift']));

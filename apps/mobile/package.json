@@ -8,7 +8,7 @@
     "prepare:android": "node scripts/prepare.mjs --platform android",
     "prepare:ios": "node scripts/prepare.mjs --platform ios"
   },
-  "dependencies": {
+  "devDependencies": {
     "@capacitor/android": "8.5.0",
     "@capacitor/cli": "8.5.0",
     "@capacitor/core": "8.5.0",
