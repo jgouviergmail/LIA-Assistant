@@ -514,6 +514,47 @@ Three traps observed repeatedly when working from the dev environment:
 
 When working with settings-driven thresholds in tests (e.g. `mcp_user_max_servers_per_user`, `subagent_max_total_tokens_per_day`), **never hardcode the threshold in the test** — read it from `settings` and compute relative values. Configs change, hard-coded thresholds silently drift the assertion.
 
+## Native mobile shells (measured, not assumed)
+
+LIA ships **one published app per store**, a client for a **self-hosted** LIA
+server: the WebView loads the **remote web origin** and the user types their
+server URL at first launch. This is not a preference — the API accepts nothing
+but its session cookie (`core/session_dependencies.py`, `Cookie()` only), so a
+locally bundled build or a native REST client would have no session at all. The
+UI is never duplicated; the native layer only adds what the web cannot do, and
+where possible it just opens an existing web route (share → `/{lng}/share?…`,
+notification → `?intent=` under ADR-210).
+
+Invariants, each backed by a measurement in `scripts/mobile-probe/`:
+
+- **`CapacitorHttp` and `CapacitorCookies` stay disabled** (their default). They
+  replace `window.fetch` / `document.cookie` for the whole application.
+- **Push is native on BOTH platforms** — the Push API does not exist in either
+  WebView. `UserFCMToken.device_type` already accepts `android|ios|web`.
+- **The wake word is lost in the shell, on both platforms.** No cross-origin
+  isolation, even under COEP `require-corp` (measured twice).
+  `isSherpaKwsSupported()` already degrades to tap-to-speak.
+- **Android: `CookieManager.flush()` on pause is mandatory.** The cookie store is
+  written on a ~30 s timer and Capacitor never flushes; a restart 28 s after
+  sign-in loses the session, at 60 s it survives.
+- **iOS: no Service Worker**, because `WKAppBoundDomains` is a static list frozen
+  at build time and cannot follow a runtime server URL. A native offline screen
+  replaces the ADR-146 page. Do not "fix" this by adopting per-deployment builds:
+  that would require an Apple developer account from every self-hoster.
+- **iOS: the API must be same-site as the web app.** WebKit's ITP blocks
+  cross-**site** credentialed cookies (`lia.` / `lia-back.` under one registrable
+  domain is fine; a different domain is not).
+- **OAuth never runs inside the WebView** (`disallowed_useragent` on both
+  engines): system browser + deep link + a single-use session handoff modelled on
+  `TOTPService.create_pending_token` / `consume_pending_token`.
+- **The shell's version is decoupled from LIA's** — do NOT add it to
+  `scripts/release/version_surfaces.py`, or every LIA release would force a store
+  submission. A LIA release ships nothing to the stores.
+
+`task mobile:probe:{android,ios}` re-measures both engines under the production
+CSP/COEP, which it **imports** from `apps/web/src/lib/csp.ts` rather than copying.
+Run it after any Capacitor upgrade or any CSP change.
+
 ## Useful Documentation Pointers
 
 - Full documentation index: `docs/INDEX.md`
@@ -522,4 +563,5 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
 - ADR index (244 ADR files, ADR-245 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
+- Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`
