@@ -109,17 +109,23 @@ export async function scaffold(platform, serverUrl, fresh = false) {
 }
 
 /**
- * Let the iOS shell load the probe server over plain HTTP on `localhost`.
+ * Prepare the iOS Info.plist so the probe measures capabilities, not omissions.
  *
- * `server.cleartext` is an ANDROID-only option (it maps to
- * `usesCleartextTraffic`); Capacitor's iOS platform ignores it, and the
- * generated Info.plist carries no `NSAppTransportSecurity` key at all. Whether
- * App Transport Security tolerates loopback HTTP has varied across iOS
- * releases, so the exception is declared rather than relied upon — a probe must
- * not fail for a reason unrelated to what it measures.
+ * Two distinct concerns, both learned from a failed run rather than assumed:
  *
- * Scoped to `localhost`. `NSAllowsArbitraryLoads` would disable ATS for the
- * whole app, which is never an acceptable shape to copy into a shipping shell.
+ * 1. **Usage descriptions.** iOS exposes `getUserMedia` only when the app
+ *    declares why it wants the microphone and camera. The first iOS run
+ *    reported `getUserMedia=false`; the cause was this missing key, not
+ *    WKWebView. A probe that omits them measures its own gap.
+ *
+ * 2. **App Transport Security.** `server.cleartext` is an ANDROID-only option
+ *    (it maps to `usesCleartextTraffic`); Capacitor's iOS platform ignores it,
+ *    and the generated Info.plist carries no `NSAppTransportSecurity` key at
+ *    all. Whether ATS tolerates loopback HTTP has varied across iOS releases,
+ *    so the exception is declared rather than relied upon.
+ *
+ * The ATS exception is scoped to `localhost`. `NSAllowsArbitraryLoads` would
+ * disable ATS app-wide, which is never a shape to copy into a shipping shell.
  *
  * @param {string} plistPath - Path of the generated Info.plist.
  */
@@ -128,6 +134,15 @@ export async function allowLocalhostOverHttp(plistPath) {
   if (plist.includes('NSAppTransportSecurity')) return;
 
   const exception = [
+    // Without these, iOS cannot grant the microphone or camera and
+    // `navigator.mediaDevices.getUserMedia` is simply absent — which the first
+    // iOS run reported as a missing capability when it was a missing plist key.
+    '\t<key>NSMicrophoneUsageDescription</key>',
+    '\t<string>Measures whether the WebView can reach the microphone.</string>',
+    '\t<key>NSCameraUsageDescription</key>',
+    '\t<string>Measures whether the WebView can reach the camera.</string>',
+    '\t<key>NSLocationWhenInUseUsageDescription</key>',
+    '\t<string>Measures whether the WebView can reach geolocation.</string>',
     '\t<key>NSAppTransportSecurity</key>',
     '\t<dict>',
     '\t\t<key>NSAllowsLocalNetworking</key>',
@@ -137,6 +152,11 @@ export async function allowLocalhostOverHttp(plistPath) {
     '\t\t\t<key>localhost</key>',
     '\t\t\t<dict>',
     '\t\t\t\t<key>NSExceptionAllowsInsecureHTTPLoads</key>',
+    '\t\t\t\t<true/>',
+    // The probe serves the document from `app.localhost` and the API from
+    // `api.localhost` — two hosts under one registrable domain, mirroring
+    // production — so the exception must reach subdomains, not just the apex.
+    '\t\t\t\t<key>NSIncludesSubdomains</key>',
     '\t\t\t\t<true/>',
     '\t\t\t</dict>',
     '\t\t</dict>',

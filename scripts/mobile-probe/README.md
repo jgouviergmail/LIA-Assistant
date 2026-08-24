@@ -64,25 +64,70 @@ Measured on Android 16 / WebView 133, both under `COEP: credentialless` and
   false and voice mode degrades to tap-to-speak, so the **wake word is lost in
   the shell on Android too**, not only on iOS where it is already lost.
 
-## It replays production's real topology, not a same-origin simplification
+## The API origin: what the probe can and cannot reproduce
 
 Production serves `connect-src 'self' https://lia-back.jeyswork.com …` from
 `https://lia.jeyswork.com`: **the API is a separate origin**, so every
-authenticated call is a cross-origin credentialed request. Measuring only
-same-origin would have left that path unproven.
+authenticated call is a cross-origin credentialed request. `buildAppCsp` takes
+the API URL as a parameter, so the probe passes one and gets the production
+`connect-src` for free.
 
-`buildAppCsp` takes the API URL as a parameter, so the probe passes one and gets
-the production `connect-src` for free. The document is served from `localhost`
-and the API origin from `127.0.0.1` — **distinct sites** for cookie purposes,
-which is *stricter* than production's same-site `lia.` / `lia-back.` split: if
-the cookie survives here, it survives there.
+Production's exact shape — two different **hosts** under one registrable domain
+— cannot be reproduced on loopback, and the reason is worth stating so nobody
+"fixes" it back:
 
-This matters because Android WebView differs from Chrome:
-`CookieManager.setAcceptThirdPartyCookies` defaults to **false**. Capacitor
-enables it unconditionally — `Bridge.create()` → `MockCordovaWebViewImpl.init()`
-→ `CapacitorCordovaCookieManager` → `setAcceptThirdPartyCookies(webView, true)`
-— and the assertion exists to catch that call ever disappearing. Measured
-present on Capacitor 8.5.0.
+- `app.localhost` / `api.localhost` *look* right and are not. For an unknown TLD
+  the registrable domain is the whole name, so those two are **different sites**.
+  Measured: the `SameSite=Lax` cookie was correctly withheld.
+- A real registrable domain (`app.`/`api.lia-probe.test`) needs TLS to remain a
+  secure context, and without a secure context there are no Service Workers left
+  to measure. The two requirements exclude each other on loopback.
+
+So the probe **bounds** production rather than pretending to reproduce it:
+
+| Mode | Relationship | Treatment |
+|---|---|---|
+| `--api-host localhost` (default) | cross-origin, same host | **asserted** — proves the CORS + credentials plumbing carries cookies |
+| `--api-host 127.0.0.1` | genuinely cross-site | **advisory** — records the ITP difference between engines |
+
+Production sits between the two. That it works under WebKit's ITP is evidenced
+outside this harness: LIA's web app runs in Safari on iOS today, on the same
+engine with the same origin split.
+
+The cross-site mode matters because the engines differ.
+`CookieManager.setAcceptThirdPartyCookies` defaults to **false** on Android
+WebView; Capacitor enables it unconditionally — `Bridge.create()` →
+`MockCordovaWebViewImpl.init()` → `CapacitorCordovaCookieManager` →
+`setAcceptThirdPartyCookies(webView, true)` — so Android permits it, while
+WKWebView's ITP blocks it. **Deployment constraint: on iOS, an instance whose
+API lives on a different registrable domain would not work.**
+
+## What WKWebView gave, and the one architectural trade-off
+
+Measured on iOS: the bridge injects under the strict CSP, the httpOnly cookie
+stays invisible to JavaScript, `credentials:'include'` carries it, it survives a
+cold restart, SSE streams, and the CSP is enforced. Two results need naming:
+
+- **No Service Worker.** WKWebView hides `navigator.serviceWorker` unless the
+  app declares `WKAppBoundDomains` in Info.plist *and* sets
+  `limitsNavigationsToAppBoundDomains`. That list is **static, capped at ten
+  domains, and cannot be extended at runtime**, so it is incompatible with a
+  server URL chosen by the user at first launch — but perfectly compatible with
+  a per-deployment build, where the list can be generated from the configured
+  URL. Declaring it also **relaxes ITP between the listed domains**, which would
+  settle the cross-site question above at the same time. Recorded as an advisory
+  on iOS; still asserted on Android, where it works unconditionally.
+- **`getUserMedia=false` was the probe's own fault**, not the platform's: the
+  generated Info.plist had no `NSMicrophoneUsageDescription`. `scaffold.mjs` now
+  adds the usage descriptions, so the answer measures WKWebView rather than a
+  missing key.
+
+## Advisory checks
+
+An advisory check is measured and reported (`NOTE`) but never fatal: it records
+a platform behaviour the design accounts for, rather than a contract the shell
+broke. They stay in the same list on purpose — a limit that quietly disappears
+from the report is a limit nobody revisits.
 
 ## The cookie flush hazard
 
@@ -118,6 +163,13 @@ real `npx cap add ios` output rather than trusted:
 dispatch and uploads each evidence JSON. iOS uses a GitHub-hosted `macos-latest`
 runner, free for this public repository — the only way to measure WKWebView
 without a Mac.
+
+**The engine version is chosen, not inherited.** The first iOS run measured an
+iOS 18.7 simulator because the runner defaults to an older Xcode — an answer
+about the wrong engine. The workflow now selects the newest Xcode present and
+fetches its iOS platform, and `run.mjs` picks an iPhone on the **highest**
+available runtime, parsing `…SimRuntime.iOS-26-0` numerically so `iOS-9` cannot
+outrank `iOS-18`.
 
 ## Pinning
 

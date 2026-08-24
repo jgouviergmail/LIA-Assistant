@@ -61,17 +61,31 @@ export function productionHeaders(coepRaw, apiUrl = '') {
  * Production puts the API on a SEPARATE ORIGIN (`connect-src` on
  * lia.jeyswork.com names https://lia-back.jeyswork.com), so every authenticated
  * call is a cross-origin credentialed request — a different code path from the
- * same-origin case, and one Android WebView can break on its own: unlike Chrome,
- * `CookieManager.setAcceptThirdPartyCookies` defaults to FALSE there.
+ * same-origin case, and one each engine can break on its own.
  *
- * `localhost` and `127.0.0.1` are distinct sites for cookie purposes, so this
- * pair exercises the STRICTER case than production's same-site split — if the
- * cookie survives here, it survives there.
+ * Two topologies, chosen by the host this binds to, because they answer
+ * different questions and the FIRST run conflated them:
  *
- * @param {number} port - Port to listen on (bound to 127.0.0.1).
+ * - `localhost` (default) — a different PORT, so a different ORIGIN on the same
+ *   host. The cookie is `SameSite=Lax`, like LIA's own. This proves the CORS +
+ *   credentials plumbing carries cookies in the engine. It does NOT reproduce
+ *   production's two-host split, which loopback cannot host without TLS (see
+ *   the note in run.mjs) — it bounds it from below.
+ * - `127.0.0.1` — a different site, so genuinely CROSS-SITE, needing
+ *   `SameSite=None; Secure`. Android permits it (Capacitor turns on third-party
+ *   cookies); WKWebView's ITP blocks it. Measured as a DEPLOYMENT CONSTRAINT —
+ *   an instance whose API lives on another registrable domain would not work on
+ *   iOS — not as a defect of the shell.
+ *
+ * @param {number} port - Port to listen on.
+ * @param {string} host - `localhost` (same host) or `127.0.0.1` (cross-site).
  * @returns {Promise<{close: () => Promise<void>}>} Handle to shut it down.
  */
-export async function startApiOrigin(port) {
+export async function startApiOrigin(port, host = 'localhost') {
+  // Mirror LIA's own cookie in the production topology; only the deliberately
+  // cross-site variant needs the None+Secure pair, which is the only thing a
+  // browser would ever send across sites.
+  const sameSite = host === 'localhost' ? 'Lax' : 'None; Secure';
   const cors = origin => ({
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Credentials': 'true',
@@ -85,10 +99,7 @@ export async function startApiOrigin(port) {
     if (url.pathname === '/set') {
       res.writeHead(200, {
         'Content-Type': 'text/plain',
-        // SameSite=None is mandatory for a cross-site credentialed cookie, and
-        // it requires Secure — which Chromium accepts on a loopback host even
-        // over plain HTTP, because loopback counts as a trustworthy origin.
-        'Set-Cookie': `api_session=${API_SENTINEL}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=3600`,
+        'Set-Cookie': `api_session=${API_SENTINEL}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=3600`,
         ...cors(origin),
       });
       res.end('set');
@@ -99,6 +110,9 @@ export async function startApiOrigin(port) {
     res.end(req.headers.cookie || '(no cookie)');
   });
 
+  // Bound to loopback on purpose: `adb reverse` dials the HOST's loopback, and
+  // the iOS simulator shares the host's network stack. `host` above selects the
+  // URL the page uses, never what this listens on.
   await new Promise(resolve => server.listen(port, '127.0.0.1', resolve));
   return { close: () => new Promise(resolve => server.close(resolve)) };
 }

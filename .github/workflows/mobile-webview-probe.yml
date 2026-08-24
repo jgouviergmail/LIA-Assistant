@@ -26,6 +26,10 @@ on:
         description: "Cold-restart mode for the cookie-persistence check: pause | kill"
         required: false
         default: "pause"
+      api_host:
+        description: "API topology: localhost = production's same-site split; 127.0.0.1 = the stricter cross-site case"
+        required: false
+        default: "localhost"
 
 permissions:
   contents: read
@@ -74,7 +78,7 @@ jobs:
           # no snapshot — a restored snapshot would carry a stale cookie store
           # and quietly invalidate the persistence check.
           emulator-options: -no-window -no-snapshot -no-boot-anim -no-audio -gpu swiftshader_indirect
-          script: task mobile:probe:android -- --restart ${{ inputs.restart }} --out "${{ github.workspace }}/evidence-android.json" ${{ inputs.coep && format('--coep {0}', inputs.coep) || '' }}
+          script: task mobile:probe:android -- --restart ${{ inputs.restart }} --api-host ${{ inputs.api_host }} --out "${{ github.workspace }}/evidence-android.json" ${{ inputs.coep && format('--coep {0}', inputs.coep) || '' }}
 
       - name: Upload evidence
         if: always()
@@ -102,8 +106,23 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # The runner ships several Xcodes and defaults to an older one: the first
+      # iOS run measured WKWebView on an iOS 18.7 simulator, two majors behind
+      # the platform being targeted. Select the newest Xcode present and, if its
+      # iOS runtime is missing, fetch it — a measurement on a stale engine
+      # answers a question nobody asked.
+      - name: Select the newest Xcode and iOS runtime
+        run: |
+          newest=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "selecting $newest"
+          sudo xcode-select -s "$newest/Contents/Developer"
+          xcodebuild -version
+          xcodebuild -downloadPlatform iOS -quiet || echo "iOS platform already present"
+          echo "--- available iOS runtimes ---"
+          xcrun simctl list runtimes | grep -i ios || true
+
       - name: Probe WKWebView
-        run: task mobile:probe:ios -- --restart ${{ inputs.restart }} --out "${{ github.workspace }}/evidence-ios.json" ${{ inputs.coep && format('--coep {0}', inputs.coep) || '' }}
+        run: task mobile:probe:ios -- --restart ${{ inputs.restart }} --api-host ${{ inputs.api_host }} --out "${{ github.workspace }}/evidence-ios.json" ${{ inputs.coep && format('--coep {0}', inputs.coep) || '' }}
 
       - name: Upload evidence
         if: always()
