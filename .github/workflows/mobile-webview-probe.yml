@@ -1,0 +1,114 @@
+name: Mobile WebView Probe
+
+# Measures what LIA's web app can do inside a NATIVE WebView shell, under the
+# real production security headers, on BOTH engines. The iOS leg exists because
+# WKWebView cannot be measured from the Windows/Linux dev hosts: a GitHub-hosted
+# macOS runner is the only way to get that evidence, and it is free for this
+# public repository.
+#
+# Manual dispatch ONLY. This workflow builds a throwaway Capacitor shell in the
+# runner's temp directory, points it at a local probe server, and asserts LIA's
+# invariants (httpOnly cookie invisible to JS, credentials:'include' carried,
+# SSE, Service Worker, CSP enforced). It never touches production, a store, or
+# a credential.
+#
+# The gate logic lives in `scripts/mobile-probe/` and runs through `task`, so a
+# developer runs the SAME command the runner does (ADR-151).
+
+on:
+  workflow_dispatch:
+    inputs:
+      coep:
+        description: "COEP mode to serve (default = the value production resolves)"
+        required: false
+        default: ""
+      restart:
+        description: "Cold-restart mode for the cookie-persistence check: pause | kill"
+        required: false
+        default: "pause"
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android WebView
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: "24"
+
+      - name: Set up Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # KVM is what makes an x86_64 emulator usable on a hosted runner; without
+      # it the boot takes long enough to exhaust the job timeout.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Probe the Android WebView
+        uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          # Matches the local measurement host: software rendering, no audio,
+          # no snapshot — a restored snapshot would carry a stale cookie store
+          # and quietly invalidate the persistence check.
+          emulator-options: -no-window -no-snapshot -no-boot-anim -no-audio -gpu swiftshader_indirect
+          script: task mobile:probe:android -- --restart ${{ inputs.restart }} --out "${{ github.workspace }}/evidence-android.json" ${{ inputs.coep && format('--coep {0}', inputs.coep) || '' }}
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: webview-evidence-android
+          path: evidence-android.json
+          if-no-files-found: warn
+
+  ios:
+    name: iOS WKWebView
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: "24"
+
+      - name: Set up Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Probe WKWebView
+        run: task mobile:probe:ios -- --restart ${{ inputs.restart }} --out "${{ github.workspace }}/evidence-ios.json" ${{ inputs.coep && format('--coep {0}', inputs.coep) || '' }}
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: webview-evidence-ios
+          path: evidence-ios.json
+          if-no-files-found: warn
