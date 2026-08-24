@@ -296,6 +296,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_DEPLOYMENT.md](./guides/GUIDE_DEPLOYMENT.md) | Déploiement production | ✅ |
 | [GUIDE_BACKGROUND_JOBS_APSCHEDULER.md](./guides/GUIDE_BACKGROUND_JOBS_APSCHEDULER.md) | Background jobs APScheduler | ✅ |
 | [GUIDE_FCM_PUSH_NOTIFICATIONS.md](./guides/GUIDE_FCM_PUSH_NOTIFICATIONS.md) | Push notifications Firebase | ✅ |
+| [GUIDE_MOBILE_ANDROID.md](./guides/GUIDE_MOBILE_ANDROID.md) | App Android (coque WebView) : créer, configurer, publier, exploiter — mesures et pièges | 🚧 |
+| [GUIDE_MOBILE_IOS.md](./guides/GUIDE_MOBILE_IOS.md) | App iOS (WKWebView) : créer, configurer, publier, exploiter — mesures et pièges | 🚧 |
 
 ### Langfuse
 
