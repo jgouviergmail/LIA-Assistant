@@ -37,7 +37,10 @@ pytestmark = pytest.mark.unit
 HEAD = "abc123def456"
 DIGEST = "d" * 64
 KEY_CANARY = "sk-DECRYPTED-CANARY-77aa"
-GREEN_COUNTS = (14, 84, 9, 27, 96, 41)
+#: One value per row of ``_REFERENCE_COUNTS``, at or above each threshold.
+#: The thresholds mirror ``verify_reference_seeds.sql`` and are pinned to it
+#: by ``test_reference_counts_mirror_guard`` — this fixture follows them.
+GREEN_COUNTS = (14, 84, 18, 27, 139, 39, 124)
 # What a really-seeded database contains for the core (B10-bis): every
 # qwen CODE default is overridden to deepseek; router is seeded NULL.
 GREEN_OVERRIDES = [
@@ -214,12 +217,16 @@ async def test_marker_must_equal_the_exact_expected_digest(
 
 
 async def test_reference_data_failure_names_only_the_deficient_tables() -> None:
-    result = _by_name(await _run(_db(counts=(13, 84, 9, 27, 96, 40))), CheckName.REFERENCE_DATA)
+    # personalities short of its EXACT 14, overrides short of their floor of 39;
+    # everything else at or above threshold and therefore unnamed.
+    deficient = (13, 84, 18, 27, 139, 38, 124)
+    result = _by_name(await _run(_db(counts=deficient)), CheckName.REFERENCE_DATA)
     assert not result.passed
     assert result.code == "reference_counts"
     assert "personalities" in result.detail
     assert "llm_config_overrides" in result.detail
     assert "personality_translations" not in result.detail
+    assert "llm_models" not in result.detail
 
 
 # ---------------------------------------------------------------------------
