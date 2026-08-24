@@ -16,7 +16,6 @@ from src.core.constants import CACHE_NAME_MODEL_CAPABILITIES
 from src.domains.llm.models import (
     LLMModelKindEnum,
     LLMProviderEnum,
-    LLMReasoningWidgetEnum,
 )
 from src.domains.llm.repository import LLMModelRepository
 from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
@@ -27,9 +26,7 @@ from src.infrastructure.llm.model_profiles import ModelProfile
 # non-reasoning defaults are sufficient.
 _NON_REASONING_DEFAULTS: dict[str, Any] = {
     "kind": LLMModelKindEnum.chat,
-    "reasoning_widget": LLMReasoningWidgetEnum.none,
     "reasoning_enum_values": None,
-    "reasoning_budget_range": None,
     "reasoning_doc_i18n_key": None,
     "supports_temperature": True,
     "supports_top_p": True,

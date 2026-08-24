@@ -40,6 +40,11 @@ class TokenUsageLog(BaseModel):
         cost_usd: Estimated cost in USD at time of call
         cost_eur: Estimated cost in EUR at time of call
         usd_to_eur_rate: Exchange rate used for conversion (for audit)
+        latency_ms: Wall time of the call in milliseconds (ADR-244)
+        status: ``success`` / ``error`` (ADR-244)
+        failure_kind: An ``LLM_FAILURE_KINDS`` member when the call failed
+        llm_type: The configured slot the call was made for. Aggregates group
+            by this and never by ``node_name``, whose values are unbounded.
         created_at: Timestamp of LLM call
     """
 
@@ -60,6 +65,27 @@ class TokenUsageLog(BaseModel):
     cost_eur: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("0.0"))
     usd_to_eur_rate: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("1.0"))
 
+    # Observation columns (ADR-244). Nullable with no backfill: they describe
+    # calls made after the migration, and inventing history would be worse than
+    # admitting its absence.
+    latency_ms: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Wall time of the LLM call in milliseconds"
+    )
+    status: Mapped[str | None] = mapped_column(String(16), nullable=True, comment="success / error")
+    failure_kind: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment="LLM_FAILURE_KINDS member when status='error', NULL otherwise",
+    )
+    llm_type: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment=(
+            "The configured slot from LLM_TYPES_REGISTRY. Aggregates group by "
+            "this, never by node_name, whose values are unbounded free text"
+        ),
+    )
+
     __table_args__ = (
         Index("ix_token_usage_logs_user_created", "user_id", "created_at"),
         Index("ix_token_usage_logs_node_name", FIELD_NODE_NAME),
@@ -78,6 +104,17 @@ class TokenUsageLog(BaseModel):
         ),
         Index(
             "ix_token_usage_logs_created_at", "created_at", postgresql_ops={"created_at": "DESC"}
+        ),
+        # Controller window: the most recent calls of one (slot, model) pair.
+        # node_name is deliberately absent — 101 distinct values were measured,
+        # some carrying prompt fragments, so an index on it would be neither
+        # selective nor safe to expose.
+        Index(
+            "ix_token_usage_logs_controller_window",
+            "llm_type",
+            "model_name",
+            "created_at",
+            postgresql_ops={"created_at": "DESC"},
         ),
     )
 

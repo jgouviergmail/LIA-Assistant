@@ -14,13 +14,13 @@ if TYPE_CHECKING:
     from src.domains.chat.service import TrackingContext
 
 from langchain_core.callbacks import AsyncCallbackHandler
-from langchain_core.exceptions import ContextOverflowError
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.outputs import LLMResult
 from prometheus_client import Counter
 
 from src.core.config import settings
 from src.core.field_names import FIELD_METADATA, FIELD_MODEL_NAME
+from src.infrastructure.observability.error_taxonomy import classify_llm_error
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     estimate_cost_from_cache,
@@ -346,100 +346,13 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
 
     @staticmethod
     def _classify_llm_error(error: BaseException) -> str:
+        """Delegate to the shared taxonomy (see :mod:`error_taxonomy`).
+
+        Kept as a method because the metrics handler and its tests call it that
+        way; the vocabulary and the rules live in one module so the Prometheus
+        label and ``token_usage_logs.failure_kind`` cannot diverge.
         """
-        Classify LLM API errors into standardized categories for metrics.
-
-        Error taxonomy based on OpenAI/Anthropic/Google API error codes:
-        - rate_limit: 429 Too Many Requests, quota exceeded
-        - timeout: Request timeout, connection timeout
-        - invalid_request: 400 Bad Request, malformed parameters
-        - context_length_exceeded: Prompt exceeds model's context window
-        - authentication: 401 Unauthorized, invalid API key
-        - content_filter: Content policy violation (safety filters)
-        - model_not_found: 404 Model not found or deprecated
-        - api_error: 500+ Server errors from provider
-        - unknown: Other errors
-
-        Args:
-            error: Exception from LLM API call
-
-        Returns:
-            Error type string for metrics labeling
-        """
-        # Type-safe check (langchain-core 1.2.10+) — takes priority over string matching
-        if isinstance(error, ContextOverflowError):
-            return "context_length_exceeded"
-
-        error_type_name = type(error).__name__
-        error_msg = str(error).lower()
-
-        # OpenAI/LangChain error types
-        if "RateLimitError" in error_type_name or "rate_limit" in error_msg:
-            return "rate_limit"
-
-        if "APITimeoutError" in error_type_name or "timeout" in error_msg:
-            return "timeout"
-
-        if (
-            "InvalidRequestError" in error_type_name
-            or "invalid_request" in error_msg
-            or "bad request" in error_msg
-        ):
-            return "invalid_request"
-
-        # Context length errors (various providers)
-        if any(
-            keyword in error_msg
-            for keyword in [
-                "context_length_exceeded",
-                "maximum context length",
-                "context window",
-                "too many tokens",
-                "token limit",
-            ]
-        ):
-            return "context_length_exceeded"
-
-        # Authentication errors
-        if (
-            "AuthenticationError" in error_type_name
-            or "authentication" in error_msg
-            or "invalid api key" in error_msg
-            or "unauthorized" in error_msg
-        ):
-            return "authentication"
-
-        # Content filter violations
-        if any(
-            keyword in error_msg
-            for keyword in [
-                "content_filter",
-                "content policy",
-                "safety",
-                "responsible ai",
-                "harmful content",
-            ]
-        ):
-            return "content_filter"
-
-        # Model not found
-        if (
-            "NotFoundError" in error_type_name
-            or "model not found" in error_msg
-            or "model does not exist" in error_msg
-        ):
-            return "model_not_found"
-
-        # API errors (5xx from provider)
-        if (
-            "APIError" in error_type_name
-            or "APIConnectionError" in error_type_name
-            or "server error" in error_msg
-            or "service unavailable" in error_msg
-        ):
-            return "api_error"
-
-        return "unknown"
+        return classify_llm_error(error)
 
 
 class TokenTrackingCallback(AsyncCallbackHandler):
@@ -497,6 +410,11 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         node_name = md.get("node_name_override") or md.get("langgraph_node", "unknown")
         self._call_context[str(run_id)] = {
             "node_name": node_name,
+            # The configured slot, put here by create_instrumented_config at
+            # every instrumented call site (ADR-244). node_name cannot stand in
+            # for it: that is the graph node, its values are unbounded, and it
+            # does not map to a slot.
+            "llm_type": md.get("llm_type"),
             "start_time": time.time(),
         }
 
@@ -648,6 +566,8 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 # v3.4 waterfall: real start stamp when the per-call context
                 # captured one (0.0 means the on_llm_start pairing was lost).
                 started_at=start_time if start_time > 0 else None,
+                llm_type=call_ctx.get("llm_type"),
+                status="success",
             )
 
             # DEBUG: Confirm tokens recorded
@@ -665,5 +585,67 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 run_id=self.run_id,
                 llm_run_id=run_id_str,
                 error=str(e),
+                exc_info=True,
+            )
+
+    async def on_llm_error(
+        self,
+        error: BaseException,
+        *,
+        run_id: UUID,
+        **kwargs: Any,
+    ) -> None:
+        """Record a failed call as a zero-token row.
+
+        A failure produces no usage metadata, so without this the ledger has no
+        trace that the call happened at all -- and a policy that only ever sees
+        successes cannot tell a model that works from one that never answers
+        (ADR-244). The row carries zero tokens and zero cost: it is an
+        observation, not a charge.
+
+        Shares ``_recorded_llm_run_ids`` with :meth:`on_llm_end`, so a run is
+        recorded exactly once whichever way it ends and however many times the
+        handler is attached.
+        """
+        run_id_str = str(run_id)
+        if run_id_str in self._recorded_llm_run_ids:
+            return
+        self._recorded_llm_run_ids.add(run_id_str)
+
+        call_ctx = self._call_context.pop(run_id_str, {})
+        start_time = call_ctx.get("start_time", 0.0)
+        duration_ms = (time.time() - start_time) * 1000 if start_time > 0 else 0.0
+        failure_kind = classify_llm_error(error)
+
+        logger.warning(
+            "token_tracking_llm_error",
+            run_id=self.run_id,
+            llm_run_id=run_id_str,
+            node_name=call_ctx.get("node_name", "unknown"),
+            llm_type=call_ctx.get("llm_type"),
+            failure_kind=failure_kind,
+        )
+        # Best-effort by design, same guard as on_llm_end: recording an
+        # observation must never turn a provider failure into a second,
+        # different failure for the caller.
+        try:
+            await self.tracker.record_node_tokens(
+                node_name=call_ctx.get("node_name", "unknown"),
+                model_name="unknown",
+                prompt_tokens=0,
+                completion_tokens=0,
+                cached_tokens=0,
+                duration_ms=duration_ms,
+                started_at=start_time if start_time > 0 else None,
+                llm_type=call_ctx.get("llm_type"),
+                status="error",
+                failure_kind=failure_kind,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                "token_tracking_error_record_failed",
+                run_id=self.run_id,
+                llm_run_id=run_id_str,
+                error=str(exc),
                 exc_info=True,
             )

@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.31.3"
+version = "1.32.0"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -221,7 +221,7 @@ disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "call-arg",
 # false positives) and use dynamic callback patterns.
 [[tool.mypy.overrides]]
 module = ["src.infrastructure.llm.*"]
-disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "union-attr", "unused-ignore", "attr-defined"]
+disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "union-attr", "unused-ignore"]
 
 # NOTE (F020): the exemption surface was ratcheted from 481 → 91 (module, code)
 # pairs. Modules removed entirely from the blocks above now type-check under

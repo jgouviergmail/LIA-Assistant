@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.31.3
+**Anwendung**: LIA v1.32.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -88,9 +88,9 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 
 **KI und Konnektoren:**
 
-- **LLM-Konfiguration**: API-Schlüssel der Anbieter konfigurieren (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), ein Modell pro Rolle in der Pipeline zuweisen, Reasoning-Level verwalten — Schlüssel werden verschlüsselt gespeichert. Der Dialog zeigt nur die Parameter an, die das gewählte Modell tatsächlich akzeptiert (modellspezifische DB-Matrix für temperature, top_p, frequency_penalty, presence_penalty und Reasoning-Widget-Form), wodurch die Eingabe eines Werts vermieden wird, den die API ablehnen würde
+- **LLM-Konfiguration**: API-Schlüssel der Anbieter konfigurieren (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), ein Modell pro Rolle in der Pipeline zuweisen, Reasoning-Level verwalten — Schlüssel werden verschlüsselt gespeichert. Der Dialog zeigt nur die Parameter, die das gewählte Modell wirklich akzeptiert: die Matrix pro Modell für temperature, top_p, frequency_penalty und presence_penalty, und für das Reasoning die aus dem Paar (Anbieter, Modell) **abgeleitete** Skala — dieselbe Funktion, gegen die der Server validiert. Eine Tiefe, die die API des Modells ablehnt, kann daher gar nicht erst angeboten und schon gar nicht gespeichert werden
 - **Konnektoren aktivieren/deaktivieren**: Integrationen auf globaler Ebene aktivieren oder deaktivieren (Google OAuth, Apple, Microsoft 365, Hue, Wetter, Wikipedia, Perplexity, Brave Search). Die Deaktivierung widerruft aktive Verbindungen und benachrichtigt die Benutzer
-- **Preisgestaltung**: Preise pro LLM-Modell verwalten (Kosten pro Million Token), pro Google Maps API (Places, Routes, Geocoding) und pro Bildgenerierung — mit Preishistorie. Beim Hinzufügen eines neuen Reasoning-Modells lässt ein Selektor „Form von einem solchen vorhandenen Modell kopieren“ automatisch das Reasoning-Widget und seine Werte ohne manuelle Eingabe erben; der Custom-Modus bleibt für atypische Modelle verfügbar. Die Tarife der Textmodelle können zudem nach UTC-Tageszeit variieren (Spitzen-/Nebenzeit-Fenster, wie bei DeepSeek): Jeder Aufruf wird dann zum Tarif seines exakten Zeitpunkts bewertet, und die Nutzungsstatistiken entsprechen der echten Rechnung des Anbieters Schließlich lässt sich die gesamte Preistabelle als Excel-Arbeitsmappe exportieren — übersetzte Hinweise, Auswahllisten, Eingabeprüfungen — und nach dem Bearbeiten offline zurückspielen: LIA zeigt dir jede Änderung Feld für Feld, bevor irgendetwas geschrieben wird, und eine in der Datei fehlende Zeile löscht niemals etwas
+- **Preisgestaltung**: Preise pro LLM-Modell verwalten (Kosten pro Million Token), pro Google Maps API (Places, Routes, Geocoding) und pro Bildgenerierung — mit Preishistorie. Beim Hinzufügen eines Modells werden die akzeptierten Reasoning-Tiefen aus der Liste **angehakt**, die seine Familie tatsächlich anbietet: Man hakt ab, was dieses konkrete Modell ablehnt, und alles angehakt bedeutet „keine Einschränkung“. Die Tarife der Textmodelle können zudem nach UTC-Tageszeit variieren (Spitzen-/Nebenzeit-Fenster, wie bei DeepSeek): Jeder Aufruf wird dann zum Tarif seines exakten Zeitpunkts bewertet, und die Nutzungsstatistiken entsprechen der echten Rechnung des Anbieters Schließlich lässt sich die gesamte Preistabelle als Excel-Arbeitsmappe exportieren — übersetzte Hinweise, Auswahllisten, Eingabeprüfungen — und nach dem Bearbeiten offline zurückspielen: LIA zeigt dir jede Änderung Feld für Feld, bevor irgendetwas geschrieben wird, und eine in der Datei fehlende Zeile löscht niemals etwas
 
 **Inhalte und Erweiterungen:**
 

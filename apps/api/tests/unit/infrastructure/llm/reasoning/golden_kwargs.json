@@ -1,0 +1,692 @@
+[
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "brave_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "reasoning_effort": "none"
+  },
+  "model": "gpt-5.6-terra",
+  "provider": "openai",
+  "slot": "briefing",
+  "stored": {
+   "effort": "none"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "broadcast_translator",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "browser_agent",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "calendar_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "enabled"
+    }
+   },
+   "reasoning_effort": "high"
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "compaction",
+  "stored": {
+   "effort": "high"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "contacts_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1",
+  "provider": "openai",
+  "slot": "document_generation",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "drive_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "emails_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "evaluator",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "health_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "enabled"
+    }
+   },
+   "reasoning_effort": "high"
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "heartbeat_decision",
+  "stored": {
+   "effort": "high"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "enabled"
+    }
+   },
+   "reasoning_effort": "high"
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "heartbeat_message",
+  "stored": {
+   "effort": "high"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "reasoning_effort": "none"
+  },
+  "model": "gpt-5.6-luna",
+  "provider": "openai",
+  "slot": "hitl_classifier",
+  "stored": {
+   "effort": "none"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "hitl_plan_approval_question_generator",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "hitl_question_generator",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "hue_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-image-2",
+  "provider": "openai",
+  "slot": "image_generation",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "reasoning_effort": "none"
+  },
+  "model": "gpt-5.6-terra",
+  "provider": "openai",
+  "slot": "initiative",
+  "stored": {
+   "effort": "none"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "enabled"
+    }
+   },
+   "reasoning_effort": "high"
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "interest_content",
+  "stored": {
+   "effort": "high"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "interest_extraction",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "enabled"
+    }
+   },
+   "reasoning_effort": "high"
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "journal_consolidation",
+  "stored": {
+   "effort": "high"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "journal_extraction",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "effort": "medium",
+   "thinking": {
+    "type": "adaptive"
+   }
+  },
+  "model": "claude-opus-4-6",
+  "provider": "anthropic",
+  "slot": "mcp_app_react_agent",
+  "stored": {
+   "effort": "medium"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "mcp_description",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "mcp_react_agent",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "memory_extraction",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "memory_reference_extraction",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "memory_reference_resolution",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "open_loop_extraction",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "perplexity_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "reasoning_effort": "none"
+  },
+  "model": "gpt-5.6-luna",
+  "provider": "openai",
+  "slot": "personality_translation",
+  "stored": {
+   "effort": "none"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "places_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "planner",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "psyche_summary",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "query_agent",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "query_analyzer",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "react_agent",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "response",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "routes_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "reasoning_effort": "none"
+  },
+  "model": "gpt-5.6-luna",
+  "provider": "openai",
+  "slot": "semantic_pivot",
+  "stored": {
+   "effort": "none"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "semantic_validator",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "skill_description_translator",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "disabled"
+    }
+   }
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "subagent",
+  "stored": {
+   "effort": "off"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "tasks_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "telephony_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "extra_body": {
+    "thinking": {
+     "type": "enabled"
+    }
+   },
+   "reasoning_effort": "high"
+  },
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek",
+  "slot": "telephony_synthesis",
+  "stored": {
+   "effort": "high"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "include_thoughts": true,
+   "thinking_level": "minimal"
+  },
+  "model": "gemini-3.5-flash",
+  "provider": "gemini",
+  "slot": "vision_analysis",
+  "stored": {
+   "effort": "minimal"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {
+   "reasoning_effort": "none"
+  },
+  "model": "gpt-5.6-luna",
+  "provider": "openai",
+  "slot": "voice_comment",
+  "stored": {
+   "effort": "none"
+  }
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "weather_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "web_fetch_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "web_search_agent",
+  "stored": null
+ },
+ {
+  "effort_field": null,
+  "kwargs": {},
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "slot": "wikipedia_agent",
+  "stored": null
+ }
+]

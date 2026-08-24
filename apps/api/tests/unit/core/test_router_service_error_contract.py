@@ -67,193 +67,88 @@ from src.core.exceptions import (
     raise_unprocessable_entity,
 )
 from src.core.i18n_api_messages import APIMessages
-from src.core.reasoning_types import (
-    ReasoningEffortBudget,
-    ReasoningEffortEnum,
-    ReasoningEffortToggleBudget,
-)
+from src.core.reasoning_intent import ReasoningIntent
 
 # =============================================================================
 # 1. llm_config/reasoning_validation.py — 7 sites (422, structured detail)
 # =============================================================================
 
 
-def _caps(
-    widget: str,
-    enum_values: list[str] | None = None,
-    budget_range: dict | None = None,
-) -> SimpleNamespace:
-    """Duck-typed _CapsLike fake (same shape the module's Protocol documents)."""
-    return SimpleNamespace(
-        model_id="model-x",
-        reasoning_widget=widget,
-        reasoning_enum_values=enum_values,
-        reasoning_budget_range=budget_range,
-    )
+def _caps(model_id: str = "gpt-5.2", enum_values: list[str] | None = None) -> SimpleNamespace:
+    """Duck-typed _CapsLike fake (the shape the module's Protocol documents)."""
+    return SimpleNamespace(model_id=model_id, reasoning_enum_values=enum_values)
 
 
 class TestReasoningValidationContract:
-    """Pins reasoning_validation.py sites (7 structured 422s)."""
+    """Pins the structured 422s of reasoning_validation.py.
 
-    def _validate(self, caps, value):
+    The contract SHRANK with ADR-245. There were seven error types, because a
+    value had four possible shapes and each widget rejected the other three.
+    One shape remains, an unknown level is already refused by the ``Literal``
+    on ``ReasoningIntent.level``, and what is left to reject is: a model that
+    does not reason at all, a level the model does not offer, and a token
+    budget a level-based family cannot express.
+    """
+
+    def _validate(self, caps, value, provider="openai"):
         from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
 
         with pytest.raises(StructuredValidationError) as exc_info:
-            validate_reasoning_effort(caps, value)
+            validate_reasoning_effort(caps, value, provider)
         assert isinstance(exc_info.value, HTTPException)  # external contract preserved
         return exc_info.value
 
-    def test_widget_none_rejects_any_value(self):
-        """Site 1: widget 'none' + non-null value -> 422 reasoning_not_supported."""
-        value = ReasoningEffortEnum(effort="low")
-        exc = self._validate(_caps("none"), value)
-
+    def test_a_non_reasoning_model_rejects_any_intent(self):
+        exc = self._validate(_caps("gpt-4.1"), ReasoningIntent(level="low"))
         assert exc.status_code == 422
         assert exc.detail == {
             "type": "reasoning_not_supported",
             "loc": ["body", "reasoning_effort"],
             "msg": (
-                "Model model-x does not accept reasoning_effort. " "Set reasoning_effort to null."
+                "Model gpt-4.1 does not accept a reasoning override. "
+                "Set reasoning_effort to null."
             ),
-            "input": {"effort": "low"},
-            "ctx": {"model": "model-x", "widget": "none"},
+            "input": {"level": "low", "budget_tokens": None, "exclude_from_output": False},
+            "ctx": {"model": "gpt-4.1", "family": "none"},
         }
 
-    def test_widget_enum_rejects_wrong_shape(self):
-        """Site 2: widget 'enum' + budget shape -> 422 wrong_reasoning_effort_shape."""
-        value = ReasoningEffortBudget(budget=1024)
-        exc = self._validate(_caps("enum", enum_values=["low", "high"]), value)
-
+    def test_a_level_the_model_does_not_offer_is_rejected(self):
+        exc = self._validate(_caps("deepseek-v4-flash"), ReasoningIntent(level="low"), "deepseek")
         assert exc.status_code == 422
-        assert exc.detail == {
-            "type": "wrong_reasoning_effort_shape",
-            "loc": ["body", "reasoning_effort"],
-            "msg": 'Model model-x expects an enum value (shape: {"effort": "<string>"}).',
-            "input": {"budget": 1024},
-            "ctx": {
-                "model": "model-x",
-                "widget": "enum",
-                "expected_shape": {"effort": "<str>"},
-            },
-        }
+        assert exc.detail["type"] == "invalid_reasoning_effort"
+        assert exc.detail["ctx"]["allowed"] == ["none", "high", "max"]
+        assert exc.detail["ctx"]["submitted"] == "low"
 
-    def test_widget_enum_rejects_unknown_effort(self):
-        """Site 3: widget 'enum' + effort not in allowed -> 422 invalid_reasoning_effort."""
-        value = ReasoningEffortEnum(effort="xhigh")
-        exc = self._validate(_caps("enum", enum_values=["low", "medium", "high"]), value)
-
+    def test_a_budget_on_a_level_based_family_is_rejected(self):
+        exc = self._validate(_caps("gpt-5.2"), ReasoningIntent(budget_tokens=1024))
         assert exc.status_code == 422
-        assert exc.detail == {
-            "type": "invalid_reasoning_effort",
-            "loc": ["body", "reasoning_effort"],
-            "msg": (
-                "Reasoning effort 'xhigh' is not supported by model-x. "
-                "Allowed values: low, medium, high."
-            ),
-            "input": "xhigh",
-            "ctx": {
-                "model": "model-x",
-                "provided": "xhigh",
-                "allowed": ["low", "medium", "high"],
-                "widget": "enum",
-            },
-        }
+        assert exc.detail["type"] == "reasoning_budget_not_supported"
+        assert exc.detail["ctx"] == {"model": "gpt-5.2", "family": "openai"}
 
-    def test_widget_budget_int_rejects_wrong_shape(self):
-        """Site 4: widget 'budget_int' + enum shape -> 422 wrong_reasoning_effort_shape."""
-        value = ReasoningEffortEnum(effort="low")
-        rng = {"min": 1024, "max": 8192}
-        exc = self._validate(_caps("budget_int", budget_range=rng), value)
-
-        assert exc.status_code == 422
-        assert exc.detail == {
-            "type": "wrong_reasoning_effort_shape",
-            "loc": ["body", "reasoning_effort"],
-            "msg": 'Model model-x expects a numeric budget (shape: {"budget": <int>}).',
-            "input": {"effort": "low"},
-            "ctx": {
-                "model": "model-x",
-                "widget": "budget_int",
-                "expected_shape": {"budget": "<int>"},
-            },
-        }
-
-    def test_widget_budget_int_rejects_out_of_range(self):
-        """Site 5: budget out of [min, max] and not a sentinel -> 422."""
-        value = ReasoningEffortBudget(budget=9000)
-        rng = {"min": 1024, "max": 8192, "off_sentinel": 0, "dynamic_sentinel": -1}
-        exc = self._validate(_caps("budget_int", budget_range=rng), value)
-
-        assert exc.status_code == 422
-        assert exc.detail == {
-            "type": "invalid_reasoning_budget",
-            "loc": ["body", "reasoning_effort"],
-            "msg": (
-                "Reasoning budget 9000 for model-x is out of range [1024, 8192] "
-                "and not a sentinel."
-            ),
-            "input": 9000,
-            "ctx": {
-                "model": "model-x",
-                "provided": 9000,
-                "range": {"min": 1024, "max": 8192},
-                "sentinels": [-1, 0],
-                "widget": "budget_int",
-            },
-        }
-
-    def test_widget_toggle_budget_rejects_wrong_shape(self):
-        """Site 6: widget 'toggle_budget' + enum shape -> 422."""
-        value = ReasoningEffortEnum(effort="low")
-        exc = self._validate(_caps("toggle_budget"), value)
-
-        assert exc.status_code == 422
-        assert exc.detail == {
-            "type": "wrong_reasoning_effort_shape",
-            "loc": ["body", "reasoning_effort"],
-            "msg": (
-                "Model model-x expects a toggle+budget "
-                '(shape: {"enabled": <bool>, "budget": <int|null>}).'
-            ),
-            "input": {"effort": "low"},
-            "ctx": {
-                "model": "model-x",
-                "widget": "toggle_budget",
-                "expected_shape": {"enabled": "<bool>", "budget": "<int|null>"},
-            },
-        }
-
-    def test_widget_toggle_budget_rejects_out_of_range(self):
-        """Site 7: enabled toggle with budget out of range -> 422."""
-        value = ReasoningEffortToggleBudget(enabled=True, budget=99999)
-        rng = {"min": 0, "max": 8192}
-        exc = self._validate(_caps("toggle_budget", budget_range=rng), value)
-
-        assert exc.status_code == 422
-        assert exc.detail == {
-            "type": "invalid_reasoning_budget",
-            "loc": ["body", "reasoning_effort"],
-            "msg": "Reasoning budget 99999 for model-x is out of range [0, 8192].",
-            "input": 99999,
-            "ctx": {
-                "model": "model-x",
-                "provided": 99999,
-                "range": {"min": 0, "max": 8192},
-                "widget": "toggle_budget",
-            },
-        }
-
-    def test_non_raising_twin_still_reconciles(self):
-        """reasoning_effort_matches_widget keeps catching the typed 422."""
-        from src.domains.llm_config.reasoning_validation import (
-            reasoning_effort_matches_widget,
+    def test_a_budget_outside_the_family_range_is_rejected(self):
+        exc = self._validate(
+            _caps("claude-opus-4-5"), ReasoningIntent(budget_tokens=999_999), "anthropic"
         )
+        assert exc.status_code == 422
+        assert exc.detail["type"] == "invalid_reasoning_budget"
+        assert exc.detail["ctx"]["max"] == 128000
 
-        assert reasoning_effort_matches_widget(_caps("none"), None) is True
-        assert (
-            reasoning_effort_matches_widget(_caps("none"), ReasoningEffortEnum(effort="low"))
-            is False
-        )
+    def test_none_is_valid_for_every_model(self):
+        from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+
+        for model, provider in (("gpt-4.1", "openai"), ("gpt-5.2", "openai")):
+            validate_reasoning_effort(_caps(model), None, provider)  # must not raise
+
+    def test_provider_default_is_valid_on_any_reasoning_model(self):
+        from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+
+        validate_reasoning_effort(_caps("gpt-5.2"), ReasoningIntent(), "openai")
+
+    def test_an_unknown_provider_rejects_nothing(self):
+        """Absence of evidence is not a rejection: the family cannot be derived."""
+        from src.domains.llm_config.reasoning_validation import validate_reasoning_effort
+
+        validate_reasoning_effort(_caps("some-model"), ReasoningIntent(level="high"), None)
 
 
 # =============================================================================
@@ -274,7 +169,7 @@ class TestLLMConfigServiceContract:
         llm_type = next(iter(LLM_TYPES_REGISTRY))
         update = LLMTypeConfigUpdate(
             model="ghost-model",
-            reasoning_effort=ReasoningEffortEnum(effort="low"),
+            reasoning_effort=ReasoningIntent(level="low"),
         )
         service = LLMConfigService(db=Mock())
 
@@ -295,33 +190,16 @@ class TestLLMConfigServiceContract:
             "ctx": {"model": "ghost-model"},
         }
 
-    @pytest.mark.asyncio
-    async def test_invalid_effort_rejected_with_structured_422(self):
-        """Site: effort not in the model's effort_values -> 422 invalid_effort."""
-        from src.domains.llm_config.constants import LLM_TYPES_REGISTRY
+    def test_the_invalid_effort_site_is_gone(self):
+        """``LLMTypeConfigUpdate.effort`` was removed with its validation.
+
+        It produced the same Anthropic kwarg as ``reasoning_effort``, and
+        ``additional_kwargs.update()`` decided which one silently won. Measured
+        at removal: no slot set it (ADR-245).
+        """
         from src.domains.llm_config.schemas import LLMTypeConfigUpdate
-        from src.domains.llm_config.service import LLMConfigService
 
-        llm_type = next(iter(LLM_TYPES_REGISTRY))
-        update = LLMTypeConfigUpdate(model="model-x", effort="max")
-        service = LLMConfigService(db=Mock())
-
-        with patch(
-            "src.infrastructure.llm.model_capabilities_cache.ModelCapabilitiesCache.get",
-            return_value=SimpleNamespace(effort_values=None),
-        ):
-            with pytest.raises(StructuredValidationError) as exc_info:
-                await service.update_config(llm_type, update, uuid4(), Mock())
-
-        exc = exc_info.value
-        assert exc.status_code == 422
-        assert exc.detail == {
-            "type": "invalid_effort",
-            "loc": ["body", "effort"],
-            "msg": "Effort 'max' is not supported by model-x. Allowed: none.",
-            "input": "max",
-            "ctx": {"model": "model-x", "provided": "max", "allowed": []},
-        }
+        assert "effort" not in LLMTypeConfigUpdate.model_fields
 
 
 # =============================================================================

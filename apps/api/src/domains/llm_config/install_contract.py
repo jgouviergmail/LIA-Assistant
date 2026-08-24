@@ -20,13 +20,11 @@ from src.domains.llm_config.constants import LLM_DEFAULTS
 #: The pipeline-core LLM slots a fresh install must be able to serve
 #: (chat pipeline + the user-toggleable ReAct entry).
 CURRENT_CORE_LLM_TYPES: tuple[str, ...] = (
-    "router",
     "planner",
     "query_analyzer",
     "query_agent",
     "semantic_validator",
     "response",
-    "context_resolver",
     "hitl_classifier",
     "react_agent",
 )

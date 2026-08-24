@@ -20,7 +20,7 @@ Best Practices (2025):
 Usage:
     >>> # Create instrumented config for LLM invoke
     >>> config = create_instrumented_config(
-    ...     llm_type="router",
+    ...     llm_type="planner",
     ...     session_id="conv_123",
     ...     user_id="user_456",
     ...     metadata={"intent": "contacts_search"}
@@ -294,7 +294,7 @@ def create_instrumented_config(
 
     Example - Basic Usage:
         >>> config = create_instrumented_config(
-        ...     llm_type="router",
+        ...     llm_type="planner",
         ...     session_id="conv_123",
         ...     user_id="user_456",
         ...     metadata={"intent": "search"}
@@ -640,7 +640,7 @@ def extract_session_user_from_state(state: dict[str, Any]) -> tuple[str | None, 
         >>> state = {"thread_id": "conv_123", "user_id": "user_456"}
         >>> session_id, user_id = extract_session_user_from_state(state)
         >>> config = create_instrumented_config(
-        ...     llm_type="router",
+        ...     llm_type="planner",
         ...     session_id=session_id,
         ...     user_id=user_id
         ... )

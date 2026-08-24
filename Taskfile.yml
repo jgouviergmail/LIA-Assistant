@@ -107,6 +107,37 @@ tasks:
       - "{{.UV}} pip compile requirements.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
       - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
 
+  # ---------------------------------------------------------------------------
+  # Public model-capability catalogue (ADR-244)
+  # ---------------------------------------------------------------------------
+  # The snapshot is vendored in the source tree and is the only registry source
+  # at runtime. Refreshing it is a manual, reviewed operation: `fetch` reaches
+  # the network and rewrites the file, `sync` only reports what would change.
+
+  llm:catalogue:fetch:
+    desc: Refresh the vendored public model-capability snapshot (network; review the diff)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - "{{.PYTHON}} scripts/llm_catalogue/fetch_snapshot.py"
+
+  llm:catalogue:sync:
+    desc: Print the reviewable catalogue diff against the vendored snapshot (read-only)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/llm_catalogue/sync.py
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/llm_catalogue/sync.py
+        platforms: [linux, darwin]
+
+  llm:catalogue:preflight:
+    desc: "Read-only instance check before deploying catalogue/reasoning changes (per-DB: dev != prod; set DATABASE_URL to aim it, it must resolve from here)"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/llm_catalogue/preflight.py
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/llm_catalogue/preflight.py
+        platforms: [linux, darwin]
+
   # ============================================================================
   # Development
   # ============================================================================

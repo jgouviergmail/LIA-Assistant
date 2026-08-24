@@ -583,15 +583,19 @@ def _create_fallback_middleware(primary_model: str) -> Any | None:
     try:
         from langchain.agents.middleware import ModelFallbackMiddleware
 
-        # Parse fallback models from settings (comma-separated)
-        fallback_models_str = settings.fallback_models
-        fallback_models = [m.strip() for m in fallback_models_str.split(",") if m.strip()]
+        # Only the entries the catalogue can actually serve (ADR-244). Mounting
+        # a chain whose targets do not exist is worse than mounting none: the
+        # middleware reports a failover capability the deployment does not have.
+        from src.infrastructure.llm.failover import usable_fallback_models
+
+        fallback_models = usable_fallback_models(settings.fallback_models)
 
         if not fallback_models:
             logger.warning(
                 "fallback_middleware_no_fallbacks",
                 primary_model=primary_model,
-                msg="No fallback models configured - middleware disabled",
+                configured=settings.fallback_models,
+                msg="No reachable fallback model - middleware disabled",
             )
             return None
 

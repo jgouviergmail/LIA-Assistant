@@ -1,7 +1,7 @@
 'use client';
 
-import { AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -10,252 +10,197 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useFieldA11y } from '@/components/ui/field';
 import type {
+  ModelCapabilities,
   ReasoningBudgetRange,
   ReasoningEffortValue,
-  ReasoningWidgetType,
+  ReasoningIntentValue,
+  ReasoningLevel,
 } from '@/types/llm-config';
 import { REASONING_DOC_TEXT } from './reasoningDocText';
+import { EMPTY_INTENT, withBudget, withExclude, withLevel } from './reasoningHelpers';
 
 /**
- * Single source of UI rendering for reasoning_effort.
+ * The single reasoning control, for every provider (ADR-245).
  *
- * Replaces the regex-based getModelConstraints() that lived in
- * AdminLLMConfigSection.tsx. The shape of this widget is fully driven by
- * ModelCapabilities.reasoning_widget exposed by GET /llm-config/metadata.
+ * It replaced three sub-components dispatched on `llm_models.reasoning_widget`:
+ * an enum dropdown, a budget preset + custom int, and an enabled/budget
+ * toggle. The shape of the stored value no longer varies, so neither does the
+ * control — what varies is what a given model OFFERS, which the backend
+ * publishes as a resolved profile: the ladder, whether reasoning can be turned
+ * off, whether a token budget is expressible, and whether excluding the
+ * reasoning from the output reaches that provider at all.
  *
- * Philosophy A — raw truth: the dropdown / slider / toggle exposes
- * exactly what the API accepts. No silent UI→API mapping.
+ * Philosophy A — raw truth: every option shown here is one the API accepts for
+ * this exact model, because the payload driving it comes from the same
+ * function the API validates with.
  *
- * Structure (audit F011): one sub-component per widget shape (enum / budget_int
- * / toggle_budget), dispatched by ``ReasoningWidget``. Behavior is pinned by
- * __tests__/ReasoningWidget.test.tsx.
+ * Identity comes from `useFieldA11y` (`useId`), never from a literal id: this
+ * widget is rendered inside a dialog that can be mounted more than once, and
+ * two live `id="reasoning-budget"` attributes would send every label to the
+ * first one. The compact `space-y` here is deliberate and does NOT contradict
+ * the app-wide 12px label→control gap: the whole widget is ONE field of the
+ * configuration form, already labelled by its section, and these are its
+ * sub-controls — the same reason ADR-207 exempts the in-row micro-editor.
  */
 interface ReasoningWidgetProps {
-  widget: ReasoningWidgetType;
-  enumValues?: string[] | null;
-  budgetRange?: ReasoningBudgetRange | null;
-  docI18nKey?: string | null;
+  caps: ModelCapabilities | undefined;
   value: ReasoningEffortValue;
   onChange: (next: ReasoningEffortValue) => void;
   disabled?: boolean;
+  /** Accepts i18next interpolation options — the range hint needs them. */
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
-const PRESET_OFF = '__off__';
-const PRESET_DYNAMIC = '__dynamic__';
-const PRESET_CUSTOM = '__custom__';
+/** Sentinel for "no override" in the level Select — Radix forbids an empty
+ * string as an item value, and `provider_default` is a real level the API
+ * accepts, so the two must stay distinguishable. */
+const NO_OVERRIDE = '__none__';
 
-/** Resolve the budget_int preset dropdown selection from the current budget and
- * the model's off/dynamic sentinels. A null/undefined budget, or one matching
- * no sentinel, is "custom". */
-function computeBudgetPreset(
-  currentBudget: number | null | undefined,
-  offSentinel: number | null,
-  dynamicSentinel: number | null
-): string {
-  if (currentBudget === null || currentBudget === undefined) return PRESET_CUSTOM;
-  if (offSentinel !== null && currentBudget === offSentinel) return PRESET_OFF;
-  if (dynamicSentinel !== null && currentBudget === dynamicSentinel) return PRESET_DYNAMIC;
-  return PRESET_CUSTOM;
-}
-
-/** Shared props for every reasoning sub-widget (docText already resolved). */
-interface ReasoningShapeProps {
+/** Shared by every sub-control: they all edit the same intent. */
+interface FieldProps {
   value: ReasoningEffortValue;
   onChange: (next: ReasoningEffortValue) => void;
   disabled?: boolean;
-  docText?: string;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
-function ReasoningEnumWidget({
-  enumValues,
+/** Depth: the ladder the model published, plus "no override". */
+function LevelField({
+  levels,
   value,
   onChange,
   disabled,
-  docText,
-}: ReasoningShapeProps & { enumValues?: string[] | null }) {
-  const allowed = enumValues ?? [];
-  const current = value && 'effort' in value ? value.effort : '';
-  const isInvalid = current !== '' && !allowed.includes(current);
+  t,
+}: FieldProps & { levels: ReasoningLevel[] }) {
+  const handle = (next: string) =>
+    onChange(
+      next === NO_OVERRIDE ? null : withLevel(value ?? EMPTY_INTENT, next as ReasoningLevel)
+    );
 
   return (
-    <div className="space-y-1">
-      <Select
-        value={current}
-        onValueChange={v => onChange({ effort: v })}
-        disabled={disabled || allowed.length === 0}
-      >
-        <SelectTrigger className="h-8 text-xs">
-          <SelectValue placeholder="reasoning_effort" />
+    <>
+      <Select value={value ? value.level : NO_OVERRIDE} onValueChange={handle} disabled={disabled}>
+        <SelectTrigger
+          className="h-8 text-xs"
+          aria-label={t('settings.admin.llmConfig.fields.reasoningEffort')}
+        >
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {allowed.map(v => (
-            <SelectItem key={v} value={v} className="text-xs">
-              {v}
+          <SelectItem value={NO_OVERRIDE} className="text-xs">
+            {t('settings.admin.llmConfig.fields.reasoningDefault')}
+          </SelectItem>
+          {levels.map(level => (
+            <SelectItem key={level} value={level} className="text-xs">
+              {t(`settings.admin.llmConfig.reasoningLevels.${level}`)}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      {allowed.length === 1 && (
+      {levels.length === 1 && (
         <p className="text-[10px] text-muted-foreground italic">
-          Forced to {allowed[0]} (only value accepted by this model).
+          {t('settings.admin.llmConfig.constraints.reasoningSingleLevel')}
         </p>
       )}
-      {isInvalid && (
-        <p role="alert" className="flex items-center gap-1 text-[10px] text-destructive">
-          <AlertCircle className="h-3 w-3" />
-          Invalid: {`'${current}'`} not in [{allowed.join(', ')}]
-        </p>
-      )}
-      {docText && <p className="text-[10px] text-muted-foreground">{docText}</p>}
-    </div>
+    </>
   );
 }
 
-function ReasoningBudgetWidget({
-  budgetRange,
+/** An explicit token budget, for the families that can express one. */
+function BudgetField({
+  range,
   value,
   onChange,
   disabled,
-  docText,
-}: ReasoningShapeProps & { budgetRange?: ReasoningBudgetRange | null }) {
-  const range = budgetRange;
-  const currentBudget = value && 'budget' in value ? value.budget : null;
-  const offSentinel = range?.off_sentinel ?? null;
-  const dynamicSentinel = range?.dynamic_sentinel ?? null;
-  const preset = computeBudgetPreset(currentBudget, offSentinel, dynamicSentinel);
+  t,
+}: FieldProps & { range: ReasoningBudgetRange }) {
+  const budget = value?.budget_tokens ?? null;
+  const outOfRange = budget !== null && (budget < range.min || budget > range.max);
+  const hint = t('settings.admin.llmConfig.constraints.reasoningBudgetRange', {
+    min: range.min,
+    max: range.max,
+  });
+  // The hint doubles as the error text: it already states the only rule this
+  // field has, and the backend rejects the same bound with the same numbers.
+  const { fieldId, errorId, controlProps } = useFieldA11y({ error: outOfRange ? hint : undefined });
 
-  const handlePreset = (next: string) => {
-    if (next === PRESET_OFF && offSentinel !== null) onChange({ budget: offSentinel });
-    else if (next === PRESET_DYNAMIC && dynamicSentinel !== null)
-      onChange({ budget: dynamicSentinel });
-    else if (next === PRESET_CUSTOM) {
-      // Default to range.min for the custom slot.
-      onChange({ budget: range?.min ?? 0 });
+  const handle = (raw: string) => {
+    const base: ReasoningIntentValue = value ?? EMPTY_INTENT;
+    if (raw === '') {
+      onChange(withBudget(base, null));
+      return;
     }
+    const parsed = Number(raw);
+    if (!Number.isNaN(parsed)) onChange(withBudget(base, parsed));
   };
 
   return (
     <div className="space-y-1">
-      <Select value={preset} onValueChange={handlePreset} disabled={disabled}>
-        <SelectTrigger className="h-8 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {offSentinel !== null && (
-            <SelectItem value={PRESET_OFF} className="text-xs">
-              Off ({offSentinel})
-            </SelectItem>
-          )}
-          {dynamicSentinel !== null && (
-            <SelectItem value={PRESET_DYNAMIC} className="text-xs">
-              Dynamic ({dynamicSentinel})
-            </SelectItem>
-          )}
-          <SelectItem value={PRESET_CUSTOM} className="text-xs">
-            Custom budget…
-          </SelectItem>
-        </SelectContent>
-      </Select>
-      {preset === PRESET_CUSTOM && range && (
-        <Input
-          type="number"
-          min={range.min}
-          max={range.max}
-          value={typeof currentBudget === 'number' ? currentBudget : range.min}
-          onChange={e => {
-            const n = Number(e.target.value);
-            if (!Number.isNaN(n)) onChange({ budget: n });
-          }}
-          disabled={disabled}
-          className="h-8 text-xs"
-          aria-label="Reasoning budget (tokens)"
-        />
-      )}
-      {range && (
-        <p className="text-[10px] text-muted-foreground">
-          Range: {range.min}–{range.max} tokens.
-        </p>
-      )}
-      {docText && <p className="text-[10px] text-muted-foreground">{docText}</p>}
+      <Label htmlFor={fieldId} className="text-[11px] text-muted-foreground">
+        {t('settings.admin.llmConfig.fields.reasoningBudget')}
+      </Label>
+      <Input
+        {...controlProps}
+        type="number"
+        inputMode="numeric"
+        min={range.min}
+        max={range.max}
+        step={1}
+        value={budget ?? ''}
+        placeholder={`${range.min}–${range.max}`}
+        onChange={e => handle(e.target.value)}
+        disabled={disabled}
+        className="h-8 text-xs"
+      />
+      <p
+        id={errorId}
+        className={
+          outOfRange ? 'text-[10px] text-destructive' : 'text-[10px] text-muted-foreground'
+        }
+      >
+        {hint}
+      </p>
     </div>
   );
 }
 
-function ReasoningToggleWidget({
-  budgetRange,
-  value,
-  onChange,
-  disabled,
-  docText,
-}: ReasoningShapeProps & { budgetRange?: ReasoningBudgetRange | null }) {
-  const enabled = value && 'enabled' in value ? value.enabled : false;
-  const currentBudget =
-    value && 'enabled' in value && value.budget !== undefined && value.budget !== null
-      ? value.budget
-      : null;
+/** Orthogonal to depth, and only where the renderer actually sends it. */
+function ExcludeField({ value, onChange, disabled, t }: FieldProps) {
+  const { fieldId } = useFieldA11y({});
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <Switch
-          checked={enabled}
-          onCheckedChange={(next: boolean) => {
-            if (next) onChange({ enabled: true });
-            else onChange({ enabled: false });
-          }}
-          disabled={disabled}
-          aria-label="Enable thinking"
-        />
-        <span className="text-xs text-muted-foreground">
-          {enabled ? 'Thinking enabled' : 'Thinking disabled'}
-        </span>
-      </div>
-      {enabled && budgetRange && (
-        <Input
-          type="number"
-          min={budgetRange.min}
-          max={budgetRange.max}
-          value={currentBudget ?? ''}
-          placeholder={`Budget (${budgetRange.min}–${budgetRange.max}, blank = max)`}
-          onChange={e => {
-            const raw = e.target.value;
-            if (raw === '') onChange({ enabled: true });
-            else {
-              const n = Number(raw);
-              if (!Number.isNaN(n)) onChange({ enabled: true, budget: n });
-            }
-          }}
-          disabled={disabled}
-          className="h-8 text-xs"
-          aria-label="Reasoning budget (tokens)"
-        />
-      )}
-      {docText && <p className="text-[10px] text-muted-foreground">{docText}</p>}
+    <div className="flex items-start gap-2">
+      <Switch
+        id={fieldId}
+        checked={value?.exclude_from_output ?? false}
+        onCheckedChange={(next: boolean) => onChange(withExclude(value ?? EMPTY_INTENT, next))}
+        disabled={disabled}
+        className="mt-0.5 shrink-0"
+      />
+      <Label htmlFor={fieldId} className="text-xs text-muted-foreground font-normal">
+        {t('settings.admin.llmConfig.fields.reasoningExclude')}
+      </Label>
     </div>
   );
 }
 
-export function ReasoningWidget({
-  widget,
-  enumValues,
-  budgetRange,
-  docI18nKey,
-  value,
-  onChange,
-  disabled,
-}: ReasoningWidgetProps) {
-  if (widget === 'none') return null;
+export function ReasoningWidget({ caps, value, onChange, disabled, t }: ReasoningWidgetProps) {
+  const levels: ReasoningLevel[] = caps?.reasoning_levels ?? [];
+  if (levels.length === 0) return null;
 
-  const docText = docI18nKey ? REASONING_DOC_TEXT[docI18nKey] : undefined;
-  const shared: ReasoningShapeProps = { value, onChange, disabled, docText };
+  const docKey = caps?.reasoning_doc_i18n_key;
+  const docText = docKey ? REASONING_DOC_TEXT[docKey] : undefined;
+  const range = caps?.reasoning_budget_range ?? null;
+  const shared: FieldProps = { value, onChange, disabled, t };
 
-  if (widget === 'enum') {
-    return <ReasoningEnumWidget {...shared} enumValues={enumValues} />;
-  }
-  if (widget === 'budget_int') {
-    return <ReasoningBudgetWidget {...shared} budgetRange={budgetRange} />;
-  }
-  // widget === 'toggle_budget'
-  return <ReasoningToggleWidget {...shared} budgetRange={budgetRange} />;
+  return (
+    <div className="space-y-2">
+      <LevelField {...shared} levels={levels} />
+      {caps?.reasoning_supports_budget && range && <BudgetField {...shared} range={range} />}
+      {caps?.reasoning_supports_exclude && <ExcludeField {...shared} />}
+      {docText && <p className="text-[10px] text-muted-foreground">{docText}</p>}
+    </div>
+  );
 }

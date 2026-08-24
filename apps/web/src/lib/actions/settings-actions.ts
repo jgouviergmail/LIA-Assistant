@@ -56,9 +56,34 @@ export type LLMProviderName =
   | 'elevenlabs'
   | 'edge';
 
-// Mirrors backend LLMModelKindLiteral / ReasoningWidgetLiteral / PricingUnitLiteral.
+/** Who filled a catalogue row's capabilities. Mirrors the backend
+ *  ``CapabilityProvenanceLiteral`` / ``LLMCapabilityProvenanceEnum``. */
+export type CapabilityProvenanceName = 'declared' | 'imported' | 'verified';
+
+/** One model the vendored registries report as going away, and on what
+ *  evidence. ``disputed`` means the registries do not agree the date has
+ *  passed — which is why the model is still offered. */
+export interface RetiringModelPayload {
+  model_name: string;
+  provider: LLMProviderName;
+  state: 'retired' | 'disputed' | 'announced' | 'flagged';
+  deprecation_date: string | null;
+  seen_by: string[];
+}
+
+/** The read-only verdict of the vendored public registries (ADR-244), as
+ *  served by ``GET /admin/llm/catalogue-status``. */
+export interface CatalogueStatus {
+  compared: number;
+  auto: number;
+  review: number;
+  retiring: RetiringModelPayload[];
+  provenance: Record<string, number>;
+  snapshot_generated_at: string | null;
+}
+
+// Mirrors backend LLMModelKindLiteral / PricingUnitLiteral.
 export type LLMModelKindName = 'chat' | 'image' | 'audio' | 'realtime' | 'tts' | 'embedding';
-export type ReasoningWidgetName = 'none' | 'enum' | 'budget_int' | 'toggle_budget';
 export type LLMPricingUnitName = 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
 
 /** One UTC window of a time-based tariff (ADR-223). Mirrors the backend
@@ -73,22 +98,15 @@ export interface TimeSlotPricePayload {
   output_unit_price: string;
 }
 
-export interface ReasoningBudgetRangePayload {
-  min: number;
-  max: number;
-  off_sentinel?: number | null;
-  dynamic_sentinel?: number | null;
-}
-
-/** Reasoning + sampling block — Template mode (one field) OR Custom mode (10 fields).
- *  The backend's model_validator enforces XOR. */
+/** Reasoning + sampling block — Template mode (one field) OR Custom mode.
+ *  The backend's model_validator enforces the XOR. Since ADR-245 the reasoning
+ *  identity is `is_reasoning_model` plus the optional ladder narrowing; the
+ *  widget and its budget range went with their columns. */
 export interface ReasoningSamplingPayload {
   reasoning_template?: string | null;
   kind?: LLMModelKindName | null;
   is_reasoning_model?: boolean | null;
-  reasoning_widget?: ReasoningWidgetName | null;
   reasoning_enum_values?: string[] | null;
-  reasoning_budget_range?: ReasoningBudgetRangePayload | null;
   reasoning_doc_i18n_key?: string | null;
   supports_temperature?: boolean | null;
   supports_top_p?: boolean | null;
@@ -319,36 +337,6 @@ export async function updateLLMPricing(
       error: getApiErrorDetail(error) ?? 'Erreur lors de la modification du modèle',
     };
   }
-}
-
-/** Reasoning shape group derived from existing models. Drives the
- *  "Copy reasoning shape from..." selector. ``kind``, the four
- *  ``supports_*`` sampling flags AND ``reasoning_doc_i18n_key`` are
- *  intentionally NOT part of the template — they are saved per model
- *  regardless of the template chosen. */
-export interface ReasoningTemplate {
-  template_model_name: string;
-  representative_provider: LLMProviderName;
-  description: string;
-  matching_count: number;
-  is_reasoning_model: boolean;
-  reasoning_widget: ReasoningWidgetName;
-  reasoning_enum_values: string[] | null;
-  reasoning_budget_range: ReasoningBudgetRangePayload | null;
-}
-
-interface ReasoningTemplatesResponse {
-  templates: ReasoningTemplate[];
-}
-
-/** Fetch the list of reasoning + sampling templates derived from existing models.
- *  Drives the admin Pricing form's "Copy behavior from..." selector. */
-export async function fetchReasoningTemplates(): Promise<ReasoningTemplate[]> {
-  const apiServer = await createServerApiClient();
-  const response = await apiServer.get<ReasoningTemplatesResponse>(
-    '/admin/llm/reasoning-templates'
-  );
-  return response.templates;
 }
 
 /**

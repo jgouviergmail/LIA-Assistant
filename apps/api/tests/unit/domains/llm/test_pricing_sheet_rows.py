@@ -17,7 +17,6 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.llm.pricing_sheet import CUSTOM_TEMPLATE_MARKER
 from src.domains.llm.pricing_sheet_rows import EXPORT_LABEL_KEYS, build_export_rows
 from tests.helpers.llm_helpers import create_llm_pricing_async, ensure_llm_model_async
 
@@ -219,29 +218,38 @@ class TestReasoning:
 
         assert isinstance(row["reasoning_shape"], str) and row["reasoning_shape"]
 
-    async def test_a_model_matching_no_template_is_marked_custom(
+    async def test_the_ladder_travels_as_the_text_the_operator_edits(
         self, async_session: AsyncSession
     ) -> None:
-        """Templates are built from ACTIVE models, so an inactive one can match
-        nothing — the file must say so rather than assign a wrong template."""
-        model = await ensure_llm_model_async(async_session, "ex-orphan")
-        model.is_active = False
-        model.reasoning_doc_i18n_key = "a-shape-nobody-else-has"
+        """The sheet carries the narrowing itself, not a model that stands for it.
+
+        It used to export a ``reasoning_template`` — "this row behaves like
+        that other model" — which grouped rows by their STORED ladder rather
+        than by family, so re-importing one across families removed depths in
+        silence.
+        """
+        model = await ensure_llm_model_async(async_session, "ex-ladder")
+        model.is_reasoning_model = True
+        model.reasoning_enum_values = ["low", "high"]
         await async_session.flush()
 
         payload = await build_export_rows(async_session, labels=LABELS)
-        row = next(r for r in payload.models if r["model_name"] == "ex-orphan")
+        row = next(r for r in payload.models if r["model_name"] == "ex-ladder")
 
-        assert row["reasoning_template"] in {CUSTOM_TEMPLATE_MARKER, *payload.templates}
+        assert row["is_reasoning_model"] is True
+        assert row["reasoning_enum_values"] == "low, high"
 
-    async def test_the_templates_offered_are_returned_for_the_dropdown(
-        self, async_session: AsyncSession
-    ) -> None:
-        await ensure_llm_model_async(async_session, "ex-template-source")
+    async def test_no_narrowing_leaves_the_cell_empty(self, async_session: AsyncSession) -> None:
+        """Empty means "the family's own ladder applies" — the read-only shape
+        column beside it prints what that is."""
+        model = await ensure_llm_model_async(async_session, "ex-no-narrowing")
+        model.reasoning_enum_values = None
+        await async_session.flush()
 
         payload = await build_export_rows(async_session, labels=LABELS)
+        row = next(r for r in payload.models if r["model_name"] == "ex-no-narrowing")
 
-        assert payload.templates
+        assert row["reasoning_enum_values"] is None
 
 
 @pytest.mark.unit

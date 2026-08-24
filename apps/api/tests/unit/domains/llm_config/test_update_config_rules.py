@@ -21,7 +21,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
-from src.core.reasoning_types import ReasoningEffortEnum
+from src.core.reasoning_intent import ReasoningIntent
 from src.domains.llm_config.schemas import LLMTypeConfigUpdate
 from src.domains.llm_config.service import LLMConfigService
 
@@ -56,38 +56,22 @@ def _enum_caps(model_id: str) -> SimpleNamespace:
 
 
 @pytest.mark.unit
-@pytest.mark.asyncio
-class TestUpdateConfigEffortValidation:
-    async def test_invalid_effort_rejected_422(self) -> None:
-        """An effort not in the model's effort_values is rejected before any DB work."""
-        service, db = _make_service()
-        caps = _enum_caps("claude-opus-4-6")  # effort_values=None → no separate effort
-        update = LLMTypeConfigUpdate(provider="anthropic", model="claude-opus-4-6", effort="xhigh")
+class TestTheSeparateEffortFieldIsGone:
+    """``LLMTypeConfigUpdate.effort`` and its validation were removed (ADR-245).
 
-        with patch(_CAPS_GET, return_value=caps):
-            with pytest.raises(HTTPException) as exc:
-                await service.update_config("planner", update, uuid4(), MagicMock())
+    It produced the same Anthropic kwarg as ``reasoning_effort``, and
+    ``additional_kwargs.update()`` decided which one silently won. Measured at
+    removal: no configured slot set it, so nothing changed behaviour.
+    """
 
-        assert exc.value.status_code == 422
-        assert exc.value.detail["type"] == "invalid_effort"  # type: ignore[index]
-        db.execute.assert_not_called()  # raised before persistence
+    def test_the_field_no_longer_exists(self) -> None:
+        assert "effort" not in LLMTypeConfigUpdate.model_fields
 
-    async def test_valid_effort_accepted(self) -> None:
-        """A value present in effort_values passes and the update is persisted."""
-        service, db = _make_service()
-        caps = SimpleNamespace(
-            model_id="claude-opus-4-5",
-            effort_values=["low", "medium", "high"],
-            reasoning_widget="toggle_budget",
-            reasoning_enum_values=None,
-            reasoning_budget_range={"min": 1024, "max": 16384},
-        )
-        update = LLMTypeConfigUpdate(provider="anthropic", model="claude-opus-4-5", effort="low")
+    def test_the_catalogue_column_travelled_with_it(self) -> None:
+        """``llm_models.effort_values`` fed only that field."""
+        from src.domains.llm.models import LLMModel
 
-        with patch(_CAPS_GET, return_value=caps), patch(_CACHE_RELOAD, new=AsyncMock()):
-            await service.update_config("planner", update, uuid4(), MagicMock())
-
-        db.commit.assert_awaited()  # completed without raising
+        assert "effort_values" not in LLMModel.__table__.columns
 
 
 @pytest.mark.unit
@@ -100,7 +84,7 @@ class TestUpdateConfigAnthropicTemperatureLock:
         update = LLMTypeConfigUpdate(
             provider="anthropic",
             model="claude-opus-4-6",
-            reasoning_effort=ReasoningEffortEnum(effort="medium"),  # adaptive → thinking ON
+            reasoning_effort=ReasoningIntent(level="medium"),  # adaptive → thinking ON
             temperature=0.5,
             top_p=0.9,
         )
@@ -118,7 +102,7 @@ class TestUpdateConfigAnthropicTemperatureLock:
         update = LLMTypeConfigUpdate(
             provider="anthropic",
             model="claude-opus-4-6",
-            reasoning_effort=ReasoningEffortEnum(effort="off"),  # no thinking
+            reasoning_effort=ReasoningIntent(level="none"),  # no thinking
             temperature=0.5,
             top_p=0.9,
         )
@@ -132,87 +116,82 @@ class TestUpdateConfigAnthropicTemperatureLock:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestUpdateConfigReasoningShapeWithoutModel:
-    """The shape guard must run even when ``model`` is omitted from the update.
+class TestUpdateConfigReasoningWithoutModel:
+    """The guard must run even when ``model`` is omitted from the update.
 
     Override semantics omit ``model`` when it equals the type default, and the
-    guard used to be keyed on ``update.model is not None`` — so a wrong-shaped
+    guard used to be keyed on ``update.model is not None`` — so an invalid
     ``reasoning_effort`` persisted through exactly that path, then every GET
-    degraded it at merge time (prod 2026-08-14: 363
-    ``wrong_reasoning_effort_shape`` warnings in a single admin session). The
-    target model of a model-less update IS the type default's model.
+    degraded it at merge time (prod 2026-08-14: 363 warnings in a single admin
+    session). The target model of a model-less update IS the type default's
+    model, and since ADR-245 the target PROVIDER is the default's provider too:
+    without it the family cannot be derived and the guard would be inert.
+
+    Both tests below resolve their slot FROM ``LLM_DEFAULTS`` and assert what
+    the resolved ladder actually offers before submitting. A hard-coded slot
+    would go vacuous the day the default moves to another model — which is how
+    the previous version of this file ended up pointing at a provider no slot
+    used any more.
     """
 
-    async def test_wrong_shape_rejected_even_without_model(self) -> None:
-        service, db = _make_service()
-        # The default model resolves to toggle_budget caps → the enum shape is wrong.
-        caps = SimpleNamespace(
-            model_id="whatever-default",
-            effort_values=None,
-            reasoning_widget="toggle_budget",
-            reasoning_enum_values=None,
-            reasoning_budget_range={"min": 0, "max": 32768},
-        )
-        update = LLMTypeConfigUpdate(reasoning_effort=ReasoningEffortEnum(effort="low"))
+    @staticmethod
+    def _slot_with_a_ladder() -> tuple[str, str, str, list[str]]:
+        """Return (slot, provider, model, ladder) for a reasoning code default."""
+        from src.domains.llm_config.constants import LLM_DEFAULTS
+        from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
 
-        with patch(_CAPS_GET, return_value=caps):
-            with pytest.raises(HTTPException) as exc:
-                await service.update_config("planner", update, uuid4(), MagicMock())
+        for name, cfg in LLM_DEFAULTS.items():
+            profile = resolve_reasoning_profile(cfg.provider, cfg.model)
+            if profile.levels:
+                return name, cfg.provider, cfg.model, list(profile.levels)
+        raise AssertionError("no code default resolves to a reasoning family")
 
-        assert exc.value.status_code == 422
-        assert exc.value.detail["type"] == "wrong_reasoning_effort_shape"  # type: ignore[index]
-        db.commit.assert_not_awaited()  # nothing persisted
-
-    async def test_wrong_effort_rejected_even_without_model(self) -> None:
-        """Same hole, other field: the separate global `effort` (Anthropic)
-        was only validated when `model` travelled with it."""
-        service, db = _make_service()
-        caps = SimpleNamespace(
-            model_id="whatever-default",
-            effort_values=None,  # the default model declares NO effort support
-            reasoning_widget="none",
+    def _caps_for(self, model: str) -> SimpleNamespace:
+        """What ``ModelCapabilitiesCache.get`` returns for that default model."""
+        return SimpleNamespace(
+            model_id=model,
+            reasoning_widget="enum",
             reasoning_enum_values=None,
             reasoning_budget_range=None,
+            max_output_tokens=32768,
         )
-        update = LLMTypeConfigUpdate(effort="high")
 
-        with patch(_CAPS_GET, return_value=caps):
+    async def test_a_level_the_default_model_refuses_is_rejected(self) -> None:
+        service, db = _make_service()
+        slot, _provider, model, ladder = self._slot_with_a_ladder()
+        refused = next(lvl for lvl in ("max", "xhigh", "minimal") if lvl not in ladder)
+
+        update = LLMTypeConfigUpdate(reasoning_effort=ReasoningIntent(level=refused))
+
+        with patch(_CAPS_GET, return_value=self._caps_for(model)):
             with pytest.raises(HTTPException) as exc:
-                await service.update_config("planner", update, uuid4(), MagicMock())
+                await service.update_config(slot, update, uuid4(), MagicMock())
 
         assert exc.value.status_code == 422
-        assert exc.value.detail["type"] == "invalid_effort"  # type: ignore[index]
-        db.commit.assert_not_awaited()
+        detail = exc.value.detail
+        assert detail["type"] == "invalid_reasoning_effort"  # type: ignore[index]
+        assert detail["ctx"]["submitted"] == refused  # type: ignore[index]
+        db.execute.assert_not_called()
 
-    async def test_unknown_default_model_does_not_block_a_modelless_update(self) -> None:
-        """Boot already validates code defaults; an unavailable capabilities
-        cache must not turn a legitimate model-less save into a 422."""
+    async def test_a_level_the_default_model_offers_is_accepted(self) -> None:
         service, db = _make_service()
-        update = LLMTypeConfigUpdate(reasoning_effort=ReasoningEffortEnum(effort="low"))
+        slot, _provider, model, ladder = self._slot_with_a_ladder()
+        offered = next(lvl for lvl in ("high", "medium", "low") if lvl in ladder)
 
-        with patch(_CAPS_GET, return_value=None), patch(_CACHE_RELOAD, new=AsyncMock()):
-            await service.update_config("planner", update, uuid4(), MagicMock())
+        # max_tokens is explicit: an accepted heavy level with an inherited
+        # small default is the OTHER guard's job (the 2026-07-29 incident), and
+        # this test must not accidentally assert that one.
+        update = LLMTypeConfigUpdate(
+            reasoning_effort=ReasoningIntent(level=offered), max_tokens=50000
+        )
+
+        with (
+            patch(_CAPS_GET, return_value=self._caps_for(model)),
+            patch(_CACHE_RELOAD, new=AsyncMock()),
+        ):
+            await service.update_config(slot, update, uuid4(), MagicMock())
 
         db.commit.assert_awaited()
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-class TestUpdateConfigEmptyStringNormalization:
-    """An empty model string is never a choice (provider is fenced by its
-    request Literal) — normalized to NULL at write time so it cannot override
-    the default model at merge time and break LLM resolution."""
-
-    async def test_empty_model_is_stored_as_null(self) -> None:
-        service, db = _make_service()
-        update = LLMTypeConfigUpdate(model="", temperature=0.3)
-
-        with patch(_CACHE_RELOAD, new=AsyncMock()):
-            await service.update_config("planner", update, uuid4(), MagicMock())
-
-        added_row = db.add.call_args[0][0]
-        assert added_row.model is None
-        assert added_row.temperature == 0.3
 
 
 @pytest.mark.unit
@@ -252,7 +231,7 @@ class TestUpdateConfigThinkingBudgetFloor:
         update = LLMTypeConfigUpdate(
             provider="deepseek",
             model="deepseek-v4-flash",
-            reasoning_effort=ReasoningEffortEnum(effort="high"),
+            reasoning_effort=ReasoningIntent(level="high"),
         )
 
         with patch(_CAPS_GET, return_value=self._deepseek_caps()):
@@ -275,7 +254,7 @@ class TestUpdateConfigThinkingBudgetFloor:
         update = LLMTypeConfigUpdate(
             provider="deepseek",
             model="deepseek-v4-flash",
-            reasoning_effort=ReasoningEffortEnum(effort="high"),
+            reasoning_effort=ReasoningIntent(level="high"),
             max_tokens=settings.llm_thinking_max_tokens_floor,
         )
 
@@ -292,7 +271,7 @@ class TestUpdateConfigThinkingBudgetFloor:
         update = LLMTypeConfigUpdate(
             provider="deepseek",
             model="deepseek-v4-flash",
-            reasoning_effort=ReasoningEffortEnum(effort="off"),
+            reasoning_effort=ReasoningIntent(level="none"),
             max_tokens=500,
         )
 
@@ -308,9 +287,15 @@ class TestUpdateConfigThinkingBudgetFloor:
         """The mirror shape: shrink max_tokens on a type whose DEFAULT thinks."""
         from src.domains.llm_config.constants import LLM_DEFAULTS
 
-        # Precondition: compaction's code default enables Qwen thinking.
+        # Precondition: compaction's code default asks for thinking.
         default_reasoning = LLM_DEFAULTS["compaction"].reasoning_effort
-        assert getattr(default_reasoning, "enabled", False) is True
+        assert default_reasoning is not None
+        assert default_reasoning.budget_tokens is not None or default_reasoning.level not in (
+            "provider_default",
+            "none",
+            "minimal",
+            "low",
+        )
 
         service, db = _make_service()
         update = LLMTypeConfigUpdate(max_tokens=800)  # model/effort untouched → inherited

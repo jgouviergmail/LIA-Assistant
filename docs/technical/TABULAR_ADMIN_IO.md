@@ -62,7 +62,7 @@ de langue entre l'export et l'import ne change rien.
 | État | `is_active` | oui — désactivation **et** réactivation |
 | Capacités | `max_input_tokens`, `max_output_tokens`, `supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision` | oui |
 | Sampling | `supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty` | oui |
-| Raisonnement | `reasoning_template`, `reasoning_shape`, `reasoning_doc_i18n_key`, `effort_values` | gabarit + clé d'aide |
+| Raisonnement | `reasoning_template`, `reasoning_shape` (lecture seule), `reasoning_doc_i18n_key` | gabarit + clé d'aide |
 | Tarif | `pricing_unit`, `input_unit_price`, `cached_input_unit_price`, `output_unit_price`, `effective_from` | prix + unité |
 | Plages | `time_slots_mode`, `time_slots_summary` | mode |
 | Diagnostic | `statut` | non |

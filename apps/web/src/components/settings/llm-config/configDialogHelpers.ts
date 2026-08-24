@@ -16,7 +16,11 @@ import type {
   ModelCapabilities,
   ReasoningEffortValue,
 } from '@/types/llm-config';
-import { coerceReasoningEffortForModel } from './reasoningHelpers';
+import {
+  coerceReasoningEffortForModel,
+  reasoningEffortIsVisible,
+  reasoningIsActive,
+} from './reasoningHelpers';
 
 // --- TTS provider_config -----------------------------------------------------
 
@@ -82,7 +86,7 @@ export function parseProviderConfig(raw: string | null | undefined): TTSProvider
  * against the default is order-independent. The backend stores JSONB so key
  * order does not matter semantically, but the LLMTypeConfigUpdate diff
  * compares strings — sort keys to avoid spurious "modified" badges. */
-export function stableStringify(obj: TTSProviderConfig): string {
+export function stableStringify(obj: unknown): string {
   const sortKeys = (v: unknown): unknown => {
     if (Array.isArray(v)) return v.map(sortKeys);
     if (v && typeof v === 'object') {
@@ -127,7 +131,6 @@ export function formFromConfig(config: LLMTypeConfig): LLMTypeConfigUpdate {
     max_tokens: config.effective.max_tokens,
     timeout_seconds: config.effective.timeout_seconds,
     reasoning_effort: config.effective.reasoning_effort,
-    effort: config.effective.effort,
   };
 }
 
@@ -142,46 +145,42 @@ export function formAfterProviderChange(
   return { ...form, provider, model: '', reasoning_effort: null };
 }
 
-/** Model switch keeps reasoning_effort only if its shape still fits the new
- * model's reasoning widget, and keeps the global 'effort' only when the new
- * model declares a matching effort_values entry — otherwise both drop to null
- * (= use the model's default). Prevents a stale override (e.g. an enum effort
- * from a previous model) crashing the typed reasoning builder at runtime. */
+/** Model switch keeps reasoning_effort only when the NEW model accepts it —
+ * its level on the new ladder, its budget inside the new range — otherwise it
+ * drops to null (= the model's own default). A level the new model does not
+ * offer would be 422'd at save, or coerced to something else at runtime. */
 export function formAfterModelChange(
   form: LLMTypeConfigUpdate,
   modelId: string,
   newCaps: ModelCapabilities | undefined
 ): LLMTypeConfigUpdate {
-  const newEffortValues = newCaps?.effort_values ?? null;
-  const keepEffort =
-    form.effort != null && newEffortValues != null && newEffortValues.includes(form.effort);
   return {
     ...form,
     model: modelId,
     reasoning_effort: coerceReasoningEffortForModel(form.reasoning_effort, newCaps),
-    effort: keepEffort ? form.effort : null,
   };
 }
 
 /** Save-time reasoning coherence — the chokepoint that survives every way the
  * form can drift: stale metadata (a freshly created model absent from the
  * dialog's catalogue leaves ReasoningSection unrendered, silently carrying the
- * PREVIOUS model's shape into the PUT — prod 2026-08-14, 422
- * wrong_reasoning_effort_shape on every attempt), free-text models, dynamic
- * Ollama tags. The value is re-coerced against the SELECTED model's
- * capabilities; an unprovable value drops to null (= model default), mirroring
- * the backend's proof-over-optimism inheritance rule. When the catalogue never
- * loaded there is nothing to prove against — the form is returned untouched. */
+ * PREVIOUS model's value into the PUT — prod 2026-08-14, 422 on every
+ * attempt), free-text models, dynamic Ollama tags. When the catalogue never
+ * loaded there is nothing to prove against — the form is returned untouched.
+ *
+ * It drops only what the admin cannot see: `reasoningEffortIsVisible`, not
+ * `reasoningEffortMatchesModel`. A value the widget IS showing — a budget
+ * outside the published range, typically — stays in the payload so the backend
+ * can say why in a message this dialog already surfaces; nulling it here threw
+ * away the level too, silently, on a save the admin had just asked for. */
 export function formForSave(
   form: LLMTypeConfigUpdate,
   selectedModelCaps: ModelCapabilities | undefined,
   catalogueLoaded: boolean
 ): LLMTypeConfigUpdate {
   if (!catalogueLoaded) return form;
-  return {
-    ...form,
-    reasoning_effort: coerceReasoningEffortForModel(form.reasoning_effort, selectedModelCaps),
-  };
+  if (reasoningEffortIsVisible(form.reasoning_effort, selectedModelCaps)) return form;
+  return { ...form, reasoning_effort: null };
 }
 
 // --- Override diff ---------------------------------------------------------------
@@ -199,9 +198,9 @@ const SCALAR_OVERRIDE_FIELDS = [
 ] as const;
 
 /** Build the PATCH payload: only fields differing from the type's DEFAULTS are
- * sent (override semantics). reasoning_effort is a discriminated union —
- * JSON-equal. provider_config is only compared for TTS types, via
- * stableStringify so a key-order permutation is not a false positive. */
+ * sent (override semantics). reasoning_effort is an object — compared with
+ * stableStringify, like provider_config, so a key-order permutation between
+ * what the API serialised and what this form rebuilt is not a false positive. */
 export function buildConfigUpdate(
   config: LLMTypeConfig,
   form: LLMTypeConfigUpdate,
@@ -216,11 +215,10 @@ export function buildConfigUpdate(
     }
   }
   if (
-    JSON.stringify(form.reasoning_effort ?? null) !== JSON.stringify(d.reasoning_effort ?? null)
+    stableStringify(form.reasoning_effort ?? null) !== stableStringify(d.reasoning_effort ?? null)
   ) {
     update.reasoning_effort = form.reasoning_effort;
   }
-  if ((form.effort ?? null) !== (d.effort ?? null)) update.effort = form.effort ?? null;
 
   if (config.info.required_kind === 'tts') {
     const currentSerialised = stableStringify(providerConfig);
@@ -240,9 +238,9 @@ export function isFieldModified(
   field: keyof LLMTypeConfigUpdate
 ): boolean {
   const defaultVal = config.defaults[field as keyof typeof config.defaults];
-  // reasoning_effort is a discriminated union object — JSON-equal it.
+  // reasoning_effort is an object — key-order-insensitive comparison.
   if (field === 'reasoning_effort') {
-    return JSON.stringify(form[field] ?? null) !== JSON.stringify(defaultVal ?? null);
+    return stableStringify(form[field] ?? null) !== stableStringify(defaultVal ?? null);
   }
   return form[field] !== defaultVal;
 }
@@ -301,15 +299,13 @@ export function findModelCapabilities(
 
 /** Anthropic extended thinking is incompatible with custom temperature/top_p
  * (API constraint — "temperature may only be set to 1 when thinking is
- * enabled"). 'off' enum value / disabled toggle = reasoning off. */
+ * enabled"). One shape, one rule: anything that asks for thinking counts, and
+ * `none` does not. Mirrors the backend lock in ``LLMConfigService``. */
 export function isAnthropicThinkingActive(
   provider: string | null | undefined,
   reasoningEffort: ReasoningEffortValue | undefined
 ): boolean {
-  if (provider !== 'anthropic' || !reasoningEffort) return false;
-  if ('effort' in reasoningEffort) return reasoningEffort.effort !== 'off';
-  if ('enabled' in reasoningEffort) return reasoningEffort.enabled === true;
-  return false;
+  return provider === 'anthropic' && reasoningIsActive(reasoningEffort);
 }
 
 export interface SamplingVisibility {

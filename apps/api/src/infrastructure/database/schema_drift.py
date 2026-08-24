@@ -81,6 +81,7 @@ RUNTIME_MANAGED_INDEXES = {
     "ix_conversation_messages_conv_created",
     "ix_token_usage_logs_created_at",
     "ix_token_usage_logs_lifetime_aggregation",
+    "ix_token_usage_logs_controller_window",
 }
 
 # Autogenerate operation names that are cosmetic and tolerated by the gate.

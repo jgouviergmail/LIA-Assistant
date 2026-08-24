@@ -37,8 +37,15 @@ const SRC = join(process.cwd(), 'src');
 /** Controls whose accessible name this guard can reason about. */
 const CONTROL = /<(Input|Textarea)\b/g;
 
-/** Any of these makes a name possible; `placeholder` is not among them. */
-const NAMING_ATTRS = ['label=', 'aria-label', 'aria-labelledby', 'id='];
+/** Any of these makes a name possible; `placeholder` is not among them.
+ *
+ * `{...controlProps}` counts: it is the object `useFieldA11y` returns, and it
+ * carries the very `id` an external `<Label htmlFor>` targets — the design
+ * system's own naming mechanism. Without it here, every correct use of the
+ * field primitive outside `ui/` reads as an unnamed control, which would push
+ * callers to hand-roll ARIA instead of using the hook. Same failure mode as
+ * the `jsx-a11y` mapping this guard replaced, one layer up. */
+const NAMING_ATTRS = ['label=', 'aria-label', 'aria-labelledby', 'id=', '{...controlProps}'];
 
 /**
  * Per-file count of controls with no naming mechanism, frozen at the audited

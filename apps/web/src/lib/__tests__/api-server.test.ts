@@ -185,12 +185,12 @@ describe('createServerApiClient — request shaping', () => {
 describe('createServerApiClient — responses', () => {
   it('returns the parsed JSON body', async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      jsonResponse(200, { templates: [{ template_model_name: 'o3' }] })
+      jsonResponse(200, { models: [{ model_name: 'o3' }] })
     );
     const api = await createServerApiClient();
 
-    await expect(api.get('/admin/llm/reasoning-templates')).resolves.toEqual({
-      templates: [{ template_model_name: 'o3' }],
+    await expect(api.get('/admin/llm/pricing')).resolves.toEqual({
+      models: [{ model_name: 'o3' }],
     });
   });
 

@@ -6,7 +6,7 @@
 
 **Versione**: 4.6
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.31.3
+**Applicazione**: LIA v1.32.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -694,9 +694,9 @@ La tariffazione stessa segue l'orologio del fornitore: alcuni fornitori fatturan
 
 ### 12.4. Catalogo admin DB-source-of-truth
 
-La tabella `llm_models` porta il catalogo completo: provider, capacità funzionali classiche (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), e — aggiunte strutturanti — la **matrice sampling per modello** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) nonché la **forma reasoning** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` lista JSONB, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). Questa dichiarazione per modello sostituisce la regex frontend che indovinava prima quali slider nascondere: la finestra Configurazione LLM legge direttamente i flag DB ed espone solo i parametri che l'API del modello accetta realmente.
+La tabella `llm_models` porta il catalogo completo: provider, capacità funzionali classiche (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), e — aggiunte strutturanti — la **matrice sampling per modello** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) nonché la **scala di ragionamento accettata** (`reasoning_enum_values`, lista JSONB) e la chiave i18n del suo aiuto (`reasoning_doc_i18n_key`). Questa dichiarazione per modello sostituisce la regex frontend che indovinava prima quali slider nascondere: la finestra Configurazione LLM legge direttamente i flag DB ed espone solo i parametri che l'API del modello accetta realmente. Dalla v1.32.0 quella scala non **dichiara** più ciò che un modello accetta, lo **restringe**: ciò che accetta è derivato dalla sua coppia (fornitore, modello), e le due colonne che un tempo descrivevano la *forma* del ragionamento sono rimosse — ora la forma è una sola.
 
-Il form admin Tarification LLM Texte espone un **meccanismo di template dinamici derivati dalla DB**: il servizio `LLMModelService.list_templates()` raggruppa le righe attive per la loro impronta reasoning a 4 campi e restituisce un rappresentante deterministico per gruppo (~15 forme uniche oggi). Aggiungere un nuovo modello reasoning si riduce a scegliere «copia la forma da tale modello esistente»; i 4 campi di forma vengono copiati (snapshot) al momento della creazione. Modalità **Custom** disponibile per disruption; qualsiasi modello Custom con impronta inedita diventa automaticamente template per le aggiunte successive. `kind` (chat / image / audio / …), le quattro cap sampling e la chiave i18n del tooltip vengono salvati per modello, indipendenti dal template. Vedi `docs/technical/LLM_PRICING_TEMPLATES.md`.
+La schermata Tariffazione LLM scrive quella scala **direttamente**: mostra le profondità che la famiglia del modello offre — risolte in tempo reale da `GET /admin/llm/reasoning-family`, con la stessa funzione del traduttore e del validatore — e si **deseleziona** ciò che questo modello rifiuta. Selezionare tutto non memorizza nulla: si applica la scala della famiglia così com'è. La cartella Excel (ADR-228) porta le stesse due colonne, e la sua importazione rifiuta una profondità fuori famiglia **nominando quelle che sarebbero state accettate**: un foglio di calcolo non può mostrare caselle, quindi la garanzia si sposta all'importazione. Qui stava un meccanismo di template — «copia la forma di quel modello esistente» — che raggruppava i modelli per la loro scala *memorizzata* e non per famiglia, così copiarne uno tra famiglie rimuoveva profondità in silenzio. Vedi `docs/technical/LLM_REASONING_IDENTITY.md`.
 
 ### 12.5. Prompt caching indipendente dal provider
 

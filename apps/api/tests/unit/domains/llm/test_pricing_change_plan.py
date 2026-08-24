@@ -390,6 +390,17 @@ class TestWindowedModelsAreNotRewrittenForNothing:
 
 
 @pytest.mark.unit
+def _anthropic_row(ladder: str) -> ParsedRow:
+    """A row for a real model, keyed on its name so the family resolves."""
+    values = {
+        **BASE,
+        "model_name": "claude-opus-4-6",
+        "provider": "anthropic",
+        "reasoning_enum_values": ladder,
+    }
+    return ParsedRow(row_number=9, key="claude-opus-4-6", values=values, derived={})
+
+
 class TestCreationRequirements:
     """A creation must be viable before anything is written.
 
@@ -409,12 +420,47 @@ class TestCreationRequirements:
         assert plan.changes[0].action is ChangeAction.CREATE
         assert not plan.issues
 
-    def test_a_creation_without_a_reasoning_template_is_refused(self) -> None:
-        """Templates are how the sheet expresses a reasoning shape; the custom
-        marker means "matches none", which cannot be turned into a model."""
-        plan = _plan([], [self._new_row(reasoning_template="(custom)")])
+    def test_a_model_that_does_not_reason_can_now_be_created(self) -> None:
+        """It could not, before.
 
-        assert IssueCode.CREATION_NEEDS_TEMPLATE in {i.code for i in plan.issues}
+        The sheet expressed the reasoning shape ONLY through a template, and
+        the plan refused a row without one -- so creating a model that does no
+        reasoning at all still meant picking a reasoning template. The identity
+        is written directly now, and its absence is a legitimate answer.
+        """
+        plan = _plan([], [self._new_row(is_reasoning_model=False, reasoning_enum_values=None)])
+
+        assert plan.changes[0].action is ChangeAction.CREATE
+        assert not plan.issues
+
+    def test_a_depth_the_family_does_not_offer_is_refused_by_name(self) -> None:
+        """The checkbox guarantee, transposed to a cell.
+
+        ``reasoning_enum_values`` can only NARROW the family's ladder: a level
+        outside it is dropped by the intersection, in silence. The form makes
+        that unrepresentable; a spreadsheet cannot, so the import refuses the
+        value and says what would have been accepted.
+        """
+        plan = _plan([], [_anthropic_row("off, high")])
+
+        issue = next(i for i in plan.issues if i.code is IssueCode.REASONING_LEVEL_UNKNOWN)
+        assert issue.params["levels"] == "off"
+        assert "high" in issue.params["accepted"]
+
+    def test_a_ladder_the_family_offers_raises_nothing(self) -> None:
+        plan = _plan([], [_anthropic_row("high, max")])
+
+        assert not [i for i in plan.issues if i.code is IssueCode.REASONING_LEVEL_UNKNOWN]
+
+    def test_a_model_no_rule_matches_is_left_alone(self) -> None:
+        """The column is never read there, so the value is inert, not wrong.
+
+        Refusing it would invent a constraint the runtime does not apply; the
+        read-only shape cell beside it already says the model does not reason.
+        """
+        plan = _plan([], [self._new_row(reasoning_enum_values="not-a-level")])
+
+        assert not [i for i in plan.issues if i.code is IssueCode.REASONING_LEVEL_UNKNOWN]
 
     def test_a_creation_missing_its_provider_is_refused(self) -> None:
         plan = _plan([], [self._new_row(provider=None)])
@@ -451,3 +497,46 @@ class TestCreationRequirements:
 
         assert not plan.issues
         assert plan.changes[0].action is ChangeAction.UPDATE
+
+
+@pytest.mark.unit
+class TestLadderSpacingIsNotAnEdit:
+    """The preview is a claim about what will change; spacing is not a change.
+
+    The export writes ``low, high``; an operator retyping the same ladder as
+    ``low,high`` must not be told the row changed, and must not cause a write
+    that stores the identical list.
+    """
+
+    @staticmethod
+    def _existing(ladder: str) -> dict[str, Any]:
+        return {**BASE, "model_name": "claude-opus-4-6", "reasoning_enum_values": ladder}
+
+    @staticmethod
+    def _sheet(ladder: str) -> ParsedRow:
+        values = {
+            **BASE,
+            "model_name": "claude-opus-4-6",
+            "provider": "anthropic",
+            "reasoning_enum_values": ladder,
+        }
+        return ParsedRow(row_number=4, key="claude-opus-4-6", values=values, derived={})
+
+    def test_the_same_ladder_written_differently_is_not_a_change(self) -> None:
+        plan = _plan([self._existing("low, high")], [self._sheet("low,high")])
+
+        changed = {field.field for change in plan.changes for field in change.fields}
+        assert "reasoning_enum_values" not in changed
+
+    def test_a_reordered_ladder_IS_a_change(self) -> None:
+        """Order carries meaning: the ladder is ascending."""
+        plan = _plan([self._existing("low, high")], [self._sheet("high, low")])
+
+        changed = {field.field for change in plan.changes for field in change.fields}
+        assert "reasoning_enum_values" in changed
+
+    def test_a_real_edit_is_still_seen(self) -> None:
+        plan = _plan([self._existing("low, high")], [self._sheet("high, max")])
+
+        changed = {field.field for change in plan.changes for field in change.fields}
+        assert "reasoning_enum_values" in changed

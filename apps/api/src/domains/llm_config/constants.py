@@ -13,10 +13,7 @@ Created: 2026-03-08
 from dataclasses import dataclass
 
 from src.core.llm_agent_config import LLMAgentConfig
-from src.core.reasoning_types import (
-    ReasoningEffortEnum,
-    ReasoningEffortToggleBudget,
-)
+from src.core.reasoning_intent import ReasoningIntent
 from src.domains.llm.models import LLMModelKindEnum
 
 # --- LLM Type Metadata ---
@@ -87,16 +84,9 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="Query Analyzer",
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.query_analyzer",
-        required_capabilities=[],
-        power_tier=POWER_TIER_HIGH,
-    ),
-    "router": LLMTypeMetadata(
-        llm_type="router",
-        display_name="Router",
-        category=CATEGORY_PIPELINE,
-        description_key="settings.admin.llmConfig.types.router",
+        # Verified at the call site: this slot asks the model for a schema.
         required_capabilities=["structured_output"],
-        power_tier=POWER_TIER_MEDIUM,
+        power_tier=POWER_TIER_HIGH,
     ),
     "planner": LLMTypeMetadata(
         llm_type="planner",
@@ -111,15 +101,8 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="Semantic Validator",
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.semantic_validator",
-        required_capabilities=[],
-        power_tier=POWER_TIER_MEDIUM,
-    ),
-    "context_resolver": LLMTypeMetadata(
-        llm_type="context_resolver",
-        display_name="Context Resolver",
-        category=CATEGORY_PIPELINE,
-        description_key="settings.admin.llmConfig.types.context_resolver",
-        required_capabilities=[],
+        # Verified at the call site: this slot asks the model for a schema.
+        required_capabilities=["structured_output"],
         power_tier=POWER_TIER_MEDIUM,
     ),
     # --- Domain Agents ---
@@ -315,7 +298,8 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="Memory Reference Extraction",
         category=CATEGORY_MEMORY,
         description_key="settings.admin.llmConfig.types.memory_reference_extraction",
-        required_capabilities=[],
+        # Verified at the call site: this slot asks the model for a schema.
+        required_capabilities=["structured_output"],
         power_tier=POWER_TIER_LOW,
     ),
     "open_loop_extraction": LLMTypeMetadata(
@@ -323,7 +307,8 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="Open Loop Extraction",
         category=CATEGORY_MEMORY,
         description_key="settings.admin.llmConfig.types.open_loop_extraction",
-        required_capabilities=[],
+        # Verified at the call site: this slot asks the model for a schema.
+        required_capabilities=["structured_output"],
         power_tier=POWER_TIER_LOW,
     ),
     "memory_reference_resolution": LLMTypeMetadata(
@@ -536,7 +521,8 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="Document Generation",
         category=CATEGORY_SPECIALIZED,
         description_key="settings.admin.llmConfig.types.document_generation",
-        required_capabilities=[],
+        # Verified at the call site: this slot asks the model for a schema.
+        required_capabilities=["structured_output"],
         power_tier=POWER_TIER_HIGH,
     ),
     # Voice STT (when user opts into the remote provider for the voice mode).
@@ -592,18 +578,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=180.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=4096),
-    ),
-    "context_resolver": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5-mini",
-        temperature=0.2,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=1000,
-        timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(budget_tokens=4096),
     ),
     "initiative": LLMAgentConfig(
         provider="qwen",
@@ -614,7 +589,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "planner": LLMAgentConfig(
         provider="qwen",
@@ -626,7 +601,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=10000,
         # ADR-221: p99 44.7s measured on 30d of production — 60s left 34% margin.
         timeout_seconds=90.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "query_analyzer": LLMAgentConfig(
         provider="qwen",
@@ -637,18 +612,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
-    ),
-    "router": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5-mini",
-        temperature=0.2,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=5000,
-        timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "semantic_pivot": LLMAgentConfig(
         provider="openai",
@@ -659,7 +623,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     "semantic_validator": LLMAgentConfig(
         provider="openai",
@@ -670,12 +634,12 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     # --- Domain Agents ---
     "brave_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -692,11 +656,11 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=50000,
         timeout_seconds=120.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "calendar_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -706,7 +670,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "contacts_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -716,7 +680,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "drive_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -726,7 +690,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "emails_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -736,7 +700,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "hue_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -753,7 +717,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=50000,
         timeout_seconds=120.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=16384),
+        reasoning_effort=ReasoningIntent(budget_tokens=16384),
     ),
     # ADR-070: ReAct Execution Mode — autonomous reasoning loop (pipeline alternative)
     "react_agent": LLMAgentConfig(
@@ -765,11 +729,11 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=50000,
         timeout_seconds=120.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=16384),
+        reasoning_effort=ReasoningIntent(budget_tokens=16384),
     ),
     "perplexity_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -779,7 +743,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "places_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -789,7 +753,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "routes_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -806,11 +770,11 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "tasks_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -820,7 +784,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "weather_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -830,7 +794,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "health_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -842,7 +806,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     # small deterministic model, same profile as the other domain agents.
     "telephony_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -852,7 +816,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "web_fetch_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.3,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -862,7 +826,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "web_search_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.3,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -872,7 +836,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "wikipedia_agent": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -890,7 +854,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "response": LLMAgentConfig(
         provider="qwen",
@@ -904,12 +868,12 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         # The chat path keeps its tighter 60s wait_for barrier (UX bound); this
         # value also covers the slot's barrier-less callers (reminders).
         timeout_seconds=120.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     # --- HITL ---
     "hitl_classifier": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -926,7 +890,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.3,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "hitl_question_generator": LLMAgentConfig(
         provider="qwen",
@@ -937,7 +901,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.3,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     # --- Memory ---
     "memory_extraction": LLMAgentConfig(
@@ -949,7 +913,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortEnum(effort="low"),
+        reasoning_effort=ReasoningIntent(level="low"),
     ),
     "open_loop_extraction": LLMAgentConfig(
         provider="openai",
@@ -961,11 +925,11 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=800,
         # ADR-221: p99 35.1s measured on 30d of production — 45s left 28% margin.
         timeout_seconds=90.0,
-        reasoning_effort=ReasoningEffortEnum(effort="low"),
+        reasoning_effort=ReasoningIntent(level="low"),
     ),
     "memory_reference_extraction": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -985,12 +949,12 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     # --- Background ---
     "briefing": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.7,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -1007,7 +971,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     # every call). Calibrated like heartbeat_decision (same shape of task).
     "telephony_synthesis": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.4,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -1024,14 +988,14 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     # Personality title/description translation — preserves the previous
     # hardcoded behavior (gpt-4.1-nano, temp 0.3, 500 tokens) as code default;
     # now overridable from the admin LLM Configuration UI (N-219.1).
     "personality_translation": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.3,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -1050,7 +1014,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         # ADR-221: p99 59.7s AND 2 calls beyond 60s measured on 30d of
         # production — the old 60s would have cut calls that succeed today.
         timeout_seconds=120.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=4096),
+        reasoning_effort=ReasoningIntent(budget_tokens=4096),
     ),
     "heartbeat_message": LLMAgentConfig(
         provider="qwen",
@@ -1061,7 +1025,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "interest_content": LLMAgentConfig(
         provider="qwen",
@@ -1074,7 +1038,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         # ADR-221: p99 at the 60s bucket edge AND 1 call beyond 60s measured on
         # 30d of production — the old 60s would have cut calls that succeed.
         timeout_seconds=120.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=False),
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     "interest_extraction": LLMAgentConfig(
         provider="openai",
@@ -1085,7 +1049,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=500,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortEnum(effort="low"),
+        reasoning_effort=ReasoningIntent(level="low"),
     ),
     "journal_consolidation": LLMAgentConfig(
         provider="qwen",
@@ -1096,7 +1060,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=10000,
         timeout_seconds=180.0,
-        reasoning_effort=ReasoningEffortToggleBudget(enabled=True, budget=4096),
+        reasoning_effort=ReasoningIntent(budget_tokens=4096),
     ),
     "journal_extraction": LLMAgentConfig(
         provider="openai",
@@ -1107,7 +1071,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortEnum(effort="low"),
+        reasoning_effort=ReasoningIntent(level="low"),
     ),
     "psyche_summary": LLMAgentConfig(
         provider="openai",
@@ -1118,7 +1082,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     # --- Specialized ---
     "evaluator": LLMAgentConfig(
@@ -1131,9 +1095,11 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=1000,
         timeout_seconds=30.0,
     ),
+    # gpt-image-1 retires 2026-10-23; gpt-image-2 is what the reference seed
+    # already pins for this slot (its llm_models row was missing until ADR-244).
     "image_generation": LLMAgentConfig(
         provider="openai",
-        model="gpt-image-1",
+        model="gpt-image-2",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
@@ -1199,7 +1165,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     "mcp_app_react_agent": LLMAgentConfig(
         provider="anthropic",
@@ -1213,7 +1179,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=50000,
         timeout_seconds=120.0,
-        reasoning_effort=ReasoningEffortEnum(effort="medium"),
+        reasoning_effort=ReasoningIntent(level="medium"),
     ),
     "skill_description_translator": LLMAgentConfig(
         provider="openai",
@@ -1224,7 +1190,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     "vision_analysis": LLMAgentConfig(
         provider="openai",
@@ -1235,7 +1201,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=5000,
         timeout_seconds=60.0,
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     "voice_comment": LLMAgentConfig(
         provider="openai",

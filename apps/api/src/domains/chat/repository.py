@@ -121,6 +121,10 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                 - cost_usd: Decimal
                 - cost_eur: Decimal
                 - usd_to_eur_rate: Decimal
+                - latency_ms: int | None (ADR-244 observation)
+                - status: str | None ("success" / "error")
+                - failure_kind: str | None (an LLM_FAILURE_KINDS member)
+                - llm_type: str | None (the configured slot)
 
         Returns:
             List of created TokenUsageLog objects
@@ -146,6 +150,10 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                     cost_usd=Decimal(str(log_data["cost_usd"])),
                     cost_eur=Decimal(str(log_data[FIELD_COST_EUR])),
                     usd_to_eur_rate=log_data.get("usd_to_eur_rate"),
+                    latency_ms=log_data.get("latency_ms"),
+                    status=log_data.get("status"),
+                    failure_kind=log_data.get("failure_kind"),
+                    llm_type=log_data.get("llm_type"),
                 )
                 log_entries.append(log_entry)
 

@@ -32,7 +32,7 @@ Usage:
     >>> # Use with LangChain via instrumentation layer
     >>> from src.infrastructure.llm.instrumentation import create_instrumented_config
     >>> config = create_instrumented_config(
-    ...     llm_type="router",
+    ...     llm_type="planner",
     ...     session_id="conv_123",
     ...     user_id="user_456",
     ...     tags=["production"],
@@ -276,7 +276,7 @@ class CallbackFactory:
             >>> # ✅ CORRECT - Use instrumentation helper
             >>> from src.infrastructure.llm.instrumentation import create_instrumented_config
             >>> config = create_instrumented_config(
-            ...     llm_type="router",
+            ...     llm_type="planner",
             ...     session_id="session_123",
             ...     user_id="user_456",
             ...     tags=["production"]
@@ -460,7 +460,7 @@ def get_callback_factory() -> CallbackFactory | None:
         >>> factory = get_callback_factory()
         >>> if factory and factory.is_enabled():
         ...     config = create_instrumented_config(
-        ...         llm_type="router",
+        ...         llm_type="planner",
         ...         session_id="conv_123"
         ...     )
         ...     response = llm.invoke(messages, config=config)

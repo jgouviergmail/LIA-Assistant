@@ -36,20 +36,17 @@ const {
   updateLLMPricing,
   deactivateLLMPricing,
   reloadLLMPricingCache,
-  fetchReasoningTemplates,
 } = vi.hoisted(() => ({
   createLLMPricing: vi.fn(),
   updateLLMPricing: vi.fn(),
   deactivateLLMPricing: vi.fn(),
   reloadLLMPricingCache: vi.fn(),
-  fetchReasoningTemplates: vi.fn(),
 }));
 vi.mock('@/lib/actions/settings-actions', () => ({
   createLLMPricing,
   updateLLMPricing,
   deactivateLLMPricing,
   reloadLLMPricingCache,
-  fetchReasoningTemplates,
 }));
 const { invalidateCatalogue } = vi.hoisted(() => ({ invalidateCatalogue: vi.fn() }));
 vi.mock('@/lib/catalogue-invalidation-context', () => ({
@@ -92,7 +89,6 @@ beforeEach(() => {
   updateLLMPricing.mockResolvedValue({ success: true, message: 'updated' });
   deactivateLLMPricing.mockResolvedValue({ success: true, message: 'disabled' });
   reloadLLMPricingCache.mockResolvedValue({ success: true, message: 'reloaded' });
-  fetchReasoningTemplates.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -117,6 +113,32 @@ describe('AdminLLMPricingSection — listing', () => {
     await renderLoaded([makeLLMPricing(), makeLLMPricing({ id: 'm2', model_name: 'gpt-y' })]);
     expect(screen.getByText('claude-x')).toBeInTheDocument();
     expect(screen.getByText('gpt-y')).toBeInTheDocument();
+  });
+
+  it('shows, per row, who filled the capabilities (ADR-244)', async () => {
+    // The registries corrected 83 rows and nothing said so on this screen: an
+    // operator could not tell a measured context window from the column
+    // default nobody curated.
+    await renderLoaded([
+      makeLLMPricing({ capability_provenance: 'declared' }),
+      makeLLMPricing({ id: 'm2', model_name: 'gpt-y', capability_provenance: 'verified' }),
+    ]);
+    expect(
+      screen.getByText('settings.admin.llm.catalogue.provenance.declared')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('settings.admin.llm.catalogue.provenance.verified')
+    ).toBeInTheDocument();
+  });
+
+  it('shows a published retirement date, and only when there is one', async () => {
+    await renderLoaded([
+      makeLLMPricing({ deprecation_date: '2026-10-23' }),
+      makeLLMPricing({ id: 'm2', model_name: 'gpt-y', deprecation_date: null }),
+    ]);
+    expect(screen.getByText('2026-10-23')).toBeInTheDocument();
+    // The row without a date carries no empty badge.
+    expect(screen.getAllByText(/^\d{4}-\d{2}-\d{2}$/)).toHaveLength(1);
   });
 
   it('reports a genuine fetch failure', async () => {
@@ -246,7 +268,9 @@ describe('AdminLLMPricingSection — section toolbar (ADR-208)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: `${I18N}.sheet.import` }));
 
-    expect(await screen.findByRole('dialog', { name: `${I18N}.sheet.import_title` })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('dialog', { name: `${I18N}.sheet.import_title` })
+    ).toBeInTheDocument();
   });
 
   it('states how many models it is showing', async () => {

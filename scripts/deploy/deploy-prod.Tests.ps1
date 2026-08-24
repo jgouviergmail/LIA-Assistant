@@ -134,6 +134,13 @@ FERNET_KEY=fake-fernet
     # invocation to $env:SHIM_LOG. ssh is scriptable via SSH_MODE:
     #   ok (default) | fail_twice (RETRY_COUNTER) | always_fail | fail_deploy
     #   | bad_perms (SEC-013: hardening reports modes that were NOT applied)
+    #   | empty_transfer (the transport moved nothing and said nothing)
+    #
+    # The shim also answers the transfer postcondition: the driver asks the host
+    # how many entries landed in the staging directory, because a transport can
+    # fail and still report success (measured 2026-08-24 on a real deployment --
+    # rsync exited 255 from WSL, zero bytes moved, and four further steps ran
+    # before one noticed). `empty_transfer` returns the 0 that must stop it.
     #
     # The shim answers the permission-hardening step with the `stat` readback
     # the driver parses. `bad_perms` returns the modes an unreported chmod
@@ -149,6 +156,7 @@ FERNET_KEY=fake-fernet
         $sshBat = @'
 @echo off
 echo ssh %* >> "%SHIM_LOG%"
+echo %* | findstr /C:"wc -l" >nul && goto :verify
 if "%SSH_MODE%"=="always_fail" exit /b 9
 if "%SSH_MODE%"=="fail_deploy" goto :faildeploy
 if "%SSH_MODE%"=="fail_twice" goto :failtwice
@@ -174,10 +182,20 @@ echo PERMS_ENV=644
 echo PERMS_DIR=755
 echo PERMS_DEMO=600
 exit /b 0
+:verify
+if "%SSH_MODE%"=="empty_transfer" echo 0
+if not "%SSH_MODE%"=="empty_transfer" echo 12
+exit /b 0
 '@
         $sshSh = @'
 #!/bin/sh
 echo "ssh $@" >> "$SHIM_LOG"
+case "$*" in
+  *"wc -l"*)
+    if [ "$SSH_MODE" = "empty_transfer" ]; then echo 0; else echo 12; fi
+    exit 0
+    ;;
+esac
 [ "$SSH_MODE" = "always_fail" ] && exit 9
 if [ "$SSH_MODE" = "fail_deploy" ]; then
   case "$*" in *deploy.sh*) exit 5 ;; esac
@@ -670,6 +688,42 @@ Describe "deploy-prod.ps1 refuses to deploy on unhardened secrets (SEC-013)" {
 # ============================================================================
 # Happy path end-to-end + step-8 home portability (pwsh/Unix)
 # ============================================================================
+Describe "deploy-prod.ps1 refuses a transfer that moved nothing" {
+    # The defect this pins cost a real deployment on 2026-08-24: WSL had no
+    # route to the host, rsync exited 255 having moved zero bytes, and the
+    # driver printed "Fichiers copies avec rsync" and carried on. Four steps
+    # later it failed on a missing deploy.sh -- by which point it had already
+    # wiped the staging directory and pushed secrets to the host.
+    #
+    # Absence of an exception is not proof of delivery: the transfer is a
+    # promise, and this is the postcondition that makes it one.
+    BeforeAll {
+        $proj = New-DeploySandbox $TestDrive
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-empty-transfer.log"
+        $script:emptyLog = $log
+        $script:r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "empty_transfer" }
+    }
+
+    It "exits non-zero instead of announcing a successful copy" {
+        $r.ExitCode | Should -Not -Be 0
+        $r.Output | Should -Match "Transfert INCOMPLET"
+    }
+
+    It "says the production was not touched" {
+        $r.Output | Should -Match "n'a PAS ete touchee"
+    }
+
+    It "never reaches the remote deploy step" {
+        # The whole point: stopping BEFORE the swap, not after it. Asserted on
+        # the INVOCATION (`chmod +x`), not on the file name -- the verification
+        # probe names deploy.sh too, which is precisely how it checks.
+        (Get-Content $emptyLog -Raw) | Should -Not -Match "chmod \+x deploy"
+    }
+}
+
 Describe "deploy-prod.ps1 full happy path (hermetic)" {
     BeforeAll {
         $proj = New-DeploySandbox $TestDrive

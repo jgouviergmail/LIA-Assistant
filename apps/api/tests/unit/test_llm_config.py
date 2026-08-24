@@ -22,51 +22,6 @@ TEST_FERNET_KEY = "dW5pdC10ZXN0LWZlcm5ldC1rZXktMDEyMzQ1Njc4OWE="
 class TestSettingsLLMDefaults:
     """Test default values for LLM configuration in Settings."""
 
-    def test_router_llm_defaults(self):
-        """Test router LLM has correct default values from config.py.
-
-        Note: This test verifies config.py defaults match expected values.
-        We explicitly set the values to match config.py defaults to ensure
-        environment variables from .env don't interfere.
-        """
-        # Use clear=False to preserve system env vars (PATH, etc.) and explicitly
-        # set all router-related values to match config.py defaults
-        with patch.dict(
-            os.environ,
-            {
-                "SECRET_KEY": "test_secret_key_minimum_32_characters_long",
-                "FERNET_KEY": TEST_FERNET_KEY,
-                "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
-                "REDIS_URL": "redis://localhost:6379/0",
-                "OPENAI_API_KEY": "sk-test-key",
-                # Router config - explicitly set to config.py defaults
-                "ROUTER_LLM_MODEL": "gpt-4.1-mini",
-                "ROUTER_LLM_TEMPERATURE": "0.1",  # config.py default
-                "ROUTER_LLM_TOP_P": "1.0",  # config.py default
-                "ROUTER_LLM_FREQUENCY_PENALTY": "0.0",  # config.py default
-                "ROUTER_LLM_PRESENCE_PENALTY": "0.0",  # config.py default
-                "ROUTER_LLM_MAX_TOKENS": "5000",  # config.py default
-                "ROUTER_CONFIDENCE_THRESHOLD": "0.6",  # config.py default
-                # Required LLM models (Phase 3 HITL additions)
-                "HITL_CLASSIFIER_LLM_MODEL": "gpt-4.1-mini",
-                "HITL_QUESTION_GENERATOR_LLM_MODEL": "gpt-4.1-mini",
-                "HITL_PLAN_APPROVAL_QUESTION_LLM_MODEL": "gpt-4.1-mini",
-                "PLANNER_LLM_MODEL": "gpt-4.1-mini",
-                "SEMANTIC_VALIDATOR_LLM_MODEL": "gpt-4.1-mini",
-            },
-            clear=False,  # Preserve system env vars to avoid import issues
-        ):
-            settings = Settings(_env_file=None)  # Disable .env loading for clean test
-
-            # Verify router defaults (config.py values)
-            # NOTE: router_confidence_threshold removed (v3.2 - QueryAnalyzerService handles thresholds)
-            assert settings.router_llm_model == "gpt-4.1-mini"
-            assert settings.router_llm_temperature == 0.1
-            assert settings.router_llm_top_p == 1.0
-            assert settings.router_llm_frequency_penalty == 0.0
-            assert settings.router_llm_presence_penalty == 0.0
-            assert settings.router_llm_max_tokens == 5000
-
     def test_response_llm_defaults(self):
         """Test response LLM has correct default values from config.py.
 
@@ -121,7 +76,7 @@ class TestSettingsLLMValidation:
                 "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
-                "ROUTER_LLM_TEMPERATURE": "-0.1",
+                "RESPONSE_LLM_TEMPERATURE": "-0.1",
             },
             clear=True,
         ):
@@ -153,7 +108,7 @@ class TestSettingsLLMValidation:
                 "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
-                "ROUTER_LLM_TOP_P": "-0.1",
+                "RESPONSE_LLM_TOP_P": "-0.1",
             },
             clear=True,
         ):
@@ -185,7 +140,7 @@ class TestSettingsLLMValidation:
                 "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
-                "ROUTER_LLM_FREQUENCY_PENALTY": "-2.1",
+                "RESPONSE_LLM_FREQUENCY_PENALTY": "-2.1",
             },
             clear=True,
         ):
@@ -217,7 +172,7 @@ class TestSettingsLLMValidation:
                 "FERNET_KEY": TEST_FERNET_KEY,
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
-                "ROUTER_LLM_PRESENCE_PENALTY": "-2.1",
+                "RESPONSE_LLM_PRESENCE_PENALTY": "-2.1",
             },
             clear=True,
         ):
@@ -250,10 +205,6 @@ class TestSettingsLLMValidation:
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379/0",
                 "OPENAI_API_KEY": "sk-test-key",
-                "ROUTER_LLM_TEMPERATURE": "0.0",
-                "ROUTER_LLM_TOP_P": "0.5",
-                "ROUTER_LLM_FREQUENCY_PENALTY": "1.0",
-                "ROUTER_LLM_PRESENCE_PENALTY": "-1.0",
                 "RESPONSE_LLM_TEMPERATURE": "2.0",
                 "RESPONSE_LLM_TOP_P": "1.0",
                 "RESPONSE_LLM_FREQUENCY_PENALTY": "-2.0",
@@ -270,10 +221,6 @@ class TestSettingsLLMValidation:
             settings = Settings(_env_file=None)
 
             # Verify custom values are accepted
-            assert settings.router_llm_temperature == 0.0
-            assert settings.router_llm_top_p == 0.5
-            assert settings.router_llm_frequency_penalty == 1.0
-            assert settings.router_llm_presence_penalty == -1.0
             assert settings.response_llm_temperature == 2.0
             assert settings.response_llm_top_p == 1.0
             assert settings.response_llm_frequency_penalty == -2.0

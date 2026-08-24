@@ -8,9 +8,9 @@
 The matrix below documents **family-level** behaviour for human reference. The runtime authority is the `llm_models` catalogue in DB:
 
 - 4 sampling acceptance flags per row: `supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`.
-- 1 reasoning shape declaration per row: `reasoning_widget` ∈ `{none, enum, budget_int, toggle_budget}`, plus widget-conditional `reasoning_enum_values` (JSONB list) or `reasoning_budget_range` (JSONB `{min, max, off_sentinel, dynamic_sentinel}`).
+- **No reasoning shape declaration** since ADR-245 (v1.32.0). The accepted ladder is DERIVED from `(provider, model)` by `resolve_reasoning_profile` (`apps/api/src/infrastructure/llm/reasoning/profiles.py`), and the catalogue keeps exactly one say in it: `reasoning_enum_values` (JSONB list) may NARROW that ladder, never widen it. The columns that used to declare the shape — `reasoning_widget`, `reasoning_budget_range` — are dropped.
 
-`AdminLLMConfigSection.tsx` reads these flags **per individual model** to decide which sliders to show — replacing the legacy `getModelConstraints()` regex matcher. `ProviderAdapter` still does final stripping at API call time, so the admin UI and the runtime stay aligned. See [LLM_CONFIG_ADMIN.md](./LLM_CONFIG_ADMIN.md) for the admin form details and [LLM_PRICING_TEMPLATES.md](./LLM_PRICING_TEMPLATES.md) for the reasoning shape template mechanism that lets new models inherit a known shape.
+`AdminLLMConfigSection.tsx` reads these flags **per individual model** to decide which sliders to show — replacing the legacy `getModelConstraints()` regex matcher. `ProviderAdapter` still does final stripping at API call time, so the admin UI and the runtime stay aligned. See [LLM_CONFIG_ADMIN.md](./LLM_CONFIG_ADMIN.md) for the admin form details and [LLM_REASONING_IDENTITY.md](./LLM_REASONING_IDENTITY.md) for how a model's reasoning identity is written — checkboxes on its family's resolved ladder, which the column may only NARROW.
 
 ## Quick Reference Matrix
 
@@ -32,7 +32,7 @@ The matrix below documents **family-level** behaviour for human reference. The r
 
 ¹ Anthropic: `top_p` technically supported but mutually exclusive with `temperature` (Claude 4.5+ rejects both together). Our adapter drops `top_p` defensively.
 
-² Gemini: `reasoning_effort` maps to `thinking_budget` (2.5, `budget_int`) or `thinking_level` (3.x, `enum`) — NO silent `medium → low` remap (the matrix exposes only accepted values). `include_thoughts=True` is set alongside (config-driven, by `build_gemini_reasoning`) so the configured thoughts surface in the stream; the live reasoning stream does NOT inject it.
+² Gemini: the intent's level renders as `thinking_budget` (2.5) or `thinking_level` (3.x), decided by the resolved family — NO silent `medium → low` remap; a level the family does not offer is coerced to the nearest one it does, and the move is counted (`llm_reasoning_coerced_total`). `include_thoughts=True` is set alongside (config-driven, by the Gemini renderer in `reasoning/translate.py`) so the configured thoughts surface in the stream; the live reasoning stream does NOT inject it.
 
 ³ Perplexity: `frequency_penalty` uses multiplicative range (1.0 = no penalty, 2.0 = maximum). Different semantics from OpenAI's additive range.
 
@@ -41,9 +41,9 @@ The matrix below documents **family-level** behaviour for human reference. The r
 ⁶ DeepSeek V4: temperature/top_p/penalties are **silently ignored by the API** when thinking is enabled (`reasoning_effort != none`). Our adapter strips them locally for honesty so the request log matches what the model actually consumes.
 
 ⁷ Anthropic extended thinking (verified on Anthropic docs, 2026-05):
-- **opus-4-6 / sonnet-4-6**: adaptive thinking. `reasoning_widget='enum'` with values `["off","low","medium","high","max"]` (`off` = no thinking). `build_anthropic_reasoning` emits `thinking={"type":"adaptive"}` + `effort=<value>`.
-- **opus-4-5 / haiku-4-5**: manual thinking. `reasoning_widget='toggle_budget'`, budget bounded 1024–16384. Emits `thinking={"type":"enabled","budget_tokens":N}`.
-- **Temperature constraint**: Anthropic rejects a custom `temperature`/`top_p` while thinking is enabled. The admin UI locks those fields when reasoning is enabled (`anthropicThinkingActive`), the service forces them to `None`, and the adapter omits `temperature` from the payload (`temperature_override="__OMIT__"`). When reasoning is `off`/disabled, temperature is editable normally.
+- **opus-4-6 / sonnet-4-6**: adaptive thinking, family `anthropic_adaptive`. The ladder is `["none","low","medium","high","max"]` (`none` = no thinking — it replaced the `off` spelling, which was not a level and left a ladder with no off switch when intersected). Renders `thinking={"type":"adaptive"}` + `effort=<level>`.
+- **opus-4-5 / haiku-4-5 / opus-4 / sonnet-4**: manual thinking, family `anthropic_budget`, ladder `["none","minimal","low","medium","high","xhigh"]`, budget bounded 1024–128000 **by the family** — the bound the validator enforces is the one the admin UI is shown, because both read the same resolved profile. Renders `thinking={"type":"enabled","budget_tokens":N}`.
+- **Temperature constraint**: Anthropic rejects a custom `temperature`/`top_p` while thinking is enabled. The admin UI locks those fields when reasoning is enabled (`anthropicThinkingActive`), the service forces them to `None`, and the adapter omits `temperature` from the payload (`temperature_override="__OMIT__"`). When reasoning is `none`/disabled, temperature is editable normally.
 - The live reasoning stream injects **nothing** — reasoning is enabled solely by this config-driven setup, so a "thinking" block appears only for agents the admin actually enabled reasoning on.
 
 ---

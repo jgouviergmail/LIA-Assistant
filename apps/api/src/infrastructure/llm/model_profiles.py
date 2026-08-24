@@ -27,6 +27,7 @@ from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from src.core.constants import CAPABILITY_PROVENANCE_DECLARED
 from src.core.llm_utils import normalize_model_name
 from src.infrastructure.observability.logging import get_logger
 
@@ -64,17 +65,16 @@ class ModelProfile:
         kind: Model classification (chat / image / audio / realtime / tts /
             embedding) used for UI filtering. Defaults to ``"chat"`` so legacy
             callers / fallback profiles remain valid.
-        reasoning_widget: UI widget shape declared on ``llm_models`` —
-            one of ``none / enum / budget_int / toggle_budget``. Default is
-            ``"none"`` so models not yet covered by the matrix are safely
-            non-reasoning in the UI.
-        reasoning_enum_values: Ordered list of accepted enum values when
-            ``reasoning_widget == "enum"``. ``None`` otherwise.
-        reasoning_budget_range: ``{"min", "max", "off_sentinel",
-            "dynamic_sentinel"}`` when ``reasoning_widget`` is budget-based.
-            ``None`` otherwise.
+        reasoning_enum_values: The ladder narrowing — the ONE catalogue value
+            the reasoning resolution reads. It may only narrow the family's
+            ladder (``resolve_reasoning_profile``), never widen it. ``None`` =
+            the family's own ladder applies.
         reasoning_doc_i18n_key: Frontend lookup key for the English-only
             documentation string shown next to the widget.
+        capability_provenance: Which authority filled the capability fields —
+            ``declared`` (column defaults nobody curated), ``imported`` (from
+            the vendored registry snapshot) or ``verified`` (a human
+            confirmed). ``declared`` must not beat ``MODEL_CONTEXT_WINDOWS``.
         metadata: Additional provider-specific metadata
     """
 
@@ -99,13 +99,11 @@ class ModelProfile:
     # see docs/superpowers/specs/2026-05-06-llm-reasoning-effort-overhaul-design.md).
     model_id: str = ""
     kind: str = "chat"
-    reasoning_widget: str = "none"
     reasoning_enum_values: list[str] | None = None
-    reasoning_budget_range: dict[str, Any] | None = None
     reasoning_doc_i18n_key: str | None = None
-    # Separate global 'effort' control (Anthropic output_config.effort), distinct
-    # from reasoning_effort. None = no separate effort field (currently opus-4-5 only).
-    effort_values: list[str] | None = None
+    #: Which authority filled the capability fields — ``declared`` means the
+    #: column defaults nobody curated, and must not beat MODEL_CONTEXT_WINDOWS.
+    capability_provenance: str = CAPABILITY_PROVENANCE_DECLARED
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

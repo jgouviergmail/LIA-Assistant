@@ -38,8 +38,10 @@ _REFERENCE_MATRIX: dict[str, tuple[str, list[str] | None, dict[str, Any] | None]
     # produced by the seed and the real Anthropic API model id; the spec
     # section 8.1 lists ``["low", "medium", "high", "max"]``.
     "claude-opus-4-6": ("enum", ["low", "medium", "high", "max"], None),
-    # OpenAI image model (no reasoning) used by image_generation
-    "gpt-image-1": ("none", None, None),
+    # OpenAI image model (no reasoning) used by image_generation. gpt-image-1
+    # retires 2026-10-23 (ADR-244); the slot now defaults to gpt-image-2, which
+    # the reference seed already pinned.
+    "gpt-image-2": ("none", None, None),
     # Qwen toggle_budget models used in defaults
     "qwen3.5-plus": ("toggle_budget", None, {"min": 0, "max": 32768}),
     "qwen3.5-flash": ("toggle_budget", None, {"min": 0, "max": 32768}),

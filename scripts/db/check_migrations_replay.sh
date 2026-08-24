@@ -28,6 +28,15 @@
 # ``src/infrastructure/database/schema_drift.py``, shared with ``alembic/env.py``.
 set -euo pipefail
 
+# ``alembic`` the console script SEGFAULTS in the dev container: debugpy is
+# attached there, and pydevd against Python 3.14's frozen stdlib modules
+# produces a core dump partway through the chain (always at a different
+# migration, which is what makes it look like a data problem). Running the
+# module with ``-X frozen_modules=off`` is the documented fix, and it is inert
+# in CI, where nothing is attached. Same reason the dev container's own
+# entrypoint passes it.
+alembic() { python -X frozen_modules=off -m alembic "$@"; }
+
 echo "==> [1/6] alembic upgrade head (replay the full chain on an empty database)"
 alembic upgrade head
 

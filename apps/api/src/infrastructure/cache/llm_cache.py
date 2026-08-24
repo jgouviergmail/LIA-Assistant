@@ -195,7 +195,7 @@ def _generate_cache_key(
                             "llm_cache:{func_name}:global:{hash}" if no user_id
 
     Example:
-        >>> _generate_cache_key("router", ("hello",), {"model": "gpt-4"}, user_id="user123")
+        >>> _generate_cache_key("planner", ("hello",), {"model": "gpt-4"}, user_id="user123")
         "llm_cache:router:user123:a1b2c3..."
     """
     # Phase 6: Exclude 'config' from cache key (observability metadata)

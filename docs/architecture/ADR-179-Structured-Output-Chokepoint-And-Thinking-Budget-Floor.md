@@ -4,6 +4,15 @@
 **Date**: 2026-07-29
 **Décideurs**: Utilisateur (verrou systémique approuvé « avec un message explicite pour l'utilisateur ») + investigation prod
 
+> **Note de mise à jour (2026-08-27, v1.32.0)** — la décision de cet ADR (le
+> chokepoint gardé par AST et le plancher de budget) reste en vigueur. Seul le
+> mécanisme cité dans les alternatives a changé : les **formes stockées** du
+> raisonnement et le `reasoning_widget` qui les discriminait n'existent plus
+> ([ADR-245](ADR-245-Reasoning-Unification.md)). Le prédicat de lourdeur lit
+> désormais le `level` d'un `ReasoningIntent` unique, ce qui rend l'argument
+> d'alors — « ne pas dupliquer la connaissance des constructeurs » — plus vrai
+> encore : il n'y a plus qu'un traducteur.
+
 ## Contexte
 
 Incident production du 2026-07-29 (second signalement utilisateur sur le même

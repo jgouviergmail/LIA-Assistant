@@ -13,9 +13,17 @@ while ! pg_isready -h "${POSTGRES_HOST:-postgres}" -U "${POSTGRES_USER:-postgres
 done
 echo "PostgreSQL is ready"
 
-# Run migrations
+# Run migrations.
+#
+# Invoked as a MODULE with frozen modules off, never as the `alembic` console
+# script: the dev image attaches debugpy, and pydevd against Python 3.14's
+# frozen stdlib segfaults partway through the chain -- always at a different
+# migration, which is what makes it look like a data problem rather than a
+# debugger one. Measured 2026-08-23: a plain `alembic upgrade head` core-dumped
+# on restart and left the API down with the scheduler still ticking. The flag is
+# inert when nothing is attached, so production pays nothing for it.
 echo "Running database migrations..."
-alembic upgrade head
+python -X frozen_modules=off -m alembic upgrade head
 echo "Database migrations completed successfully"
 
 # Reference content for a FRESH install (personalities, LLM pricing).

@@ -36,7 +36,6 @@ def validate_llm_configuration() -> None:
 
     # Critical LLM types that must have defaults defined
     required_llm_types = [
-        "router",
         "response",
         "planner",
         "contacts_agent",
@@ -56,7 +55,6 @@ def validate_llm_configuration() -> None:
     # Log successful validation with effective models from LLM_DEFAULTS
     logger.info(
         "llm_configuration_validated",
-        router_model=LLM_DEFAULTS["router"].model,
         response_model=LLM_DEFAULTS["response"].model,
         planner_model=LLM_DEFAULTS["planner"].model,
         contacts_agent_model=LLM_DEFAULTS["contacts_agent"].model,
@@ -67,19 +65,22 @@ def validate_llm_configuration() -> None:
 
 
 def validate_llm_defaults_against_matrix() -> None:
-    """Sanity check: every LLM_DEFAULTS entry must be compatible with its
-    model's reasoning_widget on ``llm_models``. Fail-fast at boot if any
-    drift exists (e.g. a future LLM_DEFAULTS edit that didn't keep the
-    matrix in sync).
+    """Sanity check: every LLM_DEFAULTS entry asks its model for a level it offers.
 
-    Reuses the same ``validate_reasoning_effort`` function as the admin
-    write path, so the parametrized matrix tests in
-    ``test_reasoning_validation.py`` also cover the boot-time path.
+    Fail-fast at boot on any drift — typically a future ``LLM_DEFAULTS`` edit
+    that moves a slot to a model whose ladder does not carry the level it
+    already declared.
+
+    Reuses the same ``validate_reasoning_effort`` the admin write path calls,
+    so its tests cover the boot-time path too. Since ADR-245 that function
+    answers one question — is this level on the model's RESOLVED ladder? — and
+    resolves it through ``resolve_reasoning_profile``, the function the runtime
+    translator also uses; the catalogue's ``reasoning_widget`` column is not
+    consulted by either.
 
     Raises:
-        RuntimeError: When any LLM_DEFAULTS entry has a ``reasoning_effort``
-        incompatible with its model's ``reasoning_widget`` /
-        ``reasoning_enum_values`` / ``reasoning_budget_range``.
+        RuntimeError: When an ``LLM_DEFAULTS`` entry declares a reasoning level
+        its model does not offer, or a token budget its family cannot express.
 
     Note:
         Must be called AFTER ``ModelCapabilitiesCache.load_from_db()`` so the
@@ -117,7 +118,7 @@ def validate_llm_defaults_against_matrix() -> None:
             )
             continue
         try:
-            validate_reasoning_effort(caps, cfg.reasoning_effort)
+            validate_reasoning_effort(caps, cfg.reasoning_effort, cfg.provider)
             # Thinking × completion-budget coherence: a default that enables
             # substantial reasoning must also carry a max_tokens that survives
             # it (same rule as the admin write path — prod 2026-07-29).

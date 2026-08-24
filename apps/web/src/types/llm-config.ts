@@ -2,10 +2,12 @@
  * LLM Configuration Admin types.
  * Mirrors backend Pydantic schemas for type safety.
  *
- * reasoning_effort is now a discriminated union (matches backend
- * src/core/reasoning_types.py + ModelCapabilities.reasoning_widget). The
- * shape is dispatched on the model's reasoning_widget — see ReasoningWidget
- * component for rendering and adapter.py for serialization rules.
+ * reasoning_effort is ONE shape for every provider (ADR-245): an ordinal level,
+ * an optional token budget and an orthogonal exclude-from-output flag. It
+ * replaced a four-member discriminated union dispatched on the model's
+ * reasoning_widget column — three authorities that had to agree, and did not.
+ * What a given model accepts now travels with the model, in the resolved
+ * profile ModelCapabilities publishes.
  */
 
 // --- Provider Keys ---
@@ -28,26 +30,40 @@ export interface ProviderKeyUpdate {
 
 // --- Reasoning Effort ---
 
-/** Widget type declared per model on llm_models.reasoning_widget. Drives
- * the rendering of the ReasoningWidget component. */
-export type ReasoningWidgetType = 'none' | 'enum' | 'budget_int' | 'toggle_budget';
+/** The ordinal ladder, ascending. Mirrors backend `core.reasoning_intent.LEVELS`.
+ * `provider_default` is the identity — it asks for nothing and produces no
+ * kwarg on any provider — which is why it sits at the bottom and is never a
+ * coercion target. */
+export const REASONING_LEVELS = [
+  'provider_default',
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const;
 
-/** Numeric range for budget-based reasoning widgets. Mirrors backend
- * ReasoningBudgetRange in src/core/reasoning_types.py. */
+export type ReasoningLevel = (typeof REASONING_LEVELS)[number];
+
+/** Numeric budget range a model accepts, as RESOLVED by the backend profile —
+ * the same bounds its validator enforces. Mirrors backend ReasoningBudgetRange. */
 export interface ReasoningBudgetRange {
   min: number;
   max: number;
-  off_sentinel?: number | null;
-  dynamic_sentinel?: number | null;
 }
 
-/** Discriminated union for reasoning_effort storage. Shape follows the
- * model's reasoning_widget. Mirrors backend ReasoningEffortValue. */
-export type ReasoningEffortValue =
-  | { effort: string } // widget=enum
-  | { budget: number } // widget=budget_int
-  | { enabled: boolean; budget?: number | null } // widget=toggle_budget
-  | null;
+/** The single stored shape of reasoning_effort. Mirrors backend
+ * `ReasoningIntent`. `null` means no override: the model's own default applies. */
+export interface ReasoningIntentValue {
+  level: ReasoningLevel;
+  budget_tokens: number | null;
+  exclude_from_output: boolean;
+}
+
+/** What the form and the API carry: an intent, or nothing. */
+export type ReasoningEffortValue = ReasoningIntentValue | null;
 
 // --- LLM Agent Config ---
 
@@ -62,8 +78,6 @@ export interface LLMAgentConfig {
   max_tokens: number;
   timeout_seconds: number | null;
   reasoning_effort: ReasoningEffortValue;
-  // Global effort (Anthropic output_config.effort), distinct from reasoning_effort.
-  effort: string | null;
 }
 
 // --- LLM Type Config ---
@@ -104,7 +118,6 @@ export interface LLMTypeConfigUpdate {
   max_tokens?: number | null;
   timeout_seconds?: number | null;
   reasoning_effort?: ReasoningEffortValue;
-  effort?: string | null;
   provider_config?: string | null;
 }
 
@@ -122,12 +135,24 @@ export interface ModelCapabilities {
   supports_structured_output: boolean;
   supports_vision: boolean;
   is_reasoning_model: boolean;
-  reasoning_widget: ReasoningWidgetType;
-  reasoning_enum_values: string[] | null;
+
+  // The RESOLVED reasoning profile (ADR-245), never the catalogue's own
+  // columns: the backend derives these from the same function its validator
+  // and its runtime translator use, so what this UI offers is exactly what the
+  // API accepts. Publishing the raw columns instead is how the dropdown came
+  // to offer `minimal` on a model whose API refused it.
+  /** Translator family; 'none' when the model does not reason. */
+  reasoning_family: string;
+  /** The accepted ladder, ascending. Empty = no reasoning control at all. */
+  reasoning_levels: ReasoningLevel[];
+  /** Whether reasoning can be turned off ('none' is offered). */
+  reasoning_can_disable: boolean;
+  /** Whether an explicit token budget is expressible. */
+  reasoning_supports_budget: boolean;
+  /** Whether exclude_from_output actually reaches this family's provider. */
+  reasoning_supports_exclude: boolean;
   reasoning_budget_range: ReasoningBudgetRange | null;
   reasoning_doc_i18n_key: string | null;
-  // Separate global 'effort' control (Anthropic). null = no separate effort field.
-  effort_values: string[] | null;
   // Per-model sampling support — drives conditional rendering of
   // temperature / top_p / frequency_penalty / presence_penalty inputs.
   // Mirrors llm_models.supports_* columns. Philosophy A: the UI shows

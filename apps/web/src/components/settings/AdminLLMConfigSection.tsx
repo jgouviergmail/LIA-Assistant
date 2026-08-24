@@ -50,6 +50,11 @@ import type {
 import { LLM_CATEGORIES_ORDER } from '@/types/llm-config';
 import { ReasoningWidget } from './llm-config/ReasoningWidget';
 import {
+  formatReasoningValue,
+  modelReasons,
+  reasoningIsActive,
+} from './llm-config/reasoningHelpers';
+import {
   DEFAULT_ELEVENLABS_VOICE_SETTINGS,
   ELEVENLABS_OUTPUT_FORMATS,
   OPENAI_RESPONSE_FORMATS,
@@ -70,37 +75,6 @@ import {
   type TTSProviderConfig,
   type TtsProvider,
 } from './llm-config/configDialogHelpers';
-
-// --- Reasoning Effort Helpers ---
-
-/** True when the user has set a non-trivial reasoning_effort value, regardless
- * of widget shape. Used to decide whether sampling-param inputs (temp/top_p/
- * penalties) should be hidden on a reasoning-capable model. */
-function reasoningEffortIsSet(v: ReasoningEffortValue | null | undefined): boolean {
-  if (v === null || v === undefined) return false;
-  if ('effort' in v) return true;
-  if ('budget' in v && v.budget !== null && v.budget !== undefined) return true;
-  if ('enabled' in v && v.enabled) return true;
-  return false;
-}
-
-/** Compact, human-readable representation of a reasoning_effort value for the
- * tile display. Mirrors the shape of the discriminated union exposed by the
- * backend reasoning_widget. */
-function formatReasoningValue(v: ReasoningEffortValue | null | undefined): string {
-  if (v === null || v === undefined) return '-';
-  if ('effort' in v) return v.effort;
-  if ('budget' in v) {
-    if (v.budget === 0) return 'off';
-    if (v.budget === -1) return 'auto';
-    return `${v.budget}t`;
-  }
-  if ('enabled' in v) {
-    if (!v.enabled) return 'off';
-    return v.budget != null ? `on/${v.budget}t` : 'on/max';
-  }
-  return '-';
-}
 
 // --- Provider Key Row ---
 
@@ -256,12 +230,12 @@ function LLMTypeCard({
   modelCapabilities?: ModelCapabilities;
   t: (key: string) => string;
 }) {
-  // Use widget + supports_temperature directly (Philosophy A: raw truth).
-  // is_reasoning_model alone is ambiguous — deepseek-reasoner is a reasoning
-  // model but has widget='none' (always-on, no level control), so it shows
-  // neither E: nor T: in the badge.
-  const widget = modelCapabilities?.reasoning_widget ?? 'none';
-  const hasEffort = widget !== 'none' && reasoningEffortIsSet(config.effective.reasoning_effort);
+  // The resolved ladder + supports_temperature directly (Philosophy A: raw
+  // truth). is_reasoning_model alone is ambiguous — a model can reason with no
+  // level control at all (an always-on family), and would then show an E:
+  // badge for a setting the admin cannot reach.
+  const hasEffort =
+    modelReasons(modelCapabilities) && reasoningIsActive(config.effective.reasoning_effort);
   const showsTemp = modelCapabilities?.supports_temperature ?? true;
   const tierClass = config.info.power_tier ? (POWER_TIER_STYLES[config.info.power_tier] ?? '') : '';
   return (
@@ -953,15 +927,17 @@ function ModelField({
   );
 }
 
-/** Reasoning-effort widget (+ Anthropic sampling-constraint note) and the
- * separate global 'effort' selector for models that declare effort_values. */
+/** The reasoning control (+ the Anthropic sampling-constraint note).
+ *
+ * The separate global 'effort' selector that used to live here is gone with
+ * the column behind it (ADR-245): it produced the same Anthropic kwarg as
+ * reasoning_effort, and whichever arrived last in the constructor kwargs won. */
 function ReasoningSection({
   form,
   caps,
   anthropicThinkingActive,
   isModified,
   onReasoningChange,
-  onEffortChange,
   t,
 }: {
   form: LLMTypeConfigUpdate;
@@ -969,14 +945,15 @@ function ReasoningSection({
   anthropicThinkingActive: boolean;
   isModified: (field: keyof LLMTypeConfigUpdate) => boolean;
   onReasoningChange: (next: ReasoningEffortValue) => void;
-  onEffortChange: (effort: string | null) => void;
-  t: (key: string) => string;
+  // The reasoning widget interpolates (the budget range), so this branch of
+  // the tree declares the translator it actually receives rather than the
+  // one-argument narrowing the older sections use.
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   return (
     <>
-      {/* Reasoning Effort — driven by ModelCapabilities.reasoning_widget.
-          The widget renders nothing when widget='none', so no outer guard
-          is needed. */}
+      {/* Driven by the model's RESOLVED ladder: the widget renders nothing
+          when the model offers no level, so no outer guard is needed. */}
       {form.provider && form.model && caps && (
         <div className="space-y-1.5">
           <OverridableFieldLabel
@@ -986,12 +963,10 @@ function ReasoningSection({
             t={t}
           />
           <ReasoningWidget
-            widget={caps.reasoning_widget ?? 'none'}
-            enumValues={caps.reasoning_enum_values}
-            budgetRange={caps.reasoning_budget_range}
-            docI18nKey={caps.reasoning_doc_i18n_key}
+            caps={caps}
             value={form.reasoning_effort ?? null}
             onChange={onReasoningChange}
+            t={t}
           />
           {anthropicThinkingActive && (
             <p className="text-xs text-muted-foreground">
@@ -1001,37 +976,6 @@ function ReasoningSection({
         </div>
       )}
 
-      {/* Global 'effort' (Anthropic output_config.effort) — a separate
-          token-spend control, distinct from reasoning_effort. Shown only when
-          the model declares effort_values (currently opus-4-5). */}
-      {caps?.effort_values && caps.effort_values.length > 0 && (
-        <div className="space-y-1.5">
-          <OverridableFieldLabel
-            labelKey="settings.admin.llmConfig.fields.effort"
-            tooltipKey="settings.admin.llmConfig.tooltips.effort"
-            modified={isModified('effort')}
-            t={t}
-          />
-          <Select
-            value={form.effort ?? '__default__'}
-            onValueChange={v => onEffortChange(v === '__default__' ? null : v)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__default__">
-                {t('settings.admin.llmConfig.fields.reasoningDefault')}
-              </SelectItem>
-              {caps.effort_values.map(ev => (
-                <SelectItem key={ev} value={ev}>
-                  {ev}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
     </>
   );
 }
@@ -1399,7 +1343,6 @@ function LLMConfigDialog({
             anthropicThinkingActive={anthropicThinkingActive}
             isModified={isModified}
             onReasoningChange={handleReasoningChange}
-            onEffortChange={effort => setForm({ ...form, effort })}
             t={t}
           />
         </div>

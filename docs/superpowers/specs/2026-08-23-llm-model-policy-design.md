@@ -1,7 +1,7 @@
 # LLM Model Policy — bounded, deterministic model selection per slot — Design Specification
 
 - **Date**: 2026-08-23
-- **Version**: v3.1 — adversarial review of v2, then price sync removed on measured evidence (§0, §0 bis, §0 ter)
+- **Version**: v3.3 — two adversarial rounds, price-sync removal, primary-source review (§0 to §0 quinquies)
 - **Status**: Approved design, pre-implementation
 - **ADR**: ADR-244 (to be written in Lot 0 — ADR-243 is the OLED display mode, shipped in v1.31.3)
 - **Origin**: a proposal to add a "god mode" delegating model choice to the agents themselves
@@ -167,6 +167,259 @@ Consequences: the registry import covers **capabilities only**; class B of the c
 narrows to deactivations and overwrites of `verified` capability values; the multi-tier flag,
 the promo caveat and the price-precedence rows disappear from §5.1 — they no longer describe
 anything the system does.
+
+---
+
+## 0 quater. Second adversarial round (v3.1 → v3.2)
+
+A second red-team attacked six surfaces the first round never touched. **Two critical defects,
+two design corrections, four claims verified as sound.**
+
+### R1 (CRITICAL) — importing reasoning metadata would silently switch reasoning ON across the pipeline
+
+`deepseek-v4-flash` carries, in LIA, `reasoning_widget=enum` with values
+`["off", "high", "max"]`. models.dev declares
+`reasoning_options = [{type: "toggle"}, {type: "effort", values: ["low", "high", "max"]}]` —
+**`off` does not exist in it**, and the first option would map the widget to `toggle_budget`.
+
+Either mapping makes the stored `{"effort": "off"}` incompatible, so
+`_reconcile_reasoning_effort` drops it to `None` and the model's own default applies — which
+for DeepSeek is thinking **ON**. Executed against the live configuration:
+
+```
+slots whose reasoning_effort would become INVALID after a naive import : 21
+  response . query_analyzer . planner . react_agent . semantic_validator . query_agent
+  browser_agent . mcp_react_agent . mcp_description . subagent . psyche_summary
+  memory_extraction . memory_reference_extraction . memory_reference_resolution
+  open_loop_extraction . interest_extraction . journal_extraction
+  hitl_question_generator . hitl_plan_approval_question_generator
+  broadcast_translator . skill_description_translator
+```
+
+That is the whole conversational pipeline plus most of the background, silently switching to
+reasoning mode — a cost and latency regression with no error anywhere. It is precisely the
+incident `merge_config`'s own docstring records for 2026-07-27, at **seven times the scale**.
+
+**Fix (short term): reasoning metadata is never auto-imported.** **Fix (structural, ADR-245):**
+the stored per-model shape disappears entirely — the translation family is *derived* from
+`(provider, model prefix)` and the catalogue keeps only an optional narrowing role. With no
+stored shape there is nothing for an import to corrupt, so R1 stops being a precaution and
+becomes impossible by construction. Prototype validated; see the companion spec.
+
+In detail: `reasoning_widget`,
+`reasoning_enum_values`, `reasoning_budget_range` and `effort_values` join prices and the
+sampling flags as **LIA-owned**. models.dev may *propose* them inside the create/edit assist,
+where a human sees the value before saving; the sync must never write them.
+
+Consequence, stated honestly: models.dev's headline contribution shrinks. It keeps
+`supports_temperature` (unique, 97 %) and better coverage on `tool_call` / `attachment`, so it
+stays a second source — but it no longer solves the reasoning-widget problem, which stays
+manual.
+
+### R2 (CRITICAL) — the controller cannot aggregate per slot, and `node_name` leaks prompt text
+
+The controller's core query is "the last N calls for slot X". **`token_usage_logs` has no slot
+column.** It stores `node_name`, which does not map to slots:
+
+| Reality | Consequence |
+|---|---|
+| `react_call_model` → slot `react_agent` | rename, no mapping table exists |
+| `planner`, `planner_single_domain`, `planner_multi_domain` → slot `planner` | three names, one slot |
+| `proactive_briefing` → slot `briefing`, `proactive_interest` → `interest_content` | rename |
+| `proactive_heartbeat` → `heartbeat_message`? `heartbeat_decision`? | **ambiguous** |
+| `MCP Iterative: <server>` → slot `mcp_react_agent` | **unbounded**, carries a server name |
+| `sub-agent: <prompt prefix>` → slot `subagent` | **unbounded**, carries truncated prompt text |
+| `unknown` | 44 calls attributed to nothing |
+
+Measured: **101 distinct `node_name` values in the database, 24 of them `sub-agent:` variants
+and 4 `MCP Iterative:` variants.** And these values are Prometheus labels
+(`llm_api_calls_total`, `llm_api_latency_seconds`, `llm_cost_total`,
+`agent_node_duration_seconds`): **113 label values live in Prometheus, 28 unbounded**, several
+carrying French prompt fragments exported to Grafana.
+
+Two problems, one of them live today and independent of this project:
+
+1. **Unbounded metric cardinality** — every new sub-agent prompt creates new time series across
+   several metrics.
+2. **Prompt content in a metric label and a DB column** — worse than a log line, because it is
+   scraped, retained and rendered.
+
+**Fix**: `token_usage_logs` gains an **`llm_type`** column (the slot, from the closed
+`LLM_TYPES_REGISTRY` vocabulary), written next to the existing `node_name`. The controller
+aggregates on `llm_type`; `node_name` stays exactly as it is for the debug panel. Ships in Lot
+0b beside the other observation columns, with a backfill only where the mapping is
+unambiguous — never guessed for `proactive_heartbeat` or `unknown`.
+
+Separately, and as a **prerequisite recorded in the ADR rather than solved here**: the
+unbounded label values must be bounded at the metric boundary (server key and sub-agent id
+instead of free text). This is a pre-existing defect; the spec names it and does not pretend to
+own it.
+
+### R3 — `supports_streaming` also stays LIA-owned
+
+`streaming` is a pure function of the slot (`response`, `hitl_question_generator`,
+`hitl_plan_approval_question_generator` — `factory.py`). All 87 chat models currently declare
+`supports_streaming=true`, but that is the **column default**, and LiteLLM's
+`supports_native_streaming` covers only 42 %. Importing it could flip a model to `false` and
+break SSE on `response`. It joins the never-imported set, and the eligibility gate additionally
+requires `supports_streaming` for those three slots.
+
+### R4 — the effective index must be keyed on (slot, **profile**)
+
+v3.1 stored one index per slot and applied it as `candidates[profile][index:]`. Index 2 of
+`ECONOMY` is a different model from index 2 of `QUALITY`, and the lists have different lengths,
+so a profile change would carry a meaningless offset — or overflow. **Fix**: the index is keyed
+`(slot, profile)`; a profile never visited starts at 0; the audit trail already records the
+profile alongside every move.
+
+### Claims verified as sound in this round
+
+| Claim | Test run | Result |
+|---|---|---|
+| `MANUAL` resolution is identical to today | `merge_config(defaults, override)` vs `get_llm_config_for_agent` over **all 58 slots**, live catalogue and override cache loaded | **0 divergences** — including the subtle case where a slot has no override and v3.1's pseudo-code adds a reconciliation pass the current code skips |
+| No in-scope slot depends on `provider_config` | queried every override outside the 3 non-chat slots | **0 rows** — a provider switch cannot invalidate provider-specific JSON |
+| A non-streaming model could be picked for `response` | catalogue scan | not possible **today** (87/87 stream); R3 keeps it that way |
+| The vision gate exposure is real | `gpt-5-mini` (code default of `vision_analysis`) vs `gemini-3.5-flash` (seeded effective) | **refined**: the seeded configuration passes (`vision=true`); the exposure is a **seedless install or the admin "Reset" button**, which restores `LLM_DEFAULTS` and lands on `gpt-5-mini` (`vision=false`) |
+
+### Second accepted limitation — the controller will be sparse at this volume
+
+Measured over 30 days, calls per node:
+
+```
+>= 200 (nominal window) :  3 nodes   (one of them out of scope: embedding_embed_query)
+50-199 (bare minimum)   : 15 nodes
+10-49  (insufficient)   :  4 nodes
+< 10   (inert)          :  7 nodes
+~24 of the 53 in-scope slots have NO traffic at all in 30 days
+```
+
+At 117 `response` calls per 30 days, a 200-call window takes about **51 days** to fill; most
+slots never fill one. **Layer 2 will therefore act on roughly five slots and make a handful of
+moves per quarter** — the busiest ones, which are also where the spend is
+(`proactive_briefing` 984, `memory_reference_extraction` 285, `proactive_heartbeat` 189,
+`journal_consolidation` 165, `query_analyzer` 144).
+
+This is not fatal, but the design must not promise more autonomy than the data can feed. Two
+consequences, both binding:
+
+1. The window is **count-bounded AND time-bounded**; a slot below `min_window_calls` is
+   reported on the autopilot screen as **"insufficient evidence"**, never silently skipped —
+   the operator must be able to see that the controller is idle *because there is no data*,
+   not because it decided nothing was wrong.
+2. **Layer 1 carries the value** (S1 = −32.4 %, no controller needed). Layer 2 is an
+   optimisation on top, and its business case rests on the five busy slots — not on the 53.
+
+### Install contract — verified unaffected by the dead-slot removal
+
+Removing `router` and `context_resolver` from `CURRENT_CORE_LLM_TYPES` was asserted safe in
+v3; it is now measured. Both resolve to `openai`, which four surviving core slots also resolve
+to, so the derived set is unchanged:
+
+```
+required providers before : ['deepseek', 'openai']
+required providers after  : ['deepseek', 'openai']
+declared constant         : ['deepseek', 'openai']   -> no change, questionnaire untouched
+```
+
+### Accepted limitation, stated rather than hidden
+
+**A candidate's latency cannot be pre-verified.** Prometheus holds 15 days and only ever
+measured the models actually configured (2 of 114). The gate therefore cannot check a candidate
+against a slot's `timeout_seconds` (300 s on `browser_agent`, `subagent`,
+`mcp_app_react_agent`; 250 s on `journal_consolidation`) before trying it. The honest safety net
+is the controller's **immediate, non-rate-limited step-up on `failure_kind=timeout`** (§7.2),
+plus the campaign harness measuring latency on replayed inputs before a move. This is a real
+residual risk, documented rather than engineered away.
+
+---
+
+## 0 quinquies. Primary-source review of the three exclusions
+
+The three things this design refuses to import — **prices** (§0 ter), **reasoning metadata**
+(§0 quater R1) and **candidate latency** (accepted limitation) — were re-examined against
+primary and adjacent sources rather than aggregators. All three exclusions are confirmed; two
+gain a much stronger rationale, and one third registry earns a narrow role.
+
+### Reasoning metadata — the exclusion is structural, not precautionary
+
+Provider documentation shows five **different API shapes**, none of them a shared vocabulary:
+
+| Provider | API contract |
+|---|---|
+| OpenAI | `reasoning.effort` ∈ `none, minimal, low, medium, high, xhigh, max` — a model-dependent subset |
+| Anthropic | `effort` plus `thinking`; adaptive family vs explicit `budget_tokens` family |
+| DeepSeek | `thinking: {type: enabled\|disabled}` — a boolean, and it **defaults to enabled** |
+| Gemini | `thinking_budget` (int) up to 2.5, `thinking_level` (enum) from 3.x |
+| Qwen | `enable_thinking` (bool) + `thinking_budget` (int, 1–32768, default 4000) |
+
+LIA's own code already encodes exactly this, as a deliberate abstraction:
+`providers/reasoning_builders.py` maps `"off"` → `{"thinking": {"type": "disabled"}}` for
+DeepSeek V4 and documents its enum as *"the 3 effective"* values; the Anthropic builder calls
+`"off"` an **enum sentinel**. In other words `reasoning_enum_values` is **LIA's control
+vocabulary**, not a description of any provider's API — so no external catalogue can be
+authoritative for it, by construction.
+
+The decisive measurement: three catalogues, three vocabularies, same model.
+
+```
+deepseek-v4-flash — supported reasoning efforts
+  LIA         : ["off", "high", "max"]      (sentinel + the 2 LIA exposes)
+  models.dev  : ["low", "high", "max"]
+  OpenRouter  : ["xhigh", "high"]
+```
+
+Each describes its own gateway's contract. Only LIA's is consistent with LIA's own builder.
+**R1's fix is structural**, and would have been needed even if the values had happened to match.
+
+### Prices — there is no primary source to switch to
+
+- **Neither OpenAI nor Anthropic publishes an official machine-readable pricing endpoint.**
+  Every programmatic source available is a third party scraping the same public pricing pages —
+  the same class of source as LiteLLM, with the same tier and promotion problems (§0 ter).
+- OpenRouter's prices are **reseller** prices. For `deepseek-v4-flash` it lists **17 endpoints**
+  priced from `0.0000000517` to `0.00000044` per token — an **8.5× spread**, and **DeepSeek
+  itself is not among them**.
+
+There is nothing better than the admin pricing sheet to move to. The exclusion stands, now for
+a stronger reason than churn alone.
+
+### Candidate latency — no external source exists; the probe is the answer
+
+| Source | Verdict |
+|---|---|
+| **Artificial Analysis** | Publishes TTFT and output speed as a P50 over 72 h, 8 runs/day on 1k–10k workloads. **No public API, no data export**, reuse terms unstated. Measures *its own* endpoints. |
+| **OpenRouter `/models/{id}/endpoints`** | The schema *does* carry `latency_last_30m`, `throughput_last_30m`, `uptime_last_{5m,30m,1d}`. Verified on 3 models / 28 endpoints: **latency and throughput are `null` in every one**. And the endpoints are resellers — for `gpt-5.2` the list is Azure and OpenAI, for `deepseek-v4-flash` seventeen intermediaries and no DeepSeek. |
+
+**The limitation is irreducible from outside.** The answer stays the internal one already in the
+design: the campaign harness (§7.3) measures the candidate's latency on replayed real inputs
+before any move, and `failure_kind=timeout` triggers an immediate, non-rate-limited step-up
+after one. What changes is the confidence: this is no longer "we could not find a source", it is
+"there is no usable source, and here is what was checked".
+
+### OpenRouter earns a narrow role: cross-check, never an import
+
+Two facts it carries that neither other catalogue does, both directly useful to the policy:
+
+- **`reasoning.mandatory`** — whether reasoning can be disabled at all. Measured:
+  `gemini-3.5-flash` is **`mandatory: true`**, so an `ECONOMY` profile can never turn its
+  reasoning off. A policy that assumes every model has a cheap mode is wrong about that model.
+- **`reasoning.default_enabled`** — varies *within* a provider (`gpt-5.6-luna` true,
+  `gpt-5.4-mini` false), which is exactly the fact that makes a dropped `effort` dangerous.
+
+It is nonetheless **reseller-contaminated**: a model's top-level `supported_parameters` differs
+from its per-endpoint list (`deepseek-v4-flash` shows all four sampling parameters at model
+level but only `temperature` and `top_p` on the StreamLake endpoint), and
+`claude-opus-4-6` and `qwen3.5-plus` are absent entirely. So OpenRouter is wired into the
+**create/edit assist as a third opinion shown to the human**, and never into the sync.
+
+### One more thing this surfaced
+
+OpenRouter reports **no sampling parameters at all** for `gpt-5.2`, `gpt-5.6-luna` and
+`gpt-5.4-mini`, while LIA's catalogue carries `supports_temperature=true` for them — the column
+default, never curated. No live defect, because the adapter's `is_reasoning_model` filter strips
+sampling parameters before the call. But it confirms that the four sampling columns are
+**unreliable by default across the whole GPT-5 family**, which is why they stay LIA-owned and
+why the admin UI's "raw truth" philosophy is, today, aspirational rather than realised.
 
 ---
 
@@ -489,9 +742,10 @@ declared per field and measured (coverage on LIA's own models, strict matching):
 | `is_reasoning_model` | models.dev `reasoning` → LiteLLM `supports_reasoning` | 100 % |
 | `supports_structured_output` | models.dev `structured_output` → LiteLLM `supports_response_schema` | 81 % |
 | `supports_temperature` | **models.dev only** (`temperature`) | 97 % |
-| `reasoning_widget` + `reasoning_enum_values` / `reasoning_budget_range` | **models.dev only** (`reasoning_options.type` ∈ `effort` \| `toggle` \| `budget_tokens` → `enum` \| `toggle_budget` \| `budget_int`) | 45 % |
+| `reasoning_widget` + `reasoning_enum_values` / `reasoning_budget_range` / `effort_values` | ⛔ **never imported** (§0 quater R1) — proposed in the create/edit assist only; a naive import invalidates `effort: off` on **21 slots** | — |
 | `deprecation_date` (new column) | **LiteLLM only** | 41 % |
 | `supports_top_p` / `frequency_penalty` / `presence_penalty` | ⛔ neither — stays LIA-owned | — |
+| `supports_streaming` | ⛔ **never imported** (§0 quater R3) — a false would break SSE on `response` | — |
 | **all prices** | ⛔ **out of scope entirely** (§0 ter) — manual, via the existing pricing sheet | — |
 
 > **`limit.context` is the total window, not the input budget.** 56 of 75 models.dev entries
@@ -625,10 +879,12 @@ wrong). The provenance decides which authority wins — never a second hard-code
 | `latency_ms` | `Integer` | wall time, already computed in `observability/callbacks.py:208` |
 | `status` | `String(16)` | `success` / `error` |
 | `failure_kind` | `String(32)` | `structured_output` / `timeout` / `rate_limit` / `context_overflow` / `provider_error` / `json_recovered` |
+| `llm_type` | `String(64)` | **the slot**, from the closed `LLM_TYPES_REGISTRY` vocabulary (§0 quater R2). `node_name` does not map to slots and carries unbounded free text, so the controller aggregates on this column and never on `node_name`. Written from the calling slot, backfilled only where the mapping is unambiguous. |
 
 They are the controller's only step-down veto and step-up trigger, they cost nothing (the
 values already exist in memory), and they answer §2.6: objective failure, not inferred
-quality. The existing `ix_token_usage_logs_lifetime_aggregation` index covers the aggregate.
+quality. A new index `(llm_type, model_name, created_at DESC)` serves the controller window;
+the existing `ix_token_usage_logs_lifetime_aggregation` stays for the lifetime metrics.
 
 ### 5.4 Verified failover
 
@@ -696,12 +952,13 @@ is why no per-category profile is needed (§14.1).
 4. if the slot is PINNED, or profile == MANUAL, or the policy is disabled
        -> return merge_config(defaults, db_override)    (EXACTLY today's behaviour)
 5. otherwise:
-       index = effective index for this slot (controller state, default 0)
+       index = effective index for (this slot, this profile)   -- default 0, section 0 quater R4
        for model in candidates[profile][index:]:
            if     capability gate passes        (required_capabilities, required_kind)
               and not deprecated
               and provider key present
               and an ACTIVE PRICING ROW exists    (else uncostable, section 0 ter)
+              and supports_streaming              (for response / the two HITL question slots)
               and NUMERIC FIT                   (see below)
                -> return merge_config(defaults, db_override | {model, provider})
        -> log llm_policy_no_candidate, return merge_config(defaults, db_override)
@@ -733,7 +990,11 @@ silently reverting a slot to a different model is a **silent configuration chang
 audit trail exists to make impossible. Losing the index must never be a way to change what
 runs.
 
-### 6.3 Normalised effort intent
+### 6.3 Normalised effort intent — delivered by ADR-245
+
+> Since v3.3 this section is **implemented by the companion design**
+> `2026-08-23-reasoning-model-unification-design.md` (Lot 0c). What follows states the
+> requirement; that document owns the model, the validated prototype and the migration.
 
 The catalogue exposes **4 reasoning widget shapes** (`none` 37, `enum` 38, `budget_int` 4,
 `toggle_budget` 8). A slot declares `effort_intent`; a pure function maps it to the concrete
@@ -938,6 +1199,10 @@ stores a **machine code**, translated at render time — never a pre-rendered se
 | Registry unreachable / snapshot stale | Sync is skipped with a warning; the vendored snapshot keeps serving. Freshness guard warns, never reds a build. |
 | Registry disagrees with LIA on a price | Not observed at all — prices are outside the sync (§0 ter). |
 | A candidate has no active pricing row | Ineligible, `reason=uncostable`. Never chosen, never silently priced at zero. |
+| An `ECONOMY` profile targets a model whose reasoning cannot be disabled | Measured: `gemini-3.5-flash` is `reasoning.mandatory=true` (§0 quinquies). The candidate stays eligible but its cost estimate must assume reasoning ON — never assume a cheap mode exists. |
+| A registry would change a reasoning widget or enum values | Never written (§0 quater R1). Surfaced only in the create/edit assist, where a human sees it. |
+| The profile changes while a slot sits at a non-zero index | The index is keyed `(slot, profile)`; the new profile starts at its own index, 0 if never visited. |
+| A row has an unmapped or free-text `node_name` | `llm_type` is written from the calling slot, never derived from `node_name`; an unmapped legacy row stays NULL and is excluded from the controller window rather than mis-attributed. |
 | The two registries disagree with **each other** on a field | The declared precedence picks one, and the disagreement is **flagged for review** rather than resolved silently. |
 | A registry entry comes from a resale/proxy provider | Rejected by the canonical-provider lock (§5.1) before any mapping. |
 | A deprecated model is still referenced by a slot on the target instance | Not deactivated. Retarget first; otherwise leave active and raise a class-C alert (§5.1). |
@@ -990,6 +1255,11 @@ to today.**
 | `test_catalogue_sync_classes` | Class A writes, class B queues, class C only alerts; a `verified` row is never auto-overwritten |
 | `test_catalogue_sync_never_reads_prices` | No price field is ever read, proposed or written by the sync |
 | `test_uncostable_candidate_rejected` | A candidate without an active pricing row is skipped with `reason=uncostable` |
+| `test_mandatory_reasoning_costed_as_on` | A candidate with `reasoning.mandatory` is never costed as if reasoning could be disabled |
+| `test_sync_never_touches_reasoning_fields` | Golden over all 58 slots: no reasoning_effort changes after a sync against a fixture snapshot (the 21-slot regression of §0 quater R1 is the fixture) |
+| `test_sync_never_touches_streaming` | `supports_streaming` is never written by the sync |
+| `test_effective_index_is_keyed_by_profile` | Switching profile does not carry the previous profile offset |
+| `test_llm_type_written_for_every_call` | Every new `token_usage_logs` row carries a slot from the closed vocabulary; free-text `node_name` never leaks into it |
 | `test_effort_intent_maps_all_widgets` | 4 widget shapes × 4 intents, exhaustive |
 | `test_llm_instance_cache_steady_state` | Full policy ⇒ ≤ 64 distinct keys |
 | `test_fallback_models_exist_in_catalogue` | Boot assert on `FALLBACK_MODELS` |
@@ -1018,7 +1288,8 @@ Coverage floors are **raised**, never lowered, after the work.
 | Lot | Content | Independently revertible |
 |---|---|---|
 | **0a** | ADR-244 + catalogue: vendored snapshot, canonical-provider lock, `task llm:catalogue:sync`, provenance and deprecation columns, initial correction (rows repaired/corrected, deprecated models deactivated **under the reference-check rule**, constants retargeted), context-window fix **plus the per-model compaction-threshold movement report**, guards | yes |
-| **0b** | Capability gate scoped to candidates + the 5 missing declarations, `supports_strict_mode` reader, observation columns, failover assert, dead-slot removal | yes |
+| **0c** | **Reasoning model unification (ADR-245)** — see `2026-08-23-reasoning-model-unification-design.md`. Prototype built and validated: 56/56 golden equivalence, 0 family gaps over 87 models, 0 coercions on valid values, 3 480 combinations without a crash. Ships **before** Lot 1, because Layer 1's `effort_intent` mapper *is* this model | yes |
+| **0b** | Capability gate scoped to candidates + the 5 missing declarations, `supports_strict_mode` reader, observation columns **including `llm_type`** (§0 quater R2), failover assert, dead-slot removal | yes |
 | **1** | `SLOT_POLICIES`, `resolve_slot_config` (capability **and numeric** gates), effort-intent mapper, durable effective index, **time-slot-aware scheduling (S0)**, `MANUAL` identity guard | yes (profile stays `MANUAL`) |
 | **2** | Admin screens 1 and 2 + create/edit assist + i18n ×6 | yes |
 | **3** | Continuous sync (classes A/B/C), review queue, scheduler, kill-switch | yes (flag off) |
@@ -1045,6 +1316,7 @@ also run `task db:migrate:replay-check`.
   and the three failure modes — similarity false positives, stale answers, and **one user's
   personalised answer returned to another** — are disqualifying on an encrypted personal
   assistant. The existing `cache_llm_response` decorator stays limited to deterministic calls.
+- **No synchronisation of reasoning metadata, sampling flags or streaming** — measured: a naive reasoning import invalidates `effort: off` on **21 slots** and silently switches the pipeline to thinking mode (§0 quater R1).
 - **No price synchronisation of any kind** — not even as a proposal. Measured: 85 of 87 models price-stable over two months, 0 true positives, 2 false positives (§0 ter). Prices stay manual.
 - **No budget-driven downgrade** (Layer 3) — deliberately deferred.
 - **No failover for the core pipeline** — recorded as a known gap.
@@ -1094,3 +1366,9 @@ Repository and dev-database evidence is cited inline. External practice review:
 9. LLM-as-judge evaluation best practices — Openlayer
 10. *LLM Semantic Caching: the 95 % hit rate myth* — production hit-rate data
 11. Retries, fallbacks and circuit breakers in LLM apps — Portkey
+12. OpenAI — Reasoning models guide (`reasoning.effort` values)
+13. DeepSeek API — Thinking Mode guide (thinking defaults to enabled)
+14. Google — Gemini API thinking (`thinking_budget` / `thinking_level`)
+15. Alibaba Model Studio — deep thinking via API (`enable_thinking`, `thinking_budget`)
+16. Artificial Analysis — performance benchmarking methodology (P50/72 h, no public API)
+17. OpenRouter — public `/api/v1/models` and `/models/{id}/endpoints` (reasoning flags; latency fields null)

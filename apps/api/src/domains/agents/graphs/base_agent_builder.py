@@ -244,10 +244,41 @@ def build_generic_agent(config: AgentConfig) -> Any:
         "routes_agent": "route_agent",
         # Health Metrics agent (v1.17.2)
         "health_agent": "health_agent",
+        # Philips Hue agent — absent from this map until ADR-244, so every one
+        # of its calls silently resolved to the CONTACTS slot's configuration.
+        "hue_agent": "hue_agent",
         # Agentic telephony (ADR-127)
         "telephony_agent": "telephony_agent",
     }
-    llm_type = llm_type_map.get(agent_name, "contact_agent")
+    llm_type = llm_type_map.get(agent_name)
+    if llm_type is None:
+        # A silent default here sent an unmapped agent's calls to the CONTACTS
+        # slot's configuration -- wrong model, wrong token budget, wrong cost
+        # line -- and nothing anywhere said so. ``hue_agent`` had been in that
+        # state; the boot that first raised this found it in seconds, where a
+        # static search had found nothing (ADR-244).
+        #
+        # Same doctrine as ``_import_tool_modules`` (audit wave 2, C9): fail
+        # LOUDLY outside production so CI catches a forgotten mapping, and in
+        # production log + count + degrade, because one misconfigured agent
+        # must not take the whole deployment down.
+        from src.infrastructure.observability.metrics_llm_config import (
+            llm_agent_unmapped_total,
+        )
+
+        llm_agent_unmapped_total.labels(agent_name=agent_name).inc()
+        logger.error(
+            "agent_llm_type_unmapped",
+            agent_name=agent_name,
+            fallback="contact_agent",
+            msg="add this agent to llm_type_map in base_agent_builder.py",
+        )
+        if not settings.is_production:
+            raise KeyError(
+                f"agent {agent_name!r} has no llm_type mapping; add it to llm_type_map "
+                f"in base_agent_builder.py (known: {sorted(llm_type_map)})"
+            )
+        llm_type = "contact_agent"
 
     # Pass llm_config to factory for override support
     # This allows per-agent customization of model, temperature, max_tokens, etc.

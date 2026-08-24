@@ -721,7 +721,9 @@ class AgentsSettings(BaseSettings):
         default=SUMMARIZATION_MODEL_DEFAULT,
         description=(
             "LLM model for context summarization (fast, cheap model recommended). "
-            "Default: gpt-4.1-nano for optimal speed/cost balance."
+            "Defaults to SUMMARIZATION_MODEL_DEFAULT -- naming the model here "
+            "would be one more surface to retarget, and it went stale exactly "
+            "that way."
         ),
     )
     summarization_trigger_fraction: float = Field(

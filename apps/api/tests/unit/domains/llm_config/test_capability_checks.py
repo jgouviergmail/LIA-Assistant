@@ -75,3 +75,49 @@ def test_registry_required_capabilities_are_all_known():
 
     unknown = used - KNOWN_MODEL_CAPABILITIES
     assert not unknown, f"Unknown capabilities in LLM_TYPES_REGISTRY: {sorted(unknown)}"
+
+
+class TestDeclaredCapabilitiesAreComplete:
+    """A capability the code relies on must be declared, and spelled correctly."""
+
+    def test_the_five_structured_output_slots_declare_it(self) -> None:
+        """Verified at each call site: these five ask the model for a schema.
+
+        ``heartbeat_message`` and ``contacts_agent`` matched the same heuristic
+        and were checked and discarded as false positives — do not add them.
+        """
+        from src.domains.llm_config.constants import LLM_TYPES_REGISTRY
+
+        for slot in (
+            "query_analyzer",
+            "semantic_validator",
+            "document_generation",
+            "memory_reference_extraction",
+            "open_loop_extraction",
+        ):
+            assert "structured_output" in LLM_TYPES_REGISTRY[slot].required_capabilities, slot
+
+    def test_every_declared_capability_is_a_known_one(self) -> None:
+        """A typo in a declaration must not silently disable the constraint."""
+        from src.domains.llm_config.constants import LLM_TYPES_REGISTRY
+        from src.domains.llm_config.service import KNOWN_MODEL_CAPABILITIES
+
+        unknown = sorted(
+            {
+                capability
+                for metadata in LLM_TYPES_REGISTRY.values()
+                for capability in metadata.required_capabilities
+                if capability not in KNOWN_MODEL_CAPABILITIES
+            }
+        )
+        assert unknown == [], f"undeclared capability names: {unknown}"
+
+    def test_unknown_capability_raises_instead_of_passing(self) -> None:
+        """``_model_has_capability`` used to answer True to anything unknown."""
+        import pytest
+
+        from src.domains.llm_config.service import _model_has_capability
+        from src.infrastructure.llm.model_profiles import ModelProfile
+
+        with pytest.raises(ValueError, match="unknown capability"):
+            _model_has_capability(ModelProfile(), "telepathy")

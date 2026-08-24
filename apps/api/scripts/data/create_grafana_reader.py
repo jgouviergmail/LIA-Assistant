@@ -71,9 +71,7 @@ async def create_grafana_reader(password: str) -> None:
                     f"View '{view}' missing — run 'task db:migrate' before this script."
                 )
 
-        await session.execute(
-            text(
-                f"""
+        await session.execute(text(f"""
                 DO $$
                 BEGIN
                     IF NOT EXISTS (
@@ -83,23 +81,15 @@ async def create_grafana_reader(password: str) -> None:
                     END IF;
                 END
                 $$;
-                """
-            )
-        )
+                """))
         # Always re-applied: password rotation + timeout stay converged.
+        await session.execute(text(f"ALTER ROLE {ROLE_NAME} WITH LOGIN PASSWORD '{pwd}'"))
         await session.execute(
-            text(f"ALTER ROLE {ROLE_NAME} WITH LOGIN PASSWORD '{pwd}'")
-        )
-        await session.execute(
-            text(
-                f"ALTER ROLE {ROLE_NAME} SET statement_timeout = '{STATEMENT_TIMEOUT}'"
-            )
+            text(f"ALTER ROLE {ROLE_NAME} SET statement_timeout = '{STATEMENT_TIMEOUT}'")
         )
         db_row = await session.execute(text("SELECT current_database()"))
         db_name = db_row.scalar_one()
-        await session.execute(
-            text(f'GRANT CONNECT ON DATABASE "{db_name}" TO {ROLE_NAME}')
-        )
+        await session.execute(text(f'GRANT CONNECT ON DATABASE "{db_name}" TO {ROLE_NAME}'))
         await session.execute(text(f"GRANT USAGE ON SCHEMA public TO {ROLE_NAME}"))
         for view in PRODUCT_READ_VIEWS:
             await session.execute(text(f"GRANT SELECT ON {view} TO {ROLE_NAME}"))

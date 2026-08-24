@@ -39,9 +39,31 @@ BEGIN
         RAISE EXCEPTION 'seed verification: llm_model_pricing expected >= 139, got %', c;
     END IF;
 
+    -- Floor lowered from 42 to 39 by ADR-244: three rows were deliberately
+    -- removed, not lost -- the 'router' and 'context_resolver' slots (no
+    -- get_llm() caller anywhere) and the 'mcp_excalidraw' orphan (a row for a
+    -- slot that never existed in LLM_TYPES_REGISTRY).
     SELECT COUNT(*) INTO c FROM llm_config_overrides;
-    IF c < 42 THEN
-        RAISE EXCEPTION 'seed verification: llm_config_overrides expected >= 42, got %', c;
+    IF c < 39 THEN
+        RAISE EXCEPTION 'seed verification: llm_config_overrides expected >= 39, got %', c;
+    END IF;
+
+    SELECT COUNT(*) INTO c FROM llm_models;
+    IF c < 124 THEN
+        RAISE EXCEPTION 'seed verification: llm_models expected >= 124, got %', c;
+    END IF;
+
+    -- Referential postcondition (ADR-244). Counts alone let an orphan through:
+    -- llm_config_seed pinned image_generation to 'gpt-image-2' and
+    -- image_generation_pricing_seed priced it, while llm_pricing_seed never
+    -- created its llm_models row. ModelCapabilitiesCache then answered NULL and
+    -- the runtime fell back to CONSERVATIVE_DEFAULT, silently.
+    SELECT COUNT(*) INTO c
+    FROM llm_config_overrides o
+    WHERE o.model IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM llm_models m WHERE m.model_name = o.model);
+    IF c > 0 THEN
+        RAISE EXCEPTION 'seed verification: % llm_config_overrides row(s) name a model with no llm_models row', c;
     END IF;
 END
 $$;

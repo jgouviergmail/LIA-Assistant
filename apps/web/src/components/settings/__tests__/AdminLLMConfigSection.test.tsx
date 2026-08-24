@@ -60,11 +60,13 @@ const CAPS_FULL: ModelCapabilities = {
   supports_structured_output: true,
   supports_vision: false,
   is_reasoning_model: false,
-  reasoning_widget: 'none',
-  reasoning_enum_values: null,
+  reasoning_family: 'none',
+  reasoning_levels: [],
+  reasoning_can_disable: true,
+  reasoning_supports_budget: false,
+  reasoning_supports_exclude: false,
   reasoning_budget_range: null,
   reasoning_doc_i18n_key: null,
-  effort_values: null,
   supports_temperature: true,
   supports_top_p: true,
   supports_frequency_penalty: true,
@@ -85,9 +87,9 @@ const CAPS_NO_SAMPLING: ModelCapabilities = {
 const CAPS_ANTHROPIC: ModelCapabilities = {
   ...CAPS_FULL,
   model_id: 'claude-test',
-  reasoning_widget: 'enum',
-  reasoning_enum_values: ['off', 'low', 'high'],
-  effort_values: ['high', 'medium'],
+  is_reasoning_model: true,
+  reasoning_family: 'anthropic_adaptive',
+  reasoning_levels: ['none', 'low', 'medium', 'high', 'max'],
 };
 
 const CAPS_TTS_EDGE: ModelCapabilities = { ...CAPS_FULL, model_id: 'edge-tts', kind: 'tts' };
@@ -105,9 +107,19 @@ function agentCfg(overrides: Partial<LLMAgentConfig> = {}): LLMAgentConfig {
     max_tokens: 1000,
     timeout_seconds: null,
     reasoning_effort: null,
-    effort: null,
     ...overrides,
   };
+}
+
+/** Overrides are typed: an untyped `{}` let a test keep feeding a reasoning
+ * shape the API had stopped accepting, and stay green (apps/web/CLAUDE.md —
+ * "builders take Partial<Props> and return the declared type"). */
+interface TypeConfigOptions {
+  effective?: Partial<LLMAgentConfig>;
+  defaults?: Partial<LLMAgentConfig>;
+  isOverridden?: boolean;
+  requiredKind?: LLMModelKind;
+  requiredCapabilities?: string[];
 }
 
 function typeConfig(
@@ -117,9 +129,9 @@ function typeConfig(
     effective = {},
     defaults = {},
     isOverridden = false,
-    requiredKind = 'chat' as LLMModelKind,
-    requiredCapabilities = [] as string[],
-  } = {}
+    requiredKind = 'chat',
+    requiredCapabilities = [],
+  }: TypeConfigOptions = {}
 ): LLMTypeConfig {
   return {
     llm_type: llmType,
@@ -280,7 +292,7 @@ describe('dialog sampling-param visibility', () => {
         effective: {
           provider: 'anthropic',
           model: 'claude-test',
-          reasoning_effort: { effort: 'high' },
+          reasoning_effort: { level: 'high', budget_tokens: null, exclude_from_output: false },
         },
         defaults: { provider: 'anthropic', model: 'claude-test' },
       }),
@@ -291,7 +303,9 @@ describe('dialog sampling-param visibility', () => {
     expect(screen.getByText('settings.admin.llmConfig.constraints.reasoningTemp')).toBeTruthy();
   });
 
-  it('shows the global effort selector only when the model declares effort_values', async () => {
+  it('offers no separate global effort control any more (ADR-245)', async () => {
+    // It produced the same Anthropic kwarg as reasoning_effort, and whichever
+    // arrived last in the constructor kwargs won. One channel now.
     renderSection([
       typeConfig('router', 'Router', {
         effective: { provider: 'anthropic', model: 'claude-test' },
@@ -300,7 +314,8 @@ describe('dialog sampling-param visibility', () => {
       typeConfig('other', 'Other'),
     ]);
     await openDialog('Router');
-    expect(screen.getByText('settings.admin.llmConfig.fields.effort')).toBeTruthy();
+    expect(screen.queryByText('settings.admin.llmConfig.fields.effort')).toBeNull();
+    expect(screen.getByText('settings.admin.llmConfig.fields.reasoningEffort')).toBeTruthy();
   });
 
   it('marks a field with the overridden badge when it differs from the default', async () => {

@@ -30,7 +30,6 @@ OVERRIDE_FIELDS = (
     "max_tokens",
     "timeout_seconds",
     "reasoning_effort",
-    "effort",
     "provider_config",
 )
 

@@ -24,7 +24,7 @@ def compile_po_file(po_file: Path) -> bool:
         )
         print(f"  Compiled: {po_file.parent.parent.name}/{po_file.stem}")
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError, FileNotFoundError:
         # Fallback to Python polib library
         try:
             import polib

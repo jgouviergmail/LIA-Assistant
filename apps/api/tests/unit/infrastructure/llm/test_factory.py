@@ -53,9 +53,9 @@ def mock_llm():
 def test_get_llm_router_default_config(mock_adapter, mock_llm):
     """Test router LLM creation with LLM_DEFAULTS (no override)."""
     mock_adapter.create_llm.return_value = mock_llm
-    defaults = LLM_DEFAULTS["router"]
+    defaults = LLM_DEFAULTS["hitl_classifier"]
 
-    llm = get_llm("router")
+    llm = get_llm("hitl_classifier")
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
     assert call_kwargs["provider"] == defaults.provider
@@ -132,9 +132,9 @@ def test_get_llm_hitl_classifier(mock_adapter, mock_llm):
 def test_get_llm_with_model_override(mock_adapter, mock_llm):
     """Test LLM creation with dict model override."""
     mock_adapter.create_llm.return_value = mock_llm
-    defaults = LLM_DEFAULTS["router"]
+    defaults = LLM_DEFAULTS["hitl_classifier"]
 
-    get_llm("router", config_override={"model": "gpt-4.1-mini"})
+    get_llm("hitl_classifier", config_override={"model": "gpt-4.1-mini"})
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
     assert call_kwargs["model"] == "gpt-4.1-mini"  # Overridden
@@ -204,7 +204,7 @@ def test_no_static_callbacks_attached(mock_adapter, mock_llm):
     """Test that NO static callbacks are attached (Phase 2.1.1 fix)."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    llm = get_llm("router")
+    llm = get_llm("hitl_classifier")
 
     assert len(llm.callbacks) == 0
 
@@ -214,7 +214,7 @@ def test_empty_callbacks_for_all_llm_types(mock_adapter, mock_llm):
     """Test that all LLM types have empty callbacks list (Phase 2.1.1 fix)."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    llm_types = ["router", "response", "contacts_agent", "planner", "hitl_classifier"]
+    llm_types = ["hitl_classifier", "response", "contacts_agent", "planner", "hitl_classifier"]
 
     for llm_type in llm_types:
         mock_llm.callbacks = []
@@ -232,7 +232,7 @@ def test_streaming_only_for_response(mock_adapter, mock_llm):
     """Test that only response LLM has streaming enabled."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    llm_types = ["router", "response", "contacts_agent", "planner", "hitl_classifier"]
+    llm_types = ["hitl_classifier", "response", "contacts_agent", "planner", "hitl_classifier"]
 
     for llm_type in llm_types:
         get_llm(llm_type)
@@ -254,7 +254,9 @@ def test_provider_selection_per_llm_type(mock_adapter, mock_llm):
     """Test that each LLM type uses its LLM_DEFAULTS provider."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    for llm_type in ["router", "response", "contacts_agent", "planner", "hitl_classifier"]:
+    # Distinct slots only: get_llm caches instances, so a repeated slot would
+    # not call the adapter again and the assertion would read a stale call.
+    for llm_type in ["hitl_classifier", "response", "contacts_agent", "planner"]:
         get_llm(llm_type)
         call_kwargs = mock_adapter.create_llm.call_args.kwargs
         expected = LLM_DEFAULTS[llm_type].provider
@@ -293,7 +295,7 @@ def test_config_merge_preserves_all_parameters(mock_adapter, mock_llm):
     """Test that config merging preserves all LLM parameters."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    get_llm("router")
+    get_llm("hitl_classifier")
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
 
@@ -313,9 +315,9 @@ def test_config_merge_preserves_all_parameters(mock_adapter, mock_llm):
 def test_config_override_does_not_affect_other_params(mock_adapter, mock_llm):
     """Test that overriding one parameter doesn't affect others."""
     mock_adapter.create_llm.return_value = mock_llm
-    defaults = LLM_DEFAULTS["router"]
+    defaults = LLM_DEFAULTS["hitl_classifier"]
 
-    get_llm("router", config_override={"model": "gpt-4.1-mini"})
+    get_llm("hitl_classifier", config_override={"model": "gpt-4.1-mini"})
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
 
@@ -336,9 +338,9 @@ def test_config_override_does_not_affect_other_params(mock_adapter, mock_llm):
 def test_get_llm_with_empty_override(mock_adapter, mock_llm):
     """Test LLM creation with empty config_override dict."""
     mock_adapter.create_llm.return_value = mock_llm
-    defaults = LLM_DEFAULTS["router"]
+    defaults = LLM_DEFAULTS["hitl_classifier"]
 
-    get_llm("router", config_override={})
+    get_llm("hitl_classifier", config_override={})
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
     assert call_kwargs["model"] == defaults.model
@@ -351,7 +353,7 @@ def test_get_llm_provider_adapter_error_bubbles_up(mock_adapter):
     mock_adapter.create_llm.side_effect = ValueError("Invalid provider configuration")
 
     with pytest.raises(ValueError, match="Invalid provider configuration"):
-        get_llm("router")
+        get_llm("hitl_classifier")
 
 
 def test_get_llm_invalid_llm_type():
@@ -371,11 +373,11 @@ def test_logging_on_llm_creation(mock_adapter, mock_logger, mock_llm):
     """Test that LLM creation is logged."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    get_llm("router")
+    get_llm("hitl_classifier")
 
     assert mock_logger.info.called
     log_calls = mock_logger.info.call_args_list
-    assert any("llm_created" in str(call) or "router" in str(call) for call in log_calls)
+    assert any("llm_created" in str(call) or "hitl_classifier" in str(call) for call in log_calls)
 
 
 # ============================================================================
@@ -388,7 +390,7 @@ def test_backward_compatibility_with_existing_code(mock_adapter, mock_llm):
     """Test that existing code calling get_llm() without provider param still works."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    llm = get_llm("router")
+    llm = get_llm("hitl_classifier")
 
     assert llm == mock_llm
     assert mock_adapter.create_llm.called
@@ -415,7 +417,7 @@ def test_get_llm_with_none_config_uses_helper(mock_adapter, mock_llm):
             max_tokens=5000,
         )
 
-        get_llm("router")
+        get_llm("hitl_classifier")
 
         mock_helper.assert_called_once()
 
@@ -458,7 +460,7 @@ def test_get_llm_with_typed_dict_override_backward_compat(mock_adapter, mock_llm
         "max_tokens": 15000,
     }
 
-    get_llm("router", config_override=override_config)
+    get_llm("hitl_classifier", config_override=override_config)
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
     assert call_kwargs["model"] == "gpt-4.1-mini"  # Overridden
@@ -482,7 +484,7 @@ def test_get_llm_provider_from_agent_config_not_settings(mock_adapter, mock_llm)
         max_tokens=5000,
     )
 
-    get_llm("router", config_override=override_config)
+    get_llm("hitl_classifier", config_override=override_config)
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
     assert call_kwargs["provider"] == "anthropic"
@@ -515,8 +517,8 @@ def test_get_llm_instance_cache_hit_on_identical_config(mock_adapter, mock_llm):
     """Two get_llm() calls with the same resolved config reuse ONE instance."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    first = get_llm("router")
-    second = get_llm("router")
+    first = get_llm("hitl_classifier")
+    second = get_llm("hitl_classifier")
 
     assert first is second
     assert mock_adapter.create_llm.call_count == 1
@@ -530,8 +532,8 @@ def test_get_llm_instance_cache_miss_on_different_config(mock_adapter):
         MagicMock(spec=BaseChatModel),
     ]
 
-    default_llm = get_llm("router")
-    override_llm = get_llm("router", config_override={"temperature": 0.95})
+    default_llm = get_llm("hitl_classifier")
+    override_llm = get_llm("hitl_classifier", config_override={"temperature": 0.95})
 
     assert default_llm is not override_llm
     assert mock_adapter.create_llm.call_count == 2
@@ -550,8 +552,8 @@ def test_streaming_is_derived_from_llm_type_alone(mock_adapter):
     """
     mock_adapter.create_llm.return_value = MagicMock(spec=BaseChatModel)
 
-    default_llm = get_llm("router")  # router default: streaming=False
-    with_stray_key = get_llm("router", config_override={"streaming": True})
+    default_llm = get_llm("hitl_classifier")  # router default: streaming=False
+    with_stray_key = get_llm("hitl_classifier", config_override={"streaming": True})
 
     assert default_llm is with_stray_key  # same cache entry: the key is inert
     assert mock_adapter.create_llm.call_count == 1
@@ -568,9 +570,9 @@ def test_clear_llm_instance_cache_forces_recreation(mock_adapter):
         MagicMock(spec=BaseChatModel),
     ]
 
-    before_clear = get_llm("router")
+    before_clear = get_llm("hitl_classifier")
     clear_llm_instance_cache()
-    after_clear = get_llm("router")
+    after_clear = get_llm("hitl_classifier")
 
     assert before_clear is not after_clear
     assert mock_adapter.create_llm.call_count == 2
@@ -587,8 +589,8 @@ def test_llm_instance_cache_kill_switch(mock_adapter, monkeypatch):
         MagicMock(spec=BaseChatModel),
     ]
 
-    first = get_llm("router")
-    second = get_llm("router")
+    first = get_llm("hitl_classifier")
+    second = get_llm("hitl_classifier")
 
     assert first is not second
     assert mock_adapter.create_llm.call_count == 2

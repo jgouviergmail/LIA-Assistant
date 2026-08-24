@@ -8,7 +8,7 @@ for LLM config resolution (code constants replace .env settings).
 
 Usage:
     >>> from src.core.llm_config_helper import get_llm_config_for_agent
-    >>> config = get_llm_config_for_agent(settings, "router")
+    >>> config = get_llm_config_for_agent(settings, "planner")
     >>> print(config.model)  # "gpt-4.1-nano" (from LLM_DEFAULTS)
 """
 
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from src.core.constants import CAPABILITY_PROVENANCE_DECLARED
 from src.core.llm_agent_config import LLMAgentConfig
 from src.infrastructure.observability.logging import get_logger
 
@@ -51,7 +52,7 @@ def get_llm_config_for_agent(settings: Settings, agent_type: str) -> LLMAgentCon
 
     Args:
         settings: Settings instance (kept for backward compatibility, not used for LLM config)
-        agent_type: Agent type identifier (e.g., "router", "response", "planner")
+        agent_type: Agent type identifier (e.g., "planner", "response")
 
     Returns:
         LLMAgentConfig instance with effective parameters
@@ -72,47 +73,42 @@ def get_llm_config_for_agent(settings: Settings, agent_type: str) -> LLMAgentCon
 
     # Check for DB override in cache (sync read, zero latency)
     override = LLMConfigOverrideCache.get_override(canonical_type)
-    if not override:
-        return defaults
+    effective = defaults if not override else merge_config(defaults, override)
 
-    # Merge: code defaults + DB overrides (non-null fields only)
-    return merge_config(defaults, override)
+    # Report only, never reject: this model came from a code default or from an
+    # admin decision, and the catalogue is evidence, not authority over a human
+    # (ADR-244). The hard filter applies to policy candidates alone.
+    from src.infrastructure.llm.capability_gate import report_configured_model
+
+    if effective.model:
+        report_configured_model(canonical_type, effective.model)
+
+    return effective
 
 
 def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgentConfig:
     """Merge DB overrides onto code defaults, producing effective config.
 
-    Special handling for ``reasoning_effort``: its shape depends on the
-    target model's ``reasoning_widget``. When the override changes the
-    ``model`` without providing a ``reasoning_effort``, the default's value
-    may or may not fit the new model — e.g. a Qwen default
-    ``ReasoningEffortToggleBudget`` propagated onto a DeepSeek override would
-    crash the typed builder. It is therefore inherited only when it is
-    PROVABLY compatible with the new model (:func:`_is_inheritable_reasoning_effort`),
-    and dropped otherwise.
+    ``reasoning_effort`` used to need special handling: its SHAPE depended on
+    the target model's ``reasoning_widget``, so a Qwen default propagated onto
+    a DeepSeek override crashed the typed builder, and two guards existed to
+    drop a value that could not be proven compatible. ADR-245 removed the four
+    shapes and the builders; one intent fits every model and the translator
+    coerces its level to the nearest the model offers.
 
-    That "provably" matters: this branch used to drop the value
-    unconditionally, which silently erased an effort the admin had chosen.
-    Measured 2026-07-27 — the three background extractors (memory, interests,
-    journal) ran with no reasoning block at all, because the admin UI omits a
-    field equal to the type's default (override semantics) and the column then
-    stored NULL, which this function turned into "no reasoning" instead of
-    "the default's low". A knob that cannot express its own default value is
-    a broken knob.
+    So the value is simply inherited. That is not merely simpler, it is more
+    faithful in both directions:
 
-    As a final safety net, :func:`_reconcile_reasoning_effort` still drops any
-    ``reasoning_effort`` that does not match the effective model's
-    ``reasoning_widget`` (so a stale DB override / seed / manual edit degrades
-    to the model default instead of crashing the typed reasoning builder at
-    LLM-instantiation time).
+    - dropping it silently erased an effort the admin had chosen. Measured
+      2026-07-27 — the three background extractors (memory, interests, journal)
+      ran with no reasoning block at all, because the admin UI omits a field
+      equal to the type's default and the column then stored NULL. A knob that
+      cannot express its own default value is a broken knob;
+    - and dropping a ``level="none"`` inherited onto a model whose own default
+      is thinking-on silently TURNED REASONING ON — the opposite of what the
+      operator wrote, and billed accordingly.
     """
     merged = defaults.model_dump()
-    override_changes_model = (
-        "model" in overrides
-        and overrides["model"] is not None
-        and overrides["model"] != defaults.model
-    )
-    override_provides_reasoning = "reasoning_effort" in overrides
 
     for key, value in overrides.items():
         # An empty string is never a valid override value — for `provider` it
@@ -121,94 +117,14 @@ def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgen
         if value is not None and value != "" and key in merged:
             merged[key] = value
 
-    if (
-        override_changes_model
-        and not override_provides_reasoning
-        and not _is_inheritable_reasoning_effort(defaults.reasoning_effort, merged.get("model"))
-    ):
-        merged["reasoning_effort"] = None
-
-    return _reconcile_reasoning_effort(LLMAgentConfig(**merged))
-
-
-def _is_inheritable_reasoning_effort(
-    value: Any,
-    model: str | None,
-) -> bool:
-    """Whether a default's ``reasoning_effort`` survives a model change.
-
-    Inheritance requires proof, not optimism: an unknown model (a dynamically
-    discovered Ollama tag, a catalogue that has not loaded yet) cannot be
-    checked, so the value is dropped rather than risk the typed reasoning
-    builder. A known model whose widget accepts the value keeps it.
-
-    Args:
-        value: The default's ``reasoning_effort`` (typed, may be ``None``).
-        model: The effective model id after the override.
-
-    Returns:
-        True when the value can be carried over to ``model``.
-    """
-    if value is None or model is None:
-        return False
-
-    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
-
-    caps = ModelCapabilitiesCache.get(model)
-    if caps is None:
-        return False
-
-    from src.domains.llm_config.reasoning_validation import reasoning_effort_matches_widget
-
-    return reasoning_effort_matches_widget(caps, value)
-
-
-def _reconcile_reasoning_effort(cfg: LLMAgentConfig) -> LLMAgentConfig:
-    """Drop a ``reasoning_effort`` that is incompatible with ``cfg.model``.
-
-    Robustness guarantee: changing a model/provider — or any stale value left
-    over from a prior model (old DB override row, outdated seed, manual edit, a
-    past bug) — must never crash the typed reasoning builder at ``get_llm()``
-    time. If the stored ``reasoning_effort`` shape/value does not match the
-    effective model's ``reasoning_widget``, fall back to the model's intrinsic
-    default (``None``) and log a warning so the drift is visible. No-ops when
-    there is nothing to check, when the model is unknown to the catalogue
-    (e.g. a dynamically discovered Ollama model), or when the value is already
-    valid.
-
-    Args:
-        cfg: The merged effective config (code defaults + DB overrides).
-
-    Returns:
-        ``cfg`` unchanged when its ``reasoning_effort`` is valid (or absent, or
-        unverifiable), otherwise a copy with ``reasoning_effort`` set to ``None``.
-    """
-    if cfg.reasoning_effort is None or cfg.model is None:
-        return cfg
-
-    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
-
-    caps = ModelCapabilitiesCache.get(cfg.model)
-    if caps is None:
-        return cfg
-
-    from src.domains.llm_config.reasoning_validation import reasoning_effort_matches_widget
-
-    if reasoning_effort_matches_widget(caps, cfg.reasoning_effort):
-        return cfg
-
-    logger.warning(
-        "llm_config_reasoning_effort_dropped",
-        model=cfg.model,
-        reasoning_widget=caps.reasoning_widget,
-        reasoning_effort=cfg.reasoning_effort.model_dump(),
-        msg=(
-            "Stored reasoning_effort is incompatible with the effective model "
-            "(wrong shape or out-of-range value); falling back to the model's "
-            "default reasoning behaviour."
-        ),
-    )
-    return cfg.model_copy(update={"reasoning_effort": None})
+    # A model change no longer drops an inherited reasoning value (ADR-245).
+    # The two guards that did are gone with the shape-dispatching builders they
+    # protected: nothing raises on a mismatch any more, the translator coerces
+    # the level to the nearest the new model offers, and it says so. Dropping
+    # was the worse answer -- a default of ``level="none"`` inherited onto a
+    # model whose own default is thinking-on silently TURNED REASONING ON,
+    # which is the opposite of what the operator wrote.
+    return LLMAgentConfig(**merged)
 
 
 def get_provider_api_key(provider: str) -> str | None:
@@ -247,14 +163,15 @@ def get_all_llm_configs(settings: Settings) -> dict[str, LLMAgentConfig]:
 def get_effective_context_window(model: str) -> int:
     """Resolve a model's context window from the DB-backed catalogue, then the table.
 
-    Summarization triggers and compaction sizing previously read only the
-    hand-maintained ``MODEL_CONTEXT_WINDOWS`` table, which drifts from what the
-    admin LLM catalogue (``llm_models`` → :class:`ModelCapabilitiesCache`)
-    declares — the same two-authorities trap the DB-source-of-truth release
-    removed for every other capability. The cache is authoritative when it
-    knows the model; the table stays as the safety net (prefix matching and
-    ``DEFAULT_CONTEXT_WINDOW`` included) for models outside the catalogue and
-    for the boot window before the cache is loaded.
+    Neither internal source is authoritative on its own. The catalogue carried
+    column defaults on 89 of 114 rows (``gpt-5.2`` at 8 192 against a real
+    272 000), and ``MODEL_CONTEXT_WINDOWS`` is wrong on 10 of its 56 entries
+    (``gpt-5.2`` at 1 047 576, ``claude-opus-4-6`` at 200 000 against
+    1 000 000). The **provenance** decides: an ``imported`` or ``verified``
+    catalogue row wins; a ``declared`` one falls back to the table, which stays
+    the safety net (prefix matching and ``DEFAULT_CONTEXT_WINDOW`` included)
+    for models outside the catalogue and for the boot window before the cache
+    is loaded.
 
     Args:
         model: Model identifier as configured (date-suffixed ids are retried
@@ -273,7 +190,11 @@ def get_effective_context_window(model: str) -> int:
         if normalized != model:
             caps = ModelCapabilitiesCache.get(normalized)
 
-    if caps is not None and caps.max_input_tokens > 0:
+    if (
+        caps is not None
+        and caps.max_input_tokens > 0
+        and caps.capability_provenance != CAPABILITY_PROVENANCE_DECLARED
+    ):
         return caps.max_input_tokens
 
     return get_model_context_window(model)

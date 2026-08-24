@@ -1,195 +1,282 @@
 /**
- * ReasoningWidget — golden characterization (audit F011).
+ * ReasoningWidget — the single reasoning control (ADR-245).
  *
- * Pins the rendered output and onChange payloads of the three reasoning widget
- * shapes (enum / budget_int / toggle_budget) BEFORE the CC-43 component is split
- * into one sub-component per shape. Radix Select value changes are not driven in
- * jsdom (pointer limitations) — the preset-derivation logic they exercise is
- * covered directly through the pure helper unit tests. Everything drivable in
- * jsdom (the number Inputs and the Switch) is asserted here.
+ * It replaced three sub-components dispatched on `reasoning_widget`. What a
+ * model offers now travels with the model, so the tests below drive the widget
+ * through PROFILES rather than through widget names, and assert the two things
+ * that matter: it offers exactly what the profile publishes, and every
+ * interaction emits a complete intent (never a partial object the backend would
+ * have to guess at).
+ *
+ * Radix Select values are not drivable in jsdom (pointer limitations), so the
+ * level dropdown is asserted on what it RENDERS; the budget Input and the
+ * exclude Switch, which are drivable, are asserted on their emitted payloads.
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
+import type { ModelCapabilities, ReasoningEffortValue } from '@/types/llm-config';
 import { ReasoningWidget } from '../ReasoningWidget';
-import type { ReasoningBudgetRange } from '@/types/llm-config';
 
-const RANGE: ReasoningBudgetRange = {
-  min: 1024,
-  max: 32000,
-  off_sentinel: 0,
-  dynamic_sentinel: -1,
+/** Identity translator: assertions target keys, not a locale's wording. */
+const t = (key: string) => key;
+
+function caps(partial: Partial<ModelCapabilities>): ModelCapabilities {
+  return {
+    reasoning_family: 'none',
+    reasoning_levels: [],
+    reasoning_can_disable: true,
+    reasoning_supports_budget: false,
+    reasoning_supports_exclude: false,
+    reasoning_budget_range: null,
+    reasoning_doc_i18n_key: null,
+    ...partial,
+  } as ModelCapabilities;
+}
+
+const LADDER = caps({
+  reasoning_family: 'openai',
+  reasoning_levels: ['none', 'low', 'medium', 'high'],
+});
+
+const BUDGETED = caps({
+  reasoning_family: 'anthropic_budget',
+  reasoning_levels: ['none', 'low', 'high'],
+  reasoning_supports_budget: true,
+  reasoning_budget_range: { min: 1024, max: 32000 },
+});
+
+const GEMINI = caps({
+  reasoning_family: 'gemini_level',
+  reasoning_levels: ['low', 'medium', 'high'],
+  reasoning_can_disable: false,
+  reasoning_supports_exclude: true,
+});
+
+const INTENT: ReasoningEffortValue = {
+  level: 'high',
+  budget_tokens: null,
+  exclude_from_output: false,
 };
 
-describe('widget=none', () => {
-  it('renders nothing', () => {
-    const { container } = render(<ReasoningWidget widget="none" value={null} onChange={vi.fn()} />);
+describe('a model that does not reason', () => {
+  it('renders nothing at all', () => {
+    const { container } = render(
+      <ReasoningWidget caps={caps({})} value={null} onChange={vi.fn()} t={t} />
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders nothing for a model absent from the catalogue', () => {
+    const { container } = render(
+      <ReasoningWidget caps={undefined} value={null} onChange={vi.fn()} t={t} />
+    );
     expect(container.firstChild).toBeNull();
   });
 });
 
-describe('widget=enum', () => {
-  it('shows the "forced" note when exactly one value is allowed', () => {
-    render(<ReasoningWidget widget="enum" enumValues={['high']} value={null} onChange={vi.fn()} />);
-    expect(screen.getByText(/Forced to high/)).toBeTruthy();
+describe('the level control', () => {
+  it('shows the default when there is no override', () => {
+    render(<ReasoningWidget caps={LADDER} value={null} onChange={vi.fn()} t={t} />);
+    expect(screen.getByText('settings.admin.llmConfig.fields.reasoningDefault')).toBeTruthy();
   });
 
-  it('flags an invalid current value not in the allowed set', () => {
-    render(
-      <ReasoningWidget
-        widget="enum"
-        enumValues={['low', 'high']}
-        value={{ effort: 'legacy' }}
-        onChange={vi.fn()}
-      />
-    );
-    const alert = screen.getByRole('alert');
-    expect(alert.textContent).toContain("'legacy'");
-    expect(alert.textContent).toContain('low, high');
+  it('shows the configured level when there is one', () => {
+    render(<ReasoningWidget caps={LADDER} value={INTENT} onChange={vi.fn()} t={t} />);
+    expect(screen.getByText('settings.admin.llmConfig.reasoningLevels.high')).toBeTruthy();
   });
 
-  it('does not flag a valid current value, and shows no forced note for multiple values', () => {
-    render(
-      <ReasoningWidget
-        widget="enum"
-        enumValues={['low', 'high']}
-        value={{ effort: 'high' }}
-        onChange={vi.fn()}
-      />
-    );
-    expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.queryByText(/Forced to/)).toBeNull();
+  it('has an accessible name even though its label is rendered by the section', () => {
+    render(<ReasoningWidget caps={LADDER} value={null} onChange={vi.fn()} t={t} />);
+    expect(
+      screen.getByRole('combobox', {
+        name: 'settings.admin.llmConfig.fields.reasoningEffort',
+      })
+    ).toBeTruthy();
   });
 
-  it('renders the doc text when a known doc key is provided', () => {
-    // An unknown key resolves to undefined → no doc paragraph (safe default).
-    render(
-      <ReasoningWidget
-        widget="enum"
-        enumValues={['low']}
-        docI18nKey="___unknown___"
-        value={null}
-        onChange={vi.fn()}
-      />
-    );
-    // Only the "forced" note is present; no crash on the unknown doc key.
-    expect(screen.getByText(/Forced to low/)).toBeTruthy();
+  it('notes a single-level model instead of pretending there is a choice', () => {
+    const forced = caps({ reasoning_family: 'openai', reasoning_levels: ['medium'] });
+    render(<ReasoningWidget caps={forced} value={null} onChange={vi.fn()} t={t} />);
+    expect(
+      screen.getByText('settings.admin.llmConfig.constraints.reasoningSingleLevel')
+    ).toBeTruthy();
+  });
+
+  it('does not note it when several levels are offered', () => {
+    render(<ReasoningWidget caps={LADDER} value={null} onChange={vi.fn()} t={t} />);
+    expect(
+      screen.queryByText('settings.admin.llmConfig.constraints.reasoningSingleLevel')
+    ).toBeNull();
   });
 });
 
-describe('widget=budget_int', () => {
-  it('shows the custom number input at range.min when no budget is set', () => {
-    render(
-      <ReasoningWidget widget="budget_int" budgetRange={RANGE} value={null} onChange={vi.fn()} />
-    );
-    // preset defaults to custom → the number input is shown, seeded at min.
-    const input = screen.getByLabelText('Reasoning budget (tokens)') as HTMLInputElement;
-    expect(input.value).toBe('1024');
-    expect(screen.getByText(/Range: 1024–32000 tokens/)).toBeTruthy();
+describe('the budget control', () => {
+  it('is absent for a family that expresses depth only', () => {
+    render(<ReasoningWidget caps={LADDER} value={null} onChange={vi.fn()} t={t} />);
+    expect(screen.queryByLabelText('settings.admin.llmConfig.fields.reasoningBudget')).toBeNull();
   });
 
-  it('emits a numeric budget change from the custom input', () => {
+  it('is present, bounded by the published range, for a budget family', () => {
+    render(<ReasoningWidget caps={BUDGETED} value={null} onChange={vi.fn()} t={t} />);
+    const input = screen.getByLabelText(
+      'settings.admin.llmConfig.fields.reasoningBudget'
+    ) as HTMLInputElement;
+    expect(input.min).toBe('1024');
+    expect(input.max).toBe('32000');
+  });
+
+  it('emits a complete intent when a budget is typed on an empty value', () => {
+    const onChange = vi.fn();
+    render(<ReasoningWidget caps={BUDGETED} value={null} onChange={onChange} t={t} />);
+    fireEvent.change(screen.getByLabelText('settings.admin.llmConfig.fields.reasoningBudget'), {
+      target: { value: '8192' },
+    });
+    expect(onChange).toHaveBeenCalledWith({
+      level: 'provider_default',
+      budget_tokens: 8192,
+      exclude_from_output: false,
+    });
+  });
+
+  it('keeps the chosen level when the budget changes', () => {
+    const onChange = vi.fn();
+    render(<ReasoningWidget caps={BUDGETED} value={INTENT} onChange={onChange} t={t} />);
+    fireEvent.change(screen.getByLabelText('settings.admin.llmConfig.fields.reasoningBudget'), {
+      target: { value: '2048' },
+    });
+    expect(onChange).toHaveBeenCalledWith({
+      level: 'high',
+      budget_tokens: 2048,
+      exclude_from_output: false,
+    });
+  });
+
+  it('clearing the field means "let the depth decide", not zero', () => {
     const onChange = vi.fn();
     render(
       <ReasoningWidget
-        widget="budget_int"
-        budgetRange={RANGE}
-        value={{ budget: 2048 }}
+        caps={BUDGETED}
+        value={{ ...INTENT, budget_tokens: 4096 }}
         onChange={onChange}
+        t={t}
       />
     );
-    const input = screen.getByLabelText('Reasoning budget (tokens)');
-    fireEvent.change(input, { target: { value: '4096' } });
-    expect(onChange).toHaveBeenCalledWith({ budget: 4096 });
-
-    // A number input coerces a cleared value to '' → Number('') === 0 → budget 0
-    // (the Number.isNaN guard only trips for a genuinely NaN parse, which a
-    // number input never yields).
-    onChange.mockClear();
-    fireEvent.change(input, { target: { value: '' } });
-    expect(onChange).toHaveBeenCalledWith({ budget: 0 });
-  });
-
-  it('hides the custom input when the value matches the off sentinel', () => {
-    render(
-      <ReasoningWidget
-        widget="budget_int"
-        budgetRange={RANGE}
-        value={{ budget: 0 }}
-        onChange={vi.fn()}
-      />
-    );
-    // preset resolves to Off → no custom number input rendered.
-    expect(screen.queryByLabelText('Reasoning budget (tokens)')).toBeNull();
-  });
-
-  it('hides the custom input when the value matches the dynamic sentinel', () => {
-    render(
-      <ReasoningWidget
-        widget="budget_int"
-        budgetRange={RANGE}
-        value={{ budget: -1 }}
-        onChange={vi.fn()}
-      />
-    );
-    expect(screen.queryByLabelText('Reasoning budget (tokens)')).toBeNull();
+    fireEvent.change(screen.getByLabelText('settings.admin.llmConfig.fields.reasoningBudget'), {
+      target: { value: '' },
+    });
+    expect(onChange).toHaveBeenCalledWith({
+      level: 'high',
+      budget_tokens: null,
+      exclude_from_output: false,
+    });
   });
 });
 
-describe('widget=toggle_budget', () => {
-  it('reflects the disabled state and toggles thinking on', () => {
-    const onChange = vi.fn();
-    render(
-      <ReasoningWidget
-        widget="toggle_budget"
-        budgetRange={RANGE}
-        value={{ enabled: false }}
-        onChange={onChange}
-      />
-    );
-    expect(screen.getByText('Thinking disabled')).toBeTruthy();
-    // No budget input while disabled.
-    expect(screen.queryByLabelText('Reasoning budget (tokens)')).toBeNull();
+describe('the budget control, when the typed value is out of bounds', () => {
+  const OUT_OF_RANGE: ReasoningEffortValue = { ...INTENT, budget_tokens: 999_999 };
 
-    fireEvent.click(screen.getByRole('switch'));
-    expect(onChange).toHaveBeenCalledWith({ enabled: true });
+  it('marks the field invalid and points at the rule', () => {
+    render(<ReasoningWidget caps={BUDGETED} value={OUT_OF_RANGE} onChange={vi.fn()} t={t} />);
+    const input = screen.getByLabelText('settings.admin.llmConfig.fields.reasoningBudget');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    const describedBy = input.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)?.textContent).toContain(
+      'reasoningBudgetRange'
+    );
   });
 
-  it('shows the budget input when enabled and emits enabled+budget on change', () => {
-    const onChange = vi.fn();
+  it('says nothing extra while the value is inside the range', () => {
     render(
       <ReasoningWidget
-        widget="toggle_budget"
-        budgetRange={RANGE}
-        value={{ enabled: true, budget: 2048 }}
-        onChange={onChange}
+        caps={BUDGETED}
+        value={{ ...INTENT, budget_tokens: 2048 }}
+        onChange={vi.fn()}
+        t={t}
       />
     );
-    expect(screen.getByText('Thinking enabled')).toBeTruthy();
-    const input = screen.getByLabelText('Reasoning budget (tokens)') as HTMLInputElement;
-    expect(input.value).toBe('2048');
-
-    fireEvent.change(input, { target: { value: '8000' } });
-    expect(onChange).toHaveBeenCalledWith({ enabled: true, budget: 8000 });
-
-    // Blank clears the budget but keeps thinking enabled.
-    onChange.mockClear();
-    fireEvent.change(input, { target: { value: '' } });
-    expect(onChange).toHaveBeenCalledWith({ enabled: true });
+    const input = screen.getByLabelText('settings.admin.llmConfig.fields.reasoningBudget');
+    expect(input.getAttribute('aria-invalid')).toBeNull();
   });
 
-  it('toggles thinking off when the switch is unchecked', () => {
+  it('gives each mounted widget its own ids', () => {
+    // Two live `id="reasoning-budget"` attributes would send both labels to the
+    // first input, and the second control would be unreachable by name.
+    const { container } = render(
+      <>
+        <ReasoningWidget caps={BUDGETED} value={null} onChange={vi.fn()} t={t} />
+        <ReasoningWidget caps={BUDGETED} value={null} onChange={vi.fn()} t={t} />
+      </>
+    );
+    const ids = Array.from(container.querySelectorAll('input[type="number"]')).map(el => el.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+});
+
+describe('the exclude-from-output control', () => {
+  it('is absent where the flag would never reach the provider', () => {
+    render(<ReasoningWidget caps={BUDGETED} value={null} onChange={vi.fn()} t={t} />);
+    expect(screen.queryByLabelText('settings.admin.llmConfig.fields.reasoningExclude')).toBeNull();
+  });
+
+  it('is present, and toggles, where the family expresses it', () => {
     const onChange = vi.fn();
+    render(<ReasoningWidget caps={GEMINI} value={INTENT} onChange={onChange} t={t} />);
+    fireEvent.click(screen.getByLabelText('settings.admin.llmConfig.fields.reasoningExclude'));
+    expect(onChange).toHaveBeenCalledWith({
+      level: 'high',
+      budget_tokens: null,
+      exclude_from_output: true,
+    });
+  });
+
+  it('reflects the current value', () => {
     render(
       <ReasoningWidget
-        widget="toggle_budget"
-        budgetRange={RANGE}
-        value={{ enabled: true }}
-        onChange={onChange}
+        caps={GEMINI}
+        value={{ ...INTENT, exclude_from_output: true }}
+        onChange={vi.fn()}
+        t={t}
       />
     );
-    fireEvent.click(screen.getByRole('switch'));
-    expect(onChange).toHaveBeenCalledWith({ enabled: false });
+    const toggle = screen.getByLabelText('settings.admin.llmConfig.fields.reasoningExclude');
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+  });
+});
+
+describe('a model that cannot stop reasoning', () => {
+  it('offers no "none", because the API would refuse it', () => {
+    render(<ReasoningWidget caps={GEMINI} value={null} onChange={vi.fn()} t={t} />);
+    // The trigger shows the current selection; the ladder itself is what the
+    // profile published, and 'none' is not on it.
+    expect(GEMINI.reasoning_levels).not.toContain('none');
+    expect(screen.getByText('settings.admin.llmConfig.fields.reasoningDefault')).toBeTruthy();
+  });
+});
+
+describe('the model documentation', () => {
+  it('is shown when the catalogue names a doc key it knows', () => {
+    const documented = caps({
+      reasoning_family: 'openai',
+      reasoning_levels: ['none', 'high'],
+      reasoning_doc_i18n_key: 'openai_gpt5_2',
+    });
+    render(<ReasoningWidget caps={documented} value={null} onChange={vi.fn()} t={t} />);
+    expect(screen.getByText(/minimal/i)).toBeTruthy();
+  });
+
+  it('stays silent on a key with no entry, rather than rendering an empty note', () => {
+    const undocumented = caps({
+      reasoning_family: 'openai',
+      reasoning_levels: ['none', 'high'],
+      reasoning_doc_i18n_key: 'a_key_nobody_wrote',
+    });
+    const { container } = render(
+      <ReasoningWidget caps={undocumented} value={null} onChange={vi.fn()} t={t} />
+    );
+    expect(container.querySelectorAll('p').length).toBe(0);
   });
 });

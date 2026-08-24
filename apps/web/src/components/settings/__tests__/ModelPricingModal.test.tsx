@@ -26,9 +26,27 @@ vi.stubGlobal(
   }
 );
 
-const fetchReasoningTemplates = vi.hoisted(() => vi.fn());
+const { apiGet } = vi.hoisted(() => ({ apiGet: vi.fn() }));
+// The ladder editor asks the API what the RUNTIME accepts for the
+// (provider, model) pair being typed — the family's own ladder, resolved by
+// the same function the translator and the validator call. Without this the
+// editor renders its "no family matches" panel, which is a real state but not
+// the one these tests are about.
+vi.mock('@/lib/api-client', () => ({
+  default: { get: apiGet },
+  apiEndpointUrl: (endpoint: string) => `/api/v1${endpoint}`,
+}));
+
+const FAMILY = {
+  reasoning_family: 'openai_effort',
+  reasoning_levels: ['none', 'low', 'medium', 'high'],
+  reasoning_can_disable: true,
+  reasoning_supports_budget: false,
+  reasoning_budget_range: null,
+  source: 'family',
+};
+
 vi.mock('@/lib/actions/settings-actions', () => ({
-  fetchReasoningTemplates,
   // Unused by the modal but imported by the host module.
   createLLMPricing: vi.fn(),
   updateLLMPricing: vi.fn(),
@@ -45,17 +63,6 @@ vi.mock('@/i18n/client', () => ({
 
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
-const TEMPLATES = [
-  {
-    template_model_name: 'o1',
-    description: 'OpenAI o-series (enum effort)',
-    is_reasoning_model: true,
-    reasoning_widget: 'enum' as const,
-    reasoning_enum_values: ['low', 'high'],
-    reasoning_budget_range: null,
-  },
-];
-
 // Shared domain factory — the same row shape drives
 // AdminLLMPricingSection.test.tsx.
 import { makeLLMPricing as editModel } from '@/__tests__/factories';
@@ -71,7 +78,7 @@ const submit = () => fireEvent.click(screen.getByText('settings.admin.llm.modal.
 const submitEdit = () => fireEvent.click(screen.getByText('settings.admin.llm.modal.submit_edit'));
 
 beforeEach(() => {
-  fetchReasoningTemplates.mockReset().mockResolvedValue(TEMPLATES);
+  apiGet.mockReset().mockResolvedValue(FAMILY);
 });
 
 describe('add mode', () => {
@@ -147,22 +154,23 @@ describe('reasoning gating + custom shape', () => {
     expect(screen.queryByText('Copy reasoning shape from')).toBeNull();
   });
 
-  it('shows the enum CSV input in custom mode with widget=enum', () => {
+  it('offers the family ladder as checkboxes, not a free-text list', async () => {
     renderModal(null);
     fireEvent.click(screen.getByLabelText('Is reasoning model'));
-    // Default template is Custom → the custom shape block is shown.
-    fireEvent.change(screen.getByLabelText('Reasoning widget'), { target: { value: 'enum' } });
-    expect(screen.getByLabelText('Enum values (comma-separated)')).toBeTruthy();
-    // Switching to a budget widget swaps to the budget fields.
-    fireEvent.change(screen.getByLabelText('Reasoning widget'), {
-      target: { value: 'budget_int' },
-    });
-    expect(screen.queryByLabelText('Enum values (comma-separated)')).toBeNull();
-    expect(screen.getByLabelText('Budget min')).toBeTruthy();
-    expect(screen.getByLabelText('Budget max')).toBeTruthy();
+    // Every box is a depth this model's family really offers. The old free-text
+    // field asked the operator to DECLARE a ladder the code already derives,
+    // and let them type a level that does not exist (`off`, dropped in silence
+    // by the narrowing intersection).
+    await waitFor(() => expect(screen.getByLabelText('high')).toBeTruthy());
+    for (const level of FAMILY.reasoning_levels) {
+      expect((screen.getByLabelText(level) as HTMLInputElement).checked).toBe(true);
+    }
+    expect(screen.queryByLabelText('Accepted levels (comma-separated, ascending)')).toBeNull();
+    expect(screen.queryByLabelText('Reasoning widget')).toBeNull();
+    expect(screen.queryByLabelText('Budget min')).toBeNull();
   });
 
-  it('emits enum values parsed from CSV in the submit payload', () => {
+  it('stores nothing while every depth is kept', async () => {
     const { onSubmit } = renderModal(null);
     fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
       target: { value: 'm' },
@@ -170,14 +178,45 @@ describe('reasoning gating + custom shape', () => {
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '1' } });
     fireEvent.click(screen.getByLabelText('Is reasoning model'));
-    fireEvent.change(screen.getByLabelText('Reasoning widget'), { target: { value: 'enum' } });
-    fireEvent.change(screen.getByLabelText('Enum values (comma-separated)'), {
-      target: { value: 'low, high' },
+    await waitFor(() => expect(screen.getByLabelText('high')).toBeTruthy());
+    submit();
+    // "No narrowing" and "narrowed to everything" mean the same thing to the
+    // resolver, and the empty one survives the family gaining a level.
+    expect(onSubmit.mock.calls[0][0].reasoning_enum_values_csv).toBe('');
+  });
+
+  it('says so when no family rule matches the model', async () => {
+    apiGet.mockResolvedValue({
+      reasoning_family: 'none',
+      reasoning_levels: [],
+      reasoning_can_disable: true,
+      reasoning_supports_budget: false,
+      reasoning_budget_range: null,
+      source: 'unknown',
     });
+    renderModal(null);
+    fireEvent.click(screen.getByLabelText('Is reasoning model'));
+    // The state that confused every reader of the old field: the column is not
+    // even read here, and an empty checkbox list would look like a loading bug.
+    await waitFor(() => expect(screen.getByText(/No reasoning family matches/)).toBeTruthy());
+    expect(screen.getByText(/code change/)).toBeTruthy();
+  });
+
+  it('emits only the depths left ticked', async () => {
+    const { onSubmit } = renderModal(null);
+    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
+      target: { value: 'm' },
+    });
+    fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '1' } });
+    fireEvent.click(screen.getByLabelText('Is reasoning model'));
+    await waitFor(() => expect(screen.getByLabelText('none')).toBeTruthy());
+    // Unticking is the only thing the stored column can express.
+    fireEvent.click(screen.getByLabelText('none'));
+    fireEvent.click(screen.getByLabelText('medium'));
     submit();
     const payload = onSubmit.mock.calls[0][0];
     expect(payload.is_reasoning_model).toBe(true);
-    expect(payload.reasoning_widget).toBe('enum');
     expect(payload.reasoning_enum_values_csv).toBe('low, high');
   });
 });
@@ -196,16 +235,16 @@ describe('edit mode with a reasoning model', () => {
   it('renders without crashing and fetches the template list', async () => {
     const reasoningRow = editModel({
       is_reasoning_model: true,
-      reasoning_widget: 'enum',
       reasoning_enum_values: ['low', 'high'],
-      reasoning_budget_range: null,
     });
     renderModal(reasoningRow);
-    // The reasoning section renders for a reasoning row; the template list is
-    // fetched once on mount (the fingerprint auto-select behavior lives in the
-    // unchanged fetch effect and is out of this decomposition's scope).
-    await waitFor(() => expect(fetchReasoningTemplates).toHaveBeenCalledTimes(1));
+    // The stored narrowing arrives as ticked boxes on the model's own family
+    // ladder. Nothing is fetched about templates any more: the form writes the
+    // reasoning identity directly.
+    await waitFor(() => expect(screen.getByLabelText('high')).toBeTruthy());
     expect(screen.getByLabelText('Is reasoning model')).toBeTruthy();
+    expect((screen.getByLabelText('low') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText('medium') as HTMLInputElement).checked).toBe(false);
   });
 });
 
@@ -238,15 +277,11 @@ describe('time-slot tariffs (ADR-223)', () => {
 
   it('is off by default and absent from an audio-billed form', () => {
     renderModal(null);
-    expect(
-      screen.getByLabelText('settings.admin.llm.modal.time_slots_toggle_label')
-    ).toBeTruthy();
+    expect(screen.getByLabelText('settings.admin.llm.modal.time_slots_toggle_label')).toBeTruthy();
     // Switching kind to tts re-aligns pricing_unit to per_audio_hour and the
     // whole block disappears — audio always bills flat.
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'tts' } });
-    expect(
-      screen.queryByLabelText('settings.admin.llm.modal.time_slots_toggle_label')
-    ).toBeNull();
+    expect(screen.queryByLabelText('settings.admin.llm.modal.time_slots_toggle_label')).toBeNull();
   });
 
   it('seeds one editable row on enable and submits the typed windows', () => {

@@ -32,11 +32,9 @@ from sqlalchemy.orm import selectinload
 from src.core.llm_utils import resolve_priced_name
 from src.domains.llm.models import LLMModel, LLMModelPricing
 from src.domains.llm.pricing_sheet import (
-    CUSTOM_TEMPLATE_MARKER,
     FINGERPRINT_COLUMN,
     MODELS_SHEET,
 )
-from src.domains.llm.service import LLMModelService
 
 #: i18n keys this module resolves through the ``labels`` mapping. Published so
 #: the route can hand over exactly what is needed, and a gap is findable.
@@ -63,14 +61,12 @@ class ExportPayload:
     Attributes:
         models: One mapping per catalogue model, keyed by the sheet's columns.
         slots: One mapping per UTC window, for the time-slot sheet.
-        templates: Reasoning templates offered by the dropdown.
         fingerprints: Per-model hash of the editable values, so an import can
             refuse exactly the rows that changed underneath the administrator.
     """
 
     models: tuple[Mapping[str, Any], ...]
     slots: tuple[Mapping[str, Any], ...]
-    templates: tuple[str, ...]
     fingerprints: Mapping[str, str]
 
 
@@ -111,20 +107,8 @@ async def build_export_rows(db: AsyncSession, *, labels: Mapping[str, str]) -> E
             :data:`EXPORT_LABEL_KEYS`.
 
     Returns:
-        The rows, the template list and the per-row fingerprints.
+        The rows and the per-row fingerprints.
     """
-    service = LLMModelService(db)
-    templates = await service.list_templates()
-    template_by_fingerprint = {
-        LLMModelService._fingerprint(row): template.template_model_name
-        for template, row in zip(
-            templates,
-            await _template_rows(db, [t.template_model_name for t in templates]),
-            strict=True,
-        )
-        if row is not None
-    }
-
     models = list((await db.scalars(select(LLMModel).order_by(LLMModel.model_name))).all())
     pricing_rows = list(
         (
@@ -154,7 +138,7 @@ async def build_export_rows(db: AsyncSession, *, labels: Mapping[str, str]) -> E
         # The list is ordered most recent first; the head is the tariff that
         # applies. After migration 6e7f8a9b0c1d there can only ever be one.
         applied = current[0] if current else None
-        row = _model_row(model, applied, current, priced_names, template_by_fingerprint, labels)
+        row = _model_row(model, applied, current, priced_names, labels)
         # Stamped into the row itself so the file carries it back on import;
         # computed from the editable cells only, which is why the fingerprint
         # column is read-only and therefore never part of its own input.
@@ -167,22 +151,8 @@ async def build_export_rows(db: AsyncSession, *, labels: Mapping[str, str]) -> E
     return ExportPayload(
         models=tuple(rows),
         slots=tuple(slots),
-        templates=tuple(t.template_model_name for t in templates),
         fingerprints=fingerprints,
     )
-
-
-async def _template_rows(db: AsyncSession, names: Sequence[str]) -> list[LLMModel | None]:
-    """Load the representative row of each template, in the same order."""
-    if not names:
-        return []
-    found = {
-        row.model_name: row
-        for row in (
-            await db.scalars(select(LLMModel).where(LLMModel.model_name.in_(list(names))))
-        ).all()
-    }
-    return [found.get(name) for name in names]
 
 
 def _model_row(
@@ -190,7 +160,6 @@ def _model_row(
     pricing: LLMModelPricing | None,
     active: Sequence[LLMModelPricing],
     priced_names: set[str],
-    template_by_fingerprint: Mapping[Any, str],
     labels: Mapping[str, str],
 ) -> dict[str, Any]:
     windows = list(pricing.time_slots or []) if pricing else []
@@ -210,12 +179,13 @@ def _model_row(
         "supports_top_p": model.supports_top_p,
         "supports_frequency_penalty": model.supports_frequency_penalty,
         "supports_presence_penalty": model.supports_presence_penalty,
-        "reasoning_template": template_by_fingerprint.get(
-            LLMModelService._fingerprint(model), CUSTOM_TEMPLATE_MARKER
-        ),
+        "is_reasoning_model": model.is_reasoning_model,
+        # The stored narrowing, verbatim and comma-separated. Empty means "no
+        # narrowing": the family's own ladder applies, which is what the
+        # read-only shape beside it prints.
+        "reasoning_enum_values": ", ".join(model.reasoning_enum_values or ()) or None,
         "reasoning_shape": _reasoning_shape(model, labels),
         "reasoning_doc_i18n_key": model.reasoning_doc_i18n_key,
-        "effort_values": ",".join(model.effort_values) if model.effort_values else None,
         "pricing_unit": pricing.pricing_unit.value if pricing else None,
         "input_unit_price": pricing.input_unit_price if pricing else None,
         "cached_input_unit_price": pricing.cached_input_unit_price if pricing else None,
@@ -255,25 +225,34 @@ def _slots_summary(windows: Sequence[Mapping[str, Any]], labels: Mapping[str, st
 
 
 def _reasoning_shape(model: LLMModel, labels: Mapping[str, str]) -> str:
-    """A one-cell, human-readable summary of the model's reasoning shape."""
-    parts = [model.reasoning_widget.value]
-    if model.reasoning_enum_values:
-        parts.append("[" + ",".join(model.reasoning_enum_values) + "]")
-    if model.reasoning_budget_range:
-        bounds = model.reasoning_budget_range
-        parts.append(
-            "min={min} max={max} off={off} dyn={dyn}".format(
-                min=bounds.get("min"),
-                max=bounds.get("max"),
-                off=bounds.get("off_sentinel"),
-                dyn=bounds.get("dynamic_sentinel"),
-            )
-        )
-    shape = " ".join(parts)
-    if model.is_reasoning_model:
-        prefix = labels.get("settings.admin.llm.sheet.reasoning_prefix", "reasoning")
-        shape = f"{prefix} / {shape}"
-    return shape
+    """A one-cell, human-readable summary of what the model does with reasoning.
+
+    Since ADR-245 this prints what the RUNTIME resolves -- the translator family
+    and the ladder it will accept -- rather than the catalogue's own
+    ``reasoning_widget``, a column that has since been dropped along with the
+    four stored shapes it discriminated. The declared narrowing is shown next
+    to it when the row carries one: it is the single catalogue value the
+    resolution still reads.
+    """
+    from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
+
+    declared = model.reasoning_enum_values
+    profile = resolve_reasoning_profile(
+        model.provider,
+        model.model_name,
+        model_levels=tuple(declared) if declared else None,
+    )
+    if not profile.levels:
+        return profile.family
+    parts = [profile.family, "[" + ",".join(profile.levels) + "]"]
+    if profile.supports_budget and profile.budget_range is not None:
+        parts.append(f"budget={profile.budget_range[0]}-{profile.budget_range[1]}")
+    if not profile.can_disable:
+        parts.append("always-on")
+    if declared:
+        parts.append("declared=[" + ",".join(declared) + "]")
+    prefix = labels.get("settings.admin.llm.sheet.reasoning_prefix", "reasoning")
+    return f"{prefix} / " + " ".join(parts)
 
 
 def _status(

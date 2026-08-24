@@ -117,6 +117,83 @@ task release:bump -- 1.32.0       # write every mechanical surface + realign the
 task release:sync-counts          # realign the ADR/CHANGELOG counts alone
 ```
 
+### Model capability catalogue (ADR-244)
+
+`llm_models` is the runtime authority on what a model can do, and its capability
+columns are curated from two vendored public registries — never from the network on
+an execution path:
+
+```bash
+task llm:catalogue:fetch          # refresh the vendored snapshot (network; review the diff)
+task llm:catalogue:sync           # print the reviewable diff + the retirement report (read-only)
+```
+
+`llm_models.capability_provenance` says who filled the capabilities: `declared` (the
+column defaults nobody curated — `get_effective_context_window` refuses to trust it),
+`imported` (corroborated by the snapshot) or `verified` (a human edited a
+registry-owned capability through `LLMModelService.update`). **It is row-level but its
+evidence is field-level**: `imported` vouches for `sync_diff.CORRECTABLE_FIELDS` and
+nothing else, so a reader of any other column (`supports_strict_mode`, the sampling
+flags) must require `verified`. **Prices, reasoning
+metadata, streaming, the sampling flags and `kind` are never imported** — each
+exclusion is a measured decision asserted by a test in
+`apps/api/tests/unit/infrastructure/llm/catalogue/`. Deactivating a model requires an
+uncontradicted past deprecation date **and** no reference: `is_retiring` (warn) and
+`is_retired` (may deactivate) are two predicates, one implementation each, in
+`catalogue/field_mapping.py`.
+
+**The real per-agent configuration lives in `llm_config_overrides`, in the database,
+and deployments do not run the same models.** Before deploying a catalogue change, run
+`task llm:catalogue:preflight` against the target instance: read-only, it reports which
+models that instance would deactivate, which it keeps because it references them, which
+configured models fail their slot's declared capabilities, and whether any `verified`
+row would lose strict structured output. A unit test must read `LLM_DEFAULTS`, never a
+database — two of them hard-coded a model name until ADR-244 and broke on the retarget.
+
+### Reasoning configuration (ADR-245)
+
+Asking a model to think has **one stored shape for every provider** —
+`ReasoningIntent(level, budget_tokens, exclude_from_output)`, in
+`core/reasoning_intent.py`. The four widget-dispatched shapes it replaced are
+still READ (`intent_from_legacy`, shared by the migration, the reference seeds and the
+golden test) so no deployment needs a flag day, but nothing writes them.
+
+- **The ladder is ordinal and provider-independent**: `provider_default < none <
+  minimal < low < medium < high < xhigh < max`. `provider_default` is the identity —
+  it produces no kwarg on any family — never a depth.
+- **What a model accepts is a derived `ReasoningProfile`**, not a catalogue column:
+  `resolve_reasoning_profile(provider, model, model_levels=...)`
+  (`llm/reasoning/profiles.py`). A new provider is one rule entry plus
+  one renderer in `translate.py`; never a branch inside an existing family.
+- **`kwargs_for(provider, model, stored)` is the ONLY seam** an adapter may call. It
+  never raises: an unknown model resolves to no family and produces no kwarg.
+- **Runtime coerces, the write path rejects.** Coercion ties break **upward**, `none`
+  is **never** a coercion target, and **`can_disable` — not ladder membership** —
+  governs whether reasoning can be switched off (a catalogue row narrows the DEPTHS a
+  model offers, never its off switch; reading the ladder there silently ENABLES
+  reasoning on an explicit `none`). Every coercion is counted and logged
+  (`llm_reasoning_coerced_total`).
+- **The UI is offered exactly what the API accepts**: `/llm-config/metadata` publishes
+  the resolved profile (`LLMConfigService._reasoning_metadata`), never the raw
+  catalogue declaration. Publishing the declaration while
+  enforcing the rules is how the dropdown came to offer `minimal` on a model whose API
+  refuses it (ADR-184's rule, applied to reasoning).
+- `llm_models.reasoning_widget` and `reasoning_budget_range` are **gone** (v1.32.0):
+  demoted first, then dropped with the enum type that had no other user, because the
+  admin form kept offering them for editing while nothing read them. The only catalogue
+  value the resolution reads is `reasoning_enum_values` — the ladder narrowing, and it
+  must speak the LADDER's vocabulary: four rows declared `off`, the narrowing
+  intersection dropped it, and the resulting ladder had no off switch (only
+  `can_disable` rescued it). A seed guard now refuses any level off the ladder.
+- **The registries are visible where the catalogue is**: every model row shows its
+  `capability_provenance`, and `GET /admin/llm/catalogue-status` reports the same
+  read-only verdict as `task llm:catalogue:sync`, computed by the same code
+  (`llm/catalogue/status.py`). Applying a correction stays a reviewed
+  migration — no endpoint writes.
+- `tests/unit/infrastructure/llm/reasoning/golden_kwargs.json` freezes what the
+  pre-change builders produced. Adding a family means extending it, never editing an
+  existing entry.
+
 `scripts/release/version_surfaces.py` is the single declaration, shared by the bump
 script and the CI guard `test_version_surface_consistency_guard.py` — what a release
 writes is exactly what CI verifies. Guide stamps are **discovered**, so a new stamped
@@ -443,6 +520,6 @@ When working with settings-driven thresholds in tests (e.g. `mcp_user_max_server
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (242 ADR files, ADR-243 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (244 ADR files, ADR-245 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

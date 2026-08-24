@@ -753,7 +753,7 @@ def test_reasoning_effort_passed_for_reasoning_models(
     mock_llm = MagicMock(spec=BaseChatModel)
     mock_init_chat_model.return_value = mock_llm
 
-    from src.core.reasoning_types import ReasoningEffortEnum
+    from src.core.reasoning_intent import ReasoningIntent
 
     ProviderAdapter.create_llm(
         provider="openai",
@@ -764,7 +764,7 @@ def test_reasoning_effort_passed_for_reasoning_models(
         llm_type="router",
         # Typed reasoning value (upstream validation guarantees the type;
         # the OpenAI builder rejects raw strings by design)
-        reasoning_effort=ReasoningEffortEnum(effort="minimal"),
+        reasoning_effort=ReasoningIntent(level="minimal"),
     )
 
     call_args = mock_init_chat_model.call_args

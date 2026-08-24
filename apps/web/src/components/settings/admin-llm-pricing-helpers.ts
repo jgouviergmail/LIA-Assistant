@@ -9,31 +9,13 @@
 import type {
   LLMModelKindName,
   LLMProviderName,
-  ReasoningBudgetRangePayload,
-  ReasoningTemplate,
-  ReasoningWidgetName,
   TimeSlotPricePayload,
 } from '@/lib/actions/settings-actions';
 
-/** Sentinel slug used in the "Copy reasoning shape from..." selector when
- *  the admin wants to bypass templates and edit the 4 reasoning shape
- *  fields by hand. Sent to the backend as ``reasoning_template = null``
- *  (Custom mode). Mirrors the Python service's ``reasoning_template is None``
- *  branch in ``_resolve_reasoning_block``. */
-export const CUSTOM_TEMPLATE_VALUE = '__custom__';
-
-/** Default-empty budget range for new Custom-mode entries. */
-export const EMPTY_BUDGET_RANGE: ReasoningBudgetRangePayload = {
-  min: 0,
-  max: 0,
-  off_sentinel: null,
-  dynamic_sentinel: null,
-};
-
-/** Form data captured by the modal. The reasoning + sampling block is
- *  split into a Template selector (``reasoning_template``) plus a
- *  Custom-mode payload. The submit handler picks one branch based on
- *  ``reasoning_template === CUSTOM_TEMPLATE_VALUE``. */
+/** Form data captured by the modal. The reasoning identity is written
+ *  directly — a toggle and the depths left ticked — with no template mode:
+ *  the checkboxes render the model's OWN family ladder, so copying another
+ *  model's stored ladder could only remove depths this one accepts. */
 export interface ModelPricingFormData {
   provider: LLMProviderName;
   model_name: string;
@@ -44,14 +26,10 @@ export interface ModelPricingFormData {
   supports_strict_mode: boolean;
   supports_streaming: boolean;
   supports_vision: boolean;
-  // Reasoning + sampling — Template selector OR Custom mode.
-  reasoning_template: string;
-  // Custom-mode fields.
+  // Reasoning + sampling, written directly.
   kind: LLMModelKindName;
   is_reasoning_model: boolean;
-  reasoning_widget: ReasoningWidgetName;
   reasoning_enum_values_csv: string;
-  reasoning_budget_range: ReasoningBudgetRangePayload;
   reasoning_doc_i18n_key: string;
   supports_temperature: boolean;
   supports_top_p: boolean;
@@ -90,19 +68,15 @@ export const EMPTY_TIME_SLOT_ROW: TimeSlotFormRow = {
   output_unit_price: '',
 };
 
-/** Subset of fields persisted on a model row that participate in the
- *  reasoning shape comparison. Matches the backend's 4-field fingerprint
- *  in ``LLMModelService._fingerprint``. */
-export interface ReasoningShape {
-  is_reasoning_model: boolean;
-  reasoning_widget: ReasoningWidgetName;
-  reasoning_enum_values: string[] | null;
-  reasoning_budget_range: ReasoningBudgetRangePayload | null;
-}
-
-/** Parse a comma-separated enum_values input. Empty / whitespace-only
- *  inputs return null so the backend can validate widget cohesion
- *  (widget=enum + null values ⇒ 422). */
+/** Parse the stored ladder narrowing. Empty returns null, and that is the
+ *  value the form writes when every depth is kept: "no narrowing" and
+ *  "narrowed to everything" mean the same thing to `resolve_reasoning_profile`,
+ *  and the empty one survives the family gaining a level.
+ *
+ *  It is no longer a free-text field — the widget cohesion rule this comment
+ *  used to invoke went with the columns it guarded (ADR-245) — but the CSV
+ *  stays the form's internal representation, so the parse/format pair is what
+ *  the checkbox editor reads and writes. */
 export function parseEnumValuesCsv(csv: string): string[] | null {
   const items = csv
     .split(',')
@@ -118,24 +92,9 @@ export function formatEnumValuesCsv(values: string[] | null | undefined): string
   return values ? values.join(', ') : '';
 }
 
-/** Compare a template's reasoning shape against an existing model. Used
- *  at edit time to pre-select the matching entry in the "Copy reasoning
- *  shape from..." selector. Compares only the 4 shape fields — kind,
- *  sampling caps and doc_i18n_key are independent. */
-export function fingerprintMatches(tpl: ReasoningTemplate, m: ReasoningShape): boolean {
-  return (
-    tpl.is_reasoning_model === m.is_reasoning_model &&
-    tpl.reasoning_widget === m.reasoning_widget &&
-    JSON.stringify(tpl.reasoning_enum_values ?? null) ===
-      JSON.stringify(m.reasoning_enum_values ?? null) &&
-    JSON.stringify(tpl.reasoning_budget_range ?? null) ===
-      JSON.stringify(m.reasoning_budget_range ?? null)
-  );
-}
-
-/** Shape returned by {@link buildReasoningSamplingPayload}. Optional
- *  fields are present in Template mode OR Custom mode but never both;
- *  the backend's ``model_validator`` enforces the XOR. */
+/** Shape returned by {@link buildReasoningSamplingPayload}. The ladder and
+ *  its clearing intent are mutually exclusive — the backend's
+ *  ``model_validator`` refuses a payload carrying both. */
 export interface ReasoningSamplingPayload {
   kind: LLMModelKindName;
   supports_temperature: boolean;
@@ -143,11 +102,9 @@ export interface ReasoningSamplingPayload {
   supports_frequency_penalty: boolean;
   supports_presence_penalty: boolean;
   reasoning_doc_i18n_key: string | null;
-  reasoning_template?: string | null;
   is_reasoning_model?: boolean;
-  reasoning_widget?: ReasoningWidgetName;
   reasoning_enum_values?: string[] | null;
-  reasoning_budget_range?: ReasoningBudgetRangePayload | null;
+  clear_reasoning_enum_values?: boolean;
 }
 
 /** Build the reasoning + sampling block of the create/update payload from
@@ -157,11 +114,14 @@ export interface ReasoningSamplingPayload {
  *    - ``kind``, the four ``supports_*`` sampling flags,
  *      ``reasoning_doc_i18n_key``.
  *
- *  Reasoning shape is one of three branches:
- *    - Non-reasoning: force ``widget='none'`` + ``is_reasoning_model=false``.
- *    - Reasoning + Template mode: send ``reasoning_template`` (the backend
- *      copies the 4 shape fields).
- *    - Reasoning + Custom mode: send the 4 explicit shape fields. */
+ *  The reasoning identity is one of three branches:
+ *    - Non-reasoning: ``is_reasoning_model=false`` and no ladder.
+ *    - Reasoning: send the identity explicitly — the ladder the operator
+ *      left ticked, or the clearing intent when nothing is narrowed.
+ *
+ * The `reasoning_template` mode is gone: the form renders the model's OWN
+ * family ladder as checkboxes, so copying another model's stored ladder could
+ * only remove depths that this one accepts. */
 export function buildReasoningSamplingPayload(
   formData: ModelPricingFormData
 ): ReasoningSamplingPayload {
@@ -174,34 +134,23 @@ export function buildReasoningSamplingPayload(
     reasoning_doc_i18n_key: formData.reasoning_doc_i18n_key.trim() || null,
   };
 
-  // Non-reasoning model — bypass templates and force widget='none'.
-  if (!formData.is_reasoning_model) {
+  const ladder = formData.is_reasoning_model
+    ? parseEnumValuesCsv(formData.reasoning_enum_values_csv)
+    : null;
+
+  // "No narrowing" cannot travel as a null: the update path builds its
+  // change-set with exclude_none, so re-ticking every depth would be dropped
+  // and the previous restriction would survive. The intent needs its own
+  // shape — the same answer the emptied cached price already got.
+  if (ladder === null) {
     return {
       ...alwaysExplicit,
-      is_reasoning_model: false,
-      reasoning_widget: 'none',
-      reasoning_enum_values: null,
-      reasoning_budget_range: null,
+      is_reasoning_model: formData.is_reasoning_model,
+      clear_reasoning_enum_values: true,
     };
   }
 
-  // Reasoning model — Template mode (default) or Custom mode (advanced).
-  if (formData.reasoning_template !== CUSTOM_TEMPLATE_VALUE) {
-    return { ...alwaysExplicit, reasoning_template: formData.reasoning_template };
-  }
-
-  const widget = formData.reasoning_widget;
-  return {
-    ...alwaysExplicit,
-    is_reasoning_model: true,
-    reasoning_widget: widget,
-    reasoning_enum_values:
-      widget === 'enum' ? parseEnumValuesCsv(formData.reasoning_enum_values_csv) : null,
-    reasoning_budget_range:
-      widget === 'budget_int' || widget === 'toggle_budget'
-        ? formData.reasoning_budget_range
-        : null,
-  };
+  return { ...alwaysExplicit, is_reasoning_model: true, reasoning_enum_values: ladder };
 }
 
 // ============================================================================
@@ -288,7 +237,8 @@ export function buildTimeSlotsPayload(
     start_utc: row.start_utc,
     end_utc: row.end_utc,
     input_unit_price: row.input_unit_price,
-    cached_input_unit_price: row.cached_input_unit_price.trim() === '' ? null : row.cached_input_unit_price,
+    cached_input_unit_price:
+      row.cached_input_unit_price.trim() === '' ? null : row.cached_input_unit_price,
     output_unit_price: row.output_unit_price,
   }));
 }

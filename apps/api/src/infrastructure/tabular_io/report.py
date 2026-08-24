@@ -37,7 +37,7 @@ class IssueCode(str, Enum):
     # it is the write path that cannot express it, or the world that moved.
     PROVIDER_IMMUTABLE = "provider_immutable"
     ROW_CHANGED_SINCE_EXPORT = "row_changed_since_export"
-    CREATION_NEEDS_TEMPLATE = "creation_needs_template"
+    REASONING_LEVEL_UNKNOWN = "reasoning_level_unknown"
     CREATION_FIELD_MISSING = "creation_field_missing"
 
 

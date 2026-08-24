@@ -18,7 +18,6 @@ from src.core.exceptions import (
 )
 from src.core.field_names import FIELD_MODEL_NAME
 from src.core.i18n_api_messages import APIMessages
-from src.core.reasoning_types import ReasoningBudgetRange
 from src.core.session_dependencies import get_current_superuser_session
 from src.domains.llm.currency_rates import replace_active_rate
 from src.domains.llm.models import (
@@ -27,6 +26,7 @@ from src.domains.llm.models import (
     LLMModelPricing,
 )
 from src.domains.llm.schemas import (
+    CatalogueStatusResponse,
     CurrencyRateCreate,
     CurrencyRateResponse,
     CurrencyRatesListResponse,
@@ -34,13 +34,11 @@ from src.domains.llm.schemas import (
     ModelPriceCreate,
     ModelPriceResponse,
     ModelPriceUpdate,
-    ReasoningTemplatesResponse,
+    ReasoningBudgetBoundsPayload,
+    ReasoningFamilyResponse,
+    RetiringModelPayload,
 )
-from src.domains.llm.service import (
-    LLMModelService,
-    TimeSlotsUnitMismatchError,
-    UnknownReasoningTemplateError,
-)
+from src.domains.llm.service import LLMModelService, TimeSlotsUnitMismatchError
 from src.domains.users.models import AdminAuditLog, User
 from src.infrastructure.cache.pricing_cache import PricingCacheService
 from src.infrastructure.cache.redis import get_redis_cache
@@ -78,20 +76,18 @@ def _pricing_to_response(pricing: LLMModelPricing) -> ModelPriceResponse:
             "supports_streaming": model.supports_streaming,
             "supports_vision": model.supports_vision,
             "is_reasoning_model": model.is_reasoning_model,
-            # Kind + reasoning widget + sampling caps
+            # Kind + the declared reasoning ladder + sampling caps
             "kind": model.kind.value,
-            "reasoning_widget": model.reasoning_widget.value,
             "reasoning_enum_values": model.reasoning_enum_values,
-            "reasoning_budget_range": (
-                ReasoningBudgetRange.model_validate(model.reasoning_budget_range)
-                if model.reasoning_budget_range is not None
-                else None
-            ),
             "reasoning_doc_i18n_key": model.reasoning_doc_i18n_key,
             "supports_temperature": model.supports_temperature,
             "supports_top_p": model.supports_top_p,
             "supports_frequency_penalty": model.supports_frequency_penalty,
             "supports_presence_penalty": model.supports_presence_penalty,
+            # Who filled the capabilities, and what the provider announced
+            # (ADR-244). Both read-only; the screen renders them as evidence.
+            "capability_provenance": model.capability_provenance.value,
+            "deprecation_date": model.deprecation_date,
         }
     )
 
@@ -241,30 +237,106 @@ async def list_active_pricing(
     )
 
 
-@router.get("/reasoning-templates", response_model=ReasoningTemplatesResponse)
-async def list_reasoning_templates(
+@router.get("/catalogue-status", response_model=CatalogueStatusResponse)
+async def get_catalogue_status(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser_session),
-) -> ReasoningTemplatesResponse:
-    """List unique reasoning + sampling behaviors derived from existing models.
+) -> CatalogueStatusResponse:
+    """Report what the vendored public registries say about this catalogue.
 
     **Requires**: Superuser privileges.
 
-    Drives the admin Pricing form's "Copy behavior from..." selector. Each
-    entry exposes one representative model_name plus the 9 reasoning +
-    sampling fields that will be copied verbatim onto a newly added model
-    when this template is picked. The set self-enriches: a model added in
-    Custom mode with a novel fingerprint becomes available as a template
-    on subsequent calls.
+    Read-only by construction — it computes the same verdict as
+    ``task llm:catalogue:sync`` and writes nothing. It exists because the work
+    ADR-244 did was invisible from the screen that shows the catalogue: an
+    operator could not tell a measured context window from the column default
+    nobody ever curated, nor see which models the providers have announced as
+    retiring.
+
+    The correction itself stays a reviewed migration; this endpoint never
+    proposes a button that would apply it.
     """
-    service = LLMModelService(db)
-    templates = await service.list_templates()
+    from src.infrastructure.llm.catalogue.status import catalogue_status
+
+    verdict = await catalogue_status(db)
     logger.info(
-        "llm_reasoning_templates_listed",
-        templates_count=len(templates),
+        "llm_catalogue_status_reported",
+        compared=verdict.compared,
+        auto=verdict.auto,
+        review=verdict.review,
+        retiring=len(verdict.retiring),
         admin_user_id=str(current_user.id),
     )
-    return ReasoningTemplatesResponse(templates=templates)
+    return CatalogueStatusResponse(
+        compared=verdict.compared,
+        auto=verdict.auto,
+        review=verdict.review,
+        retiring=[
+            RetiringModelPayload(
+                model_name=entry.model_name,
+                provider=entry.provider,
+                state=entry.state,
+                deprecation_date=entry.deprecation_date,
+                seen_by=list(entry.seen_by),
+            )
+            for entry in verdict.retiring
+        ],
+        provenance=verdict.provenance,
+        snapshot_generated_at=verdict.snapshot_generated_at,
+    )
+
+
+def _reasoning_family_payload(provider: str, model: str) -> ReasoningFamilyResponse:
+    """Resolve the family ladder for a pair the operator is still typing.
+
+    Pure and total: it touches no database and never raises, because the form
+    asks on every keystroke of the model name and a half-typed name simply
+    matches no rule.
+
+    Args:
+        provider: LIA provider id.
+        model: LIA model name, possibly empty or not yet in the catalogue.
+
+    Returns:
+        The family's own profile, narrowing excluded.
+    """
+    from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
+
+    profile = resolve_reasoning_profile(provider, model)
+    bounds = (
+        ReasoningBudgetBoundsPayload(min=profile.budget_range[0], max=profile.budget_range[1])
+        if profile.budget_range is not None
+        else None
+    )
+    return ReasoningFamilyResponse(
+        reasoning_family=profile.family,
+        reasoning_levels=list(profile.levels),
+        reasoning_can_disable=profile.can_disable,
+        reasoning_supports_budget=profile.supports_budget,
+        reasoning_budget_range=bounds,
+        source=profile.source,
+    )
+
+
+@router.get("/reasoning-family", response_model=ReasoningFamilyResponse)
+async def get_reasoning_family(
+    provider: str,
+    model: str = "",
+    current_user: User = Depends(get_current_superuser_session),
+) -> ReasoningFamilyResponse:
+    """Report the reasoning ladder the runtime will accept for this pair.
+
+    **Requires**: Superuser privileges.
+
+    The Pricing form renders the returned levels as the menu an operator may
+    RESTRICT. It exists because ``reasoning_enum_values`` was offered as a
+    free-text declaration while the code derives the ladder from
+    ``(provider, model)`` and the column can only narrow it: what the form
+    asked for and what the runtime did were two different questions.
+
+    Resolution only — no database, no catalogue narrowing, nothing written.
+    """
+    return _reasoning_family_payload(provider, model)
 
 
 @router.post("/pricing", response_model=ModelPriceResponse, status_code=status.HTTP_201_CREATED)
@@ -278,13 +350,16 @@ async def create_pricing(
 
     **Requires**: Superuser privileges.
 
-    The payload carries the full 14-field catalogue:
-    - provider (Literal[7])
-    - model_name (globally unique)
-    - 8 capability fields (max_input_tokens, max_output_tokens,
+    The payload carries the full catalogue row (22 fields, counted from
+    ``ModelPriceCreate``):
+    - provider (Literal[7]), model_name (globally unique), kind
+    - 7 capability fields (max_input_tokens, max_output_tokens,
       supports_tools, supports_structured_output, supports_strict_mode,
-      supports_streaming, supports_vision, is_reasoning_model)
-    - 3 pricing fields (input/cached_input/output per 1M tokens)
+      supports_streaming, supports_vision)
+    - 4 sampling flags (temperature, top_p, frequency/presence penalty)
+    - the reasoning identity: ``is_reasoning_model`` plus the optional
+      ``reasoning_enum_values`` ladder narrowing
+    - 5 pricing fields (unit, input/cached_input/output, time_slots)
 
     Inserts both an ``llm_models`` row and an active ``llm_model_pricing``
     row pointing to it. Rejects if the ``model_name`` already exists.
@@ -292,10 +367,6 @@ async def create_pricing(
     service = LLMModelService(db)
     try:
         model, pricing = await service.create(data)
-    except UnknownReasoningTemplateError as exc:
-        # Unknown reasoning_template — surface a 400 with the original
-        # message so the admin sees which template name was wrong.
-        raise_invalid_input(str(exc))
     except ValueError:
         raise_pricing_already_exists(data.model_name)
 
@@ -308,12 +379,10 @@ async def create_pricing(
             FIELD_MODEL_NAME: model.model_name,
             "provider": model.provider.value,
             "kind": model.kind.value,
-            # Trace which reasoning template (if any) the new row inherits
-            # from. Snapshot semantics: the value is captured at creation
-            # time and persisted on the row even if the template later
-            # changes — but the source choice is preserved here.
-            "reasoning_template": data.reasoning_template,
-            "reasoning_widget": model.reasoning_widget.value,
+            # The reasoning identity as written, not a template that stood
+            # for it: the ladder IS the auditable value now.
+            "is_reasoning_model": data.is_reasoning_model,
+            "reasoning_enum_values": data.reasoning_enum_values,
             "pricing_unit": pricing.pricing_unit.value,
             "input_unit_price": float(pricing.input_unit_price),
             "output_unit_price": float(pricing.output_unit_price),
@@ -337,8 +406,7 @@ async def create_pricing(
         model_name=model.model_name,
         provider=model.provider.value,
         kind=model.kind.value,
-        reasoning_template=data.reasoning_template,
-        reasoning_widget=model.reasoning_widget.value,
+        is_reasoning_model=data.is_reasoning_model,
         admin_user_id=str(current_user.id),
         pricing_id=str(pricing.id),
     )
@@ -369,11 +437,6 @@ async def update_pricing(
     service = LLMModelService(db)
     try:
         model, new_pricing = await service.update(model_name, data)
-    except UnknownReasoningTemplateError as exc:
-        # Unknown reasoning_template — 400 with the original message so the
-        # admin sees which template name was wrong. Caught BEFORE plain
-        # LookupError because UnknownReasoningTemplateError subclasses it.
-        raise_invalid_input(str(exc))
     except LookupError:
         raise_pricing_not_found(model_name)
     except TimeSlotsUnitMismatchError as exc:
@@ -402,14 +465,13 @@ async def update_pricing(
             "model_name": model.model_name,
             "renamed_from": model_name if model.model_name != model_name else None,
             "changed_fields": sorted(data.model_dump(exclude_unset=True, exclude_none=True).keys()),
-            # Trace which reasoning template (if any) was applied in this
-            # update — the field value comes from the request payload, not
-            # from the persisted row (the row only stores the resolved
-            # shape, not the template name).
-            "reasoning_template": data.reasoning_template,
-            # Post-update reasoning shape + kind for forensic search.
+            # The reasoning identity is auditable directly now: the row
+            # stores what was asked for, and `changed_fields` above already
+            # names it when it moved.
+            "reasoning_enum_values": data.reasoning_enum_values,
+            "clear_reasoning_enum_values": data.clear_reasoning_enum_values,
+            # Post-update kind for forensic search.
             "kind": model.kind.value,
-            "reasoning_widget": model.reasoning_widget.value,
             "new_pricing_id": str(new_pricing.id) if new_pricing else None,
             "time_slots_count": (len(new_pricing.time_slots or []) if new_pricing else None),
         },
@@ -426,8 +488,7 @@ async def update_pricing(
         old_model_name=model_name,
         new_model_name=model.model_name,
         kind=model.kind.value,
-        reasoning_template=data.reasoning_template,
-        reasoning_widget=model.reasoning_widget.value,
+        is_reasoning_model=data.is_reasoning_model,
         new_pricing_id=str(new_pricing.id) if new_pricing else None,
         admin_user_id=str(current_user.id),
     )

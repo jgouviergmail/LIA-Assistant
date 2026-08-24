@@ -20,19 +20,19 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.core.config import settings
 from src.core.constants import REASONING_MODELS_PATTERN
+
+# ADR-245: one seam for every provider. It derives the model's family, narrows
+# the ladder with whatever the catalogue declares, reads the stored value as an
+# intent and translates -- replacing five per-provider builders whose only
+# difference was the kwargs shape they emitted.
+from src.core.reasoning_intent import requested_level
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_PROVIDERS
-from src.infrastructure.llm.providers.reasoning_builders import (
-    build_anthropic_reasoning,
-    build_deepseek_v4_reasoning,
-    build_gemini_reasoning,
-    build_openai_reasoning,
-    build_qwen_reasoning,
-)
 from src.infrastructure.llm.providers.responses_adapter import (
     create_responses_llm,
     is_responses_api_eligible,
 )
+from src.infrastructure.llm.reasoning.translate import kwargs_for as reasoning_kwargs_for
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -354,10 +354,10 @@ class ProviderAdapter:
         Returns:
             ChatOpenAICached: native ChatOpenAI (Responses API) with cache routing.
         """
-        # Translate the validated ReasoningEffortValue into the string effort the
-        # native model expects (via the shared builder).
+        # Translate the intent into the string effort the native model expects
+        # (via the one shared seam, ADR-245).
         reasoning_value = kwargs.pop("reasoning_effort", None)
-        reasoning_kwargs = build_openai_reasoning(reasoning_value, model)
+        reasoning_kwargs = reasoning_kwargs_for("openai", model, reasoning_value)
         reasoning_effort = reasoning_kwargs.get("reasoning_effort")
 
         top_p = kwargs.pop("top_p", 1.0)
@@ -459,12 +459,13 @@ class ProviderAdapter:
         is_reasoner_v3 = "reasoner" in model and not is_v4
         reasoning_value = kwargs.pop("reasoning_effort", None)
 
-        # V4 thinking mode: delegate to typed builder (no silent 6→2 coercion).
-        # The matrix exposes only `off`, `high`, `max` to the admin, so the
-        # builder receives validated values and emits the correct API shape.
+        # V4 thinking mode: delegate to the single reasoning seam (ADR-245).
+        # DeepSeek's family ladder is (none, high, max) and the write path only
+        # ever stores one of those, so the translator emits the API shape
+        # directly; a level from a stale row is coerced, counted and logged.
         if is_v4:
             extra_body: dict[str, Any] = dict(kwargs.pop("extra_body", {}))
-            v4_kwargs = build_deepseek_v4_reasoning(reasoning_value, model)
+            v4_kwargs = reasoning_kwargs_for("deepseek", model, reasoning_value)
             extra_body.update(v4_kwargs.pop("extra_body", {}))
             kwargs.update(v4_kwargs)  # adds top-level reasoning_effort when applicable
 
@@ -476,7 +477,7 @@ class ProviderAdapter:
                 logger.info(
                     "deepseek_v4_thinking_configured",
                     model=model,
-                    reasoning_effort=getattr(reasoning_value, "effort", None),
+                    requested_level=requested_level(reasoning_value),
                     api_effort=kwargs.get("reasoning_effort"),
                     msg="V4 thinking enabled — sampling params stripped",
                 )
@@ -599,11 +600,11 @@ class ProviderAdapter:
 
         # Reasoning: delegate to typed builder.
         # Gemini 2.5 uses thinking_budget (int), Gemini 3.x uses thinking_level
-        # (string enum). The builder dispatches on the ReasoningEffortValue shape.
+        # (string enum). The seam dispatches on the model's derived family.
         # NO silent medium→low remapping — the matrix exposes only what each
         # model accepts.
         reasoning_value = kwargs.pop("reasoning_effort", None)
-        gemini_kwargs = build_gemini_reasoning(reasoning_value, model)
+        gemini_kwargs = reasoning_kwargs_for("gemini", model, reasoning_value)
         kwargs.update(gemini_kwargs)
         if gemini_kwargs:
             logger.info(
@@ -705,13 +706,12 @@ class ProviderAdapter:
             # explicit provider_config value wins (same precedence as timeout).
             additional_kwargs.setdefault("stream_usage", True)
 
-            # Reasoning: delegate to typed builder.
-            # Qwen3 widget=toggle_budget. The builder receives a validated
-            # ReasoningEffortToggleBudget(enabled, budget) and emits the correct
-            # extra_body shape (enable_thinking + optional thinking_budget).
-            # No legacy enum-string-to-budget mapping.
+            # Reasoning: delegate to the single seam (ADR-245). The Qwen
+            # family expresses a toggle plus an optional token budget, and the
+            # translator emits that extra_body shape; nothing here maps an enum
+            # string to a budget any more.
             reasoning_value = additional_kwargs.pop("reasoning_effort", None)
-            qwen_kwargs = build_qwen_reasoning(reasoning_value, model)
+            qwen_kwargs = reasoning_kwargs_for("qwen", model, reasoning_value)
             qwen_extra = qwen_kwargs.get("extra_body", {})
             if qwen_extra:
                 additional_kwargs["extra_body"] = qwen_extra
@@ -771,11 +771,11 @@ class ProviderAdapter:
             else:
                 is_reasoning_model = bool(re.match(REASONING_MODELS_PATTERN, model, re.IGNORECASE))
 
-            # gpt-5.1/5.2+ with effort=none behave as standard models (sampling params allowed)
-            # The value is now a ReasoningEffortValue (Pydantic model) — extract `.effort`
-            # for the comparison; fall back to None for absent / unrecognised shapes.
-            reasoning_effort_val = additional_kwargs.get("reasoning_effort")
-            reasoning_effort_str = getattr(reasoning_effort_val, "effort", None)
+            # gpt-5.1/5.2+ at level "none" behave as standard models (sampling
+            # params allowed). ``requested_level`` reads the level off whatever
+            # shape reached here -- an intent, or a legacy row on an instance
+            # that has not migrated yet.
+            reasoning_effort_str = requested_level(additional_kwargs.get("reasoning_effort"))
             is_gpt51_plus_none = (
                 is_reasoning_model
                 and bool(re.match(r"^gpt-5\.[1-9]", model, re.IGNORECASE))
@@ -823,7 +823,7 @@ class ProviderAdapter:
             # input) so this is a no-op. The legacy regex-based filter is removed
             # because validation is now strict at the service / boot layer.
             reasoning_value = additional_kwargs.pop("reasoning_effort", None)
-            openai_reasoning = build_openai_reasoning(reasoning_value, model)
+            openai_reasoning = reasoning_kwargs_for("openai", model, reasoning_value)
             additional_kwargs.update(openai_reasoning)
             if openai_reasoning:
                 logger.info(
@@ -850,7 +850,7 @@ class ProviderAdapter:
             # kwargs — langchain-anthropic 1.3.5 maps it to native
             # output_config.effort (cf. chat_models.py:1186-1197).
             reasoning_value = additional_kwargs.pop("reasoning_effort", None)
-            anthropic_reasoning = build_anthropic_reasoning(reasoning_value, model)
+            anthropic_reasoning = reasoning_kwargs_for("anthropic", model, reasoning_value)
             additional_kwargs.update(anthropic_reasoning)
             thinking_enabled = "thinking" in anthropic_reasoning
             if anthropic_reasoning:

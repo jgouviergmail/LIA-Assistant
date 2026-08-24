@@ -41,13 +41,6 @@ from src.core.constants import (
     CONTACTS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
     CONTACTS_AGENT_LLM_TEMPERATURE_DEFAULT,
     CONTACTS_AGENT_LLM_TOP_P_DEFAULT,
-    CONTEXT_RESOLVER_LLM_FREQUENCY_PENALTY_DEFAULT,
-    CONTEXT_RESOLVER_LLM_MAX_TOKENS_DEFAULT,
-    CONTEXT_RESOLVER_LLM_MODEL_DEFAULT,
-    CONTEXT_RESOLVER_LLM_PRESENCE_PENALTY_DEFAULT,
-    CONTEXT_RESOLVER_LLM_PROVIDER_CONFIG_DEFAULT,
-    CONTEXT_RESOLVER_LLM_TEMPERATURE_DEFAULT,
-    CONTEXT_RESOLVER_LLM_TOP_P_DEFAULT,
     DRIVE_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
     DRIVE_AGENT_LLM_MAX_TOKENS_DEFAULT,
     DRIVE_AGENT_LLM_MODEL_DEFAULT,
@@ -112,13 +105,6 @@ from src.core.constants import (
     RESPONSE_LLM_PROVIDER_CONFIG_DEFAULT,
     RESPONSE_LLM_TEMPERATURE_DEFAULT,
     RESPONSE_LLM_TOP_P_DEFAULT,
-    ROUTER_LLM_FREQUENCY_PENALTY_DEFAULT,
-    ROUTER_LLM_MAX_TOKENS_DEFAULT,
-    ROUTER_LLM_MODEL_DEFAULT,
-    ROUTER_LLM_PRESENCE_PENALTY_DEFAULT,
-    ROUTER_LLM_PROVIDER_CONFIG_DEFAULT,
-    ROUTER_LLM_TEMPERATURE_DEFAULT,
-    ROUTER_LLM_TOP_P_DEFAULT,
     ROUTES_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
     ROUTES_AGENT_LLM_MAX_TOKENS_DEFAULT,
     ROUTES_AGENT_LLM_MODEL_DEFAULT,
@@ -400,58 +386,9 @@ class LLMSettings(BaseSettings):
             "qwen": False,  # OpenAI-compatible; JSON mode fallback (no /parse endpoint)
         }
 
-    # ========================================================================
-    # LLM CONFIGURATION - ROUTER
-    # ========================================================================
-
-    router_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(default="openai", description="LLM provider for router")
-    router_llm_provider_config: str = Field(
-        default=ROUTER_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for router (JSON string)",
-    )
-    router_llm_model: str = Field(
-        default=ROUTER_LLM_MODEL_DEFAULT,
-        description="LLM model for router node",
-    )
-    router_llm_temperature: float = Field(
-        default=ROUTER_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for router LLM (0.0 for deterministic routing)",
-    )
-    router_llm_top_p: float = Field(
-        default=ROUTER_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Nucleus sampling for router LLM (1.0 = disabled, use temperature)",
-    )
-    router_llm_frequency_penalty: float = Field(
-        default=ROUTER_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for router LLM (0.0 = no penalty)",
-    )
-    router_llm_presence_penalty: float = Field(
-        default=ROUTER_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for router LLM (0.0 = no penalty)",
-    )
-    router_llm_max_tokens: int = Field(
-        default=ROUTER_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        description="Max tokens for router LLM output",
-    )
-    router_llm_reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = Field(
-        default=None,
-        description=(
-            "Reasoning effort for router LLM (OpenAI o-series/GPT-5 only). "
-            "Controls reasoning depth: minimal=sub-second (GPT-5), low=1-3s, medium=5-15s, high=30+s. "
-            "Recommended: 'minimal' for router (fast routing decisions, deterministic)."
-        ),
-    )
+    # LLM CONFIGURATION - ROUTER and CONTEXT RESOLVER were removed by ADR-244:
+    # both slots had no get_llm() caller (every occurrence was a docstring),
+    # and these settings had no consumer outside their own declaration.
 
     # NOTE: Legacy thresholds removed (2025-12-30) - Architecture v3
     # router_confidence_threshold, domain_filtering_*, semantic_router_bypass_*
@@ -1304,72 +1241,6 @@ class LLMSettings(BaseSettings):
     )
 
     # ========================================================================
-    # LLM CONFIGURATION - CONTEXT RESOLVER (LLM-Native Semantic Architecture - Phase 0)
-    # ========================================================================
-    # Fast LLM for resolving context: temporal references, coreferences, memory injection
-    # Uses a fast model (gpt-4.1-mini) for low latency (<500ms target)
-
-    context_resolver_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(
-        default="openai",
-        description="LLM provider for context resolver (fast model required)",
-    )
-    context_resolver_llm_provider_config: str = Field(
-        default=CONTEXT_RESOLVER_LLM_PROVIDER_CONFIG_DEFAULT,
-        description="Advanced provider-specific config for context resolver (JSON string)",
-    )
-    context_resolver_llm_model: str = Field(
-        default=CONTEXT_RESOLVER_LLM_MODEL_DEFAULT,
-        description=(
-            "LLM model for context resolution (fast model required). "
-            "Default: gpt-4.1-mini for speed. Target latency: <500ms."
-        ),
-    )
-    context_resolver_llm_temperature: float = Field(
-        default=CONTEXT_RESOLVER_LLM_TEMPERATURE_DEFAULT,
-        ge=0.0,
-        le=2.0,
-        description="Temperature for context resolver (low for deterministic resolution)",
-    )
-    context_resolver_llm_top_p: float = Field(
-        default=CONTEXT_RESOLVER_LLM_TOP_P_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Top-p for context resolver (nucleus sampling)",
-    )
-    context_resolver_llm_frequency_penalty: float = Field(
-        default=CONTEXT_RESOLVER_LLM_FREQUENCY_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Frequency penalty for context resolver",
-    )
-    context_resolver_llm_presence_penalty: float = Field(
-        default=CONTEXT_RESOLVER_LLM_PRESENCE_PENALTY_DEFAULT,
-        ge=-2.0,
-        le=2.0,
-        description="Presence penalty for context resolver",
-    )
-    context_resolver_llm_max_tokens: int = Field(
-        default=CONTEXT_RESOLVER_LLM_MAX_TOKENS_DEFAULT,
-        gt=0,
-        description=(
-            "Max tokens for context resolver output. "
-            "Sufficient for resolved query + resolutions list. "
-            "Default: 1000 (structured output is compact)."
-        ),
-    )
-    context_resolver_llm_reasoning_effort: (
-        Literal["none", "minimal", "low", "medium", "high"] | None
-    ) = Field(
-        default=None,
-        description=(
-            "Reasoning effort for context resolver LLM (OpenAI o-series/GPT-5 only). "
-            "Recommended: None or 'minimal' for speed."
-        ),
-    )
-
-    # ========================================================================
     # LLM CONFIGURATION - QUERY ANALYZER (Intent + Domain Detection)
     # ========================================================================
     # LLM-based query analysis replacing embeddings-based SemanticDomainSelector.
@@ -1595,7 +1466,6 @@ class LLMSettings(BaseSettings):
     # This validator ensures empty strings in .env are treated as None.
 
     @field_validator(
-        "router_llm_reasoning_effort",
         "response_llm_reasoning_effort",
         "contacts_agent_llm_reasoning_effort",
         "emails_agent_llm_reasoning_effort",
@@ -1609,7 +1479,6 @@ class LLMSettings(BaseSettings):
         "routes_agent_llm_reasoning_effort",
         "query_agent_llm_reasoning_effort",
         "semantic_validator_llm_reasoning_effort",
-        "context_resolver_llm_reasoning_effort",
         "query_analyzer_llm_reasoning_effort",
         "interest_extraction_llm_reasoning_effort",
         "interest_content_llm_reasoning_effort",

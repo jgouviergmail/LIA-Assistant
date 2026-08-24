@@ -1,12 +1,16 @@
 """Pure structural tests for the LLM admin router.
 
-These tests don't require a DB or HTTP client — they introspect the
-``APIRouter`` to assert that auth dependencies are wired correctly and
-that the new ``/reasoning-templates`` endpoint is properly declared.
+These tests don't require a DB or HTTP client -- they introspect the
+``APIRouter`` to assert that auth dependencies are wired correctly and that
+the reasoning routes are declared as the surfaces expect them.
 
-End-to-end response-shape testing is left to the service-level tests
-(:mod:`tests.unit.domains.llm.test_service`) which exercise
-``LLMModelService.list_templates`` directly.
+The ``/reasoning-templates`` endpoint this module used to pin is gone: both
+surfaces that consumed it -- the admin form and the ADR-228 workbook -- write
+the reasoning identity themselves now, so a template that copies another row's
+stored ladder had no caller left and could only remove depths across families.
+What replaces it is ``/reasoning-family``, which publishes what the RUNTIME
+accepts for a (provider, model) pair rather than what some other row happens
+to hold.
 """
 
 from __future__ import annotations
@@ -15,48 +19,43 @@ import pytest
 from fastapi.routing import APIRoute
 
 from src.domains.llm.router import router
-from src.domains.llm.schemas import (
-    ReasoningTemplate,
-    ReasoningTemplatesResponse,
-)
+from src.domains.llm.schemas import ReasoningFamilyResponse
 
 
 @pytest.mark.unit
 class TestLLMAdminRouterStructure:
-    """Structural assertions on the LLM admin router."""
+    """The router's declared surface."""
 
     def test_router_prefix_is_admin_llm(self) -> None:
-        """The router lives under ``/admin/llm`` (mounted in api/v1/routes)."""
         assert router.prefix == "/admin/llm"
 
     def test_router_tags_include_admin(self) -> None:
-        """OpenAPI tags must include 'admin' for grouping in /docs."""
         assert "admin" in router.tags
 
-    def test_reasoning_templates_route_exists(self) -> None:
-        """The new ``/reasoning-templates`` endpoint is declared."""
-        paths = {route.path for route in router.routes if isinstance(route, APIRoute)}
-        assert "/admin/llm/reasoning-templates" in paths
+    def test_the_template_endpoint_is_gone(self) -> None:
+        """It had exactly one caller, and that caller no longer exists."""
+        assert not [
+            route
+            for route in router.routes
+            if isinstance(route, APIRoute) and "reasoning-templates" in route.path
+        ]
 
-    def test_reasoning_templates_route_is_get_only(self) -> None:
-        """The endpoint must be read-only (GET)."""
-        for route in router.routes:
-            if isinstance(route, APIRoute) and route.path == "/admin/llm/reasoning-templates":
-                assert route.methods == {"GET"}, (
-                    f"Expected GET only, got {route.methods}. "
-                    "The endpoint is read-only and must NOT expose POST/PUT/DELETE."
-                )
-                return
-        pytest.fail("Route /admin/llm/reasoning-templates not found")
+    def test_the_reasoning_family_route_exists_and_is_get_only(self) -> None:
+        routes = [
+            route
+            for route in router.routes
+            if isinstance(route, APIRoute) and route.path.endswith("/reasoning-family")
+        ]
+        assert len(routes) == 1
+        assert routes[0].methods == {"GET"}
 
-    def test_reasoning_templates_response_model_is_wired(self) -> None:
-        """response_model declared so OpenAPI surfaces the schema."""
-        for route in router.routes:
-            if isinstance(route, APIRoute) and route.path == "/admin/llm/reasoning-templates":
-                # FastAPI stores the declared response model on `response_model`.
-                assert route.response_model is ReasoningTemplatesResponse
-                return
-        pytest.fail("Route /admin/llm/reasoning-templates not found")
+    def test_the_reasoning_family_response_model_is_wired(self) -> None:
+        route = next(
+            route
+            for route in router.routes
+            if isinstance(route, APIRoute) and route.path.endswith("/reasoning-family")
+        )
+        assert route.response_model is ReasoningFamilyResponse
 
     def test_all_admin_routes_require_superuser(self) -> None:
         """Every route inherits the router-level superuser dependency.
@@ -81,43 +80,42 @@ class TestLLMAdminRouterStructure:
 
 
 @pytest.mark.unit
-class TestReasoningTemplateSchemaSurface:
-    """The response model exposes exactly the 4-field reasoning shape +
-    description metadata. Asserts it does NOT leak fields that should be
-    saved per model (kind, sampling caps, doc_i18n_key)."""
+class TestReasoningFamilySurface:
+    """What the family endpoint publishes, and what it deliberately does not."""
 
-    def test_response_model_has_required_fields(self) -> None:
-        """All 4 reasoning shape fields + description metadata are exposed."""
-        fields = ReasoningTemplate.model_fields
-        # Description metadata
-        assert "template_model_name" in fields
-        assert "representative_provider" in fields
-        assert "description" in fields
-        assert "matching_count" in fields
-        # The 4 reasoning shape fields
-        assert "is_reasoning_model" in fields
-        assert "reasoning_widget" in fields
-        assert "reasoning_enum_values" in fields
-        assert "reasoning_budget_range" in fields
+    def test_it_publishes_the_resolved_profile(self) -> None:
+        fields = ReasoningFamilyResponse.model_fields
 
-    def test_response_model_does_not_expose_sampling_caps(self) -> None:
-        """Sampling caps belong to the model, NOT to the template."""
-        fields = ReasoningTemplate.model_fields
+        for expected in (
+            "reasoning_family",
+            "reasoning_levels",
+            "reasoning_can_disable",
+            "reasoning_supports_budget",
+            "source",
+        ):
+            assert expected in fields, expected
+
+    def test_it_does_not_expose_the_dropped_catalogue_columns(self) -> None:
+        """``reasoning_widget`` went with the four stored shapes (ADR-245)."""
+        assert "reasoning_widget" not in ReasoningFamilyResponse.model_fields
+
+    def test_it_does_not_expose_sampling_caps_or_kind(self) -> None:
+        """Those are per-model decisions, unrelated to the reasoning family.
+
+        Publishing them here would invite the admin form to treat them as
+        derived from the family, which they are not.
+        """
+        fields = ReasoningFamilyResponse.model_fields
+
         for forbidden in (
+            "kind",
             "supports_temperature",
             "supports_top_p",
             "supports_frequency_penalty",
             "supports_presence_penalty",
+            "reasoning_doc_i18n_key",
         ):
             assert forbidden not in fields, (
-                f"ReasoningTemplate must NOT expose {forbidden} — it is "
-                "saved per model regardless of the template chosen."
+                f"ReasoningFamilyResponse must NOT expose {forbidden} — it is "
+                "saved per model, not derived from the resolved family."
             )
-
-    def test_response_model_does_not_expose_kind(self) -> None:
-        """``kind`` is saved per model, not derived from the template."""
-        assert "kind" not in ReasoningTemplate.model_fields
-
-    def test_response_model_does_not_expose_doc_i18n_key(self) -> None:
-        """``reasoning_doc_i18n_key`` is family-specific and saved per model."""
-        assert "reasoning_doc_i18n_key" not in ReasoningTemplate.model_fields

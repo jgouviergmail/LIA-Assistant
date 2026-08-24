@@ -16,14 +16,13 @@ from src.domains.llm.models import (
     LLMModelKindEnum,
     LLMModelPricing,
     LLMProviderEnum,
-    LLMReasoningWidgetEnum,
 )
 from src.domains.llm.schemas import ModelPriceCreate, ModelPriceUpdate
-from src.domains.llm.service import LLMModelService, UnknownReasoningTemplateError
+from src.domains.llm.service import LLMModelService
 
-# Default Custom-mode payload: non-reasoning chat model with full sampling.
-# Tests that exercise template-mode behavior override ``reasoning_template``
-# and clear the explicit reasoning fields via _make_create overrides.
+# Default payload: a non-reasoning chat model with full sampling. The
+# template mode these tests used to exercise is gone -- the reasoning identity
+# is written directly, on both surfaces that edit it.
 _BASE_CREATE_FIELDS = {
     "kind": "chat",
     "max_input_tokens": 1000,
@@ -39,7 +38,6 @@ _BASE_CREATE_FIELDS = {
     "supports_presence_penalty": True,
     # Custom mode by default — non-reasoning chat with widget='none'.
     "is_reasoning_model": False,
-    "reasoning_widget": "none",
 }
 
 
@@ -210,244 +208,79 @@ async def test_deactivate_raises_lookup_error_when_missing(
 
 
 @pytest.mark.unit
-async def test_list_templates_dedupes_by_reasoning_shape(
+async def test_a_widget_change_no_longer_constrains_anything(
     async_session: AsyncSession,
 ) -> None:
-    """Two rows with identical reasoning shape but different sampling caps
-    collapse into a single template — sampling/kind/doc_i18n_key are NOT
-    part of the fingerprint."""
-    service = LLMModelService(async_session)
-    # Same shape (widget=none, no reasoning) but different sampling caps.
-    await service.create(
-        _make_create("svc-dedup-a", supports_temperature=True, supports_top_p=True)
-    )
-    await service.create(
-        _make_create("svc-dedup-b", supports_temperature=False, supports_top_p=False)
-    )
-    await async_session.commit()
+    """The widget stopped discriminating a shape, so it stopped having rules.
 
-    templates = await service.list_templates()
-    matching = [t for t in templates if t.template_model_name in {"svc-dedup-a", "svc-dedup-b"}]
-    # Both rows share the same fingerprint (is_reasoning=False, widget=none,
-    # no enum, no budget), so only ONE template appears with count=2.
-    assert len(matching) == 1
-    assert matching[0].matching_count >= 2
-
-
-@pytest.mark.unit
-async def test_list_templates_separates_reasoning_shapes(
-    async_session: AsyncSession,
-) -> None:
-    """Different widgets => different templates."""
-    service = LLMModelService(async_session)
-    await service.create(_make_create("svc-shape-none"))  # widget=none
-    await service.create(
-        _make_create(
-            "svc-shape-enum",
-            is_reasoning_model=True,
-            reasoning_widget="enum",
-            reasoning_enum_values=["low", "medium", "high"],
-        )
-    )
-    await async_session.commit()
-
-    templates = await service.list_templates()
-    template_names = {t.template_model_name for t in templates}
-    assert "svc-shape-none" in template_names or any(not t.is_reasoning_model for t in templates)
-    assert any(
-        t.reasoning_widget == "enum" and t.reasoning_enum_values == ["low", "medium", "high"]
-        for t in templates
-    )
-
-
-@pytest.mark.unit
-async def test_create_template_mode_copies_reasoning_shape(
-    async_session: AsyncSession,
-) -> None:
-    """Template mode copies the 4 reasoning shape fields from the template row."""
-    service = LLMModelService(async_session)
-    # Create the source template — a reasoning model with enum widget.
-    await service.create(
-        _make_create(
-            "svc-tmpl-source",
-            is_reasoning_model=True,
-            reasoning_widget="enum",
-            reasoning_enum_values=["minimal", "low", "medium", "high"],
-        )
-    )
-    await async_session.commit()
-
-    # Create the new model in Template mode — most fields come from the payload,
-    # only the 4 reasoning shape fields are inherited.
-    payload = ModelPriceCreate(
-        provider="openai",
-        model_name="svc-tmpl-target",
-        kind="chat",
-        max_input_tokens=2000,
-        max_output_tokens=500,
-        supports_tools=True,
-        supports_structured_output=True,
-        supports_strict_mode=False,
-        supports_streaming=True,
-        supports_vision=False,
-        # Sampling caps explicit and DIFFERENT from the source — proving they
-        # are NOT copied from the template.
-        supports_temperature=False,
-        supports_top_p=False,
-        supports_frequency_penalty=False,
-        supports_presence_penalty=False,
-        reasoning_template="svc-tmpl-source",
-        input_unit_price=Decimal("1.0"),
-        cached_input_unit_price=None,
-        output_unit_price=Decimal("3.0"),
-    )
-    target, _ = await service.create(payload)
-
-    # Reasoning shape inherited from the template.
-    assert target.is_reasoning_model is True
-    assert target.reasoning_widget.value == "enum"
-    assert target.reasoning_enum_values == ["minimal", "low", "medium", "high"]
-    # Sampling caps come from the explicit payload — NOT from the template.
-    assert target.supports_temperature is False
-    assert target.supports_top_p is False
-    assert target.supports_frequency_penalty is False
-    assert target.supports_presence_penalty is False
-
-
-@pytest.mark.unit
-async def test_create_template_mode_unknown_template_raises(
-    async_session: AsyncSession,
-) -> None:
-    """Template mode with a non-existent template name surfaces a ValueError."""
-    service = LLMModelService(async_session)
-    payload = ModelPriceCreate(
-        provider="openai",
-        model_name="svc-tmpl-bad",
-        kind="chat",
-        max_input_tokens=2000,
-        max_output_tokens=500,
-        supports_tools=True,
-        supports_structured_output=True,
-        supports_strict_mode=False,
-        supports_streaming=True,
-        supports_vision=False,
-        supports_temperature=True,
-        supports_top_p=True,
-        supports_frequency_penalty=True,
-        supports_presence_penalty=True,
-        reasoning_template="does-not-exist",
-        input_unit_price=Decimal("1.0"),
-        cached_input_unit_price=None,
-        output_unit_price=Decimal("3.0"),
-    )
-    with pytest.raises(UnknownReasoningTemplateError, match="does-not-exist"):
-        await service.create(payload)
-
-
-@pytest.mark.unit
-async def test_unknown_template_error_is_lookup_error_subclass() -> None:
-    """``UnknownReasoningTemplateError`` IS a ``LookupError`` — guarantees
-    that legacy ``except LookupError:`` catches still work and avoids
-    silently breaking callers that rely on the broad parent class."""
-    assert issubclass(UnknownReasoningTemplateError, LookupError)
-
-
-@pytest.mark.unit
-async def test_update_template_mode_unknown_template_raises(
-    async_session: AsyncSession,
-) -> None:
-    """``update()`` with an unknown ``reasoning_template`` surfaces the
-    distinct subclass so the router can translate to 400 instead of 404
-    (which is reserved for "the model being updated does not exist")."""
-    service = LLMModelService(async_session)
-    await service.create(_make_create("svc-upd-bad-tmpl"))
-    await async_session.commit()
-
-    with pytest.raises(UnknownReasoningTemplateError, match="no-such-template"):
-        await service.update(
-            "svc-upd-bad-tmpl",
-            ModelPriceUpdate(reasoning_template="no-such-template"),
-        )
-
-
-@pytest.mark.unit
-async def test_update_template_mode_resets_reasoning_shape(
-    async_session: AsyncSession,
-) -> None:
-    """Update with reasoning_template re-copies the 4 shape fields on an
-    existing row."""
-    service = LLMModelService(async_session)
-    # Source template — enum widget.
-    await service.create(
-        _make_create(
-            "svc-upd-source",
-            is_reasoning_model=True,
-            reasoning_widget="enum",
-            reasoning_enum_values=["low", "medium"],
-        )
-    )
-    # Target — non-reasoning at first.
-    target, _ = await service.create(_make_create("svc-upd-target"))
-    await async_session.commit()
-
-    new_target, _ = await service.update(
-        "svc-upd-target", ModelPriceUpdate(reasoning_template="svc-upd-source")
-    )
-    assert new_target.is_reasoning_model is True
-    assert new_target.reasoning_widget.value == "enum"
-    assert new_target.reasoning_enum_values == ["low", "medium"]
-
-
-@pytest.mark.unit
-async def test_update_partial_widget_change_validates_cohesion(
-    async_session: AsyncSession,
-) -> None:
-    """Updating reasoning_widget without enum_values when target=enum raises."""
+    Before ADR-245 this exact call raised: switching to ``enum`` without
+    supplying ``reasoning_enum_values`` was incoherent, because the widget
+    decided how the stored value would be READ. Nothing reads it now -- the
+    translator family comes from (provider, model) -- so the only thing the
+    rule still did was refuse edits.
+    """
     service = LLMModelService(async_session)
     await service.create(_make_create("svc-cohesion"))  # widget=none initially
     await async_session.commit()
 
-    # Trying to switch to enum without supplying enum_values must fail.
-    with pytest.raises(ValueError, match="reasoning_enum_values"):
-        await service.update(
-            "svc-cohesion",
-            ModelPriceUpdate(is_reasoning_model=True, reasoning_widget="enum"),
-        )
+    model, _ = await service.update(
+        "svc-cohesion",
+        ModelPriceUpdate(is_reasoning_model=True),
+    )
+    assert model.is_reasoning_model is True
 
 
 @pytest.mark.unit
-async def test_update_widget_none_with_enum_values_rejected(
+async def test_a_narrowed_ladder_survives_a_widget_reset(
     async_session: AsyncSession,
 ) -> None:
-    """Updating to widget='none' while keeping enum_values raises."""
+    """The rule removed here actively forbade the most useful catalogue row.
+
+    "widget='none' must NOT have reasoning_enum_values" meant an operator could
+    not say "this model reasons, and these are the depths it accepts" without
+    also maintaining a widget column nothing consults. The narrowing is the ONE
+    catalogue value the runtime still reads (ADR-245), so it must survive.
+    """
     service = LLMModelService(async_session)
     await service.create(
         _make_create(
             "svc-cohesion-2",
             is_reasoning_model=True,
-            reasoning_widget="enum",
             reasoning_enum_values=["low", "high"],
         )
     )
     await async_session.commit()
 
-    # Switching widget back to 'none' without clearing enum_values is invalid.
-    with pytest.raises(ValueError, match="must NOT have"):
-        await service.update("svc-cohesion-2", ModelPriceUpdate(reasoning_widget="none"))
+    model, _ = await service.update(
+        "svc-cohesion-2", ModelPriceUpdate(reasoning_enum_values=["low", "high"])
+    )
+    assert model.reasoning_enum_values == ["low", "high"]
+
+    from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
+
+    # And the runtime still narrows the family ladder with it, whatever the
+    # widget column now says.
+    profile = resolve_reasoning_profile(
+        "openai", "gpt-5.2", model_levels=tuple(model.reasoning_enum_values)
+    )
+    assert profile.levels == ("low", "high")
 
 
 @pytest.mark.unit
-async def test_update_doc_i18n_key_alone_does_not_trigger_cohesion_check(
+async def test_update_doc_i18n_key_alone_touches_nothing_else(
     async_session: AsyncSession,
 ) -> None:
-    """``reasoning_doc_i18n_key`` is independent — updating only it must
-    NOT trigger widget-cohesion validation."""
+    """``reasoning_doc_i18n_key`` is independent of the reasoning identity.
+
+    It never entered the template fingerprint (it would explode the template
+    count for the same shape), and editing it alone must leave the rest of the
+    row untouched.
+    """
     service = LLMModelService(async_session)
     await service.create(
         _make_create(
             "svc-doc-only",
             is_reasoning_model=True,
-            reasoning_widget="enum",
             reasoning_enum_values=["low"],
         )
     )
@@ -458,7 +291,6 @@ async def test_update_doc_i18n_key_alone_does_not_trigger_cohesion_check(
         "svc-doc-only", ModelPriceUpdate(reasoning_doc_i18n_key="new_key")
     )
     assert new_model.reasoning_doc_i18n_key == "new_key"
-    assert new_model.reasoning_widget.value == "enum"  # unchanged
     assert new_model.reasoning_enum_values == ["low"]  # unchanged
 
 
@@ -662,9 +494,7 @@ async def test_reactivate_a_model_without_any_tariff_says_so(
         supports_presence_penalty=True,
         reasoning_doc_i18n_key=None,
         is_reasoning_model=False,
-        reasoning_widget=LLMReasoningWidgetEnum.none,
         reasoning_enum_values=None,
-        reasoning_budget_range=None,
     )
     model.is_active = False
     await async_session.flush()

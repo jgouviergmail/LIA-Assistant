@@ -155,10 +155,8 @@ class ModelCapabilitiesCache:
             is_reasoning_model=row.is_reasoning_model,
             model_id=row.model_name,
             kind=row.kind.value,
-            reasoning_widget=row.reasoning_widget.value,
             reasoning_enum_values=row.reasoning_enum_values,
-            reasoning_budget_range=row.reasoning_budget_range,
             reasoning_doc_i18n_key=row.reasoning_doc_i18n_key,
-            effort_values=row.effort_values,
+            capability_provenance=row.capability_provenance.value,
             metadata={"pricing_source": "capabilities_cache"},
         )

@@ -10,11 +10,11 @@ ADR: Architecture Decision Record
 - Migration: Gradual, backward-compatible via property accessors
 """
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from src.core.reasoning_types import ReasoningEffortValue
+from src.core.reasoning_intent import ReasoningIntent, intent_from_legacy, is_intent_shape
 
 
 class LLMAgentConfig(BaseModel):
@@ -95,26 +95,48 @@ class LLMAgentConfig(BaseModel):
         description="Timeout for LLM call (optional, inherits from agent default)",
     )
 
-    # Reasoning effort override. Shape determined by the model's reasoning_widget
-    # on llm_models (validated at the service layer, NOT here — strict check
-    # happens in domains/llm_config/reasoning_validation.py once Task 5 lands).
-    reasoning_effort: ReasoningEffortValue = Field(
+    # Reasoning override, in ONE shape whatever the provider (ADR-245). The
+    # ladder is ordinal and provider-independent; each family's translator turns
+    # it into that provider's kwargs, coercing to the nearest level the model
+    # actually accepts. There is nothing left to validate about the SHAPE -- the
+    # Literal on ``ReasoningIntent.level`` rejects an unknown level here, and the
+    # service layer only checks membership of the model's ladder.
+    reasoning_effort: ReasoningIntent | None = Field(
         default=None,
         description=(
-            "Reasoning effort override. Shape depends on the model's reasoning_widget. "
-            "None = no override (model default applies). "
-            "Validation strictness lives at the service layer, not on this Pydantic field."
+            "Reasoning override. None = no override (the model's own default "
+            "applies). One shape for every provider; see ReasoningIntent."
         ),
     )
 
-    effort: str | None = Field(
-        default=None,
-        description=(
-            "Global effort override (Anthropic output_config.effort), distinct from "
-            "reasoning_effort. Allowed values come from the model's effort_values "
-            "(currently opus-4-5 only). None = model default (high)."
-        ),
-    )
+    @field_validator("reasoning_effort", mode="before")
+    @classmethod
+    def _accept_legacy_reasoning_shapes(cls, value: Any) -> Any:
+        """Read the four shapes ADR-245 replaced, so no deployment needs a flag day.
+
+        ``llm_config_overrides.reasoning_effort`` still holds
+        ``{"effort": "off"}``, ``{"enabled": false}`` and their siblings until
+        the migration runs -- and it runs per instance, at whatever moment that
+        instance is deployed. Without this, taking the code before running the
+        migration would make EVERY override row fail validation at read time:
+        a total outage, on a schedule nobody chose.
+
+        With it, the code reads both formats and the migration becomes what it
+        should be -- a cleanup that removes the need for this shim, not a
+        synchronisation point between a deployment and a database.
+        """
+        if value is None or isinstance(value, ReasoningIntent):
+            return value
+        if not isinstance(value, dict):
+            # Anything else is Pydantic's problem, and it should be: the legacy
+            # shapes were STORED shapes, and a database gives dicts. The four
+            # Pydantic classes that used to model them no longer exist, so a
+            # branch for them here would be unreachable by construction.
+            return value
+        # An intent-shaped dict is handed to Pydantic UNTOUCHED so the
+        # ``Literal`` on ``level`` still rejects a typo. Only the shapes the
+        # Literal cannot describe go through the mapper.
+        return value if is_intent_shape(value) else intent_from_legacy(value)
 
     model_config = {
         "json_schema_extra": {

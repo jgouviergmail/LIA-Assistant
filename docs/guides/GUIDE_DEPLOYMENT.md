@@ -1346,6 +1346,66 @@ def downgrade():
     op.drop_index("idx_conversations_user_id", table_name="conversations")
 ```
 
+### Migration qui réécrit de la configuration : le contrôle d'instance
+
+Une migration de **schéma** se vérifie en local : `task db:migrate:replay-check`
+rejoue toute la chaîne et compare le schéma obtenu à celui des modèles. Une
+migration qui réécrit des **lignes de configuration** ne se vérifie pas comme
+ça, parce que les lignes en question ne sont pas les mêmes ici et là-bas : la
+configuration réelle des agents vit dans `llm_config_overrides`, en base, et
+**dev et prod n'exécutent pas les mêmes modèles**. Un compteur nul en dev ne dit
+rien de prod.
+
+`task llm:catalogue:preflight` est ce contrôle : lecture seule, il interroge la
+base pointée par `DATABASE_URL` et répond aux questions dont la réponse dépend
+de l'instance — quelles lignes la migration réécrirait, quels modèles seraient
+désactivés, et **pour quels slots la profondeur de raisonnement demandée par
+l'administrateur serait corrigée par le runtime**.
+
+Il doit tourner depuis un checkout du **code qu'on s'apprête à déployer**,
+contre la base **pas encore migrée** : c'est cet appariement qui le rend
+prédictif.
+
+`DATABASE_URL` désigne l'instance examinée, et **il doit être résoluble depuis
+là où le script tourne**. Le `.env` du dépôt nomme le service Compose
+(`postgres:5432`), qui ne se résout que dans le réseau Docker : depuis l'hôte,
+il faut donc fournir la sienne. Une variable d'environnement explicite l'emporte
+sur celle que le Taskfile charge (mesuré), donc `task` reste utilisable :
+
+```bash
+# dev, depuis l'hôte — Compose publie la base sur la boucle locale
+DATABASE_URL=postgresql+asyncpg://<user>:<pass>@127.0.0.1:5432/<db> task llm:catalogue:preflight
+```
+
+La base de production, elle, n'est publiée que sur la boucle locale du Pi : on
+passe par le tunnel que `docker-compose.prod.yml` documente à côté de son
+binding.
+
+```bash
+# terminal 1 — laisser ouvert
+ssh -p 2222 -L 15432:127.0.0.1:5432 <user>@<host> -N
+
+# terminal 2
+DATABASE_URL=postgresql+asyncpg://<user>:<pass>@127.0.0.1:15432/<db> task llm:catalogue:preflight
+```
+
+Une adresse injoignable donne une phrase, pas une trace asyncio : le script
+nomme l'hôte tenté et rappelle d'où vient l'adresse — jamais les identifiants.
+
+**Une limite, qui ne peut pas être supprimée** : seule la *base* est celle de
+la cible. Les modèles par slot, le modèle de résumé et la chaîne de repli sont
+des *settings* — ils vivent dans le `.env` de l'instance, et le processus lit
+le sien. Le rapport imprime les trois qu'il a supposés (`env: summarisation=`,
+`env: failover=`, `env: N slots`) précisément pour qu'on puisse vérifier qu'ils
+sont bien ceux de l'instance examinée ; sinon, fournir les valeurs de la cible
+à côté de `DATABASE_URL`.
+
+Le verdict final (`N item(s) need attention`) compte ce qui demande une décision
+humaine ; les autres rubriques sont informatives et ne bloquent jamais. Un
+non-zéro n'interdit pas de déployer : il dit qu'une configuration existante ne
+fera pas exactement ce que son auteur avait écrit, et que quelqu'un doit
+l'accepter ou la corriger **avant** que le déploiement ne l'applique.
+
 ---
 
 ## Secrets Management

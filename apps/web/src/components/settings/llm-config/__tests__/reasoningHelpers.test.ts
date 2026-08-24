@@ -1,107 +1,173 @@
 /**
- * Pure unit tests for the reasoning_effort shape-compatibility helpers used by
- * the admin LLM config dialog to keep `form.reasoning_effort` coherent with the
- * selected model. Mirrors the backend
- * ``apps/api/tests/unit/domains/llm_config/test_reasoning_validation.py``
- * (``reasoning_effort_matches_widget``).
+ * Pure unit tests for the reasoning coherence helpers the admin dialog uses to
+ * keep `form.reasoning_effort` valid for the selected model. Frontend twin of
+ * ``apps/api/tests/unit/domains/llm_config/test_reasoning_validation.py``.
  *
- * Regression: the DeepSeek-style ``{ effort: 'off' }`` must be dropped when the
- * selected model uses a Qwen ``toggle_budget`` widget — otherwise it travels
- * through the save and crashes the typed reasoning builder at runtime.
+ * What this file stopped testing (ADR-245): a cross-product of four stored
+ * SHAPES against four widget types. There is one shape now. What can still be
+ * wrong is a level the model does not offer, a budget a level-based family
+ * cannot express, or one outside the published range — and the regression that
+ * motivated the original file is still here, generalised: a value that fits the
+ * previous model must not travel to a model that refuses it (prod 2026-08-14,
+ * 422 on every save attempt).
  */
 import { describe, expect, it } from 'vitest';
 
 import type { ModelCapabilities, ReasoningEffortValue } from '@/types/llm-config';
 import {
+  EMPTY_INTENT,
   coerceReasoningEffortForModel,
+  formatReasoningValue,
+  modelReasons,
   reasoningEffortMatchesModel,
-  reasoningEffortShape,
+  reasoningIsActive,
+  withBudget,
+  withExclude,
+  withLevel,
 } from '../reasoningHelpers';
 
-/** Minimal caps stub — the helpers only read `reasoning_widget` / `reasoning_enum_values`. */
+/** Minimal caps stub: the helpers read only the resolved reasoning profile. */
 function caps(partial: Partial<ModelCapabilities>): ModelCapabilities {
-  return { reasoning_widget: 'none', reasoning_enum_values: null, ...partial } as ModelCapabilities;
+  return {
+    reasoning_family: 'none',
+    reasoning_levels: [],
+    reasoning_can_disable: true,
+    reasoning_supports_budget: false,
+    reasoning_supports_exclude: false,
+    reasoning_budget_range: null,
+    ...partial,
+  } as ModelCapabilities;
 }
 
-describe('reasoningEffortShape', () => {
-  it('discriminates the union by its keys', () => {
-    expect(reasoningEffortShape(null)).toBe('none');
-    expect(reasoningEffortShape(undefined)).toBe('none');
-    expect(reasoningEffortShape({ effort: 'low' })).toBe('enum');
-    expect(reasoningEffortShape({ enabled: false })).toBe('toggle_budget');
-    expect(reasoningEffortShape({ enabled: true, budget: 8192 })).toBe('toggle_budget');
-    expect(reasoningEffortShape({ budget: 8192 })).toBe('budget_int');
+const LADDER = caps({
+  reasoning_family: 'openai',
+  reasoning_levels: ['none', 'low', 'medium', 'high', 'xhigh'],
+});
+
+const BUDGETED = caps({
+  reasoning_family: 'anthropic_budget',
+  reasoning_levels: ['none', 'low', 'medium', 'high'],
+  reasoning_supports_budget: true,
+  reasoning_budget_range: { min: 1024, max: 128000 },
+});
+
+describe('withLevel / withBudget / withExclude', () => {
+  it('never mutate the intent they are given', () => {
+    const before = { ...EMPTY_INTENT };
+    withLevel(EMPTY_INTENT, 'high');
+    withBudget(EMPTY_INTENT, 8192);
+    withExclude(EMPTY_INTENT, true);
+    expect(EMPTY_INTENT).toEqual(before);
+  });
+
+  it('change one field and keep the others', () => {
+    const intent = withExclude(withBudget(withLevel(EMPTY_INTENT, 'high'), 8192), true);
+    expect(intent).toEqual({ level: 'high', budget_tokens: 8192, exclude_from_output: true });
+  });
+});
+
+describe('modelReasons', () => {
+  it('is false for a model with an empty ladder, and for an unknown one', () => {
+    expect(modelReasons(caps({}))).toBe(false);
+    expect(modelReasons(undefined)).toBe(false);
+    expect(modelReasons(LADDER)).toBe(true);
   });
 });
 
 describe('reasoningEffortMatchesModel', () => {
-  it("a 'none' widget accepts only null", () => {
-    const c = caps({ reasoning_widget: 'none' });
-    expect(reasoningEffortMatchesModel(null, c)).toBe(true);
-    expect(reasoningEffortMatchesModel(undefined, c)).toBe(true);
-    expect(reasoningEffortMatchesModel({ effort: 'low' }, c)).toBe(false);
-    expect(reasoningEffortMatchesModel({ enabled: false }, c)).toBe(false);
-  });
-
-  it("an 'enum' widget needs an enum shape with an allowed value", () => {
-    const c = caps({ reasoning_widget: 'enum', reasoning_enum_values: ['low', 'medium', 'high'] });
-    expect(reasoningEffortMatchesModel({ effort: 'high' }, c)).toBe(true);
-    expect(reasoningEffortMatchesModel({ effort: 'off' }, c)).toBe(false); // not allowed
-    expect(reasoningEffortMatchesModel({ enabled: false }, c)).toBe(false); // wrong shape
-    expect(reasoningEffortMatchesModel(null, c)).toBe(false); // null invalid for a reasoning widget
-  });
-
-  it("a 'toggle_budget' widget rejects the enum shape (the production bug)", () => {
-    const c = caps({
-      reasoning_widget: 'toggle_budget',
-      reasoning_budget_range: { min: 0, max: 32768 },
-    });
-    expect(reasoningEffortMatchesModel({ enabled: false }, c)).toBe(true);
-    expect(reasoningEffortMatchesModel({ enabled: true, budget: 8192 }, c)).toBe(true);
-    expect(reasoningEffortMatchesModel({ effort: 'off' }, c)).toBe(false);
-  });
-
-  it("a 'budget_int' widget needs the bare-budget shape", () => {
-    const c = caps({
-      reasoning_widget: 'budget_int',
-      reasoning_budget_range: { min: 1, max: 24576 },
-    });
-    expect(reasoningEffortMatchesModel({ budget: 8192 }, c)).toBe(true);
-    expect(reasoningEffortMatchesModel({ enabled: true, budget: 8192 }, c)).toBe(false); // toggle shape
-    expect(reasoningEffortMatchesModel({ effort: 'low' }, c)).toBe(false);
-  });
-
-  it('undefined caps → the model is treated as non-reasoning', () => {
+  it('null is valid for every model, reasoning or not', () => {
+    expect(reasoningEffortMatchesModel(null, caps({}))).toBe(true);
+    expect(reasoningEffortMatchesModel(undefined, LADDER)).toBe(true);
     expect(reasoningEffortMatchesModel(null, undefined)).toBe(true);
-    expect(reasoningEffortMatchesModel({ effort: 'low' }, undefined)).toBe(false);
+  });
+
+  it('refuses any intent on a model that does not reason', () => {
+    expect(reasoningEffortMatchesModel(withLevel(EMPTY_INTENT, 'low'), caps({}))).toBe(false);
+  });
+
+  it('accepts a level on the ladder and refuses one that is off it', () => {
+    expect(reasoningEffortMatchesModel(withLevel(EMPTY_INTENT, 'high'), LADDER)).toBe(true);
+    expect(reasoningEffortMatchesModel(withLevel(EMPTY_INTENT, 'minimal'), LADDER)).toBe(false);
+  });
+
+  it('always accepts provider_default on a reasoning model', () => {
+    expect(reasoningEffortMatchesModel(EMPTY_INTENT, LADDER)).toBe(true);
+  });
+
+  it('refuses a budget the family cannot express', () => {
+    expect(reasoningEffortMatchesModel(withBudget(EMPTY_INTENT, 8192), LADDER)).toBe(false);
+    expect(reasoningEffortMatchesModel(withBudget(EMPTY_INTENT, 8192), BUDGETED)).toBe(true);
+  });
+
+  it('refuses a budget outside the published range', () => {
+    expect(reasoningEffortMatchesModel(withBudget(EMPTY_INTENT, 1023), BUDGETED)).toBe(false);
+    expect(reasoningEffortMatchesModel(withBudget(EMPTY_INTENT, 128001), BUDGETED)).toBe(false);
+    expect(reasoningEffortMatchesModel(withBudget(EMPTY_INTENT, 1024), BUDGETED)).toBe(true);
+  });
+
+  it('refuses exclude_from_output where it would never reach the provider', () => {
+    expect(reasoningEffortMatchesModel(withExclude(EMPTY_INTENT, true), LADDER)).toBe(false);
+    const gemini = caps({
+      reasoning_family: 'gemini_level',
+      reasoning_levels: ['low', 'medium', 'high'],
+      reasoning_supports_exclude: true,
+    });
+    expect(reasoningEffortMatchesModel(withExclude(EMPTY_INTENT, true), gemini)).toBe(true);
+  });
+
+  it('proves nothing for an unknown model, so keeps nothing', () => {
+    expect(reasoningEffortMatchesModel(withLevel(EMPTY_INTENT, 'low'), undefined)).toBe(false);
   });
 });
 
 describe('coerceReasoningEffortForModel', () => {
-  it('keeps a value that is compatible with the new model', () => {
-    const c = caps({
-      reasoning_widget: 'toggle_budget',
-      reasoning_budget_range: { min: 0, max: 32768 },
-    });
-    const v: ReasoningEffortValue = { enabled: true, budget: 4096 };
-    expect(coerceReasoningEffortForModel(v, c)).toEqual(v);
+  it('keeps a value the new model accepts', () => {
+    const v: ReasoningEffortValue = withBudget(withLevel(EMPTY_INTENT, 'high'), 4096);
+    expect(coerceReasoningEffortForModel(v, BUDGETED)).toEqual(v);
   });
 
-  it('drops an incompatible value to null (DeepSeek enum → Qwen toggle)', () => {
-    const c = caps({
-      reasoning_widget: 'toggle_budget',
-      reasoning_budget_range: { min: 0, max: 32768 },
-    });
-    expect(coerceReasoningEffortForModel({ effort: 'off' }, c)).toBeNull();
+  it('drops a level the new model does not offer (the production regression)', () => {
+    expect(coerceReasoningEffortForModel(withLevel(EMPTY_INTENT, 'xhigh'), BUDGETED)).toBeNull();
   });
 
-  it('drops to null when the new model has no reasoning widget', () => {
-    expect(
-      coerceReasoningEffortForModel({ effort: 'low' }, caps({ reasoning_widget: 'none' }))
-    ).toBeNull();
+  it('drops a budget the new family cannot express', () => {
+    expect(coerceReasoningEffortForModel(withBudget(EMPTY_INTENT, 4096), LADDER)).toBeNull();
   });
 
-  it('drops to null when the new model is unknown (no caps)', () => {
-    expect(coerceReasoningEffortForModel({ effort: 'low' }, undefined)).toBeNull();
+  it('drops to null when the new model does not reason at all', () => {
+    expect(coerceReasoningEffortForModel(withLevel(EMPTY_INTENT, 'low'), caps({}))).toBeNull();
+  });
+
+  it('drops to null when the new model is unknown', () => {
+    expect(coerceReasoningEffortForModel(withLevel(EMPTY_INTENT, 'low'), undefined)).toBeNull();
+  });
+});
+
+describe('reasoningIsActive', () => {
+  it('is false for absent, none, and a bare provider_default', () => {
+    expect(reasoningIsActive(null)).toBe(false);
+    expect(reasoningIsActive(undefined)).toBe(false);
+    expect(reasoningIsActive(withLevel(EMPTY_INTENT, 'none'))).toBe(false);
+    expect(reasoningIsActive(EMPTY_INTENT)).toBe(false);
+  });
+
+  it('is true for any depth, and for a budget asked without a depth', () => {
+    expect(reasoningIsActive(withLevel(EMPTY_INTENT, 'minimal'))).toBe(true);
+    expect(reasoningIsActive(withLevel(EMPTY_INTENT, 'max'))).toBe(true);
+    expect(reasoningIsActive(withBudget(EMPTY_INTENT, 8192))).toBe(true);
+  });
+
+  it('is false for an explicit zero budget with no depth', () => {
+    expect(reasoningIsActive(withBudget(EMPTY_INTENT, 0))).toBe(false);
+  });
+});
+
+describe('formatReasoningValue', () => {
+  it('renders the tile badge without inventing a value', () => {
+    expect(formatReasoningValue(null)).toBe('-');
+    expect(formatReasoningValue(EMPTY_INTENT)).toBe('auto');
+    expect(formatReasoningValue(withLevel(EMPTY_INTENT, 'high'))).toBe('high');
+    expect(formatReasoningValue(withBudget(EMPTY_INTENT, 8192))).toBe('8192t');
+    expect(formatReasoningValue(withBudget(withLevel(EMPTY_INTENT, 'low'), 2048))).toBe('low/2048t');
   });
 });

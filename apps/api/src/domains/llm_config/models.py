@@ -63,7 +63,7 @@ class LLMConfigOverride(BaseModel):
     Resolution: LLM_DEFAULTS (code) -> DB override (if exists) -> Effective config.
 
     Attributes:
-        llm_type: LLM type identifier (e.g., "router", "response", "planner")
+        llm_type: LLM type identifier (e.g., "planner", "response")
         provider: Provider override (e.g., "openai", "anthropic")
         model: Model override (e.g., "gpt-4.1-mini")
         temperature: Temperature override (0.0-2.0)
@@ -72,12 +72,12 @@ class LLMConfigOverride(BaseModel):
         presence_penalty: Presence penalty override (-2.0 to 2.0)
         max_tokens: Max tokens override
         timeout_seconds: Timeout override in seconds
-        reasoning_effort: Reasoning effort override stored as JSONB.
-            Discriminated by the associated model's ``reasoning_widget``:
-            ``{"effort": "<str>"}`` (widget=enum),
-            ``{"budget": <int>}`` (widget=budget_int),
-            ``{"enabled": <bool>, "budget": <int|null>}`` (widget=toggle_budget),
-            or NULL (no override / model default applies).
+        reasoning_effort: Reasoning override stored as JSONB, in ONE shape for
+            every provider (ADR-245): ``{"level": "<str>", "budget_tokens":
+            <int|null>, "exclude_from_output": <bool>}``, or NULL for no
+            override. The four widget-discriminated shapes it replaced are
+            still READ (``core.reasoning_intent.intent_from_legacy``), so an
+            instance mid-migration is never broken.
         provider_config: Provider-specific JSON config override
         updated_by: Admin user ID who last updated the override
     """
@@ -135,22 +135,10 @@ class LLMConfigOverride(BaseModel):
         JSONB,
         nullable=True,
         comment=(
-            "Reasoning effort override stored as JSONB. Discriminated by the "
-            "associated model's reasoning_widget: "
-            '{"effort": "<str>"} for widget=enum, '
-            '{"budget": <int>} for widget=budget_int, '
-            '{"enabled": <bool>, "budget": <int|null>} for widget=toggle_budget. '
-            "NULL = no override (use LLM_DEFAULTS or model default)."
-        ),
-    )
-
-    effort: Mapped[str | None] = mapped_column(
-        String(20),
-        nullable=True,
-        comment=(
-            "Global effort override (Anthropic output_config.effort), distinct "
-            "from reasoning_effort. Allowed values come from llm_models.effort_values "
-            "(currently opus-4-5 only). NULL = no override (model default = high)."
+            "Reasoning override stored as JSONB, one shape for every provider "
+            '(ADR-245): {"level": "<str>", "budget_tokens": <int|null>, '
+            '"exclude_from_output": <bool>}. '
+            "NULL = no override (use LLM_DEFAULTS or the model default)."
         ),
     )
 

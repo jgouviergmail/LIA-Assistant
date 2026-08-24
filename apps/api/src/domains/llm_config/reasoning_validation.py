@@ -1,240 +1,205 @@
-"""Strict validation of reasoning_effort against a model's reasoning_widget.
+"""Strict validation of a reasoning intent against what a model accepts.
 
 Used by:
-- LLMConfigService.upsert_override (admin API write path)
-- bootstrap.validate_llm_defaults_against_matrix (boot-time fail-fast)
+- ``LLMConfigService.upsert_override`` (admin API write path)
+- ``bootstrap.validate_llm_defaults_against_matrix`` (boot-time fail-fast)
 
-Raises StructuredValidationError (422) with structured ctx so the frontend
-can surface helpful "did you mean" hints in the error toast.
+Raises ``StructuredValidationError`` (422) with structured ``ctx`` so the
+frontend can surface a helpful "did you mean" hint in the error toast.
 
-Philosophy A - raw truth: the UI exposes exactly what the API accepts; this
-function enforces that contract on the write path.
+**What this module stopped doing (ADR-245).** It used to cross-validate the
+*shape* of a stored value against the model's ``reasoning_widget`` -- four
+shapes, four widgets, and a mismatch raised at LLM instantiation time. There is
+one shape now, and an unknown level is already refused by the ``Literal`` on
+``ReasoningIntent.level``, so nothing here can be wrong about shape.
+
+What remains is one question -- **is this level on the model's ladder?** -- and
+it is answered by ``resolve_reasoning_profile``, the same function the
+translator uses. The validator and the translator therefore cannot disagree,
+which is what made the previous three-authority arrangement fail.
+
+This validator *rejects* on the write path; it never coerces. Coercion belongs
+to the runtime, where the model is known and a stale value must not become an
+error. Philosophy A -- raw truth: the UI exposes exactly what the API accepts.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from fastapi import HTTPException
-
 from src.core.exceptions import raise_structured_validation_error
-from src.core.reasoning_types import (
-    ReasoningEffortBudget,
-    ReasoningEffortEnum,
-    ReasoningEffortToggleBudget,
-    ReasoningEffortValue,
-)
+from src.core.reasoning_intent import ReasoningIntent
 
 if TYPE_CHECKING:
     from src.core.llm_agent_config import LLMAgentConfig
+    from src.infrastructure.llm.reasoning.profiles import ReasoningProfile
+
+#: Levels whose reasoning is measured negligible against the completion budget.
+#: OpenAI ``minimal``/``low`` sit here; DeepSeek V4 never stores them (its
+#: ladder exposes only none/high/max, and both of those mean substantial
+#: API-side thinking).
+_LIGHT_LEVELS = frozenset({"provider_default", "none", "minimal", "low"})
 
 
 class _CapsLike(Protocol):
-    """Duck-typed model capabilities.
+    """Duck-typed model capabilities — exactly what this module reads.
 
-    Read-only attributes via ``@property`` so the Protocol is compatible with
-    both ``ModelProfile`` (frozen dataclass — read-only attributes) and
-    ``SimpleNamespace`` test fakes (settable, but read-only is a strict
-    superset of settable for type-checking).
+    Read-only attributes via ``@property`` so the Protocol accepts both
+    ``ModelProfile`` (a frozen dataclass) and the ``SimpleNamespace`` fakes the
+    test suite uses.
+
+    It shrank with ADR-245: ``reasoning_widget`` and ``reasoning_budget_range``
+    left it because nothing here reads them any more. A Protocol that demands
+    more than it uses is a false contract — every caller pays for fields the
+    callee ignores, and a reader cannot tell which ones still matter.
     """
 
     @property
     def model_id(self) -> str: ...
 
     @property
-    def reasoning_widget(self) -> str: ...
-
-    @property
     def reasoning_enum_values(self) -> list[str] | None: ...
 
-    @property
-    def reasoning_budget_range(self) -> dict[str, Any] | Any | None: ...
+
+def _profile_for(caps: _CapsLike, provider: str | None) -> ReasoningProfile:
+    """Resolve the model's profile, narrowed by whatever the catalogue declares.
+
+    Args:
+        caps: The model's capabilities row.
+        provider: The provider the family is derived from.
+
+    Returns:
+        The resolved profile — the same one the runtime translator uses, which
+        is what keeps this validator from becoming a second authority.
+    """
+    from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
+
+    declared = getattr(caps, "reasoning_enum_values", None)
+    return resolve_reasoning_profile(
+        provider or "",
+        getattr(caps, "model_id", "") or "",
+        model_levels=tuple(declared) if declared else None,
+    )
 
 
 def validate_reasoning_effort(
     caps: _CapsLike,
-    value: ReasoningEffortValue,
+    value: ReasoningIntent | None,
+    provider: str | None = None,
 ) -> None:
-    """Validate that ``value`` matches what ``caps`` accepts.
+    """Reject a level the model does not offer.
 
     Args:
-        caps: Model capabilities - must expose ``model_id``, ``reasoning_widget``,
-            ``reasoning_enum_values`` and ``reasoning_budget_range``.
-        value: The reasoning_effort value submitted by the caller (admin API
-            payload or boot-time default). May be ``None`` for non-reasoning models.
+        caps: Model capabilities — must expose ``model_id`` and, optionally,
+            ``reasoning_enum_values`` (the catalogue's ladder narrowing).
+        value: The submitted intent. ``None`` means "no override" and is always
+            valid, for every model.
+        provider: The model's provider, needed to derive its family. When
+            omitted the family cannot be derived and nothing is rejected —
+            absence of evidence is not a rejection.
 
     Raises:
-        StructuredValidationError: 422 with a structured ``detail`` dict
-            carrying ``type``, ``loc``, ``msg``, ``input`` and ``ctx`` so the
-            frontend can surface actionable error toasts (e.g. "did you
-            mean?" hints).
+        StructuredValidationError: 422 with a structured ``detail`` carrying
+            ``type``, ``loc``, ``msg``, ``input`` and ``ctx`` so the frontend
+            can surface an actionable toast.
     """
-    widget = caps.reasoning_widget
-
-    if widget == "none":
-        if value is not None:
-            raise_structured_validation_error(
-                error_type="reasoning_not_supported",
-                loc=["body", "reasoning_effort"],
-                msg=(
-                    f"Model {caps.model_id} does not accept reasoning_effort. "
-                    "Set reasoning_effort to null."
-                ),
-                input_value=_serialize(value),
-                ctx={"model": caps.model_id, "widget": "none"},
-            )
+    if value is None:
+        return
+    if not provider:
+        # The family is derived from (provider, model): without a provider it
+        # cannot be derived, and an underived family is NOT evidence that the
+        # model does not reason. Absence of evidence is never a rejection --
+        # the runtime will resolve and coerce with the provider it does have.
         return
 
-    if widget == "enum":
-        if not isinstance(value, ReasoningEffortEnum):
-            raise_structured_validation_error(
-                error_type="wrong_reasoning_effort_shape",
-                loc=["body", "reasoning_effort"],
-                msg=(
-                    f"Model {caps.model_id} expects an enum value "
-                    '(shape: {"effort": "<string>"}).'
-                ),
-                input_value=_serialize(value),
-                ctx={
-                    "model": caps.model_id,
-                    "widget": "enum",
-                    "expected_shape": {"effort": "<str>"},
-                },
-            )
-        allowed = caps.reasoning_enum_values or []
-        if value.effort not in allowed:
-            raise_structured_validation_error(
-                error_type="invalid_reasoning_effort",
-                loc=["body", "reasoning_effort"],
-                msg=(
-                    f"Reasoning effort {value.effort!r} is not supported by "
-                    f"{caps.model_id}. Allowed values: {', '.join(allowed)}."
-                ),
-                input_value=value.effort,
-                ctx={
-                    "model": caps.model_id,
-                    "provided": value.effort,
-                    "allowed": list(allowed),
-                    "widget": "enum",
-                },
-            )
+    profile = _profile_for(caps, provider)
+
+    if profile.family == "none" and profile.source == "unknown":
+        # No rule matched: the family is unknown, not absent. Rejecting the
+        # operator's level here would refuse a level a local model may well
+        # accept, on the strength of a rule table that has never heard of it.
         return
 
-    if widget == "budget_int":
-        if not isinstance(value, ReasoningEffortBudget):
-            raise_structured_validation_error(
-                error_type="wrong_reasoning_effort_shape",
-                loc=["body", "reasoning_effort"],
-                msg=(
-                    f"Model {caps.model_id} expects a numeric budget " '(shape: {"budget": <int>}).'
-                ),
-                input_value=_serialize(value),
-                ctx={
-                    "model": caps.model_id,
-                    "widget": "budget_int",
-                    "expected_shape": {"budget": "<int>"},
-                },
-            )
-        rng = _normalize_range(caps.reasoning_budget_range)
-        sentinels = {rng.get("off_sentinel"), rng.get("dynamic_sentinel")} - {None}
-        if value.budget in sentinels:
-            return
-        lo = rng.get("min", 0)
-        hi = rng.get("max", 0)
-        if not (lo <= value.budget <= hi):
-            raise_structured_validation_error(
-                error_type="invalid_reasoning_budget",
-                loc=["body", "reasoning_effort"],
-                msg=(
-                    f"Reasoning budget {value.budget} for {caps.model_id} is "
-                    f"out of range [{lo}, {hi}] and not a sentinel."
-                ),
-                input_value=value.budget,
-                ctx={
-                    "model": caps.model_id,
-                    "provided": value.budget,
-                    "range": {"min": lo, "max": hi},
-                    "sentinels": sorted(sentinels),
-                    "widget": "budget_int",
-                },
-            )
-        return
+    if profile.family == "none":
+        raise_structured_validation_error(
+            error_type="reasoning_not_supported",
+            loc=["body", "reasoning_effort"],
+            msg=(
+                f"Model {caps.model_id} does not accept a reasoning override. "
+                "Set reasoning_effort to null."
+            ),
+            input_value=_serialize(value),
+            ctx={"model": caps.model_id, "family": "none"},
+        )
 
-    if widget == "toggle_budget":
-        if not isinstance(value, ReasoningEffortToggleBudget):
-            raise_structured_validation_error(
-                error_type="wrong_reasoning_effort_shape",
-                loc=["body", "reasoning_effort"],
-                msg=(
-                    f"Model {caps.model_id} expects a toggle+budget "
-                    '(shape: {"enabled": <bool>, "budget": <int|null>}).'
-                ),
-                input_value=_serialize(value),
-                ctx={
-                    "model": caps.model_id,
-                    "widget": "toggle_budget",
-                    "expected_shape": {
-                        "enabled": "<bool>",
-                        "budget": "<int|null>",
-                    },
-                },
-            )
-        if value.enabled and value.budget is not None:
-            rng = _normalize_range(caps.reasoning_budget_range)
-            lo = rng.get("min", 0)
-            hi = rng.get("max", 0)
-            if not (lo <= value.budget <= hi):
-                raise_structured_validation_error(
-                    error_type="invalid_reasoning_budget",
-                    loc=["body", "reasoning_effort"],
-                    msg=(
-                        f"Reasoning budget {value.budget} for {caps.model_id} "
-                        f"is out of range [{lo}, {hi}]."
-                    ),
-                    input_value=value.budget,
-                    ctx={
-                        "model": caps.model_id,
-                        "provided": value.budget,
-                        "range": {"min": lo, "max": hi},
-                        "widget": "toggle_budget",
-                    },
-                )
-        return
+    # ``none`` is governed by ``can_disable``, not by ladder membership: a
+    # catalogue row may narrow the ladder to the DEPTHS a model offers
+    # (``claude-opus-4-6`` declares ["low","medium","high","max"]) without
+    # meaning "and it can no longer be turned off". Rejecting an explicit
+    # ``none`` there would refuse the one setting an operator most often wants,
+    # and it is the same trap the coercion contract closes at runtime.
+    explicit_off = value.level == "none" and profile.can_disable
 
-    # Unreachable when llm_models migration is in place. Defensive.
-    raise RuntimeError(f"Unknown reasoning_widget: {widget!r}")
+    if value.level != "provider_default" and not explicit_off and value.level not in profile.levels:
+        raise_structured_validation_error(
+            error_type="invalid_reasoning_effort",
+            loc=["body", "reasoning_effort"],
+            msg=(
+                f"Reasoning level {value.level!r} is not offered by "
+                f"{caps.model_id}. Allowed: {sorted(profile.levels)}."
+            ),
+            input_value=_serialize(value),
+            ctx={
+                "model": caps.model_id,
+                "family": profile.family,
+                "allowed": list(profile.levels),
+                "submitted": value.level,
+            },
+        )
+
+    if value.budget_tokens is not None and not profile.supports_budget:
+        raise_structured_validation_error(
+            error_type="reasoning_budget_not_supported",
+            loc=["body", "reasoning_effort"],
+            msg=(
+                f"Model {caps.model_id} expresses reasoning as a level, not a "
+                "token budget. Remove budget_tokens."
+            ),
+            input_value=_serialize(value),
+            ctx={"model": caps.model_id, "family": profile.family},
+        )
+
+    if (
+        value.budget_tokens is not None
+        and profile.budget_range is not None
+        and not (profile.budget_range[0] <= value.budget_tokens <= profile.budget_range[1])
+    ):
+        low, high = profile.budget_range
+        raise_structured_validation_error(
+            error_type="invalid_reasoning_budget",
+            loc=["body", "reasoning_effort"],
+            msg=(
+                f"Reasoning budget {value.budget_tokens} is outside what "
+                f"{caps.model_id} accepts ({low}-{high})."
+            ),
+            input_value=_serialize(value),
+            ctx={"model": caps.model_id, "min": low, "max": high},
+        )
 
 
-# LIA-scale enum efforts whose reasoning output is small enough to coexist with
-# a tight completion cap. Everything else that is ACTIVE (deepseek high/max —
-# the only non-off values its admin matrix exposes —, OpenAI medium+, any
-# enabled Qwen toggle, any non-off Gemini budget) produces reasoning tokens
-# that are billed INSIDE the completion window and can consume it entirely.
-_LIGHT_ENUM_EFFORTS = frozenset({"none", "off", "minimal", "low"})
+def _reasoning_consumes_completion_budget(value: ReasoningIntent | None) -> bool:
+    """True when the intent enables reasoning heavy enough to eat the completion cap.
 
-
-def _reasoning_consumes_completion_budget(value: ReasoningEffortValue) -> bool:
-    """True when ``value`` enables reasoning heavy enough to eat the completion cap.
-
-    Shape-based on purpose (no provider matrix to rot): the stored shapes are
-    already provider-discriminated by the model's ``reasoning_widget``.
-
-    - ``ReasoningEffortEnum``: heavy unless the effort is in
-      :data:`_LIGHT_ENUM_EFFORTS` (measured negligible on OpenAI
-      minimal/low; DeepSeek V4 never stores those — its matrix exposes only
-      off/high/max, and high/max map to substantial API-side thinking).
-    - ``ReasoningEffortBudget`` (Gemini): heavy unless the budget is the
-      documented off value (``0``); ``-1`` (dynamic) is heavy — the size is
-      unknown, so the safe reading is "can be large".
-    - ``ReasoningEffortToggleBudget`` (Qwen): heavy whenever enabled.
+    One shape, so one rule: everything above the light band is heavy. An
+    explicit token budget is heavy whatever its size — the caller asked for
+    thinking, and the whole point of the guard below is that thinking is billed
+    inside ``max_tokens``.
     """
     if value is None:
         return False
-    if isinstance(value, ReasoningEffortEnum):
-        return value.effort not in _LIGHT_ENUM_EFFORTS
-    if isinstance(value, ReasoningEffortBudget):
-        return value.budget != 0
-    return value.enabled
+    if value.budget_tokens is not None and value.budget_tokens > 0:
+        return True
+    return value.level not in _LIGHT_LEVELS
 
 
 def validate_thinking_token_budget(
@@ -254,8 +219,8 @@ def validate_thinking_token_budget(
     failed and the user received the raw English vendor summary. The admin UI
     could not warn: nothing related the two fields. This validator is that
     missing relation, evaluated on the EFFECTIVE config (override merged onto
-    code defaults — leaving ``max_tokens`` empty inherits the default, which
-    is exactly how the incident happened).
+    code defaults — leaving ``max_tokens`` empty inherits the default, which is
+    exactly how the incident happened).
 
     Args:
         llm_type: The LLM type being saved (error context only).
@@ -265,9 +230,9 @@ def validate_thinking_token_budget(
             (``settings.llm_thinking_max_tokens_floor``).
 
     Raises:
-        StructuredValidationError: 422 with an explicit, actionable message
-            and a machine-readable ``ctx`` (``thinking_budget_below_floor``)
-            the frontend maps to a localized toast.
+        StructuredValidationError: 422 with an explicit, actionable message and
+            a machine-readable ``ctx`` (``thinking_budget_below_floor``) the
+            frontend maps to a localized toast.
     """
     if not _reasoning_consumes_completion_budget(effective.reasoning_effort):
         return
@@ -300,62 +265,10 @@ def validate_thinking_token_budget(
     )
 
 
-def _normalize_range(rng: Any) -> dict[str, Any]:
-    """Accept either a dict (JSONB column) or a Pydantic ReasoningBudgetRange instance."""
-    if rng is None:
-        return {}
-    if isinstance(rng, dict):
-        return rng
-    if hasattr(rng, "model_dump"):
-        return rng.model_dump()  # type: ignore[no-any-return]
-    return {}
-
-
-def _serialize(value: ReasoningEffortValue) -> Any:
-    """Serialize a reasoning_effort value for inclusion in error payloads."""
+def _serialize(value: ReasoningIntent | None) -> dict[str, Any] | None:
+    """Render an intent for inclusion in an error payload."""
     if value is None:
         return None
-    return value.model_dump()
+    from dataclasses import asdict
 
-
-def reasoning_effort_matches_widget(
-    caps: _CapsLike,
-    value: ReasoningEffortValue,
-) -> bool:
-    """Non-raising twin of :func:`validate_reasoning_effort`.
-
-    Used by callers that need to *reconcile* rather than *reject* — e.g. the
-    effective-config merge (``core.llm_config_helper.merge_config``) drops an
-    incompatible reasoning_effort instead of crashing the typed reasoning
-    builder, and the admin UI normalizes the field when the model changes.
-
-    Args:
-        caps: Model capabilities — must expose ``model_id``, ``reasoning_widget``,
-            ``reasoning_enum_values`` and ``reasoning_budget_range``.
-        value: The reasoning_effort value to check. ``None`` is valid only for a
-            ``"none"`` widget.
-
-    Returns:
-        ``True`` when ``value`` has the correct shape for the model's
-        ``reasoning_widget`` and (where applicable) an allowed / in-range value;
-        ``False`` otherwise — including the defensive case where ``caps`` carries
-        an unknown ``reasoning_widget`` (an unvalidatable value is treated as
-        not matching, so the caller falls back to the model default).
-    """
-    try:
-        validate_reasoning_effort(caps, value)
-        return True
-    except HTTPException, RuntimeError:
-        # HTTPException: StructuredValidationError(422) IS-A HTTPException —
-        # the documented "value invalid for this widget" outcome.
-        # RuntimeError: validate_reasoning_effort's defensive guard for an
-        # unknown reasoning_widget — treat as not-matching rather than letting
-        # it propagate and crash the LLM-resolution path.
-        return False
-
-
-__all__ = [
-    "reasoning_effort_matches_widget",
-    "validate_reasoning_effort",
-    "validate_thinking_token_budget",
-]
+    return asdict(value)

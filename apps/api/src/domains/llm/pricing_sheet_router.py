@@ -75,7 +75,7 @@ async def export_pricing_sheet(
     """Build the workbook in the administrator's language."""
     labels = build_sheet_labels(current_user.language)
     payload = await build_export_rows(db, labels=labels)
-    spec = build_pricing_workbook_spec(templates=payload.templates)
+    spec = build_pricing_workbook_spec()
 
     content = build_workbook(
         spec,
@@ -126,7 +126,7 @@ async def import_pricing_sheet(
 
     labels = build_sheet_labels(current_user.language)
     payload = await build_export_rows(db, labels=labels)
-    spec = build_pricing_workbook_spec(templates=payload.templates)
+    spec = build_pricing_workbook_spec()
     parsed = _parse(spec, content)
 
     stored = _stored_slots(payload)

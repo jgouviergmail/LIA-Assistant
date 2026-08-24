@@ -41,7 +41,6 @@ def _model_price_create_payload(model_name: str, **overrides: object) -> dict:
         "supports_frequency_penalty": True,
         "supports_presence_penalty": True,
         "is_reasoning_model": False,
-        "reasoning_widget": "none",
         "pricing_unit": "per_1m_tokens",
         "input_unit_price": "0.15",
         "cached_input_unit_price": "0.075",

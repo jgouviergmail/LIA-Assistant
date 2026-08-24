@@ -26,7 +26,20 @@ import {
   stableStringify,
   structuredErrorDetail,
 } from '../configDialogHelpers';
-import type { LLMAgentConfig, LLMTypeConfig, ModelCapabilities } from '@/types/llm-config';
+import type {
+  LLMAgentConfig,
+  LLMTypeConfig,
+  ModelCapabilities,
+  ReasoningIntentValue,
+} from '@/types/llm-config';
+
+/** One stored shape for every provider (ADR-245). */
+const HIGH: ReasoningIntentValue = {
+  level: 'high',
+  budget_tokens: null,
+  exclude_from_output: false,
+};
+const LOW: ReasoningIntentValue = { ...HIGH, level: 'low' };
 
 function caps(overrides: Partial<ModelCapabilities> = {}): ModelCapabilities {
   return {
@@ -37,11 +50,13 @@ function caps(overrides: Partial<ModelCapabilities> = {}): ModelCapabilities {
     supports_structured_output: true,
     supports_vision: true,
     is_reasoning_model: false,
-    reasoning_widget: 'none',
-    reasoning_enum_values: null,
+    reasoning_family: 'none',
+    reasoning_levels: [],
+    reasoning_can_disable: true,
+    reasoning_supports_budget: false,
+    reasoning_supports_exclude: false,
     reasoning_budget_range: null,
     reasoning_doc_i18n_key: null,
-    effort_values: null,
     supports_temperature: true,
     supports_top_p: true,
     supports_frequency_penalty: true,
@@ -51,6 +66,14 @@ function caps(overrides: Partial<ModelCapabilities> = {}): ModelCapabilities {
     ...overrides,
   };
 }
+
+/** A second model that reasons, for the model-switch cases. */
+const LADDER_CAPS = caps({
+  model_id: 'm2',
+  is_reasoning_model: true,
+  reasoning_family: 'openai',
+  reasoning_levels: ['none', 'low', 'medium', 'high'],
+});
 
 function agentCfg(overrides: Partial<LLMAgentConfig> = {}): LLMAgentConfig {
   return {
@@ -64,7 +87,6 @@ function agentCfg(overrides: Partial<LLMAgentConfig> = {}): LLMAgentConfig {
     max_tokens: 1000,
     timeout_seconds: null,
     reasoning_effort: null,
-    effort: null,
     ...overrides,
   };
 }
@@ -142,7 +164,7 @@ describe('form lifecycle', () => {
 
   it('provider switch wipes model and reasoning_effort, keeps the rest', () => {
     const next = formAfterProviderChange(
-      { provider: 'openai', model: 'm1', reasoning_effort: { effort: 'high' }, temperature: 1.2 },
+      { provider: 'openai', model: 'm1', reasoning_effort: HIGH, temperature: 1.2 },
       'anthropic'
     );
     expect(next).toEqual({
@@ -153,38 +175,30 @@ describe('form lifecycle', () => {
     });
   });
 
-  it('model switch keeps a matching reasoning_effort and drops a stale effort', () => {
-    const enumCaps = caps({
-      model_id: 'm2',
-      reasoning_widget: 'enum',
-      reasoning_enum_values: ['low', 'high'],
-      effort_values: null,
-    });
+  it('model switch keeps a level the new model also offers', () => {
     const next = formAfterModelChange(
-      { provider: 'openai', model: 'm1', reasoning_effort: { effort: 'high' }, effort: 'high' },
+      { provider: 'openai', model: 'm1', reasoning_effort: HIGH },
       'm2',
-      enumCaps
+      LADDER_CAPS
     );
     expect(next.model).toBe('m2');
-    expect(next.reasoning_effort).toEqual({ effort: 'high' }); // shape still fits
-    expect(next.effort).toBeNull(); // m2 declares no effort_values
+    expect(next.reasoning_effort).toEqual(HIGH);
   });
 
-  it('model switch keeps the global effort when the new model declares it', () => {
-    const effortCaps = caps({ model_id: 'm3', effort_values: ['high', 'medium'] });
+  it('model switch drops a level the new model does not offer', () => {
     const next = formAfterModelChange(
-      { provider: 'anthropic', model: 'm1', effort: 'high' },
-      'm3',
-      effortCaps
-    );
-    expect(next.effort).toBe('high');
-  });
-
-  it('model switch drops reasoning_effort when the widget no longer fits', () => {
-    const next = formAfterModelChange(
-      { provider: 'openai', model: 'm1', reasoning_effort: { effort: 'high' } },
+      { provider: 'openai', model: 'm1', reasoning_effort: { ...HIGH, level: 'xhigh' } },
       'm2',
-      caps({ model_id: 'm2', reasoning_widget: 'none' })
+      LADDER_CAPS
+    );
+    expect(next.reasoning_effort).toBeNull();
+  });
+
+  it('model switch drops reasoning_effort when the new model does not reason', () => {
+    const next = formAfterModelChange(
+      { provider: 'openai', model: 'm1', reasoning_effort: HIGH },
+      'm2',
+      caps({ model_id: 'm2' })
     );
     expect(next.reasoning_effort).toBeNull();
   });
@@ -202,21 +216,28 @@ describe('buildConfigUpdate', () => {
     expect(buildConfigUpdate(cfg, form, {})).toEqual({ max_tokens: 2222, temperature: 1.3 });
   });
 
-  it('JSON-compares reasoning_effort (a fresh but equal object is NOT a diff)', () => {
-    const cfg = typeConfig(
-      { reasoning_effort: { effort: 'high' } },
-      { reasoning_effort: { effort: 'high' } }
-    );
-    const form = { ...formFromConfig(cfg), reasoning_effort: { effort: 'high' } };
+  it('compares reasoning_effort by value (a fresh but equal object is NOT a diff)', () => {
+    const cfg = typeConfig({ reasoning_effort: HIGH }, { reasoning_effort: HIGH });
+    const form = { ...formFromConfig(cfg), reasoning_effort: { ...HIGH } };
     expect(buildConfigUpdate(cfg, form, {})).toEqual({});
   });
 
-  it('sends reasoning_effort and effort when they differ', () => {
+  it('is not fooled by key order between what the API sent and what the form rebuilt', () => {
+    const cfg = typeConfig({ reasoning_effort: HIGH }, { reasoning_effort: HIGH });
+    const reordered: ReasoningIntentValue = {
+      exclude_from_output: false,
+      budget_tokens: null,
+      level: 'high',
+    };
+    const form = { ...formFromConfig(cfg), reasoning_effort: reordered };
+    expect(buildConfigUpdate(cfg, form, {})).toEqual({});
+  });
+
+  it('sends reasoning_effort when it differs from the default', () => {
     const cfg = typeConfig();
-    const form = { ...formFromConfig(cfg), reasoning_effort: { effort: 'low' }, effort: 'high' };
+    const form = { ...formFromConfig(cfg), reasoning_effort: LOW };
     expect(buildConfigUpdate(cfg, form, {})).toEqual({
-      reasoning_effort: { effort: 'low' },
-      effort: 'high',
+      reasoning_effort: LOW,
     });
   });
 
@@ -243,50 +264,67 @@ describe('buildConfigUpdate', () => {
 describe('formForSave', () => {
   const toggleCaps = caps({
     model_id: 'qwen3.8-max',
-    reasoning_widget: 'toggle_budget',
+    reasoning_family: 'qwen_toggle_budget',
+    reasoning_levels: ['none', 'minimal', 'low', 'medium', 'high'],
+    reasoning_supports_budget: true,
     reasoning_budget_range: { min: 0, max: 32768 },
   });
 
-  it("nulls a reasoning_effort shaped for the PREVIOUS model (the prod 422's exact path)", () => {
+  it("nulls a reasoning_effort the SELECTED model refuses (the prod 422's exact path)", () => {
     // Prod 2026-08-14: the dialog's metadata lacked the freshly created model,
     // so ReasoningSection rendered nothing and the form silently carried the
     // previous model's enum shape into the PUT → 422 wrong_reasoning_effort_shape
     // on every save attempt. Save-time coercion is the chokepoint that survives
     // stale metadata, free-text models and any future form drift.
-    const form = { model: 'qwen3.8-max', reasoning_effort: { effort: 'none' } };
+    const stale: ReasoningIntentValue = { ...HIGH, level: 'xhigh' };
+    const form = { model: 'qwen3.8-max', reasoning_effort: stale };
     expect(formForSave(form, toggleCaps, true).reasoning_effort).toBeNull();
   });
 
-  it('keeps a reasoning_effort whose shape fits the selected model', () => {
-    const form = { model: 'qwen3.8-max', reasoning_effort: { enabled: true, budget: 8192 } };
+  it('keeps a reasoning_effort the selected model accepts', () => {
+    const form = { model: 'qwen3.8-max', reasoning_effort: { ...HIGH, budget_tokens: 8192 } };
     expect(formForSave(form, toggleCaps, true).reasoning_effort).toEqual({
-      enabled: true,
-      budget: 8192,
+      level: 'high',
+      budget_tokens: 8192,
+      exclude_from_output: false,
     });
   });
 
+  it('does NOT wipe a value whose only fault is a budget the user can see', () => {
+    // Regression: an out-of-range budget made save-time coercion null the WHOLE
+    // override — silently discarding the level the admin had chosen, on a field
+    // that is on screen with its bounds printed under it. The backend rejects
+    // the same bound with an explicit message the dialog already surfaces, so
+    // the honest answer is to let it speak.
+    const typed: ReasoningIntentValue = { ...HIGH, budget_tokens: 999_999 }; // range is 0-32768
+    const form = { model: 'qwen3.8-max', reasoning_effort: typed };
+    expect(formForSave(form, toggleCaps, true).reasoning_effort).toEqual(typed);
+  });
+
+  it('still wipes a level the widget cannot even display', () => {
+    const unreachable: ReasoningIntentValue = { ...HIGH, level: 'xhigh' };
+    const form = { model: 'qwen3.8-max', reasoning_effort: unreachable };
+    expect(formForSave(form, toggleCaps, true).reasoning_effort).toBeNull();
+  });
+
   it('nulls the effort for a model absent from the loaded catalogue', () => {
-    const form = { model: 'brand-new-model', reasoning_effort: { effort: 'low' } };
+    const form = { model: 'brand-new-model', reasoning_effort: LOW };
     expect(formForSave(form, undefined, true).reasoning_effort).toBeNull();
   });
 
   it('leaves the form untouched when the catalogue never loaded (cannot prove anything)', () => {
-    const form = { model: 'm1', reasoning_effort: { effort: 'low' } };
+    const form = { model: 'm1', reasoning_effort: LOW };
     expect(formForSave(form, undefined, false)).toBe(form);
   });
 });
 
 describe('isFieldModified', () => {
-  it('compares scalars with !== and reasoning_effort by JSON equality', () => {
-    const cfg = typeConfig({}, { temperature: 0.7, reasoning_effort: { effort: 'high' } });
+  it('compares scalars with !== and reasoning_effort by value', () => {
+    const cfg = typeConfig({}, { temperature: 0.7, reasoning_effort: HIGH });
     expect(isFieldModified(cfg, { temperature: 0.7 }, 'temperature')).toBe(false);
     expect(isFieldModified(cfg, { temperature: 1.2 }, 'temperature')).toBe(true);
-    expect(isFieldModified(cfg, { reasoning_effort: { effort: 'high' } }, 'reasoning_effort')).toBe(
-      false
-    );
-    expect(isFieldModified(cfg, { reasoning_effort: { effort: 'low' } }, 'reasoning_effort')).toBe(
-      true
-    );
+    expect(isFieldModified(cfg, { reasoning_effort: { ...HIGH } }, 'reasoning_effort')).toBe(false);
+    expect(isFieldModified(cfg, { reasoning_effort: LOW }, 'reasoning_effort')).toBe(true);
   });
 });
 
@@ -328,14 +366,21 @@ describe('model gating', () => {
 });
 
 describe('sampling visibility', () => {
-  it('isAnthropicThinkingActive covers the three reasoning shapes', () => {
-    expect(isAnthropicThinkingActive('openai', { effort: 'high' })).toBe(false);
+  it('isAnthropicThinkingActive reads the one intent, and only for Anthropic', () => {
+    const off: ReasoningIntentValue = { ...HIGH, level: 'none' };
+    const budgeted: ReasoningIntentValue = {
+      ...HIGH,
+      level: 'provider_default',
+      budget_tokens: 1024,
+    };
+    expect(isAnthropicThinkingActive('openai', HIGH)).toBe(false);
     expect(isAnthropicThinkingActive('anthropic', null)).toBe(false);
-    expect(isAnthropicThinkingActive('anthropic', { effort: 'off' })).toBe(false);
-    expect(isAnthropicThinkingActive('anthropic', { effort: 'high' })).toBe(true);
-    expect(isAnthropicThinkingActive('anthropic', { enabled: true })).toBe(true);
-    expect(isAnthropicThinkingActive('anthropic', { enabled: false })).toBe(false);
-    expect(isAnthropicThinkingActive('anthropic', { budget: 1024 })).toBe(false);
+    expect(isAnthropicThinkingActive('anthropic', undefined)).toBe(false);
+    expect(isAnthropicThinkingActive('anthropic', off)).toBe(false);
+    expect(isAnthropicThinkingActive('anthropic', HIGH)).toBe(true);
+    // A budget asked without a depth still means "think", and still locks
+    // temperature: the API constraint is about thinking, not about the word.
+    expect(isAnthropicThinkingActive('anthropic', budgeted)).toBe(true);
   });
 
   it('defaults to permissive when the model is unknown, honours supports_* flags', () => {
@@ -392,7 +437,7 @@ describe('structuredErrorDetail', () => {
 describe('thinkingBudgetBelowFloor key resolves against real locales', () => {
   it.each(['en', 'fr', 'de', 'es', 'it', 'zh'])(
     '%s carries the key with both interpolation placeholders',
-    async (lng) => {
+    async lng => {
       const bundle = (await import(`../../../../../locales/${lng}/translation.json`)).default as {
         settings: {
           admin: { llmConfig: { config: Record<string, string> } };

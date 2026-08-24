@@ -429,9 +429,35 @@ workbook (v1.30.11), and the edited file goes back in the same way.
 - If someone else changed a model between the preview and the confirmation,
   only the affected rows are refused, not the whole file.
 
-Creating a model from the workbook is possible; changing its provider is
-reported rather than applied, and a brand-new reasoning family is still
-created from the administration dialog.
+**🧠 Reasoning is written in the workbook.** Two columns carry it: whether the
+model reasons, and the depths it accepts, comma-separated. A third, read-only,
+restates the family LIA recognised and the ladder it will apply. On re-import, a
+depth that family does not offer is refused **while naming the ones that would
+have been accepted** — a spreadsheet cannot render checkboxes, so the check
+happens at import time.
+
+Creating a model from the workbook is possible — including one that does no
+reasoning at all, which used to require picking a reasoning template. Changing a
+model's provider is reported rather than applied, and teaching LIA a brand-new
+reasoning family is a code change, not a spreadsheet edit.
+
+## How do I choose how deeply a model thinks?
+
+In **Settings → Administration → LLM Pricing**, open a model: LIA shows the
+depths that model actually accepts — from "no thinking" up to "maximum" — and
+you **untick** the ones it refuses. Leaving everything ticked means "no
+restriction": its family's full ladder applies.
+
+You therefore never type a level, and you cannot write one that does not exist.
+The list comes from the same source the server validates against: what the
+screen offers is exactly what the model's API accepts.
+
+If no known family matches the model, LIA says so plainly rather than showing an
+empty list: no thinking parameter will be sent for it, and teaching LIA one is a
+code change.
+
+The depth actually used for each role (routing, planning, answering…) is set in
+**LLM Configuration**, where the same resolved list is offered.
 
 ## How does the settings priority chain work?
 

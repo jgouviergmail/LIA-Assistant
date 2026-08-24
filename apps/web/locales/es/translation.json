@@ -1704,11 +1704,38 @@
             "duplicate_key": "{{key}} ya aparece en la fila {{first_row}}.",
             "provider_immutable": "El proveedor de un modelo existente no se puede cambiar.",
             "row_changed_since_export": "{{key}} cambió desde que se exportó este archivo; expórtelo de nuevo.",
-            "creation_needs_template": "Un modelo nuevo necesita una plantilla de razonamiento.",
+            "reasoning_level_unknown": "{{levels}} no es una profundidad que ofrezca la familia de este modelo. Aceptadas: {{accepted}}.",
             "creation_field_missing": "Un modelo nuevo necesita la columna {{field}}."
           }
         },
-        "more_actions": "Más acciones"
+        "more_actions": "Más acciones",
+        "catalogue": {
+          "title": "Fuentes de las capacidades",
+          "aligned": "{{total}} modelo verificado con los registros públicos — alineado",
+          "aligned_plural": "{{total}} modelos verificados con los registros públicos — todos alineados",
+          "pending": "{{auto}} corregibles, {{review}} por arbitrar",
+          "retiring_summary": "Retiradas anunciadas",
+          "retiring_description": "Modelos que los registros señalan como salientes, con la evidencia.",
+          "snapshot": "Instantánea de los registros del {{date}}",
+          "provenance": {
+            "declared": "Sin curar",
+            "imported": "Corroborado por registro",
+            "verified": "Verificado por humano"
+          },
+          "provenance_help": {
+            "declared": "Valores por defecto que nadie curó: estas capacidades son desconocidas, no medidas.",
+            "imported": "Corroborado por los dos registros públicos incorporados.",
+            "verified": "Una persona editó en esta fila una capacidad gestionada por el registro."
+          },
+          "state": {
+            "retired": "Retirado",
+            "disputed": "En disputa",
+            "announced": "Anunciado",
+            "flagged": "Señalado"
+          },
+          "deprecation_help": "Fecha de retirada publicada por el proveedor y recogida en la instantánea de los registros.",
+          "seen_by_help": "Qué registros públicos incorporados informaron de esta retirada."
+        }
       },
       "google_api": {
         "title": "Tarifas de API Google",
@@ -2060,10 +2087,8 @@
           "default": "Predeterminado",
           "semantic_pivot": "Traduce las consultas al inglés para el análisis semántico",
           "query_analyzer": "Analiza la intención y los dominios de la consulta",
-          "router": "Enruta las consultas a los agentes apropiados",
           "planner": "Genera un plan de ejecución estructurado",
           "semantic_validator": "Valida la coherencia semántica del plan",
-          "context_resolver": "Resuelve las referencias contextuales",
           "contacts_agent": "Agente de gestión de contactos (Google / Apple iCloud / Microsoft 365)",
           "emails_agent": "Agente de gestión de correos (Gmail / Apple Mail / Outlook)",
           "calendar_agent": "Agente de gestión del calendario (Google / Apple iCloud / Microsoft 365)",
@@ -2164,10 +2189,13 @@
           "reasoningEffort": "Esfuerzo de razonamiento",
           "reasoningNone": "Ninguno (desactivado)",
           "reasoningDefault": "Predeterminado (modelo)",
-          "effort": "Esfuerzo"
+          "reasoningBudget": "Presupuesto de razonamiento (tokens)",
+          "reasoningExclude": "Ocultar el razonamiento en la respuesta"
         },
         "constraints": {
-          "reasoningTemp": "Los modelos de razonamiento usan una temperatura fija de 1.0. Este parámetro será ignorado por la API."
+          "reasoningTemp": "Los modelos de razonamiento usan una temperatura fija de 1.0. Este parámetro será ignorado por la API.",
+          "reasoningSingleLevel": "Este modelo solo acepta una profundidad de razonamiento.",
+          "reasoningBudgetRange": "Entre {{min}} y {{max}} tokens. Déjelo vacío para que decida la profundidad."
         },
         "tooltips": {
           "temperature": "Controla la aleatoriedad de las respuestas. Bajo (0-0.3): respuestas precisas y deterministas. Alto (0.7-1.0): respuestas más creativas y variadas.",
@@ -2176,8 +2204,7 @@
           "presencePenalty": "Fomenta la diversidad temática. Penaliza cada token ya aparecido, sin importar su frecuencia. Positivo = explora más temas. Rango: -2 a 2.",
           "maxTokens": "Número máximo de tokens de salida. Limita la longitud de la respuesta generada. El valor óptimo depende del tipo de agente.",
           "timeout": "Tiempo máximo de espera en segundos antes de cancelar la llamada API. Dejar vacío para usar el valor predeterminado del proveedor.",
-          "reasoningEffort": "Controla la intensidad del pensamiento interno del modelo. Mayor = mejor precisión pero más latencia y costo. Menor = respuestas rápidas para tareas simples.",
-          "effort": "Control de esfuerzo global (Anthropic): equilibra la exhaustividad de la respuesta con la eficiencia de tokens (texto, llamadas a herramientas, razonamiento). Menor = más barato y rápido. Predeterminado = high."
+          "reasoningEffort": "Controla la intensidad del pensamiento interno del modelo. Mayor = mejor precisión pero más latencia y costo. Menor = respuestas rápidas para tareas simples."
         },
         "config": {
           "saved": "Configuración LLM guardada",
@@ -2185,6 +2212,16 @@
           "error": "Error al guardar la configuración",
           "thinkingBudgetBelowFloor": "El razonamiento está activado, pero el máximo de tokens efectivo ({{maxTokens}}) está por debajo del umbral de seguridad de {{floor}}. El razonamiento consume el presupuesto de respuesta: las respuestas saldrían truncadas o vacías. Suba el máximo de tokens al menos a {{floor}}, o desactive el razonamiento. Nota: dejar el máximo de tokens vacío hereda el valor por defecto del código.",
           "resetButton": "Restablecer"
+        },
+        "reasoningLevels": {
+          "provider_default": "Predeterminado del proveedor",
+          "none": "Ninguno (sin razonamiento)",
+          "minimal": "Mínimo",
+          "low": "Bajo",
+          "medium": "Medio",
+          "high": "Alto",
+          "xhigh": "Muy alto",
+          "max": "Máximo"
         }
       },
       "image_pricing": {
@@ -3406,7 +3443,7 @@
         "admin-consumption-export": "exportación, CSV, consumo, uso, costes, todas las cuentas",
         "admin-broadcast": "difusión, mensaje, anuncio, notificar a todos",
         "admin-connectors": "conectores, proveedores, Google, Apple, Microsoft, activar servicios, Google Meteorología, Google Entorno, calidad del aire, polen, notificaciones push",
-        "admin-llm-pricing": "precios, precio, tarifa, tokens, modelos de texto, coste por token, Excel, hoja de cálculo, importar, exportar, actualización masiva, libro",
+        "admin-llm-pricing": "precios, precio, tarifa, tokens, modelos de texto, coste por token, Excel, hoja de cálculo, importar, exportar, actualización masiva, libro, razonamiento, profundidades aceptadas, escala, procedencia de capacidades, registros públicos, catálogo",
         "admin-google-api-pricing": "precios, API de Google, Maps, Places, rutas, coste de geocodificación",
         "admin-image-pricing": "precios, imágenes, generación de imágenes, coste por imagen",
         "admin-llm-config": "LLM, modelos, proveedor, configuración, temperatura, razonamiento, claves api",
@@ -4312,6 +4349,20 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_32_0": {
+          "title": "v1.32.0 — 🧠 Una sola forma de pedir a un modelo que razone",
+          "date": "Agosto 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🧠 La profundidad de razonamiento pasa a ser un único ajuste</b> — cada modelo ofrece ahora la misma escala, de «sin razonamiento» a «máximo», con los niveles que ese modelo acepta realmente. Antes, la misma instrucción se guardaba de dos maneras según el proveedor, y la pantalla de administración podía ofrecer una profundidad que la API del modelo rechaza: el guardado pasaba y la llamada fallaba después.",
+            "i2": "<b>🎛️ La lista solo ofrece lo que funciona</b> — las profundidades disponibles, la opción de apagar el razonamiento, el presupuesto de tokens: todo procede ahora de la misma fuente contra la que valida el servidor. Un modelo que no puede dejar de razonar ya no finge que puede, y una profundidad que no acepta ya no se puede seleccionar.",
+            "i3": "<b>🔍 El catálogo de modelos dice de dónde vienen sus cifras</b> — cada fila indica si sus capacidades fueron corroboradas por los registros públicos, verificadas por una persona o nunca curadas. Las fechas de retirada anunciadas aparecen junto a los modelos afectados, con la fuente de la información.",
+            "i4": "<b>🧹 Dos ajustes obsoletos retirados del formulario del catálogo</b> — describían cómo se dibujaba antes el control de razonamiento, y ya nada los leía. Un campo que se puede editar y que no cambia nada es peor que un campo ausente.",
+            "i5": "<b>🎚️ Las profundidades aceptadas se marcan en lugar de escribirse</b> — la pantalla Tarificación LLM muestra las profundidades que la familia del modelo ofrece realmente, y se desmarcan las que este modelo concreto rechaza. Todo marcado significa «sin restricción». Antes, un campo libre invitaba a escribir un nivel inexistente: se descartaba en silencio.",
+            "i6": "<b>📗 El libro Excel escribe el razonamiento directamente</b> — dos columnas sustituyen a la plantilla «copiar la forma de otro modelo», que podía quitar profundidades sin decirlo cuando venía de otra familia. Al importar, una profundidad fuera de la familia se rechaza <em>nombrando las que sí se habrían aceptado</em>. Crear un modelo que no razona ya no exige elegir una plantilla de razonamiento.",
+            "i7": "<b>🔧 Corregido: una restricción de profundidades puede volver a ampliarse</b> — volver a marcar todas las profundidades no restauraba la escala completa: la restricción anterior sobrevivía en silencio."
+          }
+        },
         "v1_31_3": {
           "title": "v1.31.3 — 🌑 Un negro realmente negro, y referencias recuperadas",
           "date": "Agosto 2026",
@@ -6484,7 +6535,7 @@
       "settings": {
         "title": "Configuración",
         "description": "Configuración de cuenta y preferencias",
-        "count": "21",
+        "count": "22",
         "questions": {
           "q1": {
             "question": "¿Cómo cambio mi zona horaria?",
@@ -6568,7 +6619,11 @@
           },
           "q21": {
             "question": "¿Cómo actualiza un administrador los precios de los modelos LLM de forma masiva?",
-            "answer": "Desde <b>Ajustes → Administración → Tarificación LLM</b>, todo el catálogo — cada modelo, cada característica, cada tarifa — se descarga como un libro de Excel estructurado, y el archivo editado vuelve por el mismo camino.<br><br><b>Lo que contiene el libro:</b> unas instrucciones de uso traducidas a tu idioma, una fila por modelo con listas desplegables y validaciones de celda, una hoja de referencias que alimenta esas listas, una hoja con las franjas horarias UTC para los proveedores que facturan en horas punta/valle, y una columna <b>estado</b> que dice lo que ocurriría realmente — sin tarifa activa (facturado a cero), varias tarifas activas, o facturado bajo el nombre de otro modelo.<br><br><b>La reimportación ocurre en dos pasos.</b> El archivo se analiza y se muestra toda la diferencia campo por campo — creados, modificados, reactivados, retirados — sin que se escriba nada todavía; solo entonces puede aplicarse, y únicamente contra la vista previa que has leído.<br><br><b>Lo que una importación nunca puede hacer:</b> una fila ausente del archivo <b>nunca borra nada</b> (un filtro de Excel olvidado no puede vaciar el catálogo — la retirada se declara explícitamente poniendo la columna <b>is_active</b> en falso, y volver a ponerla en verdadero recupera el modelo); todo lo ilegible o contradictorio se señala <b>con la hoja y la celda que hay que corregir</b>, y entonces la importación no escribe absolutamente nada; una tarifa solo se reescribe si realmente cambió, así que reimportar un archivo intacto deja el historial de precios exactamente como estaba; y si otra persona modificó un modelo entre la vista previa y la confirmación, solo se rechazan las filas afectadas, no todo el archivo."
+            "answer": "Desde <b>Ajustes → Administración → Tarificación LLM</b>, todo el catálogo — cada modelo, cada característica, cada tarifa — se descarga como un libro de Excel estructurado, y el archivo editado vuelve por el mismo camino.<br><br><b>Lo que contiene el libro:</b> unas instrucciones de uso traducidas a tu idioma, una fila por modelo con listas desplegables y validaciones de celda, una hoja de referencias que alimenta esas listas, una hoja con las franjas horarias UTC para los proveedores que facturan en horas punta/valle, y una columna <b>estado</b> que dice lo que ocurriría realmente — sin tarifa activa (facturado a cero), varias tarifas activas, o facturado bajo el nombre de otro modelo.<br><br><b>La reimportación ocurre en dos pasos.</b> El archivo se analiza y se muestra toda la diferencia campo por campo — creados, modificados, reactivados, retirados — sin que se escriba nada todavía; solo entonces puede aplicarse, y únicamente contra la vista previa que has leído.<br><br><b>Lo que una importación nunca puede hacer:</b> una fila ausente del archivo <b>nunca borra nada</b> (un filtro de Excel olvidado no puede vaciar el catálogo — la retirada se declara explícitamente poniendo la columna <b>is_active</b> en falso, y volver a ponerla en verdadero recupera el modelo); todo lo ilegible o contradictorio se señala <b>con la hoja y la celda que hay que corregir</b>, y entonces la importación no escribe absolutamente nada; una tarifa solo se reescribe si realmente cambió, así que reimportar un archivo intacto deja el historial de precios exactamente como estaba; y si otra persona modificó un modelo entre la vista previa y la confirmación, solo se rechazan las filas afectadas, no todo el archivo.<br><br><b>El razonamiento se escribe en el libro.</b> Dos columnas lo llevan: si el modelo razona, y las profundidades que acepta, separadas por comas. Una tercera, de solo lectura, recuerda la familia reconocida y la escala que LIA aplicará. Al reimportar, una profundidad que esa familia no ofrece se rechaza <b>nombrando las que sí se habrían aceptado</b>: una hoja de cálculo no puede mostrar casillas, así que la comprobación ocurre al importar."
+          },
+          "q22": {
+            "question": "¿Cómo elijo con qué profundidad razona un modelo?",
+            "answer": "En <b>Ajustes → Administración → Tarificación LLM</b>, abra un modelo: LIA muestra las profundidades que ese modelo acepta realmente — desde «sin razonamiento» hasta «máximo» — y usted <b>desmarca</b> las que rechaza. Dejarlo todo marcado significa «sin restricción»: se aplica la escala completa de su familia.<br><br>Así nunca escribe un nivel a mano ni puede escribir uno inexistente. La lista procede de la misma fuente contra la que valida el servidor: lo que ofrece la pantalla es exactamente lo que acepta la API del modelo.<br><br>Si ninguna familia conocida corresponde al modelo, LIA lo dice claramente en lugar de mostrar una lista vacía: no se enviará ningún parámetro de razonamiento, y enseñarle una es un cambio de código.<br><br>La profundidad realmente usada en cada rol (enrutado, planificación, respuesta…) se ajusta en <b>Configuración LLM</b>, donde se ofrece la misma lista resuelta."
           }
         }
       },
@@ -9730,7 +9785,7 @@
       "llm-providers": {
         "title": "Multi-proveedor IA: elige el modelo adecuado para cada tarea",
         "excerpt": "LIA soporta numerosos proveedores de modelos de lenguaje y permite configurar un modelo diferente para cada tipo de tarea.",
-        "body": "<h2>Múltiples proveedores, un solo asistente</h2><p>LIA integra nativamente <strong>múltiples proveedores de LLM</strong>: proveedores de modelos en la nube, modelos de razonamiento avanzado y soluciones de despliegue local. Cada proveedor es gestionado por un adaptador dedicado en la factory LLM.</p><h2>56 tipos de LLM configurables individualmente</h2><p>LIA define <strong>más de 50 tipos de LLM</strong> configurables por separado: router, response, planner, cada agente de dominio y más. Para cada tipo, puedes definir: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> y <code>reasoning_effort</code>.</p><p>Por ejemplo:</p><ul><li>Un modelo rápido y económico para el <strong>enrutamiento</strong></li><li>Un modelo potente para la <strong>planificación</strong></li><li>Un modelo creativo para las <strong>respuestas</strong></li><li>Un modelo local para la <strong>confidencialidad</strong></li></ul><h2>Cadena de resolución de configuración</h2><p>La configuración de cada LLM sigue una <strong>cadena de resolución de 3 niveles</strong>: Admin UI (almacenada en base de datos) → Variables de entorno → Valores por defecto del código. Un caché <code>LLMConfigOverrideCache</code> proporciona búsquedas en O(1) sin consulta a la base de datos en tiempo de ejecución. Las modificaciones a través de la interfaz de administración toman <strong>efecto inmediato</strong> gracias a la invalidación del caché.</p><h2>La factory LLM multi-proveedor</h2><p>Un solo punto de entrada para todos los proveedores:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Ejemplos de uso\nrouter_llm = get_llm(\"router\")        # modelo rápido configurado\nplanner_llm = get_llm(\"planner\")      # modelo potente configurado\nresponse_llm = get_llm(\"response\")    # modelo creativo configurado</code></pre><h2>Contabilidad de uso contractual</h2><p>Cada proveedor declara cómo se cuenta su consumo de tokens: solicitud explícita en las respuestas en streaming, recuento nativo del SDK, o exclusión asumida (modelos locales gratuitos, claves del usuario final). Esta declaración se <strong>verifica al arranque</strong> — un proveedor no declarado impide que la aplicación arranque — y una llamada de pago que termina sin recuento se convierte en un contador, una advertencia y una alerta: el límite de gasto no puede quedarse ciego en silencio. El tiempo de espera configurado por puesto se aplica al cliente de cada proveedor, con valores por defecto calibrados con las latencias reales de producción. Las herramientas facturadas por uso — generación de imágenes, Perplexity, Brave — tienen además un tope por petición: un agente no puede entrar en bucle sobre una API de pago, se detiene con una explicación y concluye con lo que ya obtuvo.</p><h2>Seguridad de las claves API</h2><p>Las claves API de los proveedores están <strong>cifradas con Fernet</strong> (AES-128 CBC + HMAC) antes de su almacenamiento en base de datos. Ninguna clave se expone jamás en texto claro en los logs o las respuestas API.</p><h2>Modelos de razonamiento</h2><p>LIA soporta los modelos de razonamiento avanzado con 6 niveles de <code>reasoning_effort</code>: <code>none</code>, <code>minimal</code>, <code>low</code>, <code>medium</code>, <code>high</code> y <code>xhigh</code>. Esto permite activar el razonamiento profundo únicamente donde es necesario, optimizando la relación costo/rendimiento.</p><h2>Despliegue 100% local</h2><p>Para máxima confidencialidad, LIA puede funcionar completamente en local mediante proveedores de modelos locales. Ningún dato abandona tu infraestructura. Basta con apuntar las variables de configuración a tu instancia local.</p>"
+        "body": "<h2>Múltiples proveedores, un solo asistente</h2><p>LIA integra nativamente <strong>múltiples proveedores de LLM</strong>: proveedores de modelos en la nube, modelos de razonamiento avanzado y soluciones de despliegue local. Cada proveedor es gestionado por un adaptador dedicado en la factory LLM.</p><h2>56 tipos de LLM configurables individualmente</h2><p>LIA define <strong>más de 50 tipos de LLM</strong> configurables por separado: router, response, planner, cada agente de dominio y más. Para cada tipo, puedes definir: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> y <code>reasoning_effort</code>.</p><p>Por ejemplo:</p><ul><li>Un modelo rápido y económico para el <strong>enrutamiento</strong></li><li>Un modelo potente para la <strong>planificación</strong></li><li>Un modelo creativo para las <strong>respuestas</strong></li><li>Un modelo local para la <strong>confidencialidad</strong></li></ul><h2>Cadena de resolución de configuración</h2><p>La configuración de cada LLM sigue una <strong>cadena de resolución de 3 niveles</strong>: Admin UI (almacenada en base de datos) → Variables de entorno → Valores por defecto del código. Un caché <code>LLMConfigOverrideCache</code> proporciona búsquedas en O(1) sin consulta a la base de datos en tiempo de ejecución. Las modificaciones a través de la interfaz de administración toman <strong>efecto inmediato</strong> gracias a la invalidación del caché.</p><h2>La factory LLM multi-proveedor</h2><p>Un solo punto de entrada para todos los proveedores:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Ejemplos de uso\nrouter_llm = get_llm(\"router\")        # modelo rápido configurado\nplanner_llm = get_llm(\"planner\")      # modelo potente configurado\nresponse_llm = get_llm(\"response\")    # modelo creativo configurado</code></pre><h2>Contabilidad de uso contractual</h2><p>Cada proveedor declara cómo se cuenta su consumo de tokens: solicitud explícita en las respuestas en streaming, recuento nativo del SDK, o exclusión asumida (modelos locales gratuitos, claves del usuario final). Esta declaración se <strong>verifica al arranque</strong> — un proveedor no declarado impide que la aplicación arranque — y una llamada de pago que termina sin recuento se convierte en un contador, una advertencia y una alerta: el límite de gasto no puede quedarse ciego en silencio. El tiempo de espera configurado por puesto se aplica al cliente de cada proveedor, con valores por defecto calibrados con las latencias reales de producción. Las herramientas facturadas por uso — generación de imágenes, Perplexity, Brave — tienen además un tope por petición: un agente no puede entrar en bucle sobre una API de pago, se detiene con una explicación y concluye con lo que ya obtuvo.</p><h2>Seguridad de las claves API</h2><p>Las claves API de los proveedores están <strong>cifradas con Fernet</strong> (AES-128 CBC + HMAC) antes de su almacenamiento en base de datos. Ninguna clave se expone jamás en texto claro en los logs o las respuestas API.</p><h2>Modelos de razonamiento</h2><p>Pedir a un modelo que razone pasa por <strong>una escala única, idéntica en todos los proveedores</strong>: <code>none</code>, <code>minimal</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>, <code>max</code>, más el valor por defecto del proveedor. Lo que un modelo concreto acepta realmente no se declara a mano: se <strong>deriva</strong> de su par (proveedor, modelo), y el catálogo solo puede restringir esa escala, nunca ampliarla. La pantalla de administración ofrece así únicamente profundidades que la API del modelo acepta, y el razonamiento profundo se activa solo donde compensa.</p><h2>Despliegue 100% local</h2><p>Para máxima confidencialidad, LIA puede funcionar completamente en local mediante proveedores de modelos locales. Ningún dato abandona tu infraestructura. Basta con apuntar las variables de configuración a tu instancia local.</p>"
       },
       "google-workspace": {
         "title": "Integración Google Workspace: Gmail, Calendar, Contacts, Drive, Tasks",

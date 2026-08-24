@@ -24,11 +24,18 @@
  *   cross-check rather than grep alone: production logs 344
  *   `catalogue_tool_registered` events across 4 uvicorn workers = 86 per
  *   worker, matching `grep -rcE '^[A-Za-z_]+ = ToolManifest\(' src/domains/agents/`.
- *   Re-measured at v1.31.1: 105. Production runtime logs 102 tool manifests
- *   (`"tool_manifests": 102` in global_registry_set, 4 workers) BEFORE this
- *   release, plus the three manifests this release registers unconditionally
- *   through the family tuples (write_spreadsheet, append_document_text,
- *   create_email_filter). The +15 over v1.30.11 is the Google API ecosystem
+ *   CORRECTED at v1.32.0: 102, down from the 105 published since v1.31.1.
+ *   That 105 was 102 MEASURED plus 3 PREDICTED — three manifests a release
+ *   was expected to register unconditionally (write_spreadsheet,
+ *   append_document_text, create_email_filter). Measured on the v1.32.0
+ *   production runtime, they are not there: `"tool_manifests": 102` on all
+ *   four workers, and no `catalogue_tool_registered` event names any of the
+ *   three. They are declared in `drive/catalogue_manifests.py` and
+ *   `emails/settings_catalogue_manifests.py` but registered conditionally, so
+ *   the running catalogue does not expose them — the same trap this comment
+ *   already recorded for five browser manifests. A prediction is not a
+ *   measurement, and this tile renders a raw number with no "+".
+ *   The v1.31.1 note read: 102 runtime + 3 expected. The +15 over v1.30.11 is the Google API ecosystem
  *   programme: contact groups (3), availability (1), Gmail settings (3),
  *   workspace docs read+write (4), air quality / pollen (2), plus the two
  *   above. Runtime figure, never the grep — the tile renders a raw number.
@@ -39,7 +46,11 @@
  *   send_peer_message), which had never been carried into this tile.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-21
+ * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-27
+ *   (v1.32.0): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 486,
+ *   the three series of `observability/metrics_llm_config.py` — capability
+ *   mismatch, unmapped agent (ADR-244) and reasoning coercion (ADR-245).
+ *   Previous re-measure 2026-08-21
  *   (v1.31.1): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 483
  *   (+3: the two push-channel counters and the Web Risk screening counter).
  *   Previous re-measure 2026-08-20
@@ -50,7 +61,16 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Re-measured at v1.30.15: backend 19,335 (pytest tests/unit tests/agents,
+ *   Re-measured at v1.32.0: backend 20,158 (`pytest tests/unit tests/agents
+ *   --collect-only --no-cov`) + frontend 6,258 vitest (489 files) = 26,416
+ *   -> 26,400. The figure goes DOWN by 400 and that is the point (zero
+ *   oversell): ADR-245 replaced a cross-product of four stored reasoning
+ *   shapes against four widget values with one shape, and the catalogue
+ *   deletion took the widget-conditional suites with it. What replaced them
+ *   is fewer tests asserting more — the golden equivalence over the live
+ *   configuration, the published-vs-enforced contract, and the invariant that
+ *   the identity sentinel never reaches a provider.
+ *   Previous re-measure at v1.30.15: backend 19,335 (pytest tests/unit tests/agents,
  *   1,076 files — the prod-log remediation: SSE stream registry + eviction
  *   wiring, GraphInterrupt carve-outs, Brave clamp, OWM 404 verdicts,
  *   event_type capacity guard, web-research timeout family, catalogue
@@ -186,14 +206,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 105,
+  tools: 102,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 483,
+  metrics: 486,
   uiLanguages: 6,
-  tests: 26800,
-  adrs: 242,
-  releases: 224,
+  tests: 26400,
+  adrs: 244,
+  releases: 225,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

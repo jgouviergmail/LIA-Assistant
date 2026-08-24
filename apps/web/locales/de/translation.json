@@ -1704,11 +1704,38 @@
             "duplicate_key": "{{key}} steht bereits in Zeile {{first_row}}.",
             "provider_immutable": "Der Anbieter eines bestehenden Modells kann nicht geändert werden.",
             "row_changed_since_export": "{{key}} hat sich seit dem Export dieser Datei geändert; exportieren Sie erneut.",
-            "creation_needs_template": "Ein neues Modell braucht eine Reasoning-Vorlage.",
+            "reasoning_level_unknown": "{{levels}} ist keine Tiefe, die die Familie dieses Modells anbietet. Akzeptiert: {{accepted}}.",
             "creation_field_missing": "Ein neues Modell braucht die Spalte {{field}}."
           }
         },
-        "more_actions": "Weitere Aktionen"
+        "more_actions": "Weitere Aktionen",
+        "catalogue": {
+          "title": "Quellen der Fähigkeiten",
+          "aligned": "{{total}} Modell gegen die öffentlichen Register geprüft — stimmig",
+          "aligned_plural": "{{total}} Modelle gegen die öffentlichen Register geprüft — alle stimmig",
+          "pending": "{{auto}} korrigierbar, {{review}} zu entscheiden",
+          "retiring_summary": "Angekündigte Abkündigungen",
+          "retiring_description": "Modelle, die die Register als auslaufend melden, mit Nachweis.",
+          "snapshot": "Register-Snapshot vom {{date}}",
+          "provenance": {
+            "declared": "Nicht kuratiert",
+            "imported": "Register-bestätigt",
+            "verified": "Von Menschen geprüft"
+          },
+          "provenance_help": {
+            "declared": "Spaltenvorgaben, die niemand kuratiert hat — diese Fähigkeiten sind unbekannt, nicht gemessen.",
+            "imported": "Von den beiden mitgelieferten öffentlichen Registern bestätigt.",
+            "verified": "Ein Mensch hat auf dieser Zeile eine register-gepflegte Fähigkeit bearbeitet."
+          },
+          "state": {
+            "retired": "Abgekündigt",
+            "disputed": "Widersprüchlich",
+            "announced": "Angekündigt",
+            "flagged": "Markiert"
+          },
+          "deprecation_help": "Vom Anbieter veröffentlichtes Abkündigungsdatum, aus dem mitgelieferten Register-Snapshot.",
+          "seen_by_help": "Welche mitgelieferten öffentlichen Register diese Abkündigung gemeldet haben."
+        }
       },
       "google_api": {
         "title": "Google-API-Tarife",
@@ -2060,10 +2087,8 @@
           "default": "Standard",
           "semantic_pivot": "Übersetzt Anfragen ins Englische für die semantische Analyse",
           "query_analyzer": "Analysiert die Absicht und Domänen der Anfrage",
-          "router": "Leitet Anfragen an die entsprechenden Agenten weiter",
           "planner": "Erstellt einen strukturierten Ausführungsplan",
           "semantic_validator": "Validiert die semantische Konsistenz des Plans",
-          "context_resolver": "Löst kontextuelle Referenzen auf",
           "contacts_agent": "Kontakte-Verwaltungsagent (Google / Apple iCloud / Microsoft 365)",
           "emails_agent": "E-Mail-Verwaltungsagent (Gmail / Apple Mail / Outlook)",
           "calendar_agent": "Kalender-Verwaltungsagent (Google / Apple iCloud / Microsoft 365)",
@@ -2164,10 +2189,13 @@
           "reasoningEffort": "Reasoning-Aufwand",
           "reasoningNone": "Keiner (deaktiviert)",
           "reasoningDefault": "Standard (Modell)",
-          "effort": "Effort"
+          "reasoningBudget": "Denk-Budget (Tokens)",
+          "reasoningExclude": "Denkprozess aus der Antwort ausblenden"
         },
         "constraints": {
-          "reasoningTemp": "Reasoning-Modelle verwenden eine feste Temperatur von 1.0. Dieser Parameter wird von der API ignoriert."
+          "reasoningTemp": "Reasoning-Modelle verwenden eine feste Temperatur von 1.0. Dieser Parameter wird von der API ignoriert.",
+          "reasoningSingleLevel": "Dieses Modell akzeptiert nur eine Denktiefe.",
+          "reasoningBudgetRange": "Zwischen {{min}} und {{max}} Tokens. Leer lassen, damit die Tiefe entscheidet."
         },
         "tooltips": {
           "temperature": "Steuert die Zufälligkeit der Antworten. Niedrig (0-0.3): präzise, deterministische Ausgaben. Hoch (0.7-1.0): kreativere und vielfältigere Antworten.",
@@ -2176,8 +2204,7 @@
           "presencePenalty": "Fördert thematische Vielfalt. Bestraft jedes bereits erschienene Token unabhängig von der Häufigkeit. Positiv = mehr Themen erkunden. Bereich: -2 bis 2.",
           "maxTokens": "Maximale Anzahl von Ausgabe-Tokens. Begrenzt die Länge der generierten Antwort. Der optimale Wert hängt vom Agententyp ab.",
           "timeout": "Maximale Wartezeit in Sekunden vor Abbruch des API-Aufrufs. Leer lassen für den Standard des Anbieters.",
-          "reasoningEffort": "Steuert die Intensität des internen Denkprozesses des Modells. Höher = bessere Genauigkeit bei höherer Latenz und Kosten. Niedriger = schnelle Antworten für einfache Aufgaben.",
-          "effort": "Globale Effort-Steuerung (Anthropic): wägt Antwortgründlichkeit gegen Token-Effizienz ab (Text, Tool-Aufrufe, Denken). Niedriger = günstiger und schneller. Standard = high."
+          "reasoningEffort": "Steuert die Intensität des internen Denkprozesses des Modells. Höher = bessere Genauigkeit bei höherer Latenz und Kosten. Niedriger = schnelle Antworten für einfache Aufgaben."
         },
         "config": {
           "saved": "LLM-Konfiguration gespeichert",
@@ -2185,6 +2212,16 @@
           "error": "Fehler beim Speichern der Konfiguration",
           "thinkingBudgetBelowFloor": "Reasoning ist aktiviert, aber die effektiven Max-Tokens ({{maxTokens}}) liegen unter der Sicherheitsuntergrenze von {{floor}}. Das Reasoning verbraucht das Antwortbudget: Antworten kämen abgeschnitten oder leer zurück. Erhöhen Sie Max-Tokens auf mindestens {{floor}} oder deaktiviere das Reasoning. Hinweis: Ein leeres Max-Tokens-Feld übernimmt den Code-Standardwert.",
           "resetButton": "Zurücksetzen"
+        },
+        "reasoningLevels": {
+          "provider_default": "Anbieter-Standard",
+          "none": "Keine (kein Nachdenken)",
+          "minimal": "Minimal",
+          "low": "Niedrig",
+          "medium": "Mittel",
+          "high": "Hoch",
+          "xhigh": "Sehr hoch",
+          "max": "Maximum"
         }
       },
       "image_pricing": {
@@ -3406,7 +3443,7 @@
         "admin-consumption-export": "Export, CSV, Verbrauch, Nutzung, Kosten, alle Konten",
         "admin-broadcast": "Rundnachricht, Nachricht, Ankündigung, alle benachrichtigen",
         "admin-connectors": "Konnektoren, Anbieter, Google, Apple, Microsoft, Dienste aktivieren, Google Wetter, Google Umwelt, Luftqualität, Pollen, Push-Benachrichtigungen",
-        "admin-llm-pricing": "Preise, Preis, Tarif, Tokens, Textmodelle, Kosten pro Token, Excel, Tabelle, Import, Export, Massenaktualisierung, Arbeitsmappe",
+        "admin-llm-pricing": "Preise, Preis, Tarif, Tokens, Textmodelle, Kosten pro Token, Excel, Tabelle, Import, Export, Massenaktualisierung, Arbeitsmappe, Reasoning, akzeptierte Tiefen, Skala, Herkunft der Fähigkeiten, öffentliche Register, Katalog",
         "admin-google-api-pricing": "Preise, Google API, Maps, Places, Routen, Geocoding-Kosten",
         "admin-image-pricing": "Preise, Bilder, Bildgenerierung, Kosten pro Bild",
         "admin-llm-config": "LLM, Modelle, Anbieter, Konfiguration, Temperatur, Reasoning, API-Schlüssel",
@@ -4312,6 +4349,20 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_32_0": {
+          "title": "v1.32.0 — 🧠 Ein einziger Weg, ein Modell zum Nachdenken zu bringen",
+          "date": "August 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🧠 Die Denktiefe wird zu einer einzigen Einstellung</b> — jedes Modell bietet nun dieselbe Skala, von „kein Nachdenken“ bis „Maximum“, mit den Stufen, die dieses Modell tatsächlich akzeptiert. Zuvor wurde dieselbe Anweisung je nach Anbieter unterschiedlich gespeichert, und die Verwaltungsoberfläche konnte eine Tiefe anbieten, die die API des Modells ablehnt — das Speichern gelang, der Aufruf scheiterte später.",
+            "i2": "<b>🎛️ Die Auswahl zeigt nur, was funktioniert</b> — verfügbare Tiefen, das Abschalten des Nachdenkens, das Token-Budget: alles stammt jetzt aus derselben Quelle, gegen die der Server prüft. Ein Modell, das nicht aufhören kann zu denken, tut nicht mehr so, und eine nicht akzeptierte Tiefe ist nicht mehr wählbar.",
+            "i3": "<b>🔍 Der Modellkatalog nennt die Herkunft seiner Zahlen</b> — jede Zeile zeigt, ob ihre Fähigkeiten von den öffentlichen Registern bestätigt, von einem Menschen geprüft oder nie kuratiert wurden. Angekündigte Abkündigungsdaten erscheinen neben den betroffenen Modellen, mit der Quelle der Information.",
+            "i4": "<b>🧹 Zwei veraltete Einstellungen aus dem Katalogformular entfernt</b> — sie beschrieben, wie das Denk-Steuerelement früher gezeichnet wurde, und nichts las sie mehr. Ein Feld, das man ändern kann und das nichts bewirkt, ist schlimmer als gar kein Feld.",
+            "i5": "<b>🎚️ Akzeptierte Tiefen werden angehakt, nicht getippt</b> — der Tarifierungs-LLM-Bildschirm zeigt die Tiefen, die die Familie des Modells tatsächlich anbietet, und man hakt jene ab, die dieses konkrete Modell ablehnt. Alles angehakt bedeutet „keine Einschränkung“. Ein Freitextfeld lud zuvor dazu ein, eine nicht existierende Stufe zu schreiben — sie wurde stillschweigend verworfen.",
+            "i6": "<b>📗 Die Excel-Arbeitsmappe schreibt das Reasoning direkt</b> — zwei Spalten ersetzen die Vorlage „Form eines anderen Modells kopieren“, die Tiefen entfernen konnte, ohne es zu sagen, wenn sie aus einer anderen Familie stammte. Beim Import wird eine Tiefe außerhalb der Familie abgelehnt, <em>unter Nennung der akzeptierten</em>. Ein Modell ohne Reasoning anzulegen erfordert keine Reasoning-Vorlage mehr.",
+            "i7": "<b>🔧 Behoben: Eine Tiefenbeschränkung lässt sich wieder aufheben</b> — alle Tiefen erneut anzuhaken stellte die vollständige Skala nicht wieder her: Die alte Beschränkung überlebte stillschweigend."
+          }
+        },
         "v1_31_3": {
           "title": "v1.31.3 — 🌑 Ein wirklich schwarzes Schwarz, und wiedergefundene Orientierung",
           "date": "August 2026",
@@ -6484,7 +6535,7 @@
       "settings": {
         "title": "Einstellungen",
         "description": "Kontokonfiguration und Einstellungen",
-        "count": "21",
+        "count": "22",
         "questions": {
           "q1": {
             "question": "Wie ändere ich meine Zeitzone?",
@@ -6568,7 +6619,11 @@
           },
           "q21": {
             "question": "Wie aktualisiert eine Administration die LLM-Modellpreise in großer Zahl?",
-            "answer": "Unter <b>Einstellungen → Administration → LLM-Preise</b> lädt sich der gesamte Katalog — jedes Modell, jedes Merkmal, jeder Tarif — als strukturierte Excel-Arbeitsmappe herunter, und die bearbeitete Datei geht denselben Weg zurück.<br><br><b>Was die Arbeitsmappe enthält:</b> Bedienungshinweise in Ihrer Sprache, eine Zeile je Modell mit Auswahllisten und Zellprüfungen, ein Referenzblatt, das diese Listen speist, ein Blatt mit den UTC-Zeitfenstern für Anbieter mit Spitzen-/Nebenzeit-Abrechnung, und eine Spalte <b>Status</b>, die sagt, was tatsächlich passieren würde — kein aktiver Tarif (mit null abgerechnet), mehrere aktive Tarife oder Abrechnung unter dem Namen eines anderen Modells.<br><br><b>Das Zurückspielen läuft in zwei Schritten.</b> Die Datei wird analysiert und die gesamte Differenz Feld für Feld angezeigt — angelegt, geändert, reaktiviert, stillgelegt — während noch nichts geschrieben ist; erst danach lässt sie sich anwenden, und nur gegen die Vorschau, die Sie gelesen haben.<br><br><b>Was ein Import niemals tun kann:</b> Eine in der Datei fehlende Zeile <b>löscht niemals etwas</b> (ein vergessener Excel-Filter kann den Katalog nicht leeren — die Entfernung wird ausdrücklich erklärt, indem die Spalte <b>is_active</b> auf falsch gesetzt wird, und sie wieder auf wahr zu setzen holt das Modell zurück); alles Unlesbare oder Widersprüchliche wird <b>mit Blatt und zu korrigierender Zelle</b> gemeldet, und der Import schreibt dann überhaupt nichts; ein Tarif wird nur neu geschrieben, wenn er sich wirklich geändert hat, ein unveränderter Import lässt die Preishistorie also genau so, wie sie war; und wenn jemand anderes ein Modell zwischen Vorschau und Bestätigung geändert hat, werden nur die betroffenen Zeilen abgelehnt, nicht die ganze Datei."
+            "answer": "Unter <b>Einstellungen → Administration → LLM-Preise</b> lädt sich der gesamte Katalog — jedes Modell, jedes Merkmal, jeder Tarif — als strukturierte Excel-Arbeitsmappe herunter, und die bearbeitete Datei geht denselben Weg zurück.<br><br><b>Was die Arbeitsmappe enthält:</b> Bedienungshinweise in Ihrer Sprache, eine Zeile je Modell mit Auswahllisten und Zellprüfungen, ein Referenzblatt, das diese Listen speist, ein Blatt mit den UTC-Zeitfenstern für Anbieter mit Spitzen-/Nebenzeit-Abrechnung, und eine Spalte <b>Status</b>, die sagt, was tatsächlich passieren würde — kein aktiver Tarif (mit null abgerechnet), mehrere aktive Tarife oder Abrechnung unter dem Namen eines anderen Modells.<br><br><b>Das Zurückspielen läuft in zwei Schritten.</b> Die Datei wird analysiert und die gesamte Differenz Feld für Feld angezeigt — angelegt, geändert, reaktiviert, stillgelegt — während noch nichts geschrieben ist; erst danach lässt sie sich anwenden, und nur gegen die Vorschau, die Sie gelesen haben.<br><br><b>Was ein Import niemals tun kann:</b> Eine in der Datei fehlende Zeile <b>löscht niemals etwas</b> (ein vergessener Excel-Filter kann den Katalog nicht leeren — die Entfernung wird ausdrücklich erklärt, indem die Spalte <b>is_active</b> auf falsch gesetzt wird, und sie wieder auf wahr zu setzen holt das Modell zurück); alles Unlesbare oder Widersprüchliche wird <b>mit Blatt und zu korrigierender Zelle</b> gemeldet, und der Import schreibt dann überhaupt nichts; ein Tarif wird nur neu geschrieben, wenn er sich wirklich geändert hat, ein unveränderter Import lässt die Preishistorie also genau so, wie sie war; und wenn jemand anderes ein Modell zwischen Vorschau und Bestätigung geändert hat, werden nur die betroffenen Zeilen abgelehnt, nicht die ganze Datei.<br><br><b>Das Reasoning wird in der Arbeitsmappe geschrieben.</b> Zwei Spalten tragen es: ob das Modell überhaupt denkt, und die Tiefen, die es akzeptiert, durch Kommas getrennt. Eine dritte, schreibgeschützte, nennt die erkannte Familie und die Skala, die LIA anwenden wird. Beim Reimport wird eine Tiefe, die diese Familie nicht anbietet, abgelehnt — <b>unter Nennung der akzeptierten</b>. Eine Tabelle kann keine Kontrollkästchen darstellen, also findet die Prüfung beim Import statt."
+          },
+          "q22": {
+            "question": "Wie wähle ich, wie tief ein Modell nachdenkt?",
+            "answer": "Unter <b>Einstellungen → Administration → LLM-Preise</b> öffnen Sie ein Modell: LIA zeigt die Tiefen, die dieses Modell wirklich akzeptiert — von „kein Nachdenken“ bis „Maximum“ — und Sie <b>haken ab</b>, was es ablehnt. Alles angehakt zu lassen bedeutet „keine Einschränkung“: Es gilt die vollständige Skala seiner Familie.<br><br>Sie tippen also nie eine Stufe ein und können keine schreiben, die es nicht gibt. Die Liste stammt aus derselben Quelle, gegen die der Server validiert: Was der Bildschirm anbietet, ist genau das, was die API des Modells akzeptiert.<br><br>Passt keine bekannte Familie zum Modell, sagt LIA das klar, statt eine leere Liste zu zeigen: Es wird dann kein Reasoning-Parameter gesendet, und LIA eine beizubringen ist eine Code-Änderung.<br><br>Die tatsächlich verwendete Tiefe pro Rolle (Routing, Planung, Antwort …) stellen Sie in der <b>LLM-Konfiguration</b> ein, wo dieselbe aufgelöste Liste angeboten wird."
           }
         }
       },
@@ -9730,7 +9785,7 @@
       "llm-providers": {
         "title": "Wähle das richtige Modell für jede Aufgabe",
         "excerpt": "LIA unterstützt viele Sprachmodell-Anbieter und ermöglicht die Konfiguration eines anderen Modells für jeden Aufgabentyp.",
-        "body": "<h2>Mehrere Anbieter, ein einziger Assistent</h2><p>LIA integriert nativ <strong>mehrere LLM-Anbieter</strong>, darunter Cloud-Anbieter und lokale Lösungen. Jeder Anbieter wird von einem dedizierten Adapter in der LLM-Factory verwaltet.</p><h2>56 individuell konfigurierbare LLM-Typen</h2><p>LIA definiert <strong>über 50 LLM-Typen</strong>, die separat konfigurierbar sind: Router, Response, Planer, jeder Domänen-Agent und mehr. Für jeden Typ können du festlegst: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> und <code>reasoning_effort</code>.</p><p>Zum Beispiel:</p><ul><li>Ein schnelles, kostengünstiges Modell für das <strong>Routing</strong></li><li>Ein leistungsstarkes Modell für die <strong>Planung</strong></li><li>Ein kreatives Modell für <strong>Antworten</strong></li><li>Ein lokales Modell für <strong>Vertraulichkeit</strong></li></ul><h2>Konfigurationsauflösungskette</h2><p>Die Konfiguration jedes LLM folgt einer <strong>3-stufigen Auflösungskette</strong>: Admin-UI (in der Datenbank gespeichert) → Umgebungsvariablen → Code-Standardwerte. Ein <code>LLMConfigOverrideCache</code> liefert O(1)-Lookups ohne Datenbankabfrage zur Laufzeit. Änderungen über die Administrationsoberfläche werden dank Cache-Invalidierung <strong>sofort wirksam</strong>.</p><h2>Die Multi-Provider-LLM-Factory</h2><p>Ein einziger Einstiegspunkt für alle Anbieter:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Verwendungsbeispiele\nrouter_llm = get_llm(\"router\")        # schnelles, kostengünstiges Modell\nplanner_llm = get_llm(\"planner\")      # leistungsstarkes Modell\nresponse_llm = get_llm(\"response\")    # kreatives Modell</code></pre><h2>Vertragliche Verbrauchsabrechnung</h2><p>Jeder Anbieter deklariert, wie sein Token-Verbrauch gezählt wird: explizite Anforderung bei Streaming-Antworten, native SDK-Zählung oder bewusste Ausnahme (kostenlose lokale Modelle, Schlüssel des Endnutzers). Diese Deklaration wird <strong>beim Start geprüft</strong> — ein nicht deklarierter Anbieter verhindert den Start der Anwendung — und ein bezahlter Aufruf, der ohne Zählung endet, wird zu einem Zähler, einer Warnung und einem Alarm: Die Ausgabenobergrenze kann nicht stillschweigend blind werden. Das pro Einsatzort konfigurierte Timeout wird auf den Client jedes Anbieters angewendet, mit Standardwerten, die anhand realer Produktionslatenzen kalibriert sind. Pro Aufruf abgerechnete Werkzeuge — Bildgenerierung, Perplexity, Brave — sind zusätzlich pro Anfrage gedeckelt: Ein Agent kann nicht auf einer kostenpflichtigen API in eine Schleife geraten, er wird mit einer Erklärung gestoppt und schließt mit dem ab, was er bereits erhalten hat.</p><h2>Sicherheit der API-Schlüssel</h2><p>Die API-Schlüssel der Anbieter werden vor der Speicherung in der Datenbank <strong>mit Fernet verschlüsselt</strong> (AES-128 CBC + HMAC). Kein Schlüssel wird jemals im Klartext in Logs oder API-Antworten offengelegt.</p><h2>Reasoning-Modelle</h2><p>LIA unterstützt Reasoning-Modelle mit 6 Stufen von <code>reasoning_effort</code>: <code>none</code>, <code>minimal</code>, <code>low</code>, <code>medium</code>, <code>high</code> und <code>xhigh</code>. Dies ermöglicht die Aktivierung von tiefem Reasoning nur dort, wo es nötig ist, und optimiert das Kosten-Leistungs-Verhältnis.</p><h2>100% lokale Bereitstellung</h2><p>Für maximale Vertraulichkeit kann LIA vollständig lokal betrieben werden. Keine Daten verlassen deine Infrastruktur. Es genügt, die Konfigurationsvariablen auf deine lokale Modell-Instanz zu verweisen.</p>"
+        "body": "<h2>Mehrere Anbieter, ein einziger Assistent</h2><p>LIA integriert nativ <strong>mehrere LLM-Anbieter</strong>, darunter Cloud-Anbieter und lokale Lösungen. Jeder Anbieter wird von einem dedizierten Adapter in der LLM-Factory verwaltet.</p><h2>56 individuell konfigurierbare LLM-Typen</h2><p>LIA definiert <strong>über 50 LLM-Typen</strong>, die separat konfigurierbar sind: Router, Response, Planer, jeder Domänen-Agent und mehr. Für jeden Typ können du festlegst: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> und <code>reasoning_effort</code>.</p><p>Zum Beispiel:</p><ul><li>Ein schnelles, kostengünstiges Modell für das <strong>Routing</strong></li><li>Ein leistungsstarkes Modell für die <strong>Planung</strong></li><li>Ein kreatives Modell für <strong>Antworten</strong></li><li>Ein lokales Modell für <strong>Vertraulichkeit</strong></li></ul><h2>Konfigurationsauflösungskette</h2><p>Die Konfiguration jedes LLM folgt einer <strong>3-stufigen Auflösungskette</strong>: Admin-UI (in der Datenbank gespeichert) → Umgebungsvariablen → Code-Standardwerte. Ein <code>LLMConfigOverrideCache</code> liefert O(1)-Lookups ohne Datenbankabfrage zur Laufzeit. Änderungen über die Administrationsoberfläche werden dank Cache-Invalidierung <strong>sofort wirksam</strong>.</p><h2>Die Multi-Provider-LLM-Factory</h2><p>Ein einziger Einstiegspunkt für alle Anbieter:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Verwendungsbeispiele\nrouter_llm = get_llm(\"router\")        # schnelles, kostengünstiges Modell\nplanner_llm = get_llm(\"planner\")      # leistungsstarkes Modell\nresponse_llm = get_llm(\"response\")    # kreatives Modell</code></pre><h2>Vertragliche Verbrauchsabrechnung</h2><p>Jeder Anbieter deklariert, wie sein Token-Verbrauch gezählt wird: explizite Anforderung bei Streaming-Antworten, native SDK-Zählung oder bewusste Ausnahme (kostenlose lokale Modelle, Schlüssel des Endnutzers). Diese Deklaration wird <strong>beim Start geprüft</strong> — ein nicht deklarierter Anbieter verhindert den Start der Anwendung — und ein bezahlter Aufruf, der ohne Zählung endet, wird zu einem Zähler, einer Warnung und einem Alarm: Die Ausgabenobergrenze kann nicht stillschweigend blind werden. Das pro Einsatzort konfigurierte Timeout wird auf den Client jedes Anbieters angewendet, mit Standardwerten, die anhand realer Produktionslatenzen kalibriert sind. Pro Aufruf abgerechnete Werkzeuge — Bildgenerierung, Perplexity, Brave — sind zusätzlich pro Anfrage gedeckelt: Ein Agent kann nicht auf einer kostenpflichtigen API in eine Schleife geraten, er wird mit einer Erklärung gestoppt und schließt mit dem ab, was er bereits erhalten hat.</p><h2>Sicherheit der API-Schlüssel</h2><p>Die API-Schlüssel der Anbieter werden vor der Speicherung in der Datenbank <strong>mit Fernet verschlüsselt</strong> (AES-128 CBC + HMAC). Kein Schlüssel wird jemals im Klartext in Logs oder API-Antworten offengelegt.</p><h2>Reasoning-Modelle</h2><p>Ein Modell zum Nachdenken zu bringen läuft über <strong>eine einzige Skala, bei allen Anbietern identisch</strong>: <code>none</code>, <code>minimal</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>, <code>max</code>, dazu der Standard des Anbieters. Was ein konkretes Modell tatsächlich akzeptiert, wird nicht von Hand deklariert, sondern aus seinem Paar (Anbieter, Modell) <strong>abgeleitet</strong>; der Katalog kann diese Skala nur einschränken, nie erweitern. Der Admin-Bildschirm bietet daher nur Tiefen an, die die API des Modells akzeptiert, und tiefes Reasoning wird nur dort aktiviert, wo es sich lohnt.</p><h2>100% lokale Bereitstellung</h2><p>Für maximale Vertraulichkeit kann LIA vollständig lokal betrieben werden. Keine Daten verlassen deine Infrastruktur. Es genügt, die Konfigurationsvariablen auf deine lokale Modell-Instanz zu verweisen.</p>"
       },
       "google-workspace": {
         "title": "Google Workspace-Integration: Gmail, Calendar, Contacts, Drive, Tasks",

@@ -19,25 +19,22 @@ Two rules govern the content, both learned the hard way:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from decimal import Decimal
 
 from src.domains.llm.models import (
     LLMModelKindEnum,
     LLMProviderEnum,
-    LLMReasoningWidgetEnum,
     PricingUnitEnum,
 )
 from src.infrastructure.tabular_io.spec import ColumnSpec, SheetSpec, WorkbookSpec
 
 #: Bumped whenever the columns change in a way an older file cannot satisfy.
-SCHEMA_VERSION = 1
-
-#: Marker written in ``reasoning_template`` when a model's reasoning shape
-#: matches none of the existing templates. Reasoning templates are built from
-#: *active* models, so an inactive one can legitimately match nothing
-#: (``deepseek-reasoner``, measured 2026-08-18).
-CUSTOM_TEMPLATE_MARKER = "(custom)"
+#: v2 replaced the ``reasoning_template`` dropdown with the two columns the
+#: runtime actually reads (``is_reasoning_model``, ``reasoning_enum_values``):
+#: a file written against v1 names a column that no longer exists and offers no
+#: way to express the ladder, so it cannot be read back.
+SCHEMA_VERSION = 2
 
 #: Hidden column carrying each row's fingerprint, for the per-row optimistic lock.
 FINGERPRINT_COLUMN = "row_fingerprint"
@@ -101,14 +98,25 @@ _MODEL_COLUMNS: tuple[ColumnSpec, ...] = (
     _column("supports_frequency_penalty", "boolean", "sampling", width=13),
     _column("supports_presence_penalty", "boolean", "sampling", width=13),
     # --- reasoning --------------------------------------------------------
-    # One editable dropdown replaces four fragile fields: the template mechanism
-    # is already the admin dialog's default mode, and the service copies the
-    # whole reasoning shape from it. The read-only summary keeps the file
-    # self-describing for the models the templates cannot express.
-    _column("reasoning_template", "enum", "reasoning", referential="TEMPLATE", width=26),
+    # The reasoning identity is written HERE, in the two columns the runtime
+    # actually reads. It used to go through a `reasoning_template` dropdown --
+    # "copy the shape of that other model" -- because the sheet had no other
+    # way to express it. That indirection cost more than it saved once ADR-245
+    # reduced the shape to a ladder: a template groups models by their STORED
+    # ladder, not by family, so copying one across families silently removed
+    # depths; and creating a model that does not reason at all still required
+    # picking a template, because the plan refused a row without one.
+    #
+    # `reasoning_enum_values` NARROWS what the family accepts, it never widens
+    # it -- the import refuses a level the family does not offer and names the
+    # ones it does, which is what the admin form's checkboxes guarantee by
+    # construction. `reasoning_shape` stays read-only next to it: it prints the
+    # RESOLVED family and ladder, so the legal values are on screen while the
+    # cell is being typed.
+    _column("is_reasoning_model", "boolean", "reasoning", width=13),
+    _column("reasoning_enum_values", "text", "reasoning", width=30),
     _column("reasoning_shape", "text", "reasoning", editable=False, width=34),
     _column("reasoning_doc_i18n_key", "text", "reasoning", width=22),
-    _column("effort_values", "text", "reasoning", editable=False, width=16),
     # --- pricing ----------------------------------------------------------
     _column("pricing_unit", "enum", "pricing", referential="UNIT", width=18),
     _column(
@@ -203,12 +211,8 @@ MODEL_SOURCE_COLUMNS: Mapping[str, str] = {
     "supports_frequency_penalty": "sampling",
     "supports_presence_penalty": "sampling",
     "reasoning_doc_i18n_key": "reasoning",
-    # llm_models — carried through the reasoning template and its summary
-    "is_reasoning_model": "reasoning_template + reasoning_shape",
-    "reasoning_widget": "reasoning_template + reasoning_shape",
-    "reasoning_enum_values": "reasoning_template + reasoning_shape",
-    "reasoning_budget_range": "reasoning_template + reasoning_shape",
-    "effort_values": "effort_values (read-only)",
+    "is_reasoning_model": "reasoning",
+    "reasoning_enum_values": "reasoning",
 }
 
 #: Columns of ``llm_model_pricing`` the workbook carries.
@@ -226,6 +230,17 @@ EXCLUDED_MODEL_COLUMNS: Mapping[str, str] = {
     "id": "surrogate key; rows are identified by model_name",
     "created_at": "audit timestamp, set by the database and meaningless to edit",
     "updated_at": "audit timestamp, set by the database and meaningless to edit",
+    "capability_provenance": (
+        "derived, never typed: the service stamps 'verified' when this very "
+        "workbook changes a registry-owned capability, and the catalogue sync "
+        "stamps 'imported'. A hand-written value would claim a verification "
+        "nobody performed (ADR-244)"
+    ),
+    "deprecation_date": (
+        "published by the provider and carried by the vendored registry "
+        "snapshot; an edited value would be overwritten by the next "
+        "`task llm:catalogue:sync` (ADR-244)"
+    ),
 }
 
 #: Columns of ``llm_model_pricing`` deliberately left out, each with its reason.
@@ -242,28 +257,24 @@ EXCLUDED_PRICING_COLUMNS: Mapping[str, str] = {
 }
 
 
-def build_pricing_workbook_spec(templates: Sequence[str] = ()) -> WorkbookSpec:
+def build_pricing_workbook_spec() -> WorkbookSpec:
     """Build the workbook declaration.
 
-    Args:
-        templates: Model names usable as a reasoning template, from
-            ``LLMModelService.list_templates``. Supplied by the caller because
-            they are data, not schema. The custom marker is always appended so
-            the dropdown can express "matches no template" and is never empty.
+    It takes no data any more. The one referential that carried some was
+    ``TEMPLATE``, the list of models a reasoning shape could be copied from;
+    the sheet now writes the ladder itself, so every referential here is a
+    closed enum the code owns.
 
     Returns:
         The declaration the writer and the reader both consume.
     """
-    template_values = tuple(templates) + (CUSTOM_TEMPLATE_MARKER,)
     return WorkbookSpec(
         sheets=(MODELS_SHEET, SLOTS_SHEET),
         referentials={
             "PROVIDER": tuple(member.value for member in LLMProviderEnum),
             "KIND": tuple(member.value for member in LLMModelKindEnum),
             "UNIT": tuple(member.value for member in PricingUnitEnum),
-            "WIDGET": tuple(member.value for member in LLMReasoningWidgetEnum),
             "SLOTMODE": TIME_SLOT_MODES,
-            "TEMPLATE": template_values,
         },
         schema_version=SCHEMA_VERSION,
     )

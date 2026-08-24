@@ -26,8 +26,8 @@ class TestValidateLLMConfiguration:
         """Validation raises ValueError if a critical type is missing from LLM_DEFAULTS."""
         from src.domains.llm_config.constants import LLM_DEFAULTS
 
-        # Keep only "router" — missing response, planner, contacts_agent, etc.
-        incomplete_defaults = {"router": LLM_DEFAULTS["router"]}
+        # Keep only one critical type — missing response, planner, etc.
+        incomplete_defaults = {"hitl_classifier": LLM_DEFAULTS["hitl_classifier"]}
         with patch("src.domains.llm_config.constants.LLM_DEFAULTS", incomplete_defaults):
             with pytest.raises(ValueError, match="Missing LLM_DEFAULTS"):
                 validate_llm_configuration()

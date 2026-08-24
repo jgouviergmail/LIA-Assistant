@@ -22,7 +22,6 @@ from src.domains.llm.models import (
     LLMModelKindEnum,
     LLMModelPricing,
     LLMProviderEnum,
-    LLMReasoningWidgetEnum,
     PricingUnitEnum,
 )
 from src.domains.llm.pricing_sheet import (
@@ -92,22 +91,26 @@ class TestReferentialsComeFromTheEnums:
         spec = build_pricing_workbook_spec()
         assert set(spec.referentials["UNIT"]) == {m.value for m in PricingUnitEnum}
 
-    def test_reasoning_widgets_are_the_whole_enum(self) -> None:
+    def test_the_widget_referential_is_gone(self) -> None:
+        """It listed the values of an enum whose column no longer exists (ADR-245)."""
         spec = build_pricing_workbook_spec()
-        assert set(spec.referentials["WIDGET"]) == {m.value for m in LLMReasoningWidgetEnum}
+        assert "WIDGET" not in spec.referentials
 
     def test_time_slot_modes_are_the_three_documented_ones(self) -> None:
         spec = build_pricing_workbook_spec()
         assert set(spec.referentials["SLOTMODE"]) == {"flat", "windows", "inherit"}
 
-    def test_reasoning_templates_are_supplied_by_the_caller(self) -> None:
-        spec = build_pricing_workbook_spec(templates=("gpt-5.2", "qwen3-max"))
-        assert set(spec.referentials["TEMPLATE"]) >= {"gpt-5.2", "qwen3-max"}
+    def test_every_referential_is_a_closed_enum_the_code_owns(self) -> None:
+        """The spec takes no data any more.
 
-    def test_the_template_referential_is_never_empty(self) -> None:
-        """An empty referential would make its dropdown impossible to fill."""
-        spec = build_pricing_workbook_spec(templates=())
-        assert spec.referentials["TEMPLATE"]
+        ``TEMPLATE`` was the one referential carrying some -- the models a
+        reasoning shape could be copied from. The sheet writes the ladder
+        itself now, so nothing here depends on the catalogue's contents.
+        """
+        spec = build_pricing_workbook_spec()
+
+        assert "TEMPLATE" not in spec.referentials
+        assert set(spec.referentials) == {"PROVIDER", "KIND", "UNIT", "SLOTMODE"}
 
 
 @pytest.mark.unit
@@ -121,7 +124,6 @@ class TestSheetShape:
     def test_derived_columns_are_read_only(self) -> None:
         for key in (
             "reasoning_shape",
-            "effort_values",
             "effective_from",
             "time_slots_summary",
             "statut",

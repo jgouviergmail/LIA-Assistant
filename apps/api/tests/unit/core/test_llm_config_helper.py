@@ -10,7 +10,7 @@ import pytest
 
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_all_llm_configs, get_llm_config_for_agent
-from src.core.reasoning_types import ReasoningEffortEnum
+from src.core.reasoning_intent import ReasoningIntent
 from src.domains.llm_config.constants import LLM_DEFAULTS
 
 
@@ -35,7 +35,7 @@ class TestGetLLMConfigForAgent:
     @pytest.mark.parametrize(
         "agent_type",
         [
-            "router",
+            "hitl_classifier",
             "response",
             "planner",
             "contacts_agent",
@@ -75,8 +75,8 @@ class TestGetLLMConfigForAgent:
 
     def test_settings_parameter_is_ignored(self):
         """Test settings parameter is accepted but ignored."""
-        config_none = get_llm_config_for_agent(None, "router")
-        config_obj = get_llm_config_for_agent(object(), "router")
+        config_none = get_llm_config_for_agent(None, "hitl_classifier")
+        config_obj = get_llm_config_for_agent(object(), "hitl_classifier")
         assert config_none == config_obj
 
 
@@ -89,11 +89,11 @@ class TestCacheOverrideMerge:
             "src.domains.llm_config.cache.LLMConfigOverrideCache.get_override",
             return_value={"model": "gpt-4.1-mini"},
         ):
-            config = get_llm_config_for_agent(None, "router")
+            config = get_llm_config_for_agent(None, "hitl_classifier")
 
         assert config.model == "gpt-4.1-mini"  # Overridden
-        assert config.provider == LLM_DEFAULTS["router"].provider  # From defaults
-        assert config.temperature == LLM_DEFAULTS["router"].temperature  # From defaults
+        assert config.provider == LLM_DEFAULTS["hitl_classifier"].provider  # From defaults
+        assert config.temperature == LLM_DEFAULTS["hitl_classifier"].temperature  # From defaults
 
     def test_override_multiple_fields(self):
         """Test multiple field overrides merge correctly."""
@@ -105,7 +105,7 @@ class TestCacheOverrideMerge:
                 "temperature": 0.7,
             },
         ):
-            config = get_llm_config_for_agent(None, "router")
+            config = get_llm_config_for_agent(None, "hitl_classifier")
 
         assert config.model == "claude-sonnet-4-5"
         assert config.provider == "anthropic"
@@ -118,9 +118,9 @@ class TestCacheOverrideMerge:
             "src.domains.llm_config.cache.LLMConfigOverrideCache.get_override",
             return_value=None,
         ):
-            config = get_llm_config_for_agent(None, "router")
+            config = get_llm_config_for_agent(None, "hitl_classifier")
 
-        assert config == LLM_DEFAULTS["router"]
+        assert config == LLM_DEFAULTS["hitl_classifier"]
 
     def test_empty_string_overrides_are_treated_as_unset(self):
         """An empty string is never a valid provider/model — it is legacy row
@@ -134,9 +134,9 @@ class TestCacheOverrideMerge:
             "src.domains.llm_config.cache.LLMConfigOverrideCache.get_override",
             return_value={"provider": "", "model": "gpt-4.1-mini"},
         ):
-            config = get_llm_config_for_agent(None, "router")
+            config = get_llm_config_for_agent(None, "hitl_classifier")
 
-        assert config.provider == LLM_DEFAULTS["router"].provider
+        assert config.provider == LLM_DEFAULTS["hitl_classifier"].provider
         assert config.model == "gpt-4.1-mini"
 
 
@@ -179,10 +179,19 @@ class TestReasoningEffortSupport:
     """
 
     def test_reasoning_effort_has_production_value(self):
-        """Test reasoning_effort is set in LLM_DEFAULTS for reasoning-capable types."""
-        config = get_llm_config_for_agent(None, "router")
+        """Test reasoning_effort is set in LLM_DEFAULTS for reasoning-capable types.
+
+        The slot is chosen from the registry rather than named: which slots use
+        a reasoning model is a configuration decision, and pinning one here made
+        the test fail when ADR-244 removed the ``router`` slot it happened to
+        name.
+        """
+        reasoning_types = [k for k, v in LLM_DEFAULTS.items() if v.reasoning_effort is not None]
+        assert reasoning_types, "expected at least one agent type with a reasoning default"
+        slot = reasoning_types[0]
+        config = get_llm_config_for_agent(None, slot)
         assert config.reasoning_effort is not None
-        assert config.reasoning_effort == LLM_DEFAULTS["router"].reasoning_effort
+        assert config.reasoning_effort == LLM_DEFAULTS[slot].reasoning_effort
 
     def test_reasoning_effort_none_for_non_reasoning_types(self):
         """Test reasoning_effort resolves to None for types without a reasoning default."""
@@ -199,7 +208,7 @@ class TestReasoningEffortSupport:
         ):
             config = get_llm_config_for_agent(None, "planner")
 
-        assert config.reasoning_effort == ReasoningEffortEnum(effort="medium")
+        assert config.reasoning_effort == ReasoningIntent(level="medium")
         assert config.model == "o3-mini"
 
 
@@ -215,13 +224,33 @@ class TestGetEffectiveContextWindow:
     _CACHE = "src.infrastructure.llm.model_capabilities_cache.ModelCapabilitiesCache"
 
     @staticmethod
-    def _profile(max_input_tokens: int):
+    def _profile(max_input_tokens: int, provenance: str = "imported"):
+        """A catalogue profile, curated by default.
+
+        Since ADR-244 the provenance arbitrates: a ``declared`` row carries the
+        column defaults nobody curated (89 of 114 rows were in that state, with
+        ``gpt-5.2`` at 8 192 against a real 272 000) and must not beat the
+        hand-maintained table. These tests describe the curated case, so they
+        pass ``imported`` explicitly; ``test_declared_cache_value_defers`` below
+        covers the other branch.
+        """
         from src.infrastructure.llm.model_profiles import ModelProfile
 
-        return ModelProfile(max_input_tokens=max_input_tokens, model_id="test-model")
+        return ModelProfile(
+            max_input_tokens=max_input_tokens,
+            model_id="test-model",
+            capability_provenance=provenance,
+        )
+
+    def test_declared_cache_value_defers_to_the_table(self):
+        """An uncurated row loses: it carries the 8192 column default."""
+        from src.core.llm_config_helper import get_effective_context_window
+
+        with patch(f"{self._CACHE}.get", return_value=self._profile(8_192, "declared")):
+            assert get_effective_context_window("deepseek-chat") == 128_000
 
     def test_cache_value_wins_over_table(self):
-        """The DB-backed cache is the source of truth when it knows the model."""
+        """The DB-backed cache is the source of truth when the row is curated."""
         from src.core.config.llm import get_model_context_window
         from src.core.llm_config_helper import get_effective_context_window
 

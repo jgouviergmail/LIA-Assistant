@@ -120,7 +120,6 @@ def clear_llm_instance_cache() -> None:
 
 
 LLMType = Literal[
-    "router",
     "response",
     # New unified agent names (domain_agent pattern)
     "contact_agent",
@@ -153,7 +152,6 @@ LLMType = Literal[
     "hitl_question_generator",
     "hitl_plan_approval_question_generator",
     "semantic_validator",  # Phase 2 OPTIMPLAN - Semantic validation
-    "context_resolver",  # LLM-Native Semantic Architecture - Phase 0
     "semantic_pivot",  # Semantic Pivot: translate queries to English for embedding matching
     "memory_reference_resolution",  # Pre-planner entity resolution from memory facts
     "voice_comment",  # Voice comment generation for TTS
@@ -218,7 +216,7 @@ def get_llm(
     - None: Uses centralized settings via get_llm_config_for_agent()
 
     Args:
-        llm_type: Type of LLM ("router", "response", "contacts_agent", "planner", "hitl_classifier")
+        llm_type: Type of LLM ("planner", "response", "contacts_agent", "hitl_classifier")
         config_override: Optional LLM configuration override. Accepts:
             - LLMAgentConfig (Pydantic model, recommended)
             - TypedDict (backward compatible)
@@ -232,7 +230,7 @@ def get_llm(
 
     Examples:
         >>> # Default behavior (uses centralized config from settings)
-        >>> router_llm = get_llm("router")
+        >>> planner_llm = get_llm("planner")
 
         >>> # NEW pattern: LLMAgentConfig override
         >>> from src.core.llm_agent_config import LLMAgentConfig
@@ -311,8 +309,7 @@ def get_llm(
         "top_p": agent_config.top_p,
         "frequency_penalty": agent_config.frequency_penalty,
         "presence_penalty": agent_config.presence_penalty,
-        "reasoning_effort": agent_config.reasoning_effort,  # OpenAI o-series/GPT-5 only
-        "effort": agent_config.effort,  # Anthropic global effort (opus-4-5)
+        "reasoning_effort": agent_config.reasoning_effort,
     }
 
     # 3. Streaming is a pure function of the LLM type (ADR-220, ex-F3). The
@@ -356,16 +353,12 @@ def get_llm(
         top_p=merged_config.get("top_p"),
         frequency_penalty=merged_config.get("frequency_penalty"),
         presence_penalty=merged_config.get("presence_penalty"),
-        reasoning_effort=merged_config.get("reasoning_effort"),  # OpenAI o-series/GPT-5 only
+        # The single reasoning channel (ADR-245). The provider adapter turns it
+        # into whatever kwarg the model's family actually reads -- including
+        # Anthropic's ``effort``, which used to arrive here a SECOND time from a
+        # column of its own and won or lost by dict-update order.
+        reasoning_effort=merged_config.get("reasoning_effort"),
         provider_config=agent_config.provider_config,  # Advanced JSON config
-        # Anthropic global effort (opus-4-5): only forwarded when set + provider is
-        # anthropic, so it never leaks into other providers' constructors. Flows
-        # through additional_kwargs to ChatAnthropic(effort=...).
-        **(
-            {"effort": merged_config["effort"]}
-            if provider == "anthropic" and merged_config.get("effort")
-            else {}
-        ),
     )
 
     # 5. Attach callbacks (metrics + Langfuse)

@@ -67,29 +67,26 @@ BaseChatModel
 
 Le merge (`core/llm_config_helper.py::merge_config`) applique les champs non-null de l'override par-dessus les défauts code, avec deux réconciliations sur `reasoning_effort` (voir ci-dessous).
 
-### Cohérence `reasoning_effort` ↔ modèle (robustesse au changement de modèle/provider)
+### `reasoning_effort` ↔ modèle : une intention, une coercition (ADR-245, v1.32.0)
 
-La **forme** d'un `reasoning_effort` dépend du `reasoning_widget` du modèle : `none` → `null` ; `enum` → `{"effort": "<valeur>"}` ; `budget_int` → `{"budget": <int>}` ; `toggle_budget` → `{"enabled": <bool>, "budget"?: <int|null>}`. Changer de modèle ou de provider sur un type LLM ne doit **jamais** laisser une valeur de forme incompatible — sinon le builder de raisonnement typé (`infrastructure/llm/providers/reasoning_builders.py`) lèverait un `RuntimeError` à l'instanciation du LLM. Trois couches le garantissent :
+Il n'y a plus qu'**une** forme stockée — `{"level": ..., "budget_tokens": ..., "exclude_from_output": ...}` (`core/reasoning_intent.py`) — et **une** échelle, ordinale et indépendante du fournisseur : `provider_default < none < minimal < low < medium < high < xhigh < max`. Ce qu'un modèle donné accepte n'est plus une colonne mais un **profil dérivé** de son couple (fournisseur, modèle) par `resolve_reasoning_profile` (`apps/api/src/infrastructure/llm/reasoning/profiles.py`), que `llm_models.reasoning_enum_values` peut **restreindre**, jamais élargir.
 
-1. **Frontend** (`components/settings/AdminLLMConfigSection.tsx`) — au changement de `model` ou de `provider`, `reasoning_effort` est conservé **uniquement** si sa forme matche le `reasoning_widget` du nouveau modèle (et, pour `enum`, si la valeur est dans `reasoning_enum_values`), sinon remis à `null`. Helper `coerceReasoningEffortForModel` dans `components/settings/llm-config/reasoningHelpers.ts`. Changement de provider → `model` reset à `''` → `reasoning_effort: null`.
-2. **Write path** (`LLMConfigService.update_config`) — `reasoning_effort` est validé (`validate_reasoning_effort`) contre le **modèle effectif** (`update.model`, ou `LLM_DEFAULTS[llm_type].model` si `update.model` est `null`) ; une combinaison invalide est rejetée en `422` avec un `ctx` structuré (`domains/llm_config/reasoning_validation.py`).
-3. **Merge runtime** (`merge_config` → `_reconcile_reasoning_effort`) — filet de sécurité ultime : si la config effective (défauts + override) porte un `reasoning_effort` dont la forme/valeur ne matche pas le `reasoning_widget` du modèle effectif (ligne d'override périmée après un changement de modèle non géré côté UI, seed obsolète, édition manuelle, bug antérieur), il est **droppé** (→ défaut intrinsèque du modèle) et un warning structuré `llm_config_reasoning_effort_dropped` est loggé. `get_llm()` ne plante donc jamais sur ce motif, quelle que soit l'origine de l'incohérence.
+La question « changer de modèle laisse-t-il une valeur incompatible ? » a donc changé de nature : rien ne lève plus à l'instanciation, et les deux garde-fous qui *abandonnaient* la valeur sont partis avec les constructeurs typés qu'ils protégeaient. Il reste trois couches, avec trois rôles distincts :
 
-### Héritage du défaut au changement de modèle (v1.25.29)
+0. **Écran Tarification LLM** (`components/settings/AdminLLMPricingSection.tsx`) — c'est là qu'on écrit la restriction, et le formulaire n'offre que ce que la famille propose : `GET /admin/llm/reasoning-family` résout `(fournisseur, modèle)` avec la **même** fonction que le traducteur et le validateur, et rend l'échelle en cases à cocher. Décocher est la seule chose que la colonne sache exprimer ; tout coché stocke `null`. Un modèle qu'aucune règle ne reconnaît est annoncé comme tel — sa colonne ne serait pas lue, et lui apprendre une nouvelle API de raisonnement est un changement de **code**.
+1. **Frontend** (`components/settings/llm-config/reasoningHelpers.ts`) — deux prédicats, délibérément séparés : `reasoningEffortMatchesModel` décide ce qu'un **changement de modèle** conserve, `reasoningEffortIsVisible` décide ce qu'une **sauvegarde** envoie. Les confondre effaçait l'override entier — niveau compris — sur un budget hors bornes saisi dans un champ affiché à l'écran.
+2. **Write path** (`LLMConfigService.update_config` → `validate_reasoning_effort`) — **rejette** en `422`, parce qu'un humain est là pour corriger. La validation interroge `resolve_reasoning_profile`, c'est-à-dire exactement la fonction qu'utilise le traducteur : validateur et traducteur ne peuvent plus diverger.
+3. **Runtime** (`kwargs_for` → `coerce`) — **corrige** au lieu de refuser, sur un chemin sans humain. Le niveau se déplace vers le plus proche que le modèle propose ; les égalités tranchent **vers le haut**, `none` n'est jamais une cible, et c'est `can_disable` — pas l'appartenance à l'échelle — qui gouverne l'extinction. Chaque déplacement est compté (`llm_reasoning_coerced_total{model,from_level,to_level}`) et journalisé : ce n'est pas une erreur, mais le modèle ne fait pas ce que l'administrateur a demandé.
 
-Une quatrième situation manquait à la liste ci-dessus : l'override change le **modèle** sans fournir de `reasoning_effort`. Le merge y répondait par un abandon **inconditionnel** du défaut code — ce qui a produit un défaut mesuré le 2026-07-27 : les trois extracteurs de fond (mémoire, centres d'intérêt, journaux) tournaient **sans aucun bloc de raisonnement**.
+### Héritage du défaut au changement de modèle
 
-La chaîne complète du défaut, chaque maillon étant individuellement raisonnable :
+Le merge (`merge_config`) **hérite** désormais simplement la valeur. Les deux abandons qu'il pratiquait ont été mesurés faux dans les deux sens :
 
-1. l'UI n'envoie que les champs qui **diffèrent des défauts** (sémantique d'override) — choisir `low` alors que `low` *est* le défaut du type n'envoie donc rien ;
-2. l'écriture est un remplacement intégral (`model_dump(exclude_unset=False)`) — le champ absent devient `NULL` en base ;
-3. le cache ne retient que les champs **non nuls** — la clé disparaît du dictionnaire d'override ;
-4. `merge_config` lisait « modèle changé, aucun effort fourni » comme « aucun raisonnement », au lieu de « garder le défaut ».
+- abandonner effaçait un effort choisi par l'administrateur. Mesuré le 2026-07-27 : les trois extracteurs de fond (mémoire, centres d'intérêt, journaux) tournaient **sans aucun bloc de raisonnement**, parce que l'interface n'envoie pas un champ égal au défaut du type et que la colonne stockait alors `NULL`. Un réglage incapable d'exprimer sa propre valeur par défaut est un réglage cassé ;
+- et abandonner un `level="none"` hérité sur un modèle dont le défaut est « raisonnement actif » **allumait** silencieusement le raisonnement — l'inverse de ce que l'opérateur avait écrit, et facturé comme tel.
 
-Un réglage incapable d'exprimer sa propre valeur par défaut est un réglage cassé. L'héritage exige désormais une **preuve** de compatibilité (`_is_inheritable_reasoning_effort`) : le défaut n'est conservé que si le modèle effectif est connu du catalogue **et** que sa valeur convient à son `reasoning_widget`. Un modèle inconnu (tag Ollama découvert dynamiquement, catalogue non chargé) retombe sur l'abandon — la propriété de sûreté que l'abandon inconditionnel protégeait est préservée.
+Ce que l'abandon protégeait — ne pas planter à l'instanciation — n'existe plus : `kwargs_for` ne lève jamais, et un modèle inconnu ne résout aucune famille, donc ne produit aucun kwarg.
 
-
-Prédicat partagé : `reasoning_effort_matches_widget(caps, value)` (jumeau non-levant de `validate_reasoning_effort`), réutilisé par les couches 1 et 3 — une seule source de vérité pour « cette valeur est-elle valide pour ce modèle ? ».
 
 ### Plancher « thinking × budget » (ADR-179, v1.26.4)
 
@@ -100,8 +97,9 @@ basculé sur deepseek-v4-flash effort `high` au-dessus d'un défaut de 600
 tokens — chaque synthèse échouait). `validate_thinking_token_budget`
 (`domains/llm_config/reasoning_validation.py`) rejette en `422`
 (`thinking_budget_below_floor`) toute sauvegarde dont le raisonnement
-**consomme le budget** (enum hors `none/off/minimal/low`, `toggle_budget`
-activé, `budget_int` non nul — prédicat par forme, pas de matrice provider) et
+**consomme le budget** — une forme, donc une règle : tout ce qui est au-dessus
+de la bande légère (`provider_default`, `none`, `minimal`, `low`) est lourd, et
+un budget de tokens explicite l'est quelle que soit sa taille — et
 dont le `max_tokens` **effectif** (override fusionné sur les défauts via le
 même `merge_config` que le runtime — laisser le champ vide hérite du défaut)
 est sous `LLM_THINKING_MAX_TOKENS_FLOOR` (défaut 4000, `.env`). Appliqué au
@@ -148,9 +146,9 @@ description pour les autres (`structuredErrorDetail`,
 
 > Les paramètres **omis** sont automatiquement filtrés par `ProviderAdapter` avant l'appel API.
 >
-> **Admin UI — DB-driven sampling matrix (v1.20.1+)** : la fenêtre Configuration LLM ne calcule plus la visibilité des sliders via une regex côté frontend. Chaque modèle de `llm_models` porte 4 colonnes booléennes (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) qui drivent **paramètre par paramètre** l'affichage des sliders. Le widget de reasoning (`enum`, `budget_int`, `toggle_budget`, `none`) est lui aussi déclaré au niveau modèle via la colonne `reasoning_widget` et ses jeux de valeurs (`reasoning_enum_values` JSONB list, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`). Le `ProviderAdapter` reste l'autorité finale (philosophie A : "raw truth"), mais l'admin n'a plus aucune chance de saisir une valeur que l'API rejetterait.
+> **Admin UI — DB-driven sampling matrix (v1.20.1+)** : la fenêtre Configuration LLM ne calcule plus la visibilité des sliders via une regex côté frontend. Chaque modèle de `llm_models` porte 4 colonnes booléennes (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) qui drivent **paramètre par paramètre** l'affichage des sliders. Le widget de raisonnement, lui, n'est plus déclaré : il est **dérivé** du profil résolu que publie `/llm-config/metadata` (famille, échelle acceptée, extinction possible, budget exprimable et ses bornes, exclusion du raisonnement de la réponse). Le catalogue n'y garde qu'un mot : `reasoning_enum_values`, qui **restreint** l'échelle d'un modèle sans jamais l'élargir (ADR-245, v1.32.0 — les colonnes `reasoning_widget` et `reasoning_budget_range` sont supprimées). Le `ProviderAdapter` reste l'autorité finale (philosophie A : "raw truth"), mais l'admin n'a plus aucune chance de saisir une valeur que l'API rejetterait.
 >
-> Pour la matrice complète par modèle, voir [LLM_PROVIDER_CONSTRAINTS.md](./LLM_PROVIDER_CONSTRAINTS.md). Pour le mécanisme de templates dans l'admin Tarification, voir [LLM_PRICING_TEMPLATES.md](./LLM_PRICING_TEMPLATES.md).
+> Pour la matrice complète par modèle, voir [LLM_PROVIDER_CONSTRAINTS.md](./LLM_PROVIDER_CONSTRAINTS.md). Pour la saisie de l'identité de raisonnement dans l'admin Tarification, voir [LLM_REASONING_IDENTITY.md](./LLM_REASONING_IDENTITY.md).
 
 ---
 
@@ -165,9 +163,9 @@ description pour les autres (`structuredErrorDetail`,
 | `domains/llm_config/schemas.py` | Schemas Pydantic (request/response) |
 | `domains/llm_config/cache.py` | `LLMConfigOverrideCache` — cache in-memory (sync read, async populate) |
 | `domains/llm_config/service.py` | `LLMConfigService` — CRUD + merge + audit |
-| `domains/llm_config/reasoning_validation.py` | `validate_reasoning_effort` (levant, 422) + `reasoning_effort_matches_widget` (prédicat) — cohérence `reasoning_effort` ↔ `reasoning_widget` |
+| `domains/llm_config/reasoning_validation.py` | `validate_reasoning_effort` (levant, 422) — interroge `resolve_reasoning_profile`, la fonction qu'utilise aussi le traducteur |
 | `domains/llm_config/router.py` | Endpoints REST admin (`/admin/llm-config/`) |
-| `core/llm_config_helper.py` | `get_llm_config_for_agent()` / `merge_config()` / `_reconcile_reasoning_effort()` — défauts code + cache + réconciliation |
+| `core/llm_config_helper.py` | `get_llm_config_for_agent()` / `merge_config()` — défauts code + cache ; `reasoning_effort` est simplement hérité (ADR-245) |
 
 ### Frontend
 
@@ -176,7 +174,7 @@ description pour les autres (`structuredErrorDetail`,
 | `types/llm-config.ts` | Interfaces TypeScript (miroir des schemas backend) |
 | `hooks/useLLMConfig.ts` | Hook React (queries + mutations) |
 | `components/settings/AdminLLMConfigSection.tsx` | Composant admin (providers + types + dialog édition) |
-| `components/settings/llm-config/ReasoningWidget.tsx` | Widget reasoning_effort (rendu piloté par `reasoning_widget`) |
+| `components/settings/llm-config/ReasoningWidget.tsx` | Widget `reasoning_effort` (rendu piloté par le profil résolu publié par l'API) |
 | `components/settings/llm-config/reasoningHelpers.ts` | `coerceReasoningEffortForModel` — normalise `reasoning_effort` au changement de modèle |
 
 ---

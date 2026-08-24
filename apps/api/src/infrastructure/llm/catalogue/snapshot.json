@@ -1,0 +1,6599 @@
+{
+ "generated_at": "2026-08-23T09:39:32.172633+00:00",
+ "litellm": {
+  "1024-x-1024/dall-e-2": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "1024-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "1024-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "1024-x-1536/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "1024-x-1536/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "1536-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "1536-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "256-x-256/dall-e-2": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "512-x-512/dall-e-2": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "chat-latest": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 400000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "chatgpt-4o-latest": {
+   "deprecation_date": "2026-02-17",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "chatgpt-image-latest": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "claude-3-7-sonnet-20250219": {
+   "deprecation_date": "2026-02-19",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-3-haiku-20240307": {
+   "deprecation_date": "2026-04-20",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-3-opus-20240229": {
+   "deprecation_date": "2026-01-05",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-4-opus-20250514": {
+   "deprecation_date": "2026-06-15",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 32000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-4-sonnet-20250514": {
+   "deprecation_date": "2026-06-15",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-fable-5": {
+   "deprecation_date": "2027-06-09",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-haiku-4-5": {
+   "deprecation_date": "2026-10-15",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-haiku-4-5-20251001": {
+   "deprecation_date": "2026-10-15",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-mythos-5": {
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-mythos-preview": {
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-1": {
+   "deprecation_date": "2026-08-05",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 32000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-1-20250805": {
+   "deprecation_date": "2026-08-05",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 32000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-20250514": {
+   "deprecation_date": "2026-06-15",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 32000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-5": {
+   "deprecation_date": "2026-11-24",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-5-20251101": {
+   "deprecation_date": "2026-11-24",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-6": {
+   "deprecation_date": "2027-02-05",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-6-20260205": {
+   "deprecation_date": "2027-02-05",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-7": {
+   "deprecation_date": "2027-04-16",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-7-20260416": {
+   "deprecation_date": "2027-04-16",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-4-8": {
+   "deprecation_date": "2027-05-28",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-opus-5": {
+   "deprecation_date": "2027-07-24",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-sonnet-4-20250514": {
+   "deprecation_date": "2026-06-15",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-sonnet-4-5": {
+   "deprecation_date": "2026-09-29",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-sonnet-4-5-20250929": {
+   "deprecation_date": "2026-09-29",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-sonnet-4-6": {
+   "deprecation_date": "2027-02-17",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "claude-sonnet-5": {
+   "deprecation_date": "2027-06-30",
+   "litellm_provider": "anthropic",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "codex-mini-latest": {
+   "deprecation_date": "2026-02-12",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "dall-e-2": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "dall-e-3": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "dashscope/deepseek-v4-flash": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 393216,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "dashscope/deepseek-v4-flash-0731": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 393216,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "dashscope/deepseek-v4-pro": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 393216,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "dashscope/glm-5.1": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 202745,
+   "max_output_tokens": 131072,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "dashscope/glm-5.2": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 131072,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "dashscope/kimi-k2.7-code": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 229376,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "dashscope/qwen-coder": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-flash": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-flash-2025-07-28": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-image-2.0": {
+   "litellm_provider": "dashscope",
+   "mode": "image_generation"
+  },
+  "dashscope/qwen-image-2.0-pro": {
+   "litellm_provider": "dashscope",
+   "mode": "image_generation"
+  },
+  "dashscope/qwen-max": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 30720,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-plus": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 129024,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-plus-2025-01-25": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 129024,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-plus-2025-04-28": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 129024,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-plus-2025-07-14": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 129024,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-plus-2025-07-28": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-plus-2025-09-11": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-plus-latest": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-turbo": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 129024,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-turbo-2024-11-01": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-turbo-2025-04-28": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen-turbo-latest": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-30b-a3b": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 129024,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-coder-flash": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-coder-flash-2025-07-28": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-coder-plus": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-coder-plus-2025-07-22": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 997952,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-max": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 258048,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-max-2026-01-23": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 258048,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-max-preview": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 258048,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-next-80b-a3b-instruct": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 262144,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-next-80b-a3b-thinking": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 262144,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "dashscope/qwen3-vl-235b-a22b-instruct": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "dashscope/qwen3-vl-235b-a22b-thinking": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "dashscope/qwen3-vl-32b-instruct": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "dashscope/qwen3-vl-32b-thinking": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "dashscope/qwen3-vl-plus": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 260096,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "dashscope/qwen3.5-plus": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 991808,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "dashscope/qwen3.7-max": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 991808,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "dashscope/qwen3.7-plus": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 991808,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "dashscope/qwen3.8-max": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 991808,
+   "max_output_tokens": 131072,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "dashscope/qwq-plus": {
+   "litellm_provider": "dashscope",
+   "max_input_tokens": 98304,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "daybreak-blue-latest": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "daybreak-red-latest": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 400000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "deep-research-pro-preview-12-2025": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "deepseek-chat": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "deepseek-reasoner": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": false,
+   "supports_response_schema": true
+  },
+  "deepseek-v4-flash": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 393216,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": false
+  },
+  "deepseek-v4-pro": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 393216,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": false
+  },
+  "deepseek/deepseek-chat": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "deepseek/deepseek-coder": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "deepseek/deepseek-r1": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "deepseek/deepseek-reasoner": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": false,
+   "supports_response_schema": true
+  },
+  "deepseek/deepseek-v3": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "deepseek/deepseek-v3.2": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 163840,
+   "max_output_tokens": 163840,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "deepseek/deepseek-v4-flash": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 393216,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": false
+  },
+  "deepseek/deepseek-v4-pro": {
+   "litellm_provider": "deepseek",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 393216,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": false
+  },
+  "elevenlabs/eleven_multilingual_v2": {
+   "litellm_provider": "elevenlabs",
+   "mode": "audio_speech"
+  },
+  "elevenlabs/eleven_v3": {
+   "litellm_provider": "elevenlabs",
+   "mode": "audio_speech"
+  },
+  "elevenlabs/scribe_v1": {
+   "litellm_provider": "elevenlabs",
+   "mode": "audio_transcription"
+  },
+  "elevenlabs/scribe_v1_experimental": {
+   "litellm_provider": "elevenlabs",
+   "mode": "audio_transcription"
+  },
+  "ft:gpt-3.5-turbo": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 16385,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "ft:gpt-3.5-turbo-0125": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 16385,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "ft:gpt-3.5-turbo-0613": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "ft:gpt-3.5-turbo-1106": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 16385,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "ft:gpt-4-0613": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ft:gpt-4.1-2025-04-14": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "ft:gpt-4.1-mini-2025-04-14": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "ft:gpt-4.1-nano-2025-04-14": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "ft:gpt-4o-2024-08-06": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "ft:gpt-4o-2024-11-20": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "ft:gpt-4o-mini-2024-07-18": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "ft:o4-mini-2025-04-16": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true
+  },
+  "gemini-2.0-flash": {
+   "deprecation_date": "2026-06-01",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.0-flash-001": {
+   "deprecation_date": "2026-06-01",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.0-flash-exp-image-generation": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "gemini-2.0-flash-lite": {
+   "deprecation_date": "2026-06-01",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.0-flash-lite-001": {
+   "deprecation_date": "2026-06-01",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-computer-use-preview-10-2025": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-flash": {
+   "deprecation_date": "2026-10-20",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-flash-image": {
+   "deprecation_date": "2026-10-02",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-flash-lite": {
+   "deprecation_date": "2026-10-20",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-flash-lite-preview-06-17": {
+   "deprecation_date": "2025-11-18",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-flash-lite-preview-09-2025": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-flash-native-audio-latest": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "gemini-2.5-flash-native-audio-preview-09-2025": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "gemini-2.5-flash-native-audio-preview-12-2025": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "gemini-2.5-flash-preview-09-2025": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-flash-preview-tts": {
+   "litellm_provider": "gemini",
+   "mode": "audio_speech"
+  },
+  "gemini-2.5-pro": {
+   "deprecation_date": "2026-10-20",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-2.5-pro-preview-tts": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3-flash-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3-pro-image": {
+   "deprecation_date": "2027-05-28",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3-pro-image-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3-pro-preview": {
+   "deprecation_date": "2026-03-26",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.1-flash-image": {
+   "deprecation_date": "2027-05-28",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.1-flash-image-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.1-flash-lite": {
+   "deprecation_date": "2027-05-07",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.1-flash-lite-image": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 4096,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": false,
+   "supports_vision": true
+  },
+  "gemini-3.1-flash-lite-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.1-flash-live-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gemini-3.1-pro-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.1-pro-preview-customtools": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.5-flash": {
+   "deprecation_date": "2027-05-19",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.5-flash-lite": {
+   "deprecation_date": "2027-07-21",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.6-flash": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-3.7-flash": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-exp-1206": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-flash-experimental": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1000000,
+   "max_output_tokens": 8192,
+   "mode": "embedding"
+  },
+  "gemini-flash-latest": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-flash-lite-latest": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-live-2.5-flash-preview-native-audio-09-2025": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "realtime",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-omni-flash-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_vision": true
+  },
+  "gemini-pro-latest": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini-robotics-er-1.5-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/deep-research-pro-preview-12-2025": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-1.5-flash": {
+   "deprecation_date": "2025-09-29",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 8192,
+   "mode": "embedding"
+  },
+  "gemini/gemini-2.0-flash": {
+   "deprecation_date": "2026-06-01",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.0-flash-001": {
+   "deprecation_date": "2026-06-01",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.0-flash-exp-image-generation": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "gemini/gemini-2.0-flash-lite": {
+   "deprecation_date": "2026-06-01",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.0-flash-lite-001": {
+   "deprecation_date": "2026-06-01",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-computer-use-preview-10-2025": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 64000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-flash": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-flash-image": {
+   "deprecation_date": "2026-10-02",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-flash-lite": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-flash-lite-preview-06-17": {
+   "deprecation_date": "2025-11-18",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-flash-lite-preview-09-2025": {
+   "deprecation_date": "2026-03-31",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-flash-native-audio-latest": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "gemini/gemini-2.5-flash-native-audio-preview-09-2025": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "gemini/gemini-2.5-flash-native-audio-preview-12-2025": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "gemini/gemini-2.5-flash-preview-09-2025": {
+   "deprecation_date": "2026-02-17",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-flash-preview-tts": {
+   "litellm_provider": "gemini",
+   "mode": "audio_speech"
+  },
+  "gemini/gemini-2.5-pro": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-2.5-pro-preview-tts": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3-flash-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3-pro-image": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3-pro-image-preview": {
+   "deprecation_date": "2026-06-25",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3-pro-preview": {
+   "deprecation_date": "2026-03-09",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.1-flash-image": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.1-flash-image-preview": {
+   "deprecation_date": "2026-06-25",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.1-flash-lite": {
+   "deprecation_date": "2027-05-07",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.1-flash-lite-image": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 4096,
+   "mode": "image_generation",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.1-flash-lite-preview": {
+   "deprecation_date": "2026-05-25",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.1-flash-live-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.1-flash-tts-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 16384,
+   "mode": "audio_speech"
+  },
+  "gemini/gemini-3.1-pro-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.1-pro-preview-customtools": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.5-flash": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.5-flash-lite": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.5-live-translate-preview": {
+   "litellm_provider": "gemini",
+   "mode": "chat"
+  },
+  "gemini/gemini-3.6-flash": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-3.7-flash": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-embedding-001": {
+   "deprecation_date": "2028-05-14",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 2048,
+   "mode": "embedding"
+  },
+  "gemini/gemini-embedding-2": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 8192,
+   "mode": "embedding"
+  },
+  "gemini/gemini-embedding-2-preview": {
+   "deprecation_date": "2026-08-10",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 8192,
+   "mode": "embedding"
+  },
+  "gemini/gemini-exp-1114": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-exp-1206": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 2097152,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-flash-latest": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-flash-lite-latest": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-gemma-2-27b-it": {
+   "litellm_provider": "gemini",
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-gemma-2-9b-it": {
+   "litellm_provider": "gemini",
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-live-2.5-flash-preview-native-audio-09-2025": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "realtime",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-omni-flash-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_vision": true
+  },
+  "gemini/gemini-pro-latest": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-robotics-er-1.5-preview": {
+   "deprecation_date": "2026-04-30",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65535,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-robotics-er-1.6-preview": {
+   "deprecation_date": "2026-08-31",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-robotics-er-2-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/gemini-robotics-er-2-streaming-preview": {
+   "litellm_provider": "gemini",
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gemini/gemma-3-27b-it": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/imagen-3.0-fast-generate-001": {
+   "litellm_provider": "gemini",
+   "mode": "image_generation"
+  },
+  "gemini/imagen-3.0-generate-001": {
+   "litellm_provider": "gemini",
+   "mode": "image_generation"
+  },
+  "gemini/imagen-3.0-generate-002": {
+   "deprecation_date": "2025-11-10",
+   "litellm_provider": "gemini",
+   "mode": "image_generation"
+  },
+  "gemini/imagen-4.0-fast-generate-001": {
+   "deprecation_date": "2026-08-17",
+   "litellm_provider": "gemini",
+   "mode": "image_generation"
+  },
+  "gemini/imagen-4.0-generate-001": {
+   "deprecation_date": "2026-08-17",
+   "litellm_provider": "gemini",
+   "mode": "image_generation"
+  },
+  "gemini/imagen-4.0-ultra-generate-001": {
+   "deprecation_date": "2026-08-17",
+   "litellm_provider": "gemini",
+   "mode": "image_generation"
+  },
+  "gemini/learnlm-1.5-pro-experimental": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 32767,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gemini/lyria-3-clip-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": false,
+   "supports_response_schema": false,
+   "supports_vision": false
+  },
+  "gemini/lyria-3-pro-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": false,
+   "supports_response_schema": false,
+   "supports_vision": false
+  },
+  "gemini/veo-2.0-generate-001": {
+   "deprecation_date": "2026-06-30",
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1024,
+   "mode": "video_generation"
+  },
+  "gemini/veo-3.1-fast-generate-001": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1024,
+   "mode": "video_generation"
+  },
+  "gemini/veo-3.1-fast-generate-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1024,
+   "mode": "video_generation"
+  },
+  "gemini/veo-3.1-generate-001": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1024,
+   "mode": "video_generation"
+  },
+  "gemini/veo-3.1-generate-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1024,
+   "mode": "video_generation"
+  },
+  "gemini/veo-3.1-lite-generate-preview": {
+   "litellm_provider": "gemini",
+   "max_input_tokens": 1024,
+   "mode": "video_generation"
+  },
+  "gpt-3.5-turbo": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 16385,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-3.5-turbo-0125": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 16385,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-3.5-turbo-1106": {
+   "deprecation_date": "2026-09-28",
+   "litellm_provider": "openai",
+   "max_input_tokens": 16385,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-3.5-turbo-16k": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 16385,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "gpt-4": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4-0125-preview": {
+   "deprecation_date": "2026-03-26",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4-0314": {
+   "deprecation_date": "2026-03-26",
+   "litellm_provider": "openai",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "gpt-4-0613": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4-1106-preview": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4-turbo": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gpt-4-turbo-2024-04-09": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gpt-4-turbo-preview": {
+   "deprecation_date": "2026-03-26",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4.1": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4.1-2025-04-14": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4.1-mini": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4.1-mini-2025-04-14": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4.1-nano": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4.1-nano-2025-04-14": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 1047576,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-2024-05-13": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_vision": true
+  },
+  "gpt-4o-2024-08-06": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-2024-11-20": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-audio-preview": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4o-audio-preview-2024-12-17": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4o-audio-preview-2025-06-03": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4o-mini": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-mini-2024-07-18": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-mini-audio-preview": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4o-mini-audio-preview-2024-12-17": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "gpt-4o-mini-realtime-preview": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-4o-mini-realtime-preview-2024-12-17": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-4o-mini-search-preview": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-mini-search-preview-2025-03-11": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-mini-transcribe": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 16000,
+   "max_output_tokens": 2000,
+   "mode": "audio_transcription"
+  },
+  "gpt-4o-mini-transcribe-2025-03-20": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 16000,
+   "max_output_tokens": 2000,
+   "mode": "audio_transcription"
+  },
+  "gpt-4o-mini-transcribe-2025-12-15": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 16000,
+   "max_output_tokens": 2000,
+   "mode": "audio_transcription"
+  },
+  "gpt-4o-mini-tts": {
+   "litellm_provider": "openai",
+   "mode": "audio_speech"
+  },
+  "gpt-4o-mini-tts-2025-03-20": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "mode": "audio_speech"
+  },
+  "gpt-4o-mini-tts-2025-12-15": {
+   "litellm_provider": "openai",
+   "mode": "audio_speech"
+  },
+  "gpt-4o-realtime-preview": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-4o-realtime-preview-2024-12-17": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-4o-realtime-preview-2025-06-03": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-4o-search-preview": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-search-preview-2025-03-11": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-4o-transcribe": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 16000,
+   "max_output_tokens": 2000,
+   "mode": "audio_transcription"
+  },
+  "gpt-4o-transcribe-diarize": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 16000,
+   "max_output_tokens": 2000,
+   "mode": "audio_transcription"
+  },
+  "gpt-5": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-2025-08-07": {
+   "deprecation_date": "2026-12-11",
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-chat": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-chat-latest": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-codex": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-mini": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-mini-2025-08-07": {
+   "deprecation_date": "2026-12-11",
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-nano": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-nano-2025-08-07": {
+   "deprecation_date": "2026-12-11",
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-pro": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 400000,
+   "max_output_tokens": 272000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-pro-2025-10-06": {
+   "deprecation_date": "2026-12-11",
+   "litellm_provider": "openai",
+   "max_input_tokens": 400000,
+   "max_output_tokens": 272000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-search-api": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5-search-api-2025-10-14": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.1": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.1-2025-11-13": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.1-chat-latest": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": false,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.1-codex": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.1-codex-max": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.1-codex-mini": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.2": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.2-2025-12-11": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.2-chat-latest": {
+   "deprecation_date": "2026-08-10",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.2-codex": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.2-pro": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.2-pro-2025-12-11": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.3-chat-latest": {
+   "deprecation_date": "2026-08-10",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.3-codex": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.4": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.4-2026-03-05": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.4-mini": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.4-mini-2026-03-17": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.4-nano": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.4-nano-2026-03-17": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 272000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.4-pro": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": true
+  },
+  "gpt-5.4-pro-2026-03-05": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": true
+  },
+  "gpt-5.5": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.5-2026-04-23": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.5-pro": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": true
+  },
+  "gpt-5.5-pro-2026-04-23": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 1050000,
+   "max_output_tokens": 128000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": true
+  },
+  "gpt-5.6": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 922000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.6-cyber": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 400000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.6-luna": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 922000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.6-sol": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 922000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-5.6-terra": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 922000,
+   "max_output_tokens": 128000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "gpt-audio": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": false
+  },
+  "gpt-audio-1.5": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": false
+  },
+  "gpt-audio-2025-08-28": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": false
+  },
+  "gpt-audio-mini": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": false
+  },
+  "gpt-audio-mini-2025-10-06": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": false
+  },
+  "gpt-audio-mini-2025-12-15": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 16384,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": false,
+   "supports_vision": false
+  },
+  "gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "gpt-image-1-mini": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "gpt-image-1.5-2025-12-16": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "gpt-image-2": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "gpt-image-2-2026-04-21": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "gpt-live-transcribe": {
+   "litellm_provider": "openai",
+   "mode": "audio_transcription"
+  },
+  "gpt-realtime": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 32000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-1.5": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 32000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-2": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 32000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-2.1": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 32000,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-2.1-mini": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-2025-08-28": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 32000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-mini": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-mini-2025-10-06": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-mini-2025-12-15": {
+   "deprecation_date": "2027-01-20",
+   "litellm_provider": "openai",
+   "max_input_tokens": 128000,
+   "max_output_tokens": 4096,
+   "mode": "realtime",
+   "supports_function_calling": true
+  },
+  "gpt-realtime-translate": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 16000,
+   "max_output_tokens": 2000,
+   "mode": "realtime"
+  },
+  "gpt-realtime-whisper": {
+   "litellm_provider": "openai",
+   "mode": "audio_transcription"
+  },
+  "gpt-transcribe": {
+   "litellm_provider": "openai",
+   "mode": "audio_transcription"
+  },
+  "hd/1024-x-1024/dall-e-3": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "hd/1024-x-1792/dall-e-3": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "hd/1792-x-1024/dall-e-3": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "high/1024-x-1024/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "high/1024-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "high/1024-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "high/1024-x-1536/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "high/1024-x-1536/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "high/1024-x-1536/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "high/1536-x-1024/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "high/1536-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "high/1536-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "low/1024-x-1024/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "low/1024-x-1024/gpt-image-1-mini": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "low/1024-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "low/1024-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "low/1024-x-1536/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "low/1024-x-1536/gpt-image-1-mini": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "low/1024-x-1536/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "low/1024-x-1536/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "low/1536-x-1024/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "low/1536-x-1024/gpt-image-1-mini": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "low/1536-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "low/1536-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "medium/1024-x-1024/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "medium/1024-x-1024/gpt-image-1-mini": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "medium/1024-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "medium/1024-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "medium/1024-x-1536/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "medium/1024-x-1536/gpt-image-1-mini": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "medium/1024-x-1536/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "medium/1024-x-1536/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "medium/1536-x-1024/gpt-image-1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "medium/1536-x-1024/gpt-image-1-mini": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "medium/1536-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "medium/1536-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "medlm-large": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 1024,
+   "mode": "chat"
+  },
+  "medlm-medium": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "o1": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o1-2024-12-17": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o1-pro": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o1-pro-2025-03-19": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o3": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o3-2025-04-16": {
+   "deprecation_date": "2026-12-11",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o3-deep-research": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o3-deep-research-2025-06-26": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o3-mini": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": false
+  },
+  "o3-mini-2025-01-31": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": false
+  },
+  "o3-pro": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o3-pro-2025-06-10": {
+   "deprecation_date": "2026-12-11",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o4-mini": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o4-mini-2025-04-16": {
+   "deprecation_date": "2026-10-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o4-mini-deep-research": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "o4-mini-deep-research-2025-06-26": {
+   "deprecation_date": "2026-07-23",
+   "litellm_provider": "openai",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 100000,
+   "mode": "responses",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "ollama/codegeex4": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": false
+  },
+  "ollama/codegemma": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "completion"
+  },
+  "ollama/codellama": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "completion"
+  },
+  "ollama/deepseek-coder-v2-base": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "completion",
+   "supports_function_calling": true
+  },
+  "ollama/deepseek-coder-v2-instruct": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/deepseek-coder-v2-lite-base": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "completion",
+   "supports_function_calling": true
+  },
+  "ollama/deepseek-coder-v2-lite-instruct": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/deepseek-v3.1:671b-cloud": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 163840,
+   "max_output_tokens": 163840,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/gpt-oss:120b-cloud": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 131072,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/gpt-oss:20b-cloud": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 131072,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/internlm2_5-20b-chat": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/llama2": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "ollama/llama2-uncensored": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "completion"
+  },
+  "ollama/llama2:13b": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "ollama/llama2:70b": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "ollama/llama2:7b": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "ollama/llama3": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "ollama/llama3.1": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/llama3:70b": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "ollama/llama3:8b": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "ollama/mistral": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "completion",
+   "supports_function_calling": true
+  },
+  "ollama/mistral-7B-Instruct-v0.1": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/mistral-7B-Instruct-v0.2": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/mistral-large-instruct-2407": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 8192,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/mixtral-8x22B-Instruct-v0.1": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/mixtral-8x7B-Instruct-v0.1": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 32768,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/orca-mini": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "completion"
+  },
+  "ollama/qwen3-coder:480b-cloud": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 262144,
+   "max_output_tokens": 262144,
+   "mode": "chat",
+   "supports_function_calling": true
+  },
+  "ollama/vicuna": {
+   "litellm_provider": "ollama",
+   "max_input_tokens": 2048,
+   "max_output_tokens": 2048,
+   "mode": "completion"
+  },
+  "omni-moderation-2024-09-26": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 0,
+   "mode": "moderation"
+  },
+  "omni-moderation-latest": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 0,
+   "mode": "moderation"
+  },
+  "openai/container": {
+   "litellm_provider": "openai",
+   "mode": "chat"
+  },
+  "openai/sora-2": {
+   "deprecation_date": "2026-09-24",
+   "litellm_provider": "openai",
+   "mode": "video_generation"
+  },
+  "openai/sora-2-pro": {
+   "deprecation_date": "2026-09-24",
+   "litellm_provider": "openai",
+   "mode": "video_generation"
+  },
+  "openai/sora-2-pro-high-res": {
+   "litellm_provider": "openai",
+   "mode": "video_generation"
+  },
+  "perplexity/anthropic/claude-haiku-4-5": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/anthropic/claude-opus-4-5": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/anthropic/claude-opus-4-6": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/anthropic/claude-opus-4-7": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/anthropic/claude-sonnet-4-5": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/codellama-34b-instruct": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 16384,
+   "max_output_tokens": 16384,
+   "mode": "chat"
+  },
+  "perplexity/codellama-70b-instruct": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 16384,
+   "max_output_tokens": 16384,
+   "mode": "chat"
+  },
+  "perplexity/google/gemini-2.5-flash": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/google/gemini-2.5-pro": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/google/gemini-3-flash-preview": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/google/gemini-3-pro-preview": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/llama-2-70b-chat": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "perplexity/llama-3.1-70b-instruct": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 131072,
+   "mode": "chat"
+  },
+  "perplexity/llama-3.1-8b-instruct": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 131072,
+   "max_output_tokens": 131072,
+   "mode": "chat"
+  },
+  "perplexity/mistral-7b-instruct": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "perplexity/mixtral-8x7b-instruct": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "perplexity/openai/gpt-5-mini": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/openai/gpt-5.1": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/openai/gpt-5.2": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/perplexity/deepseek-v4-flash-0731": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/perplexity/glm-5.2": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/perplexity/kimi-k2.7-code": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/perplexity/kimi-k3": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/perplexity/sonar": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/pplx-70b-chat": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "perplexity/pplx-70b-online": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "perplexity/pplx-7b-chat": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 8192,
+   "max_output_tokens": 8192,
+   "mode": "chat"
+  },
+  "perplexity/pplx-7b-online": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 4096,
+   "max_output_tokens": 4096,
+   "mode": "chat"
+  },
+  "perplexity/pplx-embed-context-v1-0.6b": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 32768,
+   "mode": "embedding"
+  },
+  "perplexity/pplx-embed-context-v1-4b": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 32768,
+   "mode": "embedding"
+  },
+  "perplexity/pplx-embed-v1-0.6b": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 32768,
+   "mode": "embedding"
+  },
+  "perplexity/pplx-embed-v1-4b": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 32768,
+   "mode": "embedding"
+  },
+  "perplexity/preset/advanced-deep-research": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/preset/deep-research": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/preset/fast-search": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/preset/pro-search": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "perplexity/search": {
+   "litellm_provider": "perplexity",
+   "mode": "search"
+  },
+  "perplexity/sonar": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 128000,
+   "mode": "chat"
+  },
+  "perplexity/sonar-deep-research": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 128000,
+   "mode": "chat"
+  },
+  "perplexity/sonar-medium-chat": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 16384,
+   "max_output_tokens": 16384,
+   "mode": "chat"
+  },
+  "perplexity/sonar-medium-online": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 12000,
+   "max_output_tokens": 12000,
+   "mode": "chat"
+  },
+  "perplexity/sonar-pro": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 200000,
+   "max_output_tokens": 8000,
+   "mode": "chat"
+  },
+  "perplexity/sonar-reasoning": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 128000,
+   "mode": "chat"
+  },
+  "perplexity/sonar-reasoning-pro": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 128000,
+   "mode": "chat"
+  },
+  "perplexity/sonar-small-chat": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 16384,
+   "max_output_tokens": 16384,
+   "mode": "chat"
+  },
+  "perplexity/sonar-small-online": {
+   "litellm_provider": "perplexity",
+   "max_input_tokens": 12000,
+   "max_output_tokens": 12000,
+   "mode": "chat"
+  },
+  "perplexity/xai/grok-4-1-fast-non-reasoning": {
+   "litellm_provider": "perplexity",
+   "mode": "responses",
+   "supports_function_calling": true
+  },
+  "sora-2": {
+   "deprecation_date": "2026-09-24",
+   "litellm_provider": "openai",
+   "mode": "video_generation"
+  },
+  "sora-2-pro": {
+   "deprecation_date": "2026-09-24",
+   "litellm_provider": "openai",
+   "mode": "video_generation"
+  },
+  "sora-2-pro-high-res": {
+   "litellm_provider": "openai",
+   "mode": "video_generation"
+  },
+  "standard/1024-x-1024/dall-e-3": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "standard/1024-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "standard/1024-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "standard/1024-x-1536/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "standard/1024-x-1536/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "standard/1024-x-1792/dall-e-3": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "standard/1536-x-1024/gpt-image-1.5": {
+   "deprecation_date": "2026-12-01",
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "standard/1536-x-1024/gpt-image-1.5-2025-12-16": {
+   "litellm_provider": "openai",
+   "mode": "image_generation",
+   "supports_vision": true
+  },
+  "standard/1792-x-1024/dall-e-3": {
+   "deprecation_date": "2026-05-12",
+   "litellm_provider": "openai",
+   "mode": "image_generation"
+  },
+  "text-embedding-3-large": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 8191,
+   "mode": "embedding"
+  },
+  "text-embedding-3-small": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 8191,
+   "mode": "embedding"
+  },
+  "text-embedding-ada-002": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 8191,
+   "mode": "embedding"
+  },
+  "text-embedding-ada-002-v2": {
+   "litellm_provider": "openai",
+   "max_input_tokens": 8191,
+   "mode": "embedding"
+  },
+  "text-moderation-007": {
+   "deprecation_date": "2025-10-27",
+   "litellm_provider": "openai",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 0,
+   "mode": "moderation"
+  },
+  "text-moderation-latest": {
+   "deprecation_date": "2025-10-27",
+   "litellm_provider": "openai",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 0,
+   "mode": "moderation"
+  },
+  "text-moderation-stable": {
+   "deprecation_date": "2025-10-27",
+   "litellm_provider": "openai",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 0,
+   "mode": "moderation"
+  },
+  "tts-1": {
+   "litellm_provider": "openai",
+   "mode": "audio_speech"
+  },
+  "tts-1-1106": {
+   "litellm_provider": "openai",
+   "mode": "audio_speech"
+  },
+  "tts-1-hd": {
+   "litellm_provider": "openai",
+   "mode": "audio_speech"
+  },
+  "tts-1-hd-1106": {
+   "litellm_provider": "openai",
+   "mode": "audio_speech"
+  },
+  "vertex_ai/deep-research-pro-preview-12-2025": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation"
+  },
+  "vertex_ai/gemini-2.5-flash-image": {
+   "deprecation_date": "2026-10-02",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 32768,
+   "max_output_tokens": 32768,
+   "mode": "image_generation",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "vertex_ai/gemini-3-pro-image": {
+   "deprecation_date": "2027-05-28",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation"
+  },
+  "vertex_ai/gemini-3-pro-image-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation"
+  },
+  "vertex_ai/gemini-3.1-flash-image": {
+   "deprecation_date": "2027-05-28",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation"
+  },
+  "vertex_ai/gemini-3.1-flash-image-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 32768,
+   "mode": "image_generation"
+  },
+  "vertex_ai/gemini-3.1-flash-lite": {
+   "deprecation_date": "2027-05-07",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "vertex_ai/gemini-3.1-flash-lite-image": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 65536,
+   "max_output_tokens": 4096,
+   "mode": "image_generation",
+   "supports_function_calling": false,
+   "supports_response_schema": false,
+   "supports_vision": true
+  },
+  "vertex_ai/gemini-3.1-flash-lite-preview": {
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "vertex_ai/gemini-3.5-flash-lite": {
+   "deprecation_date": "2027-07-21",
+   "litellm_provider": "vertex_ai-language-models",
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 65536,
+   "mode": "chat",
+   "supports_function_calling": true,
+   "supports_response_schema": true,
+   "supports_vision": true
+  },
+  "whisper-1": {
+   "litellm_provider": "openai",
+   "mode": "audio_transcription"
+  }
+ },
+ "modelsdev": {
+  "alibaba-cn/MiniMax-M2.5": {
+   "attachment": false,
+   "limit": {
+    "context": 204800,
+    "output": 131072
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/MiniMax/MiniMax-M2.7": {
+   "attachment": false,
+   "limit": {
+    "context": 204800,
+    "output": 131072
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-r1": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-r1-0528": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-r1-distill-llama-70b": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-r1-distill-llama-8b": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-r1-distill-qwen-1-5b": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-r1-distill-qwen-14b": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-r1-distill-qwen-32b": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-r1-distill-qwen-7b": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-v3": {
+   "attachment": false,
+   "limit": {
+    "context": 65536,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-v3-1": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-v3-2-exp": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-v4-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 384000
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/deepseek-v4-pro": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 384000
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/glm-5": {
+   "attachment": false,
+   "limit": {
+    "context": 202752,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/glm-5.1": {
+   "attachment": false,
+   "limit": {
+    "context": 202752,
+    "output": 128000
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/glm-5.2": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/kimi-k2-thinking": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/kimi-k2.5": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "alibaba-cn/kimi-k2.6": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "alibaba-cn/kimi/kimi-k2.5": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 262144
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/moonshot-kimi-k2-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "alibaba-cn/qvq-max": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-deep-research": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-doc-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-long": {
+   "attachment": false,
+   "limit": {
+    "context": 10000000,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-math-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 4096,
+    "output": 3072
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-math-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 4096,
+    "output": 3072
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-max": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-mt-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 16384,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": false
+  },
+  "alibaba-cn/qwen-mt-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 16384,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": false
+  },
+  "alibaba-cn/qwen-omni-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 2048
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-omni-turbo-realtime": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 2048
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-plus-character": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 4096
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-vl-max": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen-vl-ocr": {
+   "attachment": false,
+   "limit": {
+    "context": 34096,
+    "output": 4096
+   },
+   "provider": "alibaba-cn",
+   "tool_call": false
+  },
+  "alibaba-cn/qwen-vl-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-14b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-32b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-72b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-7b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-coder-32b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-coder-7b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-math-72b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 4096,
+    "output": 3072
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-math-7b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 4096,
+    "output": 3072
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-omni-7b": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 2048
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-vl-72b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen2-5-vl-7b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-14b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-235b-a22b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-32b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-8b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-asr-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 53248,
+    "output": 4096
+   },
+   "provider": "alibaba-cn",
+   "tool_call": false
+  },
+  "alibaba-cn/qwen3-coder-30b-a3b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-coder-480b-a35b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-coder-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-coder-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-max": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-next-80b-a3b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-next-80b-a3b-thinking": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-omni-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 65536,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-omni-flash-realtime": {
+   "attachment": false,
+   "limit": {
+    "context": 65536,
+    "output": 16384
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-vl-235b-a22b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-vl-30b-a3b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3-vl-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.5-397b-a17b": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.5-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.5-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.6-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.6-max-preview": {
+   "attachment": false,
+   "limit": {
+    "context": 245800,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.6-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.7-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "input": 991000,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.7-max": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.7-plus": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 64000
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwen3.8-max": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 131072
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/qwq-32b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/qwq-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba-cn",
+   "tool_call": true
+  },
+  "alibaba-cn/siliconflow/deepseek-r1-0528": {
+   "attachment": false,
+   "limit": {
+    "context": 163840,
+    "output": 32768
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/siliconflow/deepseek-v3-0324": {
+   "attachment": false,
+   "limit": {
+    "context": 163840,
+    "output": 163840
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/siliconflow/deepseek-v3.1-terminus": {
+   "attachment": false,
+   "limit": {
+    "context": 163840,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/siliconflow/deepseek-v3.2": {
+   "attachment": false,
+   "limit": {
+    "context": 163840,
+    "output": 65536
+   },
+   "provider": "alibaba-cn",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba-cn/tongyi-intent-detect-v3": {
+   "attachment": false,
+   "limit": {
+    "context": 8192,
+    "output": 1024
+   },
+   "provider": "alibaba-cn",
+   "tool_call": false
+  },
+  "alibaba/deepseek-v4-flash-0731": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 384000
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/glm-5.2": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 131072
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qvq-max": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 32768
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-max": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-mt-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 16384,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": false
+  },
+  "alibaba/qwen-mt-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 16384,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": false
+  },
+  "alibaba/qwen-omni-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 2048
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-omni-turbo-realtime": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 2048
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 32768
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-plus-character-ja": {
+   "attachment": false,
+   "limit": {
+    "context": 8192,
+    "output": 512
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 16384
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-vl-max": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen-vl-ocr": {
+   "attachment": false,
+   "limit": {
+    "context": 34096,
+    "output": 4096
+   },
+   "provider": "alibaba",
+   "tool_call": false
+  },
+  "alibaba/qwen-vl-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen2-5-14b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen2-5-32b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen2-5-72b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen2-5-7b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen2-5-omni-7b": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 2048
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen2-5-vl-72b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen2-5-vl-7b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-14b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-235b-a22b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 16384
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-32b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 16384
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-8b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-asr-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 53248,
+    "output": 4096
+   },
+   "provider": "alibaba",
+   "tool_call": false
+  },
+  "alibaba/qwen3-coder-30b-a3b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-coder-480b-a35b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-coder-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-coder-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-livetranslate-flash-realtime": {
+   "attachment": false,
+   "limit": {
+    "context": 53248,
+    "output": 4096
+   },
+   "provider": "alibaba",
+   "tool_call": false
+  },
+  "alibaba/qwen3-max": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-next-80b-a3b-instruct": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-next-80b-a3b-thinking": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-omni-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 65536,
+    "output": 16384
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-omni-flash-realtime": {
+   "attachment": false,
+   "limit": {
+    "context": 65536,
+    "output": 16384
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-vl-235b-a22b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-vl-30b-a3b": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3-vl-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 32768
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3.5-122b-a10b": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qwen3.5-27b": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qwen3.5-35b-a3b": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qwen3.5-397b-a17b": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qwen3.5-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3.6-27b": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qwen3.6-35b-a3b": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qwen3.6-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qwen3.6-max-preview": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3.6-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3.7-max": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3.7-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 65536
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "alibaba/qwen3.8-max": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 131072
+   },
+   "provider": "alibaba",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "alibaba/qwq-plus": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 8192
+   },
+   "provider": "alibaba",
+   "tool_call": true
+  },
+  "anthropic/claude-fable-5": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-haiku-4-5": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 64000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-haiku-4-5-20251001": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 64000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-opus-4-5": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 64000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-opus-4-5-20251101": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 64000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-opus-4-6": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-opus-4-7": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-opus-4-8": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-opus-5": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-sonnet-4-5": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 64000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-sonnet-4-5-20250929": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 64000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-sonnet-4-6": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "anthropic/claude-sonnet-5": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "anthropic",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "deepseek/deepseek-chat": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 384000
+   },
+   "provider": "deepseek",
+   "tool_call": true
+  },
+  "deepseek/deepseek-reasoner": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 384000
+   },
+   "provider": "deepseek",
+   "tool_call": true
+  },
+  "deepseek/deepseek-v4-flash": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 384000
+   },
+   "provider": "deepseek",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "deepseek/deepseek-v4-flash-vision-exp": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 384000
+   },
+   "provider": "deepseek",
+   "status": "beta",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "deepseek/deepseek-v4-pro": {
+   "attachment": false,
+   "limit": {
+    "context": 1000000,
+    "output": 384000
+   },
+   "provider": "deepseek",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/claude-fable-5@default": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-haiku-4-5@20251001": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 64000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-opus-4-1@20250805": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 32000
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "tool_call": true
+  },
+  "google-vertex/claude-opus-4-5@20251101": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 64000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-opus-4-6@default": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-opus-4-7@default": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-opus-4-8@default": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-opus-4@20250514": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 32000
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "tool_call": true
+  },
+  "google-vertex/claude-opus-5@default": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-sonnet-4-5@20250929": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 64000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-sonnet-4-6@default": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/claude-sonnet-4@20250514": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 64000
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "tool_call": true
+  },
+  "google-vertex/claude-sonnet-5@default": {
+   "attachment": true,
+   "limit": {
+    "context": 1000000,
+    "output": 128000
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/deepseek-ai/deepseek-v3.1-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 163840,
+    "output": 32768
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/deepseek-ai/deepseek-v3.2-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 163840,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-2.5-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/gemini-2.5-flash-image": {
+   "attachment": true,
+   "limit": {
+    "context": 32768,
+    "output": 32768
+   },
+   "provider": "google-vertex",
+   "tool_call": false
+  },
+  "google-vertex/gemini-2.5-flash-lite": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/gemini-2.5-flash-tts": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 16384
+   },
+   "provider": "google-vertex",
+   "tool_call": false
+  },
+  "google-vertex/gemini-2.5-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/gemini-2.5-pro-tts": {
+   "attachment": false,
+   "limit": {
+    "context": 32768,
+    "output": 16384
+   },
+   "provider": "google-vertex",
+   "tool_call": false
+  },
+  "google-vertex/gemini-3-flash-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-3-pro-image": {
+   "attachment": true,
+   "limit": {
+    "context": 65536,
+    "output": 32768
+   },
+   "provider": "google-vertex",
+   "tool_call": false
+  },
+  "google-vertex/gemini-3.1-flash-image": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "google-vertex",
+   "tool_call": false
+  },
+  "google-vertex/gemini-3.1-flash-lite": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-3.1-flash-lite-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-3.1-pro-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-3.1-pro-preview-customtools": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-3.5-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-3.5-flash-lite": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-3.6-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-3.7-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-embedding-001": {
+   "attachment": false,
+   "limit": {
+    "context": 2048,
+    "output": 1
+   },
+   "provider": "google-vertex",
+   "tool_call": false
+  },
+  "google-vertex/gemini-flash-latest": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/gemini-flash-lite-latest": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/meta/llama-3.3-70b-instruct-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 128000,
+    "output": 8192
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/meta/llama-4-maverick-17b-128e-instruct-maas": {
+   "attachment": true,
+   "limit": {
+    "context": 524288,
+    "output": 8192
+   },
+   "provider": "google-vertex",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/moonshotai/kimi-k2-thinking-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 262144
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/openai/gpt-oss-120b-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "google-vertex",
+   "tool_call": true
+  },
+  "google-vertex/openai/gpt-oss-20b-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "tool_call": true
+  },
+  "google-vertex/qwen/qwen3-235b-a22b-instruct-2507-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 262144,
+    "output": 16384
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/zai-org/glm-4.7-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 200000,
+    "output": 128000
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google-vertex/zai-org/glm-5-maas": {
+   "attachment": false,
+   "limit": {
+    "context": 202752,
+    "output": 131072
+   },
+   "provider": "google-vertex",
+   "status": "deprecated",
+   "tool_call": true
+  },
+  "google/deep-research-max-preview-04-2026": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 65536
+   },
+   "provider": "google",
+   "tool_call": true
+  },
+  "google/deep-research-preview-04-2026": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 65536
+   },
+   "provider": "google",
+   "tool_call": true
+  },
+  "google/gemini-2.5-computer-use-preview-10-2025": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 65536
+   },
+   "provider": "google",
+   "tool_call": true
+  },
+  "google/gemini-2.5-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-2.5-flash-image": {
+   "attachment": true,
+   "limit": {
+    "context": 32768,
+    "output": 32768
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-2.5-flash-lite": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-2.5-flash-preview-tts": {
+   "attachment": false,
+   "limit": {
+    "context": 8192,
+    "output": 16384
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-2.5-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-2.5-pro-preview-tts": {
+   "attachment": false,
+   "limit": {
+    "context": 8192,
+    "output": 16384
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-3-flash-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-3-pro-image": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-3-pro-image-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 32768
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-3.1-flash-image": {
+   "attachment": true,
+   "limit": {
+    "context": 65536,
+    "output": 65536
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-3.1-flash-image-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 65536,
+    "output": 65536
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-3.1-flash-lite": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-3.1-flash-lite-image": {
+   "attachment": true,
+   "limit": {
+    "context": 65536,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "google/gemini-3.1-flash-lite-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-3.1-flash-live-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "google/gemini-3.1-flash-tts-preview": {
+   "attachment": false,
+   "limit": {
+    "context": 8192,
+    "output": 16384
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-3.1-pro-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-3.1-pro-preview-customtools": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-3.5-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-3.5-flash-lite": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-3.5-live-translate-preview": {
+   "attachment": false,
+   "limit": {
+    "context": 16384,
+    "output": 32768
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-3.6-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-3.7-flash": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-embedding-001": {
+   "attachment": false,
+   "limit": {
+    "context": 2048,
+    "output": 1
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-embedding-2": {
+   "attachment": true,
+   "limit": {
+    "context": 8192,
+    "output": 1
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-flash-latest": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-flash-lite-latest": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemini-omni-flash-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 65536
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/gemini-robotics-er-1.6-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 131072,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemma-4-26b-a4b-it": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 32768
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/gemma-4-31b-it": {
+   "attachment": true,
+   "limit": {
+    "context": 262144,
+    "output": 32768
+   },
+   "provider": "google",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "google/lyria-3-clip-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": false,
+   "tool_call": false
+  },
+  "google/lyria-3-pro-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 1048576,
+    "output": 65536
+   },
+   "provider": "google",
+   "structured_output": false,
+   "tool_call": false
+  },
+  "google/veo-3.1-fast-generate-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 480,
+    "output": 8192
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "google/veo-3.1-generate-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 480,
+    "output": 8192
+   },
+   "provider": "google",
+   "status": "beta",
+   "tool_call": false
+  },
+  "google/veo-3.1-lite-generate-preview": {
+   "attachment": true,
+   "limit": {
+    "context": 480,
+    "output": 8192
+   },
+   "provider": "google",
+   "tool_call": false
+  },
+  "openai/chatgpt-image-latest": {
+   "attachment": true,
+   "limit": {
+    "context": 0,
+    "input": 0,
+    "output": 0
+   },
+   "provider": "openai",
+   "tool_call": false
+  },
+  "openai/gpt-3.5-turbo": {
+   "attachment": false,
+   "limit": {
+    "context": 16385,
+    "output": 4096
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": false,
+   "tool_call": false
+  },
+  "openai/gpt-4": {
+   "attachment": true,
+   "limit": {
+    "context": 8192,
+    "output": 8192
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "openai/gpt-4-turbo": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 4096
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "openai/gpt-4.1": {
+   "attachment": true,
+   "limit": {
+    "context": 1047576,
+    "output": 32768
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-4.1-mini": {
+   "attachment": true,
+   "limit": {
+    "context": 1047576,
+    "output": 32768
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-4.1-nano": {
+   "attachment": true,
+   "limit": {
+    "context": 1047576,
+    "output": 32768
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-4o": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 16384
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-4o-2024-05-13": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 4096
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-4o-2024-08-06": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 16384
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-4o-2024-11-20": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 16384
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-4o-mini": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 16384
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5-mini": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5-nano": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 272000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.1": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.2": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.2-chat-latest": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 16384
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.2-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "openai/gpt-5.3-chat-latest": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 16384
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.3-codex": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.3-codex-spark": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "input": 100000,
+    "output": 32000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.4": {
+   "attachment": true,
+   "limit": {
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.4-mini": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.4-nano": {
+   "attachment": true,
+   "limit": {
+    "context": 400000,
+    "input": 272000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.4-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "openai/gpt-5.5": {
+   "attachment": true,
+   "limit": {
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.5-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.6": {
+   "attachment": true,
+   "limit": {
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.6-luna": {
+   "attachment": true,
+   "limit": {
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.6-sol": {
+   "attachment": true,
+   "limit": {
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-5.6-terra": {
+   "attachment": true,
+   "limit": {
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/gpt-image-1": {
+   "attachment": true,
+   "limit": {
+    "context": 0,
+    "input": 0,
+    "output": 0
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "tool_call": false
+  },
+  "openai/gpt-image-1-mini": {
+   "attachment": true,
+   "limit": {
+    "context": 0,
+    "input": 0,
+    "output": 0
+   },
+   "provider": "openai",
+   "tool_call": false
+  },
+  "openai/gpt-image-1.5": {
+   "attachment": true,
+   "limit": {
+    "context": 0,
+    "input": 0,
+    "output": 0
+   },
+   "provider": "openai",
+   "tool_call": false
+  },
+  "openai/gpt-image-2": {
+   "attachment": true,
+   "limit": {
+    "context": 0,
+    "input": 0,
+    "output": 0
+   },
+   "provider": "openai",
+   "tool_call": false
+  },
+  "openai/gpt-realtime-2.1": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "input": 96000,
+    "output": 32000
+   },
+   "provider": "openai",
+   "structured_output": false,
+   "tool_call": true
+  },
+  "openai/o1": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 100000
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/o1-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 100000
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/o3": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 100000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/o3-mini": {
+   "attachment": false,
+   "limit": {
+    "context": 200000,
+    "output": 100000
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/o3-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 100000
+   },
+   "provider": "openai",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/o4-mini": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 100000
+   },
+   "provider": "openai",
+   "status": "deprecated",
+   "structured_output": true,
+   "tool_call": true
+  },
+  "openai/text-embedding-3-large": {
+   "attachment": false,
+   "limit": {
+    "context": 8191,
+    "output": 3072
+   },
+   "provider": "openai",
+   "tool_call": false
+  },
+  "openai/text-embedding-3-small": {
+   "attachment": false,
+   "limit": {
+    "context": 8191,
+    "output": 1536
+   },
+   "provider": "openai",
+   "tool_call": false
+  },
+  "openai/text-embedding-ada-002": {
+   "attachment": false,
+   "limit": {
+    "context": 8192,
+    "output": 1536
+   },
+   "provider": "openai",
+   "tool_call": false
+  },
+  "perplexity/sonar": {
+   "attachment": false,
+   "limit": {
+    "context": 128000,
+    "output": 4096
+   },
+   "provider": "perplexity",
+   "tool_call": false
+  },
+  "perplexity/sonar-deep-research": {
+   "attachment": false,
+   "limit": {
+    "context": 128000,
+    "output": 32768
+   },
+   "provider": "perplexity",
+   "tool_call": false
+  },
+  "perplexity/sonar-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 200000,
+    "output": 8192
+   },
+   "provider": "perplexity",
+   "tool_call": false
+  },
+  "perplexity/sonar-reasoning-pro": {
+   "attachment": true,
+   "limit": {
+    "context": 128000,
+    "output": 4096
+   },
+   "provider": "perplexity",
+   "tool_call": false
+  }
+ }
+}

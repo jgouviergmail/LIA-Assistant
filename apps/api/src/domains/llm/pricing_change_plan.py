@@ -30,11 +30,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from src.domains.llm.pricing_sheet import (
-    CUSTOM_TEMPLATE_MARKER,
-    FINGERPRINT_COLUMN,
-    MODELS_SHEET,
-)
+from src.domains.llm.pricing_sheet import FINGERPRINT_COLUMN, MODELS_SHEET
 from src.infrastructure.tabular_io.report import CellIssue, IssueCode, ParsedRow
 
 #: Fields whose change means a new tariff version rather than an in-place edit.
@@ -192,6 +188,7 @@ def build_change_plan(
         if not row.key:
             continue
         existing = current.get(row.key)
+        _check_reasoning_ladder(row, issues)
         if existing is None:
             _check_creatable(row, issues)
             changes.append(
@@ -212,21 +209,68 @@ def build_change_plan(
     return ChangePlan(changes=tuple(changes), issues=tuple(issues))
 
 
+def _check_reasoning_ladder(row: ParsedRow, issues: list[CellIssue]) -> None:
+    """Refuse a depth the model's family does not offer, and name the ones it does.
+
+    ``reasoning_enum_values`` can only NARROW the ladder the runtime derives
+    from (provider, model): a level outside it is dropped by the narrowing
+    intersection, in silence. Four catalogue rows once declared ``off`` that
+    way and the resulting ladder had no off switch at all.
+
+    The admin form makes this unrepresentable by rendering the family's ladder
+    as checkboxes. A spreadsheet cell cannot, so the equivalent guarantee is an
+    import that refuses the value and says what would have been accepted --
+    ADR-184's rule again: whatever a validator can reject, its producer must be
+    able to read.
+
+    Args:
+        row: One parsed row of the models sheet.
+        issues: Accumulator, appended in place.
+    """
+    from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
+
+    raw = row.values.get("reasoning_enum_values")
+    if not raw:
+        return
+    declared = [part.strip() for part in str(raw).split(",") if part.strip()]
+    if not declared:
+        return
+
+    provider = str(row.values.get("provider") or "")
+    profile = resolve_reasoning_profile(provider, row.key or "")
+    if not profile.levels:
+        # No rule matches this model, so the column is never read: the value is
+        # inert rather than wrong, and the read-only ``reasoning_shape`` cell
+        # beside it already says the model does no reasoning. Refusing here
+        # would invent a constraint the runtime does not apply.
+        return
+    unknown = [level for level in declared if level not in profile.levels]
+    if not unknown:
+        return
+
+    issues.append(
+        CellIssue(
+            IssueCode.REASONING_LEVEL_UNKNOWN,
+            sheet=MODELS_SHEET.name,
+            column="reasoning_enum_values",
+            params={
+                "key": row.key or "",
+                "row": str(row.row_number),
+                "levels": ", ".join(unknown),
+                # Empty when no rule matches the model: the column would not be
+                # read at all, and saying so is more useful than an empty list.
+                "accepted": ", ".join(profile.levels),
+            },
+        )
+    )
+
+
 def _check_creatable(row: ParsedRow, issues: list[CellIssue]) -> None:
     """Refuse a new row that could not become a model, before anything is written.
 
     Every missing field is named, not just the first: fixing them one import at
     a time is how a five-minute correction becomes an afternoon.
     """
-    if row.values.get("reasoning_template") in (None, "", CUSTOM_TEMPLATE_MARKER):
-        issues.append(
-            CellIssue(
-                IssueCode.CREATION_NEEDS_TEMPLATE,
-                sheet=MODELS_SHEET.name,
-                column="reasoning_template",
-                params={"key": row.key or "", "row": str(row.row_number)},
-            )
-        )
     for field_name in _REQUIRED_TO_CREATE:
         if row.values.get(field_name) is None:
             issues.append(
@@ -336,7 +380,7 @@ def _update_change(
             after=_render(row.values.get(key)),
         )
         for key in MODELS_SHEET.editable_keys
-        if key not in _NON_FIELD_KEYS and _differs(existing.get(key), row.values.get(key))
+        if key not in _NON_FIELD_KEYS and _differs(existing.get(key), row.values.get(key), key)
     )
 
     stored = current_slots.get(row.key or "", ())
@@ -404,9 +448,30 @@ def _resolve_action(
     return ChangeAction.UNCHANGED
 
 
-def _differs(before: Any, after: Any) -> bool:
-    """Compare two cell values the way the workbook round-trips them."""
+def _differs(before: Any, after: Any, key: str | None = None) -> bool:
+    """Compare two cell values the way the workbook round-trips them.
+
+    Args:
+        before: The stored value, as the export rendered it.
+        after: The value read back from the file.
+        key: The column, when its text has a canonical form the operator is
+            not required to reproduce character for character.
+    """
+    if key == "reasoning_enum_values":
+        # The export writes "low, high"; retyping it as "low,high" is the same
+        # ladder. A preview is a claim about what will change, and spacing is
+        # not a change -- reporting one would also trigger a write storing the
+        # identical list. Order is NOT normalised: the ladder is ascending, so
+        # it carries meaning.
+        return _ladder_cell(before) != _ladder_cell(after)
     return _render(before) != _render(after)
+
+
+def _ladder_cell(value: Any) -> tuple[str, ...]:
+    """The levels a ladder cell names, whatever spacing was used."""
+    if value is None or value == "":
+        return ()
+    return tuple(part.strip() for part in str(value).split(",") if part.strip())
 
 
 def _render(value: Any) -> str | None:

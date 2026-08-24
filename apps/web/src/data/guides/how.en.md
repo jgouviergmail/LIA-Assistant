@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Date**: 2026-08-23
-**Application**: LIA v1.31.3
+**Application**: LIA v1.32.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -694,9 +694,9 @@ Pricing itself follows the provider's clock: some providers bill text models by 
 
 ### 12.4. DB-source-of-truth admin catalogue
 
-The `llm_models` table carries the full catalogue: provider, classic functional capabilities (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), and — structuring additions — the **per-model sampling matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) plus the **reasoning shape** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` JSONB list, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). This per-model declaration replaces the legacy frontend regex that used to guess which sliders to hide: the Configuration LLM dialog reads the DB flags directly and exposes only the parameters the model's API actually accepts.
+The `llm_models` table carries the full catalogue: provider, classic functional capabilities (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), and — structuring additions — the **per-model sampling matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) plus the **accepted reasoning ladder** (`reasoning_enum_values`, a JSONB list) and its help-text i18n key (`reasoning_doc_i18n_key`). This per-model declaration replaces the legacy frontend regex that used to guess which sliders to hide: the Configuration LLM dialog reads the DB flags directly and exposes only the parameters the model's API actually accepts. Since v1.32.0 that ladder no longer **declares** what a model accepts, it **narrows** it: what a model accepts is derived from its (provider, model) pair, and the two columns that used to describe the reasoning *shape* are dropped — there is one shape now.
 
-The Pricing LLM admin form exposes a **DB-derived dynamic templates mechanism**: the `LLMModelService.list_templates()` service groups active rows by their 4-field reasoning fingerprint and returns one deterministic representative per group (~15 unique shapes today). Adding a new reasoning model boils down to picking "copy shape from such existing model"; the 4 shape fields are snapshot-copied at creation time. **Custom** mode is available for disruptions; any Custom model with a novel fingerprint automatically becomes a template for subsequent additions. `kind` (chat / image / audio / …), the four sampling caps and the tooltip i18n key remain saved per model, independent of the template. See `docs/technical/LLM_PRICING_TEMPLATES.md`.
+The Pricing LLM admin screen writes that ladder **directly**: it renders the depths the model's family offers — resolved live by `GET /admin/llm/reasoning-family`, through the same function as the translator and the validator — and you **untick** the ones this particular model refuses. Ticking everything stores nothing: the family's ladder applies as is. The Excel workbook (ADR-228) carries the same two columns, and its import refuses a depth outside the family **while naming the ones that would have been accepted**: a spreadsheet cannot render checkboxes, so the guarantee moves to import time. A template mechanism — “copy the shape of that existing model” — used to sit here; it grouped models by their *stored* ladder rather than by family, so copying one across families silently removed depths. See `docs/technical/LLM_REASONING_IDENTITY.md`.
 
 ### 12.5. Provider-agnostic prompt caching
 

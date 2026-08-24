@@ -408,8 +408,19 @@ if (Get-Command rsync -ErrorAction SilentlyContinue) {
     # Verifier si rsync est disponible dans WSL
     $wslRsyncCheck = wsl which rsync 2>$null
     if ($wslRsyncCheck) {
-        $rsyncMode = "wsl"
-        Write-Info "rsync WSL detecte - utilisation pour transfert resilient"
+        # Presence is not reachability: WSL runs behind its own NAT and can
+        # have NO route to a LAN host Windows reaches perfectly well (measured
+        # 2026-08-24 -- "Network is unreachable" from WSL while native ssh
+        # worked throughout). Choosing this transport on `which rsync` alone
+        # selected one that could not connect, and the deployment carried on
+        # against an EMPTY staging directory.
+        $wslReach = wsl bash -c "timeout 8 bash -c '</dev/tcp/$SshHost/$SshPort' 2>/dev/null && echo reachable" 2>$null
+        if ($wslReach -match "reachable") {
+            $rsyncMode = "wsl"
+            Write-Info "rsync WSL detecte, hote joignable depuis WSL - transfert resilient"
+        } else {
+            Write-Warning "rsync WSL present mais ${SshHost}:${SshPort} INJOIGNABLE depuis WSL - bascule sur scp"
+        }
     }
 }
 if (-not $rsyncMode) {
@@ -499,24 +510,41 @@ if (-not $DryRun) {
         # Note: Sur Windows, le glob * n'inclut pas les fichiers caches (dotfiles)
         # On copie d'abord les fichiers normaux, puis explicitement les dotfiles
 
+        # The entries are ENUMERATED, never globbed. `scp ... "$ProdDir/*"`
+        # runs through `cmd /c`, which does not expand `*` inside a quoted
+        # argument, so scp received the literal path and answered
+        # `stat local "...\PROD/*": No such file or directory` (measured
+        # 2026-08-24, the first time this fallback ever ran -- WSL rsync had
+        # always won before). Enumerating also carries the dotfiles, which the
+        # glob could not, so the separate `.env` pass below it disappears.
         Write-Info "Copie des fichiers (scp avec retry)..."
-        $scpCmd = "scp -P $SshPort $SshOptionsStr -r -C `"$ProdDir/*`" `"${sshTarget}:~/$StagingDir/`""
-        Invoke-WithRetry -Command $scpCmd -OperationName "SCP fichiers" -MaxAttempts 5
-
-        # Copier explicitement les dotfiles (.env, etc.)
-        $dotfiles = Get-ChildItem -Path $ProdDir -Filter ".*" -File -Force
-        if ($dotfiles) {
-            Write-Info "Copie des dotfiles..."
-            foreach ($dotfile in $dotfiles) {
-                $dotfilePath = $dotfile.FullName
-                $dotfileName = $dotfile.Name
-                $scpDotfileCmd = "scp -P $SshPort $SshOptionsStr -C `"$dotfilePath`" `"${sshTarget}:~/$StagingDir/`""
-                Invoke-WithRetry -Command $scpDotfileCmd -OperationName "SCP $dotfileName" -MaxAttempts 3
-                Write-Info "  + $dotfileName"
-            }
+        $entries = Get-ChildItem -Path $ProdDir -Force
+        if (-not $entries) {
+            throw "Le dossier $ProdDir est vide: rien a transferer"
         }
+        $quoted = ($entries | ForEach-Object { "`"$($_.FullName)`"" }) -join " "
+        Write-Info "  $($entries.Count) entrees a transferer (dotfiles inclus)"
+        $scpCmd = "scp -P $SshPort $SshOptionsStr -r -C $quoted `"${sshTarget}:~/$StagingDir/`""
+        Invoke-WithRetry -Command $scpCmd -OperationName "SCP fichiers" -MaxAttempts 5
         Write-Success "Fichiers copies avec scp"
     }
+
+    # Absence of an exception is not proof of delivery. The rsync branch above
+    # printed "Fichiers copies" on a transfer that moved ZERO bytes (measured
+    # 2026-08-24: WSL had no route to the host, rsync exited 255, and the
+    # pipeline carried on through four more steps before failing on a missing
+    # deploy.sh). The transfer is a promise; this is the postcondition that
+    # makes it one.
+    $landed = Invoke-WithRetry `
+        -Command "ssh -p $SshPort $SshOptionsStr $sshTarget `"test -f ~/$StagingDir/deploy.sh && test -f ~/$StagingDir/.env && ls ~/$StagingDir | wc -l`"" `
+        -OperationName "Verification du transfert" -MaxAttempts 2
+    $landedCount = ($landed | Select-Object -Last 1) -as [int]
+    if (-not $landedCount -or $landedCount -lt 5) {
+        Write-Err "Transfert INCOMPLET: ~/$StagingDir contient $landedCount entree(s) et il manque deploy.sh ou .env"
+        Write-Err "La production n'a PAS ete touchee. Verifier le transport (rsync/scp) avant de relancer."
+        throw "Transfer postcondition failed: staging directory is not deployable"
+    }
+    Write-Success "Transfert verifie: $landedCount entrees, deploy.sh et .env presents"
 } else {
     if ($rsyncMode -eq "wsl") {
         $driveLetter = $ProdDir.Substring(0, 1).ToLower()

@@ -73,9 +73,13 @@ def test_seed_parse_matches_known_rows() -> None:
     # deepseek — the DERIVED provider set is unchanged (deepseek, openai).
     assert overrides["planner"] == "openai"
     assert overrides["response"] == "deepseek"
-    assert overrides["router"] is None
+    # A row that pins a model but no provider parses as None (the resolver then
+    # falls back to the code default). ``briefing`` is such a row; ``router``
+    # used to be the example here until ADR-244 removed the slot.
+    assert overrides["briefing"] is None
     assert overrides["vision_analysis"] == "gemini"
-    assert len(overrides) >= 42
+    # 39 after ADR-244 removed the two dead slots and the mcp_excalidraw orphan.
+    assert len(overrides) >= 39
 
 
 def test_anti_drift_catches_an_out_of_set_slot() -> None:

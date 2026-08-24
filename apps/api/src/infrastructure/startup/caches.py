@@ -196,6 +196,17 @@ async def init_config_caches() -> None:
         # matrix exposed by ModelCapabilitiesCache. Catches config drift at
         # boot rather than at the next admin API write or runtime call.
         validate_llm_defaults_against_matrix()
+
+        # Assert, not crash (ADR-244): this is the only moment the failover
+        # chain can be checked against the real catalogue. A chain naming
+        # models that do not exist is reported loudly; the middleware then
+        # mounts exactly the reachable subset, so what is announced and what is
+        # armed cannot differ. A broken chain never prevents a boot -- the
+        # primary model works, and refusing to start would turn a degraded
+        # fallback into a total outage.
+        from src.infrastructure.llm.failover import assert_failover_chain
+
+        assert_failover_chain(settings.fallback_models)
     except Exception as exc:
         # Boot continues; get_model_profile() will fall back to a conservative
         # default for any model not in the (possibly empty) cache.

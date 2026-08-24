@@ -36,7 +36,7 @@ Usage:
     ...     reasoning: str
     ...     next_node: str
     >>>
-    >>> llm = get_llm("router")
+    >>> llm = get_llm("planner")
     >>> result = get_structured_output(
     ...     llm=llm,
     ...     prompt="Route this message...",
@@ -57,12 +57,15 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ValidationError
 
 from src.core.config import settings
-from src.core.field_names import FIELD_METADATA
+from src.core.constants import CAPABILITY_PROVENANCE_VERIFIED
 from src.infrastructure.llm.invoke_helpers import (
     enrich_config_preserving_callbacks,
     enrich_config_with_node_metadata,
+    langgraph_node_from_config,
 )
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+from src.infrastructure.llm.model_profiles import ModelProfile
 
 # Strict-mode schema analysis lives in its own module; re-exported here so
 # callers keep a single import surface.
@@ -109,6 +112,50 @@ def _llm_model_id(llm: BaseChatModel) -> str:
     """Best-effort model identifier for cache keys and metrics labels."""
     model = getattr(llm, "model_name", None) or getattr(llm, "model", None)
     return str(model) if model else "unknown"
+
+
+def resolve_strict_mode(
+    is_strict_compatible: bool,
+    provider: str,
+    caps: ModelProfile | None,
+) -> bool:
+    """Decide whether to ask OpenAI for strict structured output.
+
+    Three conditions, in order of authority. The schema must be compatible and
+    the provider must be OpenAI -- strict mode is an OpenAI feature and no other
+    provider accepts the flag. Then, and only then, the catalogue may *narrow*
+    the answer.
+
+    It may narrow it only when a HUMAN filled the column -- provenance
+    ``verified`` and nothing else. This is narrower than the context-window
+    rule, and deliberately so: **``capability_provenance`` is row-level but the
+    evidence behind it is field-level.** ``imported`` means the vendored
+    registries corroborated the fields they publish
+    (``sync_diff.CORRECTABLE_FIELDS``); ``supports_strict_mode`` is not among
+    them and no public registry publishes it at all.
+
+    Measured 2026-08-24, and this is the trap: after the ADR-244 correction, 41
+    active OpenAI rows are ``imported`` while still carrying the unfilled
+    ``supports_strict_mode=false`` -- ``gpt-4.1``, ``gpt-5.2``, ``gpt-5.4-mini``
+    among them. Trusting ``imported`` here would switch all 41 off the strict
+    path on the strength of a column default the import never touched. Only a
+    human edit (``LLMModelService.update``, which stamps ``verified``) is
+    evidence about this field.
+
+    Args:
+        is_strict_compatible: Whether the schema itself can be strict.
+        provider: The resolved provider id.
+        caps: The model's catalogue profile, or ``None`` when it is outside the
+            catalogue -- in which case the heuristic is kept unchanged.
+
+    Returns:
+        Whether to pass ``strict=True``.
+    """
+    if not is_strict_compatible or provider != "openai":
+        return False
+    if caps is None or caps.capability_provenance != CAPABILITY_PROVENANCE_VERIFIED:
+        return True
+    return caps.supports_strict_mode
 
 
 def _reasoning_stream_disabled(provider: str, model: str, path: str) -> bool:
@@ -233,7 +280,7 @@ async def get_structured_output[T: BaseModel](
         ...     reasoning: str
         ...     action: str
         >>>
-        >>> llm = get_llm("router")
+        >>> llm = get_llm("planner")
         >>> messages = [HumanMessage(content="What should I do?")]
         >>> result = get_structured_output(
         ...     llm=llm,
@@ -277,10 +324,8 @@ async def get_structured_output[T: BaseModel](
 
     # **Phase 2.1 - Token Tracking Alignment Fix**
     # Extract node_name from config if not provided explicitly
-    if node_name is None and config:
-        node_name = config.get(FIELD_METADATA, {}).get("langgraph_node", "unknown")
-    elif node_name is None:
-        node_name = "unknown"
+    if node_name is None:
+        node_name = langgraph_node_from_config(config) or "unknown"
 
     # Enrich config to ensure callbacks receive node_name.
     # This is CRITICAL for token tracking - without it, all metrics show node_name="unknown".
@@ -599,7 +644,8 @@ async def _get_native_structured_output[T: BaseModel](
 
     # Analyze schema for strict mode compatibility (OpenAI only)
     is_strict_compatible, strict_reason = _analyze_schema_strict_compatibility(schema)
-    use_strict_mode = is_strict_compatible and provider == "openai"
+    strict_caps = ModelCapabilitiesCache.get(_llm_model_id(llm))
+    use_strict_mode = resolve_strict_mode(is_strict_compatible, provider, strict_caps)
 
     logger.debug(
         "using_native_structured_output",
@@ -608,6 +654,9 @@ async def _get_native_structured_output[T: BaseModel](
         strict_compatible=is_strict_compatible,
         strict_reason=strict_reason,
         use_strict_mode=use_strict_mode,
+        capability_provenance=(
+            strict_caps.capability_provenance if strict_caps is not None else None
+        ),
     )
 
     try:

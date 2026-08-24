@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Datum**: 2026-08-23
-**Application**: LIA v1.31.3
+**Application**: LIA v1.32.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -694,9 +694,9 @@ Die Preisgestaltung selbst folgt der Uhr des Anbieters: Manche Anbieter berechne
 
 ### 12.4. DB-source-of-truth Admin-Katalog
 
-Die Tabelle `llm_models` trägt den vollständigen Katalog: Provider, klassische funktionale Fähigkeiten (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`) und — strukturierende Ergänzungen — die **modellspezifische Sampling-Matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) sowie die **Reasoning-Form** (`reasoning_widget` ∈ {`none`, `enum`, `budget_int`, `toggle_budget`}, `reasoning_enum_values` JSONB-Liste, `reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`, `reasoning_doc_i18n_key`). Diese pro-Modell-Deklaration ersetzt den früheren Frontend-Regex, der erraten musste, welche Slider auszublenden sind: Der Konfigurations-LLM-Dialog liest die DB-Flags direkt und zeigt nur die Parameter, die die API des Modells tatsächlich akzeptiert.
+Die Tabelle `llm_models` trägt den vollständigen Katalog: Provider, klassische funktionale Fähigkeiten (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`) und — strukturierende Ergänzungen — die **modellspezifische Sampling-Matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) sowie die **akzeptierte Reasoning-Skala** (`reasoning_enum_values`, JSONB-Liste) und den i18n-Schlüssel ihres Hilfetexts (`reasoning_doc_i18n_key`). Diese pro-Modell-Deklaration ersetzt den früheren Frontend-Regex, der erraten musste, welche Slider auszublenden sind: Der Konfigurations-LLM-Dialog liest die DB-Flags direkt und zeigt nur die Parameter, die die API des Modells tatsächlich akzeptiert. Seit v1.32.0 **deklariert** diese Skala nicht mehr, was ein Modell akzeptiert, sie **schränkt es ein**: Was ein Modell akzeptiert, wird aus seinem Paar (Anbieter, Modell) abgeleitet, und die zwei Spalten, die einst die *Form* des Reasonings beschrieben, sind entfernt — es gibt nur noch eine Form.
 
-Das Tarifierungs-LLM-Admin-Formular bietet einen **DB-abgeleiteten dynamischen Template-Mechanismus**: Der Dienst `LLMModelService.list_templates()` gruppiert aktive Zeilen nach ihrem 4-Feld-Reasoning-Fingerprint und gibt einen deterministischen Repräsentanten pro Gruppe zurück (~15 eindeutige Formen heute). Ein neues Reasoning-Modell hinzuzufügen läuft darauf hinaus, „Form von einem solchen vorhandenen Modell kopieren“ zu wählen; die 4 Form-Felder werden zum Erstellungszeitpunkt als Snapshot kopiert. **Custom**-Modus für Disruptionen verfügbar; jedes Custom-Modell mit neuartigem Fingerprint wird automatisch zum Template für nachfolgende Einträge. `kind` (chat / image / audio / …), die vier Sampling-Caps und der Tooltip-i18n-Schlüssel werden pro Modell gespeichert, unabhängig vom Template. Siehe `docs/technical/LLM_PRICING_TEMPLATES.md`.
+Der Tarifierungs-LLM-Bildschirm schreibt diese Skala **direkt**: Er zeigt die Tiefen, die die Familie des Modells anbietet — live aufgelöst durch `GET /admin/llm/reasoning-family`, über dieselbe Funktion wie Übersetzer und Validator — und man **hakt ab**, was dieses konkrete Modell ablehnt. Alles angehakt speichert nichts: Die Skala der Familie gilt unverändert. Die Excel-Arbeitsmappe (ADR-228) führt dieselben zwei Spalten, und ihr Import lehnt eine Tiefe außerhalb der Familie ab und **nennt dabei die akzeptierten**: Eine Tabelle kann keine Kontrollkästchen darstellen, also wandert die Garantie zum Import. Ein Template-Mechanismus — „die Form jenes vorhandenen Modells kopieren“ — stand einst hier; er gruppierte Modelle nach ihrer *gespeicherten* Skala statt nach Familie, sodass ein Kopieren über Familien hinweg still Tiefen entfernte. Siehe `docs/technical/LLM_REASONING_IDENTITY.md`.
 
 ### 12.5. Provider-agnostisches Prompt-Caching
 

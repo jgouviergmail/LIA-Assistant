@@ -51,6 +51,27 @@ _CAPABILITY_KEYS: tuple[str, ...] = (
     "reasoning_doc_i18n_key",
 )
 
+
+def _ladder(raw: object) -> list[str] | None:
+    """Parse the ladder cell into the stored narrowing, or None for "no narrowing".
+
+    An empty cell and a cell holding every level of the family mean the same
+    thing to ``resolve_reasoning_profile``; the empty one is stored because it
+    survives the family gaining a depth. The values themselves were already
+    checked against the family by the change plan.
+
+    Args:
+        raw: The cell value, comma-separated or absent.
+
+    Returns:
+        The declared levels, or ``None`` when nothing is narrowed.
+    """
+    if not raw:
+        return None
+    levels = [part.strip() for part in str(raw).split(",") if part.strip()]
+    return levels or None
+
+
 #: Pricing columns carried straight to the tariff row.
 _PRICING_KEYS: tuple[str, ...] = (
     "pricing_unit",
@@ -188,14 +209,15 @@ class PricingImportService:
 def _build_create(values: Mapping[str, Any], windows: Sequence[ParsedRow]) -> ModelPriceCreate:
     """Turn a new row into a creation payload.
 
-    Reasoning always goes through the template mechanism: the sheet offers no
-    other way to express a reasoning shape, and the plan already refused a row
-    whose template is the custom marker.
+    The reasoning identity comes from the two columns the runtime reads. It
+    used to go through a ``reasoning_template`` dropdown, which also meant a
+    model that does not reason could not be created without picking one.
     """
     fields: dict[str, Any] = {
         "provider": values.get("provider"),
         "model_name": values.get("model_name"),
-        "reasoning_template": values.get("reasoning_template"),
+        "is_reasoning_model": bool(values.get("is_reasoning_model")),
+        "reasoning_enum_values": _ladder(values.get("reasoning_enum_values")),
         "time_slots": _windows_payload(values, windows),
     }
     for key in (*_CAPABILITY_KEYS, *_PRICING_KEYS):
@@ -218,6 +240,18 @@ def _build_update(
     payload: dict[str, Any] = {
         key: values[key] for key in changed if key in values and values[key] is not None
     }
+
+    # The ladder cell is text; the column is a list. And an EMPTIED cell means
+    # "stop narrowing", which a null cannot say — the service builds its
+    # change-set with exclude_none, so the previous restriction would survive
+    # (same trap as the cached price just below).
+    if "reasoning_enum_values" in changed:
+        ladder = _ladder(values.get("reasoning_enum_values"))
+        payload.pop("reasoning_enum_values", None)
+        if ladder is None:
+            payload["clear_reasoning_enum_values"] = True
+        else:
+            payload["reasoning_enum_values"] = ladder
 
     # An emptied cached price cannot travel as None — the service's change-set
     # drops nulls — so the intent takes the shape the schema reserves for it.

@@ -221,6 +221,42 @@ const SKILL_TRAIT: Record<SkillTrait, BadgeTone> = {
   channel: 'secondary',
 };
 
+/** Who filled a catalogue row's capabilities (ADR-244). */
+export type CapabilityProvenance = 'declared' | 'imported' | 'verified';
+
+/**
+ * Provenance badges, toned by how much the row can be TRUSTED.
+ *
+ * `declared` is the column defaults nobody curated — the state that made
+ * ``gpt-5.2`` answer 8 192 against a real 272 000, and the reason
+ * ``get_effective_context_window`` refuses to trust it. It needs attention
+ * without anything being broken, which is exactly `warning`; red would report
+ * a malfunction where there is only an absence of evidence.
+ *
+ * `imported` (corroborated by two public registries) and `verified` (a human
+ * edited a registry-owned capability) are both facts about a healthy row, so
+ * they take the theme tint rather than an alarm colour.
+ */
+const CAPABILITY_PROVENANCE: Record<CapabilityProvenance, BadgeTone> = {
+  declared: 'warning',
+  imported: 'info',
+  verified: 'success',
+};
+
+/**
+ * Tone for a capability-provenance badge.
+ *
+ * Args:
+ *   provenance: The raw value, as the backend published it.
+ *
+ * Returns:
+ *   The badge variant. An unrecognised value falls to the neutral tone —
+ *   a provenance nobody defined must not arrive claiming to be trustworthy.
+ */
+export function capabilityProvenanceTone(provenance: string): BadgeTone {
+  return CAPABILITY_PROVENANCE[provenance as CapabilityProvenance] ?? NEUTRAL;
+}
+
 /**
  * Tone for a skill trait badge.
  *

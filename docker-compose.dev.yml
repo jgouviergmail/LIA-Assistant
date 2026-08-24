@@ -131,6 +131,13 @@ services:
     # Twice now — 2026-07-24 (web) and 2026-08-03 (web AND api).
     image: lia-api-dev:latest
     container_name: lia-api-dev
+    # The import corruption documented on the `command` below is NOT
+    # deterministic: measured 2026-08-23 evening, three consecutive cold starts
+    # died with SIGSEGV and the fourth came up. Without a policy the container
+    # simply stays down, and the only symptom is a frontend failing every fetch
+    # -- `/auth/features` returning nothing takes the Google button and the
+    # passkeys off the sign-in screen, which reads like a feature bug.
+    restart: unless-stopped
     # ADR-117: parity with prod — lifespan shutdown drains in-flight chat
     # runs + background tasks before exit (see docker-compose.prod.yml).
     stop_grace_period: 90s
@@ -191,9 +198,22 @@ services:
     # \"int\") to tuple" — all of them inside third-party or importlib frames, none
     # of them in application code (`python -c "import src.main"` in the same
     # image and mounts succeeds every time).
-    # Measured 2026-08-23, same command, 4 cold starts each way:
-    # without the flag 2 boots / 2 crashes, with it 4 boots / 0 crashes.
-    command: python -Xfrozen_modules=off -m debugpy --listen 0.0.0.0:5678 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem
+    # Measured 2026-08-23 morning, same command, 4 cold starts each way:
+    # without the flag 2 boots / 2 crashes, with it 4 boots / 0 crashes. The
+    # SAME evening it crashed 3 times out of 3 WITH the flag, so the flag is a
+    # mitigation and not a cure -- hence `restart: unless-stopped` above, and
+    # hence debugpy is now OFF by default: an attachable debugger nobody
+    # attaches to is not worth a launcher that dies at import.
+    #   To attach one: set DEV_API_DEBUGPY in .env, then `docker compose up -d api`
+    #   DEV_API_DEBUGPY=-m debugpy --listen 0.0.0.0:5678
+    # (port 5678 is already published below; expect the import instability back)
+    #
+    # --reload-exclude on the bytecode caches: `--reload-dir src` watches a
+    # bind-mounted tree that the HOST also writes to, and a host-side pytest run
+    # regenerates .pyc by the hundred (observed: `122 changes detected`, all
+    # __pycache__). The reloader then restarts the worker in the middle of an
+    # import, which is the other way this container reaches SIGSEGV.
+    command: python -Xfrozen_modules=off ${DEV_API_DEBUGPY:-} -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --reload-exclude=*.pyc --reload-exclude=*/__pycache__/* --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem
     depends_on:
       postgres:
         condition: service_healthy

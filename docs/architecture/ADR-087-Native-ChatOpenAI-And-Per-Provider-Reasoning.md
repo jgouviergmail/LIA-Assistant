@@ -4,6 +4,15 @@
 **Deciders**: Engineering (LIA LLM infrastructure), `jgouviergmail`
 **Related**: ADR-078 (LLM Catalogue DB Source of Truth), ADR-026 (LLM Model Selection)
 
+> **Partially superseded (2026-08-27, v1.32.0) by [ADR-245](ADR-245-Reasoning-Unification.md)**:
+> the per-provider builders this ADR introduced
+> (`infrastructure/llm/providers/reasoning_builders.py`, `build_*_reasoning`) are
+> **deleted**, along with the `llm_models.reasoning_widget` column that dispatched
+> between them. One `ReasoningIntent` and one translator replace them; the accepted
+> ladder is derived from (provider, model) rather than declared. What this ADR
+> decided and ADR-245 keeps: reasoning is **config-driven, never injected** — a
+> reasoning block appears only where an administrator asked for one.
+
 ---
 
 ## Context and Problem Statement

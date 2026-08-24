@@ -280,12 +280,17 @@ CREATE TABLE llm_models (
     supports_streaming BOOLEAN NOT NULL DEFAULT TRUE,
     supports_vision BOOLEAN NOT NULL DEFAULT FALSE,
     is_reasoning_model BOOLEAN NOT NULL DEFAULT FALSE,
-    -- v1.20.1+ — model classification + reasoning UI driver
+    -- v1.20.1+ — model classification; the reasoning columns are what
+    -- SURVIVED ADR-245 (v1.32.0): the widget and the budget range are dropped,
+    -- the accepted ladder is DERIVED from (provider, model) and this column
+    -- may only NARROW it.
     kind llm_model_kind_enum NOT NULL DEFAULT 'chat',
-    reasoning_widget llm_reasoning_widget_enum NOT NULL DEFAULT 'none',
     reasoning_enum_values JSONB,
-    reasoning_budget_range JSONB,
     reasoning_doc_i18n_key VARCHAR(100),
+    -- ADR-244 (v1.32.0) — who filled the capability columns above:
+    -- 'declared' (nobody curated), 'imported' (registry-corroborated),
+    -- 'verified' (a human edited one through LLMModelService.update)
+    capability_provenance llm_capability_provenance_enum NOT NULL DEFAULT 'declared',
     -- v1.20.1+ — per-parameter sampling acceptance (drives admin UI sliders)
     supports_temperature BOOLEAN NOT NULL DEFAULT TRUE,
     supports_top_p BOOLEAN NOT NULL DEFAULT TRUE,

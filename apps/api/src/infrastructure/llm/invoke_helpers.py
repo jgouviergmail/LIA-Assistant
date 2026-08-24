@@ -29,7 +29,7 @@ Usage Patterns:
 
     1. **Direct usage** (recommended for new code):
         >>> config = create_instrumented_config_from_node(
-        ...     llm_type="router",
+        ...     llm_type="planner",
         ...     state=state,
         ...     base_config=config
         ... )
@@ -38,7 +38,7 @@ Usage Patterns:
     2. **Wrapper usage** (for existing code):
         >>> response = await invoke_with_instrumentation(
         ...     llm=llm,
-        ...     llm_type="router",
+        ...     llm_type="planner",
         ...     messages=messages,
         ...     state=state,
         ...     config=config
@@ -56,7 +56,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
-from src.core.field_names import FIELD_METADATA, FIELD_USER_ID
+from src.core.field_names import FIELD_USER_ID
 from src.infrastructure.llm.instrumentation import (
     create_instrumented_config,
     extract_session_user_from_state,
@@ -107,6 +107,32 @@ def _resolve_user_id_for_limit_check(
 # ============================================================================
 # Metadata Enrichment for Token Tracking (Phase 2.1 - RC1/RC4 Fix)
 # ============================================================================
+
+
+def langgraph_node_from_config(config: RunnableConfig | None) -> str | None:
+    """Read ``metadata["langgraph_node"]`` from a LangGraph config, if present.
+
+    LangGraph sets it on every node call; token attribution and the metrics
+    labels both key off it, and reading it wrong shows up as ``node_name=
+    "unknown"`` on every metric rather than as an error.
+
+    The literal ``"metadata"`` key is deliberate here (rather than
+    ``FIELD_METADATA``): ``RunnableConfig`` is a ``TypedDict``, and only a
+    literal key lets the type checker resolve the value to a mapping instead of
+    ``object``. This helper is the single place that pays that price -- callers
+    get a plain ``str | None``.
+
+    Args:
+        config: The RunnableConfig handed to the node (may be None).
+
+    Returns:
+        The node name, or ``None`` when the config carries no usable one.
+    """
+    if not config:
+        return None
+    metadata = config.get("metadata") or {}
+    node_name = metadata.get("langgraph_node")
+    return node_name if isinstance(node_name, str) and node_name else None
 
 
 def _ensure_node_metadata(config: RunnableConfig | None, node_name: str) -> RunnableConfig:
@@ -369,19 +395,19 @@ def create_instrumented_config_from_node(
         def my_node(state: State, config: RunnableConfig) -> dict:
             # Create instrumented config from state
             llm_config = create_instrumented_config_from_node(
-                llm_type="router",
+                llm_type="planner",
                 state=state,
                 base_config=config  # Preserve existing config (recursion_limit, etc.)
             )
 
             # Invoke with instrumented config
-            llm = get_llm("router")
+            llm = get_llm("planner")
             response = await llm.ainvoke(messages, config=llm_config)
             return {FIELD_RESULT: response}
         ```
 
     Args:
-        llm_type: LLM type identifier (e.g., "router", "planner")
+        llm_type: LLM type identifier (e.g., "planner", "response")
         state: LangGraph state dict (for session_id/user_id extraction)
         base_config: Existing RunnableConfig to preserve (e.g., recursion_limit)
         session_id: Override session_id (if not in state)
@@ -395,12 +421,12 @@ def create_instrumented_config_from_node(
     Example - From LangGraph node:
         >>> def router_node(state: State, config: RunnableConfig) -> dict:
         ...     llm_config = create_instrumented_config_from_node(
-        ...         llm_type="router",
+        ...         llm_type="planner",
         ...         state=state,
         ...         base_config=config,
         ...         metadata={"intention": state.get("intention")}
         ...     )
-        ...     llm = get_llm("router")
+        ...     llm = get_llm("planner")
         ...     response = await llm.ainvoke(messages, config=llm_config)
         ...     return {"next": "planner"}
 
@@ -449,15 +475,10 @@ def create_instrumented_config_from_node(
     )
 
     # **Phase 2.1 - Token Tracking Alignment Fix**
-    # Extract node_name from base_config (set by LangGraph automatically)
-    node_name = None
-    if base_config:
-        node_name = base_config.get(FIELD_METADATA, {}).get("langgraph_node")
-
-    # If no node_name in config, use llm_type as fallback
-    # This ensures we always have a meaningful node_name for metrics
-    if not node_name:
-        node_name = llm_type
+    # Extract node_name from base_config (set by LangGraph automatically),
+    # falling back to llm_type so metrics always carry a meaningful label.
+    node_from_config = langgraph_node_from_config(base_config)
+    node_name = node_from_config or llm_type
 
     # Enrich config to ensure metadata["langgraph_node"] propagates to callbacks
     # This is CRITICAL for token tracking - without it, callbacks receive empty metadata
@@ -467,11 +488,7 @@ def create_instrumented_config_from_node(
         "instrumented_config_created_from_node",
         llm_type=llm_type,
         node_name=node_name,
-        node_name_source=(
-            "base_config"
-            if base_config and base_config.get(FIELD_METADATA, {}).get("langgraph_node")
-            else "llm_type_fallback"
-        ),
+        node_name_source="base_config" if node_from_config else "llm_type_fallback",
         session_id=extracted_session_id,
         user_id=extracted_user_id,
         has_base_config=base_config is not None,
@@ -516,13 +533,13 @@ async def invoke_with_instrumentation(
 
     Example:
         >>> # Existing code
-        >>> llm = get_llm("router")
+        >>> llm = get_llm("planner")
         >>> response = await llm.ainvoke(messages)
 
         >>> # Add instrumentation without refactoring
         >>> response = await invoke_with_instrumentation(
         ...     llm=llm,
-        ...     llm_type="router",
+        ...     llm_type="planner",
         ...     messages=messages,
         ...     state=state,
         ...     config=config
@@ -603,7 +620,7 @@ def invoke_sync_with_instrumentation(
     Example:
         >>> response = invoke_sync_with_instrumentation(
         ...     llm=llm,
-        ...     llm_type="router",
+        ...     llm_type="planner",
         ...     messages=messages,
         ...     state=state
         ... )

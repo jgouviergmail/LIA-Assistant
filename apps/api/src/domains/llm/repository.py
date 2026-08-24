@@ -18,7 +18,6 @@ from src.domains.llm.models import (
     LLMModel,
     LLMModelKindEnum,
     LLMProviderEnum,
-    LLMReasoningWidgetEnum,
 )
 from src.infrastructure.observability.logging import get_logger
 
@@ -69,9 +68,7 @@ class LLMModelRepository(BaseRepository[LLMModel]):
         supports_vision: bool,
         is_reasoning_model: bool,
         kind: LLMModelKindEnum,
-        reasoning_widget: LLMReasoningWidgetEnum,
         reasoning_enum_values: list[str] | None,
-        reasoning_budget_range: dict[str, Any] | None,
         reasoning_doc_i18n_key: str | None,
         supports_temperature: bool,
         supports_top_p: bool,
@@ -99,9 +96,7 @@ class LLMModelRepository(BaseRepository[LLMModel]):
                 "supports_vision": supports_vision,
                 "is_reasoning_model": is_reasoning_model,
                 "kind": kind,
-                "reasoning_widget": reasoning_widget,
                 "reasoning_enum_values": reasoning_enum_values,
-                "reasoning_budget_range": reasoning_budget_range,
                 "reasoning_doc_i18n_key": reasoning_doc_i18n_key,
                 "supports_temperature": supports_temperature,
                 "supports_top_p": supports_top_p,

@@ -3,13 +3,12 @@ Pydantic schemas for LLM pricing API.
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.reasoning_types import ReasoningBudgetRange
 from src.domains.llm.pricing_time_slots import TimeSlotPrice, validate_time_slot_list
 
 # Enum-like literal type for the provider field. Must stay in sync with
@@ -31,8 +30,53 @@ ProviderLiteral = Literal[
 # (domains/llm/models.py). Kept as Literal here so the API surface stays
 # import-cycle-free.
 LLMModelKindLiteral = Literal["chat", "image", "audio", "realtime", "tts", "embedding"]
-ReasoningWidgetLiteral = Literal["none", "enum", "budget_int", "toggle_budget"]
 PricingUnitLiteral = Literal["per_1m_tokens", "per_audio_minute", "per_audio_hour"]
+
+
+#: Mirrors ``LLMCapabilityProvenanceEnum``. Pinned to it by a test: a payload
+#: that could carry a value the column cannot store would be a lie the admin
+#: screen renders as a badge.
+CapabilityProvenanceLiteral = Literal["declared", "imported", "verified"]
+
+
+class RetiringModelPayload(BaseModel):
+    """One retiring model and the evidence behind it."""
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    model_name: str
+    provider: ProviderLiteral
+    state: Literal["retired", "disputed", "announced", "flagged"]
+    deprecation_date: date | None
+    seen_by: list[str]
+
+
+class CatalogueStatusResponse(BaseModel):
+    """What the vendored registries say about this catalogue (ADR-244).
+
+    Read-only, and deliberately so: the correction ships as a migration and the
+    continuous sync is a later lot. This endpoint exists because the work the
+    registries already did was invisible from the screen that shows the
+    catalogue — an operator could not tell a measured context window from the
+    column default nobody ever curated.
+
+    Every count is over the ACTIVE rows only: a deactivated model is not part
+    of what this deployment offers, and reporting corrections for it would ask
+    the reader to arbitrate something that cannot be reached.
+    """
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    compared: int = Field(..., ge=0, description="Active catalogue rows examined")
+    auto: int = Field(..., ge=0, description="Corrections on rows no human curated")
+    review: int = Field(..., ge=0, description="Corrections a human would have to arbitrate")
+    retiring: list[RetiringModelPayload] = Field(
+        ..., description="Models the registries report as going away, with their evidence"
+    )
+    provenance: dict[str, int] = Field(..., description="Row count per capability_provenance value")
+    snapshot_generated_at: datetime | None = Field(
+        None, description="When the vendored registry snapshot was taken"
+    )
 
 
 class ModelPriceResponse(BaseModel):
@@ -73,14 +117,18 @@ class ModelPriceResponse(BaseModel):
     # Kind + reasoning widget + sampling caps. Returned so the admin form can
     # pre-select the matching template (or "Custom") at edit time.
     kind: LLMModelKindLiteral
-    reasoning_widget: ReasoningWidgetLiteral
     reasoning_enum_values: list[str] | None
-    reasoning_budget_range: ReasoningBudgetRange | None
     reasoning_doc_i18n_key: str | None
     supports_temperature: bool
     supports_top_p: bool
     supports_frequency_penalty: bool
     supports_presence_penalty: bool
+
+    # Who filled the capability fields (ADR-244). Read-only: the workbook and
+    # this API both refuse to take it as input, because a hand-written value
+    # would claim a verification nobody performed.
+    capability_provenance: CapabilityProvenanceLiteral
+    deprecation_date: date | None = None
 
 
 class ModelPriceCreate(BaseModel):
@@ -90,24 +138,18 @@ class ModelPriceCreate(BaseModel):
     (``LLMModelService.create``) inserts both an ``llm_models`` row and an
     initial active ``llm_model_pricing`` row pointing to it, atomically.
 
-    The reasoning *shape* (``is_reasoning_model``, ``reasoning_widget``,
-    ``reasoning_enum_values``, ``reasoning_budget_range``) is set in one
-    of two mutually-exclusive modes:
+    The reasoning identity is written directly: ``is_reasoning_model``, plus
+    the optional ``reasoning_enum_values`` ladder narrowing — the one
+    catalogue value the resolution reads (ADR-245). Omitting the ladder means
+    "the family's own applies".
 
-    1. **Template mode (default)**: pass ``reasoning_template`` =
-       ``model_name`` of an existing row. The service copies the 4
-       reasoning shape fields verbatim. Those four explicit fields on
-       this payload MUST be left unset.
-    2. **Custom mode (disruption / new family)**: leave
-       ``reasoning_template`` unset and provide
-       ``is_reasoning_model`` + ``reasoning_widget`` (always) plus the
-       widget-conditional ``reasoning_enum_values`` (when
-       ``reasoning_widget == 'enum'``) or ``reasoning_budget_range``
-       (when ``reasoning_widget`` is ``'budget_int'`` or
-       ``'toggle_budget'``).
+    A ``reasoning_template`` mode used to exist beside it, copying the
+    identity from another row. It went with the two surfaces that offered it:
+    the admin form now renders the model's OWN family ladder as checkboxes,
+    and the workbook writes the same two columns. Copying across families
+    could only remove depths, silently.
 
-    The following fields are ALWAYS saved explicitly per model and are
-    NOT touched by the template mechanism:
+    The following fields are saved explicitly per model:
 
     - ``kind`` (chat / image / audio / realtime / tts / embedding)
     - the four ``supports_*`` sampling flags
@@ -157,41 +199,21 @@ class ModelPriceCreate(BaseModel):
         ..., description="Whether the API accepts a presence_penalty sampling parameter"
     )
 
-    # --- Reasoning template OR explicit reasoning fields (XOR, see model_validator) ---
-    reasoning_template: str | None = Field(
-        default=None,
-        description=(
-            "Optional model_name of an existing row to copy the 4 reasoning shape "
-            "fields from (is_reasoning_model, reasoning_widget, "
-            "reasoning_enum_values, reasoning_budget_range). When set, those "
-            "four explicit fields below MUST NOT be provided. "
-            "``reasoning_doc_i18n_key`` is independent and saved explicitly."
-        ),
-    )
-
-    is_reasoning_model: bool | None = Field(
-        default=None,
-        description="Required in Custom mode; ignored in Template mode.",
-    )
-    reasoning_widget: ReasoningWidgetLiteral | None = Field(
-        default=None,
-        description="Reasoning widget shape. Required in Custom mode.",
+    # --- Reasoning identity ---
+    is_reasoning_model: bool = Field(
+        default=False,
+        description="Whether this model does any reasoning at all.",
     )
     reasoning_enum_values: list[str] | None = Field(
         default=None,
         description=(
-            "Required when reasoning_widget == 'enum' in Custom mode. "
-            "Ordered list of accepted reasoning_effort string values."
-        ),
-    )
-    reasoning_budget_range: ReasoningBudgetRange | None = Field(
-        default=None,
-        description=(
-            "Required when reasoning_widget in ('budget_int','toggle_budget') in Custom mode."
+            "The levels this model accepts, ascending, in the ADR-245 ladder "
+            "vocabulary. It may only NARROW its family's ladder; omit it to "
+            "use the family's own."
         ),
     )
 
-    # --- Independent of the template (always saved explicitly) ---
+    # --- Saved explicitly per model ---
     reasoning_doc_i18n_key: str | None = Field(
         default=None,
         max_length=100,
@@ -242,66 +264,6 @@ class ModelPriceCreate(BaseModel):
             validate_time_slot_list(self.time_slots)
         return self
 
-    @model_validator(mode="after")
-    def _enforce_template_xor_custom(self) -> ModelPriceCreate:
-        """Enforce reasoning template-mode vs custom-mode mutual exclusivity.
-
-        The 4 reasoning shape fields must be wholly absent when
-        ``reasoning_template`` is set, and the structural ones
-        (``is_reasoning_model``, ``reasoning_widget``) must be wholly
-        present otherwise. ``reasoning_enum_values`` /
-        ``reasoning_budget_range`` are widget-conditional.
-        """
-        explicit_required = {
-            "is_reasoning_model": self.is_reasoning_model,
-            "reasoning_widget": self.reasoning_widget,
-        }
-        explicit_optional = {
-            "reasoning_enum_values": self.reasoning_enum_values,
-            "reasoning_budget_range": self.reasoning_budget_range,
-        }
-        any_explicit = {k for k, v in explicit_required.items() if v is not None} | {
-            k for k, v in explicit_optional.items() if v is not None
-        }
-
-        if self.reasoning_template is not None:
-            if any_explicit:
-                raise ValueError(
-                    "Template mode is exclusive: must not set explicit reasoning "
-                    f"fields when reasoning_template is provided. Conflicting: "
-                    f"{sorted(any_explicit)}."
-                )
-            return self
-
-        # Custom mode: structural fields required.
-        missing = sorted(k for k, v in explicit_required.items() if v is None)
-        if missing:
-            raise ValueError(
-                "Custom mode requires is_reasoning_model + reasoning_widget; "
-                f"missing: {missing}. Alternatively, pass reasoning_template "
-                "to copy from an existing model."
-            )
-
-        # Widget-conditional sub-fields.
-        if self.reasoning_widget == "enum":
-            if not self.reasoning_enum_values:
-                raise ValueError(
-                    "reasoning_widget='enum' requires non-empty reasoning_enum_values."
-                )
-        elif self.reasoning_widget in ("budget_int", "toggle_budget"):
-            if self.reasoning_budget_range is None:
-                raise ValueError(
-                    f"reasoning_widget={self.reasoning_widget!r} requires "
-                    "reasoning_budget_range."
-                )
-        else:  # 'none'
-            if self.reasoning_enum_values or self.reasoning_budget_range:
-                raise ValueError(
-                    "reasoning_widget='none' must NOT have reasoning_enum_values "
-                    "or reasoning_budget_range set."
-                )
-        return self
-
 
 class ModelPriceUpdate(BaseModel):
     """Request model: partial update of capabilities and/or pricing.
@@ -310,18 +272,10 @@ class ModelPriceUpdate(BaseModel):
     (it is an intrinsic property of the model). ``model_name`` is updatable —
     it renames the model in place on llm_models.
 
-    Reasoning behavior supports the same Template / Custom modes as
-    :class:`ModelPriceCreate`, but in update they are optional:
-
-    - Pass ``reasoning_template`` to re-copy the 4 reasoning shape fields
-      from an existing model (resets them in one move). Explicit
-      reasoning shape fields must NOT be passed alongside.
-    - Pass any subset of explicit reasoning shape fields to mutate in
-      place (cross-field cohesion is validated against the model's
-      current ``reasoning_widget`` once known by the service layer).
-
-    ``kind`` and the four ``supports_*`` sampling flags are independent
-    of the template — pass any subset of them to update directly.
+    Pass ``is_reasoning_model`` and/or ``reasoning_enum_values`` to mutate the
+    reasoning identity in place, or ``clear_reasoning_enum_values`` to stop
+    narrowing at all. ``kind`` and the four ``supports_*`` sampling flags are
+    independent — pass any subset of them.
 
     The service layer differentiates three cases:
     - capabilities only → mutate llm_models in place
@@ -352,23 +306,9 @@ class ModelPriceUpdate(BaseModel):
     supports_frequency_penalty: bool | None = None
     supports_presence_penalty: bool | None = None
 
-    # --- Reasoning template OR explicit reasoning fields ---
-    reasoning_template: str | None = Field(
-        default=None,
-        description=(
-            "Optional model_name of an existing row to copy the 4 reasoning shape "
-            "fields from (is_reasoning_model, reasoning_widget, "
-            "reasoning_enum_values, reasoning_budget_range). Mutually exclusive "
-            "with those four explicit fields below; ``kind``, the four "
-            "``supports_*`` flags and ``reasoning_doc_i18n_key`` may be passed "
-            "alongside."
-        ),
-    )
-
+    # --- Reasoning identity ---
     is_reasoning_model: bool | None = None
-    reasoning_widget: ReasoningWidgetLiteral | None = None
     reasoning_enum_values: list[str] | None = None
-    reasoning_budget_range: ReasoningBudgetRange | None = None
     reasoning_doc_i18n_key: str | None = Field(default=None, max_length=100)
 
     # --- Pricing (all optional) ---
@@ -400,6 +340,29 @@ class ModelPriceUpdate(BaseModel):
         ),
     )
 
+    clear_reasoning_enum_values: bool = Field(
+        default=False,
+        description=(
+            "Explicitly set reasoning_enum_values back to NULL, i.e. stop "
+            "narrowing the family's ladder. Exactly the same trap as "
+            "clear_cached_input_price: the change-set is built with "
+            "exclude_none, so re-ticking every depth in the admin form (which "
+            "means 'no narrowing') would be dropped and the old restriction "
+            "would survive. A ladder that cannot be widened back is a knob "
+            "that cannot express its own default value."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_ladder_clearing(self) -> ModelPriceUpdate:
+        """Refuse a payload that both clears and sets the ladder."""
+        if self.clear_reasoning_enum_values and self.reasoning_enum_values is not None:
+            raise ValueError(
+                "clear_reasoning_enum_values and reasoning_enum_values are "
+                "mutually exclusive: choose clearing or a ladder, not both"
+            )
+        return self
+
     @model_validator(mode="after")
     def _validate_cached_price_clearing(self) -> ModelPriceUpdate:
         """Refuse a payload that both clears and sets the cached price.
@@ -429,33 +392,6 @@ class ModelPriceUpdate(BaseModel):
                     f"(got {self.pricing_unit!r})"
                 )
             validate_time_slot_list(self.time_slots)
-        return self
-
-    @model_validator(mode="after")
-    def _reject_template_with_explicit_reasoning(self) -> ModelPriceUpdate:
-        """Reject mixing template-mode with explicit reasoning fields.
-
-        Per-widget cohesion (enum requires enum_values, budget_int requires
-        budget_range, etc.) is enforced at the service layer, where the
-        target widget is known after merging incoming changes with the
-        current row.
-        """
-        if self.reasoning_template is None:
-            return self
-        explicit = {
-            "is_reasoning_model": self.is_reasoning_model,
-            "reasoning_widget": self.reasoning_widget,
-            "reasoning_enum_values": self.reasoning_enum_values,
-            "reasoning_budget_range": self.reasoning_budget_range,
-        }
-        conflicts = sorted(k for k, v in explicit.items() if v is not None)
-        if conflicts:
-            raise ValueError(
-                "reasoning_template is mutually exclusive with explicit "
-                f"reasoning shape fields. Conflicting: {conflicts}. "
-                "(reasoning_doc_i18n_key is independent and may be passed "
-                "alongside.)"
-            )
         return self
 
 
@@ -503,48 +439,61 @@ class CurrencyRatesListResponse(BaseModel):
     rates: list[CurrencyRateResponse]
 
 
-class ReasoningTemplate(BaseModel):
-    """A representative ``llm_models`` row for one unique reasoning shape
-    present in the catalogue.
+class ReasoningBudgetBoundsPayload(BaseModel):
+    """The token budget bounds, published to the Pricing form.
 
-    The admin Pricing form lets the operator pick one of these templates to
-    copy its 4-field reasoning shape onto a newly added model. The
-    following fields are intentionally excluded — saved explicitly per
-    model:
-
-    - ``kind`` (chat / image / audio / ...)
-    - the four ``supports_*`` sampling flags
-    - ``reasoning_doc_i18n_key`` (UX tooltip key, family-specific)
-
-    Templates are derived dynamically by grouping ``llm_models`` rows by
-    their reasoning fingerprint (4 fields) and returning one representative
-    per group. The set self-enriches: a model created in Custom mode with a
-    novel reasoning shape becomes available as a template for future
-    entries.
+    A deliberate twin of ``llm_config.schemas.ReasoningBudgetBounds``: the two
+    JSON shapes are identical on purpose, so both admin screens name one
+    resolved value the same way, but IMPORTING that one would close a cycle --
+    ``llm_config.constants`` already imports ``llm.models.LLMModelKindEnum``,
+    and the domain-cycle ratchet caught the second edge the moment it appeared.
+    Six duplicated lines buy a graph that stays acyclic; a shared type would
+    have to move to a neutral module, which is a refactor of ``llm_config``,
+    not of this endpoint.
     """
 
-    template_model_name: str = Field(
-        ..., description="model_name of the representative row for this reasoning group"
+    model_config = ConfigDict(extra="forbid")
+    min: int = Field(..., ge=0)
+    max: int = Field(..., ge=0)
+
+
+class ReasoningFamilyResponse(BaseModel):
+    """What the RUNTIME will accept for one ``(provider, model)`` pair.
+
+    The Pricing form needs this to stop asking the operator to *declare* what a
+    model supports: ``reasoning_enum_values`` can only NARROW the ladder
+    derived from that pair, never widen it and never create a family. Rendering
+    the field as a free-text list invited the two mistakes the catalogue
+    actually made -- writing a level the ladder does not have (``off``, which
+    the narrowing intersection dropped in silence) and copying a ladder that
+    belongs to another family, which removes depths without saying so.
+
+    Resolved WITHOUT the catalogue narrowing, on purpose: the narrowing is what
+    the operator is about to choose, and offering the already-narrowed ladder
+    would make a saved restriction impossible to widen again.
+
+    Field names mirror ``LLMModelMetadata`` so both admin screens name the same
+    resolved profile the same way.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    reasoning_family: str = Field(
+        ..., description="Resolved translator family; 'none' when no rule matches the model"
     )
-    representative_provider: ProviderLiteral
-    description: str = Field(
+    reasoning_levels: list[str] = Field(
+        ..., description="The family's ladder, ascending. Empty = no reasoning control at all"
+    )
+    reasoning_can_disable: bool = Field(
+        ..., description="Whether reasoning can be switched off — never narrowable by a row"
+    )
+    reasoning_supports_budget: bool = Field(
+        ..., description="Whether an explicit token budget is expressible"
+    )
+    reasoning_budget_range: ReasoningBudgetBoundsPayload | None = Field(
+        None, description="The bounds the validator enforces, when a budget is expressible"
+    )
+    source: str = Field(
         ...,
-        description=("Human-readable summary of the reasoning shape rendered in the admin Select."),
+        description="'family' when a rule matched, 'unknown' when none did — the form says which",
     )
-    matching_count: int = Field(
-        ..., ge=1, description="Number of llm_models rows sharing this reasoning shape."
-    )
-
-    # The 4 reasoning shape fields that get copied to the new model when
-    # this template is picked. Returned inline so the frontend can show a
-    # readonly preview without a second round-trip.
-    is_reasoning_model: bool
-    reasoning_widget: ReasoningWidgetLiteral
-    reasoning_enum_values: list[str] | None
-    reasoning_budget_range: ReasoningBudgetRange | None
-
-
-class ReasoningTemplatesResponse(BaseModel):
-    """Response model for ``GET /admin/llm/reasoning-templates``."""
-
-    templates: list[ReasoningTemplate]

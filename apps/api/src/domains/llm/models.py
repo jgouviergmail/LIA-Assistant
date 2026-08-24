@@ -4,13 +4,14 @@ Database models for LLM pricing and configuration.
 
 import enum
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
     DECIMAL,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -78,18 +79,38 @@ class LLMModelKindEnum(str, enum.Enum):
     embedding = "embedding"
 
 
-class LLMReasoningWidgetEnum(str, enum.Enum):
-    """Drives the frontend rendering of the reasoning_effort selector.
+class LLMCapabilityProvenanceEnum(str, enum.Enum):
+    """Which authority filled a model row's capability fields.
 
-    Single source of truth: each row of llm_models declares which widget the
-    Configuration LLM dialog must render for this model. The frontend has no
-    regex / hardcoded list — it dispatches purely on this value.
+    Measured 2026-08-23: 89 of 114 active rows carried the column defaults
+    (``max_input_tokens=8192 / max_output_tokens=4096``), so
+    ``get_effective_context_window`` returned 8 192 for ``gpt-5.2`` against a
+    real 272 000. Provenance is what lets the runtime tell a measurement from a
+    default, instead of trusting both equally.
+
+    **SCOPE -- read this before arbitrating a new column on it.** The value is
+    row-level; the evidence behind it is field-level.
+
+    - ``imported`` vouches for the columns the vendored registries publish, and
+      those only: exactly ``sync_diff.CORRECTABLE_FIELDS``
+      (``max_input_tokens``, ``max_output_tokens``, ``supports_tools``,
+      ``supports_structured_output``, ``supports_vision``). Every other column
+      keeps whatever it had, and ``imported`` says nothing about it.
+    - ``verified`` vouches for the whole row: a human edited it through
+      ``LLMModelService.update``.
+
+    Measured 2026-08-24, the trap this warning exists for: 41 active OpenAI rows
+    are ``imported`` while still carrying an unfilled
+    ``supports_strict_mode=false`` -- a column no registry publishes. A reader
+    that treated ``imported`` as evidence about it would have switched
+    ``gpt-4.1``, ``gpt-5.2`` and 39 others off the strict path in one commit.
+    A reader of a column outside ``CORRECTABLE_FIELDS`` must therefore require
+    ``verified``.
     """
 
-    none = "none"  # model does not accept reasoning_effort
-    enum = "enum"  # API accepts a string enum (use reasoning_enum_values)
-    budget_int = "budget_int"  # API accepts only a numeric budget (use reasoning_budget_range)
-    toggle_budget = "toggle_budget"  # API accepts boolean toggle + numeric budget (Qwen3 hybrid)
+    declared = "declared"  # column defaults — never curated, do not trust
+    imported = "imported"  # from the vendored registry snapshot or the pricing sheet
+    verified = "verified"  # a human confirmed it; the sync never overwrites this
 
 
 class LLMModel(Base, UUIDMixin, TimestampMixin):
@@ -158,31 +179,14 @@ class LLMModel(Base, UUIDMixin, TimestampMixin):
         comment="Model nature (chat / image / audio / realtime / tts / embedding)",
     )
 
-    reasoning_widget: Mapped[LLMReasoningWidgetEnum] = mapped_column(
-        SQLEnum(
-            LLMReasoningWidgetEnum,
-            name="llm_reasoning_widget_enum",
-            create_constraint=True,
-            create_type=True,
-            values_callable=lambda enum_cls: [m.value for m in enum_cls],
-        ),
-        nullable=False,
-        default=LLMReasoningWidgetEnum.none,
-        comment="UI widget shape for reasoning_effort selection",
-    )
-
     reasoning_enum_values: Mapped[list[str] | None] = mapped_column(
         JSONB,
         nullable=True,
-        comment="Ordered list of accepted reasoning_effort string values (when reasoning_widget='enum')",
-    )
-
-    reasoning_budget_range: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
-        nullable=True,
         comment=(
-            '{"min":int,"max":int,"off_sentinel":int|null,"dynamic_sentinel":int|null} '
-            'when reasoning_widget in ("budget_int","toggle_budget")'
+            "The levels this model accepts, ascending, in the ADR-245 ladder "
+            "vocabulary. It may only NARROW its family's ladder "
+            "(resolve_reasoning_profile); NULL = the family's own applies. The "
+            "one catalogue value the reasoning resolution reads."
         ),
     )
 
@@ -192,21 +196,31 @@ class LLMModel(Base, UUIDMixin, TimestampMixin):
         comment="Frontend lookup key in REASONING_DOC_TEXT constant table (English-only)",
     )
 
-    effort_values: Mapped[list[str] | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment=(
-            "Allowed values for a separate global 'effort' control (Anthropic "
-            "output_config.effort), distinct from reasoning_effort. NULL = the "
-            "model has no separate effort field. Currently only claude-opus-4-5."
-        ),
-    )
-
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
         comment="Whether this model is currently selectable (no index: low cardinality)",
+    )
+
+    capability_provenance: Mapped[LLMCapabilityProvenanceEnum] = mapped_column(
+        SQLEnum(
+            LLMCapabilityProvenanceEnum,
+            name="llm_capability_provenance_enum",
+            create_constraint=True,
+            create_type=True,
+            values_callable=lambda enum_cls: [m.value for m in enum_cls],
+        ),
+        nullable=False,
+        default=LLMCapabilityProvenanceEnum.declared,
+        server_default=LLMCapabilityProvenanceEnum.declared.value,
+        comment="Authority that filled the capability fields (declared/imported/verified)",
+    )
+
+    deprecation_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+        comment="Provider retirement date from the vendored registry snapshot",
     )
 
     # cascade kept narrow on purpose: the FK uses ON DELETE RESTRICT, so we

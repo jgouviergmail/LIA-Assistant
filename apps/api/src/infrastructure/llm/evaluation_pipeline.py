@@ -145,9 +145,7 @@ Provide your evaluation in JSON format with 'score' (float 0-1) and 'reasoning' 
         if self._llm is None:
             self._llm = get_llm(
                 "evaluator",
-                config_override={
-                    "max_tokens": settings.observability.evaluator_relevance_max_tokens
-                },
+                config_override={"max_tokens": settings.evaluator_relevance_max_tokens},
             )
         return self._llm
 
@@ -245,7 +243,7 @@ Provide your evaluation in JSON format with:
             self._llm = get_llm(
                 "evaluator",
                 config_override={
-                    "max_tokens": settings.observability.evaluator_hallucination_max_tokens,
+                    "max_tokens": settings.evaluator_hallucination_max_tokens,
                 },
             )
         return self._llm
@@ -258,7 +256,7 @@ Provide your evaluation in JSON format with:
     ) -> EvaluationResult:
         """Evaluate response for hallucinations."""
         # Check if ground truth is required but not provided
-        if settings.observability.evaluator_hallucination_require_ground_truth:
+        if settings.evaluator_hallucination_require_ground_truth:
             if not context or "ground_truth" not in context:
                 return EvaluationResult(
                     metric_name=self.metric_name,
@@ -364,15 +362,13 @@ class LatencyEvaluator(BaseEvaluator):
 
     def _compute_latency_score(self, latency_ms: float) -> float:
         """Compute score based on latency thresholds."""
-        obs = settings.observability
-
-        if latency_ms <= obs.evaluator_latency_excellent_threshold_ms:
+        if latency_ms <= settings.evaluator_latency_excellent_threshold_ms:
             return 1.0
-        elif latency_ms <= obs.evaluator_latency_good_threshold_ms:
+        elif latency_ms <= settings.evaluator_latency_good_threshold_ms:
             return 0.85
-        elif latency_ms <= obs.evaluator_latency_acceptable_threshold_ms:
+        elif latency_ms <= settings.evaluator_latency_acceptable_threshold_ms:
             return 0.65
-        elif latency_ms <= obs.evaluator_latency_slow_threshold_ms:
+        elif latency_ms <= settings.evaluator_latency_slow_threshold_ms:
             return 0.45
         else:
             return 0.2
@@ -396,7 +392,7 @@ class EvaluationPipeline:
         )
 
     Integration with Langfuse:
-        if settings.observability.evaluator_pipeline_send_to_langfuse:
+        if settings.evaluator_pipeline_send_to_langfuse:
             # Results are automatically sent to Langfuse via metrics
             pass
     """
@@ -425,7 +421,7 @@ class EvaluationPipeline:
         Returns:
             List of EvaluationResult from all evaluators
         """
-        if not settings.observability.evaluator_enabled:
+        if not settings.evaluator_enabled:
             logger.debug("evaluation_pipeline_disabled")
             return []
 

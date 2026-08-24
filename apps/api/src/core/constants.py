@@ -2503,12 +2503,19 @@ TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT = 600.0
 HITL_MAX_WAIT_SECONDS_DEFAULT = 900
 RETRY_MAX_ATTEMPTS_DEFAULT = 3
 RETRY_BACKOFF_FACTOR_DEFAULT = 2.0
-SUMMARIZATION_MODEL_DEFAULT = "gpt-4.1-nano"
+# gpt-4.1-nano retires 2026-10-23 and models.dev already flags it deprecated.
+# gpt-5.6-luna is the cheapest active OpenAI chat model in the catalogue
+# ($0.20/$1.20 per 1M against gpt-4.1-mini's $0.40/$1.60) and carries a
+# 922k window. The summarization middleware calls init_chat_model without
+# sampling parameters, so a reasoning model is safe here.
+SUMMARIZATION_MODEL_DEFAULT = "gpt-5.6-luna"
 SUMMARIZATION_TRIGGER_FRACTION_DEFAULT = 0.7
 SUMMARIZATION_KEEP_MESSAGES_DEFAULT = 10
-FALLBACK_MODELS_DEFAULT = (
-    "claude-sonnet-4-5,deepseek-chat"  # Aligned from .env.prod (was claude-sonnet-4-5)
-)
+# Both previous entries were dead: claude-sonnet-4-5 is absent from the
+# catalogue entirely and deepseek-chat is deactivated, so the failover chain had
+# no reachable target. Verified against the catalogue 2026-08-24: both
+# replacements are active, priced and not retiring.
+FALLBACK_MODELS_DEFAULT = "claude-sonnet-4-6,deepseek-v4-flash"
 TOOL_RETRY_MAX_ATTEMPTS_DEFAULT = 3
 TOOL_RETRY_BACKOFF_FACTOR_DEFAULT = 1.5
 MODEL_CALL_THREAD_LIMIT_DEFAULT = 100
@@ -2888,15 +2895,17 @@ MCP_DESCRIPTION_LLM_MAX_TOKENS_DEFAULT = 500
 # Config space is small in practice (few llm_types × occasional admin edits).
 LLM_INSTANCE_CACHE_MAX_SIZE: int = 64
 
+# --- Model capability provenance (ADR-244) ---
+# Which authority filled a catalogue row's capability fields. The string form
+# lives here so the runtime hot path (ModelProfile, get_effective_context_window)
+# does not import the ORM enum; test_model_provenance_column.py pins the two
+# together so they cannot drift.
+CAPABILITY_PROVENANCE_DECLARED = "declared"
+CAPABILITY_PROVENANCE_IMPORTED = "imported"
+CAPABILITY_PROVENANCE_VERIFIED = "verified"
+
 # --- LLM config defaults ---
 # Updated: 2026-04-08 — Aligned with LLM_DEFAULTS in llm_config/constants.py
-ROUTER_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
-ROUTER_LLM_MODEL_DEFAULT = "gpt-5-mini"
-ROUTER_LLM_TEMPERATURE_DEFAULT = 0.2
-ROUTER_LLM_TOP_P_DEFAULT = 1.0
-ROUTER_LLM_FREQUENCY_PENALTY_DEFAULT = 0.0
-ROUTER_LLM_PRESENCE_PENALTY_DEFAULT = 0.0
-ROUTER_LLM_MAX_TOKENS_DEFAULT = 1000
 RESPONSE_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
 RESPONSE_LLM_MODEL_DEFAULT = "qwen3.5-plus"
 RESPONSE_LLM_TEMPERATURE_DEFAULT = 1.0
@@ -3009,13 +3018,6 @@ SEMANTIC_VALIDATOR_LLM_TOP_P_DEFAULT = 1.0
 SEMANTIC_VALIDATOR_LLM_FREQUENCY_PENALTY_DEFAULT = 0.0
 SEMANTIC_VALIDATOR_LLM_PRESENCE_PENALTY_DEFAULT = 0.0
 SEMANTIC_VALIDATOR_LLM_MAX_TOKENS_DEFAULT = 1000
-CONTEXT_RESOLVER_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
-CONTEXT_RESOLVER_LLM_MODEL_DEFAULT = "gpt-5-mini"
-CONTEXT_RESOLVER_LLM_TEMPERATURE_DEFAULT = 0.2
-CONTEXT_RESOLVER_LLM_TOP_P_DEFAULT = 1.0
-CONTEXT_RESOLVER_LLM_FREQUENCY_PENALTY_DEFAULT = 0.0
-CONTEXT_RESOLVER_LLM_PRESENCE_PENALTY_DEFAULT = 0.0
-CONTEXT_RESOLVER_LLM_MAX_TOKENS_DEFAULT = 1000
 QUERY_ANALYZER_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
 QUERY_ANALYZER_LLM_MODEL_DEFAULT = "qwen3.5-plus"
 QUERY_ANALYZER_LLM_TEMPERATURE_DEFAULT = 0.0

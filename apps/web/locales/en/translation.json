@@ -1886,11 +1886,38 @@
             "duplicate_key": "{{key}} already appears on row {{first_row}}.",
             "provider_immutable": "The provider of an existing model cannot be changed.",
             "row_changed_since_export": "{{key}} changed since this file was exported; export it again.",
-            "creation_needs_template": "A new model needs a reasoning template.",
+            "reasoning_level_unknown": "{{levels}} is not a depth this model's family offers. Accepted: {{accepted}}.",
             "creation_field_missing": "A new model needs the {{field}} column."
           }
         },
-        "more_actions": "More actions"
+        "more_actions": "More actions",
+        "catalogue": {
+          "title": "Capability sources",
+          "aligned": "{{total}} model checked against the public registries — aligned",
+          "aligned_plural": "{{total}} models checked against the public registries — all aligned",
+          "pending": "{{auto}} correctable, {{review}} to arbitrate",
+          "retiring_summary": "Announced retirements",
+          "retiring_description": "Models the registries report as going away, with the evidence.",
+          "snapshot": "Registry snapshot of {{date}}",
+          "provenance": {
+            "declared": "Not curated",
+            "imported": "Registry-corroborated",
+            "verified": "Human-verified"
+          },
+          "provenance_help": {
+            "declared": "Column defaults nobody curated — treat these capabilities as unknown, not as measured.",
+            "imported": "Corroborated by the two vendored public registries.",
+            "verified": "A human edited a registry-owned capability on this row."
+          },
+          "state": {
+            "retired": "Retired",
+            "disputed": "Disputed",
+            "announced": "Announced",
+            "flagged": "Flagged"
+          },
+          "deprecation_help": "Retirement date published by the provider and carried by the vendored registry snapshot.",
+          "seen_by_help": "Which vendored public registries reported this retirement."
+        }
       },
       "google_api": {
         "title": "Google API Pricing",
@@ -2242,10 +2269,8 @@
           "default": "Default",
           "semantic_pivot": "Translates queries to English for semantic analysis",
           "query_analyzer": "Analyzes the intent and domains of the query",
-          "router": "Routes queries to the appropriate agents",
           "planner": "Generates a structured execution plan",
           "semantic_validator": "Validates the semantic consistency of the plan",
-          "context_resolver": "Resolves contextual references",
           "contacts_agent": "Contacts management agent (Google / Apple iCloud / Microsoft 365)",
           "emails_agent": "Email management agent (Gmail / Apple Mail / Outlook)",
           "calendar_agent": "Calendar management agent (Google / Apple iCloud / Microsoft 365)",
@@ -2346,10 +2371,13 @@
           "reasoningEffort": "Reasoning Effort",
           "reasoningNone": "None (disabled)",
           "reasoningDefault": "Default (model)",
-          "effort": "Effort"
+          "reasoningBudget": "Reasoning budget (tokens)",
+          "reasoningExclude": "Hide the reasoning from the response"
         },
         "constraints": {
-          "reasoningTemp": "Reasoning models use a fixed temperature of 1.0. This parameter will be ignored by the API."
+          "reasoningTemp": "Reasoning models use a fixed temperature of 1.0. This parameter will be ignored by the API.",
+          "reasoningSingleLevel": "This model accepts a single reasoning depth.",
+          "reasoningBudgetRange": "Between {{min}} and {{max}} tokens. Leave empty to let the depth decide."
         },
         "tooltips": {
           "temperature": "Controls randomness in responses. Low (0-0.3): precise, deterministic outputs. High (0.7-1.0): more creative and varied responses.",
@@ -2358,8 +2386,7 @@
           "presencePenalty": "Encourages topic diversity. Penalizes each token that has appeared, regardless of frequency. Positive = explores more topics. Range: -2 to 2.",
           "maxTokens": "Maximum number of output tokens. Limits the length of the generated response. Optimal value depends on the agent type.",
           "timeout": "Maximum wait time in seconds before aborting the API call. Leave empty to use the provider's default.",
-          "reasoningEffort": "Controls the model's internal thinking intensity. Higher = better accuracy but increased latency and cost. Lower = fast responses for simple tasks.",
-          "effort": "Global effort control (Anthropic): trades response thoroughness for token efficiency across text, tool calls, and thinking. Lower = cheaper and faster. Default = high."
+          "reasoningEffort": "Controls the model's internal thinking intensity. Higher = better accuracy but increased latency and cost. Lower = fast responses for simple tasks."
         },
         "config": {
           "saved": "LLM configuration saved",
@@ -2367,6 +2394,16 @@
           "error": "Failed to save configuration",
           "thinkingBudgetBelowFloor": "Reasoning is enabled, but the effective max tokens ({{maxTokens}}) is below the safety floor of {{floor}}. Reasoning consumes the response budget, so replies would come back truncated or empty. Raise max tokens to at least {{floor}}, or turn reasoning off. Note: leaving max tokens empty inherits the code default.",
           "resetButton": "Reset"
+        },
+        "reasoningLevels": {
+          "provider_default": "Provider default",
+          "none": "None (no thinking)",
+          "minimal": "Minimal",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High",
+          "xhigh": "Very high",
+          "max": "Maximum"
         }
       },
       "image_pricing": {
@@ -3428,7 +3465,7 @@
         "admin-consumption-export": "export, CSV, consumption, usage, costs, all accounts",
         "admin-broadcast": "broadcast, message, announcement, notify everyone",
         "admin-connectors": "connectors, providers, Google, Apple, Microsoft, enable services, Google Weather, Google Environment, air quality, pollen, push notifications",
-        "admin-llm-pricing": "pricing, price, tariff, tokens, text models, cost per token, Excel, spreadsheet, import, export, bulk update, workbook",
+        "admin-llm-pricing": "pricing, price, tariff, tokens, text models, cost per token, Excel, spreadsheet, import, export, bulk update, workbook, reasoning, accepted depths, ladder, capability provenance, public registries, catalogue",
         "admin-google-api-pricing": "pricing, Google API, Maps, Places, routes, geocoding cost",
         "admin-image-pricing": "pricing, images, image generation, cost per image",
         "admin-llm-config": "LLM, models, provider, configuration, temperature, reasoning, api keys",
@@ -4321,6 +4358,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_32_0": {
+          "title": "v1.32.0 — 🧠 One way to ask a model to think",
+          "date": "August 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>🧠 Reasoning depth becomes one clear setting</b> — every model now offers the same ladder, from “no thinking” to “maximum”, with the levels that particular model actually accepts. Before, the same instruction was stored two different ways depending on the provider, and the admin screen could offer a depth the model's API refused — the save went through and the call failed later.",
+            "i2": "<b>🎛️ The dropdown only offers what works</b> — the list of depths, the option to switch reasoning off, the token budget: all of it now comes from the same source the server validates against. A model that cannot stop thinking no longer pretends it can, and a depth a model does not accept is no longer selectable.",
+            "i3": "<b>🔍 The model catalogue says where its numbers come from</b> — each row now shows whether its capabilities were corroborated by the public registries, verified by a human, or never curated at all. Announced retirement dates appear next to the models concerned, with the source of the information.",
+            "i4": "<b>🧹 Two obsolete settings removed from the catalogue form</b> — they described how the reasoning control used to be drawn, and nothing had read them since. A field you can edit that changes nothing is worse than no field.",
+            "i5": "<b>🎚️ Accepted depths are ticked, not typed</b> — the LLM Pricing screen shows the depths the model's family actually offers, and you untick the ones this particular model refuses. Everything ticked means \"no restriction\". A free-text field used to invite writing a level that does not exist, and it was dropped in silence.",
+            "i6": "<b>📗 The Excel workbook writes reasoning directly</b> — two columns replace the \"copy the shape of another model\" template, which could remove depths without saying so when it came from another family. On import, a depth outside the family is refused <em>while naming the ones that would have been accepted</em>. Creating a model that does not reason no longer requires picking a reasoning template.",
+            "i7": "<b>🔧 Fixed: a depth restriction can be widened again</b> — re-ticking every depth did not restore the full ladder: the previous restriction silently survived."
+          }
+        },
         "v1_31_3": {
           "title": "v1.31.3 — 🌑 A truly black black, and landmarks recovered",
           "date": "August 2026",
@@ -6493,7 +6544,7 @@
       "settings": {
         "title": "Settings",
         "description": "Account configuration and preferences",
-        "count": "21",
+        "count": "22",
         "questions": {
           "q1": {
             "question": "How do I change my timezone?",
@@ -6577,7 +6628,11 @@
           },
           "q21": {
             "question": "How does an administrator update the LLM model prices in bulk?",
-            "answer": "From <b>Settings → Administration → LLM pricing</b>, the whole catalogue — every model, every characteristic, every tariff — downloads as a structured Excel workbook, and the edited file goes back in the same way.<br><br><b>What the workbook contains:</b> a usage notice translated into your language, one row per model with dropdown lists and cell validations, a referentials sheet feeding those lists, a sheet listing the UTC time windows for providers that bill peak/off-peak hours, and a <b>status</b> column stating what would really happen — no active tariff (billed zero), several active tariffs, or billed under another model's name.<br><br><b>Re-importing happens in two steps.</b> The file is analysed and the whole diff is shown field by field — created, updated, reactivated, retired — while nothing is written yet; only then can it be applied, and only against the preview you read.<br><br><b>What an import can never do:</b> a row missing from the file <b>never deletes anything</b> (a forgotten Excel filter cannot empty the catalogue — removal is declared explicitly by setting the <b>is_active</b> column to false, and setting it back to true brings the model back); anything unreadable or contradictory is reported <b>with the sheet and the cell to fix</b> and the import writes nothing at all; a tariff is rewritten only if it actually changed, so re-importing an untouched file leaves the price history exactly as it was; and if someone else changed a model between the preview and the confirmation, only the affected rows are refused, not the whole file."
+            "answer": "From <b>Settings → Administration → LLM pricing</b>, the whole catalogue — every model, every characteristic, every tariff — downloads as a structured Excel workbook, and the edited file goes back in the same way.<br><br><b>What the workbook contains:</b> a usage notice translated into your language, one row per model with dropdown lists and cell validations, a referentials sheet feeding those lists, a sheet listing the UTC time windows for providers that bill peak/off-peak hours, and a <b>status</b> column stating what would really happen — no active tariff (billed zero), several active tariffs, or billed under another model's name.<br><br><b>Re-importing happens in two steps.</b> The file is analysed and the whole diff is shown field by field — created, updated, reactivated, retired — while nothing is written yet; only then can it be applied, and only against the preview you read.<br><br><b>What an import can never do:</b> a row missing from the file <b>never deletes anything</b> (a forgotten Excel filter cannot empty the catalogue — removal is declared explicitly by setting the <b>is_active</b> column to false, and setting it back to true brings the model back); anything unreadable or contradictory is reported <b>with the sheet and the cell to fix</b> and the import writes nothing at all; a tariff is rewritten only if it actually changed, so re-importing an untouched file leaves the price history exactly as it was; and if someone else changed a model between the preview and the confirmation, only the affected rows are refused, not the whole file.<br><br><b>Reasoning is written in the workbook.</b> Two columns carry it: whether the model reasons, and the depths it accepts, comma-separated. A third, read-only, restates the family LIA recognised and the ladder it will apply. On re-import, a depth that family does not offer is refused <b>while naming the ones that would have been accepted</b> — a spreadsheet cannot render checkboxes, so the check happens at import time."
+          },
+          "q22": {
+            "question": "How do I choose how deeply a model thinks?",
+            "answer": "In <b>Settings → Administration → LLM Pricing</b>, open a model: LIA shows the depths that model actually accepts — from \"no thinking\" up to \"maximum\" — and you <b>untick</b> the ones it refuses. Leaving everything ticked means \"no restriction\": its family's full ladder applies.<br><br>You therefore never type a level, and you cannot write one that does not exist. The list comes from the same source the server validates against: what the screen offers is exactly what the model's API accepts.<br><br>If no known family matches the model, LIA says so plainly rather than showing an empty list: no thinking parameter will be sent for it, and teaching LIA one is a code change.<br><br>The depth actually used for each role (routing, planning, answering…) is set in <b>LLM Configuration</b>, where the same resolved list is offered."
           }
         }
       },
@@ -9810,7 +9865,7 @@
       "llm-providers": {
         "title": "Multi-Provider AI: choose the right model for every task",
         "excerpt": "LIA supports many language model providers and lets you configure a different model for each task type: routing, planning, response, agents.",
-        "body": "<h2>Many providers, one assistant</h2><p>LIA natively integrates <strong>many LLM providers</strong> — from proprietary cloud models to locally-run open-source models. Each provider is managed by a dedicated adapter in the LLM factory, and you can add new ones.</p><h2>56 individually configurable LLM types</h2><p>LIA defines <strong>over 50 LLM types</strong> that can be configured separately: router, response, planner, each domain agent, and more. For each type, you can set: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> and <code>reasoning_effort</code>.</p><p>For example:</p><ul><li>A fast, economical model for <strong>routing</strong></li><li>A powerful model for <strong>planning</strong></li><li>A creative model for <strong>responses</strong></li><li>A local model for <strong>privacy</strong></li></ul><h2>Configuration resolution chain</h2><p>Each LLM configuration follows a <strong>3-level resolution chain</strong>: Admin UI (stored in the database) → Environment variables → Code defaults. An <code>LLMConfigOverrideCache</code> provides O(1) lookups without database queries at runtime. Changes made via the admin interface take <strong>immediate effect</strong> thanks to cache invalidation.</p><h2>The multi-provider LLM factory</h2><p>A single entry point for all providers:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Each task type uses the model you configured\nrouter_llm = get_llm(\"router\")\nplanner_llm = get_llm(\"planner\")\nresponse_llm = get_llm(\"response\")</code></pre><h2>Contractual usage accounting</h2><p>Every provider declares how its token consumption is counted: explicit request on streamed responses, native SDK accounting, or a deliberate exclusion (free local models, end-user-owned keys). The declaration is <strong>verified at startup</strong> — an undeclared provider prevents the application from booting — and a paid call completing without a count becomes a counter, a warning and an alert: the spend ceiling cannot go blind in silence. The per-slot timeout setting is applied to each provider's client, with defaults calibrated against real production latencies. Per-call billed tools — image generation, Perplexity, Brave — are additionally capped per request: an agent cannot loop on a paid API, it is stopped with an explanation and concludes with what it already gathered.</p><h2>API key security</h2><p>Provider API keys are <strong>encrypted with Fernet</strong> (AES-128 CBC + HMAC) before database storage. No key is ever exposed in plaintext in logs or API responses.</p><h2>Reasoning models</h2><p>LIA supports reasoning models with 6 levels of <code>reasoning_effort</code>: <code>none</code>, <code>minimal</code>, <code>low</code>, <code>medium</code>, <code>high</code> and <code>xhigh</code>. This activates deep reasoning only where needed, optimizing the cost/performance ratio.</p><h2>100% local deployment</h2><p>LIA can run entirely locally with open-source models. No data leaves your infrastructure. Just point configuration variables to your local instance.</p>"
+        "body": "<h2>Many providers, one assistant</h2><p>LIA natively integrates <strong>many LLM providers</strong> — from proprietary cloud models to locally-run open-source models. Each provider is managed by a dedicated adapter in the LLM factory, and you can add new ones.</p><h2>56 individually configurable LLM types</h2><p>LIA defines <strong>over 50 LLM types</strong> that can be configured separately: router, response, planner, each domain agent, and more. For each type, you can set: <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>top_p</code>, <code>frequency_penalty</code>, <code>presence_penalty</code>, <code>max_tokens</code>, <code>timeout</code> and <code>reasoning_effort</code>.</p><p>For example:</p><ul><li>A fast, economical model for <strong>routing</strong></li><li>A powerful model for <strong>planning</strong></li><li>A creative model for <strong>responses</strong></li><li>A local model for <strong>privacy</strong></li></ul><h2>Configuration resolution chain</h2><p>Each LLM configuration follows a <strong>3-level resolution chain</strong>: Admin UI (stored in the database) → Environment variables → Code defaults. An <code>LLMConfigOverrideCache</code> provides O(1) lookups without database queries at runtime. Changes made via the admin interface take <strong>immediate effect</strong> thanks to cache invalidation.</p><h2>The multi-provider LLM factory</h2><p>A single entry point for all providers:</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# Each task type uses the model you configured\nrouter_llm = get_llm(\"router\")\nplanner_llm = get_llm(\"planner\")\nresponse_llm = get_llm(\"response\")</code></pre><h2>Contractual usage accounting</h2><p>Every provider declares how its token consumption is counted: explicit request on streamed responses, native SDK accounting, or a deliberate exclusion (free local models, end-user-owned keys). The declaration is <strong>verified at startup</strong> — an undeclared provider prevents the application from booting — and a paid call completing without a count becomes a counter, a warning and an alert: the spend ceiling cannot go blind in silence. The per-slot timeout setting is applied to each provider's client, with defaults calibrated against real production latencies. Per-call billed tools — image generation, Perplexity, Brave — are additionally capped per request: an agent cannot loop on a paid API, it is stopped with an explanation and concludes with what it already gathered.</p><h2>API key security</h2><p>Provider API keys are <strong>encrypted with Fernet</strong> (AES-128 CBC + HMAC) before database storage. No key is ever exposed in plaintext in logs or API responses.</p><h2>Reasoning models</h2><p>Asking a model to think goes through <strong>one ladder, identical across every provider</strong>: <code>none</code>, <code>minimal</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>, <code>max</code>, plus the provider's own default. What a given model actually accepts is not declared by hand: it is <strong>derived</strong> from its (provider, model) pair, and the catalogue may only narrow that ladder, never widen it. The admin screen therefore offers depths the model's API accepts, and deep reasoning is enabled only where it earns its cost.</p><h2>100% local deployment</h2><p>LIA can run entirely locally with open-source models. No data leaves your infrastructure. Just point configuration variables to your local instance.</p>"
       },
       "google-workspace": {
         "title": "Google Workspace Integration: Gmail, Calendar, Contacts, Drive, Tasks",

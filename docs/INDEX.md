@@ -46,7 +46,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (242) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (243) |
 
 ### Pour les Product Managers
 
@@ -150,7 +150,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description | Statut |
 |----------|-------------|--------|
 | [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Pricing LLM, token counting, exports | ✅ |
-| [LLM_PRICING_TEMPLATES.md](./technical/LLM_PRICING_TEMPLATES.md) | Reasoning shape templates dans l'admin Pricing — Template/Custom modes, snapshot semantics, fingerprint dédupliqué | ✅ |
+| [LLM_REASONING_IDENTITY.md](./technical/LLM_REASONING_IDENTITY.md) | Comment l'identité de raisonnement d'un modèle se saisit — cases à cocher sur l'échelle résolue de sa famille (formulaire) et deux colonnes du classeur (ADR-228), avec la garantie que la colonne ne peut que RESTREINDRE | ✅ |
 | [GOOGLE_API_TRACKING.md](./technical/GOOGLE_API_TRACKING.md) | Google Maps Platform tracking, pricing admin, consumption exports (admin + user v1.9.1) | ✅ |
 | [PROVIDER_COST_ADJUSTMENT.md](./technical/PROVIDER_COST_ADJUSTMENT.md) | Écart entre tracking interne des coûts et facturation provider réelle — investigation et recommandations | ✅ |
 
@@ -312,7 +312,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-243 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-245 le plus récent) | ✅ |
 
 ### ADRs Récents (2026)
 

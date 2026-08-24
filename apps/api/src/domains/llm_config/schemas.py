@@ -9,20 +9,12 @@ Created: 2026-03-08
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.llm_agent_config import LLMAgentConfig
 
-# Re-export reasoning types (relocated to src/core/reasoning_types.py to avoid
-# circular import with src.core.llm_agent_config). Listed in ``__all__`` below
-# so import-time consumers can keep referencing them from this module.
-from src.core.reasoning_types import (
-    ReasoningBudgetRange,
-    ReasoningEffortBudget,
-    ReasoningEffortEnum,
-    ReasoningEffortToggleBudget,
-    ReasoningEffortValue,
-)
+# Re-exported so import-time consumers can reference the intent from here.
+from src.core.reasoning_intent import ReasoningIntent, intent_from_legacy, is_intent_shape
 
 __all__ = [
     "LLMConfigListResponse",
@@ -36,12 +28,8 @@ __all__ = [
     "ProviderKeyUpdate",
     "ProviderKeysResponse",
     "ProviderModelsMetadata",
-    # Re-exports from src.core.reasoning_types
-    "ReasoningBudgetRange",
-    "ReasoningEffortBudget",
-    "ReasoningEffortEnum",
-    "ReasoningEffortToggleBudget",
-    "ReasoningEffortValue",
+    "ReasoningBudgetBounds",
+    "ReasoningIntent",
 ]
 
 # --- Provider Keys ---
@@ -132,13 +120,32 @@ class LLMTypeConfigUpdate(BaseModel):
     presence_penalty: float | None = Field(None, ge=-2.0, le=2.0)
     max_tokens: int | None = Field(None, gt=0)
     timeout_seconds: int | None = Field(None, gt=0)
-    # Shape determined by the model's reasoning_widget on llm_models.
-    # None = clear override. Strict validation lives at the service layer
-    # (see domains/llm_config/reasoning_validation.py once Task 5 lands).
-    reasoning_effort: ReasoningEffortValue = None
-    # Global effort (Anthropic output_config.effort), distinct from reasoning_effort.
-    # Allowed values come from the model's effort_values. None = clear override.
-    effort: str | None = None
+    # ``None`` = clear the override. One shape for every provider (ADR-245),
+    # with strict validation at the service layer
+    # (``domains/llm_config/reasoning_validation.py``). The Literal on
+    # ``ReasoningIntent.level`` rejects an unknown level here; the service layer
+    # checks membership of the model's ladder, and the translator coerces
+    # whatever survives to the nearest depth the model accepts.
+    reasoning_effort: ReasoningIntent | None = None
+
+    @field_validator("reasoning_effort", mode="before")
+    @classmethod
+    def _accept_legacy_reasoning_shapes(cls, value: Any) -> Any:
+        """Accept a payload from a frontend that has not been redeployed yet.
+
+        Same reason as ``LLMAgentConfig``: the admin UI and the API are deployed
+        as one image here, but a cached bundle in a browser tab is not, and
+        rejecting its payload with a 422 would be a puzzling failure for a
+        change that did not need to break anything.
+        """
+        if value is None or isinstance(value, ReasoningIntent):
+            return value
+        if not isinstance(value, dict):
+            return value
+        # Intent-shaped payloads stay raw so the ``Literal`` still 422s a level
+        # nobody defined; only the pre-ADR-245 shapes are mapped.
+        return value if is_intent_shape(value) else intent_from_legacy(value)
+
     provider_config: str | None = None
 
 
@@ -149,6 +156,20 @@ class LLMConfigListResponse(BaseModel):
 
 
 # --- Metadata (static) ---
+
+
+class ReasoningBudgetBounds(BaseModel):
+    """The token budget a model accepts — exactly the two numbers it accepts.
+
+    The catalogue's own range type went with its column (ADR-245): it carried
+    ``off_sentinel`` / ``dynamic_sentinel``, which became levels. What remains
+    is this one -- the bounds the validator enforces, published to the UI that
+    must respect them, and nothing else.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    min: int = Field(..., ge=0)
+    max: int = Field(..., ge=0)
 
 
 class ModelCapabilities(BaseModel):
@@ -174,17 +195,35 @@ class ModelCapabilities(BaseModel):
     supports_frequency_penalty: bool
     supports_presence_penalty: bool
 
-    # Reasoning UI driver — single source of truth, replaces the regex-based
-    # frontend logic in getModelConstraints().
-    reasoning_widget: Literal["none", "enum", "budget_int", "toggle_budget"]
-    reasoning_enum_values: list[str] | None = None
-    reasoning_budget_range: ReasoningBudgetRange | None = None
+    # Reasoning UI driver (ADR-245): the RESOLVED profile, never the raw
+    # catalogue columns. Every field below comes from
+    # ``resolve_reasoning_profile`` -- the same function the runtime translator
+    # and the write-path validator call -- so what the UI offers, what the API
+    # accepts and what the model receives cannot disagree. Publishing the
+    # catalogue's own ``reasoning_widget``/``reasoning_enum_values`` instead is
+    # how the UI came to offer ``minimal`` on a model whose API refused it.
+    reasoning_family: str = Field(
+        default="none",
+        description="Resolved translator family; 'none' when the model does not reason",
+    )
+    reasoning_levels: list[str] = Field(
+        default_factory=list,
+        description="The accepted ladder, ascending. Empty = no reasoning control at all",
+    )
+    reasoning_can_disable: bool = Field(
+        default=True,
+        description="Whether reasoning can be turned off ('none' is offerable)",
+    )
+    reasoning_supports_budget: bool = Field(
+        default=False,
+        description="Whether an explicit token budget is expressible",
+    )
+    reasoning_supports_exclude: bool = Field(
+        default=False,
+        description="Whether exclude_from_output reaches the provider for this family",
+    )
+    reasoning_budget_range: ReasoningBudgetBounds | None = None
     reasoning_doc_i18n_key: str | None = None
-
-    # Separate global 'effort' control (Anthropic output_config.effort), distinct
-    # from reasoning_effort. NULL = the model has no separate effort field; a list
-    # = allowed values (drives a dedicated dropdown). Currently opus-4-5 only.
-    effort_values: list[str] | None = None
 
     cost_input: float | None = None
     cost_output: float | None = None

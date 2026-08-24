@@ -6,7 +6,7 @@
 
 **版本**：4.6
 **日期**：2026-08-23
-**应用**：LIA v1.31.3
+**应用**：LIA v1.32.0
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -59,7 +59,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
 | 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
 | 完全透明 | 473 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
-| 生产可靠性 | 242 篇 ADR、由 pytest 在 1 204 个文件中收集的 ~20 586 个测试、原生可观测性、6 层 HITL |
+| 生产可靠性 | 244 篇 ADR、由 pytest 在 1 204 个文件中收集的 ~20 586 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
 ### 1.2. 架构原则
@@ -694,9 +694,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 ### 12.4. 数据库为唯一真实来源的管理员目录
 
-`llm_models` 表承载完整目录：provider、经典功能能力（`supports_tools`、`supports_structured_output`、`supports_strict_mode`、`supports_streaming`、`supports_vision`），以及结构性新增 — **每模型采样矩阵**（`supports_temperature`、`supports_top_p`、`supports_frequency_penalty`、`supports_presence_penalty`）以及**推理形态**（`reasoning_widget` ∈ {`none`、`enum`、`budget_int`、`toggle_budget`}、`reasoning_enum_values` JSONB 列表、`reasoning_budget_range` JSONB `{min, max, off_sentinel, dynamic_sentinel}`、`reasoning_doc_i18n_key`）。这种按模型声明取代了以前用前端正则表达式猜测要隐藏哪些滑块：LLM 配置对话框直接读取数据库标志，仅暴露模型 API 实际接受的参数。
+`llm_models` 表承载完整目录：provider、经典功能能力（`supports_tools`、`supports_structured_output`、`supports_strict_mode`、`supports_streaming`、`supports_vision`），以及结构性新增 — **每模型采样矩阵**（`supports_temperature`、`supports_top_p`、`supports_frequency_penalty`、`supports_presence_penalty`）以及**接受的推理等级**（`reasoning_enum_values`，JSONB 列表）及其帮助文本的 i18n 键（`reasoning_doc_i18n_key`）。这种按模型声明取代了以前用前端正则表达式猜测要隐藏哪些滑块：LLM 配置对话框直接读取数据库标志，仅暴露模型 API 实际接受的参数。自 v1.32.0 起，该等级不再**声明**模型接受什么，而是**收窄**它：模型接受什么由其（提供商、模型）这一对推导得出，曾经描述推理*形态*的两列已被删除——现在只有一种形态。
 
-LLM 定价管理员表单暴露**从数据库派生的动态模板机制**：`LLMModelService.list_templates()` 服务按其 4 字段推理指纹分组活动行，并为每组返回一个确定性代表（今天约 15 种唯一形态）。添加新的推理模型归结为选择"从某个现有模型复制形态"；4 个形态字段在创建时被快照复制。**Custom** 模式可用于颠覆性场景；任何具有新颖指纹的 Custom 模型自动成为后续添加的模板。`kind`（chat / image / audio / …）、四个采样限制和工具提示 i18n 键按模型保存，独立于模板。请参阅 `docs/technical/LLM_PRICING_TEMPLATES.md`。
+LLM 定价界面**直接**写入该等级：它渲染模型所属系列提供的深度——由 `GET /admin/llm/reasoning-family` 实时解析，使用与翻译器和校验器相同的函数——你**取消勾选**这个具体模型拒绝的深度。全部勾选则不存储任何内容：系列自身的等级原样生效。Excel 工作簿（ADR-228）承载同样的两列，其导入会拒绝系列之外的深度，**并列出本可接受的深度**：电子表格无法渲染复选框，因此保障移到了导入环节。这里曾有一套模板机制——“复制某个现有模型的形态”——它按*已存储*的等级而非系列来分组模型，因此跨系列复制会静默地移除深度。请参阅 `docs/technical/LLM_REASONING_IDENTITY.md`。
 
 ### 12.5. 与供应商无关的提示词缓存
 
@@ -1381,7 +1381,7 @@ LLM 模型目录共有一百二十四条记录，每条承载二十四项特征�
 
 LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个生产级的多智能体 AI 助手，透明、安全、可扩展，并且能在 Raspberry Pi 上运行。
 
-242 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。1 204 个文件里的 ~20 586 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
+244 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。1 204 个文件里的 ~20 586 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 
@@ -1396,4 +1396,4 @@ LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个�
 
 ---
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（490+ 份文档）、242 篇 ADR 及变更日志（v1.0 至 v1.31.3）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（490+ 份文档）、244 篇 ADR 及变更日志（v1.0 至 v1.31.3）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

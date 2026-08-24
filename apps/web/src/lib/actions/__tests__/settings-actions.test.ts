@@ -26,7 +26,6 @@ import {
   deleteUserGDPR,
   createLLMPricing,
   updateLLMPricing,
-  fetchReasoningTemplates,
   reloadLLMPricingCache,
   deactivateLLMPricing,
   createGoogleApiPricing,
@@ -239,18 +238,6 @@ describe('LLM pricing catalogue', () => {
       success: false,
       error: 'must be greater than 0, must be a decimal string',
     });
-  });
-
-  it('returns the reasoning templates list', async () => {
-    respond(200, { templates: [{ template_model_name: 'o3' }] });
-
-    await expect(fetchReasoningTemplates()).resolves.toEqual([{ template_model_name: 'o3' }]);
-  });
-
-  it('lets a template fetch failure propagate — it has no ActionResponse to fill', async () => {
-    respond(503, { detail: 'db down' });
-
-    await expect(fetchReasoningTemplates()).rejects.toMatchObject({ status: 503 });
   });
 
   it('reloads and deactivates through their own endpoints', async () => {

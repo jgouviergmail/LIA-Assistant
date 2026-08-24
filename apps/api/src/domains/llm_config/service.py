@@ -32,6 +32,7 @@ from src.domains.llm_config.schemas import (
     ProviderKeysResponse,
     ProviderKeyStatus,
     ProviderModelsMetadata,
+    ReasoningBudgetBounds,
 )
 from src.domains.users.models import AdminAuditLog
 from src.infrastructure.observability.logging import get_logger
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from fastapi import Request
 
     from src.core.llm_agent_config import LLMAgentConfig
+    from src.infrastructure.llm.model_profiles import ModelProfile
 
 logger = get_logger(__name__)
 
@@ -101,11 +103,25 @@ KNOWN_MODEL_CAPABILITIES = frozenset(_CAPABILITY_CHECKS)
 def _model_has_capability(caps: ModelCapabilities, capability: str) -> bool:
     """Check whether a ``ModelCapabilities`` declares the given capability.
 
-    Knows ``"vision"``, ``"tools"`` and ``"structured_output"``; any other
-    string is not filtered (returns True).
+    Args:
+        caps: The model's capability profile.
+        capability: One of :data:`KNOWN_MODEL_CAPABILITIES`.
+
+    Returns:
+        Whether the model declares it.
+
+    Raises:
+        ValueError: when ``capability`` is outside the known vocabulary. The
+            previous behaviour -- answer ``True`` and move on -- turned a typo
+            in a slot declaration into a silently disabled constraint, the
+            failure mode ADR-085 exists to forbid.
     """
     check = _CAPABILITY_CHECKS.get(capability)
-    return check(caps) if check else True
+    if check is None:
+        raise ValueError(
+            f"unknown capability {capability!r}; known: {sorted(KNOWN_MODEL_CAPABILITIES)}"
+        )
+    return check(caps)
 
 
 def _mask_key(key: str) -> str:
@@ -303,12 +319,14 @@ class LLMConfigService:
         if update.model == "":
             update.model = None
 
-        # === Strict validation of reasoning_effort against the model's matrix ===
-        # Replaces the old regex-based auto-clearing logic. The new policy
-        # (philosophy A — raw truth) rejects any (model, reasoning_effort)
-        # combination not declared in llm_models.reasoning_widget /
-        # reasoning_enum_values / reasoning_budget_range with HTTP 422 +
-        # structured ctx (see domains/llm_config/reasoning_validation.py).
+        # === Strict validation of reasoning_effort against what the model offers ===
+        # Philosophy A — raw truth: a level the model's resolved ladder does not
+        # carry is rejected with HTTP 422 + structured ctx, never silently
+        # cleared (see domains/llm_config/reasoning_validation.py). Since
+        # ADR-245 the ladder comes from `resolve_reasoning_profile` — the same
+        # function the runtime translator uses — not from the catalogue's
+        # `reasoning_widget` / `reasoning_budget_range` columns, which are
+        # descriptive and read by nothing.
         #
         # The guard runs even when `model` is omitted: override semantics drop
         # the field when it equals the type default, and keying the check on
@@ -338,7 +356,13 @@ class LLMConfigService:
             # catalogue (boot validates defaults; the cache may be empty in
             # tests) — nothing to check against, do not block the save.
             if caps is not None:
-                validate_reasoning_effort(caps, update.reasoning_effort)
+                # The provider is what lets the family be derived. Override
+                # semantics omit it when it equals the type default, so resolve
+                # the default's provider rather than pass None -- passing None
+                # would make this validation a no-op, and a silently inert
+                # guard is worse than no guard.
+                target_provider = update.provider or LLM_DEFAULTS[llm_type].provider
+                validate_reasoning_effort(caps, update.reasoning_effort, target_provider)
 
             # Coherence rule (Anthropic): extended thinking is incompatible with a
             # custom temperature/top_p (API: "temperature may only be set to 1 when
@@ -347,12 +371,10 @@ class LLMConfigService:
             # coherent. The admin UI mirrors this by locking those fields; the
             # factory also omits them at call time (defense in depth).
             if update.provider == "anthropic" and update.model is not None:
-                from src.infrastructure.llm.providers.reasoning_builders import (
-                    build_anthropic_reasoning,
-                )
+                from src.infrastructure.llm.reasoning.translate import kwargs_for
 
-                thinking_on = "thinking" in build_anthropic_reasoning(
-                    update.reasoning_effort, update.model
+                thinking_on = "thinking" in kwargs_for(
+                    "anthropic", update.model, update.reasoning_effort
                 )
                 if thinking_on and (update.temperature is not None or update.top_p is not None):
                     logger.info(
@@ -367,38 +389,11 @@ class LLMConfigService:
                     update.temperature = None
                     update.top_p = None
 
-        # === Validate the separate global 'effort' (Anthropic opus-4-5) ===
-        # Same doctrine as reasoning_effort above: override semantics omit
-        # `model` when it equals the type default, so the guard must resolve
-        # the default's model rather than skip — a skipped check let junk
-        # persist and degrade silently at merge time.
-        if update.effort is not None:
-            from src.infrastructure.llm.model_capabilities_cache import (
-                ModelCapabilitiesCache,
-            )
-
-            target_model = update.model or LLM_DEFAULTS[llm_type].model
-            caps = ModelCapabilitiesCache.get(target_model)
-            allowed = getattr(caps, "effort_values", None) if caps else None
-            # Mirror the reasoning_effort stance: a model-less update whose
-            # default model is absent from the catalogue is unverifiable here
-            # (boot validates code defaults) and must not block the save.
-            unverifiable_default = caps is None and update.model is None
-            if not unverifiable_default and (not allowed or update.effort not in allowed):
-                raise_structured_validation_error(
-                    error_type="invalid_effort",
-                    loc=["body", "effort"],
-                    msg=(
-                        f"Effort {update.effort!r} is not supported by "
-                        f"{target_model}. Allowed: {', '.join(allowed) if allowed else 'none'}."
-                    ),
-                    input_value=update.effort,
-                    ctx={
-                        "model": target_model,
-                        "provided": update.effort,
-                        "allowed": list(allowed or []),
-                    },
-                )
+        # The separate global 'effort' control is gone (ADR-245): it produced
+        # the same Anthropic kwarg as reasoning_effort, and
+        # ``additional_kwargs.update()`` decided which one silently won. The
+        # adaptive level now travels through the single intent. Measured at the
+        # time of removal: no slot set it.
 
         update_data = update.model_dump(exclude_unset=False)
 
@@ -481,6 +476,55 @@ class LLMConfigService:
     # --- Metadata ---
 
     @staticmethod
+    def _reasoning_metadata(provider: str, profile: ModelProfile | None) -> dict[str, Any]:
+        """The reasoning half of a ``ModelCapabilities`` payload, for one model.
+
+        Resolved through ``resolve_reasoning_profile`` -- the SAME function the
+        runtime translator and the write-path validator call. Publishing the
+        catalogue columns instead is what let the admin UI offer ``minimal`` on
+        a model whose API refused it: three authorities, no reason to agree.
+
+        Args:
+            provider: The model's provider id.
+            profile: The cached ``ModelProfile``, or ``None`` for a model with
+                no catalogue row (live Ollama discovery).
+
+        Returns:
+            The keyword arguments to splat into ``ModelCapabilities``.
+        """
+        from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
+        from src.infrastructure.llm.reasoning.translate import honours_exclude_from_output
+
+        declared = profile.reasoning_enum_values if profile else None
+        resolved = resolve_reasoning_profile(
+            provider,
+            profile.model_id if profile else "",
+            model_levels=tuple(declared) if declared else None,
+        )
+        levels = list(resolved.levels)
+        # ``none`` is governed by can_disable, not by ladder membership: a
+        # catalogue row narrows the ladder to the DEPTHS a model offers without
+        # meaning "and it can no longer be turned off". Same rule as the
+        # validator and the runtime coercion -- offering it here is what makes
+        # the three agree.
+        if levels and resolved.can_disable and "none" not in levels:
+            levels.insert(0, "none")
+        budget = (
+            ReasoningBudgetBounds(min=resolved.budget_range[0], max=resolved.budget_range[1])
+            if resolved.supports_budget and resolved.budget_range is not None
+            else None
+        )
+        return {
+            "reasoning_family": resolved.family,
+            "reasoning_levels": levels,
+            "reasoning_can_disable": resolved.can_disable,
+            "reasoning_supports_budget": resolved.supports_budget,
+            "reasoning_supports_exclude": honours_exclude_from_output(resolved.family),
+            "reasoning_budget_range": budget,
+            "reasoning_doc_i18n_key": profile.reasoning_doc_i18n_key if profile else None,
+        }
+
+    @staticmethod
     def get_provider_models(
         kinds: list[str] | None = None,
         capability: str | None = None,
@@ -539,11 +583,7 @@ class LLMConfigService:
                         supports_top_p=profile.supports_top_p,
                         supports_frequency_penalty=profile.supports_frequency_penalty,
                         supports_presence_penalty=profile.supports_presence_penalty,
-                        reasoning_widget=profile.reasoning_widget,
-                        reasoning_enum_values=profile.reasoning_enum_values,
-                        reasoning_budget_range=profile.reasoning_budget_range,
-                        reasoning_doc_i18n_key=profile.reasoning_doc_i18n_key,
-                        effort_values=profile.effort_values,
+                        **LLMConfigService._reasoning_metadata(provider, profile),
                         cost_input=None,
                         cost_output=None,
                     )
@@ -577,10 +617,11 @@ class LLMConfigService:
                             supports_top_p=False,
                             supports_frequency_penalty=False,
                             supports_presence_penalty=False,
-                            reasoning_widget="none",
-                            reasoning_enum_values=None,
-                            reasoning_budget_range=None,
-                            reasoning_doc_i18n_key=None,
+                            # Image generation has no reasoning surface at
+                            # all; stated here rather than left to a negative
+                            # rule happening to cover every image model.
+                            reasoning_family="none",
+                            reasoning_levels=[],
                         )
                     )
             providers[provider] = existing
@@ -637,10 +678,11 @@ class LLMConfigService:
                         supports_top_p=True,
                         supports_frequency_penalty=True,
                         supports_presence_penalty=True,
-                        reasoning_widget="none",  # Ollama bridge: no per-model widget surfaced
-                        reasoning_enum_values=None,
-                        reasoning_budget_range=None,
-                        reasoning_doc_i18n_key=None,
+                        # A discovered tag has no catalogue row: the family
+                        # is resolved from its name alone, and an unknown family
+                        # publishes an empty ladder -- honest, since the
+                        # translator would emit no kwarg for it either.
+                        **LLMConfigService._reasoning_metadata("ollama", None),
                         cost_input=0.0,  # Local = free
                         cost_output=0.0,
                         size=info.size,
@@ -674,10 +716,7 @@ class LLMConfigService:
                     supports_top_p=profile.supports_top_p,
                     supports_frequency_penalty=profile.supports_frequency_penalty,
                     supports_presence_penalty=profile.supports_presence_penalty,
-                    reasoning_widget=profile.reasoning_widget,
-                    reasoning_enum_values=profile.reasoning_enum_values,
-                    reasoning_budget_range=profile.reasoning_budget_range,
-                    reasoning_doc_i18n_key=profile.reasoning_doc_i18n_key,
+                    **LLMConfigService._reasoning_metadata("ollama", profile),
                     cost_input=0.0,  # Ollama is local — free
                     cost_output=0.0,
                     size=None,

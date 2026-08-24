@@ -194,7 +194,7 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
         philosophy A "raw truth" decision. The DeepSeek adapter delegates to
         ``build_deepseek_v4_reasoning`` which produces the correct API shape.
         """
-        from src.core.reasoning_types import ReasoningEffortEnum
+        from src.core.reasoning_intent import ReasoningIntent
         from src.infrastructure.llm.providers.adapter import ProviderAdapter
 
         with patch(
@@ -206,7 +206,7 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
                 temperature=0.5,
                 max_tokens=4096,
                 streaming=False,
-                reasoning_effort=ReasoningEffortEnum(effort="off"),
+                reasoning_effort=ReasoningIntent(level="none"),
             )
 
         assert llm.extra_body == {"thinking": {"type": "disabled"}}
@@ -219,7 +219,7 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
         ``extra_body``. ``extra_body`` only carries ``thinking={type:...}``.
         The legacy adapter erroneously merged both into ``extra_body``.
         """
-        from src.core.reasoning_types import ReasoningEffortEnum
+        from src.core.reasoning_intent import ReasoningIntent
         from src.infrastructure.llm.providers.adapter import ProviderAdapter
 
         with patch(
@@ -231,7 +231,7 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
                 temperature=0.5,
                 max_tokens=4096,
                 streaming=False,
-                reasoning_effort=ReasoningEffortEnum(effort="high"),
+                reasoning_effort=ReasoningIntent(level="high"),
             )
 
         # extra_body now only carries the thinking toggle.
@@ -241,7 +241,7 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
 
     def test_v4_thinking_enabled_max(self) -> None:
         """reasoning_effort={"effort":"max"} → thinking enabled + top-level effort=max."""
-        from src.core.reasoning_types import ReasoningEffortEnum
+        from src.core.reasoning_intent import ReasoningIntent
         from src.infrastructure.llm.providers.adapter import ProviderAdapter
 
         with patch(
@@ -253,7 +253,7 @@ class TestChatDeepSeekPatchedIntegrationWithAdapter:
                 temperature=0.5,
                 max_tokens=4096,
                 streaming=False,
-                reasoning_effort=ReasoningEffortEnum(effort="max"),
+                reasoning_effort=ReasoningIntent(level="max"),
             )
 
         assert llm.extra_body == {"thinking": {"type": "enabled"}}

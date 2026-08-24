@@ -12,7 +12,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.llm.models import LLMModelKindEnum, LLMProviderEnum, LLMReasoningWidgetEnum
+from src.domains.llm.models import LLMModelKindEnum, LLMProviderEnum
 from src.domains.llm.repository import LLMModelRepository
 
 
@@ -28,9 +28,7 @@ async def repo(async_session: AsyncSession) -> LLMModelRepository:
 # its own dedicated suite in test_service.py and test_service_helpers.py.
 _DEFAULT_REASONING_KWARGS: dict[str, Any] = {
     "kind": LLMModelKindEnum.chat,
-    "reasoning_widget": LLMReasoningWidgetEnum.none,
     "reasoning_enum_values": None,
-    "reasoning_budget_range": None,
     "reasoning_doc_i18n_key": None,
     "supports_temperature": True,
     "supports_top_p": True,
