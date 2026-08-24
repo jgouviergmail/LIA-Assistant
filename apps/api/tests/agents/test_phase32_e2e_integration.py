@@ -667,7 +667,7 @@ class TestLLMConfigE2E:
     """E2E tests for LLM config refactoring."""
 
     @pytest.mark.e2e
-    def test_router_llm_carries_no_static_metrics_callback(self):
+    def test_a_factory_llm_carries_no_static_metrics_callback(self):
         """The factory attaches NO static callback — that is the fix, not a gap.
 
         This test used to assert ``len(llm.callbacks) >= 1``, pinning the
@@ -680,10 +680,14 @@ class TestLLMConfigE2E:
         (factory.py, "Metrics Double Counting Fix"); the handler is attached per
         invoke, which is also what gives it the node name for attribution.
         """
+        from src.domains.llm_config.constants import LLM_TYPES_REGISTRY
         from src.infrastructure.llm.factory import get_llm
         from src.infrastructure.observability.callbacks import MetricsCallbackHandler
 
-        llm = get_llm("router")
+        # The slot is taken FROM the registry: this test named ``router`` until
+        # ADR-244 removed it, and the failure then said "unknown agent_type"
+        # rather than anything about callbacks.
+        llm = get_llm(sorted(LLM_TYPES_REGISTRY)[0])
 
         assert llm is not None
         assert llm.callbacks == [], (

@@ -52,7 +52,10 @@ def _row(**overrides: Any) -> dict[str, Any]:
         "is_reasoning_model": True,
         "reasoning_enum_values": "low, high",
         "reasoning_shape": "anthropic_adaptive [none/low/medium/high/max]",
-        "reasoning_doc_i18n_key": "anthropic_4_6",
+        # An i18n key name, not a credential: the generic-api-key rule fires on
+        # any field whose name ends in `_key` when the value carries entropy.
+        # The annotation must sit on the FLAGGED line, not above it.
+        "reasoning_doc_i18n_key": "anthropic_4_6",  # gitleaks:allow
         "pricing_unit": "per_1m_tokens",
         "input_unit_price": "3.0",
         "cached_input_unit_price": None,

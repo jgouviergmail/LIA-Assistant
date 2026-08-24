@@ -5,7 +5,17 @@ import pytest
 from src.core.config import settings
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_all_llm_configs, get_llm_config_for_agent
+from src.domains.llm_config.constants import LLM_TYPES_REGISTRY
 from src.infrastructure.llm.factory import get_llm
+
+#: A slot that exists, taken FROM the registry rather than written by hand.
+#:
+#: These tests named ``router`` in six places until ADR-244 removed it (no
+#: ``get_llm()`` caller anywhere), along with its ``router_llm_provider``
+#: setting. Substituting another literal would only move the breakage to the
+#: next removal; deriving it cannot go stale. Sorted so the choice is stable
+#: between runs rather than dependent on dict ordering.
+_A_SLOT = sorted(LLM_TYPES_REGISTRY)[0]
 
 
 class TestLLMConfigIntegration:
@@ -15,7 +25,7 @@ class TestLLMConfigIntegration:
     def test_get_llm_with_real_settings(self):
         """Test get_llm with real settings (no override)."""
         # This test uses actual settings from .env
-        llm = get_llm("router")
+        llm = get_llm(_A_SLOT)
 
         assert llm is not None
         assert hasattr(llm, "callbacks")
@@ -43,32 +53,45 @@ class TestLLMConfigIntegration:
         assert config.max_tokens > 0
 
     @pytest.mark.integration
-    def test_all_agents_can_create_llm(self):
-        """Test all 6 agents can create LLM instances."""
-        agents = [
-            "router",
-            "response",
-            "contacts_agent",
-            "planner",
-            "hitl_classifier",
-            "hitl_question_generator",
-        ]
+    def test_every_llm_backed_slot_can_create_an_llm(self):
+        """Every slot backed by an LLM provider, not a hand-kept sample of six.
 
-        for agent in agents:
+        The list used to be written by hand and led with ``router``; when that
+        slot was removed the test failed for the one reason it was never meant
+        to catch. Deriving it cannot go stale.
+
+        "Every slot" would be too strong: the registry also holds slots served
+        by providers that are not LLMs at all -- ``voice_tts`` runs on
+        ElevenLabs -- and ``get_llm`` refuses those on purpose. The contract is
+        therefore drawn against ``ProviderType``, the canonical Literal.
+        """
+        from typing import get_args
+
+        from src.infrastructure.llm.providers.adapter import ProviderType
+
+        llm_providers = set(get_args(ProviderType))
+        checked = 0
+        for agent in sorted(LLM_TYPES_REGISTRY):
+            config = get_llm_config_for_agent(settings, agent)
+            if config.provider not in llm_providers:
+                continue
             llm = get_llm(agent)
             assert llm is not None, f"Failed to create LLM for {agent}"
+            checked += 1
+
+        assert checked >= 6, f"only {checked} LLM-backed slots found — the registry looks empty"
 
     @pytest.mark.integration
     def test_config_override_with_new_pattern(self):
         """Test config override with LLMAgentConfig."""
-        base_config = get_llm_config_for_agent(settings, "router")
+        base_config = get_llm_config_for_agent(settings, _A_SLOT)
 
         # Create override by copying base and modifying temperature
         base_dict = base_config.model_dump()
         base_dict["temperature"] = 0.9
         override_config = LLMAgentConfig(**base_dict)
 
-        llm = get_llm("router", config_override=override_config)
+        llm = get_llm(_A_SLOT, config_override=override_config)
         assert llm is not None
 
     @pytest.mark.integration
@@ -76,7 +99,7 @@ class TestLLMConfigIntegration:
         """Test config override with TypedDict (backward compat)."""
         override_config = {"temperature": 0.9, "max_tokens": 8000}
 
-        llm = get_llm("router", config_override=override_config)
+        llm = get_llm(_A_SLOT, config_override=override_config)
         assert llm is not None
 
     @pytest.mark.integration
@@ -102,29 +125,35 @@ class TestLLMConfigIntegration:
         from src.infrastructure.observability.callbacks import MetricsCallbackHandler
 
         # Creation time: no callbacks, by design.
-        llm = get_llm("router")
+        llm = get_llm(_A_SLOT)
         assert not llm.callbacks
 
         # Invocation boundary: the enriched config carries the metrics handler
         # with the node name, and preserves pre-existing metadata.
-        enriched = enrich_config_with_node_metadata({"metadata": {"run_id": "t-1"}}, "router")
+        enriched = enrich_config_with_node_metadata({"metadata": {"run_id": "t-1"}}, _A_SLOT)
 
         callbacks = enriched.get("callbacks") or []
         metrics_handlers = [cb for cb in callbacks if isinstance(cb, MetricsCallbackHandler)]
         assert len(metrics_handlers) == 1, "exactly one MetricsCallbackHandler per invocation"
-        assert metrics_handlers[0].node_name == "router"
+        assert metrics_handlers[0].node_name == _A_SLOT
 
         metadata = enriched.get("metadata") or {}
-        assert metadata.get("langgraph_node") == "router"
+        assert metadata.get("langgraph_node") == _A_SLOT
         assert metadata.get("run_id") == "t-1"
 
     @pytest.mark.integration
     def test_provider_selection_from_settings(self):
-        """Test that provider is correctly selected from settings."""
-        config = get_llm_config_for_agent(settings, "router")
+        """The resolved provider is the one the matching setting declares.
 
-        # Verify provider matches settings
-        assert config.provider == settings.router_llm_provider
+        Read through ``getattr`` on the slot's own field rather than a literal
+        ``settings.router_llm_provider``: that attribute went with the slot,
+        and an AttributeError is a poor way to learn a registry changed.
+        """
+        config = get_llm_config_for_agent(settings, _A_SLOT)
+
+        declared = getattr(settings, f"{_A_SLOT}_llm_provider", None)
+        if declared is not None:
+            assert config.provider == declared
 
     @pytest.mark.integration
     def test_model_selection_from_settings(self):
