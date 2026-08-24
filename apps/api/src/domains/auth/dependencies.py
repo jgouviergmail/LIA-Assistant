@@ -15,7 +15,6 @@ from collections.abc import Awaitable, Callable
 import structlog
 from fastapi import Depends, HTTPException, Request
 
-from src.core.client_ip import resolve_client_ip
 from src.core.constants import (
     RATE_LIMIT_AUTH_LOGIN_PER_MINUTE,
     RATE_LIMIT_AUTH_REGISTER_PER_MINUTE,
@@ -24,35 +23,10 @@ from src.core.constants import (
 from src.core.exceptions import raise_rate_limit_exceeded
 from src.core.session_dependencies import get_current_active_session
 from src.domains.users.models import User
+from src.infrastructure.rate_limiting.ip_limiter import create_ip_rate_limiter
 from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
 logger = structlog.get_logger(__name__)
-
-
-def _get_client_ip(request: Request) -> str:
-    """
-    Extract client IP from request, through the single resolution chokepoint.
-
-    This used to return ``request.client.host`` and document that delegating to
-    uvicorn kept the value trustworthy. The measurement says otherwise: under
-    ``--proxy-headers --forwarded-allow-ips "*"`` uvicorn rewrites that peer from
-    the LEFTMOST ``X-Forwarded-For`` entry, and Cloudflare APPENDS the real
-    address instead of replacing the header — so the leftmost entry is the one
-    the visitor wrote. Reproduced 2026-08-05: a request declaring
-    ``X-Forwarded-For: 127.0.0.1, 198.51.100.42`` resolved to ``127.0.0.1``.
-
-    The per-IP auth limiter was therefore keyed on a value the caller chooses.
-    ``resolve_client_ip`` prefers ``CF-Connecting-IP``, which Cloudflare writes
-    and overwrites; see ``src/core/client_ip.py`` for why trusting it is sound
-    here.
-
-    Args:
-        request: FastAPI request object
-
-    Returns:
-        Client IP address string
-    """
-    return resolve_client_ip(request)
 
 
 def create_auth_rate_limiter(
@@ -63,7 +37,9 @@ def create_auth_rate_limiter(
     """
     Factory function to create rate limit dependencies for auth endpoints.
 
-    Creates a FastAPI dependency that checks rate limits using Redis sliding window.
+    Thin wrapper over the shared per-IP limiter, kept because five modules
+    import the pre-configured dependencies below by name. The ``auth``
+    namespace is what pins the Redis keys this has always written.
 
     Args:
         action: Action name for the rate limit key (e.g., "login", "register")
@@ -79,58 +55,12 @@ def create_auth_rate_limiter(
         >>> async def login(..., _: None = Depends(rate_limit_login)):
         >>>     ...
     """
-
-    async def rate_limit_dependency(request: Request) -> None:
-        """
-        Rate limit dependency that checks Redis and raises 429 if exceeded.
-
-        Raises:
-            RateLimitError: 429 Too Many Requests if rate limit exceeded
-        """
-        try:
-            limiter = await get_rate_limiter()
-            client_ip = _get_client_ip(request)
-            key = f"auth:{action}:{client_ip}"
-
-            allowed = await limiter.acquire(
-                key=key,
-                max_calls=max_calls,
-                window_seconds=window_seconds,
-            )
-
-            if not allowed:
-                logger.warning(
-                    "auth_rate_limit_exceeded",
-                    action=action,
-                    client_ip=client_ip,
-                    max_calls=max_calls,
-                    window_seconds=window_seconds,
-                )
-                raise_rate_limit_exceeded(
-                    limit=max_calls,
-                    window_seconds=window_seconds,
-                    retry_after=window_seconds,
-                    detail={
-                        "error": "rate_limit_exceeded",
-                        "message": f"Too many {action} attempts. Please try again later.",
-                        "retry_after_seconds": window_seconds,
-                    },
-                    headers={"Retry-After": str(window_seconds)},
-                )
-
-        except HTTPException:
-            # Re-raise HTTP exceptions (rate limit exceeded)
-            raise
-        except Exception as e:
-            # Log error but allow request to proceed (fail-open policy)
-            # This matches RedisRateLimiter's existing fail-open behavior
-            logger.error(
-                "auth_rate_limit_check_failed",
-                action=action,
-                error=str(e),
-            )
-
-    return rate_limit_dependency
+    return create_ip_rate_limiter(
+        namespace="auth",
+        action=action,
+        max_calls=max_calls,
+        window_seconds=window_seconds,
+    )
 
 
 # Pre-configured dependencies for each auth endpoint

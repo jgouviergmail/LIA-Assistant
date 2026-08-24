@@ -68,6 +68,13 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-08-24 after the native push lot
+        // (ADR-246: the shell enrolment path inside useFCMToken, the
+        // platform-agnostic push config boundary, and the relay handle the
+        // iOS shell registers instead of an FCM token):
+        // statements 76.77 / branches 72.08 / functions 73.84 / lines 77.41.
+        // Raised 74/69/71/75 -> 74/70/71/75 (floor(measured - 2) per axis —
+        // branches alone crosses an integer step this time).
         // Global floor — re-measured 2026-08-22 after the RAG fusion lot
         // (ADR-242: the shared RetrievalSettingsBar extracted from the two
         // injection sections, the recalibrated relevance tiers, the threshold
@@ -277,7 +284,7 @@ export default defineConfig({
         // Raised 74/69/71/74 -> 74/69/71/75 (floor(measured - 2) per axis —
         // lines alone crosses an integer step this time).
         statements: 74,
-        branches: 69,
+        branches: 70,
         functions: 71,
         lines: 75,
         // Chat state machine — fully covered, keep it that way (2026-07).
@@ -397,6 +404,17 @@ export default defineConfig({
         // instead of navigating a WebView Google refuses. Measured
         // 100 / 94.11 / 100 / 100; floor raised from 88 with the branch
         // coverage those paths added.
+        // The native-shell boundary — the only code in the bundle that changes
+        // behaviour based on WHERE it runs, and the hardest to notice breaking:
+        // nothing in a browser exercises it, and nothing in CI runs a WebView.
+        // Measured 97.22 / 91.66 / 100 / 100 (the one uncovered branch is the
+        // SSR guard, which jsdom cannot enter).
+        'src/lib/native/**/*.ts': {
+          statements: 95,
+          branches: 89,
+          functions: 98,
+          lines: 98,
+        },
         'src/lib/auth.tsx': {
           statements: 98,
           branches: 92,

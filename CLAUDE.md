@@ -529,8 +529,20 @@ Invariants, each backed by a measurement in `scripts/mobile-probe/`:
 
 - **`CapacitorHttp` and `CapacitorCookies` stay disabled** (their default). They
   replace `window.fetch` / `document.cookie` for the whole application.
-- **Push is native on BOTH platforms** — the Push API does not exist in either
-  WebView. `UserFCMToken.device_type` already accepts `android|ios|web`.
+- **Push is native on BOTH platforms, and asymmetric** (ADR-246). The Push API
+  does not exist in either WebView. **Android** initialises Firebase at runtime
+  with options its own server publishes, so a self-hoster's notifications never
+  leave their own Firebase project — never bake a `google-services.json` in, that
+  would tie every install to the publisher's project. **iOS cannot**: APNs
+  authenticates against the Apple team owning the bundle id, and a `.p8` key
+  covers the whole team, so a self-hosted server can never notify the published
+  app. It goes through a **wake relay** carrying an opaque handle and a fixed
+  contentless sentence. `PUSH_RELAY_URL` has **no default** — pointing it
+  somewhere by default would be a privacy decision taken by a constant. The
+  delivery route travels **with the token** (`relay:` prefix), never inferred
+  from configuration: only the shell knows which route it used. And **doubt never
+  deletes** — only "handle unreadable" and "device gone" may drop a token; an
+  unreachable relay or a topic *we* mistyped must not.
 - **The wake word is lost in the shell, on both platforms.** No cross-origin
   isolation, even under COEP `require-corp` (measured twice).
   `isSherpaKwsSupported()` already degrades to tap-to-speak.
@@ -538,9 +550,15 @@ Invariants, each backed by a measurement in `scripts/mobile-probe/`:
   written on a ~30 s timer and Capacitor never flushes; a restart 28 s after
   sign-in loses the session, at 60 s it survives.
 - **iOS: no Service Worker**, because `WKAppBoundDomains` is a static list frozen
-  at build time and cannot follow a runtime server URL. A native offline screen
-  replaces the ADR-146 page. Do not "fix" this by adopting per-deployment builds:
-  that would require an Apple developer account from every self-hoster.
+  at build time and cannot follow a runtime server URL. `apps/mobile/www/offline.html`
+  replaces the ADR-146 page, loaded by Capacitor's `server.errorPath`. Do not
+  "fix" this by adopting per-deployment builds: that would require an Apple
+  developer account from every self-hoster.
+- **Anything the shell must fetch from a host that is not the user's server is
+  NATIVE, not `fetch`.** The page runs on the user's own origin, so such a call
+  is cross-origin, and neither a relay nor an arbitrary self-hosted server can
+  enumerate every origin in a CORS policy. Caught twice before shipping — the
+  health probe and the relay registration — both now in `LiaShell`.
 - **iOS: the API must be same-site as the web app.** WebKit's ITP blocks
   cross-**site** credentialed cookies (`lia.` / `lia-back.` under one registrable
   domain is fine; a different domain is not).
@@ -575,7 +593,7 @@ Run it after any Capacitor upgrade or any CSP change.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (244 ADR files, ADR-245 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (245 ADR files, ADR-246 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

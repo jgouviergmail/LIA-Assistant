@@ -23,6 +23,7 @@ import { cp, mkdir, readdir, readFile, stat } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { declareGradleDependencies } from './android-gradle.mjs';
 import { declareSwiftSources } from './xcode-sources.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -175,6 +176,15 @@ async function main() {
   await overlay(platform, Boolean(args['accept-drift']), freshlyGenerated);
 
   if (platform === 'android') {
+    // Copying a .java file into the tree compiles it, but calling Firebase from
+    // it does not link until the artifact is declared. Same silent failure the
+    // pbxproj transform below exists for, one build system over.
+    const gradle = declareGradleDependencies(join(ROOT, 'android', 'app', 'build.gradle'));
+    console.log(
+      `gradle dependencies — added: ${gradle.added.join(', ') || 'none'}` +
+        (gradle.skipped.length > 0 ? ' | already present' : '')
+    );
+
     const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
     if (!sdk) throw new Error('ANDROID_HOME (or ANDROID_SDK_ROOT) must be set');
     // Forward slashes: a backslash-escaped Windows path makes Gradle fail
@@ -193,7 +203,12 @@ async function main() {
     // the project lists. Declaring it is the step whose absence fails silently.
     const report = declareSwiftSources(
       join(ROOT, 'ios', 'App', 'App.xcodeproj', 'project.pbxproj'),
-      ['ServerUrlStore.swift', 'LiaShellPlugin.swift', 'MainViewController.swift']
+      [
+        'ServerUrlStore.swift',
+        'LiaShellPlugin.swift',
+        'MainViewController.swift',
+        'PushRegistrar.swift',
+      ]
     );
     console.log(
       `xcode sources — declared: ${report.added.join(', ') || 'none'}` +

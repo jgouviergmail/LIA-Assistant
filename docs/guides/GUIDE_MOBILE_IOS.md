@@ -59,7 +59,7 @@ never copied.
 | Cross-origin credentialed call to a separate API origin | **yes** |
 | Server-Sent Events | **yes** |
 | Service Worker | **absent** — see the trade-off above |
-| Notifications / Push API | **absent** → push must be native |
+| Notifications / Push API | **absent** → push must be native, and on iOS that needs a relay (§5) |
 | `crossOriginIsolated` / `SharedArrayBuffer` | **absent** → no wake word (already the case in Safari) |
 | `getUserMedia`, geolocation | **yes**, once the usage descriptions are declared |
 
@@ -158,6 +158,90 @@ biometrics and optional location.
 
 ---
 
+
+### Push notifications — the one thing a self-hosted server cannot do alone
+
+This is the platform's hardest constraint, and it has no configuration that
+fixes it. Read it before promising a user notifications.
+
+**Why.** FCM reaches an iPhone only through APNs, and APNs authenticates a
+provider with a key issued to the Apple Developer team that **owns the bundle
+identifier**. One app is published for every self-hosted server, so that team is
+the app's publisher — not you. An APNs `.p8` key is moreover valid for *every*
+app in a team, so it cannot be handed out. Android has no equivalent problem:
+FCM identifies a sender by project, so an Android device talks to whichever
+Firebase project its own server owns.
+
+**What LIA does about it** (ADR-246). The shell registers with a **wake relay**
+— the deployment that publishes the app — and receives an opaque handle. Your
+server sends that handle to the relay when it wants to notify the device; the
+relay emits a **fixed, contentless sentence** in the user's language, and the
+app fetches the real content from **your** server once opened.
+
+```bash
+# On any deployment that wants iOS notifications:
+PUSH_RELAY_URL=https://lia.jeyswork.com   # no default, on purpose
+```
+
+**What the relay learns, stated plainly:** that some device was woken, when, and
+the IP address of the server that asked. Not who, not from which account, not
+about what. It stores nothing at all — the handle *is* the record, sealed, and
+it expires.
+
+**If that is not acceptable to you**, leave `PUSH_RELAY_URL` unset. Your users
+keep the iOS PWA (which does receive Web Push, added to the home screen), or you
+publish your own iOS build under your own Apple Developer account and use plain
+APNs — the delivery path branches on the token, not on configuration, so both
+work side by side.
+
+### Operating a relay (publishers only)
+
+Only the deployment that publishes the app to the App Store turns this on.
+
+```bash
+PUSH_RELAY_ENABLED=true
+PUSH_RELAY_SEAL_KEY=<Fernet key>       # NOT fernet_key: rotating this invalidates every handle at once
+APNS_KEY_PATH=/run/secrets/apns.p8
+APNS_KEY_ID=ABCDE12345
+APNS_TEAM_ID=TEAM123456
+APNS_TOPIC=com.lia.assistant
+APNS_USE_SANDBOX=false                 # a token minted for one gateway is invalid on the other
+```
+
+Enabling it without any of those **refuses to boot**, naming the missing
+variable. That is deliberate: a half-configured relay accepts registrations and
+fails every send, which reads as "the relay is down" to a self-hoster and
+"notifications don't work" to a user, with nothing anywhere naming the cause.
+
+Two endpoints, no database, no scheduled job:
+
+| Route | Who calls it | What it does |
+|---|---|---|
+| `POST /api/v1/push-relay/devices` | the iOS shell, natively | seals a device token into a handle |
+| `POST /api/v1/push-relay/wake` | a self-hosted LIA server | sends the fixed notification |
+
+Registration is native rather than from the page because the page runs on the
+user's own server origin: calling the relay from JavaScript is cross-origin, and
+a relay serving every self-hosted server cannot enumerate their origins in a
+CORS policy.
+
+**Rotating the seal key** invalidates every handle in circulation. Devices
+recover on their next launch, since the shell re-registers each time — so it is
+a usable panic button, not a one-way door.
+
+### The offline screen
+
+`server.errorPath` points at a bundled `www/offline.html`. This is **load-bearing
+on iOS**: there is no service worker, so ADR-146's offline page can never run
+here, and without this the user gets WebKit's own "cannot open page" inside the
+app.
+
+It offers a retry that rebuilds the bridge, and a way to forget the stored
+server — the escape hatch from an address mistyped on first launch, which
+otherwise produces that screen on every launch forever.
+
+---
+
 ## 6. Building and signing *(planned)*
 
 ```bash
@@ -228,6 +312,25 @@ outrank `iOS-18`.
 `NSMicrophoneUsageDescription` missing from the generated `Info.plist`. Always
 ask whether the harness declared what the platform requires before concluding the
 platform refuses it.
+
+
+### The offline screen also catches HTTP errors, not only network failures
+
+Capacitor's `errorPath` redirects on `onReceivedError` **and**
+`onReceivedHttpError` for the main frame. A server answering 404 to a
+main-frame navigation therefore shows "your LIA is unreachable", which is a
+misleading diagnosis.
+
+In practice the shell only navigates to routes that exist — the server root and
+`/native-auth`. The one way to reach this is a **shell newer than its server**:
+tapping a sign-in deep link against a server that predates that route. It was
+observed exactly once, during lot 2b, when production answered 404 to
+`/native-auth` because the route lived only in the branch.
+
+Capacitor offers no granularity here, and the alternative is worse: without
+`errorPath`, a genuine network failure shows the engine's own error page inside
+the app. The trade is deliberate — recorded so the next person does not
+rediscover it as a bug.
 
 ### OAuth cannot run inside the WebView
 

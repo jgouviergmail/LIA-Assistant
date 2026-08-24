@@ -20,6 +20,8 @@ public class LiaShellPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "probe", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "set", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openExternal", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "forget", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "registerPush", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restart", returnType: CAPPluginReturnPromise)
     ]
 
@@ -104,6 +106,51 @@ public class LiaShellPlugin: CAPPlugin, CAPBridgedPlugin {
     /// The server URL is read when the bridge is BUILT, and a bridge is built
     /// once. Replacing the root view controller is what applies it — reloading
     /// the WebView would only reload the setup screen.
+    /// Forget the configured origin.
+    ///
+    /// Separate from `set` on purpose: `set` validates and stores an address,
+    /// and letting it also mean "erase" when handed nothing would weaken the
+    /// one check standing between a typo and an app that never loads.
+    ///
+    /// - Parameter call: Resolves once the origin is forgotten.
+    @objc func forget(_ call: CAPPluginCall) {
+        ServerUrlStore.clear()
+        call.resolve()
+    }
+
+    /// Obtain a push token for this device.
+    ///
+    /// The web layer hands over the whole `/notifications/push-config` payload
+    /// and each platform reads its own half, so the page never has to know
+    /// which one it is running on. Here that half is a relay URL — see
+    /// `PushRegistrar` for why iOS cannot be notified by its own server.
+    ///
+    /// - Parameter call: Expects the push configuration; resolves with
+    ///   `{token: string|null, deviceType: "ios", reason?: string}`.
+    @objc func registerPush(_ call: CAPPluginCall) {
+        guard
+            let ios = call.getObject("ios"),
+            let relayUrl = ios["relay_url"] as? String,
+            !relayUrl.isEmpty
+        else {
+            // The server offers no relay. Not an error: a deployment may
+            // simply have chosen not to use one, and the page says so.
+            call.resolve(["token": NSNull(), "deviceType": "ios", "reason": "not_configured"])
+            return
+        }
+
+        PushRegistrar.register(
+            relayUrl: relayUrl,
+            language: call.getString("language") ?? "fr"
+        ) { outcome in
+            call.resolve([
+                "token": outcome.token ?? NSNull(),
+                "deviceType": "ios",
+                "reason": outcome.reason ?? NSNull(),
+            ])
+        }
+    }
+
     @objc func restart(_ call: CAPPluginCall) {
         call.resolve()
         DispatchQueue.main.async {

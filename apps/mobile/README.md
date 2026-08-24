@@ -60,6 +60,49 @@ the web app, never a shell. A JS check would have reported **every correctly
 configured server** as unreachable. `ServerUrlPlugin.probe` asks from the native
 side, where CORS does not exist.
 
+
+## Why push works differently on each platform
+
+The two platforms do not have the same problem, so they do not get the same
+answer (ADR-246).
+
+**Android** initialises Firebase at runtime with options the user's own server
+publishes — `PushRegistrar.java`. There is deliberately **no**
+`google-services.json` in this repository: shipping one would tie every install
+to a single Firebase project, the publisher's, and route every self-hoster's
+notifications through it. Capacitor's generated `build.gradle` already applies
+the `google-services` plugin only when that file exists, so leaving it out is the
+supported path rather than a workaround.
+
+**iOS cannot do the same.** APNs authenticates against the Apple Developer team
+that owns the bundle identifier, and a `.p8` key covers every app in that team —
+so a self-hosted server can never notify the published app, and the key can never
+be distributed. `PushRegistrar.swift` registers with APNs natively and exchanges
+the device token for an opaque handle at a **wake relay**. No Firebase SDK is
+embedded on iOS at all.
+
+Both registrations happen **natively**, and that is not an implementation
+detail: the page runs on the user's own server origin, so calling a relay from
+JavaScript is cross-origin, and a relay serving every self-hosted server cannot
+enumerate their origins in a CORS policy. Same reasoning as the address check
+above.
+
+## Why there are two bundled pages
+
+`www/index.html` is the setup screen, shown before any server is known.
+`www/offline.html` is what Capacitor loads when a navigation to the server fails
+(`server.errorPath`) — load-bearing on iOS, which has no service worker and would
+otherwise show WebKit's own error page inside the app.
+
+Both carry their own inline translations for all six languages, because neither
+has an app bundle to ask. `apps/api/tests/unit/test_mobile_shell_pages_guard.py`
+holds that parity: they are the only user-facing text in the repository the i18n
+gate cannot see, since it compares locale files and these have none.
+
+The offline screen offers a way to **forget** the stored server, not only a
+retry. An address mistyped on first launch otherwise produces that screen on
+every launch forever, with reinstalling as the only remedy.
+
 ## Verification
 
 Android is verified end to end on an emulator; iOS compilation runs on a

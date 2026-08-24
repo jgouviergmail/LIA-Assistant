@@ -192,6 +192,14 @@ if getattr(settings, "push_channels_enabled", False) or getattr(
     from src.domains.push_channels.router import router as push_channels_router
 
     api_router.include_router(push_channels_router)
+
+# The wake relay is served by exactly one deployment — the one that publishes
+# the iOS app. Every other deployment CALLS a relay (push_relay_url) without
+# operating one, which is why this guard reads the operator flag alone.
+if getattr(settings, "push_relay_enabled", False):
+    from src.domains.push_relay.router import router as push_relay_router
+
+    api_router.include_router(push_relay_router)
 api_router.include_router(voice_router)
 api_router.include_router(voice_admin_router)
 api_router.include_router(user_export_router)

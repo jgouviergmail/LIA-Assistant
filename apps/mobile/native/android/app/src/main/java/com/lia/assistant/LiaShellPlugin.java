@@ -1,12 +1,18 @@
 package com.lia.assistant;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -20,11 +26,19 @@ import java.net.URL;
  * origin across launches, rebuild the bridge, and hand a URL to the system
  * browser.
  */
-@CapacitorPlugin(name = "LiaShell")
+@CapacitorPlugin(
+    name = "LiaShell",
+    permissions = {
+        @Permission(strings = { Manifest.permission.POST_NOTIFICATIONS }, alias = LiaShellPlugin.NOTIFICATIONS)
+    }
+)
 public class LiaShellPlugin extends Plugin {
 
     /** Long enough for a home server behind a tunnel, short enough to fail visibly. */
     private static final int PROBE_TIMEOUT_MS = 8000;
+
+    /** Alias of the runtime notification permission Android 13 introduced. */
+    static final String NOTIFICATIONS = "notifications";
 
     /**
      * Report the configured origin, if any.
@@ -138,6 +152,118 @@ public class LiaShellPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("no browser available", "NO_BROWSER");
         }
+    }
+
+
+    /**
+     * Forget the configured origin.
+     *
+     * <p>Separate from {@link #set} on purpose: {@code set} validates and
+     * stores an address, and letting it also mean "erase" when handed nothing
+     * would weaken the one check standing between a typo and an app that never
+     * loads.
+     *
+     * @param call Resolves once the origin is forgotten.
+     */
+    @PluginMethod
+    public void forget(PluginCall call) {
+        ServerUrlStore.clear(getContext());
+        call.resolve();
+    }
+
+    /**
+     * Obtain a push token for whichever Firebase project this server owns.
+     *
+     * <p>The web layer hands over the whole {@code /notifications/push-config}
+     * payload and each platform reads its own half, so the page never has to
+     * know which one it is running on.
+     *
+     * <p>Android 13 made notifications a runtime permission. Asking is the
+     * first step, and a refusal is a normal answer — the caller gets a null
+     * token and can say so, rather than a token nothing will ever display.
+     *
+     * @param call Expects the push configuration; resolves with
+     *     {@code {token: string|null, deviceType: "android", reason?: string}}.
+     */
+    @PluginMethod
+    public void registerPush(PluginCall call) {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissionForAlias(NOTIFICATIONS, call, "afterNotificationPermission");
+            return;
+        }
+        fetchPushToken(call);
+    }
+
+    /**
+     * Continue once the user has answered the permission prompt.
+     *
+     * @param call The original call, resumed by Capacitor.
+     */
+    @PermissionCallback
+    private void afterNotificationPermission(PluginCall call) {
+        if (getPermissionState(NOTIFICATIONS) != com.getcapacitor.PermissionState.GRANTED) {
+            resolveNoToken(call, "permission_denied");
+            return;
+        }
+        fetchPushToken(call);
+    }
+
+    /**
+     * Read the Android half of the configuration and ask Firebase for a token.
+     *
+     * @param call The call to resolve.
+     */
+    private void fetchPushToken(PluginCall call) {
+        JSObject android = call.getObject("android");
+        if (android == null) {
+            // The server offers no Android push. Not an error: a deployment
+            // may simply have no Firebase project.
+            resolveNoToken(call, "not_configured");
+            return;
+        }
+
+        PushRegistrar.fetchToken(
+            getContext(),
+            android.getString("app_id"),
+            android.getString("api_key"),
+            android.getString("project_id"),
+            android.getString("sender_id"),
+            new PushRegistrar.TokenCallback() {
+                @Override
+                public void onToken(String token) {
+                    JSObject result = new JSObject();
+                    result.put("token", token);
+                    result.put("deviceType", "android");
+                    call.resolve(result);
+                }
+
+                @Override
+                public void onFailure(String reason) {
+                    resolveNoToken(call, reason);
+                }
+            }
+        );
+    }
+
+    /**
+     * Report that there is no token, and why.
+     *
+     * <p>Resolved rather than rejected: "the user said no" and "this server has
+     * no push" are outcomes the page displays, not failures it recovers from.
+     *
+     * @param call The call to resolve.
+     * @param reason Machine-readable cause.
+     */
+    private void resolveNoToken(PluginCall call, String reason) {
+        JSObject result = new JSObject();
+        result.put("token", null);
+        result.put("deviceType", "android");
+        result.put("reason", reason);
+        call.resolve(result);
     }
 
     /**

@@ -212,7 +212,7 @@ export const LANDING_STATS = {
   metrics: 486,
   uiLanguages: 6,
   tests: 26400,
-  adrs: 244,
+  adrs: 245,
   releases: 225,
   auditScore: '8.3/10',
   auditAreas: 24,

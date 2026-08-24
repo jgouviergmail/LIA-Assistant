@@ -159,3 +159,45 @@ class HubCountsResponse(BaseModel):
             "to-decide set, never a history."
         ),
     )
+
+
+class AndroidPushConfig(BaseModel):
+    """Firebase client options a native Android shell initialises with.
+
+    Not secrets: every Android build ships these inside its APK. They are
+    published so ONE app can talk to whichever Firebase project its server
+    owns, instead of a google-services.json baked into the binary.
+    """
+
+    app_id: str = Field(..., description="mobilesdk_app_id of the Android app")
+    api_key: str = Field(..., description="Web API key of the Firebase project")
+    project_id: str = Field(..., description="Firebase project id")
+    sender_id: str = Field(..., description="Cloud Messaging sender id")
+
+
+class IosPushConfig(BaseModel):
+    """Where an iOS shell registers, since it cannot register with this server.
+
+    Only the Apple Developer team owning the published app may notify it, and a
+    self-hosted deployment is not that team — so the shell registers with the
+    relay this deployment has chosen to use.
+    """
+
+    relay_url: str = Field(..., description="Base URL of the wake relay")
+
+
+class PushConfigResponse(BaseModel):
+    """What this deployment can offer each native platform.
+
+    ``None`` means "no push on this platform here" — which a shell shows to the
+    user, rather than registering a token nothing will ever send to.
+    """
+
+    android: AndroidPushConfig | None = Field(
+        default=None,
+        description="Firebase options, or null when this deployment has none",
+    )
+    ios: IosPushConfig | None = Field(
+        default=None,
+        description="Relay to register with, or null when none is configured",
+    )

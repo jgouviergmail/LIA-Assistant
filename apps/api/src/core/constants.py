@@ -5291,3 +5291,49 @@ REDIS_KEY_PUSH_DEBOUNCE_PREFIX = "push:debounce:"
 # AQ/pollen enrichment of weather answers (2026-08) — both APIs are billed,
 # the cache bounds the spend to at most one call pair per point per TTL.
 WEATHER_ENVIRONMENT_ENRICHMENT_TTL_SECONDS_DEFAULT = 1800  # 30 min
+
+
+# =============================================================================
+# Apple Push Notification service (APNs)
+# =============================================================================
+
+# Apple's two gateways. A device token minted against one is meaningless to the
+# other, which surfaces as a permanent "BadDeviceToken" rather than an error.
+APNS_PRODUCTION_HOST = "api.push.apple.com"
+APNS_SANDBOX_HOST = "api.sandbox.push.apple.com"
+
+# Apple refuses a provider token older than one hour and rate-limits providers
+# that mint one per request. Renewing on a 50-minute window satisfies both,
+# with enough margin for clock skew.
+APNS_PROVIDER_TOKEN_REFRESH_SECONDS = 50 * 60
+
+APNS_REQUEST_TIMEOUT_SECONDS = 10.0
+
+
+# =============================================================================
+# Wake relay (published iOS shell)
+# =============================================================================
+
+# Handles are refused past this age. The shell re-registers on every launch, so
+# expiry is self-healing and bounds how long a leaked handle stays usable.
+PUSH_RELAY_HANDLE_MAX_AGE_DAYS_DEFAULT = 180
+
+PUSH_RELAY_TIMEOUT_SECONDS_DEFAULT = 8.0
+
+# Per-IP: registering is cheap for us and rare for a device (once per launch).
+RATE_LIMIT_PUSH_RELAY_REGISTER_PER_MINUTE = 10
+
+# Per-HANDLE, not per-IP: a handle is a bearer capability, so the budget must
+# follow the device it can wake rather than the server that presents it — one
+# self-hosted server legitimately wakes many devices from one address.
+RATE_LIMIT_PUSH_RELAY_WAKE_PER_MINUTE = 6
+
+# Folds a burst of wakes into a single notification on the device.
+PUSH_RELAY_WAKE_COLLAPSE_ID = "lia-wake"
+
+# Prefix a native shell puts on a token it obtained from a wake relay rather
+# than from its own server's Firebase project. The shell is the only party that
+# KNOWS which route it used, so the route travels with the token instead of
+# being inferred from configuration — a deployment can legitimately have both
+# relayed devices and devices reached through its own Apple account.
+PUSH_RELAY_HANDLE_PREFIX = "relay:"

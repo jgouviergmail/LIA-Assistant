@@ -64,9 +64,12 @@ headers** — the probe imports them from
 
 Two consequences worth stating plainly:
 
-- **Push must be native.** The Push API does not exist in a WebView, on either
-  platform. `UserFCMToken.device_type` already accepts `android`, so no schema
-  change is needed.
+- **Push is native, and it stays yours** (ADR-246, delivered). The Push API
+  does not exist in a WebView on either platform, so the shell asks Firebase
+  directly. What matters is *which* Firebase: the app initialises it **at
+  runtime** with options your own server publishes, so notifications come from
+  the Firebase project **you** own. Nothing passes through the app's publisher
+  — unlike iOS, which has no such option (see the iOS guide).
 - **The wake word is lost.** `isSherpaKwsSupported()` returns false without
   cross-origin isolation and voice mode degrades to tap-to-speak. This is a
   regression against the PWA, which keeps the wake word in Chrome. It is not a
@@ -126,23 +129,69 @@ A test asserts both stay off.
 
 ## 5. Configuration
 
-### The server URL is chosen at runtime
+### The server URL is chosen at runtime — delivered
 
 `BridgeActivity.load()` calls `bridgeBuilder.setConfig(config).create()` and
-`config` is a **protected** field, so a subclass can build one from a stored
-value:
+`config` is a **protected** field, so `MainActivity` builds one from the stored
+value before delegating:
 
 ```java
-// planned: read the URL the user typed at first launch
+// apps/mobile/native/android/.../MainActivity.java
 this.config = new CapConfig.Builder(this)
-        .setServerUrl(preferences.getString("lia_server_url", null))
-        .build();
+        .setServerUrl(ServerUrlStore.read(this))
+        .create();
 super.load();
 ```
 
-Validate the URL before storing it: HTTPS only, reachable, and answering LIA's
-health endpoint. A typo saved silently produces an app that never loads and no
-way back except reinstalling.
+`ServerUrlStore.normalise` refuses anything that is not a usable HTTPS origin,
+and the setup screen additionally **probes** the address natively before storing
+it (`LiaShell.probe`). Both matter: a typo saved silently produces an app that
+never loads.
+
+Two escape hatches exist for when it happens anyway. The offline screen
+(below) offers "use a different server", which calls `LiaShell.forget` and sends
+the next launch back to setup. Without it, reinstalling is the only remedy.
+
+
+### Push notifications — your Firebase project, not the publisher's
+
+Delivered in ADR-246. The app carries **no** `google-services.json`: it
+initialises Firebase at runtime with options your server publishes, so
+notifications originate from the Firebase project **you** own.
+
+Set these three on your server (they are not secrets — every Android build
+ships them inside its APK; find them in your project's `google-services.json`):
+
+```bash
+FIREBASE_ANDROID_APP_ID=1:123456789:android:abcdef   # mobilesdk_app_id, NOT the package name
+FIREBASE_API_KEY=AIza...                             # current_key of the Android client
+FIREBASE_SENDER_ID=123456789                         # project_number
+FIREBASE_PROJECT_ID=your-project                     # already existed
+```
+
+Register `com.lia.assistant` as an Android app in that Firebase project, and
+keep `FIREBASE_CREDENTIALS_PATH` pointing at the same project's service account
+— the client options and the sending credentials must name **one** project.
+
+**All four, or none.** Firebase refuses to initialise on a partial set, so
+`GET /notifications/push-config` publishes `android: null` unless every value is
+present, and the shell then tells the user push is unavailable rather than
+registering a token nothing will ever send to.
+
+Android 13+ makes notifications a runtime permission. The shell asks
+(`POST_NOTIFICATIONS`), and a refusal is reported as a refusal — distinct from
+"this server has no push configured", because the two send the user to different
+places.
+
+### The offline screen
+
+`server.errorPath` in `capacitor.config.json` points at a bundled
+`www/offline.html`, which Capacitor loads when a main-frame navigation fails.
+Android *does* run the ADR-146 service worker, so this is belt and braces here —
+it is load-bearing on iOS, which has no service worker at all.
+
+It offers a retry that **rebuilds the bridge** (reloading would reload the local
+page) and a way to forget the stored server.
 
 ### Deployment constraint to document for users
 
@@ -224,6 +273,25 @@ hazard on demand:
 ```bash
 task mobile:probe:android -- --settle 25000
 ```
+
+
+### The offline screen also catches HTTP errors, not only network failures
+
+Capacitor's `errorPath` redirects on `onReceivedError` **and**
+`onReceivedHttpError` for the main frame. A server answering 404 to a
+main-frame navigation therefore shows "your LIA is unreachable", which is a
+misleading diagnosis.
+
+In practice the shell only navigates to routes that exist — the server root and
+`/native-auth`. The one way to reach this is a **shell newer than its server**:
+tapping a sign-in deep link against a server that predates that route. It was
+observed exactly once, during lot 2b, when production answered 404 to
+`/native-auth` because the route lived only in the branch.
+
+Capacitor offers no granularity here, and the alternative is worse: without
+`errorPath`, a genuine network failure shows the engine's own error page inside
+the app. The trade is deliberate — recorded so the next person does not
+rediscover it as a bug.
 
 ### OAuth cannot run inside the WebView
 

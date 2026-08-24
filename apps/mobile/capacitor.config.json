@@ -2,6 +2,9 @@
   "appId": "com.lia.assistant",
   "appName": "LIA",
   "webDir": "www",
+  "server": {
+    "errorPath": "offline.html"
+  },
   "plugins": {
     "CapacitorHttp": { "enabled": false },
     "CapacitorCookies": { "enabled": false }

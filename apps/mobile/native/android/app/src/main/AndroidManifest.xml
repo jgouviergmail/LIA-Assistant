@@ -55,4 +55,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Android 13 made notifications a runtime permission. Declaring it is
+         what allows the shell to ASK; a refusal is a normal answer the setup
+         path reports rather than a failure. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

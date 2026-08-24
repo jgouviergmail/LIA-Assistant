@@ -11,6 +11,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import {
@@ -21,6 +22,8 @@ import {
   getDeviceType,
   isIOSPWA,
 } from '@/lib/firebase';
+import { enrolNativePush } from '@/lib/native/push';
+import { isNativeShell } from '@/lib/native/shell';
 
 export type FCMPermissionStatus = NotificationPermission | 'unsupported' | 'not-configured';
 
@@ -97,14 +100,20 @@ interface RegisterTokenRequest {
  * ```
  */
 export function useFCMToken(): UseFCMTokenReturn {
+  const { i18n } = useTranslation();
   const [token, setToken] = useState<string | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<FCMPermissionStatus>('default');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registeredTokens, setRegisteredTokens] = useState<RegisteredToken[]>([]);
 
-  const isSupported = typeof window !== 'undefined' && areNotificationsSupported();
-  const isConfigured = typeof window !== 'undefined' && isFirebaseConfigured();
+  // A native shell has neither `Notification` nor a Firebase web config, and
+  // both are the wrong question to ask it: it gets its token from its host and
+  // its configuration from the server it is pointed at. Answering "unsupported"
+  // here would hide the feature on the two platforms that now have it.
+  const inShell = typeof window !== 'undefined' && isNativeShell();
+  const isSupported = typeof window !== 'undefined' && (areNotificationsSupported() || inShell);
+  const isConfigured = typeof window !== 'undefined' && (isFirebaseConfigured() || inShell);
   const isiOSPWA = typeof window !== 'undefined' && isIOSPWA();
 
   // Initialize permission status on mount
@@ -121,9 +130,16 @@ export function useFCMToken(): UseFCMTokenReturn {
       return;
     }
 
+    if (inShell) {
+      // The host owns the permission, and asking is the only way to learn its
+      // state — there is no `Notification.permission` to read.
+      setPermissionStatus('default');
+      return;
+    }
+
     const currentPermission = getNotificationPermission();
     setPermissionStatus(currentPermission);
-  }, [isSupported, isConfigured]);
+  }, [isSupported, isConfigured, inShell]);
 
   /**
    * Fetch registered tokens from backend.
@@ -133,7 +149,11 @@ export function useFCMToken(): UseFCMTokenReturn {
     try {
       // FIX 2025-12-29: Also refresh permission status from browser
       // This ensures state is synced when another component instance grants permission
-      if (isSupported && isConfigured) {
+      //
+      // Never in a shell: there is no browser permission to read there, so this
+      // would answer 'unsupported' and overwrite the state the enrolment just
+      // established — a refresh silently undoing the thing it followed.
+      if (isSupported && isConfigured && !inShell) {
         const currentPermission = getNotificationPermission();
         setPermissionStatus(currentPermission);
       }
@@ -152,7 +172,7 @@ export function useFCMToken(): UseFCMTokenReturn {
         error: err instanceof Error ? err.message : 'Unknown error',
       });
     }
-  }, [isSupported, isConfigured]);
+  }, [isSupported, isConfigured, inShell]);
 
   // Fetch registered tokens when permission is granted
   useEffect(() => {
@@ -184,23 +204,35 @@ export function useFCMToken(): UseFCMTokenReturn {
     setError(null);
 
     try {
-      // Request permission and get token from Firebase
-      const fcmToken = await requestNotificationPermission();
+      // Only the ACQUISITION differs between a browser and a shell. Everything
+      // below — registering with this server, tracking state, refreshing the
+      // list — is the same work, and duplicating it into a second hook is how
+      // the two paths would drift.
+      const native = await enrolNativePush(i18n.language);
+      const fcmToken = native ? native.token : await requestNotificationPermission();
 
-      // Update permission status
-      const newPermission = getNotificationPermission();
+      // A shell has no `Notification.permission` to read back: whether a token
+      // came out IS the answer.
+      const newPermission = native
+        ? ((fcmToken ? 'granted' : 'denied') as NotificationPermission)
+        : getNotificationPermission();
       setPermissionStatus(newPermission);
 
       if (!fcmToken) {
         logger.info('FCM: Permission denied or token not obtained', {
           component: 'useFCMToken',
           permission: newPermission,
+          reason: native?.reason,
         });
-        return { status: 'denied' };
+        // A user's refusal and a server with no push configured call for
+        // different things, so they must not collapse into one answer.
+        return native && native.reason !== 'permission_denied'
+          ? { status: 'failed', error: native.reason ?? 'native_push_unavailable' }
+          : { status: 'denied' };
       }
 
       // Register token with backend
-      const deviceType = getDeviceType();
+      const deviceType = native ? native.deviceType : getDeviceType();
       const deviceName = getDeviceName();
 
       await apiClient.post<void>('/notifications/register-token', {
@@ -242,7 +274,7 @@ export function useFCMToken(): UseFCMTokenReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [isSupported, isConfigured, refreshTokens]);
+  }, [isSupported, isConfigured, refreshTokens, i18n.language]);
 
   /**
    * Unregister a token by ID from backend.

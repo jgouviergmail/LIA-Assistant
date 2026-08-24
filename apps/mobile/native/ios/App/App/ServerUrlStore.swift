@@ -35,6 +35,15 @@ enum ServerUrlStore {
     /// - Parameter url: Candidate origin.
     /// - Returns: Scheme + host (+ port), with no trailing slash.
     /// - Throws: ``ServerUrlError/invalid`` when the value is unusable.
+    /// Forget the configured origin, sending the next launch to the setup screen.
+    ///
+    /// The escape hatch from an address stored wrong on first run: without it,
+    /// the shell reaches an unreachable server forever and the only remedy is
+    /// reinstalling the app.
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
     static func normalise(_ url: String?) throws -> String {
         guard let raw = url?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty,
               let parsed = URLComponents(string: raw),

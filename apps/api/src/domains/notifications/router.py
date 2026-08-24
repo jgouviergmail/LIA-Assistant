@@ -26,9 +26,12 @@ from src.core.session_dependencies import get_current_active_session, get_curren
 from src.domains.notifications.broadcast_service import BroadcastService
 from src.domains.notifications.hub_counts import resolve_hub_counts
 from src.domains.notifications.schemas import (
+    AndroidPushConfig,
     BroadcastMessageRequest,
     BroadcastMessageResponse,
     HubCountsResponse,
+    IosPushConfig,
+    PushConfigResponse,
     TokenInfo,
     TokenRegisterRequest,
     TokenRegisterResponse,
@@ -49,6 +52,52 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 # =============================================================================
 # FCM Token Management
 # =============================================================================
+
+
+@router.get(
+    "/push-config",
+    response_model=PushConfigResponse,
+    summary="How this server's native shells receive notifications",
+    description=(
+        "One app is published per store and points at whichever server its "
+        "user runs, so it carries none of this in its binary. Android gets "
+        "this deployment's Firebase options; iOS gets a wake relay, because "
+        "only the Apple team owning the published app may notify it."
+    ),
+)
+async def get_push_config(
+    _current_user: User = Depends(get_current_active_session),
+) -> PushConfigResponse:
+    """
+    Report what this deployment can offer each native platform.
+
+    Args:
+        _current_user: Authenticated session. These values are not secrets, but
+            they are of no use to anyone without an account here.
+
+    Returns:
+        A per-platform answer, ``None`` where this deployment offers nothing —
+        which the shell shows to the user, rather than registering a token
+        nothing will ever send to.
+    """
+    android = None
+    # Firebase refuses to initialise on a partial set, so three values out of
+    # four buy a crash on the device rather than a notification.
+    if (
+        settings.firebase_android_app_id
+        and settings.firebase_api_key
+        and settings.firebase_sender_id
+    ):
+        android = AndroidPushConfig(
+            app_id=settings.firebase_android_app_id,
+            api_key=settings.firebase_api_key,
+            project_id=settings.firebase_project_id,
+            sender_id=settings.firebase_sender_id,
+        )
+
+    ios = IosPushConfig(relay_url=settings.push_relay_url) if settings.push_relay_url else None
+
+    return PushConfigResponse(android=android, ios=ios)
 
 
 @router.post(
