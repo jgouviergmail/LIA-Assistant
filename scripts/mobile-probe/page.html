@@ -1,0 +1,118 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>LIA WebView capability probe</title>
+<body>
+  <h1>LIA WebView capability probe</h1>
+  <pre id="out">running…</pre>
+  <script>
+    /*
+     * Runs inside the native WebView, under LIA's REAL production security
+     * headers (served by server.mjs, which imports them from
+     * apps/web/src/lib/csp.ts — never a copy).
+     *
+     * Results are POSTed back to the same origin rather than logged: console
+     * forwarding differs between Android (logcat) and iOS (os_log), while a
+     * same-origin POST behaves identically on both AND doubles as proof that
+     * `fetch` works under `connect-src 'self'`.
+     */
+    (async () => {
+      const r = { probe_version: 1 };
+
+      r.ua = navigator.userAgent;
+
+      // --- Native bridge: does it survive the strict CSP? -----------------
+      // Capacitor injects it out-of-band (addDocumentStartJavaScript on
+      // Android, WKUserScript on iOS), so `script-src` should not apply. This
+      // asserts that, rather than trusting it.
+      r.bridge_Capacitor = typeof window.Capacitor;
+      r.bridge_isNative = !!(window.Capacitor?.isNativePlatform?.());
+      r.bridge_platform = window.Capacitor?.getPlatform?.() ?? null;
+
+      // --- Web push: absent in both WebViews, hence native push ------------
+      r.has_Notification = 'Notification' in window;
+      r.has_PushManager = 'PushManager' in window;
+      r.has_serviceWorker = 'serviceWorker' in navigator;
+
+      // --- Wake-word prerequisites (sherpaKws.isSherpaKwsSupported) --------
+      r.crossOriginIsolated = typeof crossOriginIsolated !== 'undefined' ? crossOriginIsolated : null;
+      r.has_SharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+      r.has_WebAssembly = typeof WebAssembly !== 'undefined';
+      r.has_AudioWorklet = typeof AudioContext !== 'undefined' && typeof AudioWorkletNode !== 'undefined';
+
+      // --- Voice / geo / uploads ------------------------------------------
+      r.has_getUserMedia = !!navigator.mediaDevices?.getUserMedia;
+      r.has_MediaRecorder = typeof MediaRecorder !== 'undefined';
+      r.has_geolocation = !!navigator.geolocation;
+
+      // --- BFF invariant: httpOnly cookie must stay invisible to JS -------
+      r.document_cookie = document.cookie;
+
+      // --- Offline shell ---------------------------------------------------
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        r.sw_registered = !!reg;
+        r.sw_scope = reg.scope;
+      } catch (e) {
+        r.sw_registered = false;
+        r.sw_error = String(e && e.message);
+      }
+
+      // --- Streaming: the chat rail depends on it --------------------------
+      r.sse = await new Promise(resolve => {
+        let n = 0;
+        const es = new EventSource('/sse');
+        const timer = setTimeout(() => { es.close(); resolve({ ok: false, events: n, reason: 'timeout' }); }, 15000);
+        es.onmessage = () => {
+          if (++n >= 3) { clearTimeout(timer); es.close(); resolve({ ok: true, events: n }); }
+        };
+        es.onerror = () => { clearTimeout(timer); es.close(); resolve({ ok: false, events: n, reason: 'error' }); };
+      });
+
+      // --- BFF invariant: credentials:'include' must carry the cookie ------
+      try {
+        const res = await fetch('/whoami', { credentials: 'include' });
+        r.server_saw_cookies = await res.text();
+      } catch (e) {
+        r.server_saw_cookies = 'ERROR: ' + String(e && e.message);
+      }
+
+      // --- Cross-site credentialed request to the separate API origin ------
+      // This is production's real topology: the app on lia.jeyswork.com calls
+      // the API on lia-back.jeyswork.com. Android WebView can break it on its
+      // own — `setAcceptThirdPartyCookies` defaults to false there, unlike
+      // Chrome. The pair used here (localhost -> 127.0.0.1) is CROSS-SITE, so
+      // it is stricter than production's same-site split.
+      const apiOrigin = '__API_ORIGIN__';
+      try {
+        await fetch(apiOrigin + '/set', { credentials: 'include' });
+        const echo = await fetch(apiOrigin + '/echo', { credentials: 'include' });
+        r.api_origin_saw_cookies = await echo.text();
+      } catch (e) {
+        r.api_origin_saw_cookies = 'ERROR: ' + String(e && e.message);
+      }
+
+      // --- Is the CSP genuinely enforced in this WebView? ------------------
+      // A cross-origin fetch must be refused by `connect-src 'self' …`.
+      try {
+        await fetch('https://example.com/', { mode: 'no-cors' });
+        r.csp_blocks_cross_origin = false;
+      } catch {
+        r.csp_blocks_cross_origin = true;
+      }
+
+      // Cookie persistence across a cold app restart is measured by run.mjs,
+      // which relaunches the app while the server withholds `Set-Cookie` on
+      // every document after the first: `server_saw_cookies` above then tells
+      // whether the WebView's cookie store survived the restart. WKWebView's
+      // non-persistent data store silently drops cookies, and that failure is
+      // invisible until a user is signed out on every launch.
+
+      document.getElementById('out').textContent = JSON.stringify(r, null, 2);
+      await fetch('/result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(r),
+      });
+    })();
+  </script>
+</body>
