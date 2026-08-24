@@ -308,6 +308,32 @@ tasks:
     cmds:
       - pnpm test:coverage
 
+  mobile:prepare:android:
+    desc: Regenerate the Android shell and lay our own sources on top
+    dir: apps/mobile
+    cmds:
+      - node scripts/prepare.mjs --platform android {{.CLI_ARGS}}
+
+  mobile:prepare:ios:
+    desc: Regenerate the iOS shell and lay our own sources on top (macOS for building)
+    dir: apps/mobile
+    cmds:
+      - node scripts/prepare.mjs --platform ios {{.CLI_ARGS}}
+
+  mobile:build:android:
+    desc: Build the Android shell (debug APK)
+    deps: [mobile:prepare:android]
+    dir: apps/mobile
+    cmds:
+      - node scripts/build.mjs --platform android
+
+  mobile:build:ios:
+    desc: Build the iOS shell — compilation is the only check our Swift gets (macOS)
+    deps: [mobile:prepare:ios]
+    dir: apps/mobile
+    cmds:
+      - node scripts/build.mjs --platform ios
+
   mobile:probe:android:
     desc: Measure LIA's production headers inside a real Android WebView (needs a booted emulator/device)
     # The probe imports the CSP/COEP builders from apps/web/src/lib/csp.ts, so

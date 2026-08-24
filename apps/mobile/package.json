@@ -1,0 +1,17 @@
+{
+  "name": "@lia-assistant/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native shells for LIA — one published app, every self-hosted server",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "prepare:android": "node scripts/prepare.mjs --platform android",
+    "prepare:ios": "node scripts/prepare.mjs --platform ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.0",
+    "@capacitor/cli": "8.5.0",
+    "@capacitor/core": "8.5.0",
+    "@capacitor/ios": "8.5.0"
+  }
+}

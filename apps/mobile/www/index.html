@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>LIA</title>
+<style>
+  /*
+   * Self-contained on purpose: this screen runs before any server is known, so
+   * it cannot load the app's stylesheet. It follows `public/offline.html` —
+   * same palette, same light/dark handling, same inline i18n ×6 — because that
+   * page solves the identical problem and a second dialect would be one more
+   * thing to keep in step.
+   */
+  :root { color-scheme: light dark; --bg: #fafafa; --fg: #18181b; --muted: #71717a;
+          --border: #e4e4e7; --field: #ffffff; --brand: #6366f1; --brand-hover: #4f46e5;
+          --danger: #b91c1c; --danger-bg: #fef2f2; --danger-border: #fecaca; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #09090b; --fg: #fafafa; --muted: #a1a1aa; --border: #27272a;
+            --field: #18181b; --danger: #fca5a5; --danger-bg: #2a1215; --danger-border: #7f1d1d; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100svh; display: flex; align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--fg);
+    /* Safe areas: the shell draws edge to edge on both platforms. */
+    padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  }
+  main { width: 100%; max-width: 380px; }
+  .logo { width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 16px;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex;
+          align-items: center; justify-content: center; color: #fff;
+          font-size: 28px; font-weight: 700; }
+  h1 { font-size: 1.25rem; margin: 0 0 8px; text-align: center; }
+  .sub { margin: 0 0 24px; color: var(--muted); font-size: 0.95rem; text-align: center; }
+  label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 12px; }
+  input {
+    width: 100%; margin-top: 12px; padding: 12px 14px; font-size: 1rem;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--field); color: var(--fg);
+  }
+  input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  input[aria-invalid="true"] { border-color: var(--danger); }
+  .hint { margin: 8px 0 0; color: var(--muted); font-size: 0.8125rem; }
+  button {
+    width: 100%; margin-top: 20px; padding: 12px 22px;
+    background: var(--brand); color: #fff; border: 0; border-radius: 10px;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    /* 44px minimum touch target, both platforms' guidance. */
+    min-height: 44px;
+  }
+  button:hover:not(:disabled) { background: var(--brand-hover); }
+  button:disabled { opacity: 0.6; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+  .error {
+    margin: 16px 0 0; padding: 12px 14px; border-radius: 10px; font-size: 0.875rem;
+    background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger);
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <main>
+    <div class="logo" aria-hidden="true">L</div>
+    <h1 id="title"></h1>
+    <p class="sub" id="subtitle"></p>
+
+    <form id="form" novalidate>
+      <label for="url" id="label"></label>
+      <input
+        id="url"
+        type="url"
+        inputmode="url"
+        autocomplete="url"
+        autocapitalize="none"
+        autocorrect="off"
+        spellcheck="false"
+        placeholder="https://lia.example.com"
+        aria-describedby="hint"
+        required
+      />
+      <p class="hint" id="hint"></p>
+      <button type="submit" id="submit"></button>
+    </form>
+
+    <!-- role=alert so the failure is announced, not merely displayed. -->
+    <p class="error" id="error" role="alert" hidden></p>
+  </main>
+
+  <script>
+    /*
+     * Inline i18n ×6, same shape as public/offline.html: this screen is shown
+     * before any server is known, so there is no app bundle to ask.
+     */
+    var M = {
+      en: {
+        title: "Connect to your LIA",
+        subtitle: "This app talks to the LIA server you host. Tell it where that is.",
+        label: "Server address",
+        hint: "For example https://lia.example.com — HTTPS is required.",
+        submit: "Connect",
+        working: "Connecting…",
+        invalid: "That address is not usable. It must start with https:// and name a host.",
+        unreachable: "No LIA server answered at that address. Check it and try again."
+      },
+      fr: {
+        title: "Connectez-vous à votre LIA",
+        subtitle: "Cette application parle au serveur LIA que vous hébergez. Indiquez-lui où il se trouve.",
+        label: "Adresse du serveur",
+        hint: "Par exemple https://lia.example.com — le HTTPS est obligatoire.",
+        submit: "Se connecter",
+        working: "Connexion…",
+        invalid: "Cette adresse est inutilisable. Elle doit commencer par https:// et nommer un hôte.",
+        unreachable: "Aucun serveur LIA n'a répondu à cette adresse. Vérifiez-la et réessayez."
+      },
+      de: {
+        title: "Mit Ihrer LIA verbinden",
+        subtitle: "Diese App spricht mit dem LIA-Server, den Sie betreiben. Sagen Sie ihr, wo er ist.",
+        label: "Serveradresse",
+        hint: "Zum Beispiel https://lia.example.com — HTTPS ist erforderlich.",
+        submit: "Verbinden",
+        working: "Verbinden…",
+        invalid: "Diese Adresse ist unbrauchbar. Sie muss mit https:// beginnen und einen Host nennen.",
+        unreachable: "Unter dieser Adresse hat kein LIA-Server geantwortet. Bitte prüfen und erneut versuchen."
+      },
+      es: {
+        title: "Conéctate a tu LIA",
+        subtitle: "Esta aplicación habla con el servidor LIA que tú alojas. Indícale dónde está.",
+        label: "Dirección del servidor",
+        hint: "Por ejemplo https://lia.example.com — se requiere HTTPS.",
+        submit: "Conectar",
+        working: "Conectando…",
+        invalid: "Esa dirección no es utilizable. Debe empezar por https:// y nombrar un host.",
+        unreachable: "Ningún servidor LIA respondió en esa dirección. Compruébala e inténtalo de nuevo."
+      },
+      it: {
+        title: "Collegati alla tua LIA",
+        subtitle: "Questa app parla con il server LIA che ospiti tu. Indicale dove si trova.",
+        label: "Indirizzo del server",
+        hint: "Per esempio https://lia.example.com — HTTPS è obbligatorio.",
+        submit: "Connetti",
+        working: "Connessione…",
+        invalid: "Questo indirizzo non è utilizzabile. Deve iniziare con https:// e indicare un host.",
+        unreachable: "Nessun server LIA ha risposto a questo indirizzo. Verificalo e riprova."
+      },
+      zh: {
+        title: "连接到您的 LIA",
+        subtitle: "此应用与您自行托管的 LIA 服务器通信。请告诉它服务器的地址。",
+        label: "服务器地址",
+        hint: "例如 https://lia.example.com — 必须使用 HTTPS。",
+        submit: "连接",
+        working: "正在连接…",
+        invalid: "该地址无法使用。必须以 https:// 开头并包含主机名。",
+        unreachable: "该地址没有 LIA 服务器响应。请检查后重试。"
+      }
+    };
+
+    var lang = (navigator.language || "en").slice(0, 2);
+    var m = M[lang] || M.en;
+    document.documentElement.lang = lang in M ? lang : "en";
+    ["title", "subtitle", "label", "hint", "submit"].forEach(function (id) {
+      document.getElementById(id).textContent = m[id];
+    });
+
+    var form = document.getElementById("form");
+    var input = document.getElementById("url");
+    var submit = document.getElementById("submit");
+    var error = document.getElementById("error");
+
+    function fail(message) {
+      error.textContent = message;
+      error.hidden = false;
+      input.setAttribute("aria-invalid", "true");
+      input.focus();
+    }
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      error.hidden = true;
+      input.removeAttribute("aria-invalid");
+      submit.disabled = true;
+      submit.textContent = m.working;
+
+      var raw = input.value.trim();
+      // A bare host is what people type; assume the scheme the app requires
+      // rather than refusing them over a prefix.
+      var candidate = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+
+      var origin;
+      try {
+        var parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" || !parsed.hostname) throw new Error("scheme");
+        origin = parsed.origin;
+      } catch (e) {
+        submit.disabled = false;
+        submit.textContent = m.submit;
+        return fail(m.invalid);
+      }
+
+      /*
+       * Proving the address ANSWERS matters more than proving it parses: a typo
+       * saved here produces an app that never loads, with no way back but a
+       * reinstall.
+       *
+       * The probe runs NATIVELY. This page is served from the shell's own local
+       * origin, so a fetch to the server is cross-origin — and the API's
+       * CORS_ORIGINS names the web app, never a shell. Doing it here would have
+       * reported every correctly configured server as unreachable.
+       */
+      var api = window.Capacitor.Plugins.ServerUrl;
+      api
+        .probe({ url: origin })
+        .then(function (result) {
+          if (!result.ok) throw new Error("no LIA at " + origin);
+          return api.set({ url: origin });
+        })
+        .then(function () {
+          // The server URL is read when the bridge is BUILT, so it takes a
+          // fresh activity to apply — the shell restarts itself.
+          return api.restart();
+        })
+        .catch(function () {
+          submit.disabled = false;
+          submit.textContent = m.submit;
+          fail(m.unreachable);
+        });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# The generated native projects are NOT versioned (owner arbitration
+# 2026-08-24): `cap add` writes ~2000 files nobody can review, they conflict on
+# every Capacitor upgrade, and `task deploy:prod` rsyncs the WORKING TREE — so a
+# generated Xcode project would ship to the Raspberry Pi. `scripts/prepare.mjs`
+# regenerates them and lays our own sources on top.
+# Anchored to this package's root with a leading slash. Unanchored, `android/`
+# also matches `native/android/` — the very sources that MUST be versioned —
+# and they would have been excluded in silence.
+/android/
+/ios/
+/node_modules/

@@ -1,0 +1,9 @@
+{
+  "appId": "com.lia.assistant",
+  "appName": "LIA",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": { "enabled": false },
+    "CapacitorCookies": { "enabled": false }
+  }
+}
