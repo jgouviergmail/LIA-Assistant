@@ -8,6 +8,7 @@ import {
   purgeSensitiveClientStorageOnAccountChange,
 } from '@/lib/client-storage-purge';
 import apiClient from './api-client';
+import { openInSystemBrowser } from '@/lib/native/shell';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 export interface User {
@@ -73,7 +74,16 @@ interface AuthContextType {
     termsAccepted?: boolean
   ) => Promise<User>;
   logout: () => Promise<void>;
-  initiateGoogleOAuth: () => Promise<void>;
+  /**
+   * Start a Google sign-in.
+   *
+   * `nativeChallenge` is supplied only by the shells: it makes the callback
+   * return through a deep link instead of setting a session in the system
+   * browser, where the WebView could never see it.
+   */
+  initiateGoogleOAuth: (nativeChallenge?: string) => Promise<void>;
+  /** Spend a native handoff code, from inside the shell's own WebView. */
+  completeNativeSignIn: (code: string, verifier: string) => Promise<{ mfaRequired: boolean }>;
   refreshUser: () => Promise<void>;
 }
 
@@ -357,11 +367,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * 4. Google redirects to /auth/google/callback (backend)
    * 5. Backend handles callback, creates session, redirects to /dashboard
    */
-  const initiateGoogleOAuth = async (): Promise<void> => {
+  /**
+   * Spend a native handoff code for a session, from the shell's own WebView.
+   *
+   * The verifier is what makes an intercepted deep link inert: the server
+   * stored only its hash, and the code is worth nothing without it.
+   */
+  const completeNativeSignIn = async (
+    code: string,
+    verifier: string
+  ): Promise<{ mfaRequired: boolean }> => {
+    const response = await apiClient.post<{ user?: User; mfa_required?: boolean }>(
+      '/auth/native/callback',
+      { code, verifier }
+    );
+    if (response.user) {
+      setUser(response.user);
+    }
+    return { mfaRequired: response.mfa_required === true };
+  };
+
+  const initiateGoogleOAuth = async (nativeChallenge?: string): Promise<void> => {
     try {
       // Fetch API returns data directly (no .data property like axios)
-      const response = await apiClient.get<{ authorization_url: string }>('/auth/google/login');
+      const response = await apiClient.get<{ authorization_url: string }>(
+        '/auth/google/login',
+        nativeChallenge ? { params: { native_challenge: nativeChallenge } } : undefined
+      );
       const { authorization_url } = response;
+
+      if (nativeChallenge) {
+        /*
+         * Never navigate the WebView here: Google refuses OAuth from an
+         * embedded webview outright (`disallowed_useragent`), so sending this
+         * page to the provider would end the flow before it began. The shell
+         * hands the URL to the system browser instead, and the user comes back
+         * through the deep link.
+         */
+        const handed = await openInSystemBrowser(authorization_url);
+        if (handed) return;
+        // No shell took it — fall through rather than leave the user on a
+        // button that appears to do nothing.
+      }
 
       // Redirect to Google OAuth
       navigateToAuthorizationUrl(authorization_url, 'google-login');
@@ -403,6 +450,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isLoading,
       login,
       verifyMfa,
+      completeNativeSignIn,
       register,
       logout,
       initiateGoogleOAuth,

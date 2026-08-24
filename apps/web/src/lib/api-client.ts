@@ -160,6 +160,7 @@ const PUBLIC_ROUTE_SEGMENTS = [
   'reset-password',
   'verify-email',
   'oauth-callback',
+  'native-auth',
   'why',
   'how',
   'story',

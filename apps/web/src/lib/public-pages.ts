@@ -67,6 +67,7 @@ export const NON_INDEXED_SEGMENTS: Readonly<Record<string, string>> = {
   'reset-password': 'token-bearing URL — indexing one would publish the token',
   'verify-email': 'token-bearing URL — indexing one would publish the token',
   'oauth-callback': 'transient provider redirect, never a destination',
+  'native-auth': 'code-bearing deep-link landing for the shells — indexing one would publish the code',
   share: 'PWA share-target receiver, redirects immediately',
 };
 

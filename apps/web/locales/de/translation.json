@@ -537,7 +537,8 @@
       "continue_with_google": "Mit Google fortfahren",
       "signup_with_google": "Mit Google registrieren",
       "error_title": "Google-Anmeldung fehlgeschlagen",
-      "error_message": "Bitte versuche es erneut oder kontaktiere den Support, wenn das Problem weiterhin besteht."
+      "error_message": "Bitte versuche es erneut oder kontaktiere den Support, wenn das Problem weiterhin besteht.",
+      "connecting": "Sie werden angemeldet…"
     },
     "login_page": {
       "title": "Anmelden",

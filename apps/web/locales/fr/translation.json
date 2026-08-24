@@ -461,7 +461,8 @@
       "continue_with_google": "Continuer avec Google",
       "signup_with_google": "S'inscrire avec Google",
       "error_title": "Échec de la connexion Google",
-      "error_message": "Veuillez réessayer ou contacter le support si le problème persiste."
+      "error_message": "Veuillez réessayer ou contacter le support si le problème persiste.",
+      "connecting": "Connexion en cours…"
     },
     "login_page": {
       "title": "Connexion",

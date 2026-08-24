@@ -461,7 +461,8 @@
       "continue_with_google": "Continue with Google",
       "signup_with_google": "Sign up with Google",
       "error_title": "Google login failed",
-      "error_message": "Please try again or contact support if the problem persists."
+      "error_message": "Please try again or contact support if the problem persists.",
+      "connecting": "Signing you in…"
     },
     "login_page": {
       "title": "Login",

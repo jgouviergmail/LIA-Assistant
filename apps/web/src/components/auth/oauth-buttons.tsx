@@ -8,6 +8,7 @@ import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
 import { useTranslation } from 'react-i18next';
 import { useAuthFeatures } from '@/hooks/useWebAuthn';
+import { beginNativeSignIn, isNativeShell } from '@/lib/native/shell';
 
 interface OAuthButtonsProps {
   mode?: 'login' | 'register';
@@ -34,6 +35,19 @@ export function OAuthButtons({ mode = 'login' }: OAuthButtonsProps) {
   const handleGoogleOAuth = async () => {
     try {
       setIsLoading(true);
+
+      if (isNativeShell()) {
+        /*
+         * A WebView cannot host this: both engines are refused with
+         * `disallowed_useragent`. The flow goes to the system browser and comes
+         * back through a deep link carrying a code — bound to a verifier this
+         * page keeps, because any application can claim that scheme.
+         */
+        const challenge = await beginNativeSignIn();
+        await initiateGoogleOAuth(challenge);
+        return;
+      }
+
       await initiateGoogleOAuth();
       // User will be redirected to Google, no need to handle response here
     } catch (error) {

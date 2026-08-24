@@ -2,20 +2,24 @@ import Capacitor
 import Foundation
 import UIKit
 
-/// The setup screen's only door into the native layer.
+/// The web layer's only door into the shell.
 ///
-/// Deliberately small: the screen itself is a bundled HTML page, so its layout,
-/// its six languages and its accessibility stay in the codebase that already
-/// owns them instead of being written twice, in Android XML and in SwiftUI.
-@objc(ServerUrlPlugin)
-public class ServerUrlPlugin: CAPPlugin, CAPBridgedPlugin {
+/// Deliberately small: the setup screen is a bundled HTML page and the sign-in
+/// flow is the web app's own, so layout, wording, six languages and
+/// accessibility stay where the rest of the product's do. What is left is what
+/// a page genuinely cannot do — reach the network without CORS, remember an
+/// origin across launches, rebuild the bridge, and hand a URL to the system
+/// browser.
+@objc(LiaShellPlugin)
+public class LiaShellPlugin: CAPPlugin, CAPBridgedPlugin {
 
-    public let identifier = "ServerUrlPlugin"
-    public let jsName = "ServerUrl"
+    public let identifier = "LiaShellPlugin"
+    public let jsName = "LiaShell"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "get", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "probe", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "set", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openExternal", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restart", returnType: CAPPluginReturnPromise)
     ]
 
@@ -65,6 +69,33 @@ public class ServerUrlPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["url": stored])
         } catch {
             call.reject("server url must be https", "INVALID_SERVER_URL")
+        }
+    }
+
+    /// Hand a URL to the system browser.
+    ///
+    /// Provider sign-in cannot run in a WebView — both engines are refused with
+    /// `disallowed_useragent` — so the flow has to leave the app. What brings
+    /// the user back is the `lia://auth-callback` scheme declared in Info.plist.
+    @objc func openExternal(_ call: CAPPluginCall) {
+        guard let raw = call.getString("url"),
+              let url = URL(string: raw),
+              url.scheme == "https" || url.scheme == "http"
+        else {
+            // Only ever an http(s) URL: handing an arbitrary scheme to the
+            // system would let the page open any other application.
+            call.reject("url must be http(s)", "INVALID_URL")
+            return
+        }
+
+        DispatchQueue.main.async {
+            UIApplication.shared.open(url, options: [:]) { opened in
+                if opened {
+                    call.resolve()
+                } else {
+                    call.reject("no browser available", "NO_BROWSER")
+                }
+            }
         }
     }
 

@@ -1,5 +1,7 @@
 package com.lia.assistant;
 
+import android.content.Intent;
+import android.net.Uri;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -9,14 +11,17 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 /**
- * The setup screen's only door into the native layer.
+ * The web layer's only door into the shell.
  *
- * Deliberately small: the screen itself is a bundled HTML page, so its layout,
- * its six languages and its accessibility stay in the codebase that already
- * owns them instead of being written twice, in Android XML and in SwiftUI.
+ * Deliberately small: the setup screen is a bundled HTML page and the sign-in
+ * flow is the web app's own, so layout, wording, six languages and
+ * accessibility stay where the rest of the product's do. What is left here is
+ * what a page genuinely cannot do — reach the network without CORS, remember an
+ * origin across launches, rebuild the bridge, and hand a URL to the system
+ * browser.
  */
-@CapacitorPlugin(name = "ServerUrl")
-public class ServerUrlPlugin extends Plugin {
+@CapacitorPlugin(name = "LiaShell")
+public class LiaShellPlugin extends Plugin {
 
     /** Long enough for a home server behind a tunnel, short enough to fail visibly. */
     private static final int PROBE_TIMEOUT_MS = 8000;
@@ -102,6 +107,36 @@ public class ServerUrlPlugin extends Plugin {
             call.resolve(result);
         } catch (IllegalArgumentException e) {
             call.reject(e.getMessage(), "INVALID_SERVER_URL");
+        }
+    }
+
+    /**
+     * Hand a URL to the system browser.
+     *
+     * <p>Provider sign-in cannot run in a WebView — both engines are refused
+     * with {@code disallowed_useragent} — so the flow has to leave the app.
+     * What brings the user back is the {@code lia://auth-callback} deep link
+     * declared in the manifest.
+     *
+     * @param call Expects {@code {url: string}}; resolves once the browser is
+     *     asked to open it.
+     */
+    @PluginMethod
+    public void openExternal(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) {
+            // Only ever an http(s) URL: handing an arbitrary scheme to
+            // ACTION_VIEW would let the page start any other application.
+            call.reject("url must be http(s)", "INVALID_URL");
+            return;
+        }
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("no browser available", "NO_BROWSER");
         }
     }
 

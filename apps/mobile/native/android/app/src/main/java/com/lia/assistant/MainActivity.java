@@ -1,5 +1,7 @@
 package com.lia.assistant;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.CookieManager;
 import com.getcapacitor.BridgeActivity;
@@ -10,11 +12,17 @@ import com.getcapacitor.CapConfig;
  */
 public class MainActivity extends BridgeActivity {
 
+    /** Scheme the manifest registers for the sign-in return trip. */
+    private static final String DEEP_LINK_SCHEME = "lia";
+
+    /** Web route that spends a handoff code; localisation is the app's own job. */
+    private static final String NATIVE_AUTH_PATH = "/native-auth";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // Before super: onCreate builds the bridge, and a plugin registered
         // afterwards would never be part of it.
-        registerPlugin(ServerUrlPlugin.class);
+        registerPlugin(LiaShellPlugin.class);
         super.onCreate(savedInstanceState);
     }
 
@@ -32,6 +40,45 @@ public class MainActivity extends BridgeActivity {
             this.config = new CapConfig.Builder(this).setServerUrl(serverUrl).create();
         }
         super.load();
+    }
+
+    /**
+     * Bring a provider sign-in back into the WebView.
+     *
+     * <p>The system browser finished the flow and the operating system handed
+     * us {@code lia://auth-callback?code=…}. That code is not a session: it is
+     * spent by the web layer, from the WebView, against the verifier it kept —
+     * so all this does is put the WebView on the page that knows how.
+     *
+     * <p>The activity is {@code singleTask}, so a running shell receives this
+     * here rather than being started afresh.
+     *
+     * @param intent The intent that resumed us.
+     */
+    @Override
+    public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+
+        Uri data = intent != null ? intent.getData() : null;
+        if (data == null || !DEEP_LINK_SCHEME.equals(data.getScheme())) {
+            return;
+        }
+
+        String serverUrl = ServerUrlStore.read(this);
+        if (serverUrl == null || serverUrl.isEmpty()) {
+            // No server yet: a sign-in cannot have started, so this link is not
+            // ours to act on.
+            return;
+        }
+
+        // The query is carried across verbatim — the code and any error the
+        // provider reported. Building the target here rather than in the page
+        // keeps the WebView from ever seeing the custom-scheme URL itself.
+        String query = data.getEncodedQuery();
+        String target = serverUrl + NATIVE_AUTH_PATH + (query != null ? "?" + query : "");
+        if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().post(() -> bridge.getWebView().loadUrl(target));
+        }
     }
 
     /**

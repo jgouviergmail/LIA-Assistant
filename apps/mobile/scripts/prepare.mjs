@@ -101,9 +101,10 @@ async function filesUnder(dir, base = dir) {
  *
  * @param {'android'|'ios'} platform - Platform being prepared.
  * @param {boolean} acceptDrift - Record the new upstream hashes instead of failing.
+ * @param {boolean} freshlyGenerated - True when the platform was just added.
  * @returns {Promise<void>}
  */
-async function overlay(platform, acceptDrift) {
+async function overlay(platform, acceptDrift, freshlyGenerated) {
   const from = join(ROOT, 'native', platform);
   const to = join(ROOT, platform);
   if (!existsSync(from)) {
@@ -121,19 +122,17 @@ async function overlay(platform, acceptDrift) {
     const target = join(to, rel);
     const key = `${platform}/${rel.split('\\').join('/')}`;
 
-    if (existsSync(target)) {
-      const present = hashOf(target);
-      // Ours from a previous run, not upstream. Without this the second run
-      // records OUR hash as the template's, and the next edit to our own file
-      // reports drift that never happened — measured 2026-08-24, on the first
-      // rebuild.
-      const isOurOwnOverlay = present === hashOf(join(from, rel));
-      if (!isOurOwnOverlay) {
-        if (baseline[key] && baseline[key] !== present) {
-          drifted.push(key);
-        }
-        observed[key] = present;
+    // Drift is only observable on a FRESH generation. `cap sync` does not
+    // rewrite MainActivity or the storyboard, so on a sync the file sitting
+    // there is our own overlay from last time — comparing it to the recorded
+    // template says nothing, and reports drift every time we edit our own
+    // sources. Measured twice on 2026-08-24 before the reason was clear.
+    if (freshlyGenerated && existsSync(target)) {
+      const upstream = hashOf(target);
+      if (baseline[key] && baseline[key] !== upstream) {
+        drifted.push(key);
       }
+      observed[key] = upstream;
     }
 
     await mkdir(dirname(target), { recursive: true });
@@ -166,13 +165,14 @@ async function main() {
     run('pnpm', ['install']);
   }
 
-  if (existsSync(join(ROOT, platform))) {
-    run('pnpm', ['exec', 'cap', 'sync', platform]);
-  } else {
+  const freshlyGenerated = !existsSync(join(ROOT, platform));
+  if (freshlyGenerated) {
     run('pnpm', ['exec', 'cap', 'add', platform]);
+  } else {
+    run('pnpm', ['exec', 'cap', 'sync', platform]);
   }
 
-  await overlay(platform, Boolean(args['accept-drift']));
+  await overlay(platform, Boolean(args['accept-drift']), freshlyGenerated);
 
   if (platform === 'android') {
     const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
@@ -193,7 +193,7 @@ async function main() {
     // the project lists. Declaring it is the step whose absence fails silently.
     const report = declareSwiftSources(
       join(ROOT, 'ios', 'App', 'App.xcodeproj', 'project.pbxproj'),
-      ['ServerUrlStore.swift', 'ServerUrlPlugin.swift', 'MainViewController.swift']
+      ['ServerUrlStore.swift', 'LiaShellPlugin.swift', 'MainViewController.swift']
     );
     console.log(
       `xcode sources — declared: ${report.added.join(', ') || 'none'}` +

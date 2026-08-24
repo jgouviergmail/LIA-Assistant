@@ -208,7 +208,7 @@
        * CORS_ORIGINS names the web app, never a shell. Doing it here would have
        * reported every correctly configured server as unreachable.
        */
-      var api = window.Capacitor.Plugins.ServerUrl;
+      var api = window.Capacitor.Plugins.LiaShell;
       api
         .probe({ url: origin })
         .then(function (result) {

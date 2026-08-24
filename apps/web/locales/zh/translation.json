@@ -453,7 +453,8 @@
       "continue_with_google": "继续使用Google",
       "signup_with_google": "使用Google注册",
       "error_title": "Google登录失败",
-      "error_message": "请重试或联系支持，如果问题持续存在。"
+      "error_message": "请重试或联系支持，如果问题持续存在。",
+      "connecting": "正在登录…"
     },
     "login_page": {
       "title": "登录",
