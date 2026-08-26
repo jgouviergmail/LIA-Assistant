@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.CapConfig;
 
@@ -27,6 +29,15 @@ public class MainActivity extends BridgeActivity {
      * interceptable (App Links pin domains at build time, and one published app
      * serves every self-hosted server).
      */
+    /**
+     * Bundled page shown when a navigation to the server fails.
+     *
+     * <p>Must match {@code server.errorPath} in capacitor.config.json: the JSON
+     * governs the unconfigured state (bridge built from the file), this
+     * constant governs the configured one (bridge built from the Builder).
+     */
+    private static final String OFFLINE_ERROR_PATH = "offline.html";
+
     private static final java.util.Map<String, String> DEEP_LINK_PAGES = java.util.Map.of(
         "auth-callback",
         "/native-auth",
@@ -55,9 +66,77 @@ public class MainActivity extends BridgeActivity {
     protected void load() {
         String serverUrl = ServerUrlStore.read(this);
         if (serverUrl != null && !serverUrl.isEmpty()) {
-            this.config = new CapConfig.Builder(this).setServerUrl(serverUrl).create();
+            // The Builder starts from NOTHING — it does not read
+            // capacitor.config.json. Every server.* value the JSON declares has
+            // to be carried across by hand here, or it silently disappears in
+            // exactly the state where the app is actually used. Found the hard
+            // way: errorPath was dropped, so the offline screen never loaded
+            // once a server was configured — the only state where it matters.
+            // (iOS is immune: instanceDescriptor() starts from the PARSED
+            // config and only overrides serverURL.) Guarded by
+            // apps/api/tests/unit/test_mobile_shell_pages_guard.py.
+            this.config = new CapConfig.Builder(this)
+                .setServerUrl(serverUrl)
+                .setErrorPath(OFFLINE_ERROR_PATH)
+                .create();
         }
         super.load();
+
+        // The offline screen cannot use the Capacitor bridge: with a REMOTE
+        // server configured, Android injects the bridge only into that
+        // origin's documents, never into the local errorPath page — measured
+        // by the shell bench, whose first real run found both buttons dead
+        // (`window.Capacitor` undefined; iOS is immune, WKUserScript injects
+        // on every navigation). A JavascriptInterface is the platform's own
+        // mechanism for exactly this, and it survives navigations.
+        if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().addJavascriptInterface(new OfflineActions(), "LiaOffline");
+        }
+    }
+
+    /**
+     * The two actions the offline screen needs, without the bridge.
+     *
+     * <p>An added interface is visible to EVERY page this WebView loads — the
+     * user's own server included — so each method re-checks, on the UI thread,
+     * that the caller IS the bundled offline page. Without that guard, any
+     * script on the remote origin could silently un-configure the app.
+     */
+    private class OfflineActions {
+
+        /** Rebuild the bridge, which retries the configured server. */
+        @JavascriptInterface
+        public void retry() {
+            runOnUiThread(() -> {
+                if (isOnOfflinePage()) {
+                    recreate();
+                }
+            });
+        }
+
+        /** Forget the stored server and return to the setup screen. */
+        @JavascriptInterface
+        public void forget() {
+            runOnUiThread(() -> {
+                if (isOnOfflinePage()) {
+                    ServerUrlStore.clear(MainActivity.this);
+                    recreate();
+                }
+            });
+        }
+    }
+
+    /**
+     * Whether the WebView currently shows the bundled offline page.
+     *
+     * <p>UI thread only: {@link WebView#getUrl()} requires it.
+     *
+     * @return True only for the errorPath page on the local origin.
+     */
+    private boolean isOnOfflinePage() {
+        WebView view = bridge != null ? bridge.getWebView() : null;
+        String url = view != null ? view.getUrl() : null;
+        return url != null && url.startsWith("https://localhost/") && url.contains(OFFLINE_ERROR_PATH);
     }
 
     /**

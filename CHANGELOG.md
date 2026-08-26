@@ -24,11 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Le banc de vérification pilote désormais l'app réelle** (`task mobile:verify:android`) : neuf scènes sur la coque debug, observées par le socket devtools WebView, sans aucun serveur — l'origine configurée est un nom `.invalid` (RFC 2606), donc l'échec de navigation EST l'oracle. Avant son premier passage vert, il a trouvé deux défauts vivants que la compilation, la CI et toutes les gardes statiques avaient bénis.
 - Dix rappels de connecteurs construisaient leur redirection de succès à la main : ils en partagent une. Les trois marqueurs de résultat MCP étaient des fragments de requête tout faits (`"mcp_oauth=success"`), qu'un lien profond aurait encodés comme une seule valeur opaque — ce sont désormais un nom de paramètre et trois valeurs.
 - La fabrique de limitation de débit par IP passe de `domains/auth/dependencies` à `infrastructure/rate_limiting/ip_limiter`, en gardant ses clés Redis **octet pour octet** : quatre domaines sans rapport importaient leur limiteur du domaine auth.
 
 ### Fixed
 
+- **L'écran hors-ligne ne se chargeait jamais dans l'état configuré sur Android** : `CapConfig.Builder` part de rien (il ne lit pas capacitor.config.json) et `MainActivity` ne reportait pas `errorPath` — le seul état où il compte. iOS était immunisé, ce qui rendait le défaut invisible à toute vérification symétrique. Trouvé en CONCEVANT le banc ; gardé statiquement depuis.
+- **Ses deux boutons étaient morts sur Android** : avec un serveur distant configuré, Capacitor n'injecte son pont que dans les documents de cette origine, jamais dans la page `errorPath` locale — `window.Capacitor` y était indéfini. La coque expose désormais une `JavascriptInterface` minimale (`LiaOffline`), verrouillée pour n'agir que depuis la page hors-ligne. Trouvé par le PREMIER passage du banc.
+- **`registerPush` demandait la permission avant de lire la configuration** : un utilisateur dont le serveur n'offre aucun push se voyait réclamer une permission sans objet. La configuration se lit d'abord — le banc est resté suspendu à ce dialogue, attendant un doigt qui ne viendrait jamais.
 - Une valeur *truthy* n'est pas un flux natif. Appelés directement par des tests unitaires, les rappels OAuth reçoivent l'objet `Depends` en guise de défaut — et un `Depends` est truthy : lus mollement, ces tests et tout appelant direct futur auraient pris le chemin du lien profond en plein navigateur. Trouvé par un test MCP existant qui faisait exactement cela.
 - `refreshTokens` relisait `Notification.permission` après l'enrôlement et écrasait l'état qu'il venait d'établir — ce qui, dans une coque, répond `unsupported`. Un rafraîchissement ne doit pas défaire ce qu'il suit.
 

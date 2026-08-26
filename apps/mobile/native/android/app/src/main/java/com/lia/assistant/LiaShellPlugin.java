@@ -187,6 +187,14 @@ public class LiaShellPlugin extends Plugin {
      */
     @PluginMethod
     public void registerPush(PluginCall call) {
+        if (call.getObject("android") == null) {
+            // Configuration BEFORE permission. Asking first meant a user whose
+            // server offers no push was prompted for a permission nothing
+            // would ever use — surfaced by the shell bench, which sat waiting
+            // on that dialog for a human finger that never came.
+            resolveNoToken(call, "not_configured");
+            return;
+        }
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS) !=
@@ -220,8 +228,8 @@ public class LiaShellPlugin extends Plugin {
     private void fetchPushToken(PluginCall call) {
         JSObject android = call.getObject("android");
         if (android == null) {
-            // The server offers no Android push. Not an error: a deployment
-            // may simply have no Firebase project.
+            // Already answered by registerPush before any permission prompt;
+            // kept as defence in depth for any future caller of this helper.
             resolveNoToken(call, "not_configured");
             return;
         }

@@ -349,6 +349,16 @@ tasks:
     cmds:
       - node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/mobile-probe/run.mjs --platform ios {{.CLI_ARGS}}
 
+  mobile:verify:android:
+    desc: Drive the REAL shell on a booted emulator and hold it to its own guarantees (setup, HTTPS refusal, offline screen, deep links, forget)
+    deps: [mobile:build:android]
+    # Serverless by design: the configured origin is an RFC 2606 `.invalid`
+    # name, so navigation failure is the ORACLE (it must land on the bundled
+    # offline screen), not a flake. Observation goes through the WebView
+    # devtools socket that debug builds expose — zero test code in the app.
+    cmds:
+      - node scripts/mobile-probe/shell.mjs
+
   test:e2e:
     desc: Playwright E2E + axe accessibility journeys (hermetic, mocked API)
     dir: "{{.WEB_DIR}}/e2e"

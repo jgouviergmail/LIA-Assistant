@@ -81,6 +81,17 @@ Re-measure at any time:
 task mobile:probe:android          # needs a booted emulator or device
 ```
 
+The engine probe measures what the WebView can do; a second bench holds the
+REAL shell to its own guarantees — setup screen, HTTPS refusal, the offline
+screen on an unreachable server, deep-link routing and refusal, and the
+"forget" escape hatch — by driving the debug build over the WebView devtools
+socket, serverless by design (`scripts/mobile-probe/README.md`, shell bench
+section, including the two live defects its first runs caught):
+
+```bash
+task mobile:verify:android         # builds the debug APK, drives the real app
+```
+
 ---
 
 ## 3. Prerequisites

@@ -189,6 +189,39 @@ deep-link path while running in a browser.
 An existing MCP test did exactly that and failed, which is how this was found.
 The check is an identity comparison, and it is pinned by its own test.
 
+### 12. The bench drives the app that ships, and it already paid for itself
+
+The native verification the programme owed (owner arbitration: "extend the
+probe harness") is `task mobile:verify:android`: the debug build of the REAL
+shell, driven over the WebView devtools socket that debuggable builds expose,
+serverless by design — the configured origin is an RFC 2606 `.invalid` name,
+so navigation failure is the oracle rather than a flake. Nine scenes walk the
+user's whole journey: setup, HTTPS refusal at the door, the offline screen on
+an unreachable server, deep links routed and refused, and the forget escape
+hatch, driven by its BUTTON.
+
+Before its first green run it found two live defects the compiler, the CI
+build, and every static guard had blessed:
+
+- **`errorPath` died with the configured state.** Android's `CapConfig.Builder`
+  starts from nothing — it never reads capacitor.config.json — and
+  `MainActivity` was not carrying `errorPath` across, so the offline screen
+  never loaded once a server was stored: the only state where it matters. iOS
+  was immune (`instanceDescriptor()` starts from the parsed file), which made
+  the defect invisible to every platform-symmetric check. The Builder call now
+  carries it, and a guard holds JSON and Builder to one value.
+- **The offline screen's buttons were dead on Android.** With a remote server
+  configured, Capacitor injects its bridge only into that origin's documents —
+  never into the local errorPath page — so `window.Capacitor` was undefined
+  there. The shell now exposes a minimal `LiaOffline` JavascriptInterface,
+  gated inside each method to act only while the offline page is showing
+  (an added interface is visible to every page, the user's server included).
+
+And one UX defect: `registerPush` asked for the notification permission BEFORE
+reading the configuration, so a user whose server offers no push was prompted
+for a permission nothing would ever use — the bench sat waiting on that dialog
+for a finger that never came. Configuration is read first now.
+
 ## Consequences
 
 **Gained.** Notifications on both native platforms. Android with no third party

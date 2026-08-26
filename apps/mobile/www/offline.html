@@ -124,7 +124,18 @@
 
     var retry = document.getElementById("retry");
     var change = document.getElementById("change");
-    var api = window.Capacitor.Plugins.LiaShell;
+
+    /*
+     * Two doors to the same two actions, because the platforms inject
+     * differently. iOS injects the Capacitor bridge into EVERY navigation
+     * (WKUserScript), this page included. Android, with a remote server
+     * configured, injects it only into that origin's documents — measured by
+     * the shell bench, whose first run found both buttons dead — so the shell
+     * exposes a minimal `LiaOffline` JavascriptInterface instead. Feature
+     * detection, not platform sniffing: whichever door exists is the right one.
+     */
+    var shell = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LiaShell;
+    var offline = window.LiaOffline;
 
     retry.addEventListener("click", function () {
       retry.disabled = true;
@@ -135,10 +146,14 @@
        * BUILT, so returning to the server means rebuilding it — the same
        * restart the setup screen uses after storing an address.
        */
-      api.restart().catch(function () {
-        retry.disabled = false;
-        retry.textContent = m.retry;
-      });
+      if (shell) {
+        shell.restart().catch(function () {
+          retry.disabled = false;
+          retry.textContent = m.retry;
+        });
+      } else if (offline) {
+        offline.retry();
+      }
     });
 
     change.addEventListener("click", function () {
@@ -149,15 +164,19 @@
        * Clearing the stored origin sends the next launch to the setup screen.
        */
       change.disabled = true;
-      api
-        .forget()
-        .catch(function () {})
-        .then(function () {
-          return api.restart();
-        })
-        .catch(function () {
-          change.disabled = false;
-        });
+      if (shell) {
+        shell
+          .forget()
+          .catch(function () {})
+          .then(function () {
+            return shell.restart();
+          })
+          .catch(function () {
+            change.disabled = false;
+          });
+      } else if (offline) {
+        offline.forget();
+      }
     });
   </script>
 </body>

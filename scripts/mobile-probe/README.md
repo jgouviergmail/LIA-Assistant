@@ -176,3 +176,73 @@ outrank `iOS-18`.
 `CAPACITOR_VERSION` in `scaffold.mjs` is pinned **exactly**, not ranged: a guard
 whose dependency floats can change its answer without changing its evidence.
 Bumping it is deliberate and must be followed by a fresh run of both platforms.
+
+## The shell bench (`shell.mjs`) — the REAL app, held to its own guarantees
+
+Everything above measures the ENGINE, inside a throwaway cleartext app. The
+shell bench answers the other question — does `apps/mobile` do what it
+promises — without weakening a single invariant: the app under test is the
+debug build of the real shell, HTTPS-only refusal included, observed from the
+outside through the WebView devtools socket that debuggable builds expose
+(`cdp.mjs`, dependency-free CDP over `adb forward`).
+
+```bash
+task mobile:verify:android          # builds the debug APK, needs a booted emulator/device
+```
+
+Deliberately **serverless**: the bench "configures" an RFC 2606 `.invalid`
+origin, so every navigation to it fails by construction — and that failure is
+the oracle, because it is exactly what must land the user on the bundled
+offline screen. No TLS, no fake LIA, no network beyond adb.
+
+What one run walks through, as a user would:
+
+1. fresh install → the setup screen, bridge live;
+2. `get()` empty; `registerPush` with nothing configured answers
+   `not_configured` over the live bridge;
+3. a cleartext origin is refused at the door (the Java normalisation, exercised
+   end-to-end);
+4. a stored-but-unreachable server lands on OUR offline screen — the
+   `errorPath` that Android's `CapConfig.Builder` silently drops unless
+   `MainActivity` carries it across;
+5. `lia://auth-callback?code=…` navigates to `/native-auth?code=…` on the
+   stored origin (observed via CDP network events); an unknown host resolves to
+   NOTHING — refused by the OS itself, since the manifest enumerates its hosts;
+6. clicking "use a different server" on the offline screen — the CLICK, not a
+   plugin call — forgets the origin and lands the next launch back on setup.
+
+### What its first runs caught, before it ever went green
+
+Two live defects in the shell and one class of bench-side traps — the reason
+this bench exists in exactly this form:
+
+- **`errorPath` was silently dropped in the configured state.** Android's
+  `CapConfig.Builder` starts from nothing (it never reads
+  capacitor.config.json), and `MainActivity` was not carrying `errorPath`
+  across — so the offline screen never loaded once a server was stored, the
+  only state where it matters. Found by desk-checking the Builder while
+  DESIGNING the bench; now also guarded statically
+  (`test_mobile_shell_pages_guard.py`).
+- **The offline screen's buttons were dead on Android.** With a remote server
+  configured, Capacitor injects its bridge only into that origin's documents —
+  never into the local errorPath page — so `window.Capacitor` was undefined
+  there and both buttons did nothing. Found by the bench's first RUN. iOS is
+  immune (WKUserScript injects on every navigation); Android now exposes a
+  minimal `LiaOffline` JavascriptInterface, gated inside each method to act
+  only when the offline page is what is showing.
+- **A headless emulator freezes a covered app.** An unrelated AOSP crash
+  dialog paused the activity; the cached-app freezer suspended the process ten
+  seconds later, devtools socket included — and a frozen app ACCEPTS the
+  forwarded TCP connection and then never answers, which hung an unbounded
+  `fetch` with nothing on screen to blame. Every adb call and every devtools
+  fetch in the bench is bounded now, and attach revives the activity before
+  giving up.
+
+### What it deliberately does not cover
+
+The cookie-flush guarantee needs a page served over HTTPS by a real origin the
+emulator trusts — the generic probe measures the hazard itself (see above), and
+`MainActivity.onPause` is one audited line. And there is no iOS leg: WKWebView
+exposes no CDP, simulators need macOS, and the iOS-specific risks this bench
+would cover are the ones WKUserScript injection already removes.
+

@@ -89,3 +89,68 @@ def test_the_offline_page_can_leave_a_server_that_never_answers() -> None:
     code = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
     assert "restart()" in code
     assert "location.reload()" not in code
+
+
+class TestTheConfiguredStateKeepsWhatTheJsonDeclares:
+    """Android's Builder path starts from NOTHING — it does not read the JSON.
+
+    `MainActivity.load()` swaps in a Builder-built config the moment a server
+    URL is stored, and every `server.*` value capacitor.config.json declares
+    has to be carried across by hand, or it silently disappears in exactly the
+    state where the app is actually used. Found the hard way: `errorPath` was
+    dropped, so the offline screen never loaded once a server was configured —
+    the only state where it matters. iOS is immune (`instanceDescriptor()`
+    starts from the PARSED config and only overrides serverURL), which made the
+    defect invisible to every platform-symmetric check.
+    """
+
+    ACTIVITY = (
+        repo_root_or_skip()
+        / "apps"
+        / "mobile"
+        / "native"
+        / "android"
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "lia"
+        / "assistant"
+        / "MainActivity.java"
+    )
+    CONFIG = repo_root_or_skip() / "apps" / "mobile" / "capacitor.config.json"
+
+    def test_error_path_is_one_value_in_two_states(self) -> None:
+        """The JSON governs the unconfigured state, the constant the other."""
+        import json
+
+        declared = json.loads(self.CONFIG.read_text(encoding="utf-8"))["server"]["errorPath"]
+        activity = self.ACTIVITY.read_text(encoding="utf-8")
+
+        assert f'OFFLINE_ERROR_PATH = "{declared}"' in activity, (
+            f"capacitor.config.json declares errorPath={declared!r} but MainActivity "
+            "carries a different value — the two states would show different screens"
+        )
+        assert ".setErrorPath(OFFLINE_ERROR_PATH)" in activity, (
+            "MainActivity builds its config without carrying errorPath — the offline "
+            "screen never loads once a server is configured"
+        )
+
+    def test_a_new_server_key_forces_a_decision_here(self) -> None:
+        """The Builder cannot inherit what the JSON grows; someone must carry it."""
+        import json
+
+        declared = set(json.loads(self.CONFIG.read_text(encoding="utf-8"))["server"])
+
+        # Keys the Builder call in MainActivity.load() is known to carry (the
+        # URL itself comes from ServerUrlStore, not the JSON). Extending the
+        # JSON without extending this set — and the Builder call — means the
+        # new value exists only until the user configures a server.
+        carried = {"errorPath"}
+
+        assert declared <= carried, (
+            f"capacitor.config.json declares server keys {sorted(declared - carried)} "
+            "that MainActivity's Builder path does not carry — they vanish the "
+            "moment a server URL is stored"
+        )
