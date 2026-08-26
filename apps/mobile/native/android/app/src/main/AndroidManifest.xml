@@ -37,6 +37,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="lia" android:host="auth-callback" />
+                <data android:scheme="lia" android:host="connector-callback" />
+                <data android:scheme="lia" android:host="mcp-callback" />
             </intent-filter>
 
         </activity>

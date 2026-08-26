@@ -30,6 +30,7 @@ from src.core.constants import (
     RATE_LIMIT_GLOBAL_EXEMPT_PATHS,
     RATE_LIMIT_GLOBAL_WINDOW_SECONDS,
 )
+from src.core.native_client import NATIVE_CLIENT_HEADER
 from src.core.rate_limit_config import rate_limiting_enabled
 from src.infrastructure.observability.geoip import geoip_resolver
 from src.infrastructure.observability.metrics import (
@@ -649,6 +650,13 @@ def setup_middleware(app: FastAPI) -> None:
             "X-Request-ID",
             "Accept",
             "Accept-Language",
+            # Set only by the native shells, and only on their own requests
+            # (ADR-246). A custom header forces a CORS preflight, which is why
+            # this is worth stating: browsers send none of these and pay
+            # nothing, while a shell pays one OPTIONS per method and path every
+            # ten minutes — Starlette's default `max_age`. The alternative was a
+            # list of OAuth paths in the web client, and a path allowlist rots.
+            NATIVE_CLIENT_HEADER,
         ],
         expose_headers=["X-Request-ID"],
     )

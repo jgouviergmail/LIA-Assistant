@@ -404,6 +404,19 @@ export default defineConfig({
         // instead of navigating a WebView Google refuses. Measured
         // 100 / 94.11 / 100 / 100; floor raised from 88 with the branch
         // coverage those paths added.
+        // The one door every OAuth flow leaves through — connectors, MCP, bulk
+        // connect, reconnection, sign-in. It guards a navigation primitive
+        // against `javascript:` URLs (SEC-002) AND decides whether the URL goes
+        // to the system browser instead of the WebView (ADR-246). Two
+        // load-bearing decisions in eleven lines, and a regression in either is
+        // invisible until it is a security hole or eight broken flows.
+        // Measured 100 / 100 / 100 / 100 — locked there.
+        'src/lib/safe-navigation.ts': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         // The native-shell boundary — the only code in the bundle that changes
         // behaviour based on WHERE it runs, and the hardest to notice breaking:
         // nothing in a browser exercises it, and nothing in CI runs a WebView.

@@ -17,16 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Les douze départs OAuth reviennent dans l'app** (ADR-246, lot 3) : connecteurs, serveurs MCP, connexion groupée, reconnexion. La décision « partir vers le navigateur système » est prise **une seule fois**, à la porte que les huit flux franchissaient déjà — ce qui a **supprimé** le cas particulier que la connexion avait acquis. Et le retour se souvient de la surface qui l'a ouvert, écrit dans l'état OAuth par la seule fonction du dépôt qui en construise un : un connecteur ajouté demain en hérite sans le savoir.
 - **Push natif sur les deux coques** (ADR-246) : `GET /notifications/push-config` répond par plateforme, la couche web transmet la réponse **entière** au shell et ne lit jamais un champ spécifique à une plateforme. `useFCMToken` délègue l'acquisition et garde **une seule** implémentation de tout ce qui suit — enregistrement, état, liste des appareils.
 - **Relais de réveil** (`domains/push_relay/`, `PUSH_RELAY_ENABLED`, faux par défaut) : deux points d'entrée, aucune base, aucune tâche planifiée. Client APNs en HTTP/2 avec JWT ES256 — `h2`, `httpx`, `pyjwt`, `cryptography` étaient déjà là, **zéro nouvelle dépendance**, et aucun SDK Firebase embarqué côté iOS.
 - **Écran hors-ligne groupé** (`server.errorPath`) : indispensable sur iOS, qui n'a pas de service worker et affichait sinon l'erreur de WebKit dans l'application. Il propose un réessai qui **reconstruit le pont** et surtout un moyen d'**oublier** le serveur — une adresse mal saisie au premier lancement produisait sinon cet écran à chaque démarrage, sans autre remède que réinstaller.
 
 ### Changed
 
+- Dix rappels de connecteurs construisaient leur redirection de succès à la main : ils en partagent une. Les trois marqueurs de résultat MCP étaient des fragments de requête tout faits (`"mcp_oauth=success"`), qu'un lien profond aurait encodés comme une seule valeur opaque — ce sont désormais un nom de paramètre et trois valeurs.
 - La fabrique de limitation de débit par IP passe de `domains/auth/dependencies` à `infrastructure/rate_limiting/ip_limiter`, en gardant ses clés Redis **octet pour octet** : quatre domaines sans rapport importaient leur limiteur du domaine auth.
 
 ### Fixed
 
+- Une valeur *truthy* n'est pas un flux natif. Appelés directement par des tests unitaires, les rappels OAuth reçoivent l'objet `Depends` en guise de défaut — et un `Depends` est truthy : lus mollement, ces tests et tout appelant direct futur auraient pris le chemin du lien profond en plein navigateur. Trouvé par un test MCP existant qui faisait exactement cela.
 - `refreshTokens` relisait `Notification.permission` après l'enrôlement et écrasait l'état qu'il venait d'établir — ce qui, dans une coque, répond `unsupported`. Un rafraîchissement ne doit pas défaire ce qu'il suit.
 
 ### Removed

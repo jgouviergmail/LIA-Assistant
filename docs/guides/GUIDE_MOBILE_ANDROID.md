@@ -275,6 +275,32 @@ task mobile:probe:android -- --settle 25000
 ```
 
 
+
+### Every OAuth departure leaves for the system browser, not only sign-in
+
+Google refuses OAuth from an embedded webview (`disallowed_useragent`), and that
+applies to the ten connectors and to MCP servers exactly as it does to sign-in.
+All of them go through `navigateToAuthorizationUrl` in the web app, which is
+where the decision is made — once (ADR-246).
+
+The return trip is a `lia://` deep link whose HOST names the flow:
+
+| Host | Where the shell puts the user |
+|---|---|
+| `auth-callback` | `/native-auth` — spends the sign-in handoff code |
+| `connector-callback` | `/dashboard/settings` |
+| `mcp-callback` | `/dashboard/settings` |
+
+The paths are fixed in the shell, never carried in the link: a deep link that
+named its own destination would let whoever claims the custom scheme choose
+where the WebView goes next.
+
+Adding a fourth flow means adding its host in **three** places — the server's
+`NativeDeepLinkHost`, both shells' maps, and (on Android) the manifest's
+intent-filter. `apps/api/tests/unit/test_mobile_deep_link_hosts_guard.py`
+compares all four declarations, because the failure is otherwise silent: the
+user comes back from the browser to a screen that never changes.
+
 ### The offline screen also catches HTTP errors, not only network failures
 
 Capacitor's `errorPath` redirects on `onReceivedError` **and**

@@ -14,6 +14,12 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const { isNativeShell, openInSystemBrowser } = vi.hoisted(() => ({
+  isNativeShell: vi.fn(() => false),
+  openInSystemBrowser: vi.fn(),
+}));
+vi.mock('@/lib/native/shell', () => ({ isNativeShell, openInSystemBrowser }));
+
 import {
   isSafeRedirectUrl,
   navigateToAuthorizationUrl,
@@ -72,6 +78,8 @@ describe('navigateToAuthorizationUrl', () => {
 
   beforeEach(() => {
     assigned = undefined;
+    isNativeShell.mockReturnValue(false);
+    openInSystemBrowser.mockReset();
     // jsdom refuses a real cross-origin navigation; intercept the assignment
     // instead, which is exactly the effect under test.
     Object.defineProperty(window, 'location', {
@@ -122,5 +130,84 @@ describe('navigateToAuthorizationUrl', () => {
       expect(error).toBeInstanceOf(UnsafeRedirectError);
       expect((error as Error).message).toContain('authorization URL');
     }
+  });
+});
+
+describe('navigateToAuthorizationUrl — inside a native shell', () => {
+  /**
+   * Eight flows leave for an authorization server, and every one of them goes
+   * through this function: connectors, MCP, bulk connect, reconnection, and
+   * sign-in. Google refuses OAuth from an embedded webview outright, so a
+   * WebView navigation ends the flow before it starts — for all eight.
+   *
+   * Deciding it HERE rather than at each call site is what makes that true
+   * without eight remembered branches. The assertion that carries the whole
+   * point is the negative one: the location is never assigned.
+   */
+  let assigned: string | undefined;
+
+  beforeEach(() => {
+    assigned = undefined;
+    openInSystemBrowser.mockReset();
+    isNativeShell.mockReturnValue(true);
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        get href() {
+          return 'https://lia.test/settings';
+        },
+        set href(value: string) {
+          assigned = value;
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('hands the URL to the system browser and never navigates the WebView', async () => {
+    openInSystemBrowser.mockResolvedValue(true);
+
+    navigateToAuthorizationUrl('https://accounts.google.com/o/oauth2/v2/auth', 'oauth-gmail');
+    await vi.waitFor(() => expect(openInSystemBrowser).toHaveBeenCalled());
+
+    expect(openInSystemBrowser).toHaveBeenCalledWith(
+      'https://accounts.google.com/o/oauth2/v2/auth'
+    );
+    expect(assigned).toBeUndefined();
+  });
+
+  it('falls back to navigating when no shell takes the URL', async () => {
+    openInSystemBrowser.mockResolvedValue(false);
+
+    navigateToAuthorizationUrl('https://accounts.google.com/o/oauth2/v2/auth', 'oauth-gmail');
+
+    // Better a flow the provider may refuse than a button that does nothing.
+    await vi.waitFor(() =>
+      expect(assigned).toBe('https://accounts.google.com/o/oauth2/v2/auth')
+    );
+  });
+
+  it('falls back when the shell call itself fails', async () => {
+    openInSystemBrowser.mockRejectedValue(new Error('bridge gone'));
+
+    navigateToAuthorizationUrl('https://accounts.google.com/o/oauth2/v2/auth', 'oauth-gmail');
+
+    await vi.waitFor(() =>
+      expect(assigned).toBe('https://accounts.google.com/o/oauth2/v2/auth')
+    );
+  });
+
+  it('still refuses an unsafe URL before the shell ever sees it', () => {
+    expect(() => navigateToAuthorizationUrl('javascript:alert(1)', 'mcp-oauth')).toThrow(
+      UnsafeRedirectError
+    );
+
+    // The guard is the reason this function exists; a shell must not become a
+    // way around it.
+    expect(openInSystemBrowser).not.toHaveBeenCalled();
+    expect(assigned).toBeUndefined();
   });
 });

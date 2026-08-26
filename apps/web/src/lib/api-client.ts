@@ -9,7 +9,8 @@
  */
 
 import { readErrorDetail } from '@/lib/api-error';
-import { API_TIMEOUT_DEFAULT } from '@/lib/constants';
+import { API_TIMEOUT_DEFAULT, NATIVE_CLIENT_HEADER } from '@/lib/constants';
+import { isNativeShell } from '@/lib/native/shell';
 
 /**
  * HTTP client error with status code and response data.
@@ -375,6 +376,23 @@ class ApiClient {
     };
     if (needsContentType) {
       headers['Content-Type'] = 'application/json';
+    }
+
+    /*
+     * A native shell says so, on every request (ADR-246). An OAuth flow started
+     * in the app must come back to the app, and the callback learns that from
+     * the state the authorize call wrote — so the fact has to travel on an
+     * ordinary API request.
+     *
+     * Sent unconditionally rather than on a list of OAuth paths: such a list
+     * would be one more place to remember when a connector is added, and
+     * forgetting it strands that connector's users in a browser, silently.
+     *
+     * A browser sends nothing here and pays nothing. A shell pays one CORS
+     * preflight per method and path every ten minutes (the API's `max_age`).
+     */
+    if (isNativeShell()) {
+      headers[NATIVE_CLIENT_HEADER] = '1';
     }
 
     // `fetchConfig` is spread FIRST on purpose. Spread last, a caller-supplied

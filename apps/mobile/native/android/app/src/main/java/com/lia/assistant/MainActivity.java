@@ -16,7 +16,25 @@ public class MainActivity extends BridgeActivity {
     private static final String DEEP_LINK_SCHEME = "lia";
 
     /** Web route that spends a handoff code; localisation is the app's own job. */
-    private static final String NATIVE_AUTH_PATH = "/native-auth";
+    /**
+     * Where each deep-link host puts the user.
+     *
+     * <p>A map rather than one constant because two flows now come home this
+     * way — provider sign-in and connector authorization — and a third would
+     * otherwise be a third branch. The PATHS are fixed here on purpose: a link
+     * that carried its own destination would let whoever claims the scheme
+     * choose where the WebView goes next, and a custom scheme must be assumed
+     * interceptable (App Links pin domains at build time, and one published app
+     * serves every self-hosted server).
+     */
+    private static final java.util.Map<String, String> DEEP_LINK_PAGES = java.util.Map.of(
+        "auth-callback",
+        "/native-auth",
+        "connector-callback",
+        "/dashboard/settings",
+        "mcp-callback",
+        "/dashboard/settings"
+    );
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -74,8 +92,14 @@ public class MainActivity extends BridgeActivity {
         // The query is carried across verbatim — the code and any error the
         // provider reported. Building the target here rather than in the page
         // keeps the WebView from ever seeing the custom-scheme URL itself.
+        String page = DEEP_LINK_PAGES.get(data.getHost());
+        if (page == null) {
+            // A host we do not serve. Navigating anywhere would be guessing.
+            return;
+        }
+
         String query = data.getEncodedQuery();
-        String target = serverUrl + NATIVE_AUTH_PATH + (query != null ? "?" + query : "");
+        String target = serverUrl + page + (query != null ? "?" + query : "");
         if (bridge != null && bridge.getWebView() != null) {
             bridge.getWebView().post(() -> bridge.getWebView().loadUrl(target));
         }

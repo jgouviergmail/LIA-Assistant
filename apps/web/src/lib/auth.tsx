@@ -8,7 +8,6 @@ import {
   purgeSensitiveClientStorageOnAccountChange,
 } from '@/lib/client-storage-purge';
 import apiClient from './api-client';
-import { openInSystemBrowser } from '@/lib/native/shell';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 export interface User {
@@ -396,21 +395,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       );
       const { authorization_url } = response;
 
-      if (nativeChallenge) {
-        /*
-         * Never navigate the WebView here: Google refuses OAuth from an
-         * embedded webview outright (`disallowed_useragent`), so sending this
-         * page to the provider would end the flow before it began. The shell
-         * hands the URL to the system browser instead, and the user comes back
-         * through the deep link.
-         */
-        const handed = await openInSystemBrowser(authorization_url);
-        if (handed) return;
-        // No shell took it — fall through rather than leave the user on a
-        // button that appears to do nothing.
-      }
-
-      // Redirect to Google OAuth
+      /*
+       * Leaving for the system browser is NOT decided here. Google refuses
+       * OAuth from an embedded webview on every flow, not only this one, so
+       * the decision lives in `navigateToAuthorizationUrl` — the single door
+       * all eight flows go through. Sign-in is an ordinary caller again.
+       */
       navigateToAuthorizationUrl(authorization_url, 'google-login');
     } catch (error) {
       console.error('Failed to initiate Google OAuth:', error);

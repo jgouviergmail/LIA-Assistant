@@ -28,6 +28,7 @@ from src.core.demo_mode import forbid_federated_signin_in_demo
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_credentials, raise_invalid_input
 from src.core.i18n_api_messages import APIMessages
+from src.core.native_client import detect_native_client
 from src.core.session_helpers import (
     create_authenticated_session_with_cookie,
     set_mfa_pending_cookie,
@@ -64,7 +65,12 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
-    dependencies=[Depends(forbid_federated_signin_in_demo)],
+    dependencies=[
+        Depends(forbid_federated_signin_in_demo),
+        # Same reason as the connectors router: provider sign-in also leaves
+        # for a system browser and has to find its way back.
+        Depends(detect_native_client),
+    ],
 )
 
 

@@ -137,6 +137,58 @@ and, more importantly, a way to forget the stored server. An address mistyped on
 run otherwise produces that screen on every launch forever, with reinstalling the app
 as the only remedy.
 
+### 9. Leaving is a property of leaving, not of each flow
+
+Eight flows hand an authorization URL to a provider — the ten connectors, MCP
+servers, bulk connect, reconnection, and sign-in — and Google refuses OAuth from
+an embedded webview on every one of them. All eight already funnelled through
+`navigateToAuthorizationUrl`, which guards the navigation primitive against
+`javascript:` URLs (SEC-002). That is where the system-browser decision belongs
+too, and putting it there **removed** the special case sign-in had grown: it is
+an ordinary caller again.
+
+The alternative was eight branches, seven of which nobody would have remembered
+to add, each failing silently on its own flow.
+
+### 10. The return trip: the flow remembers which surface opened it
+
+A callback runs long after the page that started the flow is gone. The only
+thing that travels between them is the state token the provider echoes back, so
+the surface is written into it.
+
+`OAuthFlowHandler.initiate_flow` is the single function in the codebase that
+builds an OAuth state, which means a connector added tomorrow inherits the
+behaviour without its author knowing the marker exists. That mattered: the
+alternative was threading a boolean through twelve service methods, where
+forgetting one strands that connector's users in a browser with everything else
+working.
+
+How the flag reaches that function is a request-scoped `ContextVar`, set from an
+`X-LIA-Native` header the shell puts on its own requests. A custom header forces
+a CORS preflight, and the trade is stated rather than hidden: browsers send
+nothing and pay nothing, a shell pays one `OPTIONS` per method and path every
+ten minutes. The alternative — a list of OAuth paths in the web client — is an
+allowlist, and allowlists rot.
+
+The marker is **absent** for a browser flow rather than `False`. A field that
+exists is a field someone reads loosely, and the failure mode is a desktop user
+redirected to a `lia://` link their machine cannot open.
+
+MCP keeps its own flow handler and its own Redis namespace, so it gets the same
+treatment through the same shared pieces — a third deep-link host, and a probe
+built with its prefix. Wiring the dependency onto its router while its handler
+wrote nothing would have been dead code that looks like a feature.
+
+### 11. Native means `is True`
+
+The callbacks are also called directly by unit tests, where an unfilled
+`Depends(...)` default arrives as the dependency **object** — which is truthy.
+Read loosely, every such test and any future direct caller would take the
+deep-link path while running in a browser.
+
+An existing MCP test did exactly that and failed, which is how this was found.
+The check is an identity comparison, and it is pinned by its own test.
+
 ## Consequences
 
 **Gained.** Notifications on both native platforms. Android with no third party
@@ -153,7 +205,11 @@ build with their own Apple account if they want push without a relay.
 `PUSH_RELAY_URL` (a privacy decision taken by a constant). Letting a caller influence
 the notification text (the relay's entire justification is that it cannot).
 
-**Also fixed on the way.** The per-IP rate-limit factory moved from
+**Also fixed on the way.** Ten connector callbacks each built their success
+redirect with their own f-string; they now share one. The three MCP result
+markers were stored as ready-made query fragments (`"mcp_oauth=success"`), which
+a deep link would have encoded as one opaque value — they are a parameter name
+and three values now. The per-IP rate-limit factory moved from
 `domains/auth/dependencies` to `infrastructure/rate_limiting/ip_limiter`, keeping its
 Redis keys byte for byte — four unrelated domains had been importing their limiters
 from the auth domain. `_get_client_ip` and its duplicate test went with it: both

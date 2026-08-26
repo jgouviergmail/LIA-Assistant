@@ -28,12 +28,10 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
 import re
 import secrets
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlencode
 
 import structlog
 
@@ -42,16 +40,15 @@ from src.core.constants import (
     NATIVE_HANDOFF_VERIFIER_MAX_LENGTH,
     NATIVE_HANDOFF_VERIFIER_MIN_LENGTH,
     REDIS_KEY_NATIVE_HANDOFF_PREFIX,
-    REDIS_KEY_OAUTH_STATE_PREFIX,
 )
 from src.core.field_names import FIELD_USER_ID
+from src.core.native_deep_link import NativeDeepLinkHost, build_deep_link
+from src.core.oauth.state_peek import peek_oauth_state
 from src.core.single_use_token import SingleUseTokenStore
-from src.infrastructure.cache.redis import get_redis_session
 
 logger = structlog.get_logger(__name__)
 
 #: Path component of the deep link. Fixed: the app registers one entry point.
-_DEEP_LINK_HOST = "auth-callback"
 
 #: Unreserved base64url alphabet, unpadded (RFC 7636 §4.1 leaves no padding).
 _BASE64URL_RE = re.compile(r"^[A-Za-z0-9\-_]+$")
@@ -211,7 +208,11 @@ async def consume_handoff(code: str, verifier: str) -> NativeHandoff | None:
 
 
 def build_native_redirect(code: str | None = None, error: str | None = None) -> str:
-    """Build the deep link handing control back to the app.
+    """Build the deep link handing control back to the app after a sign-in.
+
+    Thin wrapper over the shared builder, kept because the sign-in flow has two
+    mutually exclusive outcomes and naming them is clearer at the call site
+    than assembling a dict there.
 
     Args:
         code: The handoff code, on success.
@@ -228,7 +229,7 @@ def build_native_redirect(code: str | None = None, error: str | None = None) -> 
         raise ValueError("build_native_redirect needs either a code or an error")
 
     params = {"code": code} if code is not None else {"error": error}
-    return f"{settings.native_app_scheme}://{_DEEP_LINK_HOST}?{urlencode(params)}"
+    return build_deep_link(NativeDeepLinkHost.AUTH_CALLBACK, params)  # type: ignore[arg-type]
 
 
 #: Key the flow stored its challenge under, inside the OAuth state payload.
@@ -254,18 +255,9 @@ async def peek_native_challenge(state: str) -> str | None:
         can never match a verifier, and a deep link is not somewhere to send a
         user whose sign-in cannot possibly complete.
     """
-    if not state:
+    payload = await peek_oauth_state(state)
+    if payload is None:
         return None
 
-    redis = await get_redis_session()
-    raw = await redis.get(f"{REDIS_KEY_OAUTH_STATE_PREFIX}{state}")
-    if not raw:
-        return None
-
-    try:
-        payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    except json.JSONDecodeError, AttributeError, TypeError, ValueError:
-        return None
-
-    challenge = payload.get(NATIVE_CHALLENGE_METADATA_KEY) if isinstance(payload, dict) else None
+    challenge = payload.get(NATIVE_CHALLENGE_METADATA_KEY)
     return challenge if is_valid_challenge(challenge) else None

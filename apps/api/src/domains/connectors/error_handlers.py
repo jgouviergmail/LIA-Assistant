@@ -50,7 +50,6 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.core.config import settings
 from src.core.exceptions import AuthorizationError, ResourceNotFoundError
 from src.core.field_names import FIELD_ERROR_TYPE
 from src.core.i18n_api_messages import APIMessages
@@ -61,6 +60,7 @@ from src.core.oauth.exceptions import (
     OAuthTokenExchangeError,
 )
 from src.domains.connectors.models import ConnectorStatus, ConnectorType
+from src.domains.connectors.oauth_return import connector_error_return
 from src.domains.connectors.repository import ConnectorRepository
 
 logger = structlog.get_logger(__name__)
@@ -265,6 +265,8 @@ def handle_oauth_callback_error_redirect(
     error: Exception,
     connector_type: str,
     error_code: OAuthCallbackErrorCode | None = None,
+    *,
+    is_native: bool = False,
 ) -> RedirectResponse:
     """
     Create a redirect response for OAuth callback errors.
@@ -277,9 +279,15 @@ def handle_oauth_callback_error_redirect(
         error: The caught exception
         connector_type: Type of connector (e.g., "gmail", "google_contacts", "google_calendar")
         error_code: Pre-classified error code (optional, will be inferred if None)
+        is_native: Whether a native shell started the flow. Defaults to False so
+            every existing caller keeps the behaviour it had; the connector
+            callbacks pass the real value.
 
     Returns:
-        RedirectResponse to frontend settings page with error parameter
+        RedirectResponse to the settings page — in the app when a shell started
+        the flow, in the browser otherwise. Branching matters MORE here than on
+        success: a shell user left in a browser after a failure has no connector
+        to find later and nothing on screen explaining why.
 
     Example:
         >>> @router.get("/gmail/callback")
@@ -304,12 +312,7 @@ def handle_oauth_callback_error_redirect(
         exc_info=True,
     )
 
-    # Build redirect URL to frontend settings page with error parameter
-    redirect_url = (
-        f"{settings.frontend_url}/dashboard/settings" f"?connector_error={error_code.value}"
-    )
-
-    return RedirectResponse(url=redirect_url, status_code=302)
+    return connector_error_return(is_native=is_native, error_code=error_code.value)
 
 
 # ============================================================================

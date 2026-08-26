@@ -26,6 +26,7 @@ from pydantic import BaseModel, ConfigDict
 
 from src.core.config import settings
 from src.core.field_names import FIELD_TIMESTAMP
+from src.core.native_client import is_native_client
 from src.core.security import (
     generate_code_challenge,
     generate_code_verifier,
@@ -55,6 +56,16 @@ class OAuthTokenResponse(BaseModel):
     id_token: str | None = None  # OpenID Connect
 
     model_config = ConfigDict(frozen=True)
+
+
+#: Key the state payload carries when a native shell started the flow.
+#:
+#: Written here and nowhere else: this is the only function in the codebase
+#: that builds an OAuth state, so a connector added tomorrow inherits the
+#: behaviour without its author knowing this constant exists. The alternative —
+#: a parameter threaded through twelve service methods — fails one connector at
+#: a time, and silently.
+NATIVE_FLOW_METADATA_KEY = "native_flow"
 
 
 class OAuthFlowHandler:
@@ -122,8 +133,11 @@ class OAuthFlowHandler:
         code_verifier = generate_code_verifier()  # 43-128 chars
         code_challenge = generate_code_challenge(code_verifier)  # SHA-256
 
-        # Prepare state data with PKCE and optional metadata
-        state_data = {
+        # Prepare state data with PKCE and optional metadata.
+        # Typed as Any because the payload is no longer strings only: the
+        # native marker below is a real boolean, and reading it as one is what
+        # keeps a browser flow from matching a loose truthiness check.
+        state_data: dict[str, Any] = {
             "provider": self.provider.provider_name,
             "code_verifier": code_verifier,
             FIELD_TIMESTAMP: datetime.now(UTC).isoformat(),
@@ -132,6 +146,13 @@ class OAuthFlowHandler:
         # Merge business logic metadata if provided
         if metadata:
             state_data.update(metadata)
+
+        # Remember which surface started this. The callback runs long after the
+        # page that began the flow is gone, and the state token is the only
+        # thing that travels between them. Absent rather than False for a
+        # browser: a field that exists is a field someone will read loosely.
+        if is_native_client():
+            state_data[NATIVE_FLOW_METADATA_KEY] = True
 
         # Store state in Redis with short TTL
         await self.session_service.store_oauth_state(

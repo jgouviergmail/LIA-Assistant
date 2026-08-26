@@ -3127,9 +3127,15 @@ MCP_HTTP_READ_TIMEOUT_SECONDS = 300.0
 # speaks protocol revisions this client does not implement yet.
 MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION = -32022
 MCP_USER_OAUTH_REDIRECT_PATH = "/dashboard/settings"  # Frontend redirect after OAuth callback
-MCP_USER_OAUTH_REDIRECT_PARAM_SUCCESS = "mcp_oauth=success"
-MCP_USER_OAUTH_REDIRECT_PARAM_ERROR = "mcp_oauth=error"
-MCP_USER_OAUTH_REDIRECT_PARAM_DENIED = "mcp_oauth=denied"  # User refused consent
+# The callback marker the settings page reads (`lib/mcp-oauth-callback.ts`).
+# Stored as a parameter NAME and three VALUES rather than three ready-made query
+# fragments: the redirect is now assembled from a dict, because a native shell
+# gets the same parameters on a `lia://` link where a pre-joined "a=b" string
+# would have been encoded as one opaque value.
+MCP_USER_OAUTH_RESULT_PARAM = "mcp_oauth"
+MCP_USER_OAUTH_RESULT_SUCCESS = "success"
+MCP_USER_OAUTH_RESULT_ERROR = "error"
+MCP_USER_OAUTH_RESULT_DENIED = "denied"  # User refused consent
 SCHEDULER_JOB_USER_MCP_EVICTION = "user_mcp_pool_eviction"
 
 # MCP domain description algorithmic fallback (shared admin + user MCP)

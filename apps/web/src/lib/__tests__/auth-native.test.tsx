@@ -1,14 +1,17 @@
 /**
- * AuthProvider — the two calls the native shells add, and the one they change.
+ * AuthProvider — the two calls the native shells add.
  *
  * A shell cannot sign in the way a browser does: Google refuses OAuth from an
  * embedded webview, so the authorization URL must reach the SYSTEM browser and
- * the session must come back as a code the WebView spends itself. Two
- * properties carry that, and both are pinned here — the challenge reaches the
- * server, and the WebView is never navigated to the provider.
+ * the session must come back as a code the WebView spends itself.
  *
- * The browser path must be untouched, which the last block asserts directly
- * rather than by omission.
+ * Only the first half of that is this module's job, and only since the shell
+ * decision moved to `navigateToAuthorizationUrl` — the one door all eight OAuth
+ * flows go through. What is pinned here is therefore that the challenge reaches
+ * the server and that the guarded door is the one used. "The WebView is never
+ * navigated to the provider" now lives where it is decided, in
+ * `safe-navigation.test.ts`, and applies to connectors and MCP too rather than
+ * to sign-in alone.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -78,31 +81,21 @@ describe('initiateGoogleOAuth — from a native shell', () => {
     });
   });
 
-  it('hands the URL to the system browser and never navigates the WebView', async () => {
+  it('leaves through the one guarded door, native or not', async () => {
     const rendered = await settled(renderAuth());
     get.mockResolvedValue({ authorization_url: 'https://accounts.example/auth' });
-    openInSystemBrowser.mockResolvedValue(true);
 
     await rendered.result.current.initiateGoogleOAuth('challenge-abc');
 
-    expect(openInSystemBrowser).toHaveBeenCalledWith('https://accounts.example/auth');
-    // Navigating here would end the flow before it began: Google refuses OAuth
-    // from an embedded webview outright.
-    expect(navigateToAuthorizationUrl).not.toHaveBeenCalled();
-  });
-
-  it('falls back to navigating when no shell takes the URL', async () => {
-    const rendered = await settled(renderAuth());
-    get.mockResolvedValue({ authorization_url: 'https://accounts.example/auth' });
-    openInSystemBrowser.mockResolvedValue(false);
-
-    await rendered.result.current.initiateGoogleOAuth('challenge-abc');
-
-    // Better a flow the provider may refuse than a button that does nothing.
+    // Sign-in used to reach for the shell itself. It no longer does, and that
+    // is the point: whether a URL leaves for the system browser is a property
+    // of leaving at all, not of this flow. Reintroducing a branch here would
+    // put sign-in back out of step with the seven other flows.
     expect(navigateToAuthorizationUrl).toHaveBeenCalledWith(
       'https://accounts.example/auth',
       'google-login'
     );
+    expect(openInSystemBrowser).not.toHaveBeenCalled();
   });
 });
 

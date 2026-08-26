@@ -475,3 +475,11 @@ export const VOICE_PTT_TOUCH_PADDING_PX = 20;
  * Covers slow mobile networks, permission dialog left open, etc.
  */
 export const VOICE_RECORDING_SETUP_TIMEOUT_MS = 10000;
+
+/**
+ * Header a native shell sets on every request to its own server.
+ *
+ * Its value is checked by `core/native_client.py`; the two must agree, and the
+ * backend allows it explicitly in its CORS policy.
+ */
+export const NATIVE_CLIENT_HEADER = 'X-LIA-Native';

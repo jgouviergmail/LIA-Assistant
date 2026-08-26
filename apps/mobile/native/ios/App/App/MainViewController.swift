@@ -8,8 +8,20 @@ class MainViewController: CAPBridgeViewController {
     /// Scheme Info.plist registers for the sign-in return trip.
     private static let deepLinkScheme = "lia"
 
-    /// Web route that spends a handoff code; localisation is the app's own job.
-    private static let nativeAuthPath = "/native-auth"
+    /// Where each deep-link host puts the user.
+    ///
+    /// A map rather than one constant because two flows now come home this way
+    /// — provider sign-in and connector authorization — and a third would
+    /// otherwise be a third branch. The PATHS are fixed here on purpose: a link
+    /// carrying its own destination would let whoever claims the scheme choose
+    /// where the WebView goes next, and a custom scheme must be assumed
+    /// interceptable (App Links pin domains at build time, and one published
+    /// app serves every self-hosted server).
+    private static let deepLinkPages = [
+        "auth-callback": "/native-auth",
+        "connector-callback": "/dashboard/settings",
+        "mcp-callback": "/dashboard/settings",
+    ]
 
     /// Point the WebView at this installation's server, when it has one.
     ///
@@ -42,6 +54,8 @@ class MainViewController: CAPBridgeViewController {
             guard let payload = notification.object as? [String: Any],
                   let url = payload["url"] as? URL,
                   url.scheme == Self.deepLinkScheme,
+                  // A host we do not serve: navigating anywhere would be guessing.
+                  let page = url.host.flatMap({ Self.deepLinkPages[$0] }),
                   let serverUrl = ServerUrlStore.read(), !serverUrl.isEmpty
             else { return }
 
@@ -50,7 +64,7 @@ class MainViewController: CAPBridgeViewController {
             // from ever seeing the custom-scheme URL itself.
             let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.query
             let suffix = query.map { "?\($0)" } ?? ""
-            guard let target = URL(string: serverUrl + Self.nativeAuthPath + suffix) else { return }
+            guard let target = URL(string: serverUrl + page + suffix) else { return }
             self?.webView?.load(URLRequest(url: target))
         }
     }
