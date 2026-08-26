@@ -58,6 +58,15 @@ jobs:
     needs: require-green-ci
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    # The arm64 half is emulated through QEMU, and `pnpm install` under that
+    # emulation can HANG rather than merely run slow: on 2026-08-24 the web
+    # image stopped emitting output at `[linux/arm64 deps 6/6]` and printed
+    # nothing for 5 h 54 min, until GitHub's own 6-hour ceiling killed it --
+    # six hours of runner time, and a release blocked, to learn nothing.
+    # Measured over the preceding runs, a legitimate build takes 25-30 min
+    # (api) and 34-39 min (web); 90 min leaves more than twice the margin of
+    # the slowest one while turning a hang into a fast, legible failure.
+    timeout-minutes: 90
     strategy:
       matrix:
         include:
