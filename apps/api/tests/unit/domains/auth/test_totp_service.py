@@ -325,7 +325,11 @@ class TestPendingToken:
         redis.set = AsyncMock(side_effect=fake_set)
         redis.getdel = AsyncMock(side_effect=fake_getdel)
 
-        with patch(f"{MODULE}.get_redis_session", return_value=redis):
+        # Patched where the call LIVES, not where the caller lives: the bridge
+        # runs on the shared single-use store, so patching
+        # ``totp_service.get_redis_session`` would silently hit a real Redis and
+        # leave this test green while measuring nothing (observed 2026-08-24).
+        with patch("src.core.single_use_token.get_redis_session", return_value=redis):
             token = await service.create_pending_token(user_id, remember_me=True)
             payload = await service.consume_pending_token(token)
             replay = await service.consume_pending_token(token)

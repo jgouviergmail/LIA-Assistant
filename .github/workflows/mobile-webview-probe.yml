@@ -47,6 +47,12 @@ jobs:
         with:
           node-version: "24"
 
+      # The engine probe scaffolds with npx and never needed this; the shell
+      # bench builds the REAL app, whose prepare step drives Capacitor via pnpm
+      # (and installs its own node_modules on first use).
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v4
+
       - name: Set up Task
         uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
         with:
@@ -78,7 +84,13 @@ jobs:
           # no snapshot — a restored snapshot would carry a stale cookie store
           # and quietly invalidate the persistence check.
           emulator-options: -no-window -no-snapshot -no-boot-anim -no-audio -gpu swiftshader_indirect
-          script: task mobile:probe:android -- --restart ${{ inputs.restart }} --api-host ${{ inputs.api_host }} --out "${{ github.workspace }}/evidence-android.json" ${{ inputs.coep && format('--coep {0}', inputs.coep) || '' }}
+          # The emulator lives only for this script's duration, so the shell
+          # bench runs in the same breath: first the engine (what a WebView can
+          # do), then the REAL app held to its own guarantees — nine scenes,
+          # serverless, over the devtools socket (scripts/mobile-probe/shell.mjs).
+          script: |
+            task mobile:probe:android -- --restart ${{ inputs.restart }} --api-host ${{ inputs.api_host }} --out "${{ github.workspace }}/evidence-android.json" ${{ inputs.coep && format('--coep {0}', inputs.coep) || '' }}
+            task mobile:verify:android
 
       - name: Upload evidence
         if: always()

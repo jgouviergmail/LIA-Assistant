@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>LIA</title>
+<style>
+  /*
+   * Capacitor loads this page from the shell's own bundle whenever a main-frame
+   * navigation to the server fails (`server.errorPath`). It therefore runs with
+   * NO network and no app bundle to ask — everything it needs is inline, same
+   * dialect as `index.html` next door and `public/offline.html` in the web app.
+   *
+   * It exists because ADR-146's offline page cannot reach the iOS shell: there
+   * is no `navigator.serviceWorker` in WKWebView (measured), so nothing can
+   * intercept the failed navigation from inside the page. Without this, the
+   * user gets WebKit's own "cannot open page" — an unbranded browser error,
+   * inside an app, with no way back but force-quitting it.
+   */
+  :root { color-scheme: light dark; --bg: #fafafa; --fg: #18181b; --muted: #71717a;
+          --border: #e4e4e7; --brand: #6366f1; --brand-hover: #4f46e5; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #09090b; --fg: #fafafa; --muted: #a1a1aa; --border: #27272a; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100svh; display: flex; align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--fg);
+    /* Safe areas: the shell draws edge to edge on both platforms. */
+    padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  }
+  main { width: 100%; max-width: 380px; text-align: center; }
+  .logo { width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 16px;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex;
+          align-items: center; justify-content: center; color: #fff;
+          font-size: 28px; font-weight: 700; }
+  h1 { font-size: 1.25rem; margin: 0 0 8px; }
+  .sub { margin: 0 0 24px; color: var(--muted); font-size: 0.95rem; }
+  button {
+    width: 100%; padding: 12px 22px;
+    background: var(--brand); color: #fff; border: 0; border-radius: 10px;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    /* 44px minimum touch target, both platforms' guidance. */
+    min-height: 44px;
+  }
+  button:hover:not(:disabled) { background: var(--brand-hover); }
+  button:disabled { opacity: 0.6; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+  .secondary {
+    margin: 16px 0 0; background: none; color: var(--muted);
+    border: 1px solid var(--border); font-weight: 500;
+  }
+  .secondary:hover:not(:disabled) { background: none; color: var(--fg); }
+</style>
+</head>
+<body>
+  <main>
+    <div class="logo" aria-hidden="true">L</div>
+    <h1 id="title"></h1>
+    <!-- role=status so a screen reader hears why the screen changed. -->
+    <p class="sub" id="subtitle" role="status"></p>
+
+    <button type="button" id="retry"></button>
+    <button type="button" class="secondary" id="change"></button>
+  </main>
+
+  <script>
+    /*
+     * Inline i18n ×6, same shape as index.html: there is no app bundle to ask,
+     * and the six languages are the product's, not this page's.
+     */
+    var M = {
+      en: {
+        title: "Your LIA is unreachable",
+        subtitle: "The app could not reach your server. It may be offline, or this device may have no connection.",
+        retry: "Try again",
+        working: "Reconnecting…",
+        change: "Use a different server"
+      },
+      fr: {
+        title: "Votre LIA est injoignable",
+        subtitle: "L'application n'a pas pu joindre votre serveur. Il est peut-être hors ligne, ou cet appareil n'a pas de connexion.",
+        retry: "Réessayer",
+        working: "Reconnexion…",
+        change: "Utiliser un autre serveur"
+      },
+      de: {
+        title: "Ihre LIA ist nicht erreichbar",
+        subtitle: "Die App konnte Ihren Server nicht erreichen. Er ist möglicherweise offline, oder dieses Gerät hat keine Verbindung.",
+        retry: "Erneut versuchen",
+        working: "Verbinde erneut…",
+        change: "Anderen Server verwenden"
+      },
+      es: {
+        title: "Tu LIA no está accesible",
+        subtitle: "La aplicación no pudo conectar con tu servidor. Puede estar apagado, o este dispositivo sin conexión.",
+        retry: "Reintentar",
+        working: "Reconectando…",
+        change: "Usar otro servidor"
+      },
+      it: {
+        title: "La tua LIA non è raggiungibile",
+        subtitle: "L'app non è riuscita a contattare il tuo server. Potrebbe essere offline, o questo dispositivo senza connessione.",
+        retry: "Riprova",
+        working: "Riconnessione…",
+        change: "Usa un altro server"
+      },
+      zh: {
+        title: "无法连接到您的 LIA",
+        subtitle: "应用无法访问您的服务器。服务器可能已离线，或此设备没有网络连接。",
+        retry: "重试",
+        working: "正在重新连接…",
+        change: "使用其他服务器"
+      }
+    };
+
+    var lang = (navigator.language || "en").slice(0, 2);
+    var m = M[lang] || M.en;
+    document.documentElement.lang = lang in M ? lang : "en";
+    ["title", "subtitle", "retry", "change"].forEach(function (id) {
+      document.getElementById(id).textContent = m[id];
+    });
+
+    var retry = document.getElementById("retry");
+    var change = document.getElementById("change");
+
+    /*
+     * Two doors to the same two actions, because the platforms inject
+     * differently. iOS injects the Capacitor bridge into EVERY navigation
+     * (WKUserScript), this page included. Android, with a remote server
+     * configured, injects it only into that origin's documents — measured by
+     * the shell bench, whose first run found both buttons dead — so the shell
+     * exposes a minimal `LiaOffline` JavascriptInterface instead. Feature
+     * detection, not platform sniffing: whichever door exists is the right one.
+     */
+    var shell = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LiaShell;
+    var offline = window.LiaOffline;
+
+    retry.addEventListener("click", function () {
+      retry.disabled = true;
+      retry.textContent = m.working;
+      /*
+       * NOT history.back() and not location.reload(): both would reload THIS
+       * page, which is a local file. The server URL is read when the bridge is
+       * BUILT, so returning to the server means rebuilding it — the same
+       * restart the setup screen uses after storing an address.
+       */
+      if (shell) {
+        shell.restart().catch(function () {
+          retry.disabled = false;
+          retry.textContent = m.retry;
+        });
+      } else if (offline) {
+        offline.retry();
+      }
+    });
+
+    change.addEventListener("click", function () {
+      /*
+       * The escape hatch. A wrong address stored on first run produces exactly
+       * this screen, forever, and without a way back the only remedy is
+       * reinstalling the app — which is how a typo becomes a support request.
+       * Clearing the stored origin sends the next launch to the setup screen.
+       */
+      change.disabled = true;
+      if (shell) {
+        shell
+          .forget()
+          .catch(function () {})
+          .then(function () {
+            return shell.restart();
+          })
+          .catch(function () {
+            change.disabled = false;
+          });
+      } else if (offline) {
+        offline.forget();
+      }
+    });
+  </script>
+</body>
+</html>

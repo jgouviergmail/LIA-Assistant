@@ -13,9 +13,11 @@ from uuid import UUID
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import FCM_WEBPUSH_ICON_PATH
+from src.core.config import settings
+from src.core.constants import FCM_WEBPUSH_ICON_PATH, PUSH_RELAY_HANDLE_PREFIX
 from src.domains.notifications.models import UserFCMToken
 from src.domains.notifications.repository import FCMTokenRepository
+from src.infrastructure.external.push_relay_client import PushRelayClient
 
 logger = structlog.get_logger(__name__)
 
@@ -350,6 +352,9 @@ class FCMNotificationService:
         Returns:
             FCMSendResult
         """
+        if token.startswith(PUSH_RELAY_HANDLE_PREFIX):
+            return await self._wake_through_relay(token)
+
         app = self._get_firebase_app()
 
         if app is None:
@@ -450,6 +455,49 @@ class FCMNotificationService:
                 token=token,
                 token_invalid=token_invalid,
             )
+
+    async def _wake_through_relay(self, token: str) -> FCMSendResult:
+        """
+        Notify a device this deployment cannot reach itself.
+
+        The published iOS app belongs to one Apple Developer team, so only that
+        team may push to it. A shell running against this server therefore
+        registers a relay handle, and reaching it means asking the deployment
+        that owns the app.
+
+        Args:
+            token: The stored token, still carrying its ``relay:`` prefix.
+
+        Returns:
+            The same result shape as a Firebase send, so callers need no branch
+            of their own. ``token_invalid`` is set only when the relay says the
+            handle can never work again — never on an outage of its own.
+        """
+        if not settings.push_relay_url:
+            # Loud and named: the device is fine, one variable is missing, and
+            # an operator reading this log knows exactly which.
+            logger.error(
+                "push_relay_not_configured",
+                detail="a device registered through a wake relay, but PUSH_RELAY_URL is unset",
+            )
+            return FCMSendResult(
+                success=False,
+                error="push_relay_url_not_configured",
+                token=token,
+            )
+
+        client = PushRelayClient(
+            base_url=settings.push_relay_url,
+            timeout=settings.push_relay_timeout_seconds,
+        )
+        result = await client.wake(token.removeprefix(PUSH_RELAY_HANDLE_PREFIX))
+
+        return FCMSendResult(
+            success=result.sent,
+            error=result.error,
+            token=token,
+            token_invalid=result.should_forget_handle,
+        )
 
     # =========================================================================
     # Token Cleanup

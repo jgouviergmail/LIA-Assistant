@@ -8,6 +8,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from src.core.constants import (
+    NATIVE_HANDOFF_VERIFIER_MAX_LENGTH,
+    NATIVE_HANDOFF_VERIFIER_MIN_LENGTH,
+)
 from src.domains.shared.schemas import (
     LanguageValidatorMixin,
     PasswordValidatorMixin,
@@ -157,12 +161,42 @@ class LoginResponseBFF(BaseModel):
 class MFAVerifyRequest(BaseModel):
     """Second login step: pending token + TOTP or backup code."""
 
-    mfa_token: str = Field(..., description="Pending token returned by /auth/login")
+    mfa_token: str | None = Field(
+        default=None,
+        description=(
+            "Pending token returned by /auth/login. Omitted when the first step "
+            "was a provider sign-in, which ends in a redirect and therefore "
+            "carries the token in an httpOnly cookie instead."
+        ),
+    )
     code: str = Field(
         ...,
         min_length=6,
         max_length=16,
         description="6-digit TOTP code or 10-char backup code",
+    )
+
+
+class NativeCallbackRequest(BaseModel):
+    """Redeem a native session-handoff code.
+
+    Sent by the shell's WebView after the operating system handed it the deep
+    link. The verifier is what the WebView kept for itself when it started the
+    flow: without it the code is inert, which is what makes an intercepted deep
+    link harmless.
+    """
+
+    code: str = Field(
+        ...,
+        min_length=1,
+        max_length=512,
+        description="Opaque handoff code carried by the deep link",
+    )
+    verifier: str = Field(
+        ...,
+        min_length=NATIVE_HANDOFF_VERIFIER_MIN_LENGTH,
+        max_length=NATIVE_HANDOFF_VERIFIER_MAX_LENGTH,
+        description="The secret whose SHA-256 was sent as the challenge (RFC 7636 bounds)",
     )
 
 

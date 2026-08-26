@@ -57,7 +57,12 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<LoginResult>;
-  verifyMfa: (mfaToken: string, code: string) => Promise<User>;
+  /**
+   * Second login step. `mfaToken` is null when the first step was a provider
+   * sign-in: its callback is a redirect, so the pending token travels in an
+   * httpOnly cookie and the API reads it from there.
+   */
+  verifyMfa: (mfaToken: string | null, code: string) => Promise<User>;
   register: (
     email: string,
     password: string,
@@ -68,7 +73,16 @@ interface AuthContextType {
     termsAccepted?: boolean
   ) => Promise<User>;
   logout: () => Promise<void>;
-  initiateGoogleOAuth: () => Promise<void>;
+  /**
+   * Start a Google sign-in.
+   *
+   * `nativeChallenge` is supplied only by the shells: it makes the callback
+   * return through a deep link instead of setting a session in the system
+   * browser, where the WebView could never see it.
+   */
+  initiateGoogleOAuth: (nativeChallenge?: string) => Promise<void>;
+  /** Spend a native handoff code, from inside the shell's own WebView. */
+  completeNativeSignIn: (code: string, verifier: string) => Promise<{ mfaRequired: boolean }>;
   refreshUser: () => Promise<void>;
 }
 
@@ -230,9 +244,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * Complete a two-step login: pending token + TOTP or backup code.
    * On success the backend sets the session cookie and returns the user.
    */
-  const verifyMfa = async (mfaToken: string, code: string): Promise<User> => {
+  const verifyMfa = async (mfaToken: string | null, code: string): Promise<User> => {
     const response = await apiClient.post<{ user: User }>('/auth/mfa/verify', {
-      mfa_token: mfaToken,
+      // Omitted entirely when absent: the API falls back to the httpOnly
+      // cookie, and sending an explicit null would fail schema validation.
+      ...(mfaToken !== null && { mfa_token: mfaToken }),
       code,
     });
     setUser(response.user);
@@ -350,13 +366,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * 4. Google redirects to /auth/google/callback (backend)
    * 5. Backend handles callback, creates session, redirects to /dashboard
    */
-  const initiateGoogleOAuth = async (): Promise<void> => {
+  /**
+   * Spend a native handoff code for a session, from the shell's own WebView.
+   *
+   * The verifier is what makes an intercepted deep link inert: the server
+   * stored only its hash, and the code is worth nothing without it.
+   */
+  const completeNativeSignIn = async (
+    code: string,
+    verifier: string
+  ): Promise<{ mfaRequired: boolean }> => {
+    const response = await apiClient.post<{ user?: User; mfa_required?: boolean }>(
+      '/auth/native/callback',
+      { code, verifier }
+    );
+    if (response.user) {
+      setUser(response.user);
+    }
+    return { mfaRequired: response.mfa_required === true };
+  };
+
+  const initiateGoogleOAuth = async (nativeChallenge?: string): Promise<void> => {
     try {
       // Fetch API returns data directly (no .data property like axios)
-      const response = await apiClient.get<{ authorization_url: string }>('/auth/google/login');
+      const response = await apiClient.get<{ authorization_url: string }>(
+        '/auth/google/login',
+        nativeChallenge ? { params: { native_challenge: nativeChallenge } } : undefined
+      );
       const { authorization_url } = response;
 
-      // Redirect to Google OAuth
+      /*
+       * Leaving for the system browser is NOT decided here. Google refuses
+       * OAuth from an embedded webview on every flow, not only this one, so
+       * the decision lives in `navigateToAuthorizationUrl` — the single door
+       * all eight flows go through. Sign-in is an ordinary caller again.
+       */
       navigateToAuthorizationUrl(authorization_url, 'google-login');
     } catch (error) {
       console.error('Failed to initiate Google OAuth:', error);
@@ -396,6 +440,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isLoading,
       login,
       verifyMfa,
+      completeNativeSignIn,
       register,
       logout,
       initiateGoogleOAuth,

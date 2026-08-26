@@ -10,6 +10,7 @@ from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
 from src.domains.auth.checklist_router import router as checklist_router
+from src.domains.auth.oauth_router import router as oauth_router
 from src.domains.auth.profile_image_router import router as profile_image_router
 from src.domains.auth.router import router as auth_router
 from src.domains.auth.sessions_router import router as sessions_router
@@ -56,6 +57,7 @@ api_router = APIRouter()
 # Include domain routers
 api_router.include_router(auth_router)
 api_router.include_router(profile_image_router)  # Google avatar COEP proxy
+api_router.include_router(oauth_router)  # Provider sign-in + native shell handoff
 api_router.include_router(step_up_router)  # Step-up re-auth (works without MFA flag)
 api_router.include_router(sessions_router)  # Device sessions "My devices" (D2)
 api_router.include_router(users_router)
@@ -190,6 +192,14 @@ if getattr(settings, "push_channels_enabled", False) or getattr(
     from src.domains.push_channels.router import router as push_channels_router
 
     api_router.include_router(push_channels_router)
+
+# The wake relay is served by exactly one deployment — the one that publishes
+# the iOS app. Every other deployment CALLS a relay (push_relay_url) without
+# operating one, which is why this guard reads the operator flag alone.
+if getattr(settings, "push_relay_enabled", False):
+    from src.domains.push_relay.router import router as push_relay_router
+
+    api_router.include_router(push_relay_router)
 api_router.include_router(voice_router)
 api_router.include_router(voice_admin_router)
 api_router.include_router(user_export_router)

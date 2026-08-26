@@ -42,6 +42,11 @@ SESSION_DURATION_REMEMBER_ME = 86400 * 30  # 30 days (2,592,000 seconds)
 
 # Session cookie configuration
 SESSION_COOKIE_NAME = "lia_session"
+#: Carries the two-step pending token when the first step ends in a REDIRECT
+#: (provider sign-in) instead of a JSON response. httpOnly, and short-lived by
+#: the pending token's own TTL: a single-use credential in a URL would survive
+#: in history, referrers and logs.
+MFA_PENDING_COOKIE_NAME = "lia_mfa_pending"
 SESSION_COOKIE_SECURE_PRODUCTION = True  # HTTPS required in production
 SESSION_COOKIE_HTTPONLY = True  # Prevents XSS attacks
 SESSION_COOKIE_SAMESITE = "lax"  # CSRF protection
@@ -1050,6 +1055,18 @@ MFA_PENDING_TTL_SECONDS_DEFAULT = 300  # two-step login pending token lifetime
 REDIS_KEY_MFA_PENDING_PREFIX = "mfa:pending:"  # + opaque token (uuid4)
 RATE_LIMIT_MFA_VERIFY_PER_MINUTE = 5  # per-IP on /auth/mfa/verify (code brute force)
 RATE_LIMIT_TOTP_MANAGE_PER_MINUTE = 10  # per-user on TOTP management endpoints
+
+# Native shell session handoff (mobile apps): OAuth cannot run inside a WebView
+# (`disallowed_useragent` on both engines), so the flow goes through the system
+# browser and comes back through a deep link. The link carries a code, never a
+# session — and the code is worthless without the verifier the WebView kept.
+NATIVE_HANDOFF_TTL_SECONDS_DEFAULT = 60  # deep-link round trip, nothing more
+REDIS_KEY_NATIVE_HANDOFF_PREFIX = "native:handoff:"  # + opaque token
+NATIVE_APP_SCHEME_DEFAULT = "lia"  # custom scheme: App Links cannot follow a runtime server URL
+#: PKCE bounds (RFC 7636 §4.1), reused verbatim for the handoff verifier.
+NATIVE_HANDOFF_VERIFIER_MIN_LENGTH = 43
+NATIVE_HANDOFF_VERIFIER_MAX_LENGTH = 128
+RATE_LIMIT_NATIVE_CALLBACK_PER_MINUTE = 10  # per-IP on the handoff exchange
 
 # Account export (D3): GDPR-portability archives
 EXPORTS_STORAGE_PATH_DEFAULT = "data/exports"
@@ -3110,9 +3127,15 @@ MCP_HTTP_READ_TIMEOUT_SECONDS = 300.0
 # speaks protocol revisions this client does not implement yet.
 MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION = -32022
 MCP_USER_OAUTH_REDIRECT_PATH = "/dashboard/settings"  # Frontend redirect after OAuth callback
-MCP_USER_OAUTH_REDIRECT_PARAM_SUCCESS = "mcp_oauth=success"
-MCP_USER_OAUTH_REDIRECT_PARAM_ERROR = "mcp_oauth=error"
-MCP_USER_OAUTH_REDIRECT_PARAM_DENIED = "mcp_oauth=denied"  # User refused consent
+# The callback marker the settings page reads (`lib/mcp-oauth-callback.ts`).
+# Stored as a parameter NAME and three VALUES rather than three ready-made query
+# fragments: the redirect is now assembled from a dict, because a native shell
+# gets the same parameters on a `lia://` link where a pre-joined "a=b" string
+# would have been encoded as one opaque value.
+MCP_USER_OAUTH_RESULT_PARAM = "mcp_oauth"
+MCP_USER_OAUTH_RESULT_SUCCESS = "success"
+MCP_USER_OAUTH_RESULT_ERROR = "error"
+MCP_USER_OAUTH_RESULT_DENIED = "denied"  # User refused consent
 SCHEDULER_JOB_USER_MCP_EVICTION = "user_mcp_pool_eviction"
 
 # MCP domain description algorithmic fallback (shared admin + user MCP)
@@ -5274,3 +5297,49 @@ REDIS_KEY_PUSH_DEBOUNCE_PREFIX = "push:debounce:"
 # AQ/pollen enrichment of weather answers (2026-08) — both APIs are billed,
 # the cache bounds the spend to at most one call pair per point per TTL.
 WEATHER_ENVIRONMENT_ENRICHMENT_TTL_SECONDS_DEFAULT = 1800  # 30 min
+
+
+# =============================================================================
+# Apple Push Notification service (APNs)
+# =============================================================================
+
+# Apple's two gateways. A device token minted against one is meaningless to the
+# other, which surfaces as a permanent "BadDeviceToken" rather than an error.
+APNS_PRODUCTION_HOST = "api.push.apple.com"
+APNS_SANDBOX_HOST = "api.sandbox.push.apple.com"
+
+# Apple refuses a provider token older than one hour and rate-limits providers
+# that mint one per request. Renewing on a 50-minute window satisfies both,
+# with enough margin for clock skew.
+APNS_PROVIDER_TOKEN_REFRESH_SECONDS = 50 * 60
+
+APNS_REQUEST_TIMEOUT_SECONDS = 10.0
+
+
+# =============================================================================
+# Wake relay (published iOS shell)
+# =============================================================================
+
+# Handles are refused past this age. The shell re-registers on every launch, so
+# expiry is self-healing and bounds how long a leaked handle stays usable.
+PUSH_RELAY_HANDLE_MAX_AGE_DAYS_DEFAULT = 180
+
+PUSH_RELAY_TIMEOUT_SECONDS_DEFAULT = 8.0
+
+# Per-IP: registering is cheap for us and rare for a device (once per launch).
+RATE_LIMIT_PUSH_RELAY_REGISTER_PER_MINUTE = 10
+
+# Per-HANDLE, not per-IP: a handle is a bearer capability, so the budget must
+# follow the device it can wake rather than the server that presents it — one
+# self-hosted server legitimately wakes many devices from one address.
+RATE_LIMIT_PUSH_RELAY_WAKE_PER_MINUTE = 6
+
+# Folds a burst of wakes into a single notification on the device.
+PUSH_RELAY_WAKE_COLLAPSE_ID = "lia-wake"
+
+# Prefix a native shell puts on a token it obtained from a wake relay rather
+# than from its own server's Firebase project. The shell is the only party that
+# KNOWS which route it used, so the route travels with the token instead of
+# being inferred from configuration — a deployment can legitimately have both
+# relayed devices and devices reached through its own Apple account.
+PUSH_RELAY_HANDLE_PREFIX = "relay:"

@@ -537,7 +537,8 @@
       "continue_with_google": "Continua con Google",
       "signup_with_google": "Registrati con Google",
       "error_title": "Accesso Google fallito",
-      "error_message": "Riprova o contatta l'assistenza se il problema persiste."
+      "error_message": "Riprova o contatta l'assistenza se il problema persiste.",
+      "connecting": "Accesso in corso…"
     },
     "login_page": {
       "title": "Accedi",

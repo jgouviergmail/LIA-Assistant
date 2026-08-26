@@ -873,8 +873,10 @@ class TestAuthContract:
         request = Mock()
         request.client = Mock(host="203.0.113.7")
 
+        # The implementation moved to the shared per-IP limiter; patching the
+        # auth module's name would leave this test silently talking to Redis.
         with patch(
-            "src.domains.auth.dependencies.get_rate_limiter",
+            "src.infrastructure.rate_limiting.ip_limiter.get_rate_limiter",
             new=AsyncMock(return_value=limiter),
         ):
             with pytest.raises(RateLimitError) as exc_info:

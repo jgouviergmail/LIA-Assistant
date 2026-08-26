@@ -18,6 +18,7 @@
  */
 
 import { logger } from '@/lib/logger';
+import { isNativeShell, openInSystemBrowser } from '@/lib/native/shell';
 
 /**
  * Schemes a redirect to an external authorization server may legitimately use.
@@ -62,6 +63,15 @@ export function isSafeRedirectUrl(url: unknown): url is string {
 /**
  * Navigate the current tab to an API-supplied authorization URL.
  *
+ * Inside a native shell the URL leaves for the SYSTEM browser instead. Google
+ * refuses OAuth from an embedded webview outright (`disallowed_useragent`), so
+ * navigating the WebView ends the flow before it starts. Eight flows funnel
+ * through here — connectors, MCP, bulk connect, reconnection, sign-in — and
+ * deciding it once is what spares each of them a branch nobody would remember
+ * to add to the ninth.
+ *
+ * The safety check runs FIRST, so a shell is never a way around it.
+ *
  * @param url - The `authorization_url` from the API response.
  * @param context - Short label identifying the flow, for the failure log.
  * @throws UnsafeRedirectError - When the URL is not an absolute http(s) URL.
@@ -81,6 +91,25 @@ export function navigateToAuthorizationUrl(url: unknown, context: string): void 
     throw new UnsafeRedirectError(
       'The authorization URL returned by the server is not a valid https address.'
     );
+  }
+
+  if (isNativeShell()) {
+    // Not awaited: the signature stays synchronous for its eight callers, none
+    // of which has anything to do after the browser has the URL.
+    void openInSystemBrowser(url)
+      .catch(() => false)
+      .then((taken) => {
+        if (!taken) {
+          // Better a flow the provider may refuse than a button that silently
+          // does nothing — the user can at least see what happened.
+          logger.warn(`No shell took the authorization URL (${context}); navigating`, {
+            component: 'safe-navigation',
+            context,
+          });
+          window.location.href = url;
+        }
+      });
+    return;
   }
 
   window.location.href = url;

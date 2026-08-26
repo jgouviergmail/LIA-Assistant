@@ -129,9 +129,15 @@ class TestClassifyOAuthCallbackError:
 
 
 class TestHandleOAuthCallbackErrorRedirect:
-    """Tests for handle_oauth_callback_error_redirect() function."""
+    """Tests for handle_oauth_callback_error_redirect() function.
 
-    @patch("src.domains.connectors.error_handlers.settings")
+    The redirect itself is built by `core/oauth/native_return.py`, shared by
+    the connector and MCP flows since the native shells needed all of them to
+    agree on it — so that is where `settings` is read. Patching the connector
+    module would leave these tests silently reading the real configuration.
+    """
+
+    @patch("src.core.oauth.native_return.settings")
     def test_returns_redirect_response(self, mock_settings):
         """Test returns a RedirectResponse object."""
         mock_settings.frontend_url = "http://localhost:3000"
@@ -142,7 +148,7 @@ class TestHandleOAuthCallbackErrorRedirect:
         assert isinstance(result, RedirectResponse)
         assert result.status_code == 302
 
-    @patch("src.domains.connectors.error_handlers.settings")
+    @patch("src.core.oauth.native_return.settings")
     def test_redirect_url_contains_error_code(self, mock_settings):
         """Test redirect URL contains the error code."""
         mock_settings.frontend_url = "http://localhost:3000"
@@ -154,7 +160,7 @@ class TestHandleOAuthCallbackErrorRedirect:
         location = result.headers.get("location", "")
         assert "connector_error=invalid_state" in location
 
-    @patch("src.domains.connectors.error_handlers.settings")
+    @patch("src.core.oauth.native_return.settings")
     def test_redirect_to_settings_page(self, mock_settings):
         """Test redirects to dashboard settings page."""
         mock_settings.frontend_url = "http://localhost:3000"
@@ -165,7 +171,7 @@ class TestHandleOAuthCallbackErrorRedirect:
         location = result.headers.get("location", "")
         assert "http://localhost:3000/dashboard/settings" in location
 
-    @patch("src.domains.connectors.error_handlers.settings")
+    @patch("src.core.oauth.native_return.settings")
     def test_uses_provided_error_code(self, mock_settings):
         """Test uses provided error_code when specified."""
         mock_settings.frontend_url = "http://localhost:3000"
@@ -180,7 +186,7 @@ class TestHandleOAuthCallbackErrorRedirect:
         location = result.headers.get("location", "")
         assert "connector_error=connector_disabled" in location
 
-    @patch("src.domains.connectors.error_handlers.settings")
+    @patch("src.core.oauth.native_return.settings")
     def test_classifies_error_when_code_not_provided(self, mock_settings):
         """Test classifies error when error_code is None."""
         mock_settings.frontend_url = "http://localhost:3000"
@@ -191,7 +197,7 @@ class TestHandleOAuthCallbackErrorRedirect:
         location = result.headers.get("location", "")
         assert "connector_error=token_exchange_failed" in location
 
-    @patch("src.domains.connectors.error_handlers.settings")
+    @patch("src.core.oauth.native_return.settings")
     @patch("src.domains.connectors.error_handlers.logger")
     def test_logs_error_with_context(self, mock_logger, mock_settings):
         """Test logs error with full context."""
@@ -206,7 +212,7 @@ class TestHandleOAuthCallbackErrorRedirect:
         assert call_kwargs["error_type"] == "OAuthStateValidationError"
         assert call_kwargs["error_code"] == "invalid_state"
 
-    @patch("src.domains.connectors.error_handlers.settings")
+    @patch("src.core.oauth.native_return.settings")
     def test_handles_different_connector_types(self, mock_settings):
         """Test handles various connector type names."""
         mock_settings.frontend_url = "http://localhost:3000"

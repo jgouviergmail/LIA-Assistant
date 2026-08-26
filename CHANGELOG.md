@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+**Un iPhone ne peut pas être notifié par le serveur auquel il est rattaché, et aucun réglage ne corrige cela.** FCM n'atteint un iPhone que par APNs, qui authentifie l'émetteur avec une clé délivrée à l'équipe Apple **propriétaire du bundle id** — l'éditeur de l'app, jamais l'auto-hébergeur. Et une clé `.p8` vaut pour *toutes* les apps de l'équipe, donc elle ne peut pas être distribuée. Comme la PWA iOS, elle, reçoit déjà des notifications web, une app iOS muette aurait été **en retrait de ce que les utilisateurs ont déjà**.
+
+**Android n'a pas ce problème, et la coque en profite pleinement.** FCM identifie un émetteur par *projet*, pas par éditeur : l'app initialise Firebase **au démarrage** avec les options que votre propre serveur publie, et vos notifications ne quittent jamais votre projet Firebase. Aucun `google-services.json` n'est embarqué — en embarquer un aurait lié chaque installation au projet de l'éditeur.
+
+**Pour iOS, un relais de réveil qui ne porte rien.** Il émet une phrase fixe, sans paramètre, dans les six langues ; l'app va ensuite chercher le vrai contenu sur **votre** serveur. Il ne stocke rien du tout : la poignée *est* le chiffré authentifié du jeton d'appareil, elle expire, et deux serveurs ne peuvent pas corréler les leurs. Ce qu'il apprend malgré tout est écrit dans le guide plutôt que taire : qu'un appareil a été réveillé, quand, et l'IP du serveur demandeur. `PUSH_RELAY_URL` n'a **aucun défaut** — pointer quelque part par défaut aurait été une décision de vie privée prise par une constante.
+
+**Le doute n'efface jamais un appareil.** Un relais injoignable, un 429, une réponse illisible ou un identifiant que *nous* avons mal saisi conservent la poignée. Seuls deux verdicts la jettent : « illisible » et « appareil disparu ». Garder une poignée morte coûte un appel HTTP par notification ; en jeter une vivante fait taire un téléphone jusqu'au prochain lancement — et une seule variable fausse de notre côté l'aurait fait à tout le monde d'un coup.
+
+### Added
+
+- **Les douze départs OAuth reviennent dans l'app** (ADR-246, lot 3) : connecteurs, serveurs MCP, connexion groupée, reconnexion. La décision « partir vers le navigateur système » est prise **une seule fois**, à la porte que les huit flux franchissaient déjà — ce qui a **supprimé** le cas particulier que la connexion avait acquis. Et le retour se souvient de la surface qui l'a ouvert, écrit dans l'état OAuth par la seule fonction du dépôt qui en construise un : un connecteur ajouté demain en hérite sans le savoir.
+- **Push natif sur les deux coques** (ADR-246) : `GET /notifications/push-config` répond par plateforme, la couche web transmet la réponse **entière** au shell et ne lit jamais un champ spécifique à une plateforme. `useFCMToken` délègue l'acquisition et garde **une seule** implémentation de tout ce qui suit — enregistrement, état, liste des appareils.
+- **Relais de réveil** (`domains/push_relay/`, `PUSH_RELAY_ENABLED`, faux par défaut) : deux points d'entrée, aucune base, aucune tâche planifiée. Client APNs en HTTP/2 avec JWT ES256 — `h2`, `httpx`, `pyjwt`, `cryptography` étaient déjà là, **zéro nouvelle dépendance**, et aucun SDK Firebase embarqué côté iOS.
+- **Écran hors-ligne groupé** (`server.errorPath`) : indispensable sur iOS, qui n'a pas de service worker et affichait sinon l'erreur de WebKit dans l'application. Il propose un réessai qui **reconstruit le pont** et surtout un moyen d'**oublier** le serveur — une adresse mal saisie au premier lancement produisait sinon cet écran à chaque démarrage, sans autre remède que réinstaller.
+
+### Changed
+
+- **Le banc de vérification pilote désormais l'app réelle** (`task mobile:verify:android`) : neuf scènes sur la coque debug, observées par le socket devtools WebView, sans aucun serveur — l'origine configurée est un nom `.invalid` (RFC 2606), donc l'échec de navigation EST l'oracle. Avant son premier passage vert, il a trouvé deux défauts vivants que la compilation, la CI et toutes les gardes statiques avaient bénis.
+- Dix rappels de connecteurs construisaient leur redirection de succès à la main : ils en partagent une. Les trois marqueurs de résultat MCP étaient des fragments de requête tout faits (`"mcp_oauth=success"`), qu'un lien profond aurait encodés comme une seule valeur opaque — ce sont désormais un nom de paramètre et trois valeurs.
+- La fabrique de limitation de débit par IP passe de `domains/auth/dependencies` à `infrastructure/rate_limiting/ip_limiter`, en gardant ses clés Redis **octet pour octet** : quatre domaines sans rapport importaient leur limiteur du domaine auth.
+
+### Fixed
+
+- **L'écran hors-ligne ne se chargeait jamais dans l'état configuré sur Android** : `CapConfig.Builder` part de rien (il ne lit pas capacitor.config.json) et `MainActivity` ne reportait pas `errorPath` — le seul état où il compte. iOS était immunisé, ce qui rendait le défaut invisible à toute vérification symétrique. Trouvé en CONCEVANT le banc ; gardé statiquement depuis.
+- **Ses deux boutons étaient morts sur Android** : avec un serveur distant configuré, Capacitor n'injecte son pont que dans les documents de cette origine, jamais dans la page `errorPath` locale — `window.Capacitor` y était indéfini. La coque expose désormais une `JavascriptInterface` minimale (`LiaOffline`), verrouillée pour n'agir que depuis la page hors-ligne. Trouvé par le PREMIER passage du banc.
+- **`registerPush` demandait la permission avant de lire la configuration** : un utilisateur dont le serveur n'offre aucun push se voyait réclamer une permission sans objet. La configuration se lit d'abord — le banc est resté suspendu à ce dialogue, attendant un doigt qui ne viendrait jamais.
+- Une valeur *truthy* n'est pas un flux natif. Appelés directement par des tests unitaires, les rappels OAuth reçoivent l'objet `Depends` en guise de défaut — et un `Depends` est truthy : lus mollement, ces tests et tout appelant direct futur auraient pris le chemin du lien profond en plein navigateur. Trouvé par un test MCP existant qui faisait exactement cela.
+- `refreshTokens` relisait `Notification.permission` après l'enrôlement et écrasait l'état qu'il venait d'établir — ce qui, dans une coque, répond `unsupported`. Un rafraîchissement ne doit pas défaire ce qu'il suit.
+
+### Removed
+
+- `_get_client_ip` et son test doublon : tous deux redisaient, moins complètement et sur une prémisse depuis réfutée, ce que `core/client_ip.py` documente déjà.
+
 ## [1.32.0] - 2026-08-27
 
 **Demander à un modèle de réfléchir avait quatre formes, sept constructeurs et trois autorités qui devaient s'accorder. Il n'en reste qu'une.** La valeur stockée s'appelait `{"effort": "off"}` sur vingt et un slots et `{"effort": "none"}` sur six autres — la même instruction, écrite de deux façons. Sa *forme* était choisie par une colonne du catalogue, et son interprétation par un `isinstance` dans le constructeur du fournisseur : quand les trois divergeaient, l'instanciation du modèle levait une exception **sur le chemin chaud**, pour une configuration que l'interface d'administration avait acceptée.

@@ -5,11 +5,13 @@
 > updated, what recurs every year, and the WKWebView behaviours that were
 > **measured** rather than assumed.
 >
-> **Status (2026-08-24).** The decision and the measurements are final; the app
-> itself is **planned**, not built. What exists today is the measurement harness
+> **Status (2026-08-24).** The decision and the measurements are final. Two
+> pieces already exist: the measurement harness
 > ([scripts/mobile-probe/README.md](../../scripts/mobile-probe/README.md)), whose
 > iOS leg runs on a GitHub-hosted macOS runner — the only way to reach WKWebView
-> without a Mac. Sections marked *(planned)* describe work still to be done.
+> without a Mac — and the **API-side session handoff** that lets a shell complete
+> a provider sign-in. The **app itself is planned**, not built; sections marked
+> *(planned)* describe what it still owes.
 >
 > Android counterpart: [GUIDE_MOBILE_ANDROID.md](./GUIDE_MOBILE_ANDROID.md).
 
@@ -57,7 +59,7 @@ never copied.
 | Cross-origin credentialed call to a separate API origin | **yes** |
 | Server-Sent Events | **yes** |
 | Service Worker | **absent** — see the trade-off above |
-| Notifications / Push API | **absent** → push must be native |
+| Notifications / Push API | **absent** → push must be native, and on iOS that needs a relay (§5) |
 | `crossOriginIsolated` / `SharedArrayBuffer` | **absent** → no wake word (already the case in Safari) |
 | `getUserMedia`, geolocation | **yes**, once the usage descriptions are declared |
 
@@ -156,6 +158,90 @@ biometrics and optional location.
 
 ---
 
+
+### Push notifications — the one thing a self-hosted server cannot do alone
+
+This is the platform's hardest constraint, and it has no configuration that
+fixes it. Read it before promising a user notifications.
+
+**Why.** FCM reaches an iPhone only through APNs, and APNs authenticates a
+provider with a key issued to the Apple Developer team that **owns the bundle
+identifier**. One app is published for every self-hosted server, so that team is
+the app's publisher — not you. An APNs `.p8` key is moreover valid for *every*
+app in a team, so it cannot be handed out. Android has no equivalent problem:
+FCM identifies a sender by project, so an Android device talks to whichever
+Firebase project its own server owns.
+
+**What LIA does about it** (ADR-246). The shell registers with a **wake relay**
+— the deployment that publishes the app — and receives an opaque handle. Your
+server sends that handle to the relay when it wants to notify the device; the
+relay emits a **fixed, contentless sentence** in the user's language, and the
+app fetches the real content from **your** server once opened.
+
+```bash
+# On any deployment that wants iOS notifications:
+PUSH_RELAY_URL=https://lia.jeyswork.com   # no default, on purpose
+```
+
+**What the relay learns, stated plainly:** that some device was woken, when, and
+the IP address of the server that asked. Not who, not from which account, not
+about what. It stores nothing at all — the handle *is* the record, sealed, and
+it expires.
+
+**If that is not acceptable to you**, leave `PUSH_RELAY_URL` unset. Your users
+keep the iOS PWA (which does receive Web Push, added to the home screen), or you
+publish your own iOS build under your own Apple Developer account and use plain
+APNs — the delivery path branches on the token, not on configuration, so both
+work side by side.
+
+### Operating a relay (publishers only)
+
+Only the deployment that publishes the app to the App Store turns this on.
+
+```bash
+PUSH_RELAY_ENABLED=true
+PUSH_RELAY_SEAL_KEY=<Fernet key>       # NOT fernet_key: rotating this invalidates every handle at once
+APNS_KEY_PATH=/run/secrets/apns.p8
+APNS_KEY_ID=ABCDE12345
+APNS_TEAM_ID=TEAM123456
+APNS_TOPIC=com.lia.assistant
+APNS_USE_SANDBOX=false                 # a token minted for one gateway is invalid on the other
+```
+
+Enabling it without any of those **refuses to boot**, naming the missing
+variable. That is deliberate: a half-configured relay accepts registrations and
+fails every send, which reads as "the relay is down" to a self-hoster and
+"notifications don't work" to a user, with nothing anywhere naming the cause.
+
+Two endpoints, no database, no scheduled job:
+
+| Route | Who calls it | What it does |
+|---|---|---|
+| `POST /api/v1/push-relay/devices` | the iOS shell, natively | seals a device token into a handle |
+| `POST /api/v1/push-relay/wake` | a self-hosted LIA server | sends the fixed notification |
+
+Registration is native rather than from the page because the page runs on the
+user's own server origin: calling the relay from JavaScript is cross-origin, and
+a relay serving every self-hosted server cannot enumerate their origins in a
+CORS policy.
+
+**Rotating the seal key** invalidates every handle in circulation. Devices
+recover on their next launch, since the shell re-registers each time — so it is
+a usable panic button, not a one-way door.
+
+### The offline screen
+
+`server.errorPath` points at a bundled `www/offline.html`. This is **load-bearing
+on iOS**: there is no service worker, so ADR-146's offline page can never run
+here, and without this the user gets WebKit's own "cannot open page" inside the
+app.
+
+It offers a retry that rebuilds the bridge, and a way to forget the stored
+server — the escape hatch from an address mistyped on first launch, which
+otherwise produces that screen on every launch forever.
+
+---
+
 ## 6. Building and signing *(planned)*
 
 ```bash
@@ -227,17 +313,72 @@ outrank `iOS-18`.
 ask whether the harness declared what the platform requires before concluding the
 platform refuses it.
 
+
+
+### Every OAuth departure leaves for the system browser, not only sign-in
+
+Google refuses OAuth from an embedded webview (`disallowed_useragent`), and that
+applies to the ten connectors and to MCP servers exactly as it does to sign-in.
+All of them go through `navigateToAuthorizationUrl` in the web app, which is
+where the decision is made — once (ADR-246).
+
+The return trip is a `lia://` deep link whose HOST names the flow:
+
+| Host | Where the shell puts the user |
+|---|---|
+| `auth-callback` | `/native-auth` — spends the sign-in handoff code |
+| `connector-callback` | `/dashboard/settings` |
+| `mcp-callback` | `/dashboard/settings` |
+
+The paths are fixed in the shell, never carried in the link: a deep link that
+named its own destination would let whoever claims the custom scheme choose
+where the WebView goes next.
+
+Adding a fourth flow means adding its host in **three** places — the server's
+`NativeDeepLinkHost`, both shells' maps, and (on Android) the manifest's
+intent-filter. `apps/api/tests/unit/test_mobile_deep_link_hosts_guard.py`
+compares all four declarations, because the failure is otherwise silent: the
+user comes back from the browser to a screen that never changes.
+
+### The offline screen also catches HTTP errors, not only network failures
+
+Capacitor's `errorPath` redirects on `onReceivedError` **and**
+`onReceivedHttpError` for the main frame. A server answering 404 to a
+main-frame navigation therefore shows "your LIA is unreachable", which is a
+misleading diagnosis.
+
+In practice the shell only navigates to routes that exist — the server root and
+`/native-auth`. The one way to reach this is a **shell newer than its server**:
+tapping a sign-in deep link against a server that predates that route. It was
+observed exactly once, during lot 2b, when production answered 404 to
+`/native-auth` because the route lived only in the branch.
+
+Capacitor offers no granularity here, and the alternative is worse: without
+`errorPath`, a genuine network failure shows the engine's own error page inside
+the app. The trade is deliberate — recorded so the next person does not
+rediscover it as a bug.
+
 ### OAuth cannot run inside the WebView
 
 Google refuses OAuth from embedded webviews (`disallowed_useragent`, enforced
 since 2023-07-24) — `WKWebView` explicitly. This breaks Google sign-in **and
-every connector**. The remedy is `SFSafariViewController`, a Universal Link back
-into the app, and a single-use session handoff on the API side *(planned)*
-modelled on `TOTPService.create_pending_token` / `consume_pending_token`.
+every connector**.
 
 The cookie the system browser receives is **not** the WebView's, which is why the
-handoff must exchange a one-time code server-side rather than hoping the session
+handoff exchanges a one-time code server-side rather than hoping the session
 carries over.
+
+**The API side is implemented**: a challenge on
+`GET /auth/google/login`, a `lia://auth-callback?code=…` return, and
+`POST /auth/native/callback` to redeem it — see
+[apps/api/src/domains/auth/native_handoff.py](../../apps/api/src/domains/auth/native_handoff.py).
+The return uses a **custom scheme, not a Universal Link**: Universal Links pin
+domains at build time, and one published app serves every self-hosted server.
+That is exactly why the code is bound to a verifier the shell keeps — an
+intercepted link is inert.
+
+What the shell still owes *(planned)*: `SFSafariViewController`, the scheme
+registration, and keeping the verifier.
 
 ### Universal Links
 

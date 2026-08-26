@@ -36,6 +36,8 @@ from src.core.constants import (
     MCP_USER_OAUTH_STATE_REDIS_PREFIX,
     MCP_USER_OAUTH_STATE_TTL_SECONDS,
 )
+from src.core.native_client import is_native_client
+from src.core.oauth.flow_handler import NATIVE_FLOW_METADATA_KEY
 from src.core.security.utils import (
     encrypt_data,
     generate_code_challenge,
@@ -379,6 +381,13 @@ class MCPOAuthFlowHandler:
             # RFC 9207: recorded issuer, validated against the callback `iss`
             "issuer": metadata.issuer or None,
         }
+        # Remember which surface started this, so the callback can send the
+        # user back where they came from (ADR-246). Unlike the connector flows,
+        # this state is CONSUMED in the callback, which therefore already holds
+        # the payload — no peek is needed there.
+        if is_native_client():
+            state_data[NATIVE_FLOW_METADATA_KEY] = True
+
         await self._store_state(state, state_data)
 
         # Build redirect URI

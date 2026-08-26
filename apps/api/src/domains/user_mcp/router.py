@@ -16,15 +16,18 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings as app_settings
 from src.core.constants import (
-    MCP_USER_OAUTH_REDIRECT_PARAM_DENIED,
-    MCP_USER_OAUTH_REDIRECT_PARAM_ERROR,
-    MCP_USER_OAUTH_REDIRECT_PARAM_SUCCESS,
     MCP_USER_OAUTH_REDIRECT_PATH,
+    MCP_USER_OAUTH_RESULT_DENIED,
+    MCP_USER_OAUTH_RESULT_ERROR,
+    MCP_USER_OAUTH_RESULT_PARAM,
+    MCP_USER_OAUTH_STATE_REDIS_PREFIX,
 )
 from src.core.dependencies import get_db
 from src.core.exceptions import ValidationError, raise_bad_gateway
+from src.core.native_client import detect_native_client
+from src.core.native_deep_link import NativeDeepLinkHost
+from src.core.oauth.native_return import make_native_flow_probe, oauth_return_redirect
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
@@ -50,12 +53,44 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+
+def _mcp_return(is_native: bool, params: dict[str, str]) -> RedirectResponse:
+    """
+    Close an MCP authorization on the surface that opened it.
+
+    Args:
+        is_native: Whether a native shell started the flow.
+        params: Query the settings page reads — the same on both surfaces.
+
+    Returns:
+        A 302 to the app, or to the web settings page.
+    """
+    return oauth_return_redirect(
+        is_native=is_native,
+        host=NativeDeepLinkHost.MCP_CALLBACK,
+        path=MCP_USER_OAUTH_REDIRECT_PATH,
+        params=params,
+    )
+
+
+#: Did a native shell start this MCP authorization?
+#:
+#: MCP keeps its own state namespace, and reading the wrong one would answer
+#: "not native" for every MCP flow — silently, and only in the shell.
+mcp_return_is_native = make_native_flow_probe(MCP_USER_OAUTH_STATE_REDIS_PREFIX)
+
+
 router = APIRouter(
     prefix="/mcp/servers",
     tags=["User MCP Servers"],
     # Administrable capability: a switched-off feature refuses at the
     # door, not only in the planner catalogue.
-    dependencies=capability_dependencies(PlatformCapability.MCP),
+    dependencies=[
+        *capability_dependencies(PlatformCapability.MCP),
+        # A user-added MCP server can require OAuth, and that flow leaves for a
+        # system browser like any other (ADR-246).
+        Depends(detect_native_client),
+    ],
 )
 
 
@@ -531,6 +566,7 @@ async def oauth_callback(
     state: str | None = None,
     iss: str | None = None,
     error: str | None = None,
+    is_native: bool = Depends(mcp_return_is_native),
 ) -> RedirectResponse:
     """
     Handle OAuth 2.1 callback.
@@ -554,15 +590,16 @@ async def oauth_callback(
             has_code=bool(code),
             has_state=bool(state),
         )
-        marker = (
-            MCP_USER_OAUTH_REDIRECT_PARAM_DENIED
-            if error == "access_denied"
-            else f"{MCP_USER_OAUTH_REDIRECT_PARAM_ERROR}&error=oauth_failed"
+        denied = error == "access_denied"
+        params = (
+            {MCP_USER_OAUTH_RESULT_PARAM: MCP_USER_OAUTH_RESULT_DENIED}
+            if denied
+            else {
+                MCP_USER_OAUTH_RESULT_PARAM: MCP_USER_OAUTH_RESULT_ERROR,
+                "error": "oauth_failed",
+            }
         )
-        return RedirectResponse(
-            url=f"{app_settings.frontend_url}{MCP_USER_OAUTH_REDIRECT_PATH}?{marker}",
-            status_code=status.HTTP_302_FOUND,
-        )
+        return _mcp_return(is_native, params)
 
     async with MCPOAuthFlowHandler() as handler:
         try:
@@ -573,18 +610,13 @@ async def oauth_callback(
             # Persist encrypted tokens and mark server as active
             await UserMCPServerService.update_oauth_credentials(server_id, encrypted_creds)
 
-            redirect_url = (
-                f"{app_settings.frontend_url}{MCP_USER_OAUTH_REDIRECT_PATH}?"
-                f"{MCP_USER_OAUTH_REDIRECT_PARAM_SUCCESS}&server_id={server_id}"
-            )
-
             logger.info(
                 "user_mcp_oauth_callback_success",
                 server_id=str(server_id),
                 user_id=str(user_id),
             )
 
-            return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+            return _mcp_return(is_native, {"mcp_oauth": "success", "server_id": str(server_id)})
 
         except Exception as e:
             logger.error(
@@ -593,9 +625,10 @@ async def oauth_callback(
                 error_type=type(e).__name__,
             )
 
-            redirect_url = (
-                f"{app_settings.frontend_url}{MCP_USER_OAUTH_REDIRECT_PATH}?"
-                f"{MCP_USER_OAUTH_REDIRECT_PARAM_ERROR}&error=oauth_failed"
+            return _mcp_return(
+                is_native,
+                {
+                    MCP_USER_OAUTH_RESULT_PARAM: MCP_USER_OAUTH_RESULT_ERROR,
+                    "error": "oauth_failed",
+                },
             )
-
-            return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)

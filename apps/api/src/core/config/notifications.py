@@ -36,6 +36,30 @@ class NotificationSettings(BaseSettings):
         description="Firebase project ID",
     )
 
+    # ------------------------------------------------------------------
+    # Firebase CLIENT options, published to the native Android shell
+    # ------------------------------------------------------------------
+    # These are not secrets: every Android build ships them inside its APK.
+    # They live here so one published app can talk to whichever Firebase
+    # project its server owns, initialising Firebase at runtime instead of
+    # baking a google-services.json into the binary. Unset means the Android
+    # shell receives no notifications from this deployment.
+    firebase_android_app_id: str | None = Field(
+        default=None,
+        description=(
+            "mobilesdk_app_id of the Android app in this deployment's Firebase "
+            "project (NOT the package name)."
+        ),
+    )
+    firebase_api_key: str | None = Field(
+        default=None,
+        description="Web API key of this deployment's Firebase project.",
+    )
+    firebase_sender_id: str | None = Field(
+        default=None,
+        description="Cloud Messaging sender id of this deployment's Firebase project.",
+    )
+
     # FCM Settings
     fcm_enabled: bool = Field(
         default=True,

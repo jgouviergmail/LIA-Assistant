@@ -28,6 +28,8 @@ from src.core.constants import (
     JWT_ALGORITHM_DEFAULT,
     LOG_LEVEL_DEFAULT,
     MAX_REQUEST_BODY_BYTES_DEFAULT,
+    NATIVE_APP_SCHEME_DEFAULT,
+    NATIVE_HANDOFF_TTL_SECONDS_DEFAULT,
     RATE_LIMIT_BURST_DEFAULT,
     RATE_LIMIT_GLOBAL_PER_MINUTE_DEFAULT,
     RATE_LIMIT_PER_MINUTE_DEFAULT,
@@ -229,6 +231,25 @@ class SecuritySettings(BaseSettings):
     session_cookie_samesite: str = Field(
         default="lax",
         description="SameSite policy for session cookie (strict/lax/none)",
+    )
+
+    # --- Native shell session handoff (mobile apps) -----------------------
+    # OAuth is refused inside a WebView on both engines, so the flow goes
+    # through the system browser and returns through a deep link. The link
+    # cannot be an App Link: those pin domains at build time, and LIA ships ONE
+    # app for every self-hosted server, whose URL the user types at first
+    # launch. A custom scheme is claimable by any app, which is precisely why
+    # the code it carries is worthless without the WebView's verifier.
+    native_app_scheme: str = Field(
+        default=NATIVE_APP_SCHEME_DEFAULT,
+        description="Custom URL scheme the native shells register (deep-link return)",
+    )
+    native_handoff_ttl_seconds: int = Field(
+        default=NATIVE_HANDOFF_TTL_SECONDS_DEFAULT,
+        description=(
+            "Lifetime of a native session-handoff code. Sized for a deep-link "
+            "round trip and nothing more: it is a bearer credential."
+        ),
     )
     session_cookie_domain: str | None = Field(
         # None, and never a real domain. This is deployment IDENTITY, not a

@@ -94,6 +94,13 @@ async def shutdown_application(handles: StartupHandles) -> None:
     except Exception as exc:
         logger.error("background_tasks_drain_failed", error=str(exc))
 
+    # Close the wake relay's connection to Apple. Held open across notifications
+    # on Apple's own recommendation, so it needs an owner at teardown — a no-op
+    # on every deployment that does not operate a relay.
+    from src.domains.push_relay.dependencies import close_push_relay
+
+    await close_push_relay()
+
     # Prometheus multiprocess: drop this worker's per-process metric files so its
     # contribution leaves the 'live*' gauges on exit. Counters/histograms persist
     # (correct — totals must survive a worker restart). No-op outside multiprocess.

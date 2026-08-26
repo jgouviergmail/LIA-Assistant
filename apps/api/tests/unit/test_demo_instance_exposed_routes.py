@@ -181,6 +181,10 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/notifications/broadcasts/unread",
         "POST /api/v1/notifications/broadcasts/{broadcast_id}/read",
         "GET /api/v1/notifications/hub-counts",
+        # Decided 2026-08-24 (ADR-246): a demonstrator visitor running a
+        # native shell needs it, it demands a session, and it answers only
+        # values every published Android build already ships in its APK.
+        "GET /api/v1/notifications/push-config",
         "POST /api/v1/notifications/register-token",
         "GET /api/v1/notifications/stream",
         "POST /api/v1/notifications/test",

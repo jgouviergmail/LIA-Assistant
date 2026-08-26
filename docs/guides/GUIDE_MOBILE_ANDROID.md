@@ -5,11 +5,12 @@
 > updated, what recurs every year, and the platform behaviours that were
 > **measured** rather than assumed.
 >
-> **Status (2026-08-24).** The decision and the measurements are final; the app
-> itself is **planned**, not built. What exists today is the measurement harness
+> **Status (2026-08-24).** The decision and the measurements are final. Two
+> pieces already exist: the measurement harness
 > ([scripts/mobile-probe/README.md](../../scripts/mobile-probe/README.md)), which
-> already asserts the invariants this guide relies on. Sections marked
-> *(planned)* describe work still to be done.
+> asserts the invariants this guide relies on, and the **API-side session
+> handoff** that lets a shell complete a provider sign-in. The **app itself is
+> planned**, not built; sections marked *(planned)* describe what it still owes.
 >
 > iOS counterpart: [GUIDE_MOBILE_IOS.md](./GUIDE_MOBILE_IOS.md).
 
@@ -63,9 +64,12 @@ headers** — the probe imports them from
 
 Two consequences worth stating plainly:
 
-- **Push must be native.** The Push API does not exist in a WebView, on either
-  platform. `UserFCMToken.device_type` already accepts `android`, so no schema
-  change is needed.
+- **Push is native, and it stays yours** (ADR-246, delivered). The Push API
+  does not exist in a WebView on either platform, so the shell asks Firebase
+  directly. What matters is *which* Firebase: the app initialises it **at
+  runtime** with options your own server publishes, so notifications come from
+  the Firebase project **you** own. Nothing passes through the app's publisher
+  — unlike iOS, which has no such option (see the iOS guide).
 - **The wake word is lost.** `isSherpaKwsSupported()` returns false without
   cross-origin isolation and voice mode degrades to tap-to-speak. This is a
   regression against the PWA, which keeps the wake word in Chrome. It is not a
@@ -75,6 +79,17 @@ Re-measure at any time:
 
 ```bash
 task mobile:probe:android          # needs a booted emulator or device
+```
+
+The engine probe measures what the WebView can do; a second bench holds the
+REAL shell to its own guarantees — setup screen, HTTPS refusal, the offline
+screen on an unreachable server, deep-link routing and refusal, and the
+"forget" escape hatch — by driving the debug build over the WebView devtools
+socket, serverless by design (`scripts/mobile-probe/README.md`, shell bench
+section, including the two live defects its first runs caught):
+
+```bash
+task mobile:verify:android         # builds the debug APK, drives the real app
 ```
 
 ---
@@ -125,23 +140,69 @@ A test asserts both stay off.
 
 ## 5. Configuration
 
-### The server URL is chosen at runtime
+### The server URL is chosen at runtime — delivered
 
 `BridgeActivity.load()` calls `bridgeBuilder.setConfig(config).create()` and
-`config` is a **protected** field, so a subclass can build one from a stored
-value:
+`config` is a **protected** field, so `MainActivity` builds one from the stored
+value before delegating:
 
 ```java
-// planned: read the URL the user typed at first launch
+// apps/mobile/native/android/.../MainActivity.java
 this.config = new CapConfig.Builder(this)
-        .setServerUrl(preferences.getString("lia_server_url", null))
-        .build();
+        .setServerUrl(ServerUrlStore.read(this))
+        .create();
 super.load();
 ```
 
-Validate the URL before storing it: HTTPS only, reachable, and answering LIA's
-health endpoint. A typo saved silently produces an app that never loads and no
-way back except reinstalling.
+`ServerUrlStore.normalise` refuses anything that is not a usable HTTPS origin,
+and the setup screen additionally **probes** the address natively before storing
+it (`LiaShell.probe`). Both matter: a typo saved silently produces an app that
+never loads.
+
+Two escape hatches exist for when it happens anyway. The offline screen
+(below) offers "use a different server", which calls `LiaShell.forget` and sends
+the next launch back to setup. Without it, reinstalling is the only remedy.
+
+
+### Push notifications — your Firebase project, not the publisher's
+
+Delivered in ADR-246. The app carries **no** `google-services.json`: it
+initialises Firebase at runtime with options your server publishes, so
+notifications originate from the Firebase project **you** own.
+
+Set these three on your server (they are not secrets — every Android build
+ships them inside its APK; find them in your project's `google-services.json`):
+
+```bash
+FIREBASE_ANDROID_APP_ID=1:123456789:android:abcdef   # mobilesdk_app_id, NOT the package name
+FIREBASE_API_KEY=AIza...                             # current_key of the Android client
+FIREBASE_SENDER_ID=123456789                         # project_number
+FIREBASE_PROJECT_ID=your-project                     # already existed
+```
+
+Register `com.lia.assistant` as an Android app in that Firebase project, and
+keep `FIREBASE_CREDENTIALS_PATH` pointing at the same project's service account
+— the client options and the sending credentials must name **one** project.
+
+**All four, or none.** Firebase refuses to initialise on a partial set, so
+`GET /notifications/push-config` publishes `android: null` unless every value is
+present, and the shell then tells the user push is unavailable rather than
+registering a token nothing will ever send to.
+
+Android 13+ makes notifications a runtime permission. The shell asks
+(`POST_NOTIFICATIONS`), and a refusal is reported as a refusal — distinct from
+"this server has no push configured", because the two send the user to different
+places.
+
+### The offline screen
+
+`server.errorPath` in `capacitor.config.json` points at a bundled
+`www/offline.html`, which Capacitor loads when a main-frame navigation fails.
+Android *does* run the ADR-146 service worker, so this is belt and braces here —
+it is load-bearing on iOS, which has no service worker at all.
+
+It offers a retry that **rebuilds the bridge** (reloading would reload the local
+page) and a way to forget the stored server.
 
 ### Deployment constraint to document for users
 
@@ -224,15 +285,71 @@ hazard on demand:
 task mobile:probe:android -- --settle 25000
 ```
 
+
+
+### Every OAuth departure leaves for the system browser, not only sign-in
+
+Google refuses OAuth from an embedded webview (`disallowed_useragent`), and that
+applies to the ten connectors and to MCP servers exactly as it does to sign-in.
+All of them go through `navigateToAuthorizationUrl` in the web app, which is
+where the decision is made — once (ADR-246).
+
+The return trip is a `lia://` deep link whose HOST names the flow:
+
+| Host | Where the shell puts the user |
+|---|---|
+| `auth-callback` | `/native-auth` — spends the sign-in handoff code |
+| `connector-callback` | `/dashboard/settings` |
+| `mcp-callback` | `/dashboard/settings` |
+
+The paths are fixed in the shell, never carried in the link: a deep link that
+named its own destination would let whoever claims the custom scheme choose
+where the WebView goes next.
+
+Adding a fourth flow means adding its host in **three** places — the server's
+`NativeDeepLinkHost`, both shells' maps, and (on Android) the manifest's
+intent-filter. `apps/api/tests/unit/test_mobile_deep_link_hosts_guard.py`
+compares all four declarations, because the failure is otherwise silent: the
+user comes back from the browser to a screen that never changes.
+
+### The offline screen also catches HTTP errors, not only network failures
+
+Capacitor's `errorPath` redirects on `onReceivedError` **and**
+`onReceivedHttpError` for the main frame. A server answering 404 to a
+main-frame navigation therefore shows "your LIA is unreachable", which is a
+misleading diagnosis.
+
+In practice the shell only navigates to routes that exist — the server root and
+`/native-auth`. The one way to reach this is a **shell newer than its server**:
+tapping a sign-in deep link against a server that predates that route. It was
+observed exactly once, during lot 2b, when production answered 404 to
+`/native-auth` because the route lived only in the branch.
+
+Capacitor offers no granularity here, and the alternative is worse: without
+`errorPath`, a genuine network failure shows the engine's own error page inside
+the app. The trade is deliberate — recorded so the next person does not
+rediscover it as a bug.
+
 ### OAuth cannot run inside the WebView
 
 Google refuses OAuth from embedded webviews (`disallowed_useragent`, enforced
 since 2023-07-24) — `android.webkit.WebView` explicitly. This breaks Google
-sign-in **and every connector**. The remedy is a system browser (Custom Tabs), a
-deep link back into the app, and a single-use session handoff on the API side
-*(planned)* modelled on `TOTPService.create_pending_token` /
-`consume_pending_token`, which already bridges two steps of a login through a
-Redis `GETDEL`.
+sign-in **and every connector**.
+
+**The API side is implemented.** `GET /auth/google/login?native_challenge=…`
+stores the challenge in the flow's server-side state; the callback returns
+`lia://auth-callback?code=…` instead of setting a browser session; and
+`POST /auth/native/callback` exchanges that code plus the verifier for the
+session cookie — in the WebView's own jar. See
+[apps/api/src/domains/auth/native_handoff.py](../../apps/api/src/domains/auth/native_handoff.py).
+
+What the shell still owes *(planned)*: opening the system browser (Custom Tabs),
+registering the custom scheme, drawing the verifier and keeping it, and handing
+the deep link back to the WebView.
+
+**Connectors need none of this.** Their callbacks are stateless — the user id
+travels in the server-side OAuth state — so they already succeed without a
+cookie. They only need the return trip.
 
 ### Emulator images
 

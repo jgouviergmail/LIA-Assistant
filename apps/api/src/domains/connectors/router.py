@@ -26,9 +26,14 @@ from src.core.exceptions import (
 )
 from src.core.i18n import Language, _, get_language_from_header
 from src.core.i18n_api_messages import APIMessages
+from src.core.native_client import detect_native_client
 from src.core.session_dependencies import get_current_active_session, get_current_superuser_session
 from src.domains.connectors.error_handlers import handle_oauth_callback_error_redirect
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
+from src.domains.connectors.oauth_return import (
+    connector_success_return,
+    oauth_return_is_native,
+)
 from src.domains.connectors.preferences.schemas import PreferencesRequest
 from src.domains.connectors.schemas import (
     APIKeyActivationRequest,
@@ -72,7 +77,14 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(
     prefix="/connectors",
     tags=["Connectors"],
-    dependencies=[Depends(forbid_account_linking_in_demo)],
+    dependencies=[
+        Depends(forbid_account_linking_in_demo),
+        # Records whether a native shell is calling, so a flow started in the
+        # app comes home to the app (ADR-246). Declared on the router because
+        # every connector here can start one; reading it is the business of
+        # `OAuthFlowHandler`, twelve service methods away.
+        Depends(detect_native_client),
+    ],
 )
 
 
@@ -651,6 +663,7 @@ async def initiate_gmail_oauth(
 async def gmail_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """
@@ -665,22 +678,20 @@ async def gmail_oauth_callback(
     try:
         connector = await service.handle_gmail_callback_stateless(code, state)
 
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=gmail"
-        )
-
         logger.info(
             "gmail_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
 
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="gmail",
+            connector_id=connector.id,
+        )
 
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "gmail")
+        return handle_oauth_callback_error_redirect(e, "gmail", is_native=is_native)
 
 
 # ========== GOOGLE CONTACTS CONNECTOR ==========
@@ -715,6 +726,7 @@ async def initiate_google_contacts_oauth(
 async def google_contacts_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """
@@ -739,22 +751,20 @@ async def google_contacts_oauth_callback(
     try:
         connector = await service.handle_google_contacts_callback_stateless(code, state)
 
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=google_contacts"
-        )
-
         logger.info(
             "google_contacts_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
 
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="google_contacts",
+            connector_id=connector.id,
+        )
 
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "google_contacts")
+        return handle_oauth_callback_error_redirect(e, "google_contacts", is_native=is_native)
 
 
 @router.post(
@@ -805,6 +815,7 @@ async def initiate_google_calendar_oauth(
 async def google_calendar_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Google Calendar OAuth callback."""
@@ -814,22 +825,20 @@ async def google_calendar_oauth_callback(
     try:
         connector = await service.handle_google_calendar_callback_stateless(code, state)
 
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=google_calendar"
-        )
-
         logger.info(
             "google_calendar_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
 
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="google_calendar",
+            connector_id=connector.id,
+        )
 
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "google_calendar")
+        return handle_oauth_callback_error_redirect(e, "google_calendar", is_native=is_native)
 
 
 # ========== GOOGLE DRIVE CONNECTOR ==========
@@ -863,6 +872,7 @@ async def initiate_google_drive_oauth(
 async def google_drive_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Google Drive OAuth callback."""
@@ -872,22 +882,20 @@ async def google_drive_oauth_callback(
     try:
         connector = await service.handle_google_drive_callback_stateless(code, state)
 
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=google_drive"
-        )
-
         logger.info(
             "google_drive_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
 
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="google_drive",
+            connector_id=connector.id,
+        )
 
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "google_drive")
+        return handle_oauth_callback_error_redirect(e, "google_drive", is_native=is_native)
 
 
 # ========== GOOGLE TASKS CONNECTOR ==========
@@ -921,6 +929,7 @@ async def initiate_google_tasks_oauth(
 async def google_tasks_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Google Tasks OAuth callback."""
@@ -930,22 +939,20 @@ async def google_tasks_oauth_callback(
     try:
         connector = await service.handle_google_tasks_callback_stateless(code, state)
 
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=google_tasks"
-        )
-
         logger.info(
             "google_tasks_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
 
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="google_tasks",
+            connector_id=connector.id,
+        )
 
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "google_tasks")
+        return handle_oauth_callback_error_redirect(e, "google_tasks", is_native=is_native)
 
 
 # ========== MICROSOFT 365 CONNECTORS (OAuth) ==========
@@ -975,6 +982,7 @@ async def initiate_microsoft_outlook_oauth(
 async def microsoft_outlook_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Microsoft Outlook OAuth callback."""
@@ -982,19 +990,18 @@ async def microsoft_outlook_oauth_callback(
     service = ConnectorService(db)
     try:
         connector = await service.handle_microsoft_outlook_callback_stateless(code, state)
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=microsoft_outlook"
-        )
         logger.info(
             "microsoft_outlook_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="microsoft_outlook",
+            connector_id=connector.id,
+        )
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "microsoft_outlook")
+        return handle_oauth_callback_error_redirect(e, "microsoft_outlook", is_native=is_native)
 
 
 @router.get(
@@ -1021,6 +1028,7 @@ async def initiate_microsoft_calendar_oauth(
 async def microsoft_calendar_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Microsoft Calendar OAuth callback."""
@@ -1028,19 +1036,18 @@ async def microsoft_calendar_oauth_callback(
     service = ConnectorService(db)
     try:
         connector = await service.handle_microsoft_calendar_callback_stateless(code, state)
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=microsoft_calendar"
-        )
         logger.info(
             "microsoft_calendar_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="microsoft_calendar",
+            connector_id=connector.id,
+        )
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "microsoft_calendar")
+        return handle_oauth_callback_error_redirect(e, "microsoft_calendar", is_native=is_native)
 
 
 @router.get(
@@ -1067,6 +1074,7 @@ async def initiate_microsoft_contacts_oauth(
 async def microsoft_contacts_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Microsoft Contacts OAuth callback."""
@@ -1074,19 +1082,18 @@ async def microsoft_contacts_oauth_callback(
     service = ConnectorService(db)
     try:
         connector = await service.handle_microsoft_contacts_callback_stateless(code, state)
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=microsoft_contacts"
-        )
         logger.info(
             "microsoft_contacts_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="microsoft_contacts",
+            connector_id=connector.id,
+        )
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "microsoft_contacts")
+        return handle_oauth_callback_error_redirect(e, "microsoft_contacts", is_native=is_native)
 
 
 @router.get(
@@ -1113,6 +1120,7 @@ async def initiate_microsoft_tasks_oauth(
 async def microsoft_tasks_oauth_callback(
     code: str,
     state: str,
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Microsoft To Do OAuth callback."""
@@ -1120,19 +1128,18 @@ async def microsoft_tasks_oauth_callback(
     service = ConnectorService(db)
     try:
         connector = await service.handle_microsoft_tasks_callback_stateless(code, state)
-        redirect_url = (
-            f"{settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=microsoft_tasks"
-        )
         logger.info(
             "microsoft_tasks_oauth_callback_success",
             connector_id=str(connector.id),
             user_id=str(connector.user_id),
         )
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="microsoft_tasks",
+            connector_id=connector.id,
+        )
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "microsoft_tasks")
+        return handle_oauth_callback_error_redirect(e, "microsoft_tasks", is_native=is_native)
 
 
 # ========== GOOGLE PLACES CONNECTOR (API Key based) ==========
@@ -1830,27 +1837,22 @@ async def hue_oauth_callback(
     code: str = Query(..., description="Authorization code from Hue"),
     state: str = Query(..., description="CSRF state token"),
     error: str | None = Query(None, description="Error from OAuth provider"),
+    is_native: bool = Depends(oauth_return_is_native),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Hue Remote API OAuth2 callback."""
-    from src.core.config import settings as app_settings
 
     if error:
         logger.warning("hue_oauth_callback_error", error=error)
         return handle_oauth_callback_error_redirect(
             ValueError(f"OAuth provider error: {error}"),
             "philips_hue",
+            is_native=is_native,
         )
 
     service = ConnectorService(db)
     try:
         connector = await service.handle_hue_oauth_callback(code=code, state=state)
-
-        redirect_url = (
-            f"{app_settings.frontend_url}/dashboard/settings?"
-            f"connector_added=true&connector_id={connector.id}"
-            f"&connector_type=philips_hue"
-        )
 
         logger.info(
             "hue_oauth_callback_success",
@@ -1858,9 +1860,13 @@ async def hue_oauth_callback(
             user_id=str(connector.user_id),
         )
 
-        return RedirectResponse(url=redirect_url, status_code=302)
+        return connector_success_return(
+            is_native=is_native,
+            connector_type="philips_hue",
+            connector_id=connector.id,
+        )
     except Exception as e:
-        return handle_oauth_callback_error_redirect(e, "philips_hue")
+        return handle_oauth_callback_error_redirect(e, "philips_hue", is_native=is_native)
 
 
 @router.post(

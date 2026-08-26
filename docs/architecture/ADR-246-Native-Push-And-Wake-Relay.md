@@ -1,0 +1,250 @@
+# ADR-246: notifying a phone whose app you are not allowed to notify
+
+**Status**: Accepted (2026-08-24)
+**Deciders**: LIA core team (arbitration by the project owner, 2026-08-24)
+**Technical story**: native shells programme, lot 2c. Companion to the shells themselves ([GUIDE_MOBILE_ANDROID](../guides/GUIDE_MOBILE_ANDROID.md), [GUIDE_MOBILE_IOS](../guides/GUIDE_MOBILE_IOS.md)) and to [ADR-146](ADR_INDEX.md), whose offline page cannot reach one of them.
+
+## Context
+
+LIA is self-hosted, and the native shells are published **once per store** — one
+Android app, one iOS app, each pointed at whichever server its user runs. That
+decision (taken when `WKAppBoundDomains` turned out not to constrain a remote
+`server.url`) is what makes the shells maintainable by one person. It is also what
+breaks push notifications, and it breaks them asymmetrically.
+
+**Android is fine, and the reason is worth stating.** Firebase Cloud Messaging
+identifies a sender by project, not by publisher. A device can initialise Firebase at
+runtime with options fetched from its own server — `applicationId`, `apiKey`,
+`projectId`, `gcmSenderId`, the four values every Android build already ships inside
+its APK — and receive notifications from the Firebase project *that server owns*.
+Nothing passes through the publisher. Baking a `google-services.json` into the binary
+would have done the opposite: one project, the publisher's, for every install.
+
+**iOS cannot work that way at all.** FCM reaches an iPhone only through APNs, and APNs
+authenticates a provider with a key issued to the Apple Developer team that owns the
+bundle identifier. A self-hosted deployment does not own `com.lia.assistant`. Worse,
+an APNs `.p8` key is valid for **every app in the team**, so distributing one to
+self-hosters would hand each of them push rights over the publisher's entire account.
+There is no configuration that fixes this; it is how Apple's trust model works.
+
+The consequence is concrete and was measured against the existing product: the iOS
+PWA **does** receive Web Push today (iOS 16.4+, added to the home screen). A native
+iOS app with no notifications would therefore be, on this one point, **worse than what
+users already have**.
+
+Three options were put to the owner: ship Android push and defer iOS; run a relay; or
+close the door and document it. The owner chose the relay.
+
+## Decision
+
+### 1. One acquisition contract, two routes underneath
+
+`GET /notifications/push-config` answers, per platform, with what that platform needs:
+Firebase options for Android, a relay URL for iOS, `null` where the deployment offers
+nothing. The web layer fetches it and hands it to the shell **whole**; each platform
+reads its own half.
+
+The web app never branches on which platform it is running on, and never reads a
+platform-specific field. A third platform is a native change, not a web change.
+
+`null` is a real answer and is shown to the user. Registering a token that nothing can
+ever send to looks exactly like working, until the first notification does not arrive.
+
+### 2. The relay is a mode of the API, disabled by default
+
+`domains/push_relay/`, behind `PUSH_RELAY_ENABLED`, served by **exactly one**
+deployment: the one that publishes the app. Every other deployment *calls* a relay
+(`PUSH_RELAY_URL`) without operating one.
+
+`PUSH_RELAY_URL` has **no default**. A default would enrol every self-hosted
+deployment into telling a third party when its users are woken — by inheritance rather
+than by decision.
+
+Enabling the relay without its credentials **refuses to boot**. A half-configured
+relay accepts registrations and fails every push, which reads as "the relay is down"
+from one end and "notifications don't work" from the other, with nothing anywhere
+naming the missing variable.
+
+### 3. The relay carries no content, and stores nothing
+
+It sends one fixed sentence, from a table with no parameters
+(`core/i18n_push_relay.py`), in the six languages LIA speaks. The shell then fetches
+the real content from **its own server**, over the user's own session.
+
+It keeps no database. A handle is an authenticated ciphertext carrying the device
+token itself, sealed with a Fernet key that is deliberately **not** the application's
+`fernet_key` — rotating it invalidates every handle at once, a panic button that must
+not also force re-encrypting every connector token. Two seals of one device differ, so
+handles held by two servers cannot be correlated. Handles expire; the shell
+re-registers on every launch, so expiry is self-healing.
+
+**What the relay unavoidably learns, and what this ADR does not pretend otherwise
+about:** that some device was woken, when, and the IP address of the server that asked.
+Not who, not from which account, not about what.
+
+### 4. The delivery route travels with the token, not with the configuration
+
+A shell registering through a relay prefixes its token `relay:`. The server branches on
+that prefix.
+
+Inferring the route from configuration would have been wrong: a deployment can
+legitimately hold both relayed devices and devices reached through its own Apple
+account. The shell is the only party that *knows* which route it used, so the shell is
+what says it.
+
+### 5. Doubt never deletes
+
+A wake answers with an outcome and an actionable `should_forget_handle`. That flag is
+true only for the two outcomes a retry can never fix — a handle we cannot read, and a
+device Apple says is gone.
+
+An unreachable relay, a 5xx, a 429, an answer we cannot parse, a topic **we**
+mistyped: all keep the handle. Keeping a dead handle costs one HTTP call per
+notification. Dropping a live one silences a phone until its owner happens to relaunch
+the app — and a single wrong environment variable of ours would do it to everyone at
+once.
+
+### 6. iOS talks to Apple directly; the relay owns no Firebase
+
+The relay signs an ES256 JWT and speaks APNs over HTTP/2 (`h2`, `httpx`, `pyjwt`,
+`cryptography` — all already present, no new dependency). The iOS shell embeds **no**
+Firebase SDK: it registers with APNs natively, in about forty lines of Swift.
+
+Android keeps Firebase, because FCM is the only transport there.
+
+The asymmetry is deliberate. Each side is the simplest correct thing for its platform,
+and the relay stays a small testable component rather than an SDK wrapper.
+
+### 7. Registration is native on both platforms, for a reason already learned
+
+The page runs on the user's own server origin, so calling a relay from JavaScript is
+cross-origin — and a relay serving every self-hosted server cannot enumerate their
+origins in a CORS policy. Every correctly configured deployment would have been
+reported unreachable.
+
+This is the same reasoning that had already moved the server health probe into the
+shell. It is written down here so it is not rediscovered a third time.
+
+### 8. The offline screen is bundled, not served
+
+Capacitor's `server.errorPath` loads a local page when a main-frame navigation fails.
+ADR-146's offline page cannot reach the iOS shell — `navigator.serviceWorker` is absent
+from WKWebView (measured) — so without this the user gets WebKit's own "cannot open
+page" inside an app.
+
+It offers a retry that **rebuilds the bridge** (reloading would reload the local page)
+and, more importantly, a way to forget the stored server. An address mistyped on first
+run otherwise produces that screen on every launch forever, with reinstalling the app
+as the only remedy.
+
+### 9. Leaving is a property of leaving, not of each flow
+
+Eight flows hand an authorization URL to a provider — the ten connectors, MCP
+servers, bulk connect, reconnection, and sign-in — and Google refuses OAuth from
+an embedded webview on every one of them. All eight already funnelled through
+`navigateToAuthorizationUrl`, which guards the navigation primitive against
+`javascript:` URLs (SEC-002). That is where the system-browser decision belongs
+too, and putting it there **removed** the special case sign-in had grown: it is
+an ordinary caller again.
+
+The alternative was eight branches, seven of which nobody would have remembered
+to add, each failing silently on its own flow.
+
+### 10. The return trip: the flow remembers which surface opened it
+
+A callback runs long after the page that started the flow is gone. The only
+thing that travels between them is the state token the provider echoes back, so
+the surface is written into it.
+
+`OAuthFlowHandler.initiate_flow` is the single function in the codebase that
+builds an OAuth state, which means a connector added tomorrow inherits the
+behaviour without its author knowing the marker exists. That mattered: the
+alternative was threading a boolean through twelve service methods, where
+forgetting one strands that connector's users in a browser with everything else
+working.
+
+How the flag reaches that function is a request-scoped `ContextVar`, set from an
+`X-LIA-Native` header the shell puts on its own requests. A custom header forces
+a CORS preflight, and the trade is stated rather than hidden: browsers send
+nothing and pay nothing, a shell pays one `OPTIONS` per method and path every
+ten minutes. The alternative — a list of OAuth paths in the web client — is an
+allowlist, and allowlists rot.
+
+The marker is **absent** for a browser flow rather than `False`. A field that
+exists is a field someone reads loosely, and the failure mode is a desktop user
+redirected to a `lia://` link their machine cannot open.
+
+MCP keeps its own flow handler and its own Redis namespace, so it gets the same
+treatment through the same shared pieces — a third deep-link host, and a probe
+built with its prefix. Wiring the dependency onto its router while its handler
+wrote nothing would have been dead code that looks like a feature.
+
+### 11. Native means `is True`
+
+The callbacks are also called directly by unit tests, where an unfilled
+`Depends(...)` default arrives as the dependency **object** — which is truthy.
+Read loosely, every such test and any future direct caller would take the
+deep-link path while running in a browser.
+
+An existing MCP test did exactly that and failed, which is how this was found.
+The check is an identity comparison, and it is pinned by its own test.
+
+### 12. The bench drives the app that ships, and it already paid for itself
+
+The native verification the programme owed (owner arbitration: "extend the
+probe harness") is `task mobile:verify:android`: the debug build of the REAL
+shell, driven over the WebView devtools socket that debuggable builds expose,
+serverless by design — the configured origin is an RFC 2606 `.invalid` name,
+so navigation failure is the oracle rather than a flake. Nine scenes walk the
+user's whole journey: setup, HTTPS refusal at the door, the offline screen on
+an unreachable server, deep links routed and refused, and the forget escape
+hatch, driven by its BUTTON.
+
+Before its first green run it found two live defects the compiler, the CI
+build, and every static guard had blessed:
+
+- **`errorPath` died with the configured state.** Android's `CapConfig.Builder`
+  starts from nothing — it never reads capacitor.config.json — and
+  `MainActivity` was not carrying `errorPath` across, so the offline screen
+  never loaded once a server was stored: the only state where it matters. iOS
+  was immune (`instanceDescriptor()` starts from the parsed file), which made
+  the defect invisible to every platform-symmetric check. The Builder call now
+  carries it, and a guard holds JSON and Builder to one value.
+- **The offline screen's buttons were dead on Android.** With a remote server
+  configured, Capacitor injects its bridge only into that origin's documents —
+  never into the local errorPath page — so `window.Capacitor` was undefined
+  there. The shell now exposes a minimal `LiaOffline` JavascriptInterface,
+  gated inside each method to act only while the offline page is showing
+  (an added interface is visible to every page, the user's server included).
+
+And one UX defect: `registerPush` asked for the notification permission BEFORE
+reading the configuration, so a user whose server offers no push was prompted
+for a permission nothing would ever use — the bench sat waiting on that dialog
+for a finger that never came. Configuration is read first now.
+
+## Consequences
+
+**Gained.** Notifications on both native platforms. Android with no third party
+involved at all. iOS at the cost of one metadata-only hop, stated plainly in the
+guides rather than buried.
+
+**Accepted.** The publisher now operates a service other people depend on. It is small
+— stateless, two endpoints, no database — but its availability is a commitment, and an
+outage silences iOS notifications for every deployment pointed at it. Deployments that
+prefer not to depend on it leave `PUSH_RELAY_URL` unset, and can publish their own iOS
+build with their own Apple account if they want push without a relay.
+
+**Refused.** Distributing the APNs key (it grants push over the whole team). Defaulting
+`PUSH_RELAY_URL` (a privacy decision taken by a constant). Letting a caller influence
+the notification text (the relay's entire justification is that it cannot).
+
+**Also fixed on the way.** Ten connector callbacks each built their success
+redirect with their own f-string; they now share one. The three MCP result
+markers were stored as ready-made query fragments (`"mcp_oauth=success"`), which
+a deep link would have encoded as one opaque value — they are a parameter name
+and three values now. The per-IP rate-limit factory moved from
+`domains/auth/dependencies` to `infrastructure/rate_limiting/ip_limiter`, keeping its
+Redis keys byte for byte — four unrelated domains had been importing their limiters
+from the auth domain. `_get_client_ip` and its duplicate test went with it: both
+restated, less completely and on a since-refuted premise, what
+`core/client_ip.py` already documents.

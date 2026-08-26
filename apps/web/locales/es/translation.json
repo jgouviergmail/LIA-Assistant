@@ -537,7 +537,8 @@
       "continue_with_google": "Continuar con Google",
       "signup_with_google": "Registrarse con Google",
       "error_title": "Error al iniciar sesión con Google",
-      "error_message": "Por favor, inténtalo de nuevo o contacta al soporte si el problema persiste."
+      "error_message": "Por favor, inténtalo de nuevo o contacta al soporte si el problema persiste.",
+      "connecting": "Iniciando sesión…"
     },
     "login_page": {
       "title": "Iniciar sesión",
