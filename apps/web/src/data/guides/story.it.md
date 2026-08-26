@@ -4,7 +4,7 @@
 
 **Versione**: 1.7
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.32.0
+**Applicazione**: LIA v1.33.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -111,6 +111,7 @@ Il ciclo 1.30.11 ha prodotto la lezione più inattesa: progettare un'esportazion
 
 Il ciclo 1.31.0 ha spostato l’esigenza di prova su un terreno nuovo: l’estetica. Dare uno sguardo all’assistente — due occhi cartoon che osservano mentre scrivi, si socchiudono mentre riflette, spazzano mentre cerca e reagiscono al tono di ogni risposta — è stato prima di tutto un cantiere di animazione, dove metà del successo si gioca nella fluidità. La disciplina non è cambiata per questo: tutto il comportamento sta in un motore puro alimentato da segnali che l’applicazione emetteva già — la macchina a stati della chat, i passi di esecuzione trasmessi, il motore emotivo — senza una chiamata di modello né un endpoint in più, ogni espressione governata da tabelle di decisione testate con orologi e casualità iniettati. E quando il panel di utenti non ha deciso sullo stile, l’arbitrato è stato reso come tutti gli altri: sulle prove, una tavola interattiva di stili visualizzati per davvero. Il vincitore è diventato il predefinito, gli altri una scelta nelle impostazioni — e aggiungerne uno nuovo è una voce di registro, non un cantiere.
 
+La stessa esigenza ha accompagnato l'arrivo delle app native: invece di presumere cosa sappia fare una WebView, un banco dedicato guida la **vera applicazione** su un emulatore, scena per scena, dal primo schermo all'oblio di un server digitato male. Prima del suo primo passaggio in verde aveva già catturato tre difetti reali — inclusa una schermata offline che non si caricava mai nell'unico stato in cui conta — che compilazione, CI e ogni guardia statica avevano benedetto.
 
 ## 7. Convinzioni
 
@@ -124,3 +125,5 @@ Ciò che questa esperienza cambia in una pratica di direzione:
 *Progetto personale, condotto al di fuori di ogni attività professionale. Cifre provenienti dall'audit tecnico di luglio 2026 — test eseguiti, misurazioni effettuate sul codice, rilievi contro-verificati. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
 
 Poi l'assistente ha imparato a mostrare il proprio lavoro: una pagina Attività che elenca tutto ciò che fa da solo, regole apprese che si possono leggere e correggere, una memoria che data i suoi ricordi e archivia senza cancellare, una voce che respira con il suo umore. L'autonomia è cresciuta esattamente come voleva la filosofia del progetto: dentro la cornice, sotto lo sguardo dell'utente.
+
+Poi l'assistente è entrato in tasca senza lasciare la sua casa. Un'app per store, client del server che ciascuno fa girare: accesso tramite il vero browser del telefono perché quello incorporato viene rifiutato, notifiche che arrivano dal progetto dell'utente o passano per un relè costruito per non sapere nulla, e un banco che guida l'app vera scena per scena — ha trovato tre difetti vivi che il compilatore aveva benedetto. La tesi della sovranità è sopravvissuta al contatto con gli store: i dati hanno ancora una sola casa.

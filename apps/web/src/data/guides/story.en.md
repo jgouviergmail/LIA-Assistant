@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Date**: 2026-08-23
-**Application**: LIA v1.32.0
+**Application**: LIA v1.33.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -111,6 +111,7 @@ Cycle 1.30.11 produced the most unexpected lesson: designing an export can revea
 
 The 1.31.0 cycle moved the proof requirement onto new ground: aesthetics. Giving the assistant a gaze — two cartoon eyes that watch while you type, squint while it thinks, sweep while it searches and react to the tone of each answer — was first an animation project, where half the success lives in fluidity. The discipline did not change for that: the entire behavior fits in a pure engine fed by signals the application already emitted — the chat state machine, the streamed execution steps, the emotional engine — with no extra model call and no new endpoint, every expression driven by decision tables tested with injected clocks and randomness. And when the user panel could not settle on a style, the arbitration was rendered like every other one: on evidence, an interactive board of styles previewed for real. The winner became the default, the others a settings choice — and adding a new one is a registry entry, not a project.
 
+The same standard accompanied the arrival of the native apps: rather than assuming what a WebView can do, a dedicated bench drives the **real application** on an emulator, scene by scene, from the first screen to forgetting a mistyped server. Before its first green run it had already caught three real defects — including an offline screen that never loaded in the only state where it matters — that compilation, CI and every static guard had blessed.
 
 ## 7. Convictions
 
@@ -124,3 +125,5 @@ What this experience changes in a management practice:
 *Personal project, carried out outside any professional activity. Figures from the July 2026 technical audit — tests executed, measurements taken on the code, findings cross-checked. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
 
 Then the assistant learned to show its own work: an Activity page listing everything it does on its own, learned rules you can read and correct, a memory that dates its recollections and archives without erasing, a voice that breathes with its mood. Autonomy grew exactly as the project's philosophy demanded: inside the frame, under the user's gaze.
+
+Then the assistant fit into a pocket without moving out of its home. One app per store, a client for whichever server its user runs: sign-in through the phone's real browser because the embedded one is refused, notifications that either come from the user's own project or pass through a relay built to know nothing, and a bench that drives the real app scene by scene — which found three live defects the compiler had blessed. The sovereignty thesis survived contact with the app stores: the data still has one home.

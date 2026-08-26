@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.32.0
+**Compatibility**: LIA v1.33.0
 
 ## Table of Contents
 
@@ -844,6 +844,8 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `MCP_ENABLED` / `MCP_USER_ENABLED` / `MCP_REACT_ENABLED` | Admin MCP / per-user MCP / MCP ReAct loop | `true` |
 | `REACT_AGENT_ENABLED` | ReAct execution mode toggle | `true` |
 | `FCM_ENABLED` | Firebase push notifications | `true` |
+| `PUSH_RELAY_URL` | iOS wake relay for the native app (no default: pointing it somewhere is a privacy decision you take, not a constant) | *(unset)* |
+| `FIREBASE_ANDROID_APP_ID` / `FIREBASE_API_KEY` / `FIREBASE_SENDER_ID` | Android native-app push from YOUR Firebase project (all three or none) | *(unset)* |
 | `MFA_ENABLED` | Passkeys WebAuthn + TOTP + step-up (ADR-143) | `false`¹ |
 | `ACCOUNT_EXPORT_ENABLED` | Full GDPR account export (ADR-145) | `false`¹ |
 | `GEOIP_ENABLED` | IP geolocation in logs (DB-IP Lite MMDB) | `true` |

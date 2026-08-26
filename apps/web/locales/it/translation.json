@@ -3415,7 +3415,7 @@
         "chat-shortcuts": "slash, scorciatoia, comando, richiesta rapida, macro, /comando, modello di messaggio, modificare, rinominare",
         "open-loops": "impegni, questioni aperte, in sospeso, follow-up, promesse, incompiuto",
         "habits": "abitudini, ritmo, routine, orari, appreso, finestre di attività, richieste ricorrenti, suggerimenti di automazione, soglia di rilevamento, perché nessuna abitudine, serie, giorni di fila, traguardo, record",
-        "notifications": "push, avvisi, notifiche, mobile, promemoria, FCM",
+        "notifications": "push, avvisi, notifiche, mobile, promemoria, FCM, app nativa, app Android, app iOS, relè di risveglio, APNs",
         "channels": "whatsapp, telegram, sms, email, messaggistica, integrazioni",
         "security-auth": "2FA, MFA, TOTP, passkey, password, sicurezza, accesso, autenticazione, due fattori",
         "security-devices": "sessioni, disconnessione, revoca, browser, dispositivi, sicurezza",
@@ -4344,6 +4344,10 @@
         "expressiveEyes": {
           "title": "Occhi espressivi",
           "description": "Un motore di decisione puro guida una coppia di occhi cartoon a partire da segnali che l'applicazione già emette — la macchina a stati della chat, i passi di esecuzione SSE, HITL, la voce e il motore psicologico. Venti espressioni, una reazione per risposta letta dall'autovalutazione emotiva del modello, una vita d'attesa fatta di battiti di ciglia, saccadi e rari scherzi, e sei stili selezionabili sostenuti da un registro generico. Nessuna chiamata LLM in più, nessun endpoint nuovo: gli occhi sono una vista gratuita sulla telemetria esistente."
+        },
+        "nativeApps": {
+          "title": "📱 App native Android e iOS",
+          "description": "Un'app pubblicata per store, client di qualsiasi server LIA auto-ospitato: l'app carica l'interfaccia web del tuo server, il cui indirizzo digiti al primo avvio — le novità web arrivano quindi all'istante, senza aggiornamento dello store. L'accesso esce verso il browser di sistema (l'unica via che Google consente) e rientra tramite un deep link riscattato contro un segreto che solo l'app possiede. Le notifiche sono native su entrambe le piattaforme e volutamente asimmetriche: Android parla con il progetto Firebase del tuo server, mentre l'iPhone viene svegliato da un relè senza stato che pronuncia una frase fissa e non sa mai chi è stato svegliato né perché — i tuoi messaggi non lasciano mai il tuo server. Un banco automatizzato guida la vera app attraverso dieci scenari a ogni modifica."
         }
       },
       "diagram_alt": "Diagramma dell'architettura di LIA"
@@ -4352,6 +4356,20 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_33_0": {
+          "title": "v1.33.0 — 📱 App native Android e iOS",
+          "date": "Agosto 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>📱 LIA in tasca</b> — un'app ufficiale per store, compatibile con <i>qualsiasi</i> server LIA auto-ospitato: inserisci l'indirizzo del tuo server al primo avvio, e basta. L'interfaccia è quella dell'app web: ogni miglioramento arriva all'istante, senza aggiornamento dello store.",
+            "i2": "<b>🔐 L'accesso con Google funziona nell'app</b> — e ha corretto una vera falla: accedere con Google scavalcava completamente il codice a due fattori. Il passaggio del codice è ora imposto ovunque, app inclusa.",
+            "i3": "<b>🔔 Notifiche su entrambe le piattaforme</b> — Android parla direttamente con il progetto di notifiche del <i>tuo</i> server: nulla passa da terzi. L'iPhone impone di passare dall'editore dell'app (regola di Apple, non nostra): un relè minimale sveglia il telefono con una frase neutra fissa — i tuoi messaggi reali non lasciano mai il tuo server, e il relè non sa chi è stato notificato né perché.",
+            "i4": "<b>↩️ Collegare un servizio riporta nell'app</b> — collegare Gmail, un calendario o un server MCP dall'app ti riporta ora nell'app a operazione conclusa, invece di lasciarti nel browser.",
+            "i5": "<b>📴 Una vera schermata offline</b> — se il tuo server è irraggiungibile, l'app mostra la propria schermata con un pulsante riprova e, soprattutto, un modo per <i>cambiare server</i>: un indirizzo digitato male non obbliga più a reinstallare l'app.",
+            "i6": "<b>🧪 Verificato su dispositivo reale</b> — un banco automatizzato guida la vera app su un emulatore attraverso dieci scenari, dalla prima configurazione all'oblio di un server. Ha catturato tre bug reali prima di chiunque altro.",
+            "i7": "<b>📖 Una guida di pubblicazione completa</b> — per chi vuole pubblicare la propria versione: account, firma, i moduli di entrambi gli store, passo dopo passo e senza prerequisiti."
+          }
+        },
         "v1_32_0": {
           "title": "v1.32.0 — 🧠 Un solo modo per chiedere a un modello di ragionare",
           "date": "Agosto 2026",
@@ -6388,7 +6406,7 @@
       "getting_started": {
         "title": "Primi passi",
         "description": "Come iniziare con LIA",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Cos'è LIA?",
@@ -6419,12 +6437,16 @@
             "answer": "Quasi il <strong>100 % del codice di LIA è scritto da un'IA</strong>, sotto direzione umana: regole di ingegneria scritte, controlli automatici bloccanti, un ciclo di revisione in cui decide l'umano, e audit contraddittori ricorrenti (ultima valutazione: 8,3/10 su 24 perimetri — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">rapporto completo</a>).<br><br>La storia completa — metodo, arbitraggi, esercizio e ciò che resta da fare — è sulla <a href=\"/it/story\">pagina Story</a>, e il codice sorgente è aperto su <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           },
           "q8": {
-            "question": "Posso installare LIA come un'app su telefono o computer? (v1.25.16)",
-            "answer": "<p>Sì. LIA è una <strong>PWA</strong>: su Android/Chrome desktop usa « Installa » (LIA lo suggerisce con discrezione dopo alcune visite); su iOS Safari, « Condividi → Aggiungi a Home ». Ottieni un'icona, scorciatoie (chat, briefing) e — una volta installata — il <strong>menu di condivisione</strong> di sistema può inviare testo o link direttamente in una bozza di chat LIA. Tutto localizzato nelle 6 lingue. Dall’arrivo del service worker unificato, LIA mostra anche una vera pagina offline e si carica più velocemente grazie alla cache intelligente degli asset — i tuoi dati personali non vengono mai memorizzati nella cache su disco.</p>"
+            "question": "Posso installare LIA sul mio telefono — come PWA o come vera app? (v1.33.0)",
+            "answer": "Sì, in due modi. <strong>Come PWA</strong>: apri il tuo LIA nel browser e usa “Aggiungi alla schermata Home” — si avvia a schermo intero, funziona offline e su iOS 16.4+ riceve persino le notifiche web. <strong>Come app nativa</strong> (novità): installa l'app LIA dallo store, digita l'indirizzo del tuo server una volta nella prima schermata, e ritrovi la stessa interfaccia più ciò che solo un'app nativa sa fare — accesso tramite il browser di sistema, notifiche native (su Android direttamente dal progetto Firebase del tuo server; su iOS tramite un relè di risveglio rispettoso della privacy) e connettori che tornano nell'app dopo l'autorizzazione. Il tuo server resta l'unico posto dove vivono i tuoi dati: l'app è solo una finestra su di esso."
           },
           "q9": {
             "question": "Il mio account è in attesa di attivazione, cosa devo fare?",
             "answer": "La registrazione crea il tuo account, ma una persona amministratrice deve attivarlo prima che tu possa usare LIA. Nel frattempo arrivi su una pagina che spiega a che punto sei, e il resto dell'applicazione resta chiuso.<br><br>• <strong>Riceverai un'email</strong> non appena il tuo account sarà attivato. Controlla la posta indesiderata se dopo un po' non arriva nulla: è il motivo più frequente per cui si crede che non sia successo niente.<br><br>• <strong>Nel frattempo nulla va perduto.</strong> Il tuo account esiste già; l'attivazione si limita ad aprire la porta.<br><br>• <strong>Se passano più giorni senza email</strong>, contatta l'amministrazione della tua organizzazione, che può attivare l'account direttamente.<br><br>Prima della v1.27.14 questa attesa era invisibile: l'applicazione si caricava e poi rifiutava ogni schermata, il che sembrava un guasto anziché un passaggio in corso."
+          },
+          "q10": {
+            "question": "Esiste un'app mobile per Android o iPhone?",
+            "answer": "Sì — un'app ufficiale per store, compatibile con <strong>qualsiasi</strong> server LIA auto-ospitato. Al primo avvio digiti l'indirizzo del tuo server (HTTPS obbligatorio); l'app carica poi l'interfaccia del tuo server, così ogni miglioramento web arriva all'istante, senza aggiornamento dello store. L'accesso con Google, le notifiche e il ritorno da un servizio collegato (Gmail, calendario, MCP…) funzionano in modo nativo. Se il tuo server è irraggiungibile, una schermata offline integrata offre un nuovo tentativo e il cambio di server. L'app web e la PWA continuano a funzionare esattamente come prima — le app si aggiungono, non sostituiscono nulla."
           }
         }
       },
@@ -7896,6 +7918,10 @@
       "settings_shell": {
         "title": "Le impostazioni, fianco a fianco",
         "desc": "Tutte le sezioni stanno in una barra che non scorre mai via, e quella che scegli si apre per intero accanto. Sul telefono l’elenco viene prima e la sezione prende lo schermo, con un ritorno."
+      },
+      "server_escape_hatch": {
+        "title": "Un indirizzo digitato male non è un vicolo cieco",
+        "desc": "Le app native includono la propria schermata offline: riprova, o cambia server — un refuso al primo avvio non obbliga mai a reinstallare."
       }
     },
     "scenes": {
@@ -9066,6 +9092,10 @@
         "title": "PWA & Design responsive",
         "description": "App Web Progressiva installabile con interfaccia ottimizzata per desktop, tablet e smartphone — usa LIA ovunque, su qualsiasi dispositivo"
       },
+      "native_apps": {
+        "title": "App native Android e iOS",
+        "description": "Un'app ufficiale per store, client del TUO server auto-ospitato — digita il suo indirizzo una volta e ogni miglioramento web arriva senza aggiornamento dello store. Accesso, notifiche e servizi collegati funzionano in modo nativo, e i tuoi dati continuano a non lasciare mai il tuo server"
+      },
       "usage_limits": {
         "title": "Quote di utilizzo",
         "description": "Limiti per utente su token, messaggi e costi con monitoraggio in tempo reale e 5 livelli di controllo. Gli amministratori gestiscono i budget con blocco/sblocco istantaneo."
@@ -9194,6 +9224,10 @@
       "honest_enrichment": {
         "title": "Arricchimenti onesti",
         "description": "Un fornitore a volte pubblica una categoria senza cifra: l'indice nazionale francese della qualità dell'aria indica «Moyen» senza valore numerico, mentre l'indice universale di Google è invertito rispetto alla scala statunitense — lì 100 significa eccellente. Ne derivano due regole, applicate da un unico renderer condiviso tra la scheda meteo e quella di un luogo: la categoria mostrata è sempre quella pubblicata dall'API, mai un'interpretazione derivata dal numero; e una cifra non viaggia mai con l'etichetta di un'altra scala. Quando esiste solo la categoria, compare da sola. Un segnale assente vale più di un segnale falso."
+      },
+      "native_shells": {
+        "title": "Gusci nativi e relè di sveglia",
+        "description": "Un'app per store, client di qualsiasi server auto-ospitato: la WebView carica l'origine del tuo server con la stessa sessione a cookie httpOnly del web. Android parla al tuo progetto Firebase a runtime; iOS viene svegliato da un relè senza stato la cui maniglia È il token del dispositivo sigillato — nulla di memorizzato, una frase fissa, e il contenuto reale recuperato dal tuo server. Ogni affermazione di piattaforma è misurata da un banco che guida la vera app, scena per scena."
       }
     },
     "architecture": {
@@ -10068,7 +10102,8 @@
       "governance": "Governare un'istanza",
       "tabular_admin": "Amministrare per file",
       "evolution": "Programma di evoluzione",
-      "expressive_eyes": "Occhi espressivi"
+      "expressive_eyes": "Occhi espressivi",
+      "native_apps": "App native"
     }
   },
   "healthMetrics": {

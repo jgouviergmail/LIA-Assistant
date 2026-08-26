@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Date**: 2026-08-23
-**Application**: LIA v1.32.0
+**Application**: LIA v1.33.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -45,6 +45,7 @@
 
 30. [The evolution program: visible work, governed learning](#30-the-evolution-program-visible-work-governed-learning)
 31. [Expressive eyes: a character driven by signals](#31-expressive-eyes-a-character-driven-by-signals)
+32. [Native apps: one shell, your server](#32-native-apps-one-shell-your-server)
 ---
 
 ## 1. Context and founding choices
@@ -59,7 +60,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 473 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 242 ADRs, ~20,586 pytest-collected tests across 1,204 files, native observability, 6-level HITL |
+| Production reliability | 245 ADRs, ~20,586 pytest-collected tests across 1,204 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -1303,7 +1304,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-242 ADRs in MADR format document the major architectural decisions. Some representative examples:
+245 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1436,7 +1437,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 242 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~20,586 tests across 1,204 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 245 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~20,586 tests across 1,204 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1451,4 +1452,15 @@ The chat's eyes widget (ADR-240) is built on a single principle: **no new signal
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 242 ADRs, and the changelog (v1.0 to v1.31.3). All metrics, versions, and patterns cited are verifiable in the codebase.*
+
+## 32. Native apps: one shell, your server
+
+The Android and iOS apps (ADR-246) are **WebView shells** published once per store, clients for any self-hosted server: the WebView loads the server's **remote origin**, whose URL the user types at first launch. The UI is never duplicated — the httpOnly-cookie session contract that keeps the PWA safe is exactly what makes the shells possible — and every platform claim is **measured, not assumed** (`scripts/mobile-probe/`).
+
+**Sign-in follows the only path Google permits**: the OAuth flow leaves for the system browser and returns through a `lia://auth-callback` link, redeemed for the session via a single-use code bound to a verifier only the WebView holds — an intercepted link is worthless, which is what makes a custom scheme acceptable (App Links pin domains at build time, impossible when one app serves every server). Wiring this path closed a pre-existing TOTP bypass on federated sign-in.
+
+**Push is native and deliberately asymmetric.** Android initialises Firebase **at runtime** with options the server publishes: a self-hoster's notifications never leave their own project. iOS cannot — APNs answers only to the Apple team owning the bundle id — so the published app is woken through a **stateless relay**: the handle *is* the sealed device token (Fernet, dedicated key), the notification is one fixed sentence in six languages, and the relay never learns who was woken or why. Doubt never deletes a device: only "handle unreadable" and "device gone" may drop a token.
+
+**All twelve OAuth departures come home to the app** — the "leave for the system browser" decision is made once, at the chokepoint every flow already shared, and the return reads the originating surface from the OAuth state, written by the single function in the codebase that builds one. A **dedicated bench** drives the real debug app on an emulator over the WebView devtools socket — ten scenes with no server at all, navigation failure toward an `.invalid` origin serving as the oracle — and found three live defects before its first green run.
+
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 245 ADRs, and the changelog (v1.0 to v1.33.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

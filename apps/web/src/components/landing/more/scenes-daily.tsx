@@ -6,7 +6,7 @@
 
 'use client';
 
-import { Star, MessageSquare, CalendarClock, Bell, Check, CheckCircle2, ChevronDown, Circle, EyeOff, FileText, Sparkles } from 'lucide-react';
+import { Star, MessageSquare, CalendarClock, Bell, Check, CheckCircle2, ChevronDown, Circle, EyeOff, FileText, Sparkles, LifeBuoy } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -166,6 +166,65 @@ const PWA_STEPS: readonly TimelineStep<PwaPhase>[] = [
   { at: 1800, state: 'installed' },
   { at: 2400, state: 'check' },
 ];
+
+type EscapePhase = 'unreachable' | 'press' | 'field' | 'typed';
+const ESCAPE_STEPS: readonly TimelineStep<EscapePhase>[] = [
+  { at: 0, state: 'unreachable' },
+  { at: 1300, state: 'press' },
+  { at: 1800, state: 'field' },
+  { at: 2900, state: 'typed' },
+];
+
+/**
+ * The native shells' escape hatch: a server address typed wrong on first
+ * launch used to mean reinstalling the app — the offline screen now offers a
+ * way OUT. The scene plays the rescue: an unreachable address, the lifebuoy
+ * pressed, a fresh field, a new address taking shape.
+ */
+function ServerEscapeHatchScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(ESCAPE_STEPS, { active });
+  const rescued = phase === 'field' || phase === 'typed';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <PhoneFrame className="h-[7.5rem]">
+        <div className="flex flex-col items-center gap-1.5 p-1 pt-2.5">
+          <span
+            className={cn(
+              'flex h-4 w-16 items-center justify-center gap-1 rounded border px-1 transition-all duration-300',
+              rescued
+                ? 'border-primary/40 bg-primary/10'
+                : 'border-destructive/40 bg-destructive/10'
+            )}
+          >
+            {rescued ? (
+              <span
+                className={cn(
+                  'h-1 rounded-full bg-primary/60 transition-all duration-700 ease-out',
+                  phase === 'typed' ? 'w-10' : 'w-1'
+                )}
+              />
+            ) : (
+              <span className="w-12 truncate text-[7px] leading-none text-destructive line-through">
+                https://oops.
+              </span>
+            )}
+          </span>
+          <span
+            className={cn(
+              'flex h-5 w-5 items-center justify-center rounded-full border bg-background shadow-sm transition-all duration-300',
+              phase === 'press'
+                ? 'scale-110 border-primary text-primary'
+                : 'scale-100 border-border text-muted-foreground',
+              rescued && 'opacity-40'
+            )}
+          >
+            <LifeBuoy className="h-3 w-3" />
+          </span>
+        </div>
+      </PhoneFrame>
+    </div>
+  );
+}
 
 function PwaScene({ active }: SceneProps) {
   const phase = useLoopedTimeline(PWA_STEPS, { active });
@@ -350,4 +409,5 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   starter_checklist: StarterChecklistScene,
   empty_starters: EmptyStartersScene,
   pwa: PwaScene,
+  server_escape_hatch: ServerEscapeHatchScene,
 };

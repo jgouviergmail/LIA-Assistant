@@ -3440,7 +3440,7 @@
         "chat-shortcuts": "slash, raccourci, commande, demande rapide, macro, /commande, modèle de message, modifier, renommer",
         "open-loops": "engagements, boucles ouvertes, en attente, suivi, promesses, non terminé, relances",
         "habits": "habitudes, rythme, routines, horaires, appris, fenêtres d'activité, demandes récurrentes, suggestions d'automatisation, seuil de détection, pourquoi aucune habitude, série, jours d'affilée, jalon, record",
-        "notifications": "push, alertes, bannières, mobile, rappels, FCM",
+        "notifications": "push, alertes, bannières, mobile, rappels, FCM, app native, application Android, application iOS, relais de réveil, APNs",
         "channels": "whatsapp, telegram, sms, email, messagerie, intégrations",
         "security-auth": "2FA, MFA, TOTP, passkey, mot de passe, sécurité, connexion, authentification, double facteur",
         "security-devices": "sessions, déconnexion, révoquer, navigateurs, appareils, sécurité",
@@ -4356,6 +4356,10 @@
         "expressiveEyes": {
           "title": "Yeux expressifs",
           "description": "Un moteur de décision pur pilote une paire d'yeux cartoon à partir de signaux que l'application émet déjà — machine à états du chat, étapes d'exécution SSE, HITL, voix et moteur psychologique. Vingt expressions, une réaction par réponse lue dans le self-report émotionnel du modèle, une vie d'attente faite de clignements, de saccades et de rares facéties, et six styles sélectionnables adossés à un registre générique. Aucun appel LLM en plus, aucun endpoint nouveau : les yeux sont une vue gratuite sur la télémétrie existante."
+        },
+        "nativeApps": {
+          "title": "📱 Applications natives Android et iOS",
+          "description": "Une application publiée par store, cliente de n'importe quel serveur LIA auto-hébergé : l'app charge l'interface web de votre propre serveur, dont vous saisissez l'adresse au premier lancement — les évolutions web arrivent donc instantanément, sans mise à jour du store. La connexion part vers le navigateur système (la seule voie que Google autorise) et revient par un lien profond échangé contre un secret que seule l'app détient. Les notifications sont natives sur les deux plateformes, et volontairement asymétriques : Android parle au projet Firebase de votre serveur, tandis que l'iPhone est réveillé par un relais sans état qui prononce une phrase fixe et ne sait jamais qui est réveillé ni pourquoi — vos messages ne quittent jamais votre serveur. Un banc automatisé pilote la vraie app à travers dix scénarios à chaque évolution."
         }
       },
       "diagram_alt": "Schéma d'architecture de LIA"
@@ -4364,6 +4368,20 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_33_0": {
+          "title": "v1.33.0 — 📱 Applications natives Android et iOS",
+          "date": "Août 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>📱 LIA dans votre poche</b> — une application officielle par store, compatible avec <i>n'importe quel</i> serveur LIA auto-hébergé : vous saisissez l'adresse de votre serveur au premier lancement, et c'est tout. L'interface est celle de l'app web : chaque amélioration arrive instantanément, sans mise à jour du store.",
+            "i2": "<b>🔐 La connexion Google fonctionne dans l'app</b> — et a corrigé une vraie faille au passage : se connecter via Google enjambait totalement le code à deux facteurs. L'étape du code s'impose désormais partout, application comprise.",
+            "i3": "<b>🔔 Notifications sur les deux plateformes</b> — Android parle directement au projet de notifications de <i>votre</i> serveur : rien ne transite par personne d'autre. L'iPhone impose de passer par l'éditeur de l'app (règle d'Apple, pas la nôtre) : un relais minimal réveille le téléphone avec une phrase neutre fixe — vos messages réels ne quittent jamais votre serveur, et le relais ignore qui a été notifié et pourquoi.",
+            "i4": "<b>↩️ Connecter un service ramène dans l'app</b> — lier Gmail, un agenda ou un serveur MCP depuis l'application vous ramène désormais dans l'application une fois terminé, au lieu de vous laisser dans le navigateur.",
+            "i5": "<b>📴 Un vrai écran hors-ligne</b> — si votre serveur est injoignable, l'app affiche son propre écran avec un bouton réessayer et, surtout, un moyen de <i>changer de serveur</i> : une adresse mal saisie n'oblige plus à réinstaller l'application.",
+            "i6": "<b>🧪 Vérifié sur appareil réel</b> — un banc automatisé pilote la vraie application sur émulateur à travers dix scénarios, de la première configuration à l'oubli d'un serveur. Il a attrapé trois vrais bugs avant tout le monde.",
+            "i7": "<b>📖 Un guide de publication complet</b> — pour qui veut publier sa propre version : comptes, signature, formulaires des deux stores, pas à pas et sans prérequis."
+          }
+        },
         "v1_32_0": {
           "title": "v1.32.0 — 🧠 Une seule façon de demander à un modèle de réfléchir",
           "date": "Août 2026",
@@ -6400,7 +6418,7 @@
       "getting_started": {
         "title": "Démarrage",
         "description": "Comment commencer avec LIA",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Qu'est-ce que LIA ?",
@@ -6431,12 +6449,16 @@
             "answer": "Près de <strong>100 % du code de LIA est écrit par une IA</strong>, sous direction humaine : règles d'ingénierie écrites, contrôles automatiques bloquants, un cycle de revue où l'humain décide, et des audits contradictoires récurrents (dernière évaluation : 8,3/10 sur 24 périmètres — <a href=\"https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md\" target=\"_blank\" rel=\"noopener noreferrer\">rapport complet</a>).<br><br>L'histoire complète — méthode, arbitrages, exploitation et ce qu'il reste à faire — est sur la <a href=\"/story\">page Story</a>, et le code source est ouvert sur <a href=\"https://github.com/jgouviergmail/LIA-Assistant\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>."
           },
           "q8": {
-            "question": "Puis-je installer LIA comme une application sur mon téléphone ou ordinateur ? (v1.25.16)",
-            "answer": "<p>Oui. LIA est une <strong>PWA</strong> : sur Android/Chrome desktop, utilise « Installer » (LIA le suggère discrètement après quelques visites) ; sur iOS Safari, « Partager → Sur l'écran d'accueil ». Tu obtiens une icône sur l'écran d'accueil, des raccourcis (chat, briefing) et — une fois installée — le <strong>menu de partage</strong> du système peut envoyer texte ou liens directement dans un brouillon de chat LIA. Le tout localisé dans les 6 langues. Depuis l’arrivée du service worker unifié, LIA affiche aussi une vraie page hors connexion et se charge plus vite grâce au cache intelligent des assets — tes données personnelles ne sont jamais mises en cache sur disque.</p>"
+            "question": "Puis-je installer LIA sur mon téléphone — en PWA ou en vraie app ? (v1.33.0)",
+            "answer": "Oui, de deux façons. <strong>En PWA</strong> : ouvrez votre LIA dans le navigateur et utilisez « Ajouter à l'écran d'accueil » — elle se lance en plein écran, fonctionne hors ligne, et sur iOS 16.4+ reçoit même les notifications web. <strong>En app native</strong> (nouveau) : installez l'app LIA depuis le store, saisissez l'adresse de votre serveur une fois au premier écran, et vous retrouvez la même interface plus ce que seule une app native sait faire — connexion par le navigateur système, notifications natives (sur Android directement depuis le projet Firebase de votre serveur ; sur iOS via un relais de réveil respectueux de la vie privée), et des connecteurs qui reviennent dans l'app après autorisation. Votre serveur reste le seul endroit où vivent vos données : l'app n'est qu'une fenêtre dessus."
           },
           "q9": {
             "question": "Mon compte est en attente d'activation, que dois-je faire ?",
             "answer": "L'inscription crée ton compte, mais un administrateur doit l'activer avant que tu puisses utiliser LIA. En attendant, tu arrives sur une page qui explique où tu en es, et le reste de l'application reste fermé.<br><br>• <strong>Tu recevras un e-mail</strong> dès que ton compte sera activé. Pense à regarder tes courriers indésirables si rien n'arrive : c'est la raison la plus fréquente de croire qu'il ne s'est rien passé.<br><br>• <strong>Rien n'est perdu entre-temps.</strong> Ton compte existe déjà ; l'activation ne fait qu'ouvrir la porte.<br><br>• <strong>Si plusieurs jours passent sans e-mail</strong>, contacte l'administrateur de ton organisation, qui peut activer le compte directement.<br><br>Avant la v1.27.14, cette attente était invisible : l'application se chargeait puis refusait chaque écran, ce qui ressemblait à une panne plutôt qu'à une étape en cours."
+          },
+          "q10": {
+            "question": "Existe-t-il une application mobile Android ou iPhone ?",
+            "answer": "Oui — une application officielle par store, compatible avec <strong>n'importe quel</strong> serveur LIA auto-hébergé. Au premier lancement, vous saisissez l'adresse de votre serveur (HTTPS obligatoire) ; l'app charge ensuite l'interface de votre propre serveur, si bien que chaque amélioration web y arrive instantanément, sans mise à jour du store. La connexion Google, les notifications et le retour depuis un service connecté (Gmail, agenda, MCP…) fonctionnent nativement. Si votre serveur est injoignable, un écran hors-ligne intégré propose un réessai et un changement de serveur. L'app web et la PWA continuent de fonctionner exactement comme avant — les applications s'ajoutent, elles ne remplacent rien."
           }
         }
       },
@@ -7908,6 +7930,10 @@
       "settings_shell": {
         "title": "Les réglages, côte à côte",
         "desc": "Toutes les sections tiennent dans un rail qui ne s’en va jamais, et celle que vous choisissez s’ouvre en entier juste à côté. Sur téléphone, la liste vient d’abord et la section prend l’écran, avec un retour."
+      },
+      "server_escape_hatch": {
+        "title": "Une adresse mal saisie n’est pas une impasse",
+        "desc": "Les apps natives embarquent leur propre écran hors-ligne : réessayer, ou changer de serveur — une coquille au premier lancement n’oblige jamais à réinstaller."
       }
     },
     "scenes": {
@@ -9070,6 +9096,10 @@
         "title": "PWA & Design responsive",
         "description": "Application Web Progressive installable avec une interface optimisée pour ordinateur, tablette et smartphone — utilise LIA partout, sur tous tes appareils."
       },
+      "native_apps": {
+        "title": "Applications natives Android et iOS",
+        "description": "Une app officielle par store, cliente de VOTRE serveur auto-hébergé — saisissez son adresse une fois, et chaque amélioration web arrive sans mise à jour du store. Connexion, notifications et services connectés fonctionnent nativement, et vos données ne quittent toujours jamais votre serveur"
+      },
       "usage_limits": {
         "title": "Quotas d'utilisation",
         "description": "Limites par utilisateur sur les tokens, messages et coûts avec monitoring temps réel et enforcement 5 couches. Les administrateurs contrôlent les budgets avec blocage/déblocage instantané."
@@ -9198,6 +9228,10 @@
       "honest_enrichment": {
         "title": "Enrichissements honnêtes",
         "description": "Un fournisseur publie parfois une catégorie sans chiffre : l'indice national français de qualité de l'air annonce « Moyen » sans valeur numérique, tandis que l'indice universel de Google est inversé par rapport à l'échelle américaine — 100 y signifie excellent. Deux règles en découlent, appliquées par un rendu unique partagé entre la carte météo et la fiche d'un lieu : la catégorie affichée est toujours celle que l'API publie, jamais une interprétation dérivée du nombre ; et un chiffre ne voyage jamais avec le libellé d'une autre échelle. Quand seule la catégorie existe, elle s'affiche seule. Un signal absent vaut mieux qu'un signal faux."
+      },
+      "native_shells": {
+        "title": "Coques natives et relais de réveil",
+        "description": "Une app par store, cliente de tout serveur auto-hébergé : la WebView charge l'origine de votre serveur avec la même session cookie httpOnly que le web. Android parle à votre propre projet Firebase au runtime ; iOS est réveillé par un relais sans état dont la poignée EST le jeton d'appareil scellé — rien de stocké, une phrase fixe, et le vrai contenu récupéré sur votre serveur. Chaque affirmation de plateforme est mesurée par un banc qui pilote la vraie app, scène par scène."
       }
     },
     "architecture": {
@@ -10072,7 +10106,8 @@
       "governance": "Gouverner une instance",
       "tabular_admin": "Administrer par le fichier",
       "evolution": "Programme évolution",
-      "expressive_eyes": "Yeux expressifs"
+      "expressive_eyes": "Yeux expressifs",
+      "native_apps": "Apps natives"
     }
   },
   "healthMetrics": {

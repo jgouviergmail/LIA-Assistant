@@ -6,7 +6,7 @@
 
 **Version** : 4.6
 **Date** : 2026-08-23
-**Application** : LIA v1.32.0
+**Application** : LIA v1.33.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -45,6 +45,7 @@
 
 30. [Le programme évolution : travail visible, apprentissage gouverné](#30-le-programme-évolution--travail-visible-apprentissage-gouverné)
 31. [Des yeux expressifs : un personnage piloté par les signaux](#31-des-yeux-expressifs--un-personnage-piloté-par-les-signaux)
+32. [Les applications natives : une coque, votre serveur](#32-les-applications-natives--une-coque-votre-serveur)
 ---
 
 ## 1. Contexte et choix fondateurs
@@ -59,7 +60,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 473 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 242 ADRs, ~20 586 tests collectés par pytest sur 1 204 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 245 ADRs, ~20 586 tests collectés par pytest sur 1 204 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -1313,7 +1314,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-242 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+245 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1453,7 +1454,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 242 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~20 586 tests sur 1 204 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 245 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~20 586 tests sur 1 204 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1468,4 +1469,15 @@ Le widget d'yeux du chat (ADR-240) repose sur un principe unique : **aucun signa
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 242 ADRs, et du changelog (v1.0 à v1.31.3). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+
+## 32. Les applications natives : une coque, votre serveur
+
+Les apps Android et iOS (ADR-246) sont des **coques WebView** publiées une seule fois par store, clientes de n'importe quel serveur auto-hébergé : la WebView charge l'**origine distante** du serveur dont l'utilisateur saisit l'URL au premier lancement. L'interface n'est jamais dupliquée — le contrat de session par cookie httpOnly, qui rend la PWA sûre, est exactement ce qui rend les coques possibles — et chaque affirmation de plateforme est **mesurée, pas supposée** (`scripts/mobile-probe/`).
+
+**La connexion suit la seule voie que Google autorise** : le flux OAuth part vers le navigateur système et revient par un lien `lia://auth-callback`, échangé contre la session via un code à usage unique lié à un vérifieur que seule la WebView détient — un lien intercepté ne vaut rien, ce qui rend le schéma custom acceptable (les App Links figent les domaines au build, impossible quand une app sert tous les serveurs). Câbler ce chemin a fermé un contournement préexistant du TOTP sur la connexion fédérée.
+
+**Le push est natif et volontairement asymétrique.** Android initialise Firebase **au runtime** avec les options que le serveur publie : les notifications d'un auto-hébergeur ne quittent jamais son propre projet. iOS ne le peut pas — APNs n'obéit qu'à l'équipe Apple propriétaire du bundle id — donc l'app publiée est réveillée par un **relais sans état** : la poignée *est* le jeton d'appareil scellé (Fernet, clé dédiée), la notification est une phrase fixe en six langues, et le relais n'apprend jamais qui est réveillé ni pourquoi. Le doute n'efface jamais un appareil : seuls « poignée illisible » et « appareil disparu » jettent un jeton.
+
+**Les douze départs OAuth reviennent dans l'app** — la décision « partir vers le navigateur système » est prise une seule fois, au point de passage que tous les flux partageaient déjà, et le retour lit la surface d'origine dans l'état OAuth, écrit par la seule fonction du dépôt qui en construise un. Un **banc dédié** pilote l'app debug réelle sur émulateur via le socket devtools — dix scènes sans aucun serveur, l'échec de navigation vers une origine `.invalid` servant d'oracle — et a trouvé trois défauts vivants avant son premier passage vert.
+
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 245 ADRs, et du changelog (v1.0 à v1.33.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

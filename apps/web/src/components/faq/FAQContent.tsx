@@ -44,6 +44,7 @@ import {
   CalendarClock,
   Plug,
   Smartphone,
+  TabletSmartphone,
   Palette,
   Radio,
   HeartPulse,
@@ -192,6 +193,7 @@ export const featureIcons = {
   provenance: Search,
   capabilityMap: Orbit,
   selfHosting: Server,
+  nativeApps: TabletSmartphone,
   platformCapabilities: SlidersHorizontal,
   tabularAdmin: FileSpreadsheet,
 };
@@ -264,6 +266,7 @@ export const featureKeys = [
   'provenance',
   'capabilityMap',
   'selfHosting',
+  'nativeApps',
   'platformCapabilities',
   'tabularAdmin',
 ];

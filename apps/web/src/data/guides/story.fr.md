@@ -4,7 +4,7 @@
 
 **Version** : 1.7
 **Date** : 2026-08-23
-**Application** : LIA v1.32.0
+**Application** : LIA v1.33.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -111,6 +111,7 @@ Le cycle 1.30.11 a produit la leçon la plus inattendue : concevoir un export pe
 
 Le cycle 1.31.0 a déplacé l’exigence de preuve sur un terrain neuf : l’esthétique. Donner un regard à l’assistant — deux yeux cartoon qui observent pendant la frappe, se plissent pendant la réflexion, balaient pendant la recherche et réagissent au ton de chaque réponse — était d’abord un chantier d’animation, où la moitié de la réussite se joue dans la fluidité. La discipline n’a pas changé pour autant : tout le comportement tient dans un moteur pur alimenté par des signaux que l’application émettait déjà — machine d’états du chat, étapes d’exécution diffusées, moteur émotionnel — sans un appel de modèle ni un point d’accès de plus, chaque expression pilotée par des tables de décision testées avec horloges et hasard injectés. Et quand le panel d’utilisateurs n’a pas tranché sur le style, l’arbitrage a été rendu comme tous les autres : sur pièces, une planche interactive de styles prévisualisés en vrai. Le gagnant est devenu le défaut, les autres un choix de réglage — et en ajouter un nouveau est une entrée de registre, pas un chantier.
 
+La même exigence a accompagné l'arrivée des applications natives : plutôt que de supposer ce qu'une WebView sait faire, un banc dédié pilote la **vraie application** sur émulateur, scène par scène, du premier écran jusqu'à l'oubli d'un serveur mal saisi. Avant son premier passage au vert, il avait déjà attrapé trois défauts réels — dont un écran hors-ligne qui ne se chargeait jamais dans le seul état où il compte — que la compilation, la CI et toutes les gardes statiques avaient bénis.
 
 ## 7. Convictions
 
@@ -124,3 +125,5 @@ Ce que cette expérience change dans une pratique de direction :
 *Projet personnel, mené en dehors de toute activité professionnelle. Chiffres issus de l'audit technique de juillet 2026 — tests exécutés, mesures effectuées sur le code, constats contre-vérifiés. Dépôt : [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
 
 Puis l'assistant a appris à montrer son propre travail : une page Activité qui recense tout ce qu'il fait de lui-même, des règles apprises que l'on peut lire et corriger, une mémoire qui date ses souvenirs et archive sans effacer, une voix qui respire avec son humeur. L'autonomie a grandi exactement comme le voulait la philosophie du projet : dans le cadre, sous le regard de l'utilisateur.
+
+Puis l'assistant est entré dans la poche sans quitter sa maison. Une app par store, cliente du serveur que chacun fait tourner : connexion par le vrai navigateur du téléphone parce que celui qui est embarqué est refusé, notifications qui viennent du propre projet de l'utilisateur ou passent par un relais construit pour ne rien savoir, et un banc qui pilote l'app réelle scène par scène — il a trouvé trois défauts vivants que le compilateur avait bénis. La thèse de la souveraineté a survécu au contact des stores : les données n'ont toujours qu'une maison.

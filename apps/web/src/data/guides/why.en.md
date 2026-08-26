@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Date**: 2026-08-23
-**Application**: LIA v1.32.0
+**Application**: LIA v1.33.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -264,6 +264,12 @@ LIA doesn't just run on modest hardware — it **actively optimizes** its AI res
 These combined optimizations enable a significant reduction in token consumption compared to ReAct mode.
 
 ---
+
+That sovereignty now fits in your pocket: the Android and iOS apps are **one published app per store, a client for YOUR server** — you type its address once, and the app shows your LIA, always current with no store update. Notifications honour the same principle: on Android they originate from YOUR Firebase project, and on iOS — where Apple lets only the app's publisher push — a minimal relay wakes the phone with one fixed sentence, storing nothing and never learning who was woken; the real content stays on your server.
+
+### 5.4. The app is a window onto YOUR server
+
+The native Android and iOS apps do not change where anything lives. One published app per store, and it is a client for *your* server: you type its address once, and the app shows your LIA — same interface, same releases, no store update when your server evolves. Sovereignty extends to notifications, where it is usually lost first: on Android they come from your server's **own** Firebase project, initialised at runtime, so they never transit the publisher's; on iOS, where Apple only lets the app's publisher push, a minimal relay wakes the phone with one fixed sentence — it stores nothing, and never learns who was woken or why. Your data has exactly as many homes as before: one.
 
 ## 6. Radical transparency
 

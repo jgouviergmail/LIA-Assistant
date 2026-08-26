@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Datum**: 2026-08-23
-**Application**: LIA v1.32.0
+**Application**: LIA v1.33.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -45,6 +45,7 @@
 
 30. [Das Evolutionsprogramm: sichtbare Arbeit, gesteuertes Lernen](#30-das-evolutionsprogramm-sichtbare-arbeit-gesteuertes-lernen)
 31. [Ausdrucksstarke Augen: eine von Signalen gesteuerte Figur](#31-ausdrucksstarke-augen-eine-von-signalen-gesteuerte-figur)
+32. [Native Apps: eine Hülle, Ihr Server](#32-native-apps-eine-hülle-ihr-server)
 ---
 
 ## 1. Kontext und grundlegende Entscheidungen
@@ -59,7 +60,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 473 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 242 ADRs, ~20.586 von pytest gesammelte Tests in 1.204 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 245 ADRs, ~20.586 von pytest gesammelte Tests in 1.204 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -1307,7 +1308,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-242 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+245 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1411,7 +1412,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 242 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~20.586 Tests in 1.204 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 245 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~20.586 Tests in 1.204 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1426,4 +1427,15 @@ Das Augen-Widget des Chats (ADR-240) beruht auf einem einzigen Prinzip: **kein n
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 242 ADRs und des Changelogs (v1.0 bis v1.31.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+
+## 32. Native Apps: eine Hülle, Ihr Server
+
+Die Android- und iOS-Apps (ADR-246) sind **WebView-Hüllen**, einmal pro Store veröffentlicht, Clients für jeden selbst gehosteten Server: Die WebView lädt den **entfernten Ursprung** des Servers, dessen URL beim ersten Start eingegeben wird. Die Oberfläche wird nie dupliziert — der httpOnly-Cookie-Sitzungsvertrag, der die PWA sicher macht, ist genau das, was die Hüllen möglich macht — und jede Plattform-Aussage ist **gemessen, nicht angenommen** (`scripts/mobile-probe/`).
+
+**Die Anmeldung folgt dem einzigen Weg, den Google erlaubt**: Der OAuth-Ablauf wechselt in den System-Browser und kehrt über einen `lia://auth-callback`-Link zurück, eingelöst gegen die Sitzung über einen Einmal-Code, der an einen Prüfwert gebunden ist, den nur die WebView besitzt — ein abgefangener Link ist wertlos, was das eigene Schema akzeptabel macht (App Links fixieren Domains zur Build-Zeit, unmöglich, wenn eine App jeden Server bedient). Diese Verkabelung schloss eine bestehende TOTP-Umgehung der föderierten Anmeldung.
+
+**Push ist nativ und bewusst asymmetrisch.** Android initialisiert Firebase **zur Laufzeit** mit Optionen, die der Server veröffentlicht: Die Benachrichtigungen eines Selbst-Hosters verlassen nie sein eigenes Projekt. iOS kann das nicht — APNs gehorcht nur dem Apple-Team, dem die Bundle-ID gehört — also wird die veröffentlichte App über ein **zustandsloses Relais** geweckt: Der Handle *ist* das versiegelte Geräte-Token (Fernet, eigener Schlüssel), die Benachrichtigung ist ein fester Satz in sechs Sprachen, und das Relais erfährt nie, wer geweckt wurde oder warum. Zweifel löscht nie ein Gerät: Nur „Handle unlesbar“ und „Gerät verschwunden“ dürfen ein Token verwerfen.
+
+**Alle zwölf OAuth-Abgänge kehren in die App zurück** — die Entscheidung „in den System-Browser wechseln“ fällt einmal, am Engpass, den ohnehin jeder Ablauf teilte, und die Rückkehr liest die Ursprungs-Oberfläche aus dem OAuth-State, geschrieben von der einzigen Funktion im Code, die einen erzeugt. Ein **eigener Prüfstand** fährt die echte Debug-App im Emulator über den WebView-Devtools-Socket — zehn Szenen ganz ohne Server, das Scheitern der Navigation zu einer `.invalid`-Origin dient als Orakel — und fand drei echte Fehler vor seinem ersten grünen Lauf.
+
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 245 ADRs und des Changelogs (v1.0 bis v1.33.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

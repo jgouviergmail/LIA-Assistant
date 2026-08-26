@@ -87,7 +87,7 @@ Chaque domaine est un **bounded context** isolé avec :
 - Son service layer (business logic)
 - Ses schemas Pydantic (API contracts)
 
-**21 domaines principaux** (sur **39 bounded contexts fonctionnels** que compte
+**21 domaines principaux** (sur **44 bounded contexts fonctionnels** que compte
 `apps/api/src/domains/`, hors `shared/` — la liste ci-dessous est une sélection
 des plus structurants, pas un inventaire) :
 1. **agents** - Orchestration multi-agents, 15 agents actifs, 56+ tools (cœur du système)
@@ -96,7 +96,7 @@ des plus structurants, pas un inventaire) :
 4. **connectors** - Intégrations externes (Google, Apple iCloud, Microsoft 365, Philips Hue)
 5. **conversations** - Persistence conversations (checkpoints)
 6. **chat** - Routing messages et SSE streaming
-7. **llm** - Pricing et cost tracking LLM
+7. **llm** - Pricing et cost tracking LLM ; **push_relay** (ADR-246) — relais de réveil sans état des coques iOS : la poignée EST le jeton scellé, aucune table, deux endpoints
 8. **google_api** - Google Maps Platform tracking, pricing, and consumption exports (v6.1, user export v1.9.1)
 9. **personalities** - Personnalités assistant (ton, style réponses)
 10. **voice** - Synthèse vocale TTS (Edge / OpenAI / ElevenLabs, catalogue-driven ADR-081) et STT (Whisper local ou ElevenLabs Scribe distant ADR-080)

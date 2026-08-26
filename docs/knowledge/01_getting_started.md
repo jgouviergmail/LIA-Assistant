@@ -276,8 +276,8 @@ Nearly **100% of LIA's code is written by an AI**, under human direction. Four m
 The full story — method, trade-offs, operations and what remains to be done — is on the **Story page** of the website (menu → Story), and the source code is open on GitHub: https://github.com/jgouviergmail/LIA-Assistant
 
 
-## Can I install LIA like an app on my phone or computer?
-Yes. LIA is a **PWA**: on Android/desktop Chrome, use "Install" (LIA suggests it discreetly after a few visits); on iOS Safari, "Share → Add to Home Screen". You get a home-screen icon, shortcuts (chat, briefing) and — once installed — the system **share menu** can send text or links straight into a LIA chat draft. Everything is localized in the 6 languages.
+## Can I install LIA on my phone — as a PWA or a real app?
+Yes, two ways. **As a PWA**: on Android/desktop Chrome, use "Install" (LIA suggests it discreetly after a few visits); on iOS Safari, "Share → Add to Home Screen". You get a home-screen icon, shortcuts (chat, briefing) and — once installed — the system **share menu** can send text or links straight into a LIA chat draft. **As a native app** (v1.33.0): install the LIA app from the store, type your server's address once at the first screen, and you get the same interface plus what only a native app can do — sign-in through the system browser, native notifications (on Android straight from your server's own Firebase project; on iOS through a privacy-preserving wake relay that stores nothing and never learns who was woken or why), and connectors that return to the app after authorization. Your server stays the only place your data lives: the app is just a window onto it. Everything is localized in the 6 languages.
 
 
 ## My account says it is awaiting activation — what should I do?

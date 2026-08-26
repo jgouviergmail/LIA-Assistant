@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import {
+  TabletSmartphone,
   CloudSun,
   GitBranch,
   Cpu,
@@ -25,6 +26,11 @@ interface TechSectionProps {
 }
 
 const TECH_ITEMS = [
+  {
+    key: 'native_shells',
+    icon: TabletSmartphone,
+    iconBg: 'bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15',
+  },
   {
     key: 'langgraph',
     icon: GitBranch,

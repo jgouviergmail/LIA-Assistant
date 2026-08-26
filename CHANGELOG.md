@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.33.0] - 2026-08-26
+
+**LIA a désormais ses applications natives Android et iOS — une seule app publiée par store, cliente de n'importe quel serveur auto-hébergé.** La WebView charge l'origine distante de VOTRE serveur, dont vous saisissez l'URL au premier lancement : l'interface n'est jamais dupliquée, les évolutions web arrivent sans mise à jour de l'app, et le contrat de session par cookie httpOnly — celui-là même qui rend la PWA sûre — est ce qui rend les coques possibles. Chaque affirmation de plateforme a été **mesurée, pas supposée** : un banc dédié pilote l'app réelle sur émulateur, scène par scène, du premier écran jusqu'à l'oubli du serveur.
+
+**La connexion Google fonctionne dans l'app — et ferme au passage un contournement du second facteur.** Google refuse OAuth dans toute WebView : le flux part donc vers le navigateur système et revient par un lien `lia://`, échangé contre la session via un code à usage unique lié à un vérifieur que seule l'app détient (un lien intercepté ne vaut rien). En câblant ce chemin, un défaut préexistant est tombé : **se connecter via Google enjambait le TOTP** — un compte protégé par second facteur ne l'était pas sur ce chemin. Le jeton d'attente voyage désormais en cookie httpOnly et l'étape code s'impose partout.
 
 **Un iPhone ne peut pas être notifié par le serveur auquel il est rattaché, et aucun réglage ne corrige cela.** FCM n'atteint un iPhone que par APNs, qui authentifie l'émetteur avec une clé délivrée à l'équipe Apple **propriétaire du bundle id** — l'éditeur de l'app, jamais l'auto-hébergeur. Et une clé `.p8` vaut pour *toutes* les apps de l'équipe, donc elle ne peut pas être distribuée. Comme la PWA iOS, elle, reçoit déjà des notifications web, une app iOS muette aurait été **en retrait de ce que les utilisateurs ont déjà**.
 
@@ -17,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Les coques natives** (`apps/mobile/`, ADR-246) : Capacitor 8.5, projets natifs **générés** et surcouche versionnée (`native/`), écran de configuration et écran hors-ligne embarqués dans les six langues, sonde de santé et enregistrement au relais **natifs** (la page tourne sur l'origine du serveur de l'utilisateur — tout appel vers un autre hôte serait du cross-origin qu'aucune politique CORS ne peut couvrir pour tous les auto-hébergeurs). Android vide son magasin de cookies sur disque à chaque passage en arrière-plan (mesuré : sans cela, quitter l'app dans les ~30 s suivant la connexion la perdait).
+- **Connexion native** (lot 1) : `native_challenge` sur `/auth/google/login`, retour `lia://auth-callback`, `POST /auth/native/callback` avec code à usage unique lié au vérifieur (Redis `GETDEL`) — et la fermeture du contournement TOTP sur la connexion fédérée, second facteur exigé même via Google.
+- **Le banc de la coque** (`task mobile:verify:android`, intégré au workflow de sonde CI) : dix scènes sur l'app debug réelle via le socket devtools WebView, sans serveur — configuration, refus HTTPS, écran hors-ligne, liens profonds routés/refusés **à chaud et à froid**, permission, échappatoire. Il a trouvé trois défauts vivants avant son premier passage vert.
+- **Le guide de publication** (`docs/guides/GUIDE_MOBILE_PUBLICATION.md`) : le lot stores pas à pas — comptes, signature, la clé APNs `.p8` téléchargeable une seule fois qui fait de l'éditeur l'opérateur du relais, formulaires des deux consoles, défense argumentée du risque de review Apple 4.2, et ce qui recommence à chaque mise à jour.
 - **Les douze départs OAuth reviennent dans l'app** (ADR-246, lot 3) : connecteurs, serveurs MCP, connexion groupée, reconnexion. La décision « partir vers le navigateur système » est prise **une seule fois**, à la porte que les huit flux franchissaient déjà — ce qui a **supprimé** le cas particulier que la connexion avait acquis. Et le retour se souvient de la surface qui l'a ouvert, écrit dans l'état OAuth par la seule fonction du dépôt qui en construise un : un connecteur ajouté demain en hérite sans le savoir.
 - **Push natif sur les deux coques** (ADR-246) : `GET /notifications/push-config` répond par plateforme, la couche web transmet la réponse **entière** au shell et ne lit jamais un champ spécifique à une plateforme. `useFCMToken` délègue l'acquisition et garde **une seule** implémentation de tout ce qui suit — enregistrement, état, liste des appareils.
 - **Relais de réveil** (`domains/push_relay/`, `PUSH_RELAY_ENABLED`, faux par défaut) : deux points d'entrée, aucune base, aucune tâche planifiée. Client APNs en HTTP/2 avec JWT ES256 — `h2`, `httpx`, `pyjwt`, `cryptography` étaient déjà là, **zéro nouvelle dépendance**, et aucun SDK Firebase embarqué côté iOS.
@@ -24,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Le banc de vérification pilote désormais l'app réelle** (`task mobile:verify:android`) : neuf scènes sur la coque debug, observées par le socket devtools WebView, sans aucun serveur — l'origine configurée est un nom `.invalid` (RFC 2606), donc l'échec de navigation EST l'oracle. Avant son premier passage vert, il a trouvé deux défauts vivants que la compilation, la CI et toutes les gardes statiques avaient bénis.
+- **Le banc de vérification pilote désormais l'app réelle** (`task mobile:verify:android`) : dix scènes sur la coque debug, observées par le socket devtools WebView, sans aucun serveur — l'origine configurée est un nom `.invalid` (RFC 2606), donc l'échec de navigation EST l'oracle. Avant son premier passage vert, il a trouvé deux défauts vivants que la compilation, la CI et toutes les gardes statiques avaient bénis.
 - Dix rappels de connecteurs construisaient leur redirection de succès à la main : ils en partagent une. Les trois marqueurs de résultat MCP étaient des fragments de requête tout faits (`"mcp_oauth=success"`), qu'un lien profond aurait encodés comme une seule valeur opaque — ce sont désormais un nom de paramètre et trois valeurs.
 - La fabrique de limitation de débit par IP passe de `domains/auth/dependencies` à `infrastructure/rate_limiting/ip_limiter`, en gardant ses clés Redis **octet pour octet** : quatre domaines sans rapport importaient leur limiteur du domaine auth.
 
@@ -34,7 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ses deux boutons étaient morts sur Android** : avec un serveur distant configuré, Capacitor n'injecte son pont que dans les documents de cette origine, jamais dans la page `errorPath` locale — `window.Capacitor` y était indéfini. La coque expose désormais une `JavascriptInterface` minimale (`LiaOffline`), verrouillée pour n'agir que depuis la page hors-ligne. Trouvé par le PREMIER passage du banc.
 - **`registerPush` demandait la permission avant de lire la configuration** : un utilisateur dont le serveur n'offre aucun push se voyait réclamer une permission sans objet. La configuration se lit d'abord — le banc est resté suspendu à ce dialogue, attendant un doigt qui ne viendrait jamais.
 - Une valeur *truthy* n'est pas un flux natif. Appelés directement par des tests unitaires, les rappels OAuth reçoivent l'objet `Depends` en guise de défaut — et un `Depends` est truthy : lus mollement, ces tests et tout appelant direct futur auraient pris le chemin du lien profond en plein navigateur. Trouvé par un test MCP existant qui faisait exactement cela.
+- **Un lien profond qui DÉMARRE l'app perdait la connexion** (Android) : `onNewIntent` ne couvre que l'app vivante, et le navigateur système peut récupérer la coque pendant l'OAuth (mémoire basse) — le retour arrivait alors sur l'intent de lancement, que rien ne lisait. iOS était immunisé d'origine, ce qui aveuglait tout contrôle symétrique. Le gestionnaire est partagé entre les deux portes et **consomme** l'intent (un `recreate()` l'aurait rejoué vers un code déjà dépensé). Prouvé par la scène « à froid » du banc, oracle logcat — la navigation vit ~200 ms, deux oracles devtools ont perdu cette course avant le bon.
 - `refreshTokens` relisait `Notification.permission` après l'enrôlement et écrasait l'état qu'il venait d'établir — ce qui, dans une coque, répond `unsupported`. Un rafraîchissement ne doit pas défaire ce qu'il suit.
+
+### Tests
+
+- 78 tests unitaires neufs sur le programme : scellé Fernet du relais (15), client APNs (22), service et routeur du relais (25+), livraison relayée, configuration refusant de démarrer incomplète, marqueur de flux natif (connecteurs **et** MCP — les trois coutures MCP étaient les seules sans test direct, trouvé par la revue intégrale), en-tête `X-LIA-Native`, chemins natifs de `useFCMToken` et de `safe-navigation` (verrouillé à 100/100/100/100).
+- Trois gardes de cohérence inter-couches, chacune **vérifiée rouge sur sabotage** : les quatre déclarations d'un lien profond (enum serveur, cartes des deux coques, intent-filter du manifest), la surface du greffon en quatre endroits dont trois échouent en silence, la parité six langues des pages embarquées (seul texte utilisateur que la porte i18n ne voit pas) et l'invariant JSON↔Builder d'`errorPath`.
+- Planchers de couverture relevés : branches frontend 69 → 70, nouveaux périmètres `src/lib/native/**` et `src/lib/safe-navigation.ts`.
 
 ### Removed
 

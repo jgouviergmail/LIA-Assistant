@@ -61,6 +61,11 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured at v1.33.0: backend 20,409 (`pytest tests/unit tests/agents
+ *   --collect-only --no-cov`; +251 — the native-shells programme: the wake
+ *   relay's seal/client/service/router, the APNs client, the native OAuth
+ *   return across connectors AND MCP, the shell pages/plugin-surface/deep-link
+ *   guards) + frontend 6,318 (`vitest list`) = 26,727 → 26,700.
  *   Re-measured at v1.32.0: backend 20,158 (`pytest tests/unit tests/agents
  *   --collect-only --no-cov`) + frontend 6,258 vitest (489 files) = 26,416
  *   -> 26,400. The figure goes DOWN by 400 and that is the point (zero
@@ -211,9 +216,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 486,
   uiLanguages: 6,
-  tests: 26400,
+  tests: 27400,
   adrs: 245,
-  releases: 225,
+  releases: 226,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

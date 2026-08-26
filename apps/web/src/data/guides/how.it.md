@@ -6,7 +6,7 @@
 
 **Versione**: 4.6
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.32.0
+**Applicazione**: LIA v1.33.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -45,6 +45,7 @@
 
 30. [Il programma di evoluzione: lavoro visibile, apprendimento governato](#30-il-programma-di-evoluzione-lavoro-visibile-apprendimento-governato)
 31. [Occhi espressivi: un personaggio guidato dai segnali](#31-occhi-espressivi-un-personaggio-guidato-dai-segnali)
+32. [App native: un guscio, il tuo server](#32-app-native-un-guscio-il-tuo-server)
 ---
 
 ## 1. Contesto e scelte fondanti
@@ -59,7 +60,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 473 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 242 ADRs, ~20.586 test raccolti da pytest in 1.204 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 245 ADRs, ~20.586 test raccolti da pytest in 1.204 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -1309,7 +1310,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-242 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+245 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1413,7 +1414,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 242 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~20.586 test in 1.204 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 245 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~20.586 test in 1.204 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1428,4 +1429,15 @@ Il widget degli occhi della chat (ADR-240) poggia su un unico principio: **nessu
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 242 ADRs e del changelog (da v1.0 a v1.31.3). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+
+## 32. App native: un guscio, il tuo server
+
+Le app Android e iOS (ADR-246) sono **gusci WebView** pubblicati una sola volta per store, client di qualsiasi server auto-ospitato: la WebView carica l'**origine remota** del server, il cui URL l'utente digita al primo avvio. L'interfaccia non è mai duplicata — il contratto di sessione a cookie httpOnly, che rende sicura la PWA, è esattamente ciò che rende possibili i gusci — e ogni affermazione di piattaforma è **misurata, non presunta** (`scripts/mobile-probe/`).
+
+**L'accesso segue l'unica via che Google consente**: il flusso OAuth esce verso il browser di sistema e rientra tramite un link `lia://auth-callback`, riscattato per la sessione con un codice monouso legato a un verificatore che solo la WebView possiede — un link intercettato non vale nulla, il che rende accettabile lo schema custom (gli App Link fissano i domini in build, impossibile quando un'app serve ogni server). Cablare questo percorso ha chiuso un'elusione preesistente del TOTP sull'accesso federato.
+
+**Il push è nativo e volutamente asimmetrico.** Android inizializza Firebase **a runtime** con le opzioni pubblicate dal server: le notifiche di un auto-ospitante non lasciano mai il proprio progetto. iOS non può — APNs obbedisce solo al team Apple proprietario del bundle id — quindi l'app pubblicata viene svegliata da un **relè senza stato**: la maniglia *è* il token del dispositivo sigillato (Fernet, chiave dedicata), la notifica è una frase fissa in sei lingue, e il relè non sa mai chi è stato svegliato né perché. Il dubbio non cancella mai un dispositivo: solo «maniglia illeggibile» e «dispositivo scomparso» possono scartare un token.
+
+**Le dodici partenze OAuth tornano nell'app** — la decisione «uscire verso il browser di sistema» è presa una sola volta, nel punto di passaggio che ogni flusso già condivideva, e il ritorno legge la superficie d'origine nello stato OAuth, scritto dall'unica funzione del codice che ne costruisce uno. Un **banco dedicato** guida la vera app debug su un emulatore tramite il socket devtools della WebView — dieci scene senza alcun server, il fallimento della navigazione verso un'origine `.invalid` fa da oracolo — e ha trovato tre difetti vivi prima del suo primo passaggio verde.
+
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 245 ADRs e del changelog (da v1.0 a v1.33.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

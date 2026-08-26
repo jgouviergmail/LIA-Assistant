@@ -40,6 +40,7 @@ import {
   Users,
   Zap,
   CalendarClock,
+  TabletSmartphone,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -99,6 +100,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'tabular_admin', icon: FileSpreadsheet },
   { id: 'evolution', icon: Eye },
   { id: 'expressive_eyes', icon: Smile },
+  { id: 'native_apps', icon: TabletSmartphone },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [
