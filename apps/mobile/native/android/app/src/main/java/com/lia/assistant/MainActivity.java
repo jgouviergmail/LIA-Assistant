@@ -3,6 +3,7 @@ package com.lia.assistant;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
@@ -17,18 +18,6 @@ public class MainActivity extends BridgeActivity {
     /** Scheme the manifest registers for the sign-in return trip. */
     private static final String DEEP_LINK_SCHEME = "lia";
 
-    /** Web route that spends a handoff code; localisation is the app's own job. */
-    /**
-     * Where each deep-link host puts the user.
-     *
-     * <p>A map rather than one constant because two flows now come home this
-     * way — provider sign-in and connector authorization — and a third would
-     * otherwise be a third branch. The PATHS are fixed here on purpose: a link
-     * that carried its own destination would let whoever claims the scheme
-     * choose where the WebView goes next, and a custom scheme must be assumed
-     * interceptable (App Links pin domains at build time, and one published app
-     * serves every self-hosted server).
-     */
     /**
      * Bundled page shown when a navigation to the server fails.
      *
@@ -38,6 +27,17 @@ public class MainActivity extends BridgeActivity {
      */
     private static final String OFFLINE_ERROR_PATH = "offline.html";
 
+    /**
+     * Where each deep-link host puts the user.
+     *
+     * <p>A map rather than one constant because three flows come home this way
+     * — provider sign-in, connector authorization, MCP authorization — and a
+     * fourth would otherwise be a fourth branch. The PATHS are fixed here on
+     * purpose: a link that carried its own destination would let whoever claims
+     * the scheme choose where the WebView goes next, and a custom scheme must
+     * be assumed interceptable (App Links pin domains at build time, and one
+     * published app serves every self-hosted server).
+     */
     private static final java.util.Map<String, String> DEEP_LINK_PAGES = java.util.Map.of(
         "auth-callback",
         "/native-auth",
@@ -92,6 +92,15 @@ public class MainActivity extends BridgeActivity {
         if (bridge != null && bridge.getWebView() != null) {
             bridge.getWebView().addJavascriptInterface(new OfflineActions(), "LiaOffline");
         }
+
+        // A deep link can also be what STARTED the app: the system browser may
+        // have reclaimed the shell during the OAuth dance (low memory), and the
+        // return trip then arrives on the LAUNCH intent, not onNewIntent. iOS
+        // has this covered upstream — Capacitor's SceneDelegateProxy defers the
+        // cold-start URL until plugins are registered — Android does not, and
+        // without this the sign-in code was silently dropped exactly when the
+        // device was under pressure.
+        handleDeepLink(getIntent());
     }
 
     /**
@@ -155,11 +164,31 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        handleDeepLink(intent);
+    }
 
+    /**
+     * Navigate the WebView to the page a deep link names, if it names one.
+     *
+     * <p>Shared between the warm path ({@link #onNewIntent}) and the cold one
+     * (the launch intent, read at the end of {@link #load()}): the OS delivers
+     * the same link through whichever door matches the app's state, and only
+     * one of the two ever fires for a given arrival.
+     *
+     * <p>The intent's data is CONSUMED afterwards. {@code recreate()} — which
+     * the offline screen's retry and forget both use — replays the launch
+     * intent through {@code onCreate}, and replaying a sign-in link would
+     * navigate to a code that was already spent.
+     *
+     * @param intent The intent that started or resumed us; may be null.
+     */
+    private void handleDeepLink(Intent intent) {
         Uri data = intent != null ? intent.getData() : null;
         if (data == null || !DEEP_LINK_SCHEME.equals(data.getScheme())) {
             return;
         }
+        // Host only, NEVER the query: it carries the single-use sign-in code.
+        Log.d("LiaShell", "deep link received, host=" + data.getHost());
 
         String serverUrl = ServerUrlStore.read(this);
         if (serverUrl == null || serverUrl.isEmpty()) {
@@ -177,10 +206,15 @@ public class MainActivity extends BridgeActivity {
             return;
         }
 
+        intent.setData(null);
+
         String query = data.getEncodedQuery();
         String target = serverUrl + page + (query != null ? "?" + query : "");
         if (bridge != null && bridge.getWebView() != null) {
+            Log.d("LiaShell", "deep link navigating, page=" + page);
             bridge.getWebView().post(() -> bridge.getWebView().loadUrl(target));
+        } else {
+            Log.d("LiaShell", "deep link dropped: no webview yet");
         }
     }
 

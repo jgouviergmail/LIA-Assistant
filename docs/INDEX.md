@@ -297,6 +297,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_BACKGROUND_JOBS_APSCHEDULER.md](./guides/GUIDE_BACKGROUND_JOBS_APSCHEDULER.md) | Background jobs APScheduler | ✅ |
 | [GUIDE_FCM_PUSH_NOTIFICATIONS.md](./guides/GUIDE_FCM_PUSH_NOTIFICATIONS.md) | Push notifications Firebase | ✅ |
 | [GUIDE_MOBILE_ANDROID.md](./guides/GUIDE_MOBILE_ANDROID.md) | App Android (coque WebView) : créer, configurer, publier, exploiter — mesures, pièges, et le push depuis VOTRE projet Firebase | 🚧 |
+| [GUIDE_MOBILE_PUBLICATION.md](./guides/GUIDE_MOBILE_PUBLICATION.md) | Publier sur Google Play et l'App Store, pas à pas et sans prérequis : comptes, signature, clé APNs, formulaires, risque 4.2, mises à jour | 🚧 |
 | [GUIDE_MOBILE_IOS.md](./guides/GUIDE_MOBILE_IOS.md) | App iOS (WKWebView) : créer, configurer, publier, exploiter — mesures, pièges, et le relais de réveil sans lequel iOS n'a pas de notifications | 🚧 |
 
 ### Langfuse

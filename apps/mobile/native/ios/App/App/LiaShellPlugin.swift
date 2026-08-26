@@ -101,11 +101,6 @@ public class LiaShellPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    /// Rebuild the shell so a newly stored origin takes effect.
-    ///
-    /// The server URL is read when the bridge is BUILT, and a bridge is built
-    /// once. Replacing the root view controller is what applies it — reloading
-    /// the WebView would only reload the setup screen.
     /// Forget the configured origin.
     ///
     /// Separate from `set` on purpose: `set` validates and stores an address,
@@ -151,6 +146,11 @@ public class LiaShellPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /// Rebuild the shell so a newly stored origin takes effect.
+    ///
+    /// The server URL is read when the bridge is BUILT, and a bridge is built
+    /// once. Replacing the root view controller is what applies it — reloading
+    /// the WebView would only reload the setup screen.
     @objc func restart(_ call: CAPPluginCall) {
         call.resolve()
         DispatchQueue.main.async {

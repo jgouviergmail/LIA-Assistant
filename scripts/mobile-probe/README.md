@@ -208,12 +208,18 @@ What one run walks through, as a user would:
 5. `lia://auth-callback?code=…` navigates to `/native-auth?code=…` on the
    stored origin (observed via CDP network events); an unknown host resolves to
    NOTHING — refused by the OS itself, since the manifest enumerates its hosts;
-6. clicking "use a different server" on the offline screen — the CLICK, not a
-   plugin call — forgets the origin and lands the next launch back on setup.
+6. the same deep link fired at a DEAD app — the launch-intent path, which the
+   system browser reclaiming the shell mid-OAuth makes real — still reaches
+   `/native-auth` (oracle: the shell's own `LiaShell` logcat line, because the
+   navigation lives ~200 ms and both devtools-sampling oracles lost that race);
+7. clicking "use a different server" on the offline screen — the CLICK, not a
+   plugin call — forgets the origin and lands the next launch back on setup;
+   this scene doubles as the replay oracle for scene 6, since `recreate()`
+   replays a launch intent that was not consumed.
 
 ### What its first runs caught, before it ever went green
 
-Two live defects in the shell and one class of bench-side traps — the reason
+Three live defects in the shell and one class of bench-side traps — the reason
 this bench exists in exactly this form:
 
 - **`errorPath` was silently dropped in the configured state.** Android's
@@ -230,6 +236,13 @@ this bench exists in exactly this form:
   immune (WKUserScript injects on every navigation); Android now exposes a
   minimal `LiaOffline` JavascriptInterface, gated inside each method to act
   only when the offline page is what is showing.
+- **A deep link that STARTS the app was silently dropped.** `onNewIntent`
+  only covers a LIVING activity; when the system browser reclaims the shell
+  during the OAuth dance (low memory), the return trip rides the launch
+  intent, which nothing read. iOS was immune — Capacitor's SceneDelegateProxy
+  defers the cold-start URL until plugins are registered — so every
+  platform-symmetric check missed it. Found by the full-code review; the fix
+  consumes the intent afterwards, because `recreate()` replays it.
 - **A headless emulator freezes a covered app.** An unrelated AOSP crash
   dialog paused the activity; the cached-app freezer suspended the process ten
   seconds later, devtools socket included — and a frozen app ACCEPTS the

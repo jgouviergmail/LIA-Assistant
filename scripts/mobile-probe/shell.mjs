@@ -118,12 +118,17 @@ async function waitForReady(session, expression, label, timeoutMs = 15000) {
 const BRIDGE_READY = `typeof window.Capacitor === 'object' && !!window.Capacitor.Plugins.LiaShell`;
 
 /**
- * The offline page's own door. On Android the Capacitor bridge is NOT injected
- * into the errorPath page once a remote server is configured (measured by this
- * bench's first run: both buttons were dead), so the shell exposes a minimal
- * JavascriptInterface instead — and its presence is itself an assertion.
+ * The offline page's own door AND its own DOM. On Android the Capacitor bridge
+ * is NOT injected into the errorPath page once a remote server is configured
+ * (measured by this bench's first run: both buttons were dead), so the shell
+ * exposes a minimal JavascriptInterface instead.
+ *
+ * The DOM half is load-bearing: a JavascriptInterface exists on EVERY document
+ * this WebView shows — the `chrome-error` interstitial included — so the door
+ * alone reported ready one document too early, and a later timing shift turned
+ * that latent race into a red scene (measured).
  */
-const OFFLINE_READY = `!!window.LiaOffline || (${BRIDGE_READY})`;
+const OFFLINE_READY = `!!document.getElementById('retry') && (!!window.LiaOffline || (${BRIDGE_READY}))`;
 
 /**
  * A handle on one logical page that survives its own reloads.
@@ -328,10 +333,43 @@ async function scenes() {
       : 'refused by the OS itself — no intent-filter matches (manifest)'
   );
 
+  // ── Scene 4b: the deep link that STARTS the app ────────────────────────
+  // The system browser can reclaim the shell during the OAuth dance (low
+  // memory), and the return trip then rides the LAUNCH intent — a path
+  // onNewIntent never sees, and the exact hole the review found. The oracle
+  // is the navigation HISTORY: attaching before the request is impossible
+  // when the app does not exist yet, but the attempted URL survives as an
+  // entry even though the load itself fails.
+  adb(['shell', 'am', 'force-stop', APP_ID]);
+  adb(['logcat', '-c']);
+  fireDeepLink('lia://auth-callback?code=bench-cold');
+
+  // The oracle is the shell's own structured log. The navigation lives for
+  // ~200 ms before the .invalid DNS failure swaps in the offline page — two
+  // devtools-sampling oracles lost that race (navigation history purges
+  // failed entries; the target stream needs pidof+forward+fetch per sample).
+  // logcat has no race: the line is written the moment the decision is made,
+  // and it names the PAGE, never the query — the query carries the code.
+  await offlinePage.attach();
+  const logcat = adb(['logcat', '-d', '-s', 'LiaShell:D']);
+  const coldNavigated = logcat.includes('deep link navigating, page=/native-auth');
+  record(
+    'a deep link that STARTS the app still reaches /native-auth (launch intent)',
+    coldNavigated,
+    coldNavigated
+      ? 'LiaShell: deep link received → navigating (logcat)'
+      : `LiaShell lines: ${JSON.stringify(logcat.split('\n').filter(l => l.includes('LiaShell')).slice(-3))}`
+  );
+
   // ── Scene 5: the escape hatch, driven the way a user drives it ─────────
   // The failed deep-link navigation put the WebView back on the offline
   // screen; reattach and CLICK the button rather than calling anything — the
   // click is the whole path under test, dead handlers included.
+  //
+  // This scene is ALSO the replay oracle for scene 4b: `recreate()` replays
+  // the launch intent through onCreate, and if handleDeepLink had not
+  // consumed the cold-start link, this forget would land on /native-auth
+  // instead of the setup screen — and fail below.
   await offlinePage.attach();
   await offlinePage
     .evaluate(`(document.getElementById('change').click(), true)`)

@@ -240,6 +240,10 @@ Signing so Google holds the app signing key and the upload key stays replaceable
 
 ## 7. Distribution
 
+> Le pas-à-pas complet de la publication — comptes, signature, clé APNs,
+> formulaires des consoles, risque de review et mises à jour — vit dans
+> [GUIDE_MOBILE_PUBLICATION.md](GUIDE_MOBILE_PUBLICATION.md).
+
 **Play Store** is the primary channel: one listing, every self-hoster. Review is
 substantially more permissive than Apple's, and a client for a self-hosted server
 is a long-established category.

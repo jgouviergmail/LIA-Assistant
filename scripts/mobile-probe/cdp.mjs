@@ -25,7 +25,7 @@ const CDP_PORT = 9223;
  * @param {string} appId - Android application id.
  * @returns {Array<{url: string, webSocketDebuggerUrl: string}>} Page targets.
  */
-async function listTargets(appId) {
+export async function listTargets(appId) {
   const pid = execFileSync('adb', ['shell', 'pidof', appId]).toString().trim();
   if (!pid) throw new Error(`${appId} is not running`);
 

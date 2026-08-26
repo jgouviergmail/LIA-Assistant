@@ -261,6 +261,10 @@ cause of a build that stopped working without anyone changing code.
 
 ## 7. Distribution
 
+> Le pas-à-pas complet de la publication — comptes, signature, clé APNs,
+> formulaires des consoles, risque de review et mises à jour — vit dans
+> [GUIDE_MOBILE_PUBLICATION.md](GUIDE_MOBILE_PUBLICATION.md).
+
 **App Store** is the primary channel: one listing serving every self-hoster.
 
 App Review will ask for a working server and a demo account, since a client app
