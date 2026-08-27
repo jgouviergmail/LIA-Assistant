@@ -1904,6 +1904,12 @@ tasks:
       - task: test:markers
       - task: test:frontend:coverage
       - task: test:deploy
+      # The hermetic installer gate needs no service either, and CI runs it in
+      # the Test Backend job. It was absent here until 2026-08-27, when a green
+      # ci:fast was followed by a red CI: `scripts/release/tests` builds a
+      # synthetic repository that must carry one occurrence of EVERY declared
+      # count surface, and thirty new surfaces had not been added to it.
+      - task: test:install:hermetic
 
   ci:
     # ci:fast plus everything requiring PostgreSQL, Redis, Docker or a browser.

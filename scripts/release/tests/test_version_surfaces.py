@@ -136,14 +136,93 @@ def _fake_counts(root: Path, *, adr_files: int, adr_latest: int, releases: int) 
         f"- ADR index ({adr_files} ADR files, ADR-{adr_latest} latest — ADR-008 has no "
         "separate file): `docs/architecture/ADR_INDEX.md`\n",
     )
+    _write(
+        root / "docs" / "INDEX.md",
+        f"| ADRs | {adr_files} ADR files (ADR-{adr_latest} latest) |\n"
+        f"| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision "
+        f"Records ({adr_files} ADR files) |\n",
+    )
+
     guides = root / "apps" / "web" / "src" / "data" / "guides"
+
+    def _append(name: str, text: str) -> None:
+        """Append counter lines, creating the guide when the stamp set skipped it."""
+        path = guides / name
+        existing = path.read_text(encoding="utf-8") if path.exists() else "# Guide\n"
+        _write(path, existing + text)
+
+    # The `how` guides quote the ADR count twice each: the codebase-metrics
+    # table and the reliability row. Only the label is translated.
+    for locale, metrics_label in (
+        ("en", "ADRs (Architecture Decision Records)"),
+        ("fr", "ADRs (Architecture Decision Records)"),
+        ("de", "ADRs (Architecture Decision Records)"),
+        ("es", "ADRs (Architecture Decision Records)"),
+        ("it", "ADR (Architecture Decision Record)"),
+    ):
+        _append(
+            f"how.{locale}.md",
+            f"\n| {metrics_label} | {adr_files} |\n\n{adr_files} ADRs, ~20,000 tests.\n",
+        )
+
+    # zh writes those two counters in its own shapes, plus a third sentence
+    # saying "篇 MADR" — one word away from the "篇 ADR" pattern, which is
+    # exactly how that digit drifted while its five siblings were corrected.
     zh = guides / "how.zh.md"
     existing = zh.read_text(encoding="utf-8") if zh.exists() else "# How\n"
     _write(
         zh,
         existing + f"\n可靠性：{adr_files} 篇 ADR。\n\n结论：{adr_files} 篇 ADR。\n\n"
-        f"*页脚：{adr_files} 篇 ADR*\n",
+        f"*页脚：{adr_files} 篇 ADR*\n\n"
+        f"| ADR（架构决策记录） | {adr_files} 篇 |\n\n"
+        f"{adr_files} 篇 MADR 格式的 ADR。\n",
     )
+
+    # The `story` guides quote three counters each: two key-figure rows and the
+    # structural-decisions sentence, which is prose rather than a table.
+    for locale, adr_label, release_label, sentence in (
+        (
+            "en",
+            "Documented architecture decisions (ADR)",
+            "Versions shipped at a steady pace",
+            f"Three structural decisions, among the {adr_files} documented:",
+        ),
+        (
+            "fr",
+            "Décisions d'architecture documentées (ADR)",
+            "Versions livrées à rythme régulier",
+            f"Trois décisions structurantes, parmi les {adr_files} documentées :",
+        ),
+        (
+            "de",
+            "Dokumentierte Architekturentscheidungen (ADR)",
+            "In regelmäßigem Rhythmus gelieferte Versionen",
+            f"Drei strukturelle Entscheidungen, unter den {adr_files} dokumentierten:",
+        ),
+        (
+            "es",
+            "Decisiones de arquitectura documentadas (ADR)",
+            "Versiones entregadas a ritmo regular",
+            f"Tres decisiones estructurantes, entre las {adr_files} documentadas:",
+        ),
+        (
+            "it",
+            "Decisioni di architettura documentate (ADR)",
+            "Versioni rilasciate a ritmo regolare",
+            f"Tre decisioni strutturanti, tra le {adr_files} documentate:",
+        ),
+        (
+            "zh",
+            "已记录的架构决策（ADR）",
+            "以稳定节奏交付的版本",
+            f"在 {adr_files} 个已记录的决策中，三个结构性决定：",
+        ),
+    ):
+        _append(
+            f"story.{locale}.md",
+            f"\n| {adr_label} | **{adr_files}** |\n"
+            f"| {release_label} | **{releases}** |\n\n{sentence}\n",
+        )
 
 
 class TestCanonicalVersion:
@@ -274,7 +353,19 @@ class TestDerivedCounts:
         assert any(item.source == "adr_files" for item in by_path["CLAUDE.md"])
         assert any(item.source == "adr_latest" for item in by_path["CLAUDE.md"])
         zh = by_path["apps/web/src/data/guides/how.zh.md"]
-        assert len(zh) == 3, "the Chinese guide quotes the ADR count three times"
+        # Three surfaces read this one file: the repeated "N 篇 ADR" phrasing
+        # (three occurrences, hence its expected count), the codebase-metrics
+        # table, and the "N 篇 MADR" sentence that sat one word outside the
+        # first pattern and drifted alone while its five siblings were fixed.
+        by_label: dict[str, int] = {}
+        for item in zh:
+            by_label[item.label] = by_label.get(item.label, 0) + 1
+        assert by_label == {
+            "how.zh.md ADR count (the zh guide quotes an exact number, "
+            "the 5 others say '100+')": 3,
+            "how.zh.md codebase-metrics table (ADR count)": 1,
+            "how.zh.md MADR sentence (ADR count)": 1,
+        }
         assert all(item.value == 241 for item in zh)
 
     def test_a_stale_quoted_count_is_visible(self, tmp_path: Path) -> None:
