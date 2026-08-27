@@ -2711,6 +2711,8 @@
       }
     },
     "location": {
+      "title": "位置",
+      "description": "管理您的位置来源：实时定位、记住的位置和家庭住址",
       "geolocation": {
         "title": "地理位置",
         "permission_status": "权限状态",
@@ -2724,8 +2726,6 @@
       "home": {
         "title": "家庭地址",
         "placeholder": "输入您的地址...",
-        "save": "保存",
-        "clear": "删除",
         "saved": "家庭地址已保存",
         "cleared": "家庭地址已删除",
         "save_error": "保存地址时出错",
@@ -3413,6 +3413,7 @@
       "keywords": {
         "language": "语言, 区域设置, 翻译, 界面语言",
         "timezone": "时区, UTC, GMT, 时钟, 时间, 偏移, 地区",
+        "location": "地址, 家, GPS, 定位, 地图, 地点, 城市",
         "theme": "主题, 深色模式, 浅色模式, 跟随系统, OLED, 纯黑, 夜间, 颜色, 对比度, 外观",
         "font": "字体, 排版, 文字大小, 可读性",
         "display-mode": "显示模式, 卡片, 渲染, 回复格式, 布局, markdown, 纯文本",
@@ -4349,6 +4350,15 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_33_1": {
+          "title": "v1.33.1 — 📍 位置设置拥有独立板块",
+          "date": "2026年8月",
+          "count": "2",
+          "items": {
+            "i1": "<b>📍 独立的「位置」板块</b> — 你的位置来源（实时地理定位、记住的最近位置、家庭地址）从 Google Places 连接器卡片中迁出，在偏好设置下拥有自己的板块。这些数据始终属于你的账户，从不属于任何连接器 — 界面终于与其运作方式一致。在设置搜索中输入「地址」或「GPS」即可立刻找到。",
+            "i2": "<b>🧭 FAQ 指向正确的位置</b> — 多条回答仍引导你前往「设置 > 连接器 > Google Places」配置位置；现在每个语言版本都指向新的板块。"
+          }
+        },
         "v1_33_0": {
           "title": "v1.33.0 — 📱 Android 与 iOS 原生应用",
           "date": "2026年8月",
@@ -6577,7 +6587,7 @@
           },
           "q6": {
             "question": "如何设置连接器偏好？",
-            "answer": "配置<strong>默认偏好</strong>，让你的体验更加个性化：<br><br>转到<strong>设置 > 连接器 > 偏好设置</strong>以设置：<br>• <strong>默认日历</strong>：将自动创建事件的日历<br>• <strong>默认任务列表</strong>：将创建任务的列表<br>• <strong>家庭地址</strong>：用于「附近」搜索的默认地址<br>• <strong>位置记忆</strong>（opt-in）：记住你的最近位置，当实时位置不可用时 LIA 仍从你所在的地方作答——始终说明其时间，绝不当作当前位置，加密存储，关闭选项后立即删除<br><br><strong>🌐 浏览器地理定位：</strong><br>• <strong>自动地理定位</strong>：每条消息发送你的位置<br>• 转到<strong>设置 > 连接器 > Google Places</strong><br>• 启用「<em>自动地理定位</em>」以持续使用<br>• 首次使用时浏览器会请求权限<br>• 位置用于本地天气和「附近」搜索<br>• 在手机上，回到应用时位置会静默刷新；如果系统已收回权限，聊天中会出现横幅提议重新启用<br><br><strong>配置方式：</strong><br>1. 转到<strong>设置 > 连接器</strong>（日历、任务、地址、地理定位）<br>3. 选择你的默认值<br><br><strong>💡 提示：</strong><br>这些偏好可以节省时间，因为你不需要每次都指定使用哪个日历、列表或位置。"
+            "answer": "配置<strong>默认偏好</strong>，让你的体验更加个性化：<br><br>转到<strong>设置 > 连接器 > 偏好设置</strong>以设置：<br>• <strong>默认日历</strong>：将自动创建事件的日历<br>• <strong>默认任务列表</strong>：将创建任务的列表<br>• <strong>家庭地址</strong>：用于「附近」搜索的默认地址<br>• <strong>位置记忆</strong>（opt-in）：记住你的最近位置，当实时位置不可用时 LIA 仍从你所在的地方作答——始终说明其时间，绝不当作当前位置，加密存储，关闭选项后立即删除（家庭地址与位置记忆现位于<strong>设置 > 偏好设置 > 位置</strong>，独立于任何连接器）<br><br><strong>🌐 浏览器地理定位：</strong><br>• <strong>自动地理定位</strong>：每条消息发送你的位置<br>• 转到<strong>设置 > 偏好设置 > 位置</strong><br>• 启用「<em>自动地理定位</em>」以持续使用<br>• 首次使用时浏览器会请求权限<br>• 位置用于本地天气和「附近」搜索<br>• 在手机上，回到应用时位置会静默刷新；如果系统已收回权限，聊天中会出现横幅提议重新启用<br><br><strong>配置方式：</strong><br>1. 转到<strong>设置 > 连接器</strong>（日历、任务）<br>2. 选择你的默认值<br><br><strong>💡 提示：</strong><br>这些偏好可以节省时间，因为你不需要每次都指定使用哪个日历、列表或位置。"
           },
           "q7": {
             "question": "如何启用或禁用LIA的语音？",
@@ -6597,7 +6607,7 @@
           },
           "q11": {
             "question": "地理定位是如何工作的？",
-            "answer": "LIA可以使用你的<strong>地理位置</strong>进行天气查询和附近地点搜索：<br><br><strong>如何启用：</strong><br>1. 当你提出基于位置的问题时，会出现弹窗<br>2. 点击<strong>启用</strong>授权浏览器访问<br>3. 你的位置将与该消息一起发送<br><br><strong>隐私：</strong><br>• 你的位置<strong>不会存储</strong>在我们的服务器上<br>• 仅在你有相关查询时发送<br>• 你可以随时在<strong>设置 > 偏好设置 > 地理定位</strong>中禁用"
+            "answer": "LIA可以使用你的<strong>地理位置</strong>进行天气查询和附近地点搜索：<br><br><strong>如何启用：</strong><br>1. 当你提出基于位置的问题时，会出现弹窗<br>2. 点击<strong>启用</strong>授权浏览器访问<br>3. 你的位置将与该消息一起发送<br><br><strong>隐私：</strong><br>• 你的位置<strong>不会存储</strong>在我们的服务器上<br>• 仅在你有相关查询时发送<br>• 你可以随时在<strong>设置 > 偏好设置 > 位置</strong>中禁用"
           },
           "q12": {
             "question": "如何配置我的家庭地址？",

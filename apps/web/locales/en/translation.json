@@ -2725,6 +2725,8 @@
       "disabled_success": "Notifications disabled for this device"
     },
     "location": {
+      "title": "Location",
+      "description": "Manage the sources of your position: live geolocation, remembered position and home address",
       "geolocation": {
         "title": "Geolocation",
         "permission_status": "Permission status",
@@ -2738,8 +2740,6 @@
       "home": {
         "title": "Home address",
         "placeholder": "Enter your address...",
-        "save": "Save",
-        "clear": "Delete",
         "saved": "Home address saved",
         "cleared": "Home address deleted",
         "save_error": "Error saving address",
@@ -3428,6 +3428,7 @@
       "keywords": {
         "language": "locale, translation, interface language, idiom",
         "timezone": "UTC, GMT, clock, hour, offset, region, time",
+        "location": "address, home, GPS, geolocation, position, map, place, city",
         "theme": "theme, dark mode, light mode, system mode, OLED, absolute black, night, colors, contrast, appearance",
         "font": "typeface, lettering, text size, readability, typography",
         "display-mode": "cards, rendering, answer format, layout, markdown, plain text",
@@ -4363,6 +4364,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_33_1": {
+          "title": "v1.33.1 — 📍 Location settings in their own section",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📍 A standalone \"Location\" section</b> — your position sources (live geolocation, remembered last-known position, home address) leave the Google Places connector card for their own section under Preferences. This data always lived on your account, never on a connector — it now looks the way it works. Find it instantly by typing \"address\" or \"GPS\" in the settings search.",
+            "i2": "<b>🧭 The FAQ points to the right place</b> — several answers still directed you to \"Settings > Connectors > Google Places\" to configure your location; every language edition now points to the new section."
+          }
+        },
         "v1_33_0": {
           "title": "v1.33.0 — 📱 Native Android & iOS apps",
           "date": "August 2026",
@@ -6611,7 +6621,7 @@
           },
           "q11": {
             "question": "How do I configure my geolocation and home address?",
-            "answer": "LIA can use your <strong>geographic location</strong> for contextual searches:<br><br><strong>📍 Home address:</strong><br>1. Go to <strong>Settings > Connectors > Google Places</strong><br>2. Enter your address in the <strong>Home address</strong> field<br>3. Validate to save<br><br><strong>🎯 Usage:</strong><br>• \"<em>Restaurants near me</em>\" will use your address<br>• \"<em>Weather here</em>\" will show your home's weather<br>• \"<em>Pharmacies nearby</em>\" will search around your address<br><br><strong>🌐 Browser geolocation:</strong><br>You can also allow real-time geolocation via your browser for even more accurate results.<br><br><strong>🔒 Privacy:</strong><br>Your address is stored securely and only used for your proximity queries."
+            "answer": "LIA can use your <strong>geographic location</strong> for contextual searches:<br><br><strong>📍 Home address:</strong><br>1. Go to <strong>Settings > Preferences > Location</strong><br>2. Enter your address in the <strong>Home address</strong> field<br>3. Validate to save<br><br><strong>🎯 Usage:</strong><br>• \"<em>Restaurants near me</em>\" will use your address<br>• \"<em>Weather here</em>\" will show your home's weather<br>• \"<em>Pharmacies nearby</em>\" will search around your address<br><br><strong>🌐 Browser geolocation:</strong><br>You can also allow real-time geolocation via your browser for even more accurate results.<br><br><strong>🔒 Privacy:</strong><br>Your address is stored securely and only used for your proximity queries."
           },
           "q12": {
             "question": "How does LIA resolve relational references?",
@@ -6686,7 +6696,7 @@
           },
           "q6": {
             "question": "Can I configure preferences per connector?",
-            "answer": "Yes! Some connectors have <strong>customizable preferences</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Default calendar</strong>: where to create new events<br>• Example: \"Work\", \"Personal\", \"Family\"<br>• LIA will use this calendar unless specified otherwise<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Default task list</strong>: where to create new tasks<br>• Example: \"My main list\", \"Projects\", \"Shopping\"<br><br><strong>📍 Google Places:</strong><br>• <strong>Home address</strong>: your default address for \"near me\" searches<br>• <strong>Automatic geolocation</strong>: send your position for accurate results<br>• <strong>Location memory</strong> (opt-in): remember your last position so LIA keeps answering from where you are when the live position is unavailable — always announced with its age, never presented as current, encrypted and erased the moment you switch it off<br>• Configure all three in <strong>Settings > Connectors > Google Places</strong><br><br><strong>🌐 Browser Geolocation:</strong><br>• In Google Places settings, enable the geolocation toggle<br>• Your browser will ask for permission the first time<br>• Position used for local weather and \"near me\" searches<br>• On mobile, the position refreshes silently when you return to the app; if the system dropped the permission, a chat banner offers to re-enable it<br><br><strong>To configure:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Open the <strong>Connectors</strong> section<br>3. Find the relevant connector (Calendar, Tasks, or Places)<br>4. Configure the specific preferences for that connector<br><br><strong>💡 Tip:</strong><br>These preferences save you time by not having to specify the calendar, list, or city each time."
+            "answer": "Yes! Some connectors have <strong>customizable preferences</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Default calendar</strong>: where to create new events<br>• Example: \"Work\", \"Personal\", \"Family\"<br>• LIA will use this calendar unless specified otherwise<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Default task list</strong>: where to create new tasks<br>• Example: \"My main list\", \"Projects\", \"Shopping\"<br><br><strong>📍 Location:</strong><br>• <strong>Home address</strong>: your default address for \"near me\" searches<br>• <strong>Automatic geolocation</strong>: send your position for accurate results<br>• <strong>Location memory</strong> (opt-in): remember your last position so LIA keeps answering from where you are when the live position is unavailable — always announced with its age, never presented as current, encrypted and erased the moment you switch it off<br>• Configure all three in <strong>Settings > Preferences > Location</strong> — this data lives on your account, not on a connector<br><br><strong>🌐 Browser Geolocation:</strong><br>• In the Location section (Settings > Preferences), enable the geolocation toggle<br>• Your browser will ask for permission the first time<br>• Position used for local weather and \"near me\" searches<br>• On mobile, the position refreshes silently when you return to the app; if the system dropped the permission, a chat banner offers to re-enable it<br><br><strong>To configure:</strong><br>1. Go to <strong>Settings</strong> (⚙️ icon in the menu)<br>2. Open the <strong>Connectors</strong> section<br>3. Find the relevant connector (Calendar or Tasks)<br>4. Configure the specific preferences for that connector<br><br><strong>💡 Tip:</strong><br>These preferences save you time by not having to specify the calendar, list, or city each time."
           },
           "q7": {
             "question": "Which Google services can I connect?",
@@ -6985,7 +6995,7 @@
           },
           "q11": {
             "question": "How do I get directions?",
-            "answer": "<strong>Google Routes</strong> - Route calculation:<br><br><strong>🗺️ Simple directions:</strong><br>• \"<em>How do I get from Paris to Lyon?</em>\"<br>• \"<em>Directions to Marseille</em>\"<br>• \"<em>How do I get to the airport?</em>\"<br>• \"<em>Travel time between Paris and Bordeaux</em>\"<br><br><strong>📍 From my location:</strong><br>• \"<em>How do I get to work?</em>\" (uses your position)<br>• \"<em>Directions to the restaurant</em>\"<br><br><strong>📊 Information provided:</strong><br>• Total distance in kilometers/miles<br>• Estimated duration (with and without traffic)<br>• Interactive map with route<br>• Turn-by-turn directions<br>• Real-time traffic conditions<br><br><strong>💡 Tip:</strong><br>Set your home address in Settings > Connectors > Google Places for \"<em>from home</em>\" searches."
+            "answer": "<strong>Google Routes</strong> - Route calculation:<br><br><strong>🗺️ Simple directions:</strong><br>• \"<em>How do I get from Paris to Lyon?</em>\"<br>• \"<em>Directions to Marseille</em>\"<br>• \"<em>How do I get to the airport?</em>\"<br>• \"<em>Travel time between Paris and Bordeaux</em>\"<br><br><strong>📍 From my location:</strong><br>• \"<em>How do I get to work?</em>\" (uses your position)<br>• \"<em>Directions to the restaurant</em>\"<br><br><strong>📊 Information provided:</strong><br>• Total distance in kilometers/miles<br>• Estimated duration (with and without traffic)<br>• Interactive map with route<br>• Turn-by-turn directions<br>• Real-time traffic conditions<br><br><strong>💡 Tip:</strong><br>Set your home address in Settings > Preferences > Location for \"<em>from home</em>\" searches."
           },
           "q12": {
             "question": "How do I choose the travel mode?",

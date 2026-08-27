@@ -86,8 +86,9 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // The document-generation toggle (ADR-226) was removed 2026-08-18: the
     // owner judged the per-user opt-in not useful (admin capability only).
     // 51 since the expressive-eyes style picker joined Personalization
-    // (2026-08-20).
-    expect(TOKENS).toHaveLength(51);
+    // (2026-08-20). 52 since the location cascade left the Google Places
+    // connector card for its own Personalization section (2026-08-27).
+    expect(TOKENS).toHaveLength(52);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

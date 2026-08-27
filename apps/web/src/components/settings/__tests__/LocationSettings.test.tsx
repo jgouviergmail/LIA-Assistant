@@ -1,8 +1,10 @@
 /**
- * LocationSettings — the geolocation toggle (granted / refused / disable), the
- * permission surfaces (unsupported, denied help, hook error), and the home
- * location CRUD with its **optimistic cache update** (`setData` after the
- * PUT/DELETE mutations) plus both failure paths.
+ * LocationSettings — the standalone Location section: the geolocation toggle
+ * (granted / refused / disable), the permission surfaces (unsupported, denied
+ * help, hook error), and the home location CRUD with its **optimistic cache
+ * update** (`setData` after the PUT/DELETE mutations) plus both failure paths.
+ * Moved out of the Google Places connector card (2026-08): the section now
+ * renders inside its own titled `SettingsSection` card.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -10,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { queryResult, mutationResult, mutateSpy, setDataSpy } from '@/__tests__/api-mocks';
 import type { useGeolocation as useGeolocationFn } from '@/hooks/useGeolocation';
-import type { HomeLocation } from '../types';
+import type { HomeLocation } from '../LocationSettings';
 
 const { useGeolocation } = vi.hoisted(() => ({ useGeolocation: vi.fn() }));
 vi.mock('@/hooks/useGeolocation', () => ({ useGeolocation }));
@@ -34,7 +36,6 @@ vi.mock('../LastKnownLocationSection', () => ({
 
 import { LocationSettings } from '../LocationSettings';
 
-const t = (k: string) => k;
 const HOME_ENDPOINT = '/users/me/home-location';
 
 type GeoHook = ReturnType<typeof useGeolocationFn>;
@@ -77,11 +78,20 @@ beforeEach(() => {
   );
 });
 
+describe('LocationSettings — standalone section', () => {
+  it('renders as a titled section card with the shell anchor', () => {
+    renderWithProviders(<LocationSettings lng="en" />);
+    expect(screen.getByText('settings.location.title')).toBeInTheDocument();
+    expect(screen.getByText('settings.location.description')).toBeInTheDocument();
+    expect(document.getElementById('settings-section-location')).not.toBeNull();
+  });
+});
+
 describe('LocationSettings — geolocation', () => {
   it('enabling a granted geolocation confirms success', async () => {
     const enable = vi.fn().mockResolvedValue({ lat: 1, lon: 2, accuracy: 5, timestamp: 0 });
     useGeolocation.mockReturnValue(geo({ isEnabled: false, enable }));
-    const { user } = renderWithProviders(<LocationSettings t={t} />);
+    const { user } = renderWithProviders(<LocationSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     expect(enable).toHaveBeenCalledTimes(1);
     await waitFor(() =>
@@ -93,7 +103,7 @@ describe('LocationSettings — geolocation', () => {
     useGeolocation.mockReturnValue(
       geo({ isEnabled: false, enable: vi.fn().mockResolvedValue(null) })
     );
-    const { user } = renderWithProviders(<LocationSettings t={t} />);
+    const { user } = renderWithProviders(<LocationSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.location.geolocation.permission_denied')
@@ -104,7 +114,7 @@ describe('LocationSettings — geolocation', () => {
   it('disabling geolocation calls disable and informs the user', async () => {
     const disable = vi.fn();
     useGeolocation.mockReturnValue(geo({ isEnabled: true, disable }));
-    const { user } = renderWithProviders(<LocationSettings t={t} />);
+    const { user } = renderWithProviders(<LocationSettings lng="en" />);
     await user.click(screen.getByRole('switch'));
     expect(disable).toHaveBeenCalledTimes(1);
     await waitFor(() =>
@@ -114,26 +124,26 @@ describe('LocationSettings — geolocation', () => {
 
   it('locks the toggle when geolocation is unsupported', () => {
     useGeolocation.mockReturnValue(geo({ permission: 'unsupported' }));
-    renderWithProviders(<LocationSettings t={t} />);
+    renderWithProviders(<LocationSettings lng="en" />);
     expect(screen.getByRole('switch')).toBeDisabled();
   });
 
   it('explains how to recover from a denied permission', () => {
     useGeolocation.mockReturnValue(geo({ permission: 'denied' }));
-    renderWithProviders(<LocationSettings t={t} />);
+    renderWithProviders(<LocationSettings lng="en" />);
     expect(screen.getByText('settings.location.geolocation.denied_help')).toBeInTheDocument();
   });
 
   it('surfaces a geolocation hook error', () => {
     useGeolocation.mockReturnValue(geo({ error: 'GPS unavailable' }));
-    renderWithProviders(<LocationSettings t={t} />);
+    renderWithProviders(<LocationSettings lng="en" />);
     expect(screen.getByText('GPS unavailable')).toBeInTheDocument();
   });
 });
 
 describe('LocationSettings — last-known location', () => {
   it('mounts the last-known section with its title, between geolocation and home', () => {
-    renderWithProviders(<LocationSettings t={t} />);
+    renderWithProviders(<LocationSettings lng="en" />);
     expect(screen.getByText('settings.location.last_known.title')).toBeInTheDocument();
     expect(screen.getByTestId('last-known-location-section')).toBeInTheDocument();
   });
@@ -141,7 +151,7 @@ describe('LocationSettings — last-known location', () => {
 
 describe('LocationSettings — home location', () => {
   it('keeps save disabled while the address is blank', async () => {
-    const { user } = renderWithProviders(<LocationSettings t={t} />);
+    const { user } = renderWithProviders(<LocationSettings lng="en" />);
     const save = screen.getByRole('button', { name: 'common.save' });
     expect(save).toBeDisabled();
     // Whitespace only is still blank once trimmed.
@@ -151,7 +161,7 @@ describe('LocationSettings — home location', () => {
   });
 
   it('saves the address, primes the cache optimistically and clears the input', async () => {
-    const { user } = renderWithProviders(<LocationSettings t={t} />);
+    const { user } = renderWithProviders(<LocationSettings lng="en" />);
     const input = screen.getByPlaceholderText('settings.location.home.placeholder');
     await user.type(input, '10 Downing St');
     await user.click(screen.getByRole('button', { name: 'common.save' }));
@@ -174,7 +184,7 @@ describe('LocationSettings — home location', () => {
 
   it('reports a save failure and leaves the cache untouched', async () => {
     putMutate.mockRejectedValue(new Error('boom'));
-    const { user } = renderWithProviders(<LocationSettings t={t} />);
+    const { user } = renderWithProviders(<LocationSettings lng="en" />);
     await user.type(
       screen.getByPlaceholderText('settings.location.home.placeholder'),
       '10 Downing St'
@@ -188,7 +198,7 @@ describe('LocationSettings — home location', () => {
 
   it('shows the stored address and clears it optimistically', async () => {
     stubHome({ address: '10 Downing St', lat: 51.5, lon: -0.12 });
-    const { user } = renderWithProviders(<LocationSettings t={t} />);
+    const { user } = renderWithProviders(<LocationSettings lng="en" />);
     expect(screen.getByText('10 Downing St')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'common.delete' }));
     await waitFor(() => expect(deleteMutate).toHaveBeenCalledWith(HOME_ENDPOINT, undefined));
@@ -199,7 +209,7 @@ describe('LocationSettings — home location', () => {
   it('reports a clear failure and leaves the cache untouched', async () => {
     stubHome({ address: '10 Downing St', lat: 51.5, lon: -0.12 });
     deleteMutate.mockRejectedValue(new Error('boom'));
-    const { user } = renderWithProviders(<LocationSettings t={t} />);
+    const { user } = renderWithProviders(<LocationSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: 'common.delete' }));
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.location.home.clear_error')

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.33.1] - 2026-08-27
+
+**Les réglages de localisation vivent enfin là où ils habitent : une section « Localisation » autonome dans les Préférences.** La cascade de position (géolocalisation en direct > position mémorisée > adresse du domicile, ADR-219) a toujours été une donnée du compte utilisateur, jamais du connecteur — l'imbriquer sous la carte Google Places se lisait comme « partagé avec Google », ce qui n'a jamais été le cas.
+
+### Changed
+
+- **Localisation : section de réglages autonome** — la cascade de position quitte la carte du connecteur Google Places pour sa propre section sous Préférences, avec son icône, son lien profond (`?section=location`) et ses mots-clés de recherche dans les six langues. La carte Google Places ne garde que ce qui lui appartient.
+
+### Fixed
+
+- **La FAQ n'envoie plus les utilisateurs au mauvais endroit** — cinq réponses, réparties sur les six éditions historiquement divergentes de la FAQ, pointaient encore les réglages de localisation vers « Paramètres > Connecteurs > Google Places » ; chaque édition a reçu sa correction chirurgicale (les éditions allemande et italienne, qui décrivaient déjà un chemin autonome, correspondent enfin à la réalité). Trois miroirs `docs/knowledge/` réalignés, deux numérotations cassées (1./3.) réparées au passage.
+- Deux clés de locale orphelines (`settings.location.home.clear`/`.save`), mortes depuis le passage des boutons d'adresse aux boutons-icônes, supprimées des six langues.
+
+### Tests
+
+- Les 21 tests de la section ont déménagé avec leurs composants (zéro cas perdu, un ajouté : l'écrin de section autonome) ; la garde du compteur de recherche passe de 51 à 52 avec sa justification datée. Suite frontend complète : 6327 tests verts ; porte de couverture (agrégat + globs ciblés) verte après le déplacement.
+
 ## [1.33.0] - 2026-08-26
 
 **LIA a désormais ses applications natives Android et iOS — une seule app publiée par store, cliente de n'importe quel serveur auto-hébergé.** La WebView charge l'origine distante de VOTRE serveur, dont vous saisissez l'URL au premier lancement : l'interface n'est jamais dupliquée, les évolutions web arrivent sans mise à jour de l'app, et le contrat de session par cookie httpOnly — celui-là même qui rend la PWA sûre — est ce qui rend les coques possibles. Chaque affirmation de plateforme a été **mesurée, pas supposée** : un banc dédié pilote l'app réelle sur émulateur, scène par scène, du premier écran jusqu'à l'oubli du serveur.

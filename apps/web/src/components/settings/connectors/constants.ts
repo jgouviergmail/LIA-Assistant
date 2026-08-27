@@ -245,7 +245,8 @@ export const API_KEY_CONNECTORS: readonly ApiKeyConnectorConfig[] = [
 // ============================================================================
 
 // Connectors using the /connectors/{id}/preferences API
-// Note: google_places uses LocationSettings (/users/me/home-location) instead
+// Note: location data (home address, /users/me/home-location) lives in the
+// standalone Location settings section, not in any connector's preferences
 export const CONNECTORS_WITH_PREFERENCES = [
   'google_calendar',
   'google_tasks',

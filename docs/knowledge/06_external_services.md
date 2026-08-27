@@ -78,7 +78,7 @@ Start by connecting your Google services (one authorization for all), then add O
 • Real-time traffic conditions
 
 **💡 Tip:**
-Set your home address in Settings > Connectors > Google Places for "*from home*" searches.
+Set your home address in Settings > Preferences > Location for "*from home*" searches.
 
 ## How do I choose the travel mode?
 **Google Routes** - Travel modes:

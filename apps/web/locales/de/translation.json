@@ -2703,6 +2703,8 @@
       }
     },
     "location": {
+      "title": "Standort",
+      "description": "Verwalten Sie die Quellen Ihrer Position: Live-Standort, gemerkte Position und Heimatadresse",
       "geolocation": {
         "title": "Geolokalisierung",
         "permission_status": "Berechtigungsstatus",
@@ -2716,8 +2718,6 @@
       "home": {
         "title": "Heimatadresse",
         "placeholder": "Geben Sie Ihre Adresse ein...",
-        "save": "Speichern",
-        "clear": "Löschen",
         "saved": "Heimatadresse gespeichert",
         "cleared": "Heimatadresse gelöscht",
         "save_error": "Fehler beim Speichern der Adresse",
@@ -3406,6 +3406,7 @@
       "keywords": {
         "language": "Gebietsschema, Übersetzung, Oberflächensprache, Sprache",
         "timezone": "UTC, GMT, Uhr, Uhrzeit, Zeitverschiebung, Region, Zeitzone",
+        "location": "Adresse, Zuhause, GPS, Geolokalisierung, Position, Karte, Ort, Stadt",
         "theme": "Theme, Dunkelmodus, Hellmodus, Systemmodus, OLED, absolutes Schwarz, Nacht, Farben, Kontrast, Erscheinungsbild",
         "font": "Schriftart, Typografie, Textgröße, Textgrosse, Lesbarkeit, Schrift",
         "display-mode": "Karten, Darstellung, Antwortformat, Layout, Markdown, Klartext",
@@ -4354,6 +4355,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_33_1": {
+          "title": "v1.33.1 — 📍 Standort-Einstellungen in eigener Sektion",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📍 Eine eigenständige Sektion „Standort“</b> — deine Positionsquellen (Live-Geolokalisierung, gemerkte letzte Position, Heimatadresse) verlassen die Google-Places-Konnektorkarte und bekommen ihre eigene Sektion unter den Einstellungen. Diese Daten lebten immer auf deinem Konto, nie auf einem Konnektor — die Oberfläche sieht jetzt so aus, wie sie funktioniert. Sofort auffindbar über „Adresse“ oder „GPS“ in der Einstellungssuche.",
+            "i2": "<b>🧭 Die FAQ zeigt auf den richtigen Ort</b> — mehrere Antworten schickten dich noch zu „Einstellungen > Verbindungen > Google Places“, um deinen Standort zu konfigurieren; jede Sprachausgabe verweist jetzt auf die neue Sektion."
+          }
+        },
         "v1_33_0": {
           "title": "v1.33.0 — 📱 Native Android- und iOS-Apps",
           "date": "August 2026",
@@ -6976,7 +6986,7 @@
           },
           "q11": {
             "question": "Wie erhalte ich Wegbeschreibungen?",
-            "answer": "<strong>Google Routes</strong> - Routenberechnung:<br><br><strong>🗺️ Einfache Wegbeschreibung:</strong><br>• \"<em>Wie komme ich von Berlin nach München?</em>\"<br>• \"<em>Wegbeschreibung nach Hamburg</em>\"<br>• \"<em>Wie komme ich zum Flughafen?</em>\"<br>• \"<em>Fahrzeit zwischen Berlin und Frankfurt</em>\"<br><br><strong>📍 Von meinem Standort:</strong><br>• \"<em>Wie komme ich zur Arbeit?</em>\" (verwendet deinen Standort)<br>• \"<em>Wegbeschreibung zum Restaurant</em>\"<br><br><strong>📊 Bereitgestellte Informationen:</strong><br>• Gesamtentfernung in Kilometern<br>• Geschätzte Dauer (mit und ohne Verkehr)<br>• Interaktive Karte mit Route<br>• Schritt-für-Schritt-Anweisungen<br>• Echtzeit-Verkehrsbedingungen<br><br><strong>💡 Tipp:</strong><br>Konfiguriere deine Heimadresse in Einstellungen > Verbindungen > Google Places für \"<em>von zu Hause</em>\"-Suchen."
+            "answer": "<strong>Google Routes</strong> - Routenberechnung:<br><br><strong>🗺️ Einfache Wegbeschreibung:</strong><br>• \"<em>Wie komme ich von Berlin nach München?</em>\"<br>• \"<em>Wegbeschreibung nach Hamburg</em>\"<br>• \"<em>Wie komme ich zum Flughafen?</em>\"<br>• \"<em>Fahrzeit zwischen Berlin und Frankfurt</em>\"<br><br><strong>📍 Von meinem Standort:</strong><br>• \"<em>Wie komme ich zur Arbeit?</em>\" (verwendet deinen Standort)<br>• \"<em>Wegbeschreibung zum Restaurant</em>\"<br><br><strong>📊 Bereitgestellte Informationen:</strong><br>• Gesamtentfernung in Kilometern<br>• Geschätzte Dauer (mit und ohne Verkehr)<br>• Interaktive Karte mit Route<br>• Schritt-für-Schritt-Anweisungen<br>• Echtzeit-Verkehrsbedingungen<br><br><strong>💡 Tipp:</strong><br>Konfiguriere deine Heimadresse in Einstellungen > Standort für \"<em>von zu Hause</em>\"-Suchen."
           },
           "q12": {
             "question": "Wie wähle ich den Transportmodus?",

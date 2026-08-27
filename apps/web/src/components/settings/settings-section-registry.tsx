@@ -55,6 +55,7 @@ import { ImageGenerationSettings } from './ImageGenerationSettings';
 import { InterestsSettings } from './InterestsSettings';
 import { JournalsSettings } from './JournalsSettings';
 import { LanguageSettings } from './LanguageSettings';
+import { LocationSettings } from './LocationSettings';
 import { MCPServersSettings } from './MCPServersSettings';
 import { MemorySettings } from './MemorySettings';
 import { NotificationSettings } from './NotificationSettings';
@@ -85,6 +86,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   // ---- Preferences / Personalization
   language: { render: lng => <LanguageSettings lng={lng} /> },
   timezone: { render: lng => <TimezoneSelector lng={lng} /> },
+  location: { render: lng => <LocationSettings lng={lng} /> },
   theme: { render: lng => <ThemeSelector lng={lng} /> },
   font: { render: lng => <FontSettings lng={lng} /> },
   'eyes-style': { render: lng => <EyesStyleSettings lng={lng} /> },

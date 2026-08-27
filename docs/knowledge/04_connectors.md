@@ -276,14 +276,14 @@ Yes! Some connectors have **customizable preferences**:
 • **Default task list**: where to create new tasks
 • Example: "My main list", "Projects", "Shopping"
 
-**📍 Google Places:**
+**📍 Location:**
 • **Home address**: your default address for "near me" searches
 • **Automatic geolocation**: send your position for accurate results
 • **Location memory** (opt-in): remember your last position so LIA keeps answering from where you are when the live position is unavailable (a mobile app left dormant does this)
-• Configure all three in **Settings > Connectors > Google Places**
+• Configure all three in **Settings > Preferences > Location** — this data lives on your account, not on a connector
 
 **🌐 Browser Geolocation:**
-• In Google Places settings, enable the geolocation toggle
+• In the Location section (Settings > Preferences), enable the geolocation toggle
 • Your browser will ask for permission the first time
 • Position used for local weather and "near me" searches
 • On mobile, the position refreshes silently when you return to the app; if the system dropped the permission (iOS does this after inactivity), a banner in the chat offers to re-enable it
@@ -292,12 +292,12 @@ Yes! Some connectors have **customizable preferences**:
 • One cascade for every feature: live browser position, else your last remembered position (if enabled, fresh under 24 hours), else your home address
 • Chat, scheduled actions, the daily briefing and skills all follow the same rule
 • A remembered position is always announced with its age ("based on your last known position at 9:30") — never presented as your current one, and "at home" is never resolved from a position captured on the road
-• Encrypted, never historized (each update overwrites the previous one), erased the moment you switch the option off — the stored position, its date and a delete button are visible in the connector settings
+• Encrypted, never historized (each update overwrites the previous one), erased the moment you switch the option off — the stored position, its date and a delete button are visible in the Location section
 
 **To configure:**
 1. Go to **Settings** (⚙️ icon in the menu)
 2. Open the **Connectors** section
-3. Find the relevant connector (Calendar, Tasks, or Places)
+3. Find the relevant connector (Calendar or Tasks)
 4. Configure the specific preferences for that connector
 
 **💡 Tip:**

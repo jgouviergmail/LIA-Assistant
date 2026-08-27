@@ -65,6 +65,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'timezone',
     declaredIn: 'components/settings/TimezoneSelector.tsx',
   },
+  // The location cascade (ADR-219: live > remembered > home) — a standalone
+  // section since 2026-08: the data lives on the user, not on the Google
+  // Places connector card it used to be nested under.
+  location: {
+    tab: 'preferences',
+    accordionValue: 'location',
+    declaredIn: 'components/settings/LocationSettings.tsx',
+  },
   theme: {
     tab: 'preferences',
     accordionValue: 'theme',

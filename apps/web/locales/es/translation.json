@@ -2703,6 +2703,8 @@
       }
     },
     "location": {
+      "title": "Ubicación",
+      "description": "Gestione las fuentes de su posición: geolocalización en vivo, posición recordada y dirección de su casa",
       "geolocation": {
         "title": "Geolocalización",
         "permission_status": "Estado del permiso",
@@ -2716,8 +2718,6 @@
       "home": {
         "title": "Dirección de domicilio",
         "placeholder": "Introduce tu dirección...",
-        "save": "Guardar",
-        "clear": "Eliminar",
         "saved": "Dirección de domicilio guardada",
         "cleared": "Dirección de domicilio eliminada",
         "save_error": "Error al guardar la dirección",
@@ -3406,6 +3406,7 @@
       "keywords": {
         "language": "configuración regional, traducción, idioma de la interfaz, lengua",
         "timezone": "UTC, GMT, reloj, hora, desfase, región, zona horaria",
+        "location": "dirección, casa, hogar, GPS, geolocalización, posición, mapa, lugar, ciudad",
         "theme": "tema, modo oscuro, modo claro, modo sistema, OLED, negro absoluto, noche, colores, contraste, apariencia",
         "font": "tipografía, fuente, tamaño del texto, legibilidad, letra",
         "display-mode": "tarjetas, representación, formato de respuestas, diseño, markdown, texto plano",
@@ -4354,6 +4355,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_33_1": {
+          "title": "v1.33.1 — 📍 Los ajustes de ubicación en su propia sección",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📍 Una sección «Ubicación» independiente</b> — tus fuentes de posición (geolocalización en vivo, posición memorizada, dirección del domicilio) dejan la tarjeta del conector Google Places para tener su propia sección en Preferencias. Estos datos siempre vivieron en tu cuenta, nunca en un conector — la interfaz por fin refleja cómo funciona. Encuéntrala al instante escribiendo «dirección» o «GPS» en la búsqueda de ajustes.",
+            "i2": "<b>🧭 La FAQ apunta al lugar correcto</b> — varias respuestas todavía te dirigían a «Configuración > Conectores > Google Places» para configurar tu posición; cada edición de idioma apunta ahora a la nueva sección."
+          }
+        },
         "v1_33_0": {
           "title": "v1.33.0 — 📱 Aplicaciones nativas Android e iOS",
           "date": "Agosto 2026",
@@ -6602,7 +6612,7 @@
           },
           "q11": {
             "question": "¿Cómo configuro mi geolocalización y dirección de domicilio?",
-            "answer": "LIA puede usar su <strong>posición geográfica</strong> para búsquedas contextuales:<br><br><strong>📍 Dirección de domicilio:</strong><br>1. Ve a <strong>Configuración > Conectores > Google Places</strong><br>2. Introduzca su dirección en el campo <strong>Dirección de domicilio</strong><br>3. Valide para guardar<br><br><strong>🎯 Uso:</strong><br>• \"<em>Restaurantes cerca de mí</em>\" usará su dirección<br>• \"<em>Tiempo aquí</em>\" mostrará el clima de su domicilio<br>• \"<em>Farmacias cercanas</em>\" buscará alrededor de su dirección<br><br><strong>🌐 Geolocalización del navegador:</strong><br>También puede autorizar la geolocalización en tiempo real a través de tu navegador para resultados aún más precisos.<br><br><strong>🔒 Privacidad:</strong><br>Su dirección se almacena de forma segura y solo se usa para sus consultas de proximidad."
+            "answer": "LIA puede usar su <strong>posición geográfica</strong> para búsquedas contextuales:<br><br><strong>📍 Dirección de domicilio:</strong><br>1. Ve a <strong>Configuración > Preferencias > Ubicación</strong><br>2. Introduzca su dirección en el campo <strong>Dirección de domicilio</strong><br>3. Valide para guardar<br><br><strong>🎯 Uso:</strong><br>• \"<em>Restaurantes cerca de mí</em>\" usará su dirección<br>• \"<em>Tiempo aquí</em>\" mostrará el clima de su domicilio<br>• \"<em>Farmacias cercanas</em>\" buscará alrededor de su dirección<br><br><strong>🌐 Geolocalización del navegador:</strong><br>También puede autorizar la geolocalización en tiempo real a través de tu navegador para resultados aún más precisos.<br><br><strong>🔒 Privacidad:</strong><br>Su dirección se almacena de forma segura y solo se usa para sus consultas de proximidad."
           },
           "q12": {
             "question": "¿Cómo resuelve LIA las referencias relacionales?",
@@ -6677,7 +6687,7 @@
           },
           "q6": {
             "question": "¿Puedo configurar preferencias por conector?",
-            "answer": "¡Sí! Algunos conectores tienen <strong>preferencias personalizables</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Calendario por defecto</strong>: dónde crear nuevos eventos<br>• Ejemplo: \"Trabajo\", \"Personal\", \"Familia\"<br>• LIA usará este calendario salvo indicación contraria<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista de tareas por defecto</strong>: dónde crear nuevas tareas<br>• Ejemplo: \"Mi lista principal\", \"Proyectos\", \"Compras\"<br><br><strong>📍 Google Places:</strong><br>• <strong>Dirección del domicilio</strong>: su dirección por defecto para búsquedas \"cerca de mí\"<br>• <strong>Memoria de ubicación</strong> (opt-in): recuerda tu última posición para que LIA siga respondiendo desde donde estás cuando la posición en vivo no está disponible — siempre anunciada con su antigüedad, nunca presentada como actual, cifrada y borrada en cuanto desactivas la opción<br>• Configúrela una vez, se usará automáticamente<br><br><strong>🌐 Geolocalización del navegador:</strong><br>• <strong>Geolocalización automática</strong>: enviar tu posición con cada mensaje<br>• Ve a <strong>Configuración > Conectores > Google Places</strong><br>• Active \"<em>Geolocalización automática</em>\" para uso continuo<br>• Tu navegador pedirá permiso la primera vez<br>• Posición usada para clima local y búsquedas \"cerca de mí\"<br>• En el móvil, la posición se refresca en silencio al volver a la aplicación; si el sistema retiró el permiso, un banner del chat propone reactivarlo<br><br><strong>Para configurar:</strong><br>1. Ve a <strong>Configuración > Conectores</strong> (calendario, tareas, dirección, geolocalización)<br>3. Selecciona tus valores por defecto<br><br><strong>💡 Consejo:</strong><br>Estas preferencias le ahorran tiempo al no tener que especificar el calendario, lista o ciudad cada vez."
+            "answer": "¡Sí! Algunos conectores tienen <strong>preferencias personalizables</strong>:<br><br><strong>📅 Google Calendar:</strong><br>• <strong>Calendario por defecto</strong>: dónde crear nuevos eventos<br>• Ejemplo: \"Trabajo\", \"Personal\", \"Familia\"<br>• LIA usará este calendario salvo indicación contraria<br><br><strong>✅ Google Tasks:</strong><br>• <strong>Lista de tareas por defecto</strong>: dónde crear nuevas tareas<br>• Ejemplo: \"Mi lista principal\", \"Proyectos\", \"Compras\"<br><br><strong>📍 Ubicación:</strong><br>• <strong>Dirección del domicilio</strong>: su dirección por defecto para búsquedas \"cerca de mí\"<br>• <strong>Memoria de ubicación</strong> (opt-in): recuerda tu última posición para que LIA siga respondiendo desde donde estás cuando la posición en vivo no está disponible — siempre anunciada con su antigüedad, nunca presentada como actual, cifrada y borrada en cuanto desactivas la opción<br>• Configúrela una vez, se usará automáticamente<br><br><strong>🌐 Geolocalización del navegador:</strong><br>• <strong>Geolocalización automática</strong>: enviar tu posición con cada mensaje<br>• Ve a <strong>Configuración > Preferencias > Ubicación</strong> — estos datos viven en tu cuenta, no en un conector<br>• Active \"<em>Geolocalización automática</em>\" para uso continuo<br>• Tu navegador pedirá permiso la primera vez<br>• Posición usada para clima local y búsquedas \"cerca de mí\"<br>• En el móvil, la posición se refresca en silencio al volver a la aplicación; si el sistema retiró el permiso, un banner del chat propone reactivarlo<br><br><strong>Para configurar:</strong><br>1. Ve a <strong>Configuración > Conectores</strong> (calendario, tareas)<br>2. Selecciona tus valores por defecto<br><br><strong>💡 Consejo:</strong><br>Estas preferencias le ahorran tiempo al no tener que especificar el calendario, lista o ciudad cada vez."
           },
           "q7": {
             "question": "¿Qué servicios de Google puedo conectar?",
@@ -6976,7 +6986,7 @@
           },
           "q11": {
             "question": "¿Cómo obtengo indicaciones?",
-            "answer": "<strong>Google Routes</strong> - Cálculo de rutas:<br><br><strong>🗺️ Indicaciones simples:</strong><br>• \"<em>¿Cómo llego de Madrid a Barcelona?</em>\"<br>• \"<em>Indicaciones para Valencia</em>\"<br>• \"<em>¿Cómo llego al aeropuerto?</em>\"<br>• \"<em>Tiempo de viaje entre Madrid y Sevilla</em>\"<br><br><strong>📍 Desde mi ubicación:</strong><br>• \"<em>¿Cómo llego al trabajo?</em>\" (usa tu posición)<br>• \"<em>Indicaciones al restaurante</em>\"<br><br><strong>📊 Información proporcionada:</strong><br>• Distancia total en kilómetros<br>• Duración estimada (con y sin tráfico)<br>• Mapa interactivo con la ruta<br>• Indicaciones paso a paso<br>• Condiciones del tráfico en tiempo real<br><br><strong>💡 Consejo:</strong><br>Configure su dirección de casa en Configuración > Conectores > Google Places para búsquedas \"<em>desde casa</em>\"."
+            "answer": "<strong>Google Routes</strong> - Cálculo de rutas:<br><br><strong>🗺️ Indicaciones simples:</strong><br>• \"<em>¿Cómo llego de Madrid a Barcelona?</em>\"<br>• \"<em>Indicaciones para Valencia</em>\"<br>• \"<em>¿Cómo llego al aeropuerto?</em>\"<br>• \"<em>Tiempo de viaje entre Madrid y Sevilla</em>\"<br><br><strong>📍 Desde mi ubicación:</strong><br>• \"<em>¿Cómo llego al trabajo?</em>\" (usa tu posición)<br>• \"<em>Indicaciones al restaurante</em>\"<br><br><strong>📊 Información proporcionada:</strong><br>• Distancia total en kilómetros<br>• Duración estimada (con y sin tráfico)<br>• Mapa interactivo con la ruta<br>• Indicaciones paso a paso<br>• Condiciones del tráfico en tiempo real<br><br><strong>💡 Consejo:</strong><br>Configure su dirección de casa en Configuración > Preferencias > Ubicación para búsquedas \"<em>desde casa</em>\"."
           },
           "q12": {
             "question": "¿Cómo elijo el modo de transporte?",

@@ -26,8 +26,6 @@ interface ConnectedConnectorCardProps {
   savedPrefs?: ConnectorPreferences;
   savingPreference?: string | null;
   onSelectPreference?: (connectorId: string, connectorType: string, value: string) => void;
-  // Children for additional settings (e.g., LocationSettings for google_places)
-  children?: React.ReactNode;
 }
 
 function getConnectorLabel(type: string): string {
@@ -49,7 +47,6 @@ export function ConnectedConnectorCard({
   savedPrefs = {},
   savingPreference,
   onSelectPreference,
-  children,
 }: ConnectedConnectorCardProps) {
   const hasPreferences = CONNECTORS_WITH_PREFERENCES.includes(connector.connector_type);
   const prefField = PREFERENCE_FIELDS[connector.connector_type] || '';
@@ -97,9 +94,6 @@ export function ConnectedConnectorCard({
           onSelect={onSelectPreference}
         />
       )}
-
-      {/* Additional settings (e.g., LocationSettings for google_places) */}
-      {children}
     </div>
   );
 }

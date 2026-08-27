@@ -29,6 +29,7 @@ import {
   Languages,
   LayoutDashboard,
   LayoutGrid,
+  MapPin,
   Library,
   ListTodo,
   Megaphone,
@@ -54,6 +55,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   // ---- Preferences
   language: Languages,
   timezone: Globe,
+  location: MapPin,
   theme: Palette,
   font: Type,
   'eyes-style': Eye,

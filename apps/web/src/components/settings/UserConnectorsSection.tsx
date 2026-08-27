@@ -47,7 +47,6 @@ import {
   ConnectorGroupTrigger,
   ErrorConnectorCard,
   AvailableConnectorCard,
-  LocationSettings,
   useGoogleOAuth,
   useMicrosoftOAuth,
   useBulkConnect,
@@ -455,10 +454,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                       savedPrefs={savedPrefs[connector.id]}
                       savingPreference={savingPreference}
                       onSelectPreference={selectPreference}
-                    >
-                      {/* LocationSettings for Google Places */}
-                      {connector.connector_type === 'google_places' && <LocationSettings t={t} />}
-                    </ConnectedConnectorCard>
+                    />
                   ))}
                 </div>
               </AccordionContent>
@@ -548,10 +544,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                       t={t}
                       deleteLoading={deleteLoading}
                       onDisconnect={setPendingDisconnect}
-                    >
-                      {/* LocationSettings for Google Places (global API key mode) */}
-                      {connector.connector_type === 'google_places' && <LocationSettings t={t} />}
-                    </ConnectedConnectorCard>
+                    />
                   ))}
                 </div>
               </AccordionContent>

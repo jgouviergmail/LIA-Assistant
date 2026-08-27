@@ -1601,6 +1601,8 @@
       "disabled_success": "Notifications désactivées pour cet appareil"
     },
     "location": {
+      "title": "Localisation",
+      "description": "Gérez les sources de votre position : géolocalisation en direct, position mémorisée et adresse du domicile",
       "geolocation": {
         "title": "Géolocalisation",
         "permission_status": "État de la permission",
@@ -1614,8 +1616,6 @@
       "home": {
         "title": "Adresse du domicile",
         "placeholder": "Entrez votre adresse...",
-        "save": "Enregistrer",
-        "clear": "Supprimer",
         "saved": "Adresse du domicile enregistrée",
         "cleared": "Adresse du domicile supprimée",
         "save_error": "Erreur lors de l'enregistrement de l'adresse",
@@ -3433,6 +3433,7 @@
       "keywords": {
         "language": "locale, traduction, langue de l’interface, idiome",
         "timezone": "UTC, GMT, horloge, heure, décalage, région, fuseau",
+        "location": "adresse, domicile, maison, GPS, géolocalisation, position, carte, lieu, ville",
         "theme": "thème, mode sombre, mode clair, mode système, OLED, noir absolu, nuit, couleurs, contraste, apparence",
         "font": "police, typographie, taille du texte, lisibilité, caractères",
         "display-mode": "cartes, rendu, format des réponses, mise en page, markdown, texte brut",
@@ -4368,6 +4369,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_33_1": {
+          "title": "v1.33.1 — 📍 Les réglages de localisation dans leur propre section",
+          "date": "Août 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📍 Une section « Localisation » autonome</b> — vos sources de position (géolocalisation en direct, position mémorisée, adresse du domicile) quittent la carte du connecteur Google Places pour leur propre section dans les Préférences. Ces données ont toujours vécu sur votre compte, jamais sur un connecteur — l'interface ressemble enfin à ce qu'elle fait. Retrouvez-la instantanément en tapant « adresse » ou « GPS » dans la recherche des réglages.",
+            "i2": "<b>🧭 La FAQ pointe au bon endroit</b> — plusieurs réponses vous dirigeaient encore vers « Paramètres > Connecteurs > Google Places » pour configurer votre position ; chaque édition de langue pointe désormais vers la nouvelle section."
+          }
+        },
         "v1_33_0": {
           "title": "v1.33.0 — 📱 Applications natives Android et iOS",
           "date": "Août 2026",
@@ -6616,7 +6626,7 @@
           },
           "q11": {
             "question": "Comment configurer ma géolocalisation et mon adresse du domicile ?",
-            "answer": "LIA peut utiliser ta <strong>position géographique</strong> pour des recherches contextuelles :<br><br><strong>📍 Adresse du domicile :</strong><br>1. Va dans <strong>Paramètres > Connecteurs > Google Places</strong><br>2. Entre ton adresse dans le champ <strong>Adresse du domicile</strong><br>3. Valide pour enregistrer<br><br><strong>🎯 Utilisation :</strong><br>• \"<em>Restaurants près de chez moi</em>\" utilisera ton adresse<br>• \"<em>Météo ici</em>\" affichera la météo de ton domicile<br>• \"<em>Pharmacies à proximité</em>\" cherchera autour de ton adresse<br><br><strong>🌐 Géolocalisation du navigateur :</strong><br>Tu peux aussi autoriser la géolocalisation en temps réel via ton navigateur pour des résultats encore plus précis.<br><br><strong>🔒 Confidentialité :</strong><br>Ton adresse est stockée de manière sécurisée et n'est utilisée que pour tes requêtes de proximité."
+            "answer": "LIA peut utiliser ta <strong>position géographique</strong> pour des recherches contextuelles :<br><br><strong>📍 Adresse du domicile :</strong><br>1. Va dans <strong>Paramètres > Préférences > Localisation</strong><br>2. Entre ton adresse dans le champ <strong>Adresse du domicile</strong><br>3. Valide pour enregistrer<br><br><strong>🎯 Utilisation :</strong><br>• \"<em>Restaurants près de chez moi</em>\" utilisera ton adresse<br>• \"<em>Météo ici</em>\" affichera la météo de ton domicile<br>• \"<em>Pharmacies à proximité</em>\" cherchera autour de ton adresse<br><br><strong>🌐 Géolocalisation du navigateur :</strong><br>Tu peux aussi autoriser la géolocalisation en temps réel via ton navigateur pour des résultats encore plus précis.<br><br><strong>🔒 Confidentialité :</strong><br>Ton adresse est stockée de manière sécurisée et n'est utilisée que pour tes requêtes de proximité."
           },
           "q12": {
             "question": "Comment LIA résout-il les références relationnelles ?",
@@ -6691,7 +6701,7 @@
           },
           "q6": {
             "question": "Puis-je configurer des préférences par connecteur ?",
-            "answer": "Oui ! Certains connecteurs ont des <strong>préférences personnalisables</strong> :<br><br><strong>📅 Google Calendar :</strong><br>• <strong>Calendrier par défaut</strong> : où créer les nouveaux événements<br>• Exemple : \"Travail\", \"Personnel\", \"Famille\"<br>• LIA utilisera ce calendrier sauf indication contraire<br><br><strong>✅ Google Tasks :</strong><br>• <strong>Liste de tâches par défaut</strong> : où créer les nouvelles tâches<br>• Exemple : \"Ma liste principale\", \"Projets\", \"Courses\"<br><br><strong>📍 Google Places :</strong><br>• <strong>Adresse du domicile</strong> : ton adresse par défaut pour les recherches \"près de moi\"<br>• <strong>Géolocalisation automatique</strong> : envoyer ta position pour des résultats précis<br>• <strong>Mémoire de position</strong> (opt-in) : mémoriser ta dernière position pour que LIA continue de répondre depuis là où tu es quand la position en direct est indisponible — toujours annoncée avec son âge, jamais présentée comme courante, chiffrée et effacée dès que tu désactives l'option<br>• Configure les trois dans <strong>Paramètres > Connecteurs > Google Places</strong><br><br><strong>🌐 Géolocalisation navigateur :</strong><br>• Dans les paramètres de Google Places, active le toggle de géolocalisation<br>• Ton navigateur demandera l'autorisation la première fois<br>• Position utilisée pour météo locale et recherches \"près de moi\"<br>• Sur mobile, la position se rafraîchit silencieusement au retour dans l'application ; si le système a retiré la permission, une bannière du chat propose de la réactiver<br><br><strong>Pour configurer :</strong><br>1. Va dans <strong>Paramètres</strong> (icône ⚙️ dans le menu)<br>2. Ouvre la section <strong>Connecteurs</strong><br>3. Trouve le connecteur concerné (Calendar, Tasks, ou Places)<br>4. Configure les préférences spécifiques à ce connecteur<br><br><strong>💡 Conseil :</strong><br>Ces préférences te font gagner du temps en évitant de préciser le calendrier, la liste ou la ville à chaque demande."
+            "answer": "Oui ! Certains connecteurs ont des <strong>préférences personnalisables</strong> :<br><br><strong>📅 Google Calendar :</strong><br>• <strong>Calendrier par défaut</strong> : où créer les nouveaux événements<br>• Exemple : \"Travail\", \"Personnel\", \"Famille\"<br>• LIA utilisera ce calendrier sauf indication contraire<br><br><strong>✅ Google Tasks :</strong><br>• <strong>Liste de tâches par défaut</strong> : où créer les nouvelles tâches<br>• Exemple : \"Ma liste principale\", \"Projets\", \"Courses\"<br><br><strong>📍 Localisation :</strong><br>• <strong>Adresse du domicile</strong> : ton adresse par défaut pour les recherches \"près de moi\"<br>• <strong>Géolocalisation automatique</strong> : envoyer ta position pour des résultats précis<br>• <strong>Mémoire de position</strong> (opt-in) : mémoriser ta dernière position pour que LIA continue de répondre depuis là où tu es quand la position en direct est indisponible — toujours annoncée avec son âge, jamais présentée comme courante, chiffrée et effacée dès que tu désactives l'option<br>• Configure les trois dans <strong>Paramètres > Préférences > Localisation</strong> — ces données vivent sur ton compte, pas sur un connecteur<br><br><strong>🌐 Géolocalisation navigateur :</strong><br>• Dans la section Localisation (Paramètres > Préférences), active le toggle de géolocalisation<br>• Ton navigateur demandera l'autorisation la première fois<br>• Position utilisée pour météo locale et recherches \"près de moi\"<br>• Sur mobile, la position se rafraîchit silencieusement au retour dans l'application ; si le système a retiré la permission, une bannière du chat propose de la réactiver<br><br><strong>Pour configurer :</strong><br>1. Va dans <strong>Paramètres</strong> (icône ⚙️ dans le menu)<br>2. Ouvre la section <strong>Connecteurs</strong><br>3. Trouve le connecteur concerné (Calendar ou Tasks)<br>4. Configure les préférences spécifiques à ce connecteur<br><br><strong>💡 Conseil :</strong><br>Ces préférences te font gagner du temps en évitant de préciser le calendrier, la liste ou la ville à chaque demande."
           },
           "q7": {
             "question": "Quels services Google puis-je connecter ?",
@@ -6990,7 +7000,7 @@
           },
           "q11": {
             "question": "Comment obtenir un itinéraire ?",
-            "answer": "<strong>Google Routes</strong> - Calcul d'itinéraires :<br><br><strong>🗺️ Itinéraire simple :</strong><br>• \"<em>Comment aller de Paris à Lyon ?</em>\"<br>• \"<em>Itinéraire pour Marseille</em>\"<br>• \"<em>Comment me rendre à l'aéroport ?</em>\"<br>• \"<em>Temps de trajet entre Paris et Bordeaux</em>\"<br><br><strong>📍 Depuis ma position :</strong><br>• \"<em>Comment aller au travail ?</em>\" (utilise ta position)<br>• \"<em>Itinéraire vers le restaurant</em>\"<br><br><strong>📊 Informations fournies :</strong><br>• Distance totale en kilomètres<br>• Durée estimée (avec et sans trafic)<br>• Carte interactive avec le tracé<br>• Instructions étape par étape<br>• Conditions de circulation en temps réel<br><br><strong>💡 Conseil :</strong><br>Configure ton adresse de domicile dans Paramètres > Connecteurs > Google Places pour les recherches \"<em>depuis chez moi</em>\"."
+            "answer": "<strong>Google Routes</strong> - Calcul d'itinéraires :<br><br><strong>🗺️ Itinéraire simple :</strong><br>• \"<em>Comment aller de Paris à Lyon ?</em>\"<br>• \"<em>Itinéraire pour Marseille</em>\"<br>• \"<em>Comment me rendre à l'aéroport ?</em>\"<br>• \"<em>Temps de trajet entre Paris et Bordeaux</em>\"<br><br><strong>📍 Depuis ma position :</strong><br>• \"<em>Comment aller au travail ?</em>\" (utilise ta position)<br>• \"<em>Itinéraire vers le restaurant</em>\"<br><br><strong>📊 Informations fournies :</strong><br>• Distance totale en kilomètres<br>• Durée estimée (avec et sans trafic)<br>• Carte interactive avec le tracé<br>• Instructions étape par étape<br>• Conditions de circulation en temps réel<br><br><strong>💡 Conseil :</strong><br>Configure ton adresse de domicile dans Paramètres > Préférences > Localisation pour les recherches \"<em>depuis chez moi</em>\"."
           },
           "q12": {
             "question": "Comment choisir le mode de transport ?",

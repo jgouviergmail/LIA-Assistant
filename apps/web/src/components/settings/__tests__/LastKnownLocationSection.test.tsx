@@ -1,7 +1,7 @@
 /**
  * LastKnownLocationSection — the generalized last-known location opt-in that
- * lives on the Google Places connector (moved from the proactive-notifications
- * weather block, 2026-08-16): toggle persist + refresh + toast in both
+ * lives in the standalone Location section (weather block 2026-08-16 → Places
+ * connector card → its own section, 2026-08): toggle persist + refresh + toast in both
  * directions and the error path, the geolocation-required hint, and the
  * stored-location transparency panel (populated vs empty) with its clear
  * action. The throttled backend push is NOT here — it belongs to the global

@@ -115,6 +115,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'personalization',
     gate: { kind: 'always' },
   },
+  location: {
+    titleKey: 'settings.location.title',
+    descriptionKey: 'settings.location.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.location`,
+    group: 'personalization',
+    gate: { kind: 'always' },
+  },
   theme: {
     titleKey: 'settings.theme.title',
     descriptionKey: 'settings.theme.description',

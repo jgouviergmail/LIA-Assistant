@@ -20,13 +20,6 @@ export interface ConnectorPreferences {
   [key: string]: string;
 }
 
-export interface HomeLocation {
-  address: string;
-  lat: number;
-  lon: number;
-  place_id?: string | null;
-}
-
 /**
  * Check if a connector is active.
  */

@@ -2705,6 +2705,8 @@
       }
     },
     "location": {
+      "title": "Posizione",
+      "description": "Gestisci le fonti della tua posizione: geolocalizzazione in tempo reale, posizione ricordata e indirizzo di casa",
       "geolocation": {
         "title": "Geolocalizzazione",
         "permission_status": "Stato del permesso",
@@ -2718,8 +2720,6 @@
       "home": {
         "title": "Indirizzo di casa",
         "placeholder": "Inserisci il tuo indirizzo...",
-        "save": "Salva",
-        "clear": "Elimina",
         "saved": "Indirizzo di casa salvato",
         "cleared": "Indirizzo di casa eliminato",
         "save_error": "Errore nel salvataggio dell'indirizzo",
@@ -3408,6 +3408,7 @@
       "keywords": {
         "language": "locale, traduzione, lingua dell'interfaccia, idioma",
         "timezone": "UTC, GMT, orologio, ora, fuso, scarto, regione",
+        "location": "indirizzo, casa, GPS, geolocalizzazione, mappa, luogo, città",
         "theme": "tema, modalità scura, modalità chiara, modalità sistema, OLED, nero assoluto, notte, colori, contrasto, aspetto",
         "font": "carattere, tipografia, dimensione del testo, leggibilità, font",
         "display-mode": "schede, resa, formato delle risposte, layout, markdown, testo semplice",
@@ -4356,6 +4357,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_33_1": {
+          "title": "v1.33.1 — 📍 Le impostazioni di posizione nella loro sezione",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📍 Una sezione «Posizione» autonoma</b> — le tue fonti di posizione (geolocalizzazione in tempo reale, posizione memorizzata, indirizzo di casa) lasciano la scheda del connettore Google Places per la propria sezione nelle Preferenze. Questi dati sono sempre vissuti sul tuo account, mai su un connettore — l'interfaccia finalmente riflette come funziona. Trovala all'istante digitando «indirizzo» o «GPS» nella ricerca delle impostazioni.",
+            "i2": "<b>🧭 La FAQ indica il posto giusto</b> — diverse risposte ti indirizzavano ancora a «Impostazioni > Connettori > Google Places» per configurare la posizione; ogni edizione linguistica ora punta alla nuova sezione."
+          }
+        },
         "v1_33_0": {
           "title": "v1.33.0 — 📱 App native Android e iOS",
           "date": "Agosto 2026",
@@ -6584,7 +6594,7 @@
           },
           "q6": {
             "question": "Cosa sono le preferenze dei connettori?",
-            "answer": "Alcuni connettori permettono configurazioni avanzate:<br><br><strong>📅 Google Calendar</strong>: Scegli il tuo calendario predefinito dove creare nuovi eventi (es. \"Famiglia\", \"Lavoro\").<br><br><strong>✅ Google Tasks</strong>: Scegli la tua lista attività predefinita (es. \"Le mie attività\", \"Spesa\").<br><br><strong>📍 Google Places</strong>: Il tuo <strong>indirizzo di casa</strong> come indirizzo predefinito per ricerche \"vicino a me\", più la <strong>memoria della posizione</strong> (opt-in): ricorda la tua ultima posizione perché LIA continui a rispondere da dove sei quando la posizione in tempo reale non è disponibile — sempre annunciata con la sua età, mai presentata come attuale, cifrata e cancellata appena disattivi l'opzione.<br><br><strong>🌐 Geolocalizzazione browser:</strong><br>• <strong>Geolocalizzazione automatica</strong>: invia la tua posizione con ogni messaggio<br>• Vai su <strong>Impostazioni > Connettori > Google Places</strong><br>• Attiva \"<em>Geolocalizzazione automatica</em>\" per un utilizzo continuo<br>• Il tuo browser chiederà l'autorizzazione la prima volta<br>• Posizione usata per meteo locale e ricerche \"vicino a me\"<br>• Su mobile la posizione si aggiorna in silenzio al ritorno nell'app; se il sistema ha revocato il permesso, un banner della chat propone di riattivarlo<br><br><strong>Per configurare:</strong><br>1. Vai su <strong>Impostazioni > Connettori</strong> (calendario, attività, indirizzo, geolocalizzazione)<br>3. Seleziona i tuoi valori predefiniti<br><br><strong>💡 Suggerimento:</strong><br>Queste preferenze ti fanno risparmiare tempo evitando di specificare ogni volta il calendario, la lista o la posizione."
+            "answer": "Alcuni connettori permettono configurazioni avanzate:<br><br><strong>📅 Google Calendar</strong>: Scegli il tuo calendario predefinito dove creare nuovi eventi (es. \"Famiglia\", \"Lavoro\").<br><br><strong>✅ Google Tasks</strong>: Scegli la tua lista attività predefinita (es. \"Le mie attività\", \"Spesa\").<br><br><strong>📍 Posizione</strong>: Il tuo <strong>indirizzo di casa</strong> come indirizzo predefinito per ricerche \"vicino a me\", più la <strong>memoria della posizione</strong> (opt-in): ricorda la tua ultima posizione perché LIA continui a rispondere da dove sei quando la posizione in tempo reale non è disponibile — sempre annunciata con la sua età, mai presentata come attuale, cifrata e cancellata appena disattivi l'opzione. Configurala in <strong>Impostazioni > Posizione</strong> — questi dati vivono sul tuo account, non su un connettore.<br><br><strong>🌐 Geolocalizzazione browser:</strong><br>• <strong>Geolocalizzazione automatica</strong>: invia la tua posizione con ogni messaggio<br>• Vai su <strong>Impostazioni > Posizione</strong><br>• Attiva \"<em>Geolocalizzazione automatica</em>\" per un utilizzo continuo<br>• Il tuo browser chiederà l'autorizzazione la prima volta<br>• Posizione usata per meteo locale e ricerche \"vicino a me\"<br>• Su mobile la posizione si aggiorna in silenzio al ritorno nell'app; se il sistema ha revocato il permesso, un banner della chat propone di riattivarlo<br><br><strong>Per configurare:</strong><br>1. Vai su <strong>Impostazioni > Connettori</strong> (calendario, attività)<br>2. Seleziona i tuoi valori predefiniti<br><br><strong>💡 Suggerimento:</strong><br>Queste preferenze ti fanno risparmiare tempo evitando di specificare ogni volta il calendario, la lista o la posizione."
           },
           "q7": {
             "question": "Come attivo o disattivo la voce di LIA?",
@@ -6978,7 +6988,7 @@
           },
           "q11": {
             "question": "Come ottengo le indicazioni stradali?",
-            "answer": "<strong>Google Routes</strong> - Calcolo percorsi:<br><br><strong>🗺️ Indicazioni semplici:</strong><br>• \"<em>Come arrivo da Roma a Milano?</em>\"<br>• \"<em>Indicazioni per Napoli</em>\"<br>• \"<em>Come arrivo all'aeroporto?</em>\"<br>• \"<em>Tempo di percorrenza tra Roma e Firenze</em>\"<br><br><strong>📍 Dalla mia posizione:</strong><br>• \"<em>Come arrivo al lavoro?</em>\" (usa la tua posizione)<br>• \"<em>Indicazioni per il ristorante</em>\"<br><br><strong>📊 Informazioni fornite:</strong><br>• Distanza totale in chilometri<br>• Durata stimata (con e senza traffico)<br>• Mappa interattiva con percorso<br>• Indicazioni passo passo<br>• Condizioni del traffico in tempo reale<br><br><strong>💡 Consiglio:</strong><br>Configura il tuo indirizzo di casa in Impostazioni > Connettori > Google Places per ricerche \"<em>da casa</em>\"."
+            "answer": "<strong>Google Routes</strong> - Calcolo percorsi:<br><br><strong>🗺️ Indicazioni semplici:</strong><br>• \"<em>Come arrivo da Roma a Milano?</em>\"<br>• \"<em>Indicazioni per Napoli</em>\"<br>• \"<em>Come arrivo all'aeroporto?</em>\"<br>• \"<em>Tempo di percorrenza tra Roma e Firenze</em>\"<br><br><strong>📍 Dalla mia posizione:</strong><br>• \"<em>Come arrivo al lavoro?</em>\" (usa la tua posizione)<br>• \"<em>Indicazioni per il ristorante</em>\"<br><br><strong>📊 Informazioni fornite:</strong><br>• Distanza totale in chilometri<br>• Durata stimata (con e senza traffico)<br>• Mappa interattiva con percorso<br>• Indicazioni passo passo<br>• Condizioni del traffico in tempo reale<br><br><strong>💡 Consiglio:</strong><br>Configura il tuo indirizzo di casa in Impostazioni > Posizione per ricerche \"<em>da casa</em>\"."
           },
           "q12": {
             "question": "Come scelgo il mezzo di trasporto?",

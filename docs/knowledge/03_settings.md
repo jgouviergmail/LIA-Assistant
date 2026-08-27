@@ -66,7 +66,7 @@ Memories close to being automatically forgotten are flagged in the list, so you 
 LIA can use your **geographic location** for contextual searches:
 
 **📍 Home address:**
-1. Go to **Settings > Connectors > Google Places**
+1. Go to **Settings > Preferences > Location**
 2. Enter your address in the **Home address** field
 3. Validate to save
 
