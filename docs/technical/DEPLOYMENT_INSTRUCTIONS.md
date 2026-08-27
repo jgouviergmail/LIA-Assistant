@@ -435,7 +435,7 @@ After successful deployment:
 > externalized in `infrastructure/observability/prometheus/thresholds/{env}.env`,
 > runbooks live in `docs/runbooks/alerts/`, and the alerting chain (email-only
 > by default, PagerDuty optional) is documented in
-> [README_ALERTING.md](../readme/README_ALERTING.md) — see ADR-119.
+> [ALERTING.md](./ALERTING.md) — see ADR-119.
 
 ---
 

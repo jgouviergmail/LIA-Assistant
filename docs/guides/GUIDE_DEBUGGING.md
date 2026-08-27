@@ -2474,7 +2474,7 @@ curl -G http://localhost:3100/loki/api/v1/query \
 
 ### Documentation Interne
 
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](../technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) : architecture agents
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) : architecture agents
 - [OBSERVABILITY_AGENTS.md](../technical/OBSERVABILITY_AGENTS.md) : observabilité complète
 - [MCP_INTEGRATION.md](../technical/MCP_INTEGRATION.md) : intégration MCP (admin + per-user + OAuth)
 - [CHANNELS_INTEGRATION.md](../technical/CHANNELS_INTEGRATION.md) : intégration multi-channel (Telegram)

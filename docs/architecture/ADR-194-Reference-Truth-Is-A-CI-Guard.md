@@ -161,7 +161,7 @@ outils de rappel (`success`/`message` jamais produits), plus un
 `alternatives_count` calculé par `get_route_tool` mais jamais remonté à l'étape.
 
 **Ce qui reste non couvert est chiffré et daté**, dans
-[le dossier de dette](../plans/2026-08-02-dette-post-adr194.md) : 15 mutations à
+[le dossier de dette](../superpowers/plans/2026-08-02-dette-post-adr194.md) : 15 mutations à
 brouillon dont la sortie d'étape est un `draft` et non le résultat de l'action
 (arbitrage produit, pas correction mécanique), et 8 outils dont le harnais
 demande un stream HTTP, un moteur RAG, ou l'activation d'un feature flag. Tous

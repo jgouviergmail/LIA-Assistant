@@ -2,7 +2,7 @@
 
 **Status**: ✅ IMPLEMENTED (2026-07-10)
 **Author**: Claude Code (Fable 5)
-**Related**: `infrastructure/observability/prometheus/alerts-core.yml.template`, `infrastructure/observability/alertmanager/`, [README_PROMETHEUS_THRESHOLDS.md](../readme/README_PROMETHEUS_THRESHOLDS.md), [ADR-109 (PostgreSQL backups)](ADR_INDEX.md), `docs/runbooks/alerts/`
+**Related**: `infrastructure/observability/prometheus/alerts-core.yml.template`, `infrastructure/observability/alertmanager/`, [PROMETHEUS_THRESHOLDS.md](../technical/PROMETHEUS_THRESHOLDS.md), [ADR-109 (PostgreSQL backups)](ADR_INDEX.md), `docs/runbooks/alerts/`
 
 ## Context
 

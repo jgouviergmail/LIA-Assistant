@@ -1,11 +1,19 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
-Toujours vérifier les plugins disponibles et utiliser ceux qui sont pertinents pour la tâche actuelle. 
+<!-- GENERATED FILE — do not edit.
+     Source: CLAUDE.md. Regenerate with `task docs:sync-agents`.
+     Verified by `task lint:docs`. -->
+
+This file provides guidance to coding agents working in this repository. It is a
+generated mirror of [CLAUDE.md](CLAUDE.md), which is the single source: the two
+must never be edited separately.
+
+Always check the available plugins/skills at session start and use the ones
+relevant to the current task.
 
 ## Project Overview
 
-LIA is a multi-agent conversational AI assistant built with **FastAPI** (backend), **Next.js 16** (frontend), and **LangGraph 1.0** (agent orchestration). It integrates Google/Apple/Microsoft APIs, supports HITL (Human-in-the-Loop) approval flows, and features enterprise observability (Prometheus, Grafana, Langfuse).
+LIA is a multi-agent conversational AI assistant built with **FastAPI** (backend), **Next.js 16** (frontend), and **LangGraph 1.x** (agent orchestration). It integrates Google/Apple/Microsoft APIs, supports HITL (Human-in-the-Loop) approval flows, and features enterprise observability (Prometheus, Grafana, Langfuse).
 
 ## Build & Development Commands
 
@@ -30,10 +38,12 @@ task stop
 ### Backend Testing (from apps/api/)
 
 ```bash
-task test:backend:unit:fast        # Fast unit tests (pre-commit, excludes integration)
+task test:backend:unit:fast        # Fast unit tests, xdist, no coverage (pre-commit)
+task test:backend:unit:coverage    # The CI command verbatim, including the 67% floor
 task test:backend:unit             # All unit tests
 task test:backend:integration      # Integration tests (requires PostgreSQL + Redis)
 task test:backend:agents           # Agent-specific tests
+task test:markers                  # F006 gate: no test may run in zero CI jobs
 task test:backend:exhaustive       # Full suite with coverage (do not use, too long)
 
 # Run a single test file
@@ -47,30 +57,77 @@ cd apps/api && .venv/Scripts/pytest tests/ -k "test_name" -v
 
 ```bash
 task test:frontend          # vitest run
-cd apps/web && pnpm test    # equivalent
+task test:frontend:coverage # + aggregate global and scoped-glob thresholds enforced by CI
+task test:e2e               # Playwright + axe journeys (hermetic, mocked API)
 ```
+
+Prefer the task over `pnpm test` directly: it blanks `NEXT_PUBLIC_API_URL`, which the Taskfile's global `dotenv: .env` would otherwise inject and which changes measured branch coverage.
 
 ### Linting & Formatting
 
 ```bash
-task lint                   # All linters (backend + frontend)
+task lint                   # All linters + ratchets + hygiene + lockfiles + CI parity
 task format                 # Auto-format all code
 
 # Backend: Black (formatter) + Ruff (linter) + MyPy (type checker)
 task lint:backend
 task format:backend
 
-# Frontend: ESLint + Prettier + TypeScript check
+# Frontend: ESLint + a11y/react-hooks/complexity ratchets + non-incremental tsc
 task lint:frontend
 task format:frontend
+
+# Cross-cutting gates (all included in `task lint`)
+task lint:hygiene           # .bak, sync Store calls, Redis setex, raw HTTPException, alembic heads, .env.example
+task lint:lockfiles         # manifests vs compiled lockfiles (ADR-112)
+task lint:ci-parity         # the workflow orchestrates, it never implements (ADR-151)
+task lint:i18n              # strict key parity across the 6 locales
+task lint:docs              # documentation drift: broken links, stale code paths,
+                            # orphans, quoted facts vs their sources, AGENTS.md mirror
 ```
+
+**Documentation is gated on what it STATES, not only on how it links.**
+`task lint:docs` runs three instruments (all with `--fix`-style companions where
+repair is mechanical):
+
+| Instrument | Answers | Repair |
+|---|---|---|
+| `scripts/audit/doc_audit.py` | Do the links resolve? Are the code paths real? Is any living document unreachable? | by hand |
+| `scripts/audit/doc_facts.py` | Does a quoted version or threshold equal its source? | `task docs:fix-facts` |
+| `scripts/audit/agents_mirror.py` | Is `AGENTS.md` the current render of `CLAUDE.md`? | `task docs:sync-agents` |
+
+`lint:docs` decides existence from the **git index**, so its verdict matches a
+fresh clone: a file you moved but have not staged is invisible to it, and the
+links pointing at its new home read as broken. That is correct and deliberate.
+When those findings are the ones you just created, `task lint:docs:preview`
+re-runs the same audit over *tracked files plus what `git add -A` would stage* —
+the answer you will get after committing. Never "fix" a finding the preview
+clears; stage instead.
+
+Three rules follow, and they are not stylistic:
+
+1. **Never restate a value the code owns.** The coverage floor, a pinned
+   version, a derived count — quote it and `doc_facts` will hold you to it, or
+   point at the source instead. Measured 2026-08-27: six documents stated six
+   different wrong coverage floors while every gate was green.
+2. **A document may choose its precision, not be precise and wrong.**
+   `Next.js 16` and `Next.js 16.2.11` both pass; `LangGraph 1.0` against a
+   pinned `1.2.11` fails. When you mean the generation, write `1.x`.
+3. **`AGENTS.md` is generated — never edit it.** Edit `CLAUDE.md`, then run
+   `task docs:sync-agents`. Kept by hand it had silently become a strict subset
+   missing all of Systemic Rules.
 
 ### CI & Pre-commit
 
 ```bash
-task pre-commit             # format + lint + fast unit tests (run before committing)
-task ci                     # Full CI pipeline: lint + test + security scan
+task pre-commit             # format + lint + fast unit tests (~5 min, what the git hook runs)
+task ci:fast                # every CI gate that needs no service (~10 min) — run this before pushing
+task ci                     # ci:fast + suites needing PostgreSQL, Redis, Docker, a browser
 ```
+
+**`.github/workflows/ci.yml` orchestrates, `Taskfile.yml` implements** (ADR-151): every CI step is a `task <name>` call, so the pipeline runs literally the command a developer runs. A gate added inline in the workflow is a gate nobody can run before pushing — `task lint:ci-parity` fails on any `run:` step that is neither a task call nor declared runner provisioning. Genuine CI-only steps live in `CI_ONLY` in `scripts/audit/check_ci_parity.py`, each with a written reason.
+
+`task pre-commit` is deliberately narrower than `ci:fast`: it skips the ratchets, the marker-coverage gate, the deploy tests and the frontend coverage thresholds to stay inside its ~5 min budget. Every one of those has redded a build after a green local run.
 
 Git hooks are installed via `task setup:hooks` and live in `.github/hooks/` (configured via `git config core.hooksPath`).
 
@@ -86,6 +143,103 @@ task db:reset                            # Drop all + migrate + seed
 task db:create-admin                     # Create admin user for first-time setup
 ```
 
+### Release surfaces
+
+The version lives in ~25 places (6 manifests, 18 guide stamps, README, GETTING_STARTED)
+and three public counts are derived from their source (ADR files, latest ADR number,
+CHANGELOG entries). All of it is mechanical, so none of it belongs in a checklist:
+
+```bash
+task release:check                # report any version/count drift (read-only)
+task release:bump -- 1.32.0       # write every mechanical surface + realign the counts
+task release:sync-counts          # realign the ADR/CHANGELOG counts alone
+```
+
+### Model capability catalogue (ADR-244)
+
+`llm_models` is the runtime authority on what a model can do, and its capability
+columns are curated from two vendored public registries — never from the network on
+an execution path:
+
+```bash
+task llm:catalogue:fetch          # refresh the vendored snapshot (network; review the diff)
+task llm:catalogue:sync           # print the reviewable diff + the retirement report (read-only)
+```
+
+`llm_models.capability_provenance` says who filled the capabilities: `declared` (the
+column defaults nobody curated — `get_effective_context_window` refuses to trust it),
+`imported` (corroborated by the snapshot) or `verified` (a human edited a
+registry-owned capability through `LLMModelService.update`). **It is row-level but its
+evidence is field-level**: `imported` vouches for `sync_diff.CORRECTABLE_FIELDS` and
+nothing else, so a reader of any other column (`supports_strict_mode`, the sampling
+flags) must require `verified`. **Prices, reasoning
+metadata, streaming, the sampling flags and `kind` are never imported** — each
+exclusion is a measured decision asserted by a test in
+`apps/api/tests/unit/infrastructure/llm/catalogue/`. Deactivating a model requires an
+uncontradicted past deprecation date **and** no reference: `is_retiring` (warn) and
+`is_retired` (may deactivate) are two predicates, one implementation each, in
+`catalogue/field_mapping.py`.
+
+**The real per-agent configuration lives in `llm_config_overrides`, in the database,
+and deployments do not run the same models.** Before deploying a catalogue change, run
+`task llm:catalogue:preflight` against the target instance: read-only, it reports which
+models that instance would deactivate, which it keeps because it references them, which
+configured models fail their slot's declared capabilities, and whether any `verified`
+row would lose strict structured output. A unit test must read `LLM_DEFAULTS`, never a
+database — two of them hard-coded a model name until ADR-244 and broke on the retarget.
+
+### Reasoning configuration (ADR-245)
+
+Asking a model to think has **one stored shape for every provider** —
+`ReasoningIntent(level, budget_tokens, exclude_from_output)`, in
+`core/reasoning_intent.py`. The four widget-dispatched shapes it replaced are
+still READ (`intent_from_legacy`, shared by the migration, the reference seeds and the
+golden test) so no deployment needs a flag day, but nothing writes them.
+
+- **The ladder is ordinal and provider-independent**: `provider_default < none <
+  minimal < low < medium < high < xhigh < max`. `provider_default` is the identity —
+  it produces no kwarg on any family — never a depth.
+- **What a model accepts is a derived `ReasoningProfile`**, not a catalogue column:
+  `resolve_reasoning_profile(provider, model, model_levels=...)`
+  (`llm/reasoning/profiles.py`). A new provider is one rule entry plus
+  one renderer in `translate.py`; never a branch inside an existing family.
+- **`kwargs_for(provider, model, stored)` is the ONLY seam** an adapter may call. It
+  never raises: an unknown model resolves to no family and produces no kwarg.
+- **Runtime coerces, the write path rejects.** Coercion ties break **upward**, `none`
+  is **never** a coercion target, and **`can_disable` — not ladder membership** —
+  governs whether reasoning can be switched off (a catalogue row narrows the DEPTHS a
+  model offers, never its off switch; reading the ladder there silently ENABLES
+  reasoning on an explicit `none`). Every coercion is counted and logged
+  (`llm_reasoning_coerced_total`).
+- **The UI is offered exactly what the API accepts**: `/llm-config/metadata` publishes
+  the resolved profile (`LLMConfigService._reasoning_metadata`), never the raw
+  catalogue declaration. Publishing the declaration while
+  enforcing the rules is how the dropdown came to offer `minimal` on a model whose API
+  refuses it (ADR-184's rule, applied to reasoning).
+- `llm_models.reasoning_widget` and `reasoning_budget_range` are **gone** (v1.32.0):
+  demoted first, then dropped with the enum type that had no other user, because the
+  admin form kept offering them for editing while nothing read them. The only catalogue
+  value the resolution reads is `reasoning_enum_values` — the ladder narrowing, and it
+  must speak the LADDER's vocabulary: four rows declared `off`, the narrowing
+  intersection dropped it, and the resulting ladder had no off switch (only
+  `can_disable` rescued it). A seed guard now refuses any level off the ladder.
+- **The registries are visible where the catalogue is**: every model row shows its
+  `capability_provenance`, and `GET /admin/llm/catalogue-status` reports the same
+  read-only verdict as `task llm:catalogue:sync`, computed by the same code
+  (`llm/catalogue/status.py`). Applying a correction stays a reviewed
+  migration — no endpoint writes.
+- `tests/unit/infrastructure/llm/reasoning/golden_kwargs.json` freezes what the
+  pre-change builders produced. Adding a family means extending it, never editing an
+  existing entry.
+
+`scripts/release/version_surfaces.py` is the single declaration, shared by the bump
+script and the CI guard `test_version_surface_consistency_guard.py` — what a release
+writes is exactly what CI verifies. Guide stamps are **discovered**, so a new stamped
+guide must be declared tracked or exempt (with a reason) or the build reds. What the
+tool deliberately does NOT write is printed after every bump: the CHANGELOG entry, the
+FAQ changelog, the README theme sentence, and `LANDING_STATS.tests` (a real
+measurement, never derived).
+
 ## Architecture
 
 ### Monorepo Structure
@@ -93,7 +247,7 @@ task db:create-admin                     # Create admin user for first-time setu
 - `apps/api/` — Python 3.14 FastAPI backend (source in `src/`, tests in `tests/`)
 - `apps/web/` — Next.js 16 + React 19 + TypeScript frontend
 - `infrastructure/` — Docker, database seeds, observability config (Prometheus, Grafana)
-- `docs/` — 260+ documentation files, ADRs, guides, runbooks
+- `docs/` — 320+ documentation files, ADRs, guides, runbooks
 - `scripts/` — Deployment, analysis, and utility scripts
 
 ### Backend Architecture (DDD)
@@ -103,8 +257,9 @@ The backend follows Domain-Driven Design. Entry point: `apps/api/src/main.py`.
 - `src/core/config/` — Modular settings composed via multiple inheritance into a single `Settings` class. Access via `from src.core.config import settings`. Each domain module (agents, llm, database, security, etc.) is a separate Pydantic `BaseSettings` subclass.
 - `src/core/constants.py` — Global constants and default values used by config modules.
 - `src/domains/agents/` — The main domain. Contains the LangGraph graph, nodes, tools, services, and orchestration.
-- `src/domains/` — Other bounded contexts: `auth/`, `connectors/`, `voice/`, `interests/`, `heartbeat/`, `user_mcp/`, `users/`, `conversations/`, `reminders/`, etc.
+- `src/domains/` — Other bounded contexts: `auth/`, `connectors/`, `voice/`, `interests/`, `habits/`, `heartbeat/`, `user_mcp/`, `users/`, `conversations/`, `reminders/`, etc.
 - `src/infrastructure/` — Cross-cutting: Redis cache, LLM factory/providers, MCP client pool, rate limiting, observability.
+- `src/infrastructure/startup/` — Lifespan step modules (ADR-123): one module per subsystem (registries, caches, agents, integrations, schedulers, observability, shutdown), one typed function per contiguous boot segment. The `lifespan` in `main.py` remains the single orchestration point — a new startup step means a function in the matching module AND a call in the lifespan, in the position dictated by the order-dependency header comment.
 - `src/api/v1/routes.py` — FastAPI route definitions.
 
 ### LangGraph Agent Flow
@@ -150,6 +305,10 @@ When a new feature is read-only, latency-sensitive, and would be unnatural in th
 
 LangGraph state is a `TypedDict` (`MessagesState`) with a custom `add_messages_with_truncate` reducer that handles token-based truncation, message windowing, and OpenAI message sequence validation. State is checkpointed to PostgreSQL.
 
+Two traps when touching state:
+- Any key a node writes **must be declared in `MessagesState`** — undeclared keys are silently dropped by LangGraph (recurring trap: writing an object "mirror" of a dict field under an undeclared key; only the declared dict survives the checkpoint).
+- State survives msgpack round-trips: custom objects must be stored as dicts (`to_serializable_dict`) and reconstructed on read — keep both sides in sync (see Systemic Rules, round-trip test).
+
 ### Tool System
 
 Tools live in `src/domains/agents/tools/`. Each file groups tools by domain (e.g., `calendar_tools.py`, `emails_tools.py`, `google_contacts_tools.py`). Tools use LangChain's `@tool` decorator and return standardized responses via `ToolResponse` and `ToolErrorModel` from `src/domains/agents/tools/common.py`:
@@ -171,9 +330,9 @@ Prompts are versioned files in `src/domains/agents/prompts/v1/` (`.txt` files). 
 
 ### Configuration
 
-Settings are composed from domain-specific Pydantic modules in `src/core/config/`. All settings read from environment variables. Feature flags control optional subsystems: `MCP_ENABLED`, `CHANNELS_ENABLED`, `HEARTBEAT_ENABLED`, `SCHEDULED_ACTIONS_ENABLED`, `SKILLS_ENABLED`.
+Settings are composed from domain-specific Pydantic modules in `src/core/config/`. All settings read from environment variables. Feature flags control optional subsystems: `MCP_ENABLED`, `CHANNELS_ENABLED`, `HEARTBEAT_ENABLED`, `SKILLS_ENABLED`. (There is **no** `SCHEDULED_ACTIONS_ENABLED` flag — scheduled actions are always wired: the router is included unconditionally and only timeout settings exist. Long-documented but never implemented; do not add a guard on it without creating the setting first.)
 
-Dependencies are managed in `apps/api/requirements.txt` (runtime) and `requirements-dev.txt` (dev tools). `pyproject.toml` is only used for tool configuration (black, ruff, mypy, pytest).
+Dependencies are managed in `apps/api/requirements.txt` (runtime) and `requirements-dev.txt` (dev tools) — these are **intent manifests**; the compiled universal lockfiles `requirements.lock.txt` / `requirements-dev.lock.txt` are what every environment actually installs (ADR-112). After editing a manifest, run `task deps:lock` and commit manifest + locks together (CI enforces it). `pyproject.toml` is only used for tool configuration (black, ruff, mypy, pytest).
 
 ### Mermaid diagrams in guides
 
@@ -185,20 +344,132 @@ The HOW / WHY guides (`apps/web/src/data/guides/{how,why}.{lang}.md`) and any fu
 - **Ruff rules**: E (pycodestyle errors), W (warnings), F (pyflakes), I (isort), B (bugbear), C4 (comprehensions), UP (pyupgrade). E501 ignored (handled by Black).
 - **TypeScript**: ESLint + Prettier.
 - **Commits**: Conventional Commits (`feat(agents):`, `fix(auth):`, etc.)
-- **Tests**: pytest with `asyncio_mode = "auto"`. Coverage threshold: 43%. Markers: `e2e`, `integration`, `slow`, `benchmark`, `multiprocess`.
+- **Tests**: pytest with `asyncio_mode = "auto"`. Coverage threshold: 67% (ratchet: never lowered — raise the floor after coverage-improving work to lock the gains, keeping ≥2 pts margin vs measured; see GUIDE_TESTING.md). Markers: `e2e`, `integration`, `slow`, `benchmark`, `multiprocess`.
 - **Logging**: structlog (structured JSON). Use `structlog.get_logger(__name__)`, never `print()`.
 - **i18n**: 6 languages (en, fr, de, es, it, zh). Frontend uses react-i18next with locale files in `apps/web/locales/{lang}/translation.json`. **The pre-commit hook enforces strict key parity** vs `en/translation.json` — every key present in `en` MUST exist in the 5 other locales (the hook diffs `en` keys against each language and aborts the commit on any missing/extra). When using i18next pluralization (`_one` / `_other` suffixes), zh has no plural form per CLDR — duplicate the value to `_one` anyway so parity passes.
 
+## Audit-Derived Quality Gates (Security Excluded)
+
+These mandatory **non-security** gates apply to new code and every touched file. The detailed subsystem rules below remain authoritative; this section defines the cross-cutting release contract.
+
+### Release contract
+
+- Coverage thresholds and the cycle, complexity, MyPy-debt, React-hooks, accessibility, and file-size baselines are **shrink-only**. Never lower a threshold, raise a baseline, suppress a rule, or exclude business code to absorb a regression. Generated/vendor/unreachable-code exclusions require a written rationale and a comparable measurement.
+- Completion requires fresh evidence from the current snapshot: exact commands, exit status, test counts, warnings, and material limits. A targeted or cached success does not replace the relevant clean gate when types, discovery, configuration, migrations, or generated artifacts changed.
+- Test code obeys production contracts. Builders use precise override types (for example `Partial<Props>`) and return the declared type without `Any`, double assertions, ignored diagnostics, or mocks that bypass the boundary under test.
+- Fix root causes: do not relocate complexity, split one violation into several files, weaken an oracle, substitute a real integration boundary, or update a baseline before measured debt actually decreases.
+- Production build inputs are explicit and immutable: no `latest` image, unversioned global installation, or undeclared transitive import. Pin production base images by version and digest, pin globally installed tools, declare every imported package directly, and validate through a clean frozen install and no-cache production build.
+
+### Architecture and reliability
+
+- New dependencies must not add runtime import cycles or invert domain/layer boundaries. Break cycles with ports/`Protocol`s, injection, events, or composition modules — not local imports that hide graph edges. Do not add a function with cyclomatic complexity >= 15 or grow an existing hotspot; characterize behavior, then extract cohesive rules/state machines/pure helpers.
+- MyPy strict and the logical-SLOC cap remain defaults. New/broader overrides, `Any`, generic ignores, unjustified casts, speculative layers, and unwired code are forbidden. A touched exempt or oversized area must shrink when the change can safely do so.
+- Every async client, pool, transport, task, and executor has one owner and is closed/awaited on its owning loop before teardown. Resource warnings, unclosed transports, or stderr emitted after the test summary are failures.
+- Persistence transitions are atomic or explicitly resumable and are tested for rollback, crash, retry, and concurrency against the real database when semantics matter. Rebuilds keep the last known-good path serving until validation and an atomic switch; a RAG reindex must never purge or disable the active generation before its replacement is ready.
+
+### Assurance
+
+- Tests are risk-driven and behavioral: cover relevant success, empty/loading, partial failure, retry, cancellation, concurrency, idempotency, cache invalidation, time/timezone, i18n, and recovery paths. Snapshots, CSS assertions, and broad mocks cannot be the sole oracle for business behavior.
+- Interactive UI correctness includes native semantics, a stable translated accessible name, keyboard equivalence, deterministic focus, and disabled/error states. Critical changed journeys require hermetic browser coverage with controlled API/SSE traffic; periodic evidence extends Chromium smoke to Firefox/WebKit, zoom/reflow, and assistive technologies.
+- Coverage grows by business risk: prioritize orchestration, App Router pages, chat/SSE, connectors, uploads, voice/audio, persistence transitions, and error paths before trivial wrappers.
+- A test module never disables itself on a missing provider key (`pytestmark = skipif(not os.getenv("OPENAI_API_KEY"))`): a skipped test is green, so the suite silently leaves CI and rots (measured 2026-07-26: 219 test functions that had never run, 142 of them red on re-enable against a since-migrated API). Mock the provider and keep the tests unconditional, or mark the file `integration`/`e2e` so the exclusion is visible in the CI `-m` filter. Enforced in CI by `apps/api/tests/unit/test_no_env_skipped_suite_guard.py` (shrink-only allowlist, ADR-155).
+- A test double that receives a coroutine owns it: it must await it, schedule it, or explicitly capture and close it. A no-op mock of a fire-and-forget boundary is forbidden. Any unawaited coroutine, `PytestUnraisableExceptionWarning`, unclosed transport, or post-summary stderr is a test failure. Changes to background execution must pass both the fast xdist gate and the sequential coverage gate.
+
+### Minimum verification by impact
+
+```bash
+# Every code change: all static gates plus the smallest relevant behavioral suite
+task lint                         # backend + frontend + i18n + docs + the shrink-only ratchets
+task test:backend:unit:fast       # backend changes
+task test:frontend                # frontend changes
+
+# Frontend coverage: aggregate global and scoped-glob thresholds (blanks
+# NEXT_PUBLIC_API_URL, which the Taskfile's global `dotenv: .env` would otherwise
+# inject and which measurably changes branch coverage; `thresholds.perFile` is not enabled)
+task test:frontend:coverage
+
+# Before pushing: every CI gate that needs no service
+task ci:fast
+
+# Database or deployment paths: use disposable/hermetic targets only
+task db:migrate:replay-check      # migration/model changes
+task test:deploy                  # deployment-script changes
+```
+
+`task lint:frontend` already runs the three shrink-only ratchets (a11y, react-hooks, complexity) and a **non-incremental** `tsc --noEmit`; run them through the task rather than by hand, so the local gate cannot be the more permissive of the two. The typecheck is non-incremental on purpose: `apps/web/tsconfig.json` sets `"incremental": true` and `*.tsbuildinfo` is gitignored, so a cached local run could pass where the runner's cold one fails.
+
+Choose additional integration, agents, E2E, load, or multi-platform suites from the actual impact. Never run `task test:backend:exhaustive` by default; it remains intentionally excluded because of duration.
+
+## Systemic Rules (hard-won)
+
+These rules close recurring bug classes identified by the 2026-07 full-codebase audit. Each cites the canonical in-repo example to imitate. They are **mandatory** for all new code and for any file being touched (Boy Scout Rule).
+
+### Concurrency & async
+
+- An `AsyncSession` must **never** be shared across concurrent tasks (`asyncio.gather`): SQLAlchemy forbids concurrent operations on one session. Give each parallel fetcher its own session via `get_db_context()` — imitate `domains/briefing/fetchers.py` (documents the trap as CRITICAL). For a handful of indexed queries, a plain sequential loop is fine and simpler.
+- No synchronous network or CPU-heavy call on an async path (it freezes the whole event loop, SSE included): use native async clients (`aembed_documents`, never `embed_documents` — good example: `domains/journals/service.py`) or `asyncio.to_thread` for Pillow/Firebase/disk I/O (good example: `domains/skills/executor.py`).
+- Singletons and module-level tool instances must **not** store per-request state on `self` (runtime, user language, metrics, contexts): under concurrency it leaks between users. Pass values as parameters, use a `ContextVar`, or instantiate per call — see the `_LANGUAGE_RESULT_KEY` pattern in `agents/tools/base.py` and per-call instantiation in `labels_tools.py`.
+- All datetimes are timezone-aware UTC (`datetime.now(UTC)`; `utcnow()`, naive `now()` and `date.today()` are forbidden). The user's display timezone comes from their preferences / `DEFAULT_USER_DISPLAY_TIMEZONE` — never a hardcoded `"Europe/Paris"` literal or default. Enforced in CI by the AST guard `apps/api/tests/unit/test_no_hardcoded_timezone_guard.py`.
+
+### Persistence
+
+- Never mutate a JSONB column in place (`obj.meta["k"] = v`, `obj.meta.update(...)`, or re-assigning the **same** dict object): SQLAlchemy silently skips the UPDATE. Always build a **new** dict: `obj.meta = {**(obj.meta or {}), **updates}`. `flag_modified`/`MutableDict` are intentionally absent from this codebase — new-dict reassignment is the convention. Enforced in CI by the AST guard `apps/api/tests/unit/test_jsonb_mutation_guard.py`.
+- Concurrent counters use server-side atomic UPSERTs (`pg_insert ... ON CONFLICT DO UPDATE` with column arithmetic) — imitate `ChatRepository.create_or_update_token_summary`. Never SELECT → increment in Python → flush (lost updates).
+- Rows consumed by schedulers use `FOR UPDATE SKIP LOCKED` + an atomic status transition in the same transaction — imitate `scheduled_actions/repository.py`.
+- Every distributed lock, lease, or durable claim has a unique owner token and, where stale writers can commit, a monotonic fencing token. Acquire, renew, release, heartbeat, complete, fail, and retry are atomic and conditioned on the current owner/token. A failed heartbeat immediately aborts all later effects. `SET NX` followed by unconditional `EXPIRE`/`DELETE`, and `SKIP LOCKED` followed by work outside the claiming transaction, are forbidden. Test expiry, takeover, stale completion/failure, and stale shutdown with two independent actors.
+- Absence of an exception is not proof of delivery. Durable work may enter `DELIVERED` or `SUCCEEDED` only from an explicit successful result. Claim before external effects, persist attempts and errors, propagate a stable idempotency key, and test total failure, partial success, crash after effect before commit, and two-worker execution.
+
+### Registries & vocabulary
+
+- The domain vocabulary is **singular** (`contact`, `email`, `event`, `file`, `task`, `place`, `route`) with `DOMAIN_REGISTRY` (`registry/domain_taxonomy.py`) as the single source of truth; `result_key` is derived there. Never create a new hand-maintained domain table or mapping — extend the registry.
+- Every new registry/mapping keyed by an enum or domain gets a **boot-time completeness assert** (model: `drafts/display.py::assert_registry_completeness`, ADR-085 — the app refuses to boot on a missing entry). Silent fallbacks on unknown keys are how features die invisibly.
+- Serialization pairs (`to_serializable_dict` / `reconstruct_*`) must have a **round-trip equality test over all serialized fields**. Adding a field on one side only is a recurring, silent bug (fields lost after every HITL checkpoint resume).
+
+### i18n & prompts
+
+- Backend user-visible strings go through the central i18n mechanisms (`core.i18n_*`, `APIMessages`, `HitlMessages`, `i18n_drafts`) — never inline French (or any language) in Python, **including fallbacks, parameter defaults, and LLM scaffolding around versioned prompts**. All 6 languages, zh included.
+- Chinese has TWO canonical codes by layer: **backend canonical is `zh-CN`** (`User.language`, `SUPPORTED_LANGUAGES`, all backend i18n table keys), **frontend canonical is `zh`** (URL locales, `apps/web/locales/zh/`). Never key a backend table on `zh` (it would break the nominal path) and never do ad-hoc normalization (`language[:2]`…): route every raw locale through the single chokepoint `normalize_language` (`core/i18n.py`), which maps any variant (`zh`, `zh_CN`, `fr-FR`…) to the backend-canonical code.
+- Prompt text — including few-shot examples and system scaffolding — lives in versioned files under `prompts/v1/`, loaded via `load_prompt()`. Never inline prompt fragments in `.py`.
+- A prompt never carries a **tunable numeric value** in prose: it reads it from settings via a placeholder (model: `{semantic_broad_batch}` in `smart_planner_prompt.txt`, ADR-184). A number written in a prompt cannot be reconciled with the limit some other layer enforces — and the model gets blamed for obeying.
+
+### Constraints & verdicts
+
+- A constraint the system **enforces** must be **published** to whoever produces the value. `_manifest_to_dict` enforces this for the planner catalogue (`min`/`max` on every bounded parameter); an enforced-but-hidden bound is not a contract, it is a trap (ADR-184: `max_results` capped at 10 while the planner only ever saw `required: false`). Whatever a validator can reject, its producer must be able to read.
+- What is **mechanically repairable** is repaired before validation, never reported as a defect: out-of-bounds numeric parameters are clamped in `SmartPlannerService._build_plan` (`planner/parameter_bounds.py`), same doctrine as the `for_each_max` auto-correction next to it. What cannot be repaired without inventing intent (`pattern`, `enum`, wrong types) stays a real error the validator must keep reporting.
+- **A count shown to the user is a claim: it is exact, or it does not exist.** Deriving it from the length of a capped page under-reports the moment the data outgrows the page, and says nothing about what it dropped — the CRM counted rows from a 120-row window and a 200/500-row detail fetch, so a busy relationship silently under-reported and one whose only activity fell outside the window had no card at all (ADR-185). Count with an aggregate over the whole set (`GROUP BY`, `COUNT(*)`), page the ROWS only, and ship the exact total next to the page so a cap is stated rather than applied in silence.
+- **Folding identity has exactly one implementation.** When a lens must query rows for one person, resolve the raw spellings from an aggregate and match them EXACTLY in SQL (`IN (...)`) — never re-express `fold_name` as `unaccent`+`lower`, which diverges on `ß` and ligatures and quietly makes SQL a second authority on who is the same person (`_spellings_for` in `relations/service.py`, ADR-185).
+- **A validation verdict is not a failure.** `route_from_planner` never reads `is_valid` — a rejected plan executes unchanged and usually succeeds. Nothing may tell the user an operation was blocked on the strength of a verdict alone: the claim requires the capability to have actually produced nothing (`executed_tool_names` in `plan_blockers.py`, ADR-184). Reporting a stale verdict as a failure is the same invented diagnosis ADR-182 removed, pointing the other way.
+
+### Tools
+
+- Every tool carries `@track_tool_metrics` **and** `@rate_limit` (settings-driven via lambda), especially tools hitting paid external APIs (image generation, Perplexity, Brave). This is a policy, not a per-file choice.
+- Tool-module imports must fail **loudly** in dev/CI: a swallowed `ImportError` silently removes an entire tool family from the registry. Never `except Exception: pass` around module imports. Enforced: `_import_tool_modules` raises outside production (counts `tool_module_import_failures_total` in prod) and the registry smoke test `tests/unit/domains/agents/tools/test_tool_registry_smoke.py` imports + invokes every registered tool in CI.
+- Error payloads returned to the LLM must not embed raw tracebacks or raw user params (token waste + PII in prompts). Classify with the `ToolErrorCode` taxonomy — never by string-matching on exception messages.
+
+### Observability & honesty
+
+- **No PII at INFO level**: names, emails, GPS coordinates, memory/journal content, message bodies. Counters and IDs at INFO; contents at DEBUG or redacted. The DB encrypts what the logs must not leak.
+- An `except` handler whose body is only `pass` is forbidden (CodeQL `py/empty-except`; 193 sites purged 2026-07). Intentional best-effort swallows use `contextlib.suppress(SpecificError)` with the justification comment ABOVE the block (canonical example: metrics emission in `infrastructure/database/session.py`); when one branch must swallow while another logs, nest `with suppress(...)` inside the `try` (canonical example: `agents/api/sse_keepalive.py`). A swallow that hides a real signal gets a `logger.debug(...)` instead. Enforced in CI by the AST guard `apps/api/tests/unit/test_no_empty_except_guard.py`.
+- A docstring describing behavior the code does not have **is a bug**: fix the code or the doc in the same change — never leave the contradiction (audited examples: "uses asyncio.to_thread" without to_thread, "connection pool" on a single connection, "streaming check" that loads everything in RAM).
+- Dead code is deleted, not kept "for later": an unwired subsystem with settings/i18n/tests attached costs maintenance on every change and fakes coverage. Wire it or remove it — record the decision in a short ADR.
+- Optional configuration is validated as a matrix, not only in the empty and fully configured cases. Every supported Alertmanager receiver combination must start and route representative labels correctly; every dashboard query must resolve to an actual metric producer, recording rule, or documented datasource. Syntax-only validation is insufficient.
+
+### Size & structure
+
+- A logical file never grows: it stays under **600 logical SLOC** (tokenize + AST, no docstrings/comments/blanks — the `scripts/audit/measure_sloc.py` semantics), and pre-existing larger files are frozen at their audited size +2% in `apps/api/tests/unit/file_size_baseline.json` — they may only shrink (`task ratchet:update` lowers caps, never raises). Data modules (`core/i18n_*`, `core/config/`, `core/constants`, `domains/llm_config/constants`) are exempt. When a feature outgrows a file, extract a cohesive module — never bump the cap. Enforced in CI by the guard `apps/api/tests/unit/test_file_size_ratchet_guard.py`; doctrine in `docs/guides/GUIDE_DEVELOPPEMENT.md`.
+
 ## Key Patterns
 
-- **Connector abstraction**: Google, Apple, Microsoft APIs share a common connector pattern with provider resolver (`src/domains/connectors/`). Only one provider active per functional category (email, calendar, contacts, tasks).
-- **HITL (Human-in-the-Loop)**: 6 approval levels (plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review). Classified in `src/domains/agents/services/hitl_classifier.py`.
+- **Connector abstraction**: Google, Apple, Microsoft APIs share a common connector pattern with provider resolver (`src/domains/connectors/`). Only one provider active per functional category (email, calendar, contacts, tasks). When touching a provider client, check the **other providers' behavior for the same operation** (cache invalidation, reply-all semantics, multi-valued field updates) — provider asymmetries are a recurring bug source; parity is the rule.
+- **HITL (Human-in-the-Loop)**: 6 approval levels (plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review). Classified in `src/domains/agents/services/hitl_classifier.py`. Note: the plan-approval level is currently auto-approved (`approval_gate_node` is a pass-through — tool-level HITL supersedes it); do not build on plan-level interrupts without re-wiring the gate.
 - **Smart Services**: QueryAnalyzerService, SmartPlannerService, SmartCatalogueService use LRU caching and pattern learning to reduce LLM token usage.
 - **SSE Streaming**: Responses stream to the frontend via Server-Sent Events.
 - **Observability**: 500+ Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
 - **LLM Factory**: `src/infrastructure/llm/factory.py` provides multi-provider LLM instantiation (OpenAI, Anthropic, Google, DeepSeek, Ollama). Provider adapters in `src/infrastructure/llm/providers/`.
 
 ## Good Practices
+
+The review checklists below are the **process** (what to verify on every plan/PR); the Systemic Rules above are the **hard constraints** (what must never ship). Where they overlap (prompts, logging, i18n), the Systemic Rules entry gives the canonical example to imitate — checklist numbering is stable and referenced elsewhere (e.g. "rule #18"), do not renumber.
 
 - Pull Request Process :
 1. Analyze impact and potential incompatibilities.
@@ -247,23 +518,23 @@ The HOW / WHY guides (`apps/web/src/data/guides/{how,why}.{lang}.md`) and any fu
   — TESTS —
   23. Tests mirror source structure, proper pytest markers (`@pytest.mark.unit`, `integration`, `slow`), fixtures properly scoped, `asyncio_mode = "auto"`
   — DOCUMENTATION —
-  24. Update documentation in `docs/` as well as all cross-cutting docs, `README.md`, ADR if architectural decision, `docs/INDEX.md` index,  `docs/technical`, `docs/guide`, `docs/architecture.md`, `docs/architecture_agent.md`, `docs/architecture_langraph.md`, `docs/getting_started.md`, et tous les autres documents
+  24. Update documentation in `docs/` as well as all cross-cutting docs, `README.md`, ADR if architectural decision, `docs/INDEX.md` index, `docs/technical`, `docs/guides`, `docs/ARCHITECTURE.md`, `docs/ARCHITECTURE_AGENT.md`, `docs/ARCHITECTURE_LANGRAPH.md`, `docs/GETTING_STARTED.md`, and every other impacted document
 
   - Verify all runtime integration points on completeness and correctness:
   1. **Config composition** — New settings module added to `Settings` MRO in `src/core/config/__init__.py`, feature flag (`{FEATURE}_ENABLED`) defined, `.env.example` and `.env.prod.example` and `.env.min.prod` (if necessary) updated with all new env vars
   2. **Constants centralization** — All magic values, defaults, scheduler job names, and thresholds extracted to `src/core/constants.py` and referenced (not inlined) in config/code
-  3. **Database model registration** — Models imported in 3 places: `alembic/env.py`, `src/infrastructure/database/registry.py` (`import_all_models`), and `main.py` lifespan startup
+  3. **Database model registration** — Models imported in 3 places: `alembic/env.py`, `src/infrastructure/database/registry.py` (`import_all_models`), and the lifespan startup (`startup/registries.py::import_domain_models`)
   4. **Migration integrity** — Alembic migration file created, `upgrade()`/`downgrade()` correct, revision chain unbroken (`alembic heads` returns single head)
   5. **Router wiring** — Domain router included in `src/api/v1/routes.py` with feature-flag guard (`if getattr(settings, "{feature}_enabled", False)`), correct prefix and tags
-  6. **Startup initialization** — Required services, caches, or registrations added to `main.py` lifespan context manager in correct order, with error handling and structured logging
-  7. **Scheduler registration** — Background jobs registered in `main.py` startup with correct trigger (cron/interval), job ID from constants, `replace_existing=True`, and feature-flag guard
+  6. **Startup initialization** — Required services, caches, or registrations added to `main.py` lifespan context manager in correct order, with error handling and structured logging (step bodies live in `src/infrastructure/startup/` — ADR-123; the lifespan stays the single ordering point)
+  7. **Scheduler registration** — Background jobs registered in `startup/schedulers.py::init_scheduler` (before `leader_elector.start()`) with correct trigger (cron/interval), job ID from constants, `replace_existing=True`, and feature-flag guard
   8. **Prompt files** — New prompts placed in `src/domains/agents/prompts/v1/`, loaded via `load_prompt()` / `load_prompt_with_fallback()`, prompt name added to `PromptName` Literal
-  9. **LangGraph wiring** — New agents registered via `registry.register_agent()` in `main.py`, tools using `@tool` + `ToolResponse`/`ToolErrorModel`, catalogue entries present
+  9. **LangGraph wiring** — New agents registered via `registry.register_agent()` in `startup/agents.py::init_agent_registry`, tools using `@tool` + `ToolResponse`/`ToolErrorModel`, catalogue entries present
   10. **Frontend API integration** — Hook created in `src/hooks/use{Feature}.ts` using `useApiQuery`/`useApiMutation`, component/page wired in App Router under `app/[lng]/`
   11. **Internationalization (6 languages)** — Translation keys added to all 6 locale files (en, fr, de, es, it, zh) in `apps/web/locales/`, backend i18n strings handled
   12. **Observability** — Structured logging via `structlog.get_logger(__name__)` (no `print()`), Prometheus metrics defined if domain-critical, error paths logged with context
   13. **Exception handling** — Custom exceptions from `src/core/exceptions.py` used (not raw HTTPException), error responses consistent with existing API contract
-  14. **Dependencies** — New packages pinned in `requirements.txt` (runtime) or `requirements-dev.txt` (dev), Docker image rebuild considered
+  14. **Dependencies** — New packages pinned in `requirements.txt` (runtime) or `requirements-dev.txt` (dev), lockfiles regenerated via `task deps:lock` (ADR-112), Docker image rebuild considered
   15. **Middleware & security** — New endpoints respect rate limiting, auth guards (`Depends`), CORS implications verified, no new security surface exposed unintentionally
   16. **Documentation** — `docs/` updated (ADR if architectural decision, technical doc if new system), `docs/INDEX.md` and `docs/architecture/ADR_INDEX.md` cross-referenced, `README.md` updated if user-facing
 
@@ -281,10 +552,86 @@ Three traps observed repeatedly when working from the dev environment:
 
 When working with settings-driven thresholds in tests (e.g. `mcp_user_max_servers_per_user`, `subagent_max_total_tokens_per_day`), **never hardcode the threshold in the test** — read it from `settings` and compute relative values. Configs change, hard-coded thresholds silently drift the assertion.
 
+## Native mobile shells (measured, not assumed)
+
+LIA ships **one published app per store**, a client for a **self-hosted** LIA
+server: the WebView loads the **remote web origin** and the user types their
+server URL at first launch. This is not a preference — the API accepts nothing
+but its session cookie (`core/session_dependencies.py`, `Cookie()` only), so a
+locally bundled build or a native REST client would have no session at all. The
+UI is never duplicated; the native layer only adds what the web cannot do, and
+where possible it just opens an existing web route (share → `/{lng}/share?…`,
+notification → `?intent=` under ADR-210).
+
+Invariants, each backed by a measurement in `scripts/mobile-probe/`:
+
+- **`CapacitorHttp` and `CapacitorCookies` stay disabled** (their default). They
+  replace `window.fetch` / `document.cookie` for the whole application.
+- **Push is native on BOTH platforms, and asymmetric** (ADR-246). The Push API
+  does not exist in either WebView. **Android** initialises Firebase at runtime
+  with options its own server publishes, so a self-hoster's notifications never
+  leave their own Firebase project — never bake a `google-services.json` in, that
+  would tie every install to the publisher's project. **iOS cannot**: APNs
+  authenticates against the Apple team owning the bundle id, and a `.p8` key
+  covers the whole team, so a self-hosted server can never notify the published
+  app. It goes through a **wake relay** carrying an opaque handle and a fixed
+  contentless sentence. `PUSH_RELAY_URL` has **no default** — pointing it
+  somewhere by default would be a privacy decision taken by a constant. The
+  delivery route travels **with the token** (`relay:` prefix), never inferred
+  from configuration: only the shell knows which route it used. And **doubt never
+  deletes** — only "handle unreadable" and "device gone" may drop a token; an
+  unreachable relay or a topic *we* mistyped must not.
+- **The wake word is lost in the shell, on both platforms.** No cross-origin
+  isolation, even under COEP `require-corp` (measured twice).
+  `isSherpaKwsSupported()` already degrades to tap-to-speak.
+- **Android: `CookieManager.flush()` on pause is mandatory.** The cookie store is
+  written on a ~30 s timer and Capacitor never flushes; a restart 28 s after
+  sign-in loses the session, at 60 s it survives.
+- **iOS: no Service Worker**, because `WKAppBoundDomains` is a static list frozen
+  at build time and cannot follow a runtime server URL. `apps/mobile/www/offline.html`
+  replaces the ADR-146 page, loaded by Capacitor's `server.errorPath`. Do not
+  "fix" this by adopting per-deployment builds: that would require an Apple
+  developer account from every self-hoster.
+- **Anything the shell must fetch from a host that is not the user's server is
+  NATIVE, not `fetch`.** The page runs on the user's own origin, so such a call
+  is cross-origin, and neither a relay nor an arbitrary self-hosted server can
+  enumerate every origin in a CORS policy. Caught twice before shipping — the
+  health probe and the relay registration — both now in `LiaShell`.
+- **iOS: the API must be same-site as the web app.** WebKit's ITP blocks
+  cross-**site** credentialed cookies (`lia.` / `lia-back.` under one registrable
+  domain is fine; a different domain is not).
+- **OAuth never runs inside the WebView** (`disallowed_useragent` on both
+  engines). The API side exists: a `native_challenge` on `/auth/google/login`, a
+  `lia://auth-callback?code=…` return, and `POST /auth/native/callback` to redeem
+  it (`domains/auth/native_handoff.py` + `oauth_router.py`). The code is bound to
+  a verifier the shell keeps, because the return is a **custom scheme** — App
+  Links pin domains at build time and one app serves every self-hoster, so the
+  link must be assumed intercepted. Connectors need no handoff at all: their
+  callbacks are stateless, the user id travels in the server-side OAuth state.
+- **Provider sign-in enforces the second factor**, since 2026-08-24. It did not
+  before, so a TOTP-active account could walk past it by signing in with Google.
+  A redirect cannot answer with JSON, so the pending token travels in an httpOnly
+  cookie (`set_mfa_pending_cookie`) and `/auth/mfa/verify` reads it from there
+  when the body carries none.
+- **A new auth route's NAME is a security decision**: `forbid_federated_signin_in_demo`
+  classifies by path SHAPE (`…/auth/<provider>/<login|callback>`), so
+  `/auth/native/callback` inherits the demonstrator's refusal while
+  `/auth/native/handoff` would have bypassed it in silence.
+- **The shell's version is decoupled from LIA's** — do NOT add it to
+  `scripts/release/version_surfaces.py`, or every LIA release would force a store
+  submission. A LIA release ships nothing to the stores.
+
+`task mobile:probe:{android,ios}` re-measures both engines under the production
+CSP/COEP, which it **imports** from `apps/web/src/lib/csp.ts` rather than copying.
+Run it after any Capacitor upgrade or any CSP change.
+
 ## Useful Documentation Pointers
 
 - Full documentation index: `docs/INDEX.md`
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (75 architectural decisions): `docs/architecture/ADR_INDEX.md`
+- ADR index (245 ADR files, ADR-246 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
+- Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
+- 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

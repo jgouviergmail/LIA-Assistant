@@ -78,7 +78,24 @@ works, and it never depends on trusting a label.
 
 ## What is NOT covered by the installer?
 Version upgrades, database downgrades, and destructive reinstalls are outside
-its scope for now. It installs a working instance; it does not yet migrate one.
+its scope for now. It installs a working instance; it does not migrate one.
+
+## How do I move my installation to a newer release?
+There is no upgrade command, but there is a written procedure — seven steps in
+`docs/guides/GUIDE_SELF_HOSTING.md`, section "Upgrading to a newer release".
+
+The shape of it: back up the database first (migrations run automatically when
+the new container starts, and there is no downgrade path), download and verify
+the new bundle's SHA-256, stop the application, overwrite the files the release
+owns while keeping your own `.env` and overlay, regenerate the image pins from
+the new manifest, then start again and let the migrations run. Rolling back the
+code means restoring the previous pins, which takes seconds; rolling back a
+migration means restoring the dump, which is why the dump comes first.
+
+Never set `APPLY_SEEDS=true` on an upgrade: the seed bundle deletes before it
+inserts and exists for a fresh install only. And `./install.sh --resume` is not
+the upgrade path — it is fail-closed and will refuse once the files change,
+which is the guard working as intended.
 
 Script skills, which execute code, require an extra opt-in overlay because they
 need access to the Docker socket. A generic installation runs without it.

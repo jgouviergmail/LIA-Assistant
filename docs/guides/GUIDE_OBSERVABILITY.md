@@ -1589,11 +1589,11 @@ lia_connectors_by_type = Gauge(
 
 > **Current state (ADR-119, 2026-07)**: Prometheus loads **only the 14-alert
 > core** (`alerts-core.yml`) and delivers by **email** through Alertmanager in
-> both dev and production — operational guide: [README_ALERTING.md](README_ALERTING.md).
+> both dev and production — operational guide: [ALERTING.md](../technical/ALERTING.md).
 > The alert groups catalogued below are the **legacy 2025-11 design**: NOT
 > loaded, and their rendered thresholds are corrupted (recalibration required
 > before re-enabling any group — see
-> [README_PROMETHEUS_THRESHOLDS.md](README_PROMETHEUS_THRESHOLDS.md)).
+> [PROMETHEUS_THRESHOLDS.md](../technical/PROMETHEUS_THRESHOLDS.md)).
 > Slack/PagerDuty channels mentioned below are optional and unset by default
 > (email-only mode).
 

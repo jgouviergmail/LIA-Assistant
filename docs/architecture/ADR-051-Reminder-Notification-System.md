@@ -743,7 +743,7 @@ CREATE INDEX ix_user_fcm_tokens_user_id ON user_fcm_tokens(user_id);
 ### Documentation
 - [GUIDE_BACKGROUND_JOBS_APSCHEDULER.md](../guides/GUIDE_BACKGROUND_JOBS_APSCHEDULER.md) - Guide complet APScheduler
 - [GUIDE_FCM_PUSH_NOTIFICATIONS.md](../guides/GUIDE_FCM_PUSH_NOTIFICATIONS.md) - Guide complet FCM
-- [README_REMINDERS.md](../readme/README_REMINDERS.md) - Guide développeur rappels
+- [REMINDERS.md](../technical/REMINDERS.md) - Guide développeur rappels
 
 ---
 

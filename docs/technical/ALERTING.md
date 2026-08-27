@@ -3,7 +3,7 @@
 **Scope**: the live alerting chain reactivated by ADR-119 (2026-07): Prometheus rule evaluation → Alertmanager → email. This is the canonical operational doc; it replaces the former `README_ALERT_MANAGER2.md`, `README_PROMETHEUS_ALERTMANAGER.md` and `README_ALERTING_SMTP.md` (deleted 2026-07, recoverable from git history).
 
 Related docs:
-- Thresholds mechanism & legacy-threshold corruption: [README_PROMETHEUS_THRESHOLDS.md](README_PROMETHEUS_THRESHOLDS.md)
+- Thresholds mechanism & legacy-threshold corruption: [PROMETHEUS_THRESHOLDS.md](./PROMETHEUS_THRESHOLDS.md)
 - Decision record: [ADR-119](../architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md)
 - Per-alert incident procedures: [docs/runbooks/alerts/](../runbooks/alerts/)
 
@@ -132,6 +132,18 @@ docker start lia-redis-dev   # resolved email ~2m later
 The 2025-11 catalog (60 alerts in `alerts.yml`, 11 in `alert_rules.yml`, plus
 `prometheus/alerts/*.yml`) is **not** wired into `rule_files`: its rendered
 thresholds are corrupted (percentages above 100 — see
-[README_PROMETHEUS_THRESHOLDS.md](README_PROMETHEUS_THRESHOLDS.md)). Recalibrate
+[PROMETHEUS_THRESHOLDS.md](./PROMETHEUS_THRESHOLDS.md)). Recalibrate
 group by group before re-enabling; the templates are the source of truth for
 their PromQL.
+
+**Second blocker, measured 2026-08-27 — its runbook links go nowhere.** Eight
+`runbook_url` annotations in `alerts.yml` point at `https://docs.company.com/...`,
+a placeholder domain that has never existed. Re-enabling a group without fixing
+them hands the on-call a dead link at the worst possible moment.
+
+The loaded catalog does not have this problem, and not by luck: `alerts-core.yml`
+uses a `runbook` annotation holding an **in-repo path**, and
+`test_alerts_core_guard::test_alert_links_to_a_runbook_that_exists` fails when
+that file is missing. Any group promoted out of the legacy catalog must adopt the
+same convention — in-repo path, not external URL — so the guard covers it the day
+it starts firing. A recalibrated threshold with a dead runbook is half a control.

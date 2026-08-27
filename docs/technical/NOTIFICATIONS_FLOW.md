@@ -823,4 +823,4 @@ async def _send_channels(self, user_id, title, body, language):
 - [ADR-051: Reminder & Notification System](../architecture/ADR-051-Reminder-Notification-System.md)
 - [ADR-046: Background Job Scheduling](../architecture/ADR-046-Background-Job-Scheduling.md)
 - [CHANNELS_INTEGRATION.md](./CHANNELS_INTEGRATION.md)
-- [README_REMINDERS.md](../readme/README_REMINDERS.md)
+- [REMINDERS.md](./REMINDERS.md)

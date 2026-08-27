@@ -6,7 +6,7 @@
 
 **Versión**: 4.6
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.33.1
+**Aplicación**: LIA v1.33.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,7 +60,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 473 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 245 ADRs, ~20.586 tests recogidos por pytest en 1.204 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 245 ADRs, ~20.468 tests recogidos por pytest en 1.184 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -78,11 +78,11 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 20.586 recopilados por pytest en 1.204 archivos de prueba + 6.219 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
-| Fixtures pytest | 752, de las cuales 32 compartidas mediante conftest |
-| Documentos de documentación | 545 |
-| ADRs (Architecture Decision Records) | 242 |
-| Métricas Prometheus | 483 definiciones |
+| Tests | 20.468 recopilados por pytest en 1.184 archivos de prueba + 6.327 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Fixtures pytest | 755, de las cuales 32 compartidas mediante conftest |
+| Documentos de documentación | 549 |
+| ADRs (Architecture Decision Records) | 245 |
+| Métricas Prometheus | 486 definiciones |
 | Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1412,7 +1412,7 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 245 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~20.586 tests en 1.204 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 245 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~20.468 tests en 1.184 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 

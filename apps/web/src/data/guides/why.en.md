@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Date**: 2026-08-23
-**Application**: LIA v1.33.1
+**Application**: LIA v1.33.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -38,7 +38,7 @@ LIA takes a different path. Not a head-on competitor to the giants — a **perso
 
 ### 2.1. A guided deployment, then zero friction
 
-Self-hosting has a bad reputation. LIA doesn't pretend to eliminate every technical step: the initial setup — configuring API keys, setting up OAuth connectors, choosing your infrastructure — takes some time and basic skills. But every step is **documented in detail** in a step-by-step deployment guide.
+Self-hosting has a bad reputation. LIA doesn't pretend to eliminate every technical step: the initial setup — configuring API keys, setting up OAuth connectors, choosing your infrastructure — takes some time and basic skills. But every step is **documented in detail** in a step-by-step deployment guide. Moving an existing installation to a newer release has its own written procedure too, with the database backup as its first step — migrations apply the moment the new container starts, and there is no way back.
 
 Once this installation phase is complete, **day-to-day management is handled entirely through an intuitive web interface**. No more terminal, no more configuration files.
 
@@ -308,6 +308,8 @@ The same principle applies to the protections themselves. Security that is annou
 Nor does a test that never runs — and that is the least comfortable discovery this project has made. Ten test files had switched themselves off whenever a provider key was missing, and nothing reported it any more: a skipped test counts as green, coverage measures lines reached rather than assertions executed, and a review sees a test file and concludes the surface is protected. Two hundred and nineteen tests had never run once; switching them back on surfaced four genuine defects — among them a voice that split every number in two, and a reminder lost for good when the usage budget ran out in the wrong minute. The absence of a red signal is not proof of health: sometimes it is only the absence of measurement. A continuous-integration guard now refuses to let a test module go quiet.
 
 The same principle applies to what is **advertised**. A panel showed a "hybrid search" switch for memory; the matching engine had not existed for several versions, and the switch commanded nothing. The dead code and the display were removed together, and the real behaviour written in their place. A capability advertised but absent is not a documentation imprecision: it is a promise made to a user who has no way of checking it. Showing a setting that controls nothing is worse than showing nothing.
+
+Documentation is that same promise, written down — and it had been broken quietly. The enforced test-coverage floor is one number, owned by one file; six documents stated it, each with a different wrong value, and one of them certified in the same sentence that the value had a single source of truth. Every gate was green, because the gates checked that the links resolved, never that the sentences were true. Now every version and threshold a document states is recomputed from the code that owns it and a mismatch stops the build. A document may choose how precise it wants to be; it may not be precise and wrong.
 
 ### 6.5. Why LIA thinks that
 

@@ -829,7 +829,7 @@ hitl_plan_modifications = Counter(
 ## 📚 Références
 
 ### Documentation Interne
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](./GRAPH_AND_AGENTS_ARCHITECTURE.md) - Approval Gate Node
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) - Approval Gate Node
 - [AGENT_MANIFEST.md](./AGENT_MANIFEST.md) - ToolManifest permissions
 - [OBSERVABILITY_AGENTS.md](./OBSERVABILITY_AGENTS.md) - HITL metrics
 

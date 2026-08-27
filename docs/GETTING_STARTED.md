@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.33.1
+**Compatibility**: LIA v1.33.2
 
 ## Table of Contents
 
@@ -57,7 +57,7 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
 | **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.11, LangChain 1.3.15, SQLAlchemy 2.0.50, Python 3.14 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.2.10, React 19.2.7 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.2.11, React 19.2.7 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector:pg16`) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
 | **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.0.0, Grafana 11.3.0, Loki 3.2.1, Tempo 2.6.1 |
@@ -106,7 +106,7 @@ Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are m
 
 | Tool | Minimum Version | Installation | Verification |
 |------|-----------------|--------------|--------------|
-| **Python** | 3.12+ | [python.org](https://www.python.org/) | `python --version` |
+| **Python** | 3.14+ | [python.org](https://www.python.org/) | `python --version` |
 | **Node.js** | 24.x (LTS) | [nodejs.org](https://nodejs.org/) | `node --version` |
 | **pnpm** | 10.x+ | `npm install -g pnpm` | `pnpm --version` |
 | **Docker** | 24.x+ | [docker.com](https://www.docker.com/) | `docker --version` |
@@ -287,6 +287,18 @@ LLM API keys are **not** read from `.env` in normal operation — they are manag
 6. Changes are hot-reloaded across workers — no restart needed
 
 `.env` keys (e.g. `OPENAI_API_KEY`) are only a **fallback** used when no database key exists for a provider.
+
+### Step 8 (later): moving this installation to a newer release
+
+Installing is one procedure; upgrading is another, and the installer owns only
+the first — `./install.sh --resume` is fail-closed and will refuse once the
+release files change, which is the guard working rather than a defect. The
+written upgrade procedure lives in
+[GUIDE_SELF_HOSTING.md — Upgrading to a newer release](./guides/GUIDE_SELF_HOSTING.md#upgrading-to-a-newer-release).
+
+Its first step is the database backup, and that ordering is not a style
+preference: migrations are applied by the API container's entrypoint the moment
+it starts, and this project ships no downgrade path.
 
 ---
 
@@ -547,7 +559,7 @@ Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-i
 
 \* Opt-in `langfuse` compose profile — started only by `task dev:langfuse`.
 
-The production compose (`docker-compose.prod.yml`) runs a leaner 17-service stack: postgres, postgres-backup, redis, api, web, prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer — no pgAdmin, no Langfuse stack. Alertmanager delivers the 14-alert core by email (ADR-119, see [README_ALERTING.md](readme/README_ALERTING.md)).
+The production compose (`docker-compose.prod.yml`) runs a leaner 17-service stack: postgres, postgres-backup, redis, api, web, prometheus, alertmanager, blackbox-exporter, grafana, loki, promtail, tempo, node-exporter, cadvisor, postgres-exporter, redis-exporter, portainer — no pgAdmin, no Langfuse stack. Alertmanager delivers the 14-alert core by email (ADR-119, see [ALERTING.md](./technical/ALERTING.md)).
 
 ### Service Verification
 
@@ -1572,7 +1584,7 @@ In development the equivalent is `task db:seed:sql` (or `task db:reset`), which 
 | Priority | Document | Description |
 |----------|----------|-------------|
 | **1** | [ARCHITECTURE.md](./ARCHITECTURE.md) | Overall system architecture |
-| **2** | [technical/GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | LangGraph multi-agent system (Pipeline + ReAct) |
+| **2** | [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md) | LangGraph multi-agent system (Pipeline + ReAct) |
 | **3** | [technical/HITL.md](./technical/HITL.md) | Human-in-the-Loop approval system |
 | **4** | [technical/PLANNER.md](./technical/PLANNER.md) | ExecutionPlan DSL + FOR_EACH iteration |
 | **5** | [technical/LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | LLM slots administration |

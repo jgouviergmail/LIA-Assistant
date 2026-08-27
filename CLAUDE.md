@@ -7,7 +7,7 @@ Scoped guidance: `apps/web/CLAUDE.md` (frontend conventions) applies on top of t
 
 ## Project Overview
 
-LIA is a multi-agent conversational AI assistant built with **FastAPI** (backend), **Next.js 16** (frontend), and **LangGraph 1.0** (agent orchestration). It integrates Google/Apple/Microsoft APIs, supports HITL (Human-in-the-Loop) approval flows, and features enterprise observability (Prometheus, Grafana, Langfuse).
+LIA is a multi-agent conversational AI assistant built with **FastAPI** (backend), **Next.js 16** (frontend), and **LangGraph 1.x** (agent orchestration). It integrates Google/Apple/Microsoft APIs, supports HITL (Human-in-the-Loop) approval flows, and features enterprise observability (Prometheus, Grafana, Langfuse).
 
 ## Build & Development Commands
 
@@ -76,8 +76,40 @@ task lint:hygiene           # .bak, sync Store calls, Redis setex, raw HTTPExcep
 task lint:lockfiles         # manifests vs compiled lockfiles (ADR-112)
 task lint:ci-parity         # the workflow orchestrates, it never implements (ADR-151)
 task lint:i18n              # strict key parity across the 6 locales
-task lint:docs              # documentation drift (broken links, stale code paths)
+task lint:docs              # documentation drift: broken links, stale code paths,
+                            # orphans, quoted facts vs their sources, AGENTS.md mirror
 ```
+
+**Documentation is gated on what it STATES, not only on how it links.**
+`task lint:docs` runs three instruments (all with `--fix`-style companions where
+repair is mechanical):
+
+| Instrument | Answers | Repair |
+|---|---|---|
+| `scripts/audit/doc_audit.py` | Do the links resolve? Are the code paths real? Is any living document unreachable? | by hand |
+| `scripts/audit/doc_facts.py` | Does a quoted version or threshold equal its source? | `task docs:fix-facts` |
+| `scripts/audit/agents_mirror.py` | Is `AGENTS.md` the current render of `CLAUDE.md`? | `task docs:sync-agents` |
+
+`lint:docs` decides existence from the **git index**, so its verdict matches a
+fresh clone: a file you moved but have not staged is invisible to it, and the
+links pointing at its new home read as broken. That is correct and deliberate.
+When those findings are the ones you just created, `task lint:docs:preview`
+re-runs the same audit over *tracked files plus what `git add -A` would stage* —
+the answer you will get after committing. Never "fix" a finding the preview
+clears; stage instead.
+
+Three rules follow, and they are not stylistic:
+
+1. **Never restate a value the code owns.** The coverage floor, a pinned
+   version, a derived count — quote it and `doc_facts` will hold you to it, or
+   point at the source instead. Measured 2026-08-27: six documents stated six
+   different wrong coverage floors while every gate was green.
+2. **A document may choose its precision, not be precise and wrong.**
+   `Next.js 16` and `Next.js 16.2.11` both pass; `LangGraph 1.0` against a
+   pinned `1.2.11` fails. When you mean the generation, write `1.x`.
+3. **`AGENTS.md` is generated — never edit it.** Edit `CLAUDE.md`, then run
+   `task docs:sync-agents`. Kept by hand it had silently become a strict subset
+   missing all of Systemic Rules.
 
 ### CI & Pre-commit
 

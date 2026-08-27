@@ -42,4 +42,4 @@ step_results = await asyncio.gather(*[... for step_id in next_wave_filtered])
 
 ## Related
 
-- [ADR_INDEX.md](./ADR_INDEX.md) · [GRAPH_AND_AGENTS_ARCHITECTURE.md](../technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) (parallel_executor)
+- [ADR_INDEX.md](./ADR_INDEX.md) · [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) (parallel_executor)

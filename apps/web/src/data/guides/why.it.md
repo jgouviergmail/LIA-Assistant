@@ -4,7 +4,7 @@
 
 **Versione**: 5.1
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.33.1
+**Applicazione**: LIA v1.33.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -38,7 +38,7 @@ LIA sceglie un percorso diverso. Non è un concorrente diretto dei grandi — è
 
 ### 2.1. Un'installazione guidata, poi zero attrito
 
-L'auto-hosting ha una cattiva reputazione. LIA non pretende di eliminare ogni passaggio tecnico: la configurazione iniziale — impostare le chiavi API, configurare i connettori OAuth, scegliere l'infrastruttura — richiede un po' di tempo e qualche competenza di base. Ma ogni passaggio è **documentato nel dettaglio** in una guida di installazione passo dopo passo.
+L'auto-hosting ha una cattiva reputazione. LIA non pretende di eliminare ogni passaggio tecnico: la configurazione iniziale — impostare le chiavi API, configurare i connettori OAuth, scegliere l'infrastruttura — richiede un po' di tempo e qualche competenza di base. Ma ogni passaggio è **documentato nel dettaglio** in una guida di installazione passo dopo passo. Anche portare un'installazione esistente a una versione più recente ha la sua procedura scritta, il cui primo passo è il backup del database — le migrazioni si applicano appena parte il nuovo container, e non esiste un percorso di ritorno.
 
 Una volta terminata questa fase, **tutto il quotidiano si gestisce da un'interfaccia web intuitiva**. Niente più terminale né file di configurazione.
 
@@ -308,6 +308,8 @@ Lo stesso principio vale per le protezioni stesse. Una sicurezza annunciata ma n
 Nemmeno un test che non viene mai eseguito — ed è la scoperta più scomoda di questo progetto. Dieci file di test si erano disattivati da soli non appena mancava una chiave di provider, e nulla lo segnalava più: un test saltato conta come verde, la copertura misura le righe raggiunte e non le asserzioni eseguite, e una revisione vede un file di test e ne conclude che la superficie è protetta. Duecentodiciannove test non erano mai stati eseguiti nemmeno una volta; riaccendendoli sono emersi quattro difetti ben reali — tra cui una voce che spezzava in due tutti i numeri, e un promemoria perso definitivamente quando la quota si esauriva nel minuto sbagliato. L'assenza di un segnale rosso non è una prova di salute: a volte è soltanto l'assenza di misurazione. Una guardia di integrazione continua impedisce ora che un modulo di test si spenga in silenzio.
 
 Lo stesso principio vale per ciò che viene **annunciato**. Un pannello mostrava un interruttore «ricerca ibrida» per la memoria; il motore corrispondente non esisteva più da diverse versioni, e l'interruttore non comandava nulla. Il codice morto e la visualizzazione sono stati rimossi insieme, e il funzionamento reale scritto al loro posto. Una capacità annunciata ma assente non è un'imprecisione di documentazione: è una promessa fatta a un utente che non ha modo di verificarla. Mostrare un'impostazione che non comanda nulla è peggio che non mostrare nulla.
+
+La documentazione è quella stessa promessa, messa per iscritto — ed era stata infranta in silenzio. La soglia di copertura dei test è un solo numero, di proprietà di un solo file; sei documenti la dichiaravano, ciascuno con un valore sbagliato diverso, e uno di essi certificava nella stessa frase che quel valore aveva un'unica fonte di verità. Tutti i gate erano verdi, perché verificavano che i collegamenti risolvessero, mai che le frasi fossero vere. Ora ogni versione e ogni soglia che un documento enuncia viene ricalcolata dal codice che la possiede, e una discrepanza blocca la build. Un documento sceglie quanto vuole essere preciso; non sceglie di essere preciso e sbagliato.
 
 ### 6.5. Perché LIA pensa questo
 

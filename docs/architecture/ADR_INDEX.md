@@ -4157,7 +4157,7 @@ graph TD
 ### Internal Docs
 
 - **[ARCHITECTURE.md](../ARCHITECTURE.md)**: Architecture overview
-- **[GRAPH_AND_AGENTS_ARCHITECTURE.md](../technical/GRAPH_AND_AGENTS_ARCHITECTURE.md)**: LangGraph architecture
+- **[ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md)**: LangGraph architecture
 - **[HITL.md](../technical/HITL.md)**: HITL architecture (ADR-008)
 - **[MESSAGE_WINDOWING_STRATEGY.md](../technical/MESSAGE_WINDOWING_STRATEGY.md)**: Windowing (ADR-007)
 

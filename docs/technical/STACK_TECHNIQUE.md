@@ -33,7 +33,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **Next.js** | 16.2.10 | Framework React SSR/SSG |
+| **Next.js** | 16.2.11 | Framework React SSR/SSG |
 | **React** | 19.2.7 | UI Library |
 | **TypeScript** | 6.0.2 | Type safety |
 | **Tailwind CSS** | 4.3.2 | Utility-first CSS |
@@ -295,5 +295,5 @@ docker compose ps --format "table {{.Name}}\t{{.Image}}\t{{.Status}}"
 
 - [GETTING_STARTED.md](../GETTING_STARTED.md) - Installation et configuration
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - Architecture globale
-- [README_OBSERVABILITY.md](../readme/README_OBSERVABILITY.md) - Stack observabilite
+- [GUIDE_OBSERVABILITY.md](../guides/GUIDE_OBSERVABILITY.md) - Stack observabilite
 - [DEPLOYMENT_INSTRUCTIONS.md](./DEPLOYMENT_INSTRUCTIONS.md) - Deploiement production

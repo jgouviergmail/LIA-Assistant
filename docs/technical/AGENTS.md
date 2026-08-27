@@ -34,8 +34,8 @@
 LIA utilise une **architecture multi-agent** pour gérer différents domaines fonctionnels (contacts, email, calendar, tasks, etc.) de manière modulaire et extensible.
 
 **Standards utilisés** :
-- LangGraph v1.1.6 multi-agent best practices
-- LangChain v1.2 agent API (`create_agent`)
+- LangGraph v1.2.11 multi-agent best practices
+- LangChain v1.3 agent API (`create_agent`)
 - Registry pattern (centralized dependency injection)
 - Builder pattern (agent factory)
 - Manifest-driven configuration
@@ -1745,7 +1745,7 @@ class AgentService(
         checkpointer = registry.get_checkpointer()
         store = registry.get_store()
 
-        # Build graph (omitted for brevity - see GRAPH_AND_AGENTS_ARCHITECTURE.md)
+        # Build graph (omitted for brevity - see docs/ARCHITECTURE_LANGRAPH.md)
         builder = StateGraph(MessagesState)
         # ... add nodes, edges, conditional edges
 
@@ -2154,7 +2154,7 @@ else:
 
 ### Documentation Interne
 
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](./GRAPH_AND_AGENTS_ARCHITECTURE.md) - LangGraph global
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) - LangGraph global
 - [TOOLS.md](./TOOLS.md) - Système d'outils
 - [PLANNER.md](./PLANNER.md) - Planner Node
 - [ROUTER.md](./ROUTER.md) - Router Node avec domain detection

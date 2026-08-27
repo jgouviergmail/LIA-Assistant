@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 229 (ADR-229 le plus récent ; ADR-008 n'a pas de fichier séparé, soit 227 fichiers) |
+| ADRs | 245 ADR files (ADR-246 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 30 |
 
 ---
@@ -40,13 +40,14 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description |
 |----------|-------------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
-| [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
-| [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
+| [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md) | **Le graphe** : nodes, routing, state, HITL, streaming, INTELLIPLANNER — la référence LangGraph |
+| [ARCHITECTURE_AGENT.md](./ARCHITECTURE_AGENT.md) | **Le manuel du domaine agents** : ajouter un connecteur, un agent, un tool ; manifestes, cache, DI, contexte, tests |
+| [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence (les reducers font autorité ici) |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (243) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (245 ADR files) |
 
 ### Pour les Product Managers
 
@@ -65,7 +66,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [CI_CD.md](./technical/CI_CD.md) | Pipeline CI thin (ADR-151), hook pre-commit, workflows |
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack observabilité complète |
 | [TIMEOUT_REGISTRY.md](./technical/TIMEOUT_REGISTRY.md) | Référence centralisée de tous les timeouts backend (HTTP, tools, locks, scheduler, SSE/WS) — Settings, ranges, defaults, cascades |
-| [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart |
+| [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart |
 | [runbooks/](./runbooks/) | Runbooks opérationnels (34+ procédures) |
 | [audit/](./audit/README.md) | **Audit technique public** — résumé (8.3/10, 24 périmètres normalisés ISO/IEC 25010:2023, 7 chantiers modérés) + [rapport autonome V11](./audit/AUDIT_CODEBASE_2026-07-16_CONSOLIDE_V11.html) + [protocole reproductible](./audit/AUDIT_PROTOCOL.md) et pipeline de republication |
 
@@ -94,7 +95,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | LangGraph, nodes, routing, orchestration | ✅ |
+| [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md) | LangGraph, nodes, routing, orchestration | ✅ |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | MessagesState, reducers, PostgreSQL checkpointing | ✅ |
 | [MESSAGE_WINDOWING_STRATEGY.md](./technical/MESSAGE_WINDOWING_STRATEGY.md) | Windowing par node, truncation, compaction intelligente (F4), performance | ✅ |
 | [COMPACTION_v2.md](./technical/COMPACTION_v2.md) | Compaction v2 — hardening (timeouts, retry, truncation fallback), SSE events, keepalive concurrent, sonner toast UX, runbook (2026-05) | ✅ |
@@ -103,7 +104,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [DATABASE_SCHEMA.md](./technical/DATABASE_SCHEMA.md) | Schema PostgreSQL complet, migrations Alembic | ✅ |
 | [STACK_TECHNIQUE.md](./technical/STACK_TECHNIQUE.md) | Référence complète versions technologies | ✅ |
 | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 4-node loop, pipeline vs ReAct, tools, HITL, skills | ✅ |
-| [LATENCY_PLAN.md](./optim/LATENCY_PLAN.md) | Latency/TTFT optimization lot — per-stage instrumentation (`langgraph_stage_duration_seconds`), reproducible protocol (`scripts/perf/measure_ttft.py`), quantified shortlist & before/after | 🚧 |
+| [Plan latence/TTFT](./superpowers/plans/2026-07-10-latency-optimization-plan.md) | Instrumentation par étage (`langgraph_stage_duration_seconds`), protocole reproductible (`scripts/perf/measure_ttft.py`), shortlist chiffrée & avant/après | 🚧 |
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
 | [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing — bounded context autonome sans LangGraph (ADR-077) : fetchers `asyncio.gather`, cache Redis par section, endpoints split cards/synthesis | ✅ |
 | [DEBUG_PANEL_ARCHITECTURE.md](./technical/DEBUG_PANEL_ARCHITECTURE.md) | Debug Panel — flow des métriques de scoring (domaines, outils, intents) pour le tuning des thresholds | ✅ |
@@ -220,7 +221,6 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description | Statut |
 |----------|-------------|--------|
 | [HITL.md](./technical/HITL.md) | Architecture HITL, 6 couches, plan approval | ✅ |
-| [PLAN_HITL_STREAMING_VALIDATION.md](./technical/PLAN_HITL_STREAMING_VALIDATION.md) | Validation plan streaming HITL | ✅ |
 
 ### Sécurité & Authentification
 
@@ -240,10 +240,10 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack Prometheus/Grafana/Loki/Tempo | ✅ |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | 500+ métriques documentées | ✅ |
 | [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 26 dashboards Grafana | ✅ |
-| [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
-| [README_GRAFANA_LANGFUSE.md](./readme/README_GRAFANA_LANGFUSE.md) | Intégration Grafana + Langfuse | ✅ |
-| [README_ALERTING.md](./readme/README_ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
-| [README_PROMETHEUS_THRESHOLDS.md](./readme/README_PROMETHEUS_THRESHOLDS.md) | Seuils alertes par environnement | ✅ |
+| [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
+| [GRAFANA_LANGFUSE_DASHBOARD.md](./technical/GRAFANA_LANGFUSE_DASHBOARD.md) | Intégration Grafana + Langfuse | ✅ |
+| [ALERTING.md](./technical/ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
+| [PROMETHEUS_THRESHOLDS.md](./technical/PROMETHEUS_THRESHOLDS.md) | Seuils alertes par environnement | ✅ |
 
 ### Accessibilité
 
@@ -304,6 +304,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Guide | Description | Statut |
 |-------|-------------|--------|
+| [README.md](./langfuse/README.md) | Point d'entrée Langfuse : architecture, quick start, configuration, dashboards, dépannage | ✅ |
 | [GUIDE_BEST_PRACTICES.md](./langfuse/GUIDE_BEST_PRACTICES.md) | Best practices Langfuse | ✅ |
 | [GUIDE_PROMPT_VERSIONING.md](./langfuse/GUIDE_PROMPT_VERSIONING.md) | Versioning prompts Langfuse | ✅ |
 
@@ -468,9 +469,9 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 |---------|-------------|
 | [RedisDown.md](./runbooks/alerts/RedisDown.md) | Redis indisponible |
 | [RedisConnectionPoolExhaustion.md](./runbooks/alerts/RedisConnectionPoolExhaustion.md) | Pool Redis épuisé |
-| [RedisRateLimitHighHitRate.md](./runbooks/redis/RedisRateLimitHighHitRate.md) | Rate limit hits élevés |
-| [RedisRateLimitCheckLatencyHigh.md](./runbooks/redis/RedisRateLimitCheckLatencyHigh.md) | Latence rate limit |
-| [RedisRateLimitErrors.md](./runbooks/redis/RedisRateLimitErrors.md) | Erreurs rate limiter Redis |
+| [RedisRateLimitHighHitRate.md](./runbooks/alerts/RedisRateLimitHighHitRate.md) | Rate limit hits élevés |
+| [RedisRateLimitCheckLatencyHigh.md](./runbooks/alerts/RedisRateLimitCheckLatencyHigh.md) | Latence rate limit |
+| [RedisRateLimitErrors.md](./runbooks/alerts/RedisRateLimitErrors.md) | Erreurs rate limiter Redis |
 
 ### Runbooks LangGraph
 
@@ -490,6 +491,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 
 | Template | Description |
 |----------|-------------|
+| [README.md](./templates/README.md) | Comment ces checklists s'utilisent, et quand en ajouter une |
 | [NEW_CONNECTOR_CHECKLIST.md](./templates/NEW_CONNECTOR_CHECKLIST.md) | Checklist creation d'un nouveau connecteur OAuth/API Key |
 | [NEW_MCP_SERVER_CHECKLIST.md](./templates/NEW_MCP_SERVER_CHECKLIST.md) | Checklist integration d'un nouveau serveur MCP |
 | [NEW_PROACTIVE_TASK_CHECKLIST.md](./templates/NEW_PROACTIVE_TASK_CHECKLIST.md) | Checklist creation d'une nouvelle notification proactive |
@@ -497,22 +499,23 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 
 ---
 
-## README Specialises
+## Outillage et références transverses
 
-| README | Description |
-|--------|-------------|
-| [README_ALERTING.md](./readme/README_ALERTING.md) | Chaîne d'alerte : config e-mail, routing, tests |
-| [README_DOMAIN_AGENT_MIXINS.md](./readme/README_DOMAIN_AGENT_MIXINS.md) | Mixins agents domaine |
-| [README_LOAD_TESTING.md](./readme/README_LOAD_TESTING.md) | Tests de charge |
-| [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Stack observabilité |
-| [README_GRAFANA_DASHBOARD.md](./readme/README_GRAFANA_DASHBOARD.md) | Configuration dashboards |
-| [README_RUNBOOK.md](./readme/README_RUNBOOK.md) | Index runbooks |
-| [README_SCRIPTS.md](./readme/README_SCRIPTS.md) | Documentation scripts |
-| [README_TESTS.md](./readme/README_TESTS.md) | Guide tests global |
-| [README_TESTS_AGENTS.md](./readme/README_TESTS_AGENTS.md) | Tests agents |
-| [README_TESTS_AGENT_MIXINS.md](./readme/README_TESTS_AGENT_MIXINS.md) | Tests agent mixins |
-| [README_BENCHMARK.md](./readme/README_BENCHMARK.md) | Benchmarks performance |
-| [README_REMINDERS.md](./readme/README_REMINDERS.md) | Système de rappels |
+Le dossier `docs/readme/` a été dissous le 2026-08-27 : il n'avait pas d'audience
+définie, et c'est de là que venait l'essentiel des doublons (deux documents pour
+une alerte Redis, une enveloppe Grafana ayant dérivé quatre fois du catalogue
+qu'elle résumait). Chaque document est reparti chez son lecteur — guide,
+référence technique ou runbook. Ne sont listés ici que ceux qu'aucune autre
+section ne référence.
+
+| Document | Description |
+|----------|-------------|
+| [runbooks/README.md](./runbooks/README.md) | Index des runbooks : par quoi commencer selon l'alerte |
+| [SCRIPTS.md](./technical/SCRIPTS.md) | Catalogue des scripts (`scripts/`) : instruments de mesure, gardes, outils d'analyse |
+| [TESTING_AGENTS.md](./technical/TESTING_AGENTS.md) | Tests du cœur agentique : windowing, orchestration, plans, HITL |
+| [AGENT_API_MIXINS.md](./technical/AGENT_API_MIXINS.md) | Mixins `AgentService` : architecture (infrastructure seulement) et tests |
+| [GUIDE_BENCHMARKING.md](./guides/GUIDE_BENCHMARKING.md) | Mesurer les performances : latence SSE (mono-utilisateur) et charge HITL (concurrent) |
+| [REMINDERS.md](./technical/REMINDERS.md) | Système de rappels : modèle, planification, notification |
 
 ---
 
@@ -542,7 +545,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Next.js | 16.2.10 | Framework React |
+| Next.js | 16.2.11 | Framework React |
 | React | 19.2.7 | UI Library |
 | TypeScript | 6.0.2 | Typage |
 | Tailwind CSS | 4.3.2 | Styling |

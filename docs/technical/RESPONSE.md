@@ -1781,7 +1781,7 @@ class Settings(BaseSettings):
 **Documentation**:
 - [PROMPTS.md](PROMPTS.md) - Prompt versions et optimisations
 - [PLANNER.md](PLANNER.md) - Planner node et ExecutionPlan DSL
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](GRAPH_AND_AGENTS_ARCHITECTURE.md) - LangGraph architecture
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) - LangGraph architecture
 - [STATE_AND_CHECKPOINT.md](STATE_AND_CHECKPOINT.md) - MessagesState structure
 
 **Code source**:

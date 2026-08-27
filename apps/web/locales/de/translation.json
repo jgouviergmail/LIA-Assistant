@@ -4355,6 +4355,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_33_2": {
+          "title": "v1.33.2 — 📘 Self-Hosting: der Upgrade-Weg, aufgeschrieben",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📘 Die eigene Installation auf eine neue Version bringen</b> — wer den Assistenten selbst hostet, hatte keine schriftliche Anleitung, um eine bestehende Installation zu aktualisieren. Jetzt gibt es sie: sieben Schritte, mit dem Datenbank-Backup <i>zuerst</i>, weil Migrationen sofort beim Start des neuen Containers greifen und es keinen Rückweg gibt — und ein Rollback, das die vorherige Version in Sekunden wiederherstellt. LIA erklärt sie Ihnen, wenn Sie danach fragen.",
+            "i2": "<b>✅ Die Dokumentation muss jetzt stimmen</b> — jede Versionsnummer und jeder Schwellenwert in der Dokumentation wird aus dem Code neu berechnet, dem er gehört; eine Abweichung stoppt den Build. Sechs Dokumente nannten sechs verschiedene falsche Werte für dieselbe Einstellung — diese Fehlerklasse erreicht Sie nicht mehr. Die auf den öffentlichen Seiten veröffentlichten Zahlen folgen derselben Regel: neu berechnet, nie übernommen."
+          }
+        },
         "v1_33_1": {
           "title": "v1.33.1 — 📍 Standort-Einstellungen in eigener Sektion",
           "date": "August 2026",

@@ -1625,7 +1625,7 @@ class PlanValidator:
 
 ### LangChain RetryWithErrorOutputParser Pattern
 
-Le Planner implémente le pattern **RetryWithErrorOutputParser** de LangChain v1.0 pour améliorer la qualité des plans générés.
+Le Planner implémente le pattern **RetryWithErrorOutputParser** de LangChain v1.x pour améliorer la qualité des plans générés.
 
 ### Flow Retry
 
@@ -3124,7 +3124,7 @@ class Settings(BaseSettings):
 - [PROMPTS.md](PROMPTS.md) - Prompt versions et optimisations
 - [TOOLS.md](TOOLS.md) - Système d'outils et catalogue
 - [STATE_AND_CHECKPOINT.md](STATE_AND_CHECKPOINT.md) - MessagesState structure
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](GRAPH_AND_AGENTS_ARCHITECTURE.md) - LangGraph architecture
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) - LangGraph architecture
 
 **Code source**:
 - [planner_node_v3.py](../../apps/api/src/domains/agents/nodes/planner_node_v3.py) - Planner node implementation

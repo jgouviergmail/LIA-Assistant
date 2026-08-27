@@ -1640,7 +1640,7 @@ def build_graph() -> CompiledStateGraph:
                                 └────────────────────────────────────┘
 ```
 
-Pour les détails complets, voir [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md)
+Pour les détails complets, voir [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md)
 
 ---
 
@@ -3938,7 +3938,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Journal : écriture restraint-first + injection routée par niveau | [ADR-088](./architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) | [JOURNALS.md](./technical/JOURNALS.md) |
 | Métriques Prometheus multi-worker (multiprocess) | [ADR-089](./architecture/ADR-089-Prometheus-Multiprocess-Metrics.md) | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) |
 | Couche sémantique : gouvernance, évidence déterministe, back-fill des annotations | [ADR-090](./architecture/ADR-090-Semantic-Layer-Governance.md), [ADR-120](./architecture/ADR-120-Semantic-Evidence-Expansion-And-Param-Guard.md), [ADR-121](./architecture/ADR-121-Semantic-Annotation-Backfill.md) | [AGENT_MANIFEST.md](./technical/AGENT_MANIFEST.md) |
-| Prefetch du contexte de réponse depuis le node initiative (latence) | [ADR-091](./architecture/ADR-091-Response-Context-Prefetch.md) | [LATENCY_PLAN.md](./optim/LATENCY_PLAN.md) |
+| Prefetch du contexte de réponse depuis le node initiative (latence) | [ADR-091](./architecture/ADR-091-Response-Context-Prefetch.md) | [Plan latence](./superpowers/plans/2026-07-10-latency-optimization-plan.md) |
 | HITL replay-safe : un interrupt par exécution de node, self-loops, FOR_EACH dédié | [ADR-092](./architecture/ADR-092-Replay-Safe-HITL-Interrupts.md), [ADR-106](./architecture/ADR-106-HITL-Contract-Coherence.md) | [HITL.md](./technical/HITL.md), [hitl-flow.mmd](./architecture/hitl-flow.mmd) |
 | Hardening sécurité : proxy de confiance + sanitize XSS, gardes systémiques, boundaries perf, concurrence/GDPR/sandbox, CSP stricte + widget airlock, suppression nginx mort | [ADR-093](./architecture/ADR-093-Security-Hardening-Proxy-XSS.md) → [ADR-099](./architecture/ADR-099-Remove-Dead-Nginx-Config.md) | [SECURITY.md](./technical/SECURITY.md), [PII_LOGGING_SECURITY.md](./technical/PII_LOGGING_SECURITY.md) |
 | Garde structured-output vs prompts « JSON only » (rescue net) | [ADR-100](./architecture/ADR-100-Structured-Output-Prompt-Conflict-Guard.md) | [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) |
@@ -3956,7 +3956,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Split liveness/readiness (`/health` vs `/ready`) | [ADR-115](./architecture/ADR-115-Liveness-Readiness-Probes.md) | [DEPLOYMENT_INSTRUCTIONS.md](./technical/DEPLOYMENT_INSTRUCTIONS.md) |
 | Background Chat Runs : producteur détaché + Redis Streams, reprise live, stop cross-worker | [ADR-117](./architecture/ADR-117-Background-Chat-Runs.md) | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) |
 | Import de skills piloté par le chat (pipeline durci) | [ADR-118](./architecture/ADR-118-Chat-Driven-Skill-Import.md) | [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) |
-| Réactivation de l'alerting (14 alertes → Alertmanager e-mail) | [ADR-119](./architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md) | [README_ALERTING.md](./readme/README_ALERTING.md) |
+| Réactivation de l'alerting (14 alertes → Alertmanager e-mail) | [ADR-119](./architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md) | [ALERTING.md](./technical/ALERTING.md) |
 | Décompositions structurelles : stream voix, lifespan startup, preview renderer | [ADR-122](./architecture/ADR-122-AgentService-Stream-Decomposition-B2.md), [ADR-123](./architecture/ADR-123-Lifespan-Startup-Decomposition.md), [ADR-125](./architecture/ADR-125-Draft-Preview-Renderer-Extraction.md) | — |
 | Découplage auth/users : auth = identité/session (feuille), users = agrégat User | [ADR-126](./architecture/ADR-126-Auth-Users-Domain-Decoupling.md) | [AUTHENTICATION.md](./technical/AUTHENTICATION.md) |
 | Téléphonie agentique : appels sortants pilotés par agent, protection par capacité (libre/occupé, jamais le contenu), aucun enregistrement, synthèse asynchrone réinjectée via webhook signé par utilisateur | [ADR-127](./architecture/ADR-127-Agentic-Telephony.md) | [TELEPHONY.md](./technical/TELEPHONY.md) |
@@ -3968,7 +3968,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 ### Documentation Interne
 
 **Architecture Core** :
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md)
+- [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md)
 - [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md)
 - [SMART_SERVICES.md](./technical/SMART_SERVICES.md)
 - [PLANNER.md](./technical/PLANNER.md)

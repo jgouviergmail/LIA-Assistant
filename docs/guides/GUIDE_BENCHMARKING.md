@@ -1,8 +1,310 @@
-# HITL Streaming Load Testing Guide
+# Guide : mesurer les performances (latence SSE et charge HITL)
 
-> **Version**: 5.5 | **Status**: Active | **Dernière mise à jour**: 2025-01
+Deux questions distinctes, deux outils, un seul dossier de scripts
+(`apps/api/scripts/benchmark/`) — et un seul guide, parce que la réponse à
+l'une conditionne la lecture de l'autre :
 
-## Overview
+| Question | Partie | Script |
+|---|---|---|
+| « Combien de temps pour le premier token, pour un utilisateur seul ? » | [Partie 1](#partie-1--benchmark-de-latence-sse) | `benchmark_sse_streaming.py`, `run_benchmark.py` |
+| « Que se passe-t-il à 10, 50, 100 utilisateurs simultanés ? » | [Partie 2](#partie-2--test-de-charge-du-streaming-hitl) | `load_test_hitl_streaming.py` |
+
+Mesurer la latence sous charge nulle et en déduire le comportement sous charge
+est l'erreur classique : la partie 2 existe précisément parce que les deux
+courbes divergent. Ces mesures sont des **instruments**, pas des seuils : ce qui
+fait autorité en CI, ce sont les gates de `task lint` et les suites de tests.
+
+---
+
+## Partie 1 — Benchmark de latence SSE
+
+
+Scripts pour mesurer et analyser les performances du streaming SSE des agents LangGraph.
+
+### 🎯 Objectifs
+
+Mesurer les métriques de performance critiques :
+- **Time to First Token (TTFT)** : Latence avant le premier token
+- **Time to Last Token (TTLT)** : Temps total de génération
+- **Tokens per Second** : Débit de génération
+- **Router Latency** : Temps de décision du router
+- **Total Response Time** : Temps total end-to-end
+
+### 🚀 Utilisation Rapide
+
+#### Option 1 : Script Wrapper (Recommandé)
+
+Depuis la racine du projet :
+
+```bash
+./scripts/optim/benchmark.sh
+```
+
+**Ce script fait automatiquement** :
+1. Vérifie que l'API tourne
+2. Crée un utilisateur de test si nécessaire
+3. S'authentifie automatiquement
+4. Exécute les 4 benchmarks
+5. Affiche les résultats agrégés
+
+#### Option 2 : Exécution Manuelle
+
+Depuis le container API :
+
+```bash
+# Avec utilisateur de test (créé automatiquement)
+docker compose -f docker-compose.dev.yml exec api python apps/api/scripts/benchmark/run_benchmark.py --test-user
+
+# Avec vos propres credentials
+docker compose -f docker-compose.dev.yml exec api python apps/api/scripts/benchmark/run_benchmark.py \
+  --email votre@email.com \
+  --password VotrePassword
+```
+
+### 📊 Interprétation des Résultats
+
+#### Exemple de Sortie
+
+```
+========================================
+SSE STREAMING PERFORMANCE BENCHMARK
+========================================
+
+[1/4] Testing: Bonjour...
+  ✅ Router Latency: 245ms
+  ✅ Time to First Token: 389ms
+  ✅ Time to Last Token: 1456ms
+  ✅ Total Tokens: 87
+  ✅ Tokens/sec: 82.3
+  ✅ Total Time: 1502ms
+
+...
+
+========================================
+AGGREGATE RESULTS
+========================================
+
+Successful Requests: 4/4
+Average Router Latency: 267ms
+Average Time to First Token: 412ms
+Average Time to Last Token: 1823ms
+Average Tokens: 124
+Average Tokens/sec: 67.8
+Average Total Time: 1891ms
+
+--------------------------------------------------------------------------------
+SLA ANALYSIS (Target: TTFT < 1000ms, Tokens/sec > 20)
+--------------------------------------------------------------------------------
+TTFT < 1000ms: 4/4 (100.0%)
+Tokens/sec > 20: 4/4 (100.0%)
+
+========================================
+✅ VERDICT: ALL SLA TARGETS MET
+========================================
+```
+
+#### Métriques Clés
+
+| Métrique | Cible | Description | Impact Utilisateur |
+|----------|-------|-------------|--------------------|
+| **TTFT** | < 1000ms | Latence avant 1er token | Perception réactivité |
+| **Tokens/sec** | > 20 | Vitesse génération | Fluidité lecture |
+| **Router Latency** | < 500ms | Temps décision routing | Latence initiale |
+| **Total Time** | Variable | Temps complet réponse | Satisfaction globale |
+
+#### Verdicts
+
+- ✅ **ALL SLA TARGETS MET** : Performances optimales
+- ⚠️ **MOST SLA TARGETS MET (>80%)** : Performances acceptables, à surveiller
+- ❌ **SLA TARGETS NOT MET** : Investigation requise
+
+### 🔍 Cas d'Usage
+
+#### 1. Validation Avant Déploiement
+
+```bash
+# Avant merge
+./scripts/optim/benchmark.sh > baseline.txt
+
+# Après modifications code
+./scripts/optim/benchmark.sh > after_changes.txt
+
+# Comparer
+diff baseline.txt after_changes.txt
+```
+
+**Objectif** : S'assurer qu'aucune régression de performance.
+
+#### 2. Optimisation LLM Config
+
+```bash
+# Test 1 : Config actuelle
+./scripts/optim/benchmark.sh
+
+# Modifier .env (ex: RESPONSE_LLM_TEMPERATURE=0.5)
+docker compose -f docker-compose.dev.yml restart api
+
+# Test 2 : Nouvelle config
+./scripts/optim/benchmark.sh
+```
+
+**Objectif** : Trouver le meilleur compromis vitesse/qualité.
+
+#### 3. Load Testing (Simple)
+
+```bash
+# Exécuter 10 fois
+for i in {1..10}; do
+  echo "=== RUN $i ==="
+  ./scripts/optim/benchmark.sh
+  sleep 5
+done
+```
+
+**Objectif** : Vérifier stabilité sous charge répétée.
+
+#### 4. Comparaison Modèles
+
+```bash
+# Test gpt-4.1-mini
+RESPONSE_LLM_MODEL=gpt-4.1-mini ./scripts/optim/benchmark.sh > mini.txt
+
+# Test gpt-4.1-mini
+RESPONSE_LLM_MODEL=gpt-4.1-mini ./scripts/optim/benchmark.sh > gpt4o.txt
+
+# Comparer
+diff mini.txt gpt4o.txt
+```
+
+**Objectif** : Évaluer trade-off coût/performance.
+
+### 🛠️ Personnalisation
+
+#### Modifier les Messages de Test
+
+Éditer `apps/api/scripts/benchmark/benchmark_sse_streaming.py` :
+
+```python
+TEST_MESSAGES = [
+    "Bonjour",
+    "Quel temps fait-il?",
+    "Explique-moi la photosynthèse",
+    "Rédige un email professionnel",
+    # Ajoutez vos messages ici
+]
+```
+
+#### Ajuster les SLA Cibles
+
+Modifier les seuils dans `apps/api/scripts/benchmark/run_benchmark.py` :
+
+```python
+# SLA Analysis
+ttft_sla_met = sum(1 for m in successful_metrics if m.time_to_first_token_ms < 1000)  # Modifier 1000
+tokens_sla_met = sum(1 for m in successful_metrics if m.tokens_per_second > 20)       # Modifier 20
+```
+
+#### Tester Endpoint Différent
+
+```bash
+docker compose -f docker-compose.dev.yml exec api python apps/api/scripts/benchmark/run_benchmark.py \
+  --test-user \
+  --api-url http://autre-api:8000
+```
+
+### 📈 Intégration CI/CD
+
+Ajouter job GitHub Actions pour tracking automatique :
+
+```yaml
+benchmark-performance:
+  name: Performance Benchmark
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Start services
+      run: docker compose -f docker-compose.dev.yml up -d
+
+    - name: Wait for API
+      run: sleep 10
+
+    - name: Run benchmark
+      run: |
+        docker compose -f docker-compose.dev.yml exec -T api \
+          python apps/api/scripts/benchmark/run_benchmark.py --test-user > benchmark.txt
+
+    - name: Check SLA
+      run: |
+        if grep -q "ALL SLA TARGETS MET" benchmark.txt; then
+          echo "✅ Performance SLA met"
+        else
+          echo "❌ Performance SLA not met"
+          exit 1
+        fi
+
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark.txt
+```
+
+### 🐛 Troubleshooting
+
+#### Erreur "API container is not running"
+
+```bash
+# Démarrer l'API
+docker compose -f docker-compose.dev.yml up -d
+
+# Vérifier statut
+docker compose -f docker-compose.dev.yml ps
+```
+
+#### Erreur "Failed to create test user"
+
+```bash
+# Vérifier logs PostgreSQL
+docker compose -f docker-compose.dev.yml logs postgres
+
+# Vérifier migration DB
+docker compose -f docker-compose.dev.yml exec api alembic current
+```
+
+#### Erreur "HTTP 401 Unauthorized"
+
+```bash
+# Vérifier Redis (sessions)
+docker compose -f docker-compose.dev.yml logs redis
+
+# Nettoyer sessions Redis
+docker compose -f docker-compose.dev.yml exec redis redis-cli FLUSHDB
+```
+
+#### Résultats incohérents
+
+Causes possibles :
+- Cache réseau : Attendre 30s entre tests
+- Load variable : Redémarrer containers
+- OpenAI API throttling : Utiliser API key avec quota
+
+### 📚 Ressources
+
+- ADR-009: LangGraph Event Filtering
+- PROMPTOPS Documentation
+- [OpenAI Performance Best Practices](https://platform.openai.com/docs/guides/production-best-practices/improving-latencies)
+
+---
+
+**Dernière mise à jour** : 2025-10-20
+
+---
+
+## Partie 2 — Test de charge du streaming HITL
+
+
+### Overview
 
 This guide explains how to use the load testing script to measure HITL (Human-in-the-Loop) streaming performance under realistic load conditions.
 
@@ -13,9 +315,9 @@ This guide explains how to use the load testing script to measure HITL (Human-in
 - **Error Rates**: Success/failure breakdown
 - **Token Metrics**: Tokens generated per request
 
-## Quick Start
+### Quick Start
 
-### Prerequisites
+#### Prerequisites
 
 ```bash
 # Install dependencies
@@ -25,7 +327,7 @@ pip install httpx asyncio aiohttp
 docker-compose -f docker-compose.dev.yml up -d api
 ```
 
-### Basic Usage
+#### Basic Usage
 
 ```bash
 # Run with default settings (10 users, 100 requests)
@@ -41,9 +343,9 @@ python apps/api/scripts/benchmark/load_test_hitl_streaming.py --duration 300
 python apps/api/scripts/benchmark/load_test_hitl_streaming.py --output results.json
 ```
 
-## Load Testing Scenarios
+### Load Testing Scenarios
 
-### Scenario 1: Smoke Test (Low Load)
+#### Scenario 1: Smoke Test (Low Load)
 
 Verify basic functionality with minimal load.
 
@@ -56,7 +358,7 @@ python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 1 --reques
 - TTFT p95: < 300ms
 - No errors
 
-### Scenario 2: Normal Load (Production Simulation)
+#### Scenario 2: Normal Load (Production Simulation)
 
 Simulate typical production traffic with 10 concurrent users.
 
@@ -70,7 +372,7 @@ python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 10 --reque
 - TTFT p99: < 500ms
 - Throughput: > 5 req/s
 
-### Scenario 3: Stress Test (High Load)
+#### Scenario 3: Stress Test (High Load)
 
 Test system limits with high concurrent load.
 
@@ -90,7 +392,7 @@ python apps/api/scripts/benchmark/load_test_hitl_streaming.py --users 50 --reque
 - Database connection limits
 - Memory leaks
 
-### Scenario 4: Soak Test (Endurance)
+#### Scenario 4: Soak Test (Endurance)
 
 Run for extended duration to detect memory leaks and resource exhaustion.
 
@@ -114,7 +416,7 @@ docker stats lia-api-dev lia-redis-dev
 curl http://localhost:9090/api/v1/query?query=hitl_question_ttft_seconds
 ```
 
-### Scenario 5: Spike Test (Burst Traffic)
+#### Scenario 5: Spike Test (Burst Traffic)
 
 Simulate sudden traffic spike (e.g., viral event).
 
@@ -131,9 +433,9 @@ sleep 30 && python apps/api/scripts/benchmark/load_test_hitl_streaming.py --user
 - TTFT degrades temporarily but recovers
 - No cascading failures
 
-## Interpreting Results
+### Interpreting Results
 
-### TTFT Metrics (Critical for UX)
+#### TTFT Metrics (Critical for UX)
 
 ```
 🎯 Time To First Token (TTFT) - Critical UX Metric:
@@ -156,7 +458,7 @@ sleep 30 && python apps/api/scripts/benchmark/load_test_hitl_streaming.py --user
 - **P95**: < 300ms (UX target)
 - **P99**: < 500ms (acceptable tail latency)
 
-### Throughput Metrics
+#### Throughput Metrics
 
 ```
 ⚡ Execution Summary:
@@ -172,7 +474,7 @@ sleep 30 && python apps/api/scripts/benchmark/load_test_hitl_streaming.py --user
 - **Normal throughput (5-10 req/s)**: Healthy for 10 concurrent users
 - **High throughput (> 20 req/s)**: Excellent scalability
 
-### Error Analysis
+#### Error Analysis
 
 ```
 ❌ Errors:
@@ -187,9 +489,9 @@ sleep 30 && python apps/api/scripts/benchmark/load_test_hitl_streaming.py --user
 - **ValidationError**: Invalid data in request/response
 - **HTTPException 429**: Rate limit exceeded
 
-## Performance Benchmarks
+### Performance Benchmarks
 
-### Target Performance (Production)
+#### Target Performance (Production)
 
 | Metric | Target | Acceptable | Critical |
 |--------|--------|-----------|----------|
@@ -199,7 +501,7 @@ sleep 30 && python apps/api/scripts/benchmark/load_test_hitl_streaming.py --user
 | Throughput | > 10 req/s | > 5 req/s | < 1 req/s |
 | Error Rate | < 0.1% | < 1% | > 5% |
 
-### Baseline Measurements (Development)
+#### Baseline Measurements (Development)
 
 **Environment:** Docker Compose Dev, M1 Mac, 16GB RAM
 
@@ -210,9 +512,9 @@ sleep 30 && python apps/api/scripts/benchmark/load_test_hitl_streaming.py --user
 | Stress Test | 50 | 450ms | 22.1 req/s | 96.2% |
 | Soak Test | 20 | 310ms | 8.5 req/s | 98.8% |
 
-## Troubleshooting
+### Troubleshooting
 
-### Issue: High TTFT (> 500ms)
+#### Issue: High TTFT (> 500ms)
 
 **Possible Causes:**
 1. LLM API latency (OpenAI/Anthropic)
@@ -238,7 +540,7 @@ docker logs lia-api-dev | grep hitl_question_ttft
 - Warm up cache before load test
 - Check network latency to LLM API
 
-### Issue: Low Throughput (< 5 req/s)
+#### Issue: Low Throughput (< 5 req/s)
 
 **Possible Causes:**
 1. Sequential processing (missing async/await)
@@ -263,7 +565,7 @@ docker exec lia-api-dev ps aux | grep python
 - Scale API horizontally (multiple containers)
 - Optimize async/await usage
 
-### Issue: High Error Rate (> 5%)
+#### Issue: High Error Rate (> 5%)
 
 **Possible Causes:**
 1. Rate limit exceeded (LLM API)
@@ -290,9 +592,9 @@ docker exec lia-redis-dev redis-cli INFO clients
 - Increase Redis max connections
 - Add circuit breaker pattern
 
-## CI/CD Integration
+### CI/CD Integration
 
-### GitHub Actions Example
+#### GitHub Actions Example
 
 ```yaml
 name: HITL Streaming Load Test
@@ -312,7 +614,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.14'
 
       - name: Install dependencies
         run: |
@@ -348,7 +650,7 @@ jobs:
           "
 ```
 
-### Grafana Dashboard Integration
+#### Grafana Dashboard Integration
 
 Import load test results into Grafana for visualization:
 
@@ -361,9 +663,9 @@ python scripts/convert_to_influxdb.py results.json | \
   curl -XPOST 'http://localhost:8086/write?db=load_tests' --data-binary @-
 ```
 
-## Best Practices
+### Best Practices
 
-### 1. Run Baseline Tests Before Changes
+#### 1. Run Baseline Tests Before Changes
 
 ```bash
 # Before making changes
@@ -376,7 +678,7 @@ python apps/api/scripts/benchmark/load_test_hitl_streaming.py --output after_cha
 python scripts/compare_load_tests.py baseline.json after_changes.json
 ```
 
-### 2. Test with Realistic Data
+#### 2. Test with Realistic Data
 
 Modify the script to use realistic user queries instead of static "Recherche jean":
 
@@ -394,7 +696,7 @@ REALISTIC_QUERIES = [
 "message": random.choice(REALISTIC_QUERIES),
 ```
 
-### 3. Monitor System Resources
+#### 3. Monitor System Resources
 
 Run load test with monitoring:
 
@@ -409,7 +711,7 @@ docker stats lia-api-dev lia-redis-dev
 watch -n 5 'curl -s http://localhost:9090/api/v1/query?query=hitl_question_ttft_seconds | jq .'
 ```
 
-### 4. Test in Staging Environment
+#### 4. Test in Staging Environment
 
 Always test in staging before production:
 
@@ -422,9 +724,12 @@ python apps/api/scripts/benchmark/load_test_hitl_streaming.py \
   --output staging_load_test.json
 ```
 
-## References
+### References
 
 - [HITL Streaming Architecture](../technical/MESSAGE_WINDOWING_STRATEGY.md)
 - [Prometheus Metrics](../../infrastructure/observability/prometheus/alerts/hitl_cache_alerts.yml)
 - Grafana Dashboard
 - ADR 012: Message Windowing
+
+---
+

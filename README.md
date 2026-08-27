@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.33.1</strong> — <strong>Location settings now live where they belong: a standalone “Location” section under Preferences</strong>. The location cascade — live geolocation, then the remembered last-known position, then the home address — always lived on your account, never on a connector; nesting it under the Google Places card read as “shared with Google”, which it never was. The section ships with its own icon, deep link and search keywords in six languages, and the FAQ's six historically divergent editions each received their own surgical correction so every answer finally points at the real place — two of them had described a standalone location path for months and now, at last, match reality. — 27 August 2026.
+  <strong>Version 1.33.2</strong> — <strong>Self-hosting gains the one thing it was missing: a written upgrade path</strong>. Running the assistant on your own machine, there was no documented way to move an existing installation to a newer release — the guide even pointed at a procedure that lived in no file. It exists now: seven steps, the database backup <em>first</em> because migrations apply the moment the new container starts and there is no way back, image pins regenerated from the release's own manifest, and a rollback that restores the previous version in seconds. Behind it, the documentation itself became a contract: every version number and threshold a document states is recomputed from the code that owns it and a mismatch stops the build — six documents had been quoting six different wrong values for the same setting, with every gate green. — 27 August 2026.
 
 </p>
 
@@ -890,7 +890,7 @@ apps/api/src/
 | Technology     | Version | Role                     |
 | -------------- | ------- | ------------------------ |
 | Node.js        | 24 LTS  | JavaScript runtime       |
-| Next.js        | 16.2.10 | React framework          |
+| Next.js        | 16.2.11 | React framework          |
 | React          | 19.2.7  | UI library               |
 | TypeScript     | 6.0.2   | Type safety              |
 | TailwindCSS    | 4.3.2   | Styling                  |
@@ -939,8 +939,8 @@ apps/api/src/
 
 | Domain                | Documents                                                                                                                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Agents & LLM**      | [GRAPH_AND_AGENTS_ARCHITECTURE](./docs/technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) • [PLANNER](./docs/technical/PLANNER.md) • [SEMANTIC_ROUTER](./docs/technical/SEMANTIC_ROUTER.md)    |
-| **HITL**              | [HITL](./docs/technical/HITL.md) • [PLAN_HITL_STREAMING_VALIDATION](./docs/technical/PLAN_HITL_STREAMING_VALIDATION.md)                                                                 |
+| **Agents & LLM**      | [ARCHITECTURE_LANGRAPH](./docs/ARCHITECTURE_LANGRAPH.md) • [PLANNER](./docs/technical/PLANNER.md) • [SEMANTIC_ROUTER](./docs/technical/SEMANTIC_ROUTER.md)    |
+| **HITL**              | [HITL](./docs/technical/HITL.md)                                                                 |
 | **Voice**             | [VOICE](./docs/technical/VOICE.md) • [VOICE_MODE](./docs/technical/VOICE_MODE.md)                                                                                                       |
 | **Memory**            | [LONG_TERM_MEMORY](./docs/technical/LONG_TERM_MEMORY.md) • [MEMORY_RESOLUTION](./docs/technical/MEMORY_RESOLUTION.md)                                                                   |
 | **MCP**               | [MCP_INTEGRATION](./docs/technical/MCP_INTEGRATION.md) • [GUIDE_MCP_INTEGRATION](./docs/guides/GUIDE_MCP_INTEGRATION.md)                                                                |
@@ -1004,9 +1004,9 @@ pytest --cov=src --cov-report=html -v
 
 | Metric                  | Value                                                                                         |
 | ----------------------- | --------------------------------------------------------------------------------------------- |
-| Total backend tests     | 18,705 collected (`pytest tests/unit tests/agents --collect-only`, 2026-08-18)                |
-| Frontend tests (vitest) | 5,710 across 453 files (+ hermetic Playwright E2E specs incl. axe/dark/zoom)                   |
-| Coverage floor          | 65% backend (shrink-only ratchet) · frontend thresholds locked per glob                       |
+| Total backend tests     | 20,468 collected (`pytest tests/unit tests/agents --collect-only`, 2026-08-27)                |
+| Frontend tests (vitest) | 6,327 across 496 files (+ hermetic Playwright E2E specs incl. axe/dark/zoom)                   |
+| Coverage floor          | 67% backend enforced, 70.04% measured (shrink-only ratchet) · frontend thresholds per glob     |
 | CI Workflows            | 3 (CI, Security, Release)                                                                     |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
@@ -1023,7 +1023,7 @@ Pre-commit (local)              GitHub Actions CI
 ===================             ==================
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy             Fast unit tests + coverage (45%)
+Ruff + Black + MyPy             Fast unit tests + coverage (67%)
 Fast unit tests                 Integration tests (PostgreSQL + Redis)
 Critical pattern detection      Agents suite
 i18n keys sync                  Code Hygiene (i18n, Alembic, lockfiles, patterns)
@@ -1047,7 +1047,8 @@ ESLint + TypeScript check       ────────────────
 | **Branch protection**         | PR required (external contributors), 7 status checks, force push forbidden                                                                                                                                                          |
 | **Dependabot**                | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped                                                                                                                                                                  |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more)                                                                                                                                                                                 |
-| **Coverage threshold**        | 45% minimum enforced in CI (ratchet +2 per release)                                                                                                                                                                                 |
+| **Coverage threshold**        | 67% enforced in CI, 70.04% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
+| **Documentation gate**        | Every version and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; links, code paths and unreachable documents too       |
 
 ### Workflows
 

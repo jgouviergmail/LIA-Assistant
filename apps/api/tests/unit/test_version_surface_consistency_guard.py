@@ -198,3 +198,28 @@ class TestDerivedCounts:
             "(ADR-008 has no separate file, so it runs one above)."
         )
         assert counts["changelog_releases"] >= 200, "CHANGELOG scan found too few entries"
+
+    def test_every_declared_surface_actually_matches_something(self) -> None:
+        """Guard the guard: a surface that matches nothing passes in silence.
+
+        ``test_quoted_counts_match_their_sources`` iterates the occurrences a
+        surface *found*. A declared surface whose pattern matches nothing
+        contributes no occurrence, so it can never fail — while reading, in the
+        declaration list, exactly like a counter under guard.
+
+        This is not hypothetical: ``how.zh.md`` writes "N 篇 MADR 格式的 ADR"
+        and the declared zh pattern reads "N 篇 ADR". One word of distance was
+        enough for that digit to sit at 242 against a real 245 while its five
+        translated siblings were corrected.
+        """
+        unmatched = [
+            f"{surface.path} — {surface.label}"
+            for surface in _surfaces.COUNT_SURFACES
+            if not surface.pattern.search((REPO_ROOT / surface.path).read_text(encoding="utf-8"))
+        ]
+
+        assert not unmatched, (
+            "Declared count surfaces that match nothing (a typo in the pattern, or "
+            "the sentence was reworded). Each reads as guarded and is not:\n"
+            + "\n".join(f"  {item}" for item in unmatched)
+        )

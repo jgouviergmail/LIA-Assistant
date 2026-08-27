@@ -6,6 +6,19 @@
 
 Ce document est le guide de référence exhaustif pour l'ajout d'un nouveau connecteur, d'un nouvel agent ou d'un nouveau tool dans LIA. Il est basé sur l'architecture réelle du système et les patterns établis.
 
+**Où lire quoi** — quatre documents couvrent ce domaine, et chacun fait autorité
+sur une question précise :
+
+| Question | Document |
+|---|---|
+| Comment ajouter un connecteur / agent / tool, de bout en bout | **ce document** |
+| Comment le graphe s'exécute (nodes, routing, state, HITL, SSE) | [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md) |
+| Le pas-à-pas détaillé d'un agent, avec ses erreurs courantes | [GUIDE_AGENT_CREATION.md](./guides/GUIDE_AGENT_CREATION.md) |
+| Le pas-à-pas détaillé d'un tool, manifestes et tests inclus | [GUIDE_TOOL_CREATION.md](./guides/GUIDE_TOOL_CREATION.md) |
+
+En cas de désaccord entre eux, c'est le **code** qui tranche — et le désaccord
+est un bug à corriger dans la même livraison, pas une nuance à conserver.
+
 ---
 
 ## Table des Matières
@@ -316,7 +329,10 @@ __all__ = [
 Un agent est composé de :
 1. **Agent Builder** - Construit le graphe LangChain avec les tools
 2. **Agent Manifest** - Décrit l'agent (nom, tools, description)
-3. **System Prompt** - Instructions pour le LLM
+3. **System Prompt** - un **fichier versionné** `prompts/v1/{domain}_agent_prompt.txt`,
+   chargé par `load_prompt()`. Jamais une chaîne dans le module Python : c'est
+   une règle systémique (voir [§12](#12-système-de-prompts-versionnés)), et les
+   six builders de production la respectent tous.
 
 ### 3.2 Créer l'Agent Builder
 
@@ -330,46 +346,17 @@ Builds a compiled LangChain v1 agent for {Domain} operations using the
 generic agent builder template for consistency and maintainability.
 """
 
-from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
-from src.core.config import settings
+from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.graphs.base_agent_builder import (
     build_generic_agent,
     create_agent_config_from_settings,
 )
+from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
-
-
-# System prompt pour l'agent
-{DOMAIN}_AGENT_SYSTEM_PROMPT = """Tu es un agent spécialisé dans {description du domaine}.
-
-**Contexte temporel actuel :** {current_datetime}
-
-## Tes capacités
-
-Tu peux :
-1. **Action 1** - Description
-2. **Action 2** - Description
-3. **Action 3** - Description (avec confirmation utilisateur HITL)
-
-## Instructions importantes
-
-- Point important 1
-- Point important 2
-- **Opérations d'écriture** : Toujours créer un brouillon (draft) validé par l'utilisateur
-
-## Contexte multi-domaines
-
-{context_instructions}
-
-## Format de réponse
-
-- Format de réponse attendu
-"""
 
 
 def build_{domain}_agent() -> Any:
@@ -416,24 +403,27 @@ def build_{domain}_agent() -> Any:
         ],
     )
 
-    def _get_current_datetime_formatted() -> str:
-        """Generate formatted datetime using centralized settings."""
-        tz = ZoneInfo(settings.prompt_timezone)
-        return datetime.now(tz).strftime(settings.prompt_datetime_format)
+    # Le prompt vit dans un FICHIER VERSIONNÉ, jamais dans ce module.
+    # `prompts/v1/{domain}_agent_prompt.txt` porte le texte ; le builder ne
+    # fait que le charger et injecter ses paramètres. C'est ce que font les six
+    # builders de production — aucun n'inline son prompt (règle systémique
+    # CLAUDE.md : « Prompt text […] lives in versioned files under prompts/v1/,
+    # loaded via load_prompt(). Never inline prompt fragments in .py »).
+    {domain}_agent_prompt_template = load_prompt("{domain}_agent_prompt", version="v1")
 
     # Instructions de contexte spécifiques au domaine
     context_instructions = """
-## Contexte Multi-Domaines ({Domain})
-
 Le domaine "{domain}" est actif pour stocker les résultats.
 Les outils resolve_reference, get_context_state fonctionnent avec domain="{domain}".
 
-**Exemples de références contextuelles** :
+Exemples de références contextuelles :
 - $context.{domain}.0 → Premier élément des résultats
 - $context.{domain}.current → Élément actuellement sélectionné
     """.strip()
 
-    system_prompt_template = {DOMAIN}_AGENT_SYSTEM_PROMPT.format(
+    # `current_datetime` reste un placeholder : il est résolu à chaque tour par
+    # le builder générique, pas figé au démarrage.
+    system_prompt_template = {domain}_agent_prompt_template.format(
         current_datetime="{current_datetime}",
         context_instructions=context_instructions,
     )
@@ -443,7 +433,7 @@ Les outils resolve_reference, get_context_state fonctionnent avec domain="{domai
         agent_name="{domain}_agent",
         tools=tools,
         system_prompt=system_prompt_template,
-        datetime_generator=_get_current_datetime_formatted,
+        datetime_generator=get_prompt_datetime_formatted,
     )
 
     # Construire l'agent

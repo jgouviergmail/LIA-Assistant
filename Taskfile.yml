@@ -580,13 +580,69 @@ tasks:
         platforms: [linux, darwin]
 
   lint:docs:
-    desc: Audit documentation drift (broken links; ADR→ADR escalated to failing — F024)
+    desc: Audit documentation drift (broken links + quoted facts vs their sources)
     cmds:
+      # Two complementary drift classes, one task so CI needs no new step:
+      #   doc_audit  — does the documentation NAVIGATE correctly (links, paths)?
+      #   doc_facts  — is what it STATES true (versions, coverage floor)?
+      # The second was added 2026-08-27 after measuring six documents quoting six
+      # different wrong coverage floors while doc_audit was green: a well-formed
+      # sentence that is false is invisible to a link checker.
+      #
       # --fail-on-stale mirrors the CI step: without it the local task was the
       # more permissive of the two, which is the wrong direction for a gate.
       - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_audit.py --fail-on-stale
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/doc_audit.py --fail-on-stale
+        platforms: [linux, darwin]
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_facts.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_facts.py
+        platforms: [linux, darwin]
+      # AGENTS.md is a GENERATED mirror of CLAUDE.md. Kept by hand it had become
+      # a strict subset missing all 18 "Systemic Rules" sections — an agent read
+      # it and worked without the rules CI enforces.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/agents_mirror.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/agents_mirror.py
+        platforms: [linux, darwin]
+
+  lint:docs:preview:
+    desc: "Same audit, but as CI will see it AFTER `git add` (moved/new files included)"
+    cmds:
+      # `lint:docs` decides existence from the git INDEX so its verdict matches a
+      # fresh clone — that default is not negotiable. The cost is a recurring
+      # false alarm: every move or addition reports LIVING findings that vanish
+      # on `git add`. This task is that check, done for you, instead of the
+      # throwaway simulation script it had become (written by hand twice).
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_audit.py --fail-on-stale --include-unstaged
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_audit.py --fail-on-stale --include-unstaged
+        platforms: [linux, darwin]
+      # BOTH instruments, or the preview answers half the question: a moved
+      # document's links would clear while the versions it quotes stay unseen.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_facts.py --include-unstaged
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_facts.py --include-unstaged
+        platforms: [linux, darwin]
+
+  docs:sync-agents:
+    desc: Regenerate AGENTS.md from CLAUDE.md (single source, generated mirror)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/agents_mirror.py --fix
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/agents_mirror.py --fix
+        platforms: [linux, darwin]
+
+  docs:fix-facts:
+    desc: Rewrite every documented version/threshold to match its source of truth
+    cmds:
+      # The counterpart of `release:sync-counts`: what a document quotes is
+      # recomputed, never carried over by hand. Exempt occurrences (declared with
+      # a written reason in doc_facts.py) are never touched.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_facts.py --fix
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_facts.py --fix
         platforms: [linux, darwin]
 
   lint:mypy-debt:

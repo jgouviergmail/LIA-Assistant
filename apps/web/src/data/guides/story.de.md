@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.33.1
+**Anwendung**: LIA v1.33.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Codezeilen (ohne Tests) — 43 Fachdomänen | **570.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **26.800+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **240** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **222** |
+| Codezeilen (ohne Tests) — 44 Fachdomänen | **580.000** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **27.400+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **245** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **228** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 240 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 245 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 

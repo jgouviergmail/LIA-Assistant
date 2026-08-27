@@ -121,6 +121,28 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 
 ---
 
+## Lecture par tiers (audience)
+
+Le catalogue ci-dessus est ordonne par numero ; celui-ci l'est par **qui ouvre
+quoi**. Les deux vues portent sur les memes 26 dashboards — elles vivent dans ce
+document, et non dans un second fichier, parce que la version enveloppe qui les
+separait a derive quatre fois du catalogue qu'elle resumait (elle annoncait
+encore 25 dashboards apres l'ajout du 26).
+
+| Tier | Audience | Dashboards | Objectif |
+|------|----------|------------|----------|
+| 1 — Vue d'ensemble | Tous | 01, 02 | Sante globale, SLOs, budget d'erreurs |
+| 2 — Plateforme | Ops / Dev | 03, 04, 05, 06 | Infra, HTTP, couts LLM, logs/traces |
+| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25 | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing |
+| 4 — Avance | SRE | 14, 15, 16 | Registry/checkpoints, LangGraph deep (latence par etage TTFT), sante des recording rules et du registre d'outils |
+| 5 — Analytics / Produit | Product | 17, 26 | Engagement et geolocalisation ; cockpit produit ADR-178 (North Star, activation, retention) |
+
+Points d'entree recommandes : **01 - Application Overview** en cas d'incident
+(puis navigation par le tag `lia`), **02 - SLO Tracking** pour le suivi de
+fiabilite, **05 - LLM Tokens & Cost** pour les couts.
+
+---
+
 ## Details par Dashboard
 
 ### 01 - Application Overview (24 panels)

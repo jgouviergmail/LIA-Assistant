@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Documentation drift audit: broken relative links and stale code-path references.
+"""Documentation NAVIGATION audit: broken links, stale code paths, orphans.
 
-Scans the documentation base (``docs/**/*.md`` plus ``README.md``, ``CLAUDE.md``
-and ``apps/web/CLAUDE.md``) and reports two drift classes:
+Scans the documentation base (``docs/**/*.md`` plus the root documents listed in
+``ROOT_DOCUMENTS``) and reports three drift classes:
 
 1. **Broken relative links** — markdown ``[text](target)`` links whose target,
    resolved relative to the containing file, does not exist. Inside a git
@@ -16,6 +16,14 @@ and ``apps/web/CLAUDE.md``) and reports two drift classes:
    ``infrastructure/...``) that no longer exist. Common doc shorthands are
    resolved before flagging: a bare ``src/...`` or ``infrastructure/...`` path
    is also tried under ``apps/api/`` and ``apps/api/src/``.
+3. **Orphans** — LIVING documents no tracked document links to. A document
+   nobody links to is a document nobody opens, and it is the shape every stale
+   duplicate here took first (see :func:`find_orphans`). Entry points and two
+   reasoned prefixes are exempt (:data:`ORPHAN_EXEMPT_PREFIXES`).
+
+What a document *states* is a different question, answered by the companion
+module ``doc_facts.py``: a well-formed sentence that is false is invisible to a
+link checker. Both run under ``task lint:docs``.
 
 Findings are classified so that historical documents are never treated as
 regressions:
@@ -34,12 +42,17 @@ navigation between living decisions, so a dangling one is real drift — while
 the annotated stale *code* paths (``*.py``) and deleted session/optim
 documents that ADRs legitimately reference stay HISTORICAL (tolerated).
 
-Exit code is 1 when at least one LIVING broken link is found (stale code
-paths alone do not fail the run: the remaining ones are deliberate
-placeholders such as ``my_service_client.py`` or annotated examples).
+Exit code is 1 when at least one LIVING broken link or orphan is found. Stale
+code paths alone do not fail the run unless ``--fail-on-stale`` is passed (the
+remaining ones are deliberate placeholders such as ``my_service_client.py`` or
+annotated examples); ``task lint:docs`` always passes that flag.
 
 Usage (from the repo root):
     python scripts/audit/doc_audit.py [REPO_ROOT] [--fail-on-stale]
+                                      [--include-unstaged]
+
+``--include-unstaged`` answers "what will CI say once I commit this?" —
+see :func:`tracked_paths`. The default stays the fresh clone's verdict.
 
 Standard library only — no dependencies.
 """
@@ -107,7 +120,23 @@ def _prev_nonblank_line(text: str, pos: int) -> str:
             return candidate
         cursor = prev_start
     return ""
+
+
 EXTERNAL_PREFIXES = ("http://", "https://", "mailto:", "#", "tel:")
+
+#: Living documents that sit outside ``docs/`` and must be audited with it.
+#: ``CONTRIBUTING.md`` and ``AGENTS.md`` joined the list on 2026-08-27: they were
+#: outside every scan, and both were quoting a stale enforced coverage floor
+#: (80% and 43% against a real 67%) that no gate could see. ``AGENTS.md`` is the
+#: instruction file a second AI agent reads, so a wrong rule there is acted on.
+ROOT_DOCUMENTS: tuple[str, ...] = (
+    "README.md",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "AGENTS.md",
+    "SECURITY.md",
+    "apps/web/CLAUDE.md",
+)
 
 HISTORICAL_MARKERS = ("docs/architecture/ADR-", "docs/superpowers/")
 ROADMAP_BASENAMES = {"NANOBOT_INTEGRATION_ROADMAP.md"}
@@ -116,15 +145,57 @@ ADR_INDEX_REL = "docs/architecture/ADR_INDEX.md"
 # ``ADR-007`` in any surrounding text → the zero-padded canonical number.
 _ADR_NUMBER_RE = re.compile(r"ADR-(\d+)")
 # A link *target* whose final path segment is another ADR document.
-_ADR_DOC_LINK_RE = re.compile(
-    r"(?:^|/)(?:ADR-\d+[\w.-]*|ADR_INDEX)\.md$", re.IGNORECASE
+_ADR_DOC_LINK_RE = re.compile(r"(?:^|/)(?:ADR-\d+[\w.-]*|ADR_INDEX)\.md$", re.IGNORECASE)
+
+#: Entry points: reached by a human or a tool, not by a link from another
+#: document, so "nobody links to it" is their normal state.
+ENTRY_POINTS: frozenset[str] = frozenset(
+    {
+        "README.md",
+        "CLAUDE.md",
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "apps/web/CLAUDE.md",
+        "docs/INDEX.md",
+    }
 )
+
+#: Directory prefixes exempt from the orphan rule, each with its reason.
+#:
+#: ``docs/knowledge/`` is a PRODUCT surface, not developer navigation: the files
+#: are indexed into the system RAG space at boot
+#: (``src/domains/rag_spaces/system_indexer.py``, default
+#: ``RAG_SPACES_SYSTEM_KNOWLEDGE_DIR_DEFAULT = "docs/knowledge"``) and reach
+#: users as answers. Requiring an inbound markdown link would be asking the
+#: wrong question of them.
+ORPHAN_EXEMPT_PREFIXES: dict[str, str] = {
+    "docs/knowledge/": (
+        "System RAG corpus indexed at startup and served to users as answers, "
+        "not a document reached by navigation."
+    ),
+    "docs/runbooks/alerts/": (
+        "Reached from a firing alert's `runbook` annotation (verified by "
+        "test_alerts_core_guard), not from a markdown link."
+    ),
+}
 
 Finding = tuple[str, int, str]
 
 
-def _classify(rel_posix: str) -> str:
-    """Classify a document as LIVING, HISTORICAL or ROADMAP."""
+def classify_document(rel_posix: str) -> str:
+    """Classify a document as LIVING, HISTORICAL or ROADMAP.
+
+    Public because ``doc_facts.py`` audits the same corpus for a different drift
+    class and must agree on what "living" means. Two definitions would diverge,
+    which is precisely the defect both modules exist to catch.
+
+    Args:
+        rel_posix: Document path relative to the repository root, POSIX form.
+
+    Returns:
+        ``"LIVING"``, ``"HISTORICAL"`` or ``"ROADMAP"``.
+    """
     if any(rel_posix.startswith(marker) for marker in HISTORICAL_MARKERS):
         return "HISTORICAL"
     if rel_posix.rsplit("/", 1)[-1] in ROADMAP_BASENAMES:
@@ -165,8 +236,18 @@ def _is_adr_doc_link(target: str) -> bool:
     return bool(_ADR_DOC_LINK_RE.search(path_part))
 
 
-def _blank_code_regions(text: str) -> str:
-    """Replace fenced code blocks and inline code with spaces, preserving line numbers."""
+def blank_code_regions(text: str) -> str:
+    """Replace fenced code blocks and inline code with spaces, preserving line numbers.
+
+    Shared with ``doc_facts.py`` (see :func:`classify_document` for why the
+    helpers are public rather than copied).
+
+    Args:
+        text: Raw markdown.
+
+    Returns:
+        The same text, same length and line numbering, with code regions blanked.
+    """
 
     def _blank(match: re.Match[str]) -> str:
         return re.sub(r"[^\n]", " ", match.group(0))
@@ -175,7 +256,51 @@ def _blank_code_regions(text: str) -> str:
     return re.sub(r"`[^`\n]+`", _blank, text)
 
 
-def _tracked_paths(root: Path) -> tuple[frozenset[str], frozenset[str]] | None:
+def _with_pending_changes(root: Path, tracked: set[str]) -> set[str]:
+    """Apply the working tree's additions and deletions to ``tracked``.
+
+    ``git status --porcelain -uall -z`` lists untracked-but-not-ignored files
+    (``??``) and deletions (``D`` in either column) — exactly the delta
+    ``git add -A`` would produce. A rename is reported as its two halves, so a
+    moved document is added under its new path and dropped from its old one
+    without special handling.
+
+    Args:
+        root: Repository root.
+        tracked: Paths currently in the index.
+
+    Returns:
+        The previewed path set. Unreadable status leaves ``tracked`` untouched:
+        a preview that guesses is worse than one that declines.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all", "-z"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):  # pragma: no cover - defensive
+        return tracked
+
+    previewed = set(tracked)
+    for entry in proc.stdout.split("\0"):
+        if len(entry) < 4:
+            continue
+        index_state, worktree_state, path = entry[0], entry[1], entry[3:]
+        if index_state == "?" and worktree_state == "?":
+            previewed.add(path)
+        elif "D" in (index_state, worktree_state):
+            previewed.discard(path)
+        elif index_state in {"A", "R", "C"} or worktree_state in {"A", "R", "C"}:
+            previewed.add(path)
+    return previewed
+
+
+def tracked_paths(
+    root: Path, *, include_unstaged: bool = False
+) -> tuple[frozenset[str], frozenset[str]] | None:
     """Git-tracked files and directories (POSIX, exact case), or ``None``.
 
     Link-existence checks must mirror a fresh CI checkout, not the author's
@@ -185,6 +310,24 @@ def _tracked_paths(root: Path) -> tuple[frozenset[str], frozenset[str]] | None:
     broken in every clone. The git index is authoritative on both. Outside a
     git checkout (e.g. the guard tests' tmp_path fixtures) this returns
     ``None`` and the disk remains the only source of truth.
+
+    ``include_unstaged`` previews the COMMIT instead of the clone: tracked files
+    PLUS what ``git add -A`` would stage, MINUS what it would delete. It exists
+    because the strict default produces a recurring false alarm — every move or
+    addition reports LIVING findings that vanish on ``git add``, and that
+    simulation had been written by hand, twice, as a throwaway script.
+
+    It is deliberately NOT "just read the disk": that shortcut also reveals
+    gitignored documents. ``docs/runbooks/CLOUDFLARE_TUNNEL.md`` holds
+    production access details, and reporting it as an orphan invites a
+    maintainer to "fix" it by publishing a link broken in every clone.
+
+    Args:
+        root: Repository root.
+        include_unstaged: Preview the next commit rather than the index.
+
+    Returns:
+        ``(files, directories)`` as POSIX paths, or ``None`` outside git.
     """
     try:
         proc = subprocess.run(
@@ -196,7 +339,10 @@ def _tracked_paths(root: Path) -> tuple[frozenset[str], frozenset[str]] | None:
         )
     except (OSError, subprocess.CalledProcessError):
         return None
-    files = frozenset(path for path in proc.stdout.split("\0") if path)
+    paths = {path for path in proc.stdout.split("\0") if path}
+    if include_unstaged:
+        paths = _with_pending_changes(root, paths)
+    files = frozenset(paths)
     dirs: set[str] = set()
     for path in files:
         parent = path
@@ -205,23 +351,24 @@ def _tracked_paths(root: Path) -> tuple[frozenset[str], frozenset[str]] | None:
             if parent in dirs:
                 break
             dirs.add(parent)
-    return files, dirs
+    # Frozen on the way out: the declared return type promises immutability, and
+    # both callers treat the pair as a read-only index. MyPy caught the mismatch
+    # only once doc_facts made this function public — `scripts/` is outside
+    # `task lint:backend`'s mypy scope, so it had never been type-checked.
+    return files, frozenset(dirs)
 
 
-def _doc_files(root: Path, tracked: tuple[frozenset[str], frozenset[str]] | None) -> list[Path]:
+def doc_files(root: Path, tracked: tuple[frozenset[str], frozenset[str]] | None) -> list[Path]:
     """Collect the documentation files under audit.
 
     Inside a git checkout, untracked/ignored local documents are excluded so a
     local-only file neither produces findings absent from CI nor masks any.
     """
     files = sorted(root.glob("docs/**/*.md"))
-    for extra in (
-        root / "README.md",
-        root / "CLAUDE.md",
-        root / "apps" / "web" / "CLAUDE.md",
-    ):
-        if extra.exists():
-            files.append(extra)
+    for extra in ROOT_DOCUMENTS:
+        candidate = root / extra
+        if candidate.exists():
+            files.append(candidate)
     if tracked is None:
         return files
     tracked_files = tracked[0]
@@ -273,9 +420,7 @@ def _check_links(
         if not path_part:
             continue
         candidate = (
-            root / path_part.lstrip("/")
-            if path_part.startswith("/")
-            else doc.parent / path_part
+            root / path_part.lstrip("/") if path_part.startswith("/") else doc.parent / path_part
         )
         if not _target_exists(root, candidate, tracked):
             line_no = text_nocode[: match.start()].count("\n") + 1
@@ -320,7 +465,63 @@ def _check_code_paths(
     return findings
 
 
-def audit(root: Path) -> dict[str, dict[str, list[Finding]]]:
+def is_orphan_exempt(rel_posix: str) -> bool:
+    """True when a document is not expected to have an inbound markdown link."""
+    if rel_posix in ENTRY_POINTS:
+        return True
+    return any(rel_posix.startswith(prefix) for prefix in ORPHAN_EXEMPT_PREFIXES)
+
+
+def find_orphans(root: Path, *, include_unstaged: bool = False) -> list[str]:
+    """LIVING documents no tracked document links to.
+
+    A document nobody links to is a document nobody finds: it drifts unread,
+    and it is the shape every stale duplicate in this repository took before it
+    became one (``docs/metrics/CODE_METRICS_2025-01-21.md``, 19 months stale;
+    ``docs/runbooks/redis/RedisConnectionPoolExhaustion.md``, a second runbook
+    for one alert that contradicted the maintained one). Broken links are
+    caught above; unreachable documents were not caught at all.
+
+    HISTORICAL documents are excluded: a superseded ADR or a dated plan is a
+    record, and records are not navigation.
+
+    Args:
+        root: Repository root.
+
+    Returns:
+        Orphan paths, sorted.
+    """
+    tracked = tracked_paths(root, include_unstaged=include_unstaged)
+    docs = doc_files(root, tracked)
+    linked: set[str] = set()
+
+    for doc in docs:
+        text = blank_code_regions(doc.read_text(encoding="utf-8", errors="replace"))
+        for match in LINK_RE.finditer(text):
+            target = match.group(2)
+            if target.startswith(EXTERNAL_PREFIXES):
+                continue
+            path_part = target.split("#")[0].replace("%20", " ")
+            if not path_part.endswith(".md"):
+                continue
+            candidate = (
+                root / path_part.lstrip("/")
+                if path_part.startswith("/")
+                else doc.parent / path_part
+            )
+            try:
+                linked.add(Path(os.path.normpath(str(candidate))).relative_to(root).as_posix())
+            except ValueError:  # escapes the repository — never one of ours
+                continue
+
+    return sorted(
+        rel
+        for rel in (doc.relative_to(root).as_posix() for doc in docs)
+        if classify_document(rel) == "LIVING" and not is_orphan_exempt(rel) and rel not in linked
+    )
+
+
+def audit(root: Path, *, include_unstaged: bool = False) -> dict[str, dict[str, list[Finding]]]:
     """Scan the documentation base and return classified drift findings.
 
     The returned mapping has two tables (``broken`` links and ``stale`` code
@@ -331,19 +532,17 @@ def audit(root: Path) -> dict[str, dict[str, list[Finding]]]:
     broken: dict[str, list[Finding]] = {"LIVING": [], "HISTORICAL": [], "ROADMAP": []}
     stale: dict[str, list[Finding]] = {"LIVING": [], "HISTORICAL": [], "ROADMAP": []}
     indexed = _indexed_adr_numbers(root)
-    tracked = _tracked_paths(root)
+    tracked = tracked_paths(root, include_unstaged=include_unstaged)
 
-    for doc in _doc_files(root, tracked):
+    for doc in doc_files(root, tracked):
         rel_posix = doc.relative_to(root).as_posix()
-        section = _classify(rel_posix)
+        section = classify_document(rel_posix)
         text = doc.read_text(encoding="utf-8", errors="replace")
-        links = _check_links(root, doc, _blank_code_regions(text), tracked)
+        links = _check_links(root, doc, blank_code_regions(text), tracked)
         if section == "HISTORICAL" and _is_indexed_adr(rel_posix, indexed):
             for finding in links:
                 target = finding[2]
-                broken["LIVING" if _is_adr_doc_link(target) else "HISTORICAL"].append(
-                    finding
-                )
+                broken["LIVING" if _is_adr_doc_link(target) else "HISTORICAL"].append(finding)
         else:
             broken[section].extend(links)
         stale[section].extend(_check_code_paths(root, doc, text, tracked))
@@ -355,12 +554,16 @@ def main(argv: list[str]) -> int:
     """Run the audit and print per-class reports."""
     args = [arg for arg in argv[1:] if not arg.startswith("--")]
     fail_on_stale = "--fail-on-stale" in argv
+    include_unstaged = "--include-unstaged" in argv
     root = Path(args[0]).resolve() if args else Path.cwd()
     if not (root / "docs").is_dir():
         print(f"error: no docs/ directory under {root}", file=sys.stderr)
         return 2
 
-    report = audit(root)
+    report = audit(root, include_unstaged=include_unstaged)
+    if include_unstaged:
+        print("(preview: tracked files plus what `git add -A` would stage)")
+        print()
     broken, stale = report["broken"], report["stale"]
 
     for title, table in (("BROKEN LINKS", broken), ("STALE CODE PATHS", stale)):
@@ -371,7 +574,13 @@ def main(argv: list[str]) -> int:
                 print(f"{rel}:{line_no}: {target}")
             print()
 
-    failed = bool(broken["LIVING"]) or (fail_on_stale and bool(stale["LIVING"]))
+    orphans = find_orphans(root, include_unstaged=include_unstaged)
+    print(f"=== ORPHANS (LIVING, no inbound link): {len(orphans)} ===")
+    for rel in orphans:
+        print(rel)
+    print()
+
+    failed = bool(broken["LIVING"]) or bool(orphans) or (fail_on_stale and bool(stale["LIVING"]))
     return 1 if failed else 0
 
 

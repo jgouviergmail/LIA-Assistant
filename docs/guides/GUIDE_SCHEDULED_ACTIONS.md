@@ -632,7 +632,7 @@ Pour monitorer la sante du job en production :
 ## Documentation associee
 
 - [SCHEDULED_ACTIONS.md](../technical/SCHEDULED_ACTIONS.md) - Documentation technique de reference
-- [README_REMINDERS.md](../readme/README_REMINDERS.md) - Systeme de rappels (Reminders)
+- [REMINDERS.md](../technical/REMINDERS.md) - Systeme de rappels (Reminders)
 - [HEARTBEAT_AUTONOME.md](../technical/HEARTBEAT_AUTONOME.md) - Heartbeat autonome
 - [GUIDE_DEBUGGING.md](GUIDE_DEBUGGING.md) - Guide de debugging general
 - [GUIDE_TESTING.md](GUIDE_TESTING.md) - Guide de testing general

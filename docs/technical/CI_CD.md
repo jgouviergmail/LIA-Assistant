@@ -198,12 +198,23 @@ Services containers : PostgreSQL (`pgvector/pgvector:pg16`) + Redis (`redis:7-al
 | Suite agents | `task test:backend:agents` |
 | Gate de couverture par markers (F006) | `task test:markers` |
 
-Le seuil de couverture est **60 %** (`--cov-fail-under`), et il a **une seule
-source de verite** : `apps/api/pyproject.toml`. La garde
-`test_task_ci_pytest_parity_guard.py` echoue si une autre valeur apparait
-ailleurs. Doctrine ratchet (jamais de baisse, >= 2 points de marge avant de
-monter) : voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Rapport
-uploade sur [Codecov](https://codecov.io).
+Le seuil de couverture est **67 %** (`--cov-fail-under`), et il a **une seule
+source de verite** : `apps/api/pyproject.toml`, dont le `Taskfile.yml` reprend
+la valeur pour la commande que la CI appelle. Deux gardes la tiennent, chacune
+sur son versant :
+
+- `test_task_ci_pytest_parity_guard.py::test_coverage_threshold_has_a_single_source_of_truth`
+  compare les fichiers de **configuration** entre eux ;
+- `scripts/audit/doc_facts.py` (`task lint:docs`) compare ce que la
+  **documentation** annonce a cette source.
+
+La seconde a ete ecrite le 2026-08-27 apres avoir mesure six documents citant
+six valeurs fausses differentes — dont ce paragraphe, qui annoncait 60 % tout en
+certifiant l'unicite de la source.
+
+Doctrine ratchet (jamais de baisse, >= 2 points de marge avant de monter) :
+voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Rapport uploade sur
+[Codecov](https://codecov.io).
 
 `task test:markers` (F006) ferme un angle mort du garde-fou par chemins : un
 fichier de test peut vivre sous une racine executee en CI et rester

@@ -198,7 +198,7 @@ All runbooks follow a consistent 15-section structure:
 
 ### AlertManager
 - **URL**: `http://localhost:9093` (host port 9094 in dev/prod compose)
-- **Configuration**: templates in `infrastructure/observability/alertmanager/`, rendered at container start from `ALERTMANAGER_*` env vars — see [README_ALERTING.md](README_ALERTING.md) (ADR-119)
+- **Configuration**: templates in `infrastructure/observability/alertmanager/`, rendered at container start from `ALERTMANAGER_*` env vars — see [ALERTING.md](../technical/ALERTING.md) (ADR-119)
 
 ---
 

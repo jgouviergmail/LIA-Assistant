@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.33.1
+**Anwendung**: LIA v1.33.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -38,7 +38,7 @@ LIA geht einen anderen Weg. Kein direkter Konkurrent der Großen — sondern ein
 
 ### 2.1. Eine geführte Einrichtung, danach keinerlei Reibung
 
-Self-Hosting hat einen schlechten Ruf. LIA behauptet nicht, jeden technischen Schritt zu eliminieren: Die anfängliche Einrichtung — Konfiguration der API-Schlüssel, Einrichtung der OAuth-Konnektoren, Wahl der Infrastruktur — erfordert etwas Zeit und grundlegende Kenntnisse. Jeder Schritt ist jedoch in einer Schritt-für-Schritt-Anleitung **ausführlich dokumentiert**.
+Self-Hosting hat einen schlechten Ruf. LIA behauptet nicht, jeden technischen Schritt zu eliminieren: Die anfängliche Einrichtung — Konfiguration der API-Schlüssel, Einrichtung der OAuth-Konnektoren, Wahl der Infrastruktur — erfordert etwas Zeit und grundlegende Kenntnisse. Jeder Schritt ist jedoch in einer Schritt-für-Schritt-Anleitung **ausführlich dokumentiert**. Auch der Wechsel einer bestehenden Installation auf eine neuere Version hat seine eigene schriftliche Anleitung, deren erster Schritt das Datenbank-Backup ist — Migrationen greifen, sobald der neue Container startet, und einen Rückweg gibt es nicht.
 
 Sobald diese Installationsphase abgeschlossen ist, **lässt sich der gesamte Alltag über eine intuitive Weboberfläche verwalten**. Kein Terminal, keine Konfigurationsdateien mehr nötig.
 
@@ -308,6 +308,8 @@ Dasselbe Prinzip gilt für die Schutzmaßnahmen selbst. Sicherheit, die angekün
 Ein Test, der nie läuft, ebenso wenig — und das ist die unbequemste Entdeckung dieses Projekts. Zehn Testdateien hatten sich selbst abgeschaltet, sobald ein Provider-Schlüssel fehlte, und nichts meldete es mehr: ein übersprungener Test zählt als grün, Coverage misst erreichte Zeilen statt ausgeführter Zusicherungen, und eine Review sieht eine Testdatei und schließt daraus, die Fläche sei geschützt. Zweihundertneunzehn Tests waren kein einziges Mal gelaufen; beim Wiedereinschalten kamen vier echte Defekte zum Vorschein — darunter eine Stimme, die jede Zahl in zwei Teile zerschnitt, und eine Erinnerung, die endgültig verloren ging, wenn das Nutzungsbudget in der falschen Minute aufgebraucht war. Das Fehlen eines roten Signals ist kein Gesundheitsnachweis: manchmal ist es nur das Fehlen der Messung. Eine CI-Wache verhindert nun, dass ein Testmodul stillschweigend verstummt.
 
 Dasselbe Prinzip gilt für das, was **angekündigt** wird. Eine Oberfläche zeigte einen Schalter „hybride Suche" für das Gedächtnis; die zugehörige Maschinerie existierte seit mehreren Versionen nicht mehr, und der Schalter steuerte nichts. Toter Code und Anzeige wurden gemeinsam entfernt und das tatsächliche Verhalten an ihre Stelle geschrieben. Eine angekündigte, aber abwesende Fähigkeit ist keine Ungenauigkeit der Dokumentation: Sie ist ein Versprechen an einen Nutzer, der es nicht überprüfen kann. Eine Einstellung anzuzeigen, die nichts steuert, ist schlimmer, als nichts anzuzeigen.
+
+Dokumentation ist dasselbe Versprechen, nur aufgeschrieben — und es war still gebrochen worden. Die erzwungene Testabdeckungsschwelle ist eine einzige Zahl, die einer einzigen Datei gehört; sechs Dokumente nannten sie, jedes mit einem anderen falschen Wert, und eines davon versicherte im selben Satz, dieser Wert habe eine einzige Quelle der Wahrheit. Alle Gates waren grün, denn sie prüften, ob die Links auflösen, nie ob die Sätze stimmen. Jetzt wird jede Version und jeder Schwellenwert, den ein Dokument nennt, aus dem Code neu berechnet, dem er gehört, und eine Abweichung stoppt den Build. Ein Dokument darf wählen, wie genau es sein will; genau und falsch darf es nicht sein.
 
 ### 6.5. Warum LIA das denkt
 

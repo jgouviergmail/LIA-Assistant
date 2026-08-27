@@ -4364,6 +4364,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_33_2": {
+          "title": "v1.33.2 — 📘 Self-hosting: the upgrade path, written down",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📘 Moving your own installation to a new version</b> — self-hosting the assistant, you had no written way to move an existing installation to a newer release. There is one now: seven steps, with the database backup <i>first</i> because migrations apply the moment the new container starts and there is no way back, and a rollback that restores the previous version in seconds. LIA can walk you through it if you ask her.",
+            "i2": "<b>✅ The documentation now has to be true</b> — every version number and threshold written in the docs is recomputed from the code that owns it, and a mismatch stops the build. Six documents were quoting six different wrong values for the same setting; that class of error can no longer reach you. The figures published on the public pages follow the same rule: recomputed, never carried over."
+          }
+        },
         "v1_33_1": {
           "title": "v1.33.1 — 📍 Location settings in their own section",
           "date": "August 2026",

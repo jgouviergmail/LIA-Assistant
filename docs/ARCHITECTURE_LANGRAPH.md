@@ -8,7 +8,7 @@
 
 ## Vue d'Ensemble
 
-LIA utilise **LangGraph v1.1.6** avec exécution parallèle native **asyncio** pour orchestrer un assistant intelligent multi-domaines. L'architecture supporte:
+LIA utilise **LangGraph v1.2.11** avec exécution parallèle native **asyncio** pour orchestrer un assistant intelligent multi-domaines. L'architecture supporte:
 
 **Domaines actifs**: Contacts, Emails, Calendar, Drive, Tasks, Weather, Wikipedia, Perplexity, Places, Routes, Brave Search, Web Fetch, Browser, MCP, Sub-Agents
 
@@ -1187,7 +1187,8 @@ consecutive LangGraph `updates` events (includes checkpoint writes), segmented
 by `execution_mode` (pipeline/react) and `turn_kind`
 (conversation/action/hitl_resume). Each turn also emits one
 `graph_stage_durations` structured log line (Loki source when Prometheus
-histograms are unavailable). See `docs/optim/LATENCY_PLAN.md`.
+histograms are unavailable). See
+`docs/superpowers/plans/2026-07-10-latency-optimization-plan.md`.
 
 ### Router
 

@@ -376,7 +376,7 @@ langfuse.trace(
 - [Guide Prompt Versioning](./GUIDE_PROMPT_VERSIONING.md)
 - Guide Evaluation Scores
 - Guide A/B Testing
-- [README Observability](../readme/README_OBSERVABILITY.md)
+- [README Observability](../guides/GUIDE_OBSERVABILITY.md)
 
 ---
 

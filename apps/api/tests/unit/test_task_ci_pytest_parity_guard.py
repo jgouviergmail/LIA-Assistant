@@ -259,20 +259,46 @@ def test_no_task_runs_the_same_collection_twice() -> None:
 
 
 def test_coverage_threshold_has_a_single_source_of_truth() -> None:
-    """The ``--cov-fail-under`` value in CI must equal pyproject's addopts default
-    (F022): the coverage threshold is one governed number (ratchet doctrine), not two
-    that can silently drift between ``pyproject.toml`` and ``ci.yml``."""
+    """Every executable copy of ``--cov-fail-under`` must equal pyproject's default.
+
+    The coverage threshold is one governed number (ratchet doctrine), not several
+    that can silently drift.
+
+    This guard was VACUOUS from ADR-151 until 2026-08-27. It compared
+    ``pyproject.toml`` against ``ci.yml`` only — and ADR-151 had moved every
+    pytest command out of the workflow into ``Taskfile.yml``, so the loop
+    iterated over an empty list and the assertion never ran. The Taskfile's own
+    two copies of the value were, in consequence, guarded by nothing.
+
+    The Taskfile is therefore scanned first, and a non-vacuity assertion makes
+    the same disappearance impossible to repeat: if the commands move again, the
+    guard fails instead of quietly approving.
+    """
     pyproject_vals = _COV_FAIL_UNDER.findall(PYPROJECT.read_text(encoding="utf-8"))
     assert len(set(pyproject_vals)) == 1, (
         "pyproject.toml must define exactly one --cov-fail-under (source of truth); "
         f"found: {pyproject_vals}"
     )
     source = pyproject_vals[0]
-    for ci_val in _COV_FAIL_UNDER.findall(CI_WORKFLOW.read_text(encoding="utf-8")):
-        assert ci_val == source, (
-            f"CI --cov-fail-under={ci_val} drifts from pyproject's {source} (F022). "
-            "Update both together, or drive CI from the pyproject default."
+
+    copies: list[tuple[str, str]] = []
+    for name, path in (("Taskfile.yml", TASKFILE), ("ci.yml", CI_WORKFLOW)):
+        copies.extend(
+            (name, value) for value in _COV_FAIL_UNDER.findall(path.read_text(encoding="utf-8"))
         )
+
+    assert copies, (
+        "no --cov-fail-under found in Taskfile.yml or ci.yml, so this guard would "
+        "compare nothing. The gated coverage command has moved (or lost its "
+        "threshold): point this guard at wherever it now lives before shipping."
+    )
+
+    drifted = [(name, value) for name, value in copies if value != source]
+    assert not drifted, (
+        f"--cov-fail-under drifts from pyproject's {source} (F022): "
+        + ", ".join(f"{name} carries {value}" for name, value in drifted)
+        + ". Update them together, or drive the command from the pyproject default."
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

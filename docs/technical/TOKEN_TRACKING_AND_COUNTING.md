@@ -330,7 +330,7 @@ ORDER BY total_cost DESC;
 
 ### Strategy 1 : AIMessage.usage_metadata (Moderne, Préféré)
 
-**LangChain 1.0+ API** - Recommandé depuis 2025.
+**LangChain 1.x API** - Recommandé depuis 2025.
 
 ```python
 from langchain_core.outputs import LLMResult

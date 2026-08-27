@@ -1690,7 +1690,7 @@ client = httpx.AsyncClient(
 ## 📚 Références
 
 ### Documentation Interne
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](./GRAPH_AND_AGENTS_ARCHITECTURE.md) - Task Orchestrator
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) - Task Orchestrator
 - [AGENT_MANIFEST.md](./AGENT_MANIFEST.md) - Manifests détaillés (11 agents, 56+ tools)
 - [CONNECTORS_PATTERNS.md](./CONNECTORS_PATTERNS.md) - Patterns clients OAuth/API Key
 - [MCP_INTEGRATION.md](./MCP_INTEGRATION.md) - MCP (Model Context Protocol) intégration complète

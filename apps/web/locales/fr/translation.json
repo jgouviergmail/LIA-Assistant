@@ -4369,6 +4369,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_33_2": {
+          "title": "v1.33.2 — 📘 Auto-hébergement : la mise à jour enfin écrite",
+          "date": "Août 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📘 Faire passer votre installation à une nouvelle version</b> — si vous hébergez l'assistant vous-même, aucune procédure écrite ne vous disait comment mettre à jour une installation existante. Elle existe désormais : sept étapes, la sauvegarde de la base en <i>premier</i> parce que les migrations s'appliquent dès le démarrage du nouveau conteneur et qu'aucun retour n'est prévu, et un retour arrière qui rétablit la version précédente en quelques secondes. LIA peut vous la détailler si vous la lui demandez.",
+            "i2": "<b>✅ La documentation doit désormais dire vrai</b> — chaque numéro de version et chaque seuil écrit dans la documentation est recalculé depuis le code qui le possède, et un écart bloque la construction. Six documents annonçaient six valeurs fausses différentes pour un même réglage ; cette classe d'erreur ne peut plus vous atteindre. Les chiffres publiés sur les pages publiques suivent la même règle : recalculés, jamais recopiés."
+          }
+        },
         "v1_33_1": {
           "title": "v1.33.1 — 📍 Les réglages de localisation dans leur propre section",
           "date": "Août 2026",

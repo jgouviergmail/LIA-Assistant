@@ -1624,7 +1624,7 @@ Voir [SEMANTIC_INTENT_DETECTION.md](SEMANTIC_INTENT_DETECTION.md) pour l'archite
 - [PLANNER.md](PLANNER.md) - Planner node (downstream de Router)
 - [RESPONSE.md](RESPONSE.md) - Response node (alternative route)
 - [SEMANTIC_INTENT_DETECTION.md](SEMANTIC_INTENT_DETECTION.md) - Semantic intent classification
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](GRAPH_AND_AGENTS_ARCHITECTURE.md) - LangGraph architecture
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) - LangGraph architecture
 
 **Code source**:
 - [router_node_v3.py](../../apps/api/src/domains/agents/nodes/router_node_v3.py) - Router node implementation

@@ -6,7 +6,7 @@
 
 **Versione**: 4.6
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.33.1
+**Applicazione**: LIA v1.33.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,7 +60,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 473 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 245 ADRs, ~20.586 test raccolti da pytest in 1.204 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 245 ADRs, ~20.468 test raccolti da pytest in 1.184 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -78,11 +78,11 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | 20.586 raccolti da pytest su 1.204 file di test + 6.219 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
-| Fixture pytest | 752, di cui 32 condivise tramite conftest |
-| Documenti di documentazione | 545 |
-| ADR (Architecture Decision Record) | 242 |
-| Metriche Prometheus | 483 definizioni |
+| Test | 20.468 raccolti da pytest su 1.184 file di test + 6.327 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Fixture pytest | 755, di cui 32 condivise tramite conftest |
+| Documenti di documentazione | 549 |
+| ADR (Architecture Decision Record) | 245 |
+| Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1414,7 +1414,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 245 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~20.586 test in 1.204 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 245 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~20.468 test in 1.184 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 

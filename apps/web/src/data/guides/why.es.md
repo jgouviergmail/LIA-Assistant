@@ -4,7 +4,7 @@
 
 **Versión**: 5.1
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.33.1
+**Aplicación**: LIA v1.33.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -38,7 +38,7 @@ LIA toma un camino distinto. No es un competidor frontal de los gigantes — es 
 
 ### 2.1. Un despliegue guiado, luego cero fricción
 
-El auto-alojamiento tiene mala fama. LIA no pretende eliminar cada paso técnico: la configuración inicial — claves API, conectores OAuth, elección de infraestructura — requiere algo de tiempo y conocimientos básicos. Pero cada etapa está **documentada en detalle** en una guía de despliegue paso a paso.
+El auto-alojamiento tiene mala fama. LIA no pretende eliminar cada paso técnico: la configuración inicial — claves API, conectores OAuth, elección de infraestructura — requiere algo de tiempo y conocimientos básicos. Pero cada etapa está **documentada en detalle** en una guía de despliegue paso a paso. Llevar una instalación existente a una versión más reciente también tiene su procedimiento escrito, cuyo primer paso es la copia de seguridad de la base de datos — las migraciones se aplican en cuanto arranca el nuevo contenedor, y no hay vuelta atrás.
 
 Una vez terminada esa fase, **todo lo del día a día se gestiona desde una interfaz web intuitiva**. Sin terminal ni archivos de configuración.
 
@@ -308,6 +308,8 @@ El mismo principio se aplica a las propias protecciones. Una seguridad anunciada
 Tampoco una prueba que nunca se ejecuta — y ese es el descubrimiento más incómodo de este proyecto. Diez archivos de pruebas se habían desactivado a sí mismos en cuanto faltaba una clave de proveedor, y ya nada lo señalaba: una prueba omitida cuenta como verde, la cobertura mide líneas alcanzadas y no aserciones ejecutadas, y una revisión ve un archivo de pruebas y concluye que la superficie está protegida. Doscientas diecinueve pruebas no se habían ejecutado ni una sola vez; al volver a encenderlas aparecieron cuatro defectos bien reales — entre ellos una voz que partía en dos todos los números, y un recordatorio perdido definitivamente cuando la cuota se agotaba en el minuto equivocado. La ausencia de señal roja no es una prueba de salud: a veces es solo la ausencia de medición. Una guarda de integración continua impide ahora que un módulo de pruebas se apague en silencio.
 
 El mismo principio se aplica a lo que se **anuncia**. Un panel mostraba un interruptor «búsqueda híbrida» para la memoria; el motor correspondiente ya no existía desde varias versiones, y el interruptor no mandaba nada. El código muerto y la visualización se retiraron juntos, y el funcionamiento real se escribió en su lugar. Una capacidad anunciada pero ausente no es una imprecisión de documentación: es una promesa hecha a un usuario que no tiene forma de verificarla. Mostrar un ajuste que no controla nada es peor que no mostrar nada.
+
+La documentación es esa misma promesa, puesta por escrito — y se había roto en silencio. El umbral de cobertura de tests es un solo número, propiedad de un solo archivo; seis documentos lo declaraban, cada uno con un valor erróneo distinto, y uno de ellos certificaba en la misma frase que ese valor tenía una única fuente de verdad. Todas las puertas estaban en verde, porque comprobaban que los enlaces resolvían, nunca que las frases fueran ciertas. Ahora cada versión y cada umbral que un documento enuncia se recalcula desde el código que lo posee, y una discrepancia detiene la compilación. Un documento elige cuán preciso quiere ser; no elige ser preciso y falso.
 
 ### 6.5. Por qué LIA piensa eso
 

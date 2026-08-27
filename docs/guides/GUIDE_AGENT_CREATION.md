@@ -2187,7 +2187,7 @@ Pour creer un nouveau type (au-dela de Heartbeat et Interests) :
 ### Documentation Interne
 
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - Architecture globale
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](../technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) - Systeme multi-agents
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) - Systeme multi-agents
 - [TOOLS.md](../technical/TOOLS.md) - Systeme d'outils
 - [MCP_INTEGRATION.md](../technical/MCP_INTEGRATION.md) - Integration MCP (admin + per-user + OAuth)
 - [HEARTBEAT_AUTONOME.md](../technical/HEARTBEAT_AUTONOME.md) - Heartbeat autonome (notifications proactives)

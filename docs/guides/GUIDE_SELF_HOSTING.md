@@ -26,6 +26,7 @@ cd LIA-Assistant
 | Continue an interrupted install            | `./install.sh --resume`                    |
 | Change routing/options later               | `./install.sh --reconfigure`               |
 | Install unattended                         | `./install.sh --non-interactive --answers answers.env` |
+| Move to a newer release                    | no command — see [Upgrading](#upgrading-to-a-newer-release) |
 
 ---
 
@@ -80,8 +81,10 @@ flowchart LR
 
 ### What it deliberately does not do
 
-- **No upgrade path yet.** Moving an existing installation to a newer release
-  is the documented manual procedure, not an installer feature.
+- **No upgrade command.** Moving an existing installation to a newer release is
+  a manual procedure — written out step by step in
+  [Upgrading to a newer release](#upgrading-to-a-newer-release) — not an
+  installer feature. `--resume` will refuse afterwards, by design.
 - **No destructive reinstall.** There is no "wipe and start over" flag; your
   volumes are never removed by the installer.
 - **No provider-key rotation.** Changing keys later is an authenticated
@@ -452,6 +455,150 @@ liac down --volumes       # ⚠ also destroys the database and every attachment
 
 Your database dumps live outside the installation directory and survive both
 commands; delete them separately if you really mean to.
+
+### Upgrading to a newer release
+
+The installer installs; it does not migrate. Moving an existing installation to
+a newer release is the manual procedure below — and it is manual on purpose:
+every step is one an operator must be able to see, stop and reverse.
+
+**Read this first.** Database migrations run automatically, inside the API
+container, at every start (`alembic upgrade head` in its entrypoint). That is
+what makes the upgrade short — and what makes step 1 non-negotiable, because a
+migration is applied the moment the new container boots and this project ships
+no downgrade path.
+
+#### 1. Back up — before anything else
+
+```bash
+alias liac='docker compose -f docker-compose.prod.yml -f docker-compose.install.yml'
+
+# Database dump (the nightly job also writes here; take a fresh one anyway)
+liac exec -T postgres pg_dump -U lia -d lia --format=custom \
+  > ../lia-data/postgres-backups/pre-upgrade-$(date +%Y%m%d-%H%M%S).dump
+
+# Your configuration and the current pins — this is your rollback point
+cp .env                       ../lia-data/pre-upgrade.env
+cp docker-compose.images.yml  ../lia-data/pre-upgrade.images.yml
+```
+
+Keep `pre-upgrade.images.yml`: it holds the digests you are running now, and
+restoring it is the whole of a rollback.
+
+#### 2. Download and verify the new release
+
+From the release page, into an **empty directory outside your installation**:
+`lia-self-host-bundle.tar.gz`, its `.sha256`, and `lia-self-host-manifest.json`.
+
+```bash
+mkdir -p ~/lia-upgrade && cd ~/lia-upgrade
+sha256sum --check lia-self-host-bundle.tar.gz.sha256   # must print: OK
+tar -xzf lia-self-host-bundle.tar.gz
+```
+
+A failing checksum ends the upgrade. Do not continue "just to see".
+
+#### 3. Stop the application, keep the data
+
+```bash
+cd /path/to/your/install
+liac stop            # containers stop; volumes, and therefore your data, stay
+```
+
+#### 4. Replace the files the release ships
+
+Copy the extracted tree over your installation. These paths are **owned by the
+release** and are safe to overwrite:
+
+```text
+install.sh                          docker-compose.prod.yml
+docker-compose.skill-sandbox.yml    .env.min.prod.example
+LICENSE                             infrastructure/caddy/Caddyfile.template
+infrastructure/docker/postgres-init.sql
+scripts/install/                    infrastructure/observability/
+infrastructure/database/seeds/      data/skills/system/
+docs/knowledge/
+```
+
+That list is the bundle's own contents (`BUNDLE_FILES` and `BUNDLE_DIRS` in
+`scripts/release/build_self_host_bundle.py`) — copying the extracted tree
+wholesale gives you exactly it, which is simpler and cannot go stale:
+
+```bash
+cp -r ~/lia-upgrade/* /path/to/your/install/
+```
+
+**Never overwrite** `.env`, `docker-compose.install.yml`,
+`infrastructure/caddy/Caddyfile`, or `.install-state.json` — those are yours.
+Compare `.env.min.prod.example` against your `.env` afterwards: a release that
+adds a setting adds it there first.
+
+#### 5. Re-pin the images to the new digests
+
+`docker-compose.images.yml` still points at the previous release. Regenerate it
+from the new manifest, using the release's own shipped code rather than editing
+digests by hand:
+
+```bash
+PYTHONPATH=. python3 -c "
+from scripts.install.manifest import load_manifest, render_image_lock
+import pathlib, sys
+m = load_manifest(pathlib.Path(sys.argv[1]), required_qualification='passed')
+services = ['api','web','postgres','postgres-backup','redis']
+pathlib.Path('docker-compose.images.yml').write_text(
+    render_image_lock(m, services), encoding='utf-8')
+" ~/lia-upgrade/lia-self-host-manifest.json
+```
+
+Add `'caddy'` to `services` if you installed behind Caddy, and the twelve
+observability services if you enabled that profile — pin exactly the services
+your Compose layers start, no more. The command refuses a manifest that is not
+`passed`, so an unqualified build cannot be pinned by accident.
+
+#### 6. Start, and let the migrations run
+
+```bash
+liac -f docker-compose.images.yml pull
+liac -f docker-compose.images.yml up -d --no-build --wait
+```
+
+`--wait` blocks until the health checks pass. Migrations happen during that
+window, in the API container.
+
+Never set `APPLY_SEEDS=true` for an upgrade. The seed bundle **deletes before it
+inserts**; it exists for a fresh install only. The entrypoint refuses it once
+anyone has chosen a personality, but do not rely on that refusal.
+
+#### 7. Verify
+
+```bash
+curl -fsS http://localhost:8000/health   # app_version must be the new release
+liac ps                                  # every service healthy
+liac logs --since 5m api | grep -iE 'error|traceback'
+```
+
+Then sign in and send one message: `/health` answers for the process, not for
+the chat path.
+
+#### Rolling back
+
+```bash
+liac stop
+cp ../lia-data/pre-upgrade.images.yml docker-compose.images.yml
+liac -f docker-compose.images.yml up -d --no-build --wait
+```
+
+That returns the *code* to the previous release in seconds. It does **not**
+undo a migration: if the new version migrated the schema, restore the dump from
+step 1 as well (`docs/runbooks/DATABASE_BACKUP_RESTORE.md`). This is why the
+dump is step 1 and not step 7.
+
+#### Why `./install.sh --resume` is not the upgrade path
+
+Resume is deliberately fail-closed: it compares fingerprints of the files it
+generated and **stops** on any mismatch rather than repairing. Step 4 changes
+those files by design, so a resume after an upgrade reports a mismatch and
+refuses. That is the guard working, not a bug — do not try to satisfy it.
 
 ---
 

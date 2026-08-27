@@ -41,7 +41,7 @@
 ### Architecture API
 
 ```
-FastAPI v3.0 (async/await)
+FastAPI (async/await)
 ├── BFF Pattern (Backend-For-Frontend)
 │   ├── Sessions HTTP-only cookies (XSS protection)
 │   ├── Redis SessionStore (data minimization GDPR)

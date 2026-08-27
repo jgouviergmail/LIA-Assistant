@@ -490,6 +490,13 @@ jobs:
             The adjacent passed manifest makes `./install.sh` resolve to the
             qualified prebuilt images; `./install.sh --local-build` builds from
             the embedded, manifest-verified source context instead. A complete
-            source checkout always defaults to a local build. Upgrades and
-            destructive reinstalls are outside v1 — see
-            `docs/architecture/ADR-215-Self-Host-Installer.md`.
+            source checkout always defaults to a local build.
+
+            ## Already running LIA?
+
+            There is no upgrade command — moving an existing installation to
+            this release is a written manual procedure: see **"Upgrading to a
+            newer release"** in `docs/guides/GUIDE_SELF_HOSTING.md`. Back up the
+            database first: migrations run automatically when the new container
+            starts, and there is no downgrade path. Destructive reinstalls stay
+            outside v1 — see `docs/architecture/ADR-215-Self-Host-Installer.md`.

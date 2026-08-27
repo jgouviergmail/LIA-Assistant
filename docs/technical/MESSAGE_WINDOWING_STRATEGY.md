@@ -699,7 +699,7 @@ Users can type `/resume` to force compaction at any time, even below threshold. 
 
 ### Documentation interne
 
-- [GRAPH_AND_AGENTS_ARCHITECTURE.md](GRAPH_AND_AGENTS_ARCHITECTURE.md) - Architecture multi-agent
+- [ARCHITECTURE_LANGRAPH.md](../ARCHITECTURE_LANGRAPH.md) - Architecture multi-agent
 - [STATE_AND_CHECKPOINT.md](STATE_AND_CHECKPOINT.md) - MessagesState structure
 - [OBSERVABILITY_AGENTS.md](OBSERVABILITY_AGENTS.md) - Latency monitoring
 

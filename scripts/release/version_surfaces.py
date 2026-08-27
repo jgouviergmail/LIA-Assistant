@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import json
 import re
-
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -100,7 +99,9 @@ MIN_EXPECTED_GUIDE_STAMPS = 18
 #: guard can validate it — the bump writes it when the caller supplies it.
 LAST_UPDATED_PATH = "apps/web/src/lib/version.ts"
 
-_LAST_UPDATED_RE = re.compile(r"^export const LAST_UPDATED = '(?P<timestamp>[^']+)';", re.MULTILINE)
+_LAST_UPDATED_RE = re.compile(
+    r"^export const LAST_UPDATED = '(?P<timestamp>[^']+)';", re.MULTILINE
+)
 _LAST_UPDATED_VALUE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$")
 
 # A localized stamp line: ``**Application**: LIA v1.31.2``, ``**Application** :
@@ -260,8 +261,154 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         f"{GUIDES_DIR}/how.zh.md",
         re.compile(rf"{_COUNT} 篇 ADR"),
         "adr_files",
-        "how.zh.md ADR count (the zh guide quotes an exact number, the 5 " "others say '100+')",
+        "how.zh.md ADR count (the zh guide quotes an exact number, the 5 "
+        "others say '100+')",
         expected=3,
+    ),
+    # The `how` guides carry the ADR count TWICE each: once in the reliability
+    # row, once in the codebase-metrics table. Only the zh phrasing was
+    # declared, so the table figure drifted to 242 in all six languages while
+    # the guard stayed green. Declared per locale because the label is
+    # translated and the digit grouping is part of the language.
+    *(
+        CountSurface(
+            f"{GUIDES_DIR}/how.{locale}.md",
+            re.compile(rf"\| {label} \| {_COUNT} \|"),
+            "adr_files",
+            f"how.{locale}.md codebase-metrics table (ADR count)",
+        )
+        for locale, label in (
+            ("en", r"ADRs \(Architecture Decision Records\)"),
+            ("fr", r"ADRs \(Architecture Decision Records\)"),
+            ("de", r"ADRs \(Architecture Decision Records\)"),
+            ("es", r"ADRs \(Architecture Decision Records\)"),
+            ("it", r"ADR \(Architecture Decision Record\)"),
+        )
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.zh.md",
+        re.compile(
+            rf"\| ADR\uff08\u67b6\u6784\u51b3\u7b56\u8bb0\u5f55\uff09 \| {_COUNT} \u7bc7 \|"
+        ),
+        "adr_files",
+        "how.zh.md codebase-metrics table (ADR count)",
+    ),
+    # The reliability row, five locales (zh is already covered by the
+    # "N 篇 ADR" surface below, which matches it).
+    *(
+        CountSurface(
+            f"{GUIDES_DIR}/how.{locale}.md",
+            re.compile(rf"{_COUNT} ADRs, ~"),
+            "adr_files",
+            f"how.{locale}.md reliability row (ADR count)",
+        )
+        for locale in ("en", "fr", "de", "es", "it")
+    ),
+    # The `story` guides' key-figures table joined on 2026-08-27. It is the most
+    # public claim the project makes about itself, and it was the only counter
+    # table under no guard at all: 240 ADRs and 222 releases, in six languages,
+    # against a real 245 and 228. Six releases of silent drift on the page whose
+    # own argument is that the result is measured.
+    *(
+        surface
+        for locale, adr_label, release_label in (
+            (
+                "en",
+                r"Documented architecture decisions \(ADR\)",
+                r"Versions shipped at a steady pace",
+            ),
+            (
+                "fr",
+                r"D\u00e9cisions d'architecture document\u00e9es \(ADR\)",
+                r"Versions livr\u00e9es \u00e0 rythme r\u00e9gulier",
+            ),
+            (
+                "de",
+                r"Dokumentierte Architekturentscheidungen \(ADR\)",
+                r"In regelm\u00e4\u00dfigem Rhythmus gelieferte Versionen",
+            ),
+            (
+                "es",
+                r"Decisiones de arquitectura documentadas \(ADR\)",
+                r"Versiones entregadas a ritmo regular",
+            ),
+            (
+                "it",
+                r"Decisioni di architettura documentate \(ADR\)",
+                r"Versioni rilasciate a ritmo regolare",
+            ),
+            (
+                "zh",
+                r"\u5df2\u8bb0\u5f55\u7684\u67b6\u6784\u51b3\u7b56\uff08ADR\uff09",
+                r"\u4ee5\u7a33\u5b9a\u8282\u594f\u4ea4\u4ed8\u7684\u7248\u672c",
+            ),
+        )
+        for surface in (
+            CountSurface(
+                f"{GUIDES_DIR}/story.{locale}.md",
+                re.compile(rf"\| {adr_label} \| \*\*{_COUNT}\*\* \|"),
+                "adr_files",
+                f"story.{locale}.md key figures (ADR count)",
+            ),
+            CountSurface(
+                f"{GUIDES_DIR}/story.{locale}.md",
+                re.compile(rf"\| {release_label} \| \*\*{_COUNT}\*\* \|"),
+                "changelog_releases",
+                f"story.{locale}.md key figures (release count)",
+            ),
+        )
+    ),
+    # Two ADR counters written in PROSE rather than in a table, which is exactly
+    # why they escaped every surface: story's "among the N documented" (240 in
+    # six languages against a real 245) and how.zh's "N 篇 MADR 格式的 ADR"
+    # (242, one word outside the declared "N 篇 ADR" regex, while its five
+    # siblings were corrected). A guard that only reads tables guards tables.
+    *(
+        CountSurface(
+            f"{GUIDES_DIR}/story.{locale}.md",
+            re.compile(pattern),
+            "adr_files",
+            f"story.{locale}.md structural-decisions sentence (ADR count)",
+        )
+        for locale, pattern in (
+            ("en", rf"among the {_COUNT} documented"),
+            ("fr", rf"parmi les {_COUNT} document\u00e9es"),
+            ("de", rf"unter den {_COUNT} dokumentierten"),
+            ("es", rf"entre las {_COUNT} documentadas"),
+            ("it", rf"tra le {_COUNT} documentate"),
+            (
+                "zh",
+                rf"\u5728 {_COUNT} \u4e2a\u5df2\u8bb0\u5f55\u7684\u51b3\u7b56\u4e2d",
+            ),
+        )
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.zh.md",
+        re.compile(rf"{_COUNT} \u7bc7 MADR"),
+        "adr_files",
+        "how.zh.md MADR sentence (ADR count)",
+    ),
+    # docs/INDEX.md joined on 2026-08-27: it quoted the ADR count TWICE, with two
+    # different wrong values (229 in its metrics table, 243 in the architects'
+    # table) against a real 245. An index that miscounts what it indexes is the
+    # least trustworthy place for a number to live by hand.
+    CountSurface(
+        "docs/INDEX.md",
+        re.compile(rf"^\| ADRs \| {_COUNT} ADR files", re.MULTILINE),
+        "adr_files",
+        "INDEX.md metrics table (ADR file count)",
+    ),
+    CountSurface(
+        "docs/INDEX.md",
+        re.compile(rf"ADR-{_COUNT} latest"),
+        "adr_latest",
+        "INDEX.md metrics table (latest ADR number)",
+    ),
+    CountSurface(
+        "docs/INDEX.md",
+        re.compile(rf"Architecture Decision Records \({_COUNT} ADR files\)"),
+        "adr_files",
+        "INDEX.md architects' table (ADR file count)",
     ),
 )
 
@@ -568,7 +715,9 @@ def set_last_updated(root: Path, timestamp: str) -> bool:
         SurfaceError: If the declaration cannot be found.
     """
     if not _LAST_UPDATED_VALUE_RE.match(timestamp):
-        raise ValueError(f"Not an ISO-like timestamp: {timestamp!r} (expected YYYY-MM-DDTHH:MM:SS)")
+        raise ValueError(
+            f"Not an ISO-like timestamp: {timestamp!r} (expected YYYY-MM-DDTHH:MM:SS)"
+        )
     text = _read(root, LAST_UPDATED_PATH)
     if _LAST_UPDATED_RE.search(text) is None:
         raise SurfaceError(
@@ -663,7 +812,9 @@ def sync_derived_counts(root: Path) -> list[str]:
     changed: set[str] = set()
     for surface in COUNT_SURFACES:
         text = _read(root, surface.path)
-        updated = _replace_group(text, surface.pattern, "count", str(counts[surface.source]))
+        updated = _replace_group(
+            text, surface.pattern, "count", str(counts[surface.source])
+        )
         if updated != text:
             _write(root, surface.path, updated)
             changed.add(surface.path)

@@ -1,10 +1,27 @@
-# Agent Mixins Test Documentation
+# Agent API Mixins — architecture and testing
 
-**Project:** LIA API - Agent Service Mixins
-**Component:** Mixin Test Suite
-**Version:** 2.0.0
-**Date:** 2025-11-22
-**Status:** Production-Ready Documentation
+`AgentService` keeps **only infrastructure concerns** in mixins; business logic
+lives in autonomous services injected through the constructor. Two mixins remain,
+and they are deliberately small:
+
+| Mixin | Responsibility | File |
+|---|---|---|
+| `GraphManagementMixin` | Lazy LangGraph build from `AgentRegistry` (`_ensure_graph_built()`), HITL classifier and question-generator initialisation | [graph_management.py](../../apps/api/src/domains/agents/api/mixins/graph_management.py) |
+| `StreamingMixin` | `buffer_and_enrich_resumption_chunks()` — enriches SSE chunks with aggregated token metadata on HITL resumption | [streaming.py](../../apps/api/src/domains/agents/api/mixins/streaming.py) |
+
+The business logic they used to hold now sits in `OrchestrationService` (graph
+execution, state, `_parse_approval_decision`), `StreamingService` (SSE
+formatting, HITL detection and question streaming) and
+`ConversationOrchestrator` (conversation lifecycle, persistence).
+
+> **v1.21.16 (ADR-107)** — `HITLOrchestrator` (987 lines) was removed: it was
+> instantiated here and never called. The live HITL path is
+> `HitlResponseClassifier`, `services/hitl/` (interactions, resumption, question
+> generator) and `OrchestrationService`.
+
+**Design rule**: a mixin carries infrastructure (lifecycle, buffering); anything
+with a business decision in it becomes a service with explicit dependencies —
+testable in isolation, without an `AgentService` to construct.
 
 ---
 

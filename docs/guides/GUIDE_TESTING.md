@@ -2057,7 +2057,7 @@ async def test_with_mocked_llm_call():
 ```toml
 # pyproject.toml
 [tool.pytest.ini_options]
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=62"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=67"
 ```
 
 **Rapports générés** :
@@ -2081,9 +2081,12 @@ Règles :
 1. Le seuil a **une seule source de vérité** : `apps/api/pyproject.toml`
    (addopts). Il est répété une fois, dans la tâche `test:backend:unit:coverage`
    du `Taskfile.yml` — que la CI appelle telle quelle (ADR-151), donc il n'y a
-   plus de valeur dans `ci.yml`. La garde
+   plus de valeur dans `ci.yml`. Deux gardes tiennent cette unicité, chacune sur
+   son versant :
    `test_task_ci_pytest_parity_guard.py::test_coverage_threshold_has_a_single_source_of_truth`
-   échoue si un `--cov-fail-under` divergent réapparaît quelque part.
+   pour les fichiers de **configuration**, et `scripts/audit/doc_facts.py`
+   (`task lint:docs`) pour la **documentation** — sans cette seconde, six
+   documents ont annoncé six valeurs fausses différentes pendant des mois.
 2. On ne monte le seuil que si la couverture réelle mesurée en CI laisse
    **au moins 2 points de marge** (éviter les échecs de CI sur variance).
 3. Baisser le seuil est interdit — si une PR fait chuter la couverture sous
@@ -2104,6 +2107,13 @@ Règles :
    17 026 tests dans le sous-ensemble gated, programme démonstrateur libre
    lots 1-6 / ADR-216→218)** : le déclencheur annoncé (~67 %) est franchi, la
    marge reste à 3,16 pt. Palier suivant 66 % dès que le réel dépasse ~70 %.
+   → **66 % (2026-08-16, v1.30.1)** → **67 % (2026-08-19, v1.30.12)**, les deux
+   paliers suivants, relevés selon la même règle des 2 points de marge.
+   Re-mesuré le **2026-08-27 : réel 70,04 %** (19 277 tests du sous-ensemble
+   gated, mesure locale Windows). Le plancher **reste à 67 %** : le passer à
+   68 % ne laisserait que 2,04 pt, sous la marge d'environ 4 points que le
+   paragraphe suivant explique — un gate plus serré rougirait la CI sur l'écart
+   de plateforme, sans régression réelle.
 
    La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
    locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la
@@ -2112,7 +2122,7 @@ Règles :
 ### Exécuter Coverage
 
 ```bash
-# Coverage complète (applique le gate --cov-fail-under=62)
+# Coverage complète (applique le gate --cov-fail-under=67)
 cd apps/api
 pytest --cov=src --cov-report=term-missing --cov-report=html
 
@@ -2144,17 +2154,21 @@ TOTAL                                       311     19    94%
 - **Cover** : % couverture
 - **Missing** : numéros de lignes non couvertes
 
-**Objectifs** :
-- **≥80% global** : minimum pour production
-- **100% core modules** : config, security, auth
-- **≥90% agents** : nodes, services, tools
-- **≥70% intégration** : acceptable car coûteux
+**Objectifs par zone** — ce sont des **cibles de revue**, à ne pas confondre
+avec le **plancher appliqué** (une garantie mécanique, déclarée dans
+`apps/api/pyproject.toml` et rappelée dans la doctrine ratchet ci-dessus) :
+
+- **100 % modules cœur** : config, security, auth
+- **≥ 90 % agents** : nodes, services, tools
+- **≥ 70 % intégration** : acceptable car coûteux
+
+Une cible non atteinte se discute en revue ; le plancher, lui, rougit la CI.
 
 ### Coverage en CI
 
 Le rapport XML est uploadé vers Codecov par le job `test-backend`
 (`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est le
-`--cov-fail-under=62` porté par `task test:backend:unit:coverage`, que ce job
+`--cov-fail-under=67` porté par `task test:backend:unit:coverage`, que ce job
 appelle (voir la doctrine ratchet ci-dessus). Pour le reproduire en local,
 lancer cette tâche — et non `test:backend:unit:fast`, qui troque la couverture
 contre le parallélisme.
@@ -2645,6 +2659,47 @@ with patch("test_file.SomeService") as mock:  # ✅
 ```
 
 **Règle** : patch **où le code est importé**, pas où il est déclaré.
+
+### Problème 7 : Test instable (passe une fois sur deux)
+
+**Symptôme** : le même test passe en local, échoue en CI, repasse à la
+relance — souvent sur un chemin asynchrone ou concurrent.
+
+**Ce qu'il ne faut PAS faire.** Ne rejouez jamais un test instable pour le
+faire passer : ni `@retry`, ni un marker `timeout`, ni `pytest-rerunfailures`.
+Aucun de ces mécanismes n'est installé ici, et c'est **délibéré** — `addopts`
+porte `--strict-markers`, donc un marker inconnu est une erreur, pas un
+avertissement. Un test qu'on rejoue n'est plus un oracle : il transforme un
+défaut de production reproductible une fois sur deux en un signal muet.
+
+**Ce qu'il faut faire** : traiter l'instabilité comme le symptôme qu'elle est.
+Les quatre causes rencontrées ici, par fréquence décroissante :
+
+| Cause | Signature | Où c'est déjà documenté |
+|---|---|---|
+| État partagé entre fichiers | passe seul, échoue dans la suite | isolation des fixtures, plus haut |
+| Session `AsyncSession` partagée entre tâches concurrentes | `InterfaceError`, `already in use` | règle systémique CLAUDE.md — une session par tâche |
+| Override de connexion posé pour tout le PROCESSUS | échecs par **lot** sous `--dist loadscope`, verts en isolation | fixture `psycopg_url_from_settings` (`tests/conftest.py`), dont le docstring décrit le cas mesuré |
+| Horloge ou fuseau réels | échoue à certaines heures seulement | `datetime.now(UTC)` + horloge injectée |
+
+Le réflexe de diagnostic, dans cet ordre — chaque étape retire une variable :
+
+```bash
+cd apps/api
+.venv/Scripts/pytest chemin/test_x.py::test_y --no-cov       # 1. le test seul
+.venv/Scripts/pytest chemin/test_x.py --no-cov                # 2. son fichier
+.venv/Scripts/pytest tests/unit/ --no-cov -n 0                # 3. la suite, SANS parallélisme
+```
+
+L'étape où le verdict bascule désigne la cause : entre 1 et 2 c'est l'état
+partagé dans le fichier, entre 2 et 3 la pollution inter-fichiers, et si seule
+la suite parallèle (`-n 8`, le défaut de `test:backend:unit:fast`) échoue, c'est
+la concurrence — un état posé pour tout le processus par un worker qu'un autre
+observe.
+
+Note : l'ordre des tests n'est **pas** randomisé ici (`pytest-randomly` n'est
+pas installé), donc un échec dépendant de l'ordre vient de l'ordre naturel de
+collecte, pas d'un tirage — il est reproductible, donc diagnosticable.
 
 ---
 

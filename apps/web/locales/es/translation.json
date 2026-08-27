@@ -4355,6 +4355,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_33_2": {
+          "title": "v1.33.2 — 📘 Autoalojamiento: la actualización, por fin escrita",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📘 Llevar tu instalación a una versión nueva</b> — si alojas el asistente tú mismo, no existía ningún procedimiento escrito para actualizar una instalación existente. Ya lo hay: siete pasos, con la copia de seguridad de la base de datos <i>primero</i>, porque las migraciones se aplican en cuanto arranca el nuevo contenedor y no hay vuelta atrás, y una reversión que restaura la versión anterior en segundos. LIA puede explicártelo si se lo pides.",
+            "i2": "<b>✅ La documentación ahora tiene que ser cierta</b> — cada número de versión y cada umbral escrito en la documentación se recalcula desde el código que lo posee, y una discrepancia detiene la compilación. Seis documentos daban seis valores erróneos distintos para el mismo ajuste; esa clase de error ya no puede llegarte. Las cifras publicadas en las páginas públicas siguen la misma regla: se recalculan, nunca se copian."
+          }
+        },
         "v1_33_1": {
           "title": "v1.33.1 — 📍 Los ajustes de ubicación en su propia sección",
           "date": "Agosto 2026",

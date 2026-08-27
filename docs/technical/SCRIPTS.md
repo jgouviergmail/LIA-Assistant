@@ -81,7 +81,9 @@ Scripts pour validation et monitoring de l'observabilité.
 
 | Script | Description | Usage |
 |--------|-------------|-------|
-| `doc_audit.py` | Dérive documentaire : liens relatifs cassés + chemins code obsolètes (classés LIVING/HISTORICAL/ROADMAP) — exit 1 si lien vivant cassé | `task lint:docs` |
+| `doc_audit.py` | Dérive de **navigation** : liens relatifs cassés, chemins code obsolètes, et documents vivants **orphelins** (aucun lien entrant) — classés LIVING/HISTORICAL/ROADMAP | `task lint:docs` |
+| `doc_facts.py` | Dérive de **contenu** : toute version ou tout seuil cité doit égaler sa source (manifestes, `pyproject.toml`, `Taskfile.yml`, compose). Un document choisit sa précision, jamais d'être précis et faux | `task lint:docs` · réparation `task docs:fix-facts` |
+| `agents_mirror.py` | `AGENTS.md` est un **miroir généré** de `CLAUDE.md` : une seule source d'instructions pour les agents, jamais deux copies qui divergent | `task lint:docs` · régénération `task docs:sync-agents` |
 | `check_code_hygiene.py` | 6 contrôles d'hygiène : `.bak`, appels Store synchrones sur chemin async, `setex` sans sérialisation, `raise HTTPException` brut (règle #18), heads Alembic multiples, complétude `.env.example`. `--github` bascule en annotations de workflow | `task lint:hygiene` |
 | `check_ci_parity.py` | Le workflow orchestre, il n'implémente pas (ADR-151) : échoue sur toute étape `run:` qui n'est ni un appel de tâche, ni un provisionnement déclaré, ni une exception motivée dans `CI_ONLY` | `task lint:ci-parity` |
 | `check_test_marker_coverage.py` | Gate F006 : collecte chaque nodeid avec ses markers et échoue si un test ne tourne dans **aucun** job CI (allowlist justifiée, shrink-only) | `task test:markers` |
@@ -240,7 +242,10 @@ python ../../scripts/optim/analyze_unused_files.py
 python ../../scripts/optim/analyze_unused_code.py
 # ... etc.
 
-# Tous les rapports générés dans docs/optim/
+# Chaque script écrit son rapport sur la sortie standard : rediriger vers un
+# fichier de travail si besoin. Ces rapports ne sont pas versionnés — les
+# mesures qui font autorité sont celles des instruments de `scripts/audit/`
+# (SLOC, complexité, couplage, dette MyPy), câblés dans `task lint`.
 ```
 
 ---
@@ -265,44 +270,26 @@ Utilitaires génériques réutilisables par les scripts d'optimisation.
 
 ## 🎯 Workflow d'Optimisation
 
-### Phase 0 : Setup
-1. ✅ Structure `/docs/optim/` créée
-2. ✅ Scripts réorganisés
-3. ⏳ Baseline métriques (en cours)
+Ces scripts **proposent** des candidats ; ils ne décident jamais. Le cycle est
+toujours le même, et l'étape 2 n'est pas facultative :
 
-### Phase 1 : Analyse Automatisée
-1. ⏳ Création utilitaires (`optim/utils/`)
-2. ⏳ Création scripts d'analyse
-3. ⏳ Exécution scripts → rapports
+1. **Analyser** — lancer le script pertinent de `scripts/optim/`.
+2. **Vérifier chaque finding à la main** — classer en SAFE_TO_DELETE / KEEP /
+   UNCERTAIN. Les scripts `verify_*.py` du même dossier existent précisément
+   pour contre-vérifier un candidat avant toute suppression.
+3. **Agir**, puis prouver par les gates (`task lint`, suites de tests).
 
-### Phase 2 : Vérification Manuelle
-- Revue manuelle de chaque finding
-- Classification : SAFE_TO_DELETE / KEEP / UNCERTAIN
-- Documentation décisions
-
-### Phase 3-6 : Best Practices, Généralisation, Consolidation
-- Voir `/docs/optim/00_METHODOLOGY.md`
-
----
-
-## 📖 Documentation
-
-### Méthodologie Complète
-Voir `/docs/optim/00_METHODOLOGY.md`
-
-### Rapports d'Analyse
-Tous dans [`/docs/optim/`](../optim/)
-
-### Itérations
-Trackées dans `/docs/optim/iterations/`
+Ce qui fait autorité sur la qualité n'est pas ce dossier mais les instruments
+versionnés de `scripts/audit/` (SLOC, complexité, couplage, dette MyPy, dérive
+documentaire), qui tournent en CI via `task lint` avec des cliquets
+non-régressifs.
 
 ---
 
 ## ⚠️ Principes Importants
 
 ### Avant d'Exécuter un Script
-1. ✅ Lire la méthodologie (`docs/optim/00_METHODOLOGY.md`)
-2. ✅ Comprendre ce que le script fait
+1. ✅ Comprendre ce que le script fait
 3. ✅ Vérifier prérequis (environnement virtuel, dépendances)
 4. ✅ Backup si modification de code (git branch)
 
