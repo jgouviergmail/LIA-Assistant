@@ -170,4 +170,4 @@ ebooklib>=0.18  # EPUB text extraction for RAG Spaces
 defusedxml>=0.7.1  # Secure XML parsing (prevents XXE, XML bombs) for RAG Spaces
 
 # DevOps — Claude CLI Remote Server Management
-asyncssh>=2.23.0  # Async SSH client for remote Claude CLI execution. >=2.23.0: GHSA-g794-3fmp-753h fix (AuthorizedKeysFile %u path traversal)
+asyncssh>=2.23.1  # Async SSH client for remote Claude CLI execution. >=2.23.1: CVE-2026-54591 fix (SCP filename path traversal → RCE); >=2.23.0: GHSA-g794-3fmp-753h fix (AuthorizedKeysFile %u path traversal)

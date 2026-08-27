@@ -231,9 +231,9 @@ asyncpg==0.31.0 \
     --hash=sha256:f6b56b91bb0ffc328c4e3ed113136cddd9deefdf5f79ab448598b9772831df44 \
     --hash=sha256:f890de5e1e4f7e14023619399a471ce4b71f5418cd67a51853b9910fdfa73696
     # via -r requirements.txt
-asyncssh==2.23.0 \
-    --hash=sha256:14108bfdaae17457f0c1841e883ad934271bbfdd46458aa4c4d0973451940ad0 \
-    --hash=sha256:8c54760953c1f2cf282591bcba5c8c70efc48d645bbf26bd2307a9c66a0ed1a7
+asyncssh==2.24.0 \
+    --hash=sha256:4064c590e59ce2e8d82a2f66d35f3120d765828b4df5e3dbfb07b4a8c24686c9 \
+    --hash=sha256:9abd46300adcb6d4b73269b34c53cd0d17a138b9a22b5b38008ce7d5808734b7
     # via -r requirements.txt
 attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309 \
