@@ -672,6 +672,13 @@ async def extract_memories_background(
                                 await service.supersede_with_update(
                                     memory=memory,
                                     content=action.content,
+                                    # Without this, a category is frozen at
+                                    # creation forever: the service accepts a
+                                    # correction and the model can propose one,
+                                    # but nothing carried it. Two standing
+                                    # instructions sat in `personal` for that
+                                    # reason (measured in production 2026-08-28).
+                                    category=action.category,
                                     emotional_weight=action.emotional_weight,
                                     trigger_topic=action.trigger_topic,
                                     usage_nuance=action.usage_nuance,
@@ -683,7 +690,9 @@ async def extract_memories_background(
                                     user_id=user_id,
                                     action="update",
                                     memory_id=action.memory_id,
-                                    category=memory.category,
+                                    # The RESULTING category: reporting the old
+                                    # one hid the fact that nothing could move.
+                                    category=action.category or memory.category,
                                     importance=round(
                                         (
                                             action.importance

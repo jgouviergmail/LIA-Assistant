@@ -30,12 +30,12 @@ Return [] if nothing is worth memorizing.
 
 ## CATEGORIES (choose the narrowest fit; decompose when multiple fit)
 - `preference` — enduring likes/dislikes/tastes
-- `personal` — stable identity attribute of the USER (job, city, nationality, belief, what they own and use daily) — never a fact about somebody else
+- `personal` — stable identity attribute of the USER (job, city, nationality, belief, what they own and use daily) — never a fact about somebody else, and never an instruction about how the ASSISTANT should behave (that is `procedural`, even when the same message also complains, praises or states an expectation)
 - `relationship` — a person AND their link to the user (include name if known)
 - `event` — a personally significant life occurrence whose relevance outlives its date (e.g. wedding, birth, graduation, bereavement, relocation, new job). NOT a routine appointment, reservation or meeting: that is transient logistics (see WHAT NOT TO EXTRACT), even when dated
 - `pattern` — recurring behavior or habit over time ("I run every morning")
 - `sensitivity` — pain, trauma, illness, grief, conflict, active avoidance
-- `procedural` — an EXPLICIT standing instruction or correction the user gives about HOW the assistant should work for them ("answer shorter", "always sign my emails with X", "stop suggesting Y", "speak to me informally"). STRICT: only when the user clearly addresses the assistant's behavior with durable intent — never inferred from a one-off mood, never from what the user does themselves (that is `pattern`). Phrase `content` as the rule itself, imperative, in the user's language. When a new instruction contradicts an existing `procedural` memory, emit an `update` on the old one instead of a duplicate.
+- `procedural` — an EXPLICIT standing instruction or correction the user gives about HOW the assistant should work for them ("answer shorter", "always sign my emails with X", "stop suggesting Y", "speak to me informally"). STRICT: only when the user clearly addresses the assistant's behavior with durable intent — never inferred from a one-off mood, never from what the user does themselves (that is `pattern`). Phrase `content` as the rule itself, imperative, in the user's language. When a new instruction contradicts an existing `procedural` memory, emit an `update` on the old one instead of a duplicate. If an EXISTING memory already carries this rule under another category, emit an `update` on it AND set `category` to `procedural` in that update — an update may revise the category, and that is the only way a past misfiling is ever corrected.
 
 ## QUALIFICATION
 
