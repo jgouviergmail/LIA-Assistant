@@ -356,7 +356,6 @@ class MessagesState(TypedDict):
     working_query_english: (
         str | None
     )  # Semantic Pivot: English intent for tool matching (critical for embeddings)
-    injected_memories: str | None  # Memory facts used for context enrichment
     context_resolutions: list[dict[str, Any]]  # List of resolutions applied (temporal, coreference)
     context_confidence: float  # Confidence score of resolution (0.0-1.0)
 
@@ -365,6 +364,7 @@ class MessagesState(TypedDict):
     react_iteration: int  # ReAct loop iteration counter (protection against infinite loops)
     # ADR-238: per-turn adaptive iteration budget (None = fixed historical cap).
     react_max_iterations_effective: int | None
+    react_productive_iterations: int  # ADR-248: iterations that brought results back
     pending_tool_calls: list[dict[str, Any]]  # Tool calls awaiting HITL approval/execution
 
     # HITL Tool Gate (Phase 3): Tool-level approval for sensitive operations
@@ -600,13 +600,13 @@ def create_initial_state(
         # LLM-Native Semantic Architecture: Context Loader (Phase 0)
         working_query=None,  # Enriched query after context resolution
         working_query_english=None,  # Semantic Pivot: English intent for tool matching
-        injected_memories=None,  # Memory facts used for context enrichment
         context_resolutions=[],  # List of resolutions applied
         context_confidence=1.0,  # Default high confidence
         # LLM-Native Semantic Architecture: Semantic Agent (Phase 2)
         filtered_tools=[],  # Tool names selected by semantic matching
         react_iteration=0,  # ReAct loop iteration counter
         react_max_iterations_effective=None,  # ADR-238 adaptive budget (None = fixed cap)
+        react_productive_iterations=0,  # ADR-248 progress-earned extensions
         pending_tool_calls=[],  # Tool calls awaiting execution
         # LLM-Native Semantic Architecture: HITL Tool Gate (Phase 3)
         approved_tool_calls=[],  # Tools approved for execution

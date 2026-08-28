@@ -3269,6 +3269,10 @@ HEARTBEAT_OFFERS_WINDOW_DAYS_DEFAULT = 7
 # query's domain span; react_agent_max_iterations stays the hard ceiling.
 REACT_ITERATIONS_BASE_DEFAULT = 6
 REACT_ITERATIONS_PER_EXTRA_DOMAIN_DEFAULT = 3
+# ADR-248: iterations granted when a loop reaches its budget having spent it
+# productively. Domain span says how WIDE a question is, never how DEEP the
+# answer is buried — a deep single-domain search used to be cut at the minimum.
+REACT_ITERATIONS_PROGRESS_EXTENSION_DEFAULT = 4
 
 # Habit streak milestones (Lot 1-A4) — DISPLAY thresholds only; the
 # detection calibration (ADR-214) is a separate authority and stays untouched.

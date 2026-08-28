@@ -839,10 +839,11 @@ def route_from_react_call_model(
     # Safety limit 1: prevent infinite loops. ADR-238: the effective budget
     # is per-turn (domain-span adaptive) with the configured max as ceiling;
     # None = the historical fixed cap.
-    iteration_budget = (
-        state.get("react_max_iterations_effective") or settings.react_agent_max_iterations
-    )
-    if iteration >= iteration_budget:
+    from src.domains.agents.nodes.react_nodes import react_exit_reason, react_iteration_budget
+
+    iteration_budget = react_iteration_budget(state)
+    exit_reason = react_exit_reason(state)
+    if exit_reason == "max_iterations":
         logger.warning(
             "react_max_iterations_reached",
             iteration=iteration,
@@ -860,7 +861,7 @@ def route_from_react_call_model(
     # there is no budget to enforce — same short-circuit the wall-clock version
     # had when react_start_time was unset.
     compute_elapsed = float(state.get("react_elapsed_seconds") or 0.0)
-    if compute_elapsed > 0.0 and compute_elapsed > settings.react_agent_timeout_seconds:
+    if exit_reason == "compute_budget":
         # wall − compute: dominated by the HITL approval wait when the turn was
         # interrupted, graph overhead otherwise. It used to be charged to the
         # loop budget; surfacing it turns the old defect into a signal. Shared

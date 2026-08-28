@@ -4415,6 +4415,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_35_0": {
+          "title": "v1.35.0 — 🔎 A search that gets cut short now says so",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔎 No more “give me a minute, I'll get back to you”</b> — when a long search hit its internal limit, the assistant sometimes ended the turn on the sentence it had written just before continuing, which read as a promise of work that never came: a turn ends when its answer is sent, so there was nothing to wait for. Now an interrupted investigation gives you what it DID find, says in one sentence that it was cut short and what is missing, and offers to continue — and it can no longer announce future work it will not do.",
+            "i2": "<b>🧠 Your standing instructions now reach the autonomous mode too</b> — in the step-by-step reasoning mode, long-term memory never reached the reasoning itself: the rules you had recorded about how the assistant should work could only influence the final wording, not the decisions. The same memory the other mode uses is now present where the decisions are actually made. Deep searches also get more room: the assistant keeps going as long as it keeps finding things, instead of stopping on a fixed count."
+          }
+        },
         "v1_34_1": {
           "title": "v1.34.1 — 📌 Your standing instructions are remembered again",
           "date": "August 2026",

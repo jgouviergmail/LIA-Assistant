@@ -275,6 +275,31 @@ User Message → Router Node → (react mode → ReAct Setup → ReAct Call Mode
 
 Both modes converge on the same Response Node and stream via SSE. The `react_agent` LLM type in `LLM_TYPES_REGISTRY` is dedicated to the ReAct loop.
 
+**Three ReAct invariants (ADR-248), each paid for by a production defect:**
+
+1. **A message that still carries `tool_calls` is never an answer.** On a budget
+   exit those calls will never run, and the text is the model narrating what it
+   was about to do. `react_finalize_node` publishes an EMPTY `final_message`
+   instead (the path the draft handoff already uses), so the response node
+   synthesises from the tool results that did come back — and the stop reason
+   travels to a versioned directive that forbids announcing future work, because
+   **a turn ends when its answer is sent**. That directive is deliberately not
+   gated on `DIAGNOSTICS_ENABLED`.
+2. **The stop condition is ONE predicate** (`react_exit_reason`), read by the
+   router to decide and by the finalize node to explain. Two copies let the loop
+   stop for a reason the answer never mentions.
+3. **The loop knows what the pipeline knows.** `react_setup_node` injects the
+   psychological profile through `build_psychological_profile` — the same
+   builder, settings and gates as the pipeline. A behavioural rule that only
+   reaches the response node can reword a promise, never turn it into an action.
+   Context blocks live in `nodes/react_context.py`, one best-effort builder each.
+
+The iteration budget is ADR-238's domain-span value as a STARTING allowance,
+extended while the loop keeps producing results (`react_progress_extension_enabled`);
+`react_agent_max_iterations` and the compute timeout stay the hard bounds. A
+tool result that is `success: false` or empty is not production — otherwise a
+loop buys iterations with its own failures.
+
 Key files:
 - `src/domains/agents/nodes/routing.py` — Conditional routing functions between nodes
 - `src/domains/agents/nodes/planner_node_v3.py` — Plan generation (ExecutionPlan DSL)
@@ -625,7 +650,7 @@ Run it after any Capacitor upgrade or any CSP change.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (246 ADR files, ADR-247 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (247 ADR files, ADR-248 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

@@ -22,7 +22,6 @@ import structlog
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
-    HumanMessage,
     SystemMessage,
     ToolMessage,
 )
@@ -38,6 +37,7 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
     get_query_intelligence_from_state,
 )
 from src.domains.agents.models import MessagesState
+from src.domains.agents.nodes import react_context
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.connector_error_notice import (
     emit_connector_notice_for_exception,
@@ -280,6 +280,78 @@ def _build_system_prompt(state: MessagesState) -> str:
     )
 
 
+def _is_productive_result(raw_result: Any) -> bool:
+    """Did this tool call actually bring something back?
+
+    Productivity is what buys more iterations (ADR-248), so it must mean
+    "the context learned something", never "a call was attempted". A declared
+    failure and an empty result both teach the loop nothing it can build on.
+
+    Args:
+        raw_result: The tool's return value, before string conversion.
+
+    Returns:
+        True when the call produced usable content.
+    """
+    if raw_result is None:
+        return False
+    if isinstance(raw_result, dict):
+        return raw_result.get("success") is not False
+    return bool(raw_result)
+
+
+def react_iteration_budget(state: MessagesState) -> int:
+    """Iterations this turn may spend (ADR-238 adaptive value, else the ceiling).
+
+    Args:
+        state: Current graph state.
+
+    Returns:
+        The effective budget.
+    """
+    # Late import: the routing tests patch ``src.core.config.settings``, and a
+    # module-level binding would ignore the patch (same convention as the router).
+    from src.core.config import settings as _settings
+
+    ceiling = int(_settings.react_agent_max_iterations)
+    budget = int(state.get("react_max_iterations_effective") or ceiling)
+    if not getattr(_settings, "react_progress_extension_enabled", False):
+        return min(budget, ceiling)
+
+    # ADR-248: the loop buys more iterations with results, not with promises.
+    # Reaching the allowance having spent it PRODUCTIVELY earns another block;
+    # a loop that stopped producing stops being extended and ends here.
+    step = int(_settings.react_iterations_progress_extension)
+    productive = int(state.get("react_productive_iterations", 0) or 0)
+    while budget <= productive and budget < ceiling:
+        budget += step
+    return min(budget, ceiling)
+
+
+def react_exit_reason(state: MessagesState) -> str | None:
+    """Why the loop must stop now — ONE predicate, two readers.
+
+    The router applies it to decide, ``react_finalize_node`` applies it to
+    EXPLAIN. A second copy of this arithmetic would let the loop stop for a
+    reason the answer never mentions, which is how a cut-short investigation
+    came to be served as a finished one (2026-08-28).
+
+    Args:
+        state: Current graph state.
+
+    Returns:
+        ``"max_iterations"``, ``"compute_budget"``, or None to keep going.
+    """
+    if int(state.get("react_iteration", 0)) >= react_iteration_budget(state):
+        return "max_iterations"
+    from src.core.config import settings as _settings
+
+    compute_elapsed = float(state.get("react_elapsed_seconds") or 0.0)
+    if compute_elapsed > 0.0 and compute_elapsed > _settings.react_agent_timeout_seconds:
+        return "compute_budget"
+    return None
+
+
 def _loop_compute_seconds(state: MessagesState) -> float:
     """Return the loop's own compute time for this turn.
 
@@ -434,125 +506,24 @@ async def react_setup_node(
     # Build system prompt
     system_prompt = _build_system_prompt(state)
 
-    # Build memory context message.
-    # Memory resolution happens pre-routing (QueryAnalyzer) and produces:
-    # - resolved_references: {"mon frère": "Marc Lemoine"}
-    # - injected_memories: relevant memory facts
-    # Without a search_memories tool, this is the only way the ReAct agent
-    # can access memory. The agent still decides autonomously what to DO
-    # with this context (search contacts, get route, etc.).
+    # Context blocks, in injection ORDER — the order is meaningful. Standing
+    # rules lead: they govern how everything after them is used. Each builder is
+    # best-effort and returns None when it has nothing to say (zero tokens).
     system_blocks: list[str] = [system_prompt]
-
-    context_parts: list[str] = []
-    resolved_refs = state.get("resolved_references") or (
-        intelligence.resolved_references if intelligence else None
-    )
-    if resolved_refs:
-        ref_lines = [f'- "{k}" = {v}' for k, v in resolved_refs.items()]
-        context_parts.append("Reference resolution:\n" + "\n".join(ref_lines))
-
-    injected_memories = state.get("injected_memories")
-    if injected_memories and isinstance(injected_memories, str) and injected_memories.strip():
-        context_parts.append(f"User memory facts:\n{injected_memories}")
-
-    if context_parts:
-        system_blocks.append(
-            "<MemoryContext>\n" + "\n\n".join(context_parts) + "\n</MemoryContext>"
-        )
-
-    # User-model portrait — ambient diffusion (ADR-079, commit 3).
-    # Brief format (~60 tokens) injected once at react setup so the agent
-    # carries the same posture as the pipeline mode.
-    if getattr(settings, "journals_enabled", False):
-        try:
-            configurable = config.get("configurable", {})
-            user_journals_enabled = configurable.get("user_journals_enabled", False)
-            react_user_id = configurable.get("langgraph_user_id", "")
-            if user_journals_enabled and react_user_id:
-                from src.domains.journals.portrait_builder import (
-                    build_journal_user_model_block,
-                )
-
-                user_model_block = await build_journal_user_model_block(
-                    user_id=react_user_id, format="brief", flow="react"
-                )
-                if user_model_block:
-                    system_blocks.append(user_model_block)
-        except Exception as exc:  # pragma: no cover — best-effort
-            logger.warning("react_user_model_block_failed", error=str(exc))
-
-    # Operational journal directives (L1/L2) — close the cross-mode gap.
-    # The ReAct reasoning loop was blind to behavioural directives (they only
-    # reached the final response_node). Inject a small, bounded set ONCE here at
-    # setup (count cap, no truncation) so the loop is guided like the pipeline
-    # planner. L0/L3 are excluded by default inside build_journal_context.
-    # Deferred self-evaluation stays anchored to response_node (not duplicated here).
-    if getattr(settings, "journals_enabled", False):
-        try:
-            configurable = config.get("configurable", {})
-            react_user_journals = configurable.get("user_journals_enabled", False)
-            react_journal_user_id = configurable.get("langgraph_user_id", "")
-            max_directives = settings.journal_react_context_max_entries
-            last_user_text = ""
-            for _msg in reversed(state.get("messages", []) or []):
-                if isinstance(_msg, HumanMessage):
-                    last_user_text = coerce_content_to_text(_msg.content) or ""
-                    break
-            if (
-                react_user_journals
-                and react_journal_user_id
-                and max_directives > 0
-                and last_user_text
-            ):
-                from src.domains.journals.context_builder import build_journal_context
-                from src.infrastructure.database.session import get_db_context
-
-                async with get_db_context() as journal_db:
-                    # B-08 decision (2026-08-19): `_jids` deliberately discarded —
-                    # the response-flow injection (same turn, response node) is
-                    # the instance evaluated by the T→T+1 loop; this in-loop
-                    # copy only steers the ReAct reasoning.
-                    directives_block, _jdebug, _jids = await build_journal_context(
-                        user_id=react_journal_user_id,
-                        query=last_user_text,
-                        db=journal_db,
-                        session_id=configurable.get("thread_id"),
-                        max_results_override=max_directives,
-                        truncate_to_budget=False,
-                    )
-                if directives_block:
-                    system_blocks.append(directives_block)
-        except Exception as exc:  # pragma: no cover — best-effort
-            logger.warning("react_journal_directives_failed", error=str(exc))
-
-    # Inject active skills catalogue (L1) so the ReAct agent can discover
-    # and use skills via the existing skill tools (activate_skill_tool,
-    # run_skill_script, read_skill_resource). Same filtered catalogue as
-    # the pipeline planner — respects active_skills_ctx per user.
-    skills_catalog = ""
-    if getattr(settings, "skills_enabled", False):
-        from src.core.context import active_skills_ctx
-        from src.domains.skills.injection import build_skills_catalog
-
-        configurable = config.get("configurable", {})
-        skill_user_id = configurable.get("langgraph_user_id", "")
-        active = active_skills_ctx.get()
-        skills_catalog = build_skills_catalog(user_id=skill_user_id, active_skills=active)
-        if skills_catalog:
-            system_blocks.append(f"<AvailableSkills>\n{skills_catalog}\n</AvailableSkills>")
-
-    # Plan-time avoidance (spec 2026-08-27, pillar 7): currently degraded
-    # capabilities become one system block so the agent routes around a KNOWN
-    # outage instead of discovering it by timeout. Empty on a healthy platform
-    # (zero tokens) and fail-open by construction (advisor never raises).
-    from src.domains.diagnostics.advisor import (
-        format_degradations_block,
-        get_active_degradations,
-    )
-
-    degradations_block = format_degradations_block(await get_active_degradations())
-    if degradations_block:
-        system_blocks.append(degradations_block)
+    context_blocks = [
+        # Memory parity with the pipeline (2026-08-28): a behavioural rule that
+        # only reaches the response node can reword a promise, never turn it
+        # into an action. It has to be present where the decision is taken.
+        await react_context.build_memory_profile_block(state, config),
+        react_context.build_reference_resolution_block(state, intelligence),
+        await react_context.build_user_model_block(config),
+        await react_context.build_journal_directives_block(state, config),
+        react_context.build_skills_catalog_block(config),
+        await react_context.build_degradations_block(),
+    ]
+    system_blocks.extend(block for block in context_blocks if block)
+    has_memory_block = bool(context_blocks[0])
+    skills_catalog = context_blocks[4] or ""
 
     duration_ms = int((time.monotonic() - start_time) * 1000)
     logger.info(
@@ -560,7 +531,7 @@ async def react_setup_node(
         tool_count=len(tool_names),
         hitl_count=sum(1 for v in hitl_map.values() if v),
         domains=get_qi_attr(state, "domains", default=[]),
-        has_memory_context=bool(context_parts),
+        has_memory_context=has_memory_block,
         has_skills_catalog=bool(skills_catalog),
         duration_ms=duration_ms,
     )
@@ -789,6 +760,7 @@ async def react_execute_tools_node(
 
     new_messages: list[ToolMessage] = []
     collected_registry: dict[str, Any] = {}
+    productive_calls = 0
     pending_drafts: list[dict[str, Any]] = []
     call_digests: dict[str, int] = dict(state.get("react_call_digests") or {})
     no_progress = False
@@ -965,6 +937,7 @@ async def react_execute_tools_node(
             raw_result = await wrapper._original_tool.coroutine(**injected_args)
             # Process through wrapper for string conversion + registry collection
             content = wrapper._process_result(raw_result)
+            productive_calls += _is_productive_result(raw_result)
             # Draft detection: a mutation tool (create/update/delete) returns
             # requires_confirmation=True — it prepared a DRAFT, not the real
             # action. Collect it for the HITL handoff (see return below).
@@ -1006,6 +979,11 @@ async def react_execute_tools_node(
     )
 
     result: dict[str, Any] = {"messages": new_messages, "react_call_digests": call_digests}
+    if productive_calls:
+        # ADR-248: one PRODUCTIVE iteration, whatever the number of calls in it.
+        result["react_productive_iterations"] = (
+            int(state.get("react_productive_iterations", 0) or 0) + 1
+        )
     if no_progress:
         # Terminal repetition: hand the loop its own iteration ceiling so the
         # NEXT routing finalises. Cutting the edge here instead would skip
@@ -1082,12 +1060,28 @@ async def react_finalize_node(
     """
     iteration = state.get("react_iteration", 0)
 
-    # The last message should be the final AIMessage (no tool_calls)
+    # A final AIMessage carries no tool_calls. One that still does is MID-THOUGHT:
+    # its text is the model narrating what it is about to do, and those calls will
+    # never run — the loop is over. Serving it hands the user a promise instead of
+    # an answer, and this product has no background continuation to honour it
+    # (production, 2026-08-28). An empty final message routes the response node to
+    # synthesise from the tool results that DID come back, exactly like the draft
+    # handoff above.
     last_message = state["messages"][-1] if state.get("messages") else None
     final_content = ""
     if isinstance(last_message, AIMessage):
         # Normalize str (most providers) and list[dict] blocks (Gemini 3.x) to text.
         final_content = coerce_content_to_text(last_message.content)
+
+    pending_tool_calls = bool(getattr(last_message, "tool_calls", None))
+    exit_reason = react_exit_reason(state) if pending_tool_calls else None
+    truncation: dict[str, Any] | None = None
+    if pending_tool_calls:
+        truncation = {
+            "reason": exit_reason or "pending_tool_calls",
+            "iterations": iteration,
+        }
+        final_content = ""
 
     # Prometheus metrics (shared helper — also used by the draft handoff path).
     # COMPUTE time, not wall clock: a turn that waited on a HITL approval would
@@ -1105,10 +1099,11 @@ async def react_finalize_node(
         uncharged_wall_seconds=_uncharged_wall_seconds(state, compute_s),
     )
 
-    return {
-        "react_agent_result": {
-            "final_message": final_content,
-            "iteration_count": iteration,
-            "mode": "react",
-        },
+    react_result: dict[str, Any] = {
+        "final_message": final_content,
+        "iteration_count": iteration,
+        "mode": "react",
     }
+    if truncation is not None:
+        react_result["truncation"] = truncation
+    return {"react_agent_result": react_result}

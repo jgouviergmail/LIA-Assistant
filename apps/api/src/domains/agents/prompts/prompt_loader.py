@@ -70,6 +70,7 @@ PromptVersion = str  # Accept any version string, validated at runtime
 # an entry without a file (or a file without an entry) fails CI.
 PromptName = Literal[
     "response_system_prompt_base",
+    "react_truncation_directive",
     "runtime_failures_directive",
     "diagnostician_prompt",
     "response_directive_plan_rejection",

@@ -4408,6 +4408,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_35_0": {
+          "title": "v1.35.0 — 🔎 Una ricerca interrotta ora lo dice",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔎 Basta con «dammi un minuto, ti faccio sapere»</b> — quando una ricerca lunga raggiungeva il suo limite interno, il turno terminava a volte con la frase che l'assistente aveva appena scritto prima di proseguire, che si leggeva come la promessa di un lavoro mai arrivato: un turno finisce quando la sua risposta parte. Ora un'indagine interrotta ti dà ciò che HA trovato, dice in una frase di essere stata interrotta e cosa manca, e propone di continuare.",
+            "i2": "<b>🧠 Le tue istruzioni permanenti raggiungono ora anche la modalità autonoma</b> — nella modalità di ragionamento passo passo, la memoria a lungo termine non raggiungeva mai il ragionamento stesso: le regole che avevi registrato sul modo di lavorare potevano influenzare solo la formulazione finale, non le decisioni. La stessa memoria dell'altra modalità è ora presente dove si decide. Anche le ricerche profonde guadagnano spazio: l'assistente prosegue finché trova, invece di fermarsi a un contatore fisso."
+          }
+        },
         "v1_34_1": {
           "title": "v1.34.1 — 📌 Le tue istruzioni permanenti vengono di nuovo ricordate",
           "date": "Agosto 2026",

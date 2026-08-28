@@ -4420,6 +4420,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_35_0": {
+          "title": "v1.35.0 — 🔎 Une recherche interrompue le dit désormais",
+          "date": "Août 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔎 Fini le « donne-moi une minute, je reviens vers toi »</b> — lorsqu'une recherche longue atteignait sa limite interne, l'assistante terminait parfois le tour sur la phrase qu'elle venait d'écrire avant de continuer, ce qui se lisait comme la promesse d'un travail qui n'arrivait jamais : un tour se termine quand sa réponse part, il n'y avait donc rien à attendre. Désormais une enquête interrompue vous donne ce qu'elle A trouvé, dit en une phrase qu'elle a été coupée et ce qui manque, et propose de poursuivre — et elle ne peut plus annoncer un travail futur qu'elle ne fera pas.",
+            "i2": "<b>🧠 Vos consignes durables atteignent enfin le mode autonome</b> — dans le mode de raisonnement pas à pas, la mémoire long terme n'atteignait jamais le raisonnement lui-même : les règles que vous aviez enregistrées sur la manière de travailler ne pouvaient influencer que la formulation finale, pas les décisions. La même mémoire que l'autre mode est désormais présente là où les décisions se prennent. Les recherches profondes gagnent aussi de la marge : l'assistante poursuit tant qu'elle trouve, au lieu de s'arrêter sur un compteur fixe."
+          }
+        },
         "v1_34_1": {
           "title": "v1.34.1 — 📌 Vos consignes durables sont de nouveau retenues",
           "date": "Août 2026",

@@ -259,6 +259,7 @@ from src.core.constants import (
     REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
     REACT_ITERATIONS_BASE_DEFAULT,
     REACT_ITERATIONS_PER_EXTRA_DOMAIN_DEFAULT,
+    REACT_ITERATIONS_PROGRESS_EXTENSION_DEFAULT,
     REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
     REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT,
     REACT_REPEATED_CALL_TERMINAL_THRESHOLD_DEFAULT,
@@ -604,6 +605,20 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=50,
         description="Adaptive budget of a single-domain query (ADR-238).",
+    )
+    react_progress_extension_enabled: bool = Field(
+        default=True,
+        description=(
+            "Extend the ReAct budget while the loop keeps producing results "
+            "(ADR-248). react_agent_max_iterations and the compute timeout stay "
+            "the hard bounds. Off = the ADR-238 budget is final."
+        ),
+    )
+    react_iterations_progress_extension: int = Field(
+        default=REACT_ITERATIONS_PROGRESS_EXTENSION_DEFAULT,
+        ge=1,
+        le=50,
+        description="Iterations granted per earned extension (ADR-248).",
     )
     react_iterations_per_extra_domain: int = Field(
         default=REACT_ITERATIONS_PER_EXTRA_DOMAIN_DEFAULT,

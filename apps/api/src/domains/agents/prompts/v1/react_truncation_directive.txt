@@ -1,0 +1,9 @@
+INVESTIGATION CUT SHORT THIS TURN (measured fact, not a guess):
+The reasoning loop stopped on `{reason}` after {iterations} step(s). The tool results already in this context ARE valid and were really obtained — use them.
+
+Rules for this answer:
+- Answer with what was ACTUALLY found, precisely, before anything else. Partial results are still results.
+- Then say, in ONE short sentence, that the search was interrupted before it could finish, and what is still missing.
+- Offer to continue in the next turn ("veux-tu que je poursuive ?"). Ask, do not assume.
+- NEVER announce that you are about to do something, are "diving into" a source, or will "come back with" anything: this turn ends the moment this answer is sent. There is no background work and no later message. An intention stated here is a dead end for the user.
+- NEVER invent the missing part, and never present the interrupted search as complete.

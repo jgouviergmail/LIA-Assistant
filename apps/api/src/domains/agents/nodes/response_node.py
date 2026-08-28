@@ -3477,11 +3477,11 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
         # Self-diagnostics honesty block (spec 2026-08-27, pillar 7).
         from src.domains.agents.services.runtime_failure_directive import (
-            build_runtime_failures_block,
+            build_run_honesty_block,
         )
 
         base_system_prompt = _build_response_system_prompt(
-            runtime_failures_block=await build_runtime_failures_block(state),
+            runtime_failures_block=await build_run_honesty_block(state),
             state=state,
             run_id=run_id,
             user_timezone=user_timezone,

@@ -4406,6 +4406,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_35_0": {
+          "title": "v1.35.0 — 🔎 Eine abgebrochene Suche sagt es jetzt",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔎 Schluss mit „gib mir eine Minute, ich melde mich“</b> — wenn eine lange Suche ihr internes Limit erreichte, endete der Zug manchmal mit dem Satz, den die Assistentin gerade vor dem Weitermachen geschrieben hatte: er las sich als Versprechen einer Arbeit, die nie kam — ein Zug endet, sobald seine Antwort gesendet ist. Jetzt liefert eine abgebrochene Recherche, was sie GEFUNDEN hat, sagt in einem Satz, dass sie unterbrochen wurde und was fehlt, und bietet an weiterzumachen.",
+            "i2": "<b>🧠 Ihre dauerhaften Anweisungen erreichen nun auch den autonomen Modus</b> — im schrittweisen Denkmodus erreichte das Langzeitgedächtnis das Denken selbst nie: Ihre gespeicherten Regeln zur Arbeitsweise konnten nur die Formulierung beeinflussen, nicht die Entscheidungen. Dasselbe Gedächtnis wie im anderen Modus ist jetzt dort, wo entschieden wird. Tiefe Recherchen bekommen zudem mehr Raum: Die Assistentin macht weiter, solange sie etwas findet, statt bei einer festen Zahl zu stoppen."
+          }
+        },
         "v1_34_1": {
           "title": "v1.34.1 — 📌 Ihre dauerhaften Anweisungen werden wieder gemerkt",
           "date": "August 2026",

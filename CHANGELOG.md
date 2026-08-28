@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.35.0] - 2026-08-28
+
+**« Je plonge dans tes emails… donne-moi une minute, je te sors ça. » — et le tour s'arrêtait là.** Les logs contredisent la lecture évidente : LIA n'avait pas refusé d'agir, elle avait travaillé six itérations, appelé un outil à chacune, et s'était fait couper en plein vol par son budget. Ce que l'utilisateur recevait n'était pas un refus, c'était une **pensée en cours servie comme réponse** — avec, en prime, des appels d'outils abandonnés en silence et rien pour dire que la recherche avait été interrompue. Cette version corrige les trois défauts que ce seul tour a révélés (ADR-248).
+
+**Et la règle que l'utilisateur avait mémorisée pour interdire exactement ce comportement n'avait aucun effet** — pour une raison structurelle, pas statistique : en mode ReAct, la mémoire long terme n'atteignait jamais la boucle. La clé d'état prévue pour cela était déclarée, lue, et écrite par personne dans tout le dépôt.
+
+### Fixed
+
+- **Un message porteur d'appels d'outils en attente n'est plus jamais une réponse.** Sur une sortie par plafond, ces appels ne s'exécuteront pas et le texte n'est que la narration de ce que le modèle allait faire. La finalisation publie désormais un message final **vide** — le chemin qu'emprunte déjà le handoff de brouillon — donc la synthèse repart des résultats réellement obtenus, et une directive versionnée impose de dire ce qui a été trouvé, d'annoncer l'interruption en une phrase, de proposer la suite, et **jamais d'annoncer un travail futur** : un tour se termine quand sa réponse part, il n'y a pas de traitement en arrière-plan. Cette directive n'est volontairement **pas** conditionnée au drapeau de diagnostic — dire la vérité sur son propre run relève de la qualité de réponse.
+- **La condition d'arrêt de la boucle a une seule implémentation** (`react_exit_reason`), lue par le routeur pour décider et par la finalisation pour expliquer. Deux copies laissaient la boucle s'arrêter pour une raison que la réponse ne mentionnait jamais.
+- **La mémoire long terme atteint enfin la boucle ReAct.** Le profil est injecté au setup par `build_psychological_profile` — **le même constructeur que le pipeline**, mêmes réglages, même filtre de trivialité, même préférence utilisateur. Une règle de comportement qui n'arrivait qu'au nœud de réponse pouvait reformuler une promesse, jamais la transformer en action.
+
+### Changed
+
+- **Le budget d'itérations s'achète avec des résultats.** L'allocation adaptative d'ADR-238 (fondée sur le nombre de domaines) devient l'allocation *initiale* : le span dit la largeur d'une question, jamais la profondeur de la réponse, et une enquête mono-domaine recevait donc le minimum. Chaque fois que la boucle atteint son budget en l'ayant dépensé **productivement**, elle en gagne un bloc ; une boucle qui cesse de produire cesse d'être prolongée. Un résultat `success: false` ou vide n'est pas une production — sinon la boucle achèterait des itérations avec ses propres échecs. Le plafond dur et le budget de calcul restent inchangés.
+- Suppression de la clé d'état morte `injected_memories` : déclarée, lue par le setup ReAct, écrite nulle part. Un crochet crédible qui ne branchait rien.
+- L'assemblage du contexte ReAct devient `nodes/react_context.py` — un constructeur par bloc, chacun best-effort, chacun rendant `None` quand il n'a rien à dire. `react_nodes.py` repasse de 592 à 524 SLOC et le ratchet de complexité descend de 335 à 334.
+
+### Added
+
+- `REACT_PROGRESS_EXTENSION_ENABLED` (défaut vrai) et `REACT_ITERATIONS_PROGRESS_EXTENSION` (défaut 4) : de quoi revenir au comportement historique pour qui veut plafonner le coût.
+- ADR-248, qui consigne les trois décisions et ce qu'elles coûtent.
+
+### Tests
+
+- 32 tests dédiés : parité mémoire (constructeur partagé, préférence utilisateur, message trivial, panne avalée sans casser le tour, clé morte réellement disparue), honnêteté de troncature (promesse jamais servie, raison transmise, prédicat unique partagé, directive hors drapeau) et budget de progression (extension méritée, boucle stérile non prolongée, plafond et interrupteur respectés, définition de la productivité).
+
 ## [1.34.1] - 2026-08-28
 
 **Une catégorie entière de la mémoire long terme n'a jamais pu s'écrire.** Les « règles et directives » — ces consignes durables que l'utilisateur donne sur la manière de travailler (« réponds-moi plus brièvement ») — avaient leur écran, leurs six traductions, leur en-tête d'injection en deuxième priorité et leur prompt d'extraction. Il leur manquait la seule chose qui compte : le droit d'exister. Le parseur qui transforme la sortie du LLM en mémoire rejetait la catégorie que ce même prompt réclamait, et le rejet partait en `debug`. Le lecteur a été livré avec un écrivain qui ne pouvait pas réussir, et le silence a tenu des mois.

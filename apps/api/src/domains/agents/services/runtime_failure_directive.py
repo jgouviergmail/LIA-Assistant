@@ -20,8 +20,40 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-async def build_runtime_failures_block(state: dict[str, Any]) -> str:
-    """The honesty block for one run, or "" (flag off / clean turn / failure).
+def build_truncation_block(state: dict[str, Any]) -> str:
+    """What the run could NOT finish, when it was cut short.
+
+    Deliberately NOT gated on ``diagnostics_enabled``: telling the user that an
+    investigation stopped early is answer quality, not observability. A
+    self-hoster who runs without the telemetry stack still gets the truth.
+
+    Args:
+        state: The LangGraph state (``react_agent_result.truncation`` is read).
+
+    Returns:
+        The formatted directive, or "" when the run completed normally.
+    """
+    react_result = state.get("react_agent_result") or {}
+    truncation = react_result.get("truncation") if isinstance(react_result, dict) else None
+    if not isinstance(truncation, dict):
+        return ""
+    try:
+        from src.domains.agents.prompts.prompt_loader import load_prompt
+
+        return str(load_prompt("react_truncation_directive")).format(
+            reason=truncation.get("reason", "unknown"),
+            iterations=truncation.get("iterations", 0),
+        )
+    except Exception as exc:
+        logger.debug("truncation_block_failed", error=str(exc))
+        return ""
+
+
+async def build_run_honesty_block(state: dict[str, Any]) -> str:
+    """Everything this answer must admit about its own run.
+
+    Two independent halves, joined here so the response node keeps ONE seam:
+    what was cut short (always) and what failed (diagnostics-gated).
 
     Args:
         state: The LangGraph state (completed_steps + messages are read).
@@ -30,6 +62,13 @@ async def build_runtime_failures_block(state: dict[str, Any]) -> str:
         The formatted directive; NEVER raises — a broken diagnostics path
         must not break response synthesis.
     """
+    blocks = [build_truncation_block(state)]
+    blocks.append(await _diagnostics_failures_block(state))
+    return "\n\n".join(block for block in blocks if block)
+
+
+async def _diagnostics_failures_block(state: dict[str, Any]) -> str:
+    """The typed runtime failures of the turn, or "" when the flag is off."""
     if not getattr(settings, "diagnostics_enabled", False):
         return ""
     try:

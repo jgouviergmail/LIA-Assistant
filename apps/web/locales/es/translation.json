@@ -4406,6 +4406,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_35_0": {
+          "title": "v1.35.0 — 🔎 Una búsqueda interrumpida ahora lo dice",
+          "date": "Agosto de 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🔎 Se acabó el «dame un minuto, te lo traigo»</b> — cuando una búsqueda larga alcanzaba su límite interno, el turno terminaba a veces con la frase que la asistente acababa de escribir antes de seguir, que se leía como la promesa de un trabajo que nunca llegaba: un turno termina cuando se envía su respuesta. Ahora una investigación interrumpida te da lo que SÍ encontró, dice en una frase que fue cortada y qué falta, y ofrece continuar.",
+            "i2": "<b>🧠 Tus instrucciones permanentes llegan ya al modo autónomo</b> — en el modo de razonamiento paso a paso, la memoria a largo plazo nunca llegaba al razonamiento en sí: las reglas que habías guardado sobre cómo debe trabajar solo podían influir en la redacción final, no en las decisiones. La misma memoria que usa el otro modo está ahora donde se toman las decisiones. Las búsquedas profundas ganan margen: la asistente sigue mientras encuentra, en vez de detenerse en un contador fijo."
+          }
+        },
         "v1_34_1": {
           "title": "v1.34.1 — 📌 Tus instrucciones permanentes vuelven a recordarse",
           "date": "Agosto de 2026",

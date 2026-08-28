@@ -6,7 +6,7 @@
 
 **Version** : 4.6
 **Date** : 2026-08-23
-**Application** : LIA v1.34.1
+**Application** : LIA v1.35.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -61,7 +61,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 473 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 246 ADRs, ~20 468 tests collectés par pytest sur 1 184 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 247 ADRs, ~20 468 tests collectés par pytest sur 1 184 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -82,7 +82,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | 20 468 collectés par pytest sur 1 184 fichiers de test + 6 327 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 246 |
+| ADRs (Architecture Decision Records) | 247 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
