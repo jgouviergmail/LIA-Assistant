@@ -309,9 +309,16 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
                     continue
                 entries.append(entry)
             except Exception as e:
-                logger.debug(
+                # WARNING, not debug: this branch is where a vocabulary drift
+                # hides. `procedural` was taught by the prompt and rejected
+                # here for months (2026-08-28) — every dropped rule looked
+                # exactly like "the user said nothing worth remembering".
+                # The category is logged on its own so the drift is greppable
+                # without reading the item (which carries user content).
+                logger.warning(
                     "memory_item_validation_failed",
-                    item=item,
+                    action=item.get("action") if isinstance(item, dict) else None,
+                    category=item.get("category") if isinstance(item, dict) else None,
                     error=str(e),
                 )
                 continue

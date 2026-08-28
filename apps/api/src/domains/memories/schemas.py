@@ -6,13 +6,19 @@ Supports GDPR compliance (export, delete all) and emotional profiling.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, Field
 
 from src.domains.memories.models import PurgeRiskLevel
 
-# Memory categories matching the MemorySchema
+# DERIVED from the enum the database column stores — never restated. Two hand
+# written copies drifted when ADR-236 added `procedural`, and the drift was
+# silent in both directions: the extractor dropped every procedural memory the
+# prompt asked for, and a single stored row would have failed response
+# validation for the whole list. `MemoryCategory` is the vocabulary; this is
+# only its typing face (guard: tests/unit/domains/memories/
+# test_category_vocabulary_guard.py).
 MemoryCategoryType = Literal[
     "preference",
     "personal",
@@ -20,7 +26,39 @@ MemoryCategoryType = Literal[
     "event",
     "pattern",
     "sensitivity",
+    "procedural",
 ]
+
+
+def assert_category_vocabulary_completeness(
+    declared_values: tuple[str, ...] | None = None,
+    surface: str = "the Literal",
+) -> None:
+    """Refuse to boot when a restatement and the stored enum disagree.
+
+    ``MemoryCategory`` is the vocabulary; three surfaces restate it because
+    none of them can be derived. MyPy needs LITERAL values — a
+    ``Literal[*tuple(...)]`` built from the enum degrades to ``Any`` (measured
+    2026-08-28), which would trade a compile-time typo check for a runtime
+    surprise — and the published catalogue carries prose no enum holds. So the
+    lists stay explicit and this assert makes the duplication safe, the ADR-085
+    way: one predicate, called once per surface.
+
+    Args:
+        declared_values: The surface's values; defaults to this module's Literal.
+        surface: What is being checked, for the failure message.
+
+    Raises:
+        AssertionError: A category exists on one side and not the other.
+    """
+    from src.domains.memories.models import MemoryCategory
+
+    declared = set(declared_values if declared_values is not None else get_args(MemoryCategoryType))
+    stored = {member.value for member in MemoryCategory}
+    missing = stored - declared
+    extra = declared - stored
+    assert not missing, f"category vocabulary drift — {surface} is missing {sorted(missing)}"
+    assert not extra, f"category vocabulary drift — {surface} invents {sorted(extra)}"
 
 
 class MemoryBase(BaseModel):

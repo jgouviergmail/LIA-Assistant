@@ -9,6 +9,8 @@ events, same exception handling. The lifespan remains the single
 orchestration point — these functions are only called from there.
 """
 
+from typing import get_args
+
 import structlog
 
 from src.core.bootstrap import (
@@ -33,6 +35,41 @@ def import_domain_models() -> None:
     from src.infrastructure.database.registry import import_all_models
 
     import_all_models()
+
+
+def _validate_memory_category_vocabulary() -> None:
+    """Boot gate of the memory-category vocabulary (ADR-085 pattern).
+
+    ``MemoryCategory`` is what the column stores; three surfaces restate it —
+    two typing faces, because MyPy needs literal values, and the catalogue the
+    settings screen reads. A drift is silent in every direction: it dropped
+    every ``procedural`` memory the extraction prompt asked for, kept the
+    category out of the published catalogue, and one stored row would have
+    failed the list endpoint's response model (measured 2026-08-28).
+
+    Raises:
+        RuntimeError: If any surface disagrees with the enum.
+    """
+    try:
+        from src.domains.agents.tools.memory_tools import (
+            MemoryCategoryType as _ToolCategoryType,
+        )
+        from src.domains.agents.tools.memory_tools import get_memory_categories
+        from src.domains.memories.schemas import (
+            assert_category_vocabulary_completeness,
+        )
+
+        assert_category_vocabulary_completeness(surface="the schemas Literal")
+        assert_category_vocabulary_completeness(
+            get_args(_ToolCategoryType), surface="the tools Literal"
+        )
+        assert_category_vocabulary_completeness(
+            tuple(entry["name"] for entry in get_memory_categories()),
+            surface="the published catalogue",
+        )
+    except AssertionError as exc:
+        logger.error("memory_category_vocabulary_drift", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Memory category vocabulary drift: {exc}") from exc
 
 
 def _validate_diagnostics_registries() -> None:
@@ -213,8 +250,10 @@ def run_failfast_validations() -> None:
         logger.error("system_settings_registry_incomplete", error=str(exc), exc_info=True)
         raise
 
-    # Validate the diagnostics registries (ADR-085 pattern, both structural
-    # and I/O-free, so they run regardless of the diagnostics feature flag).
+    # Validate the memory-category vocabulary and the diagnostics registries
+    # (ADR-085 pattern, both structural and I/O-free, so they run regardless of
+    # any feature flag).
+    _validate_memory_category_vocabulary()
     _validate_diagnostics_registries()
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,

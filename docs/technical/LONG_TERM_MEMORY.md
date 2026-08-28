@@ -122,37 +122,52 @@ Le système de Long-Term Memory de LIA permet à l'assistant de **se souvenir de
 
 ## Schéma de Mémoire
 
-### MemorySchema (Pydantic)
+### ExtractedMemory (Pydantic)
+
+C'est le schéma que l'extraction valide réellement, dans
+`apps/api/src/domains/memories/schemas.py` :
 
 ```python
-class MemorySchema(BaseModel):
-    """Structure d'une mémoire avec profil psychologique."""
+class ExtractedMemory(BaseModel):
+    """Une opération de mémoire proposée par le LLM d'extraction."""
+
+    action: Literal["create", "update", "delete"]
+    memory_id: str | None          # requis pour update/delete
 
     # Contenu
-    content: str  # Le fait en une phrase concise
+    content: str | None            # Le fait en une phrase concise
 
-    # Classification
-    category: Literal[
-        "preference",    # Préférences explicites
-        "personal",      # Infos identité (travail, famille, lieu)
-        "relationship",  # Relations mentionnées
-        "event",         # Événements significatifs
-        "pattern",       # Patterns comportementaux
-        "sensitivity"    # Sujets sensibles/tabous
-    ]
+    # Classification — vocabulaire de MemoryCategory (voir ci-dessous)
+    category: MemoryCategoryType | None
 
     # Dimension émotionnelle
-    emotional_weight: int  # -10 (trauma) à +10 (joie), 0 = neutre
+    emotional_weight: int | None   # -10 (trauma) à +10 (joie), 0 = neutre
 
     # Contexte d'activation
-    trigger_topic: str  # Mot-clé activateur (ex: "voiture", "père")
+    trigger_topic: str | None      # Mot-clé activateur (ex: "voiture", "père")
 
     # Nuance d'usage (pour personnalité)
-    usage_nuance: str  # Comment utiliser l'info selon la personnalité
+    usage_nuance: str | None       # Comment utiliser l'info selon la personnalité
 
     # Importance
-    importance: float  # 0.0-1.0 pour prioritisation
+    importance: float | None       # 0.0-1.0 pour prioritisation
 ```
+
+### Le vocabulaire des catégories
+
+L'autorité est l'énumération `MemoryCategory`
+(`apps/api/src/domains/memories/models.py`), celle que stocke la colonne :
+`preference`, `personal`, `relationship`, `event`, `pattern`, `sensitivity` et
+`procedural` (les « règles et directives », ADR-236).
+
+Trois surfaces la restatent parce qu'aucune ne peut la dériver — les deux
+`Literal` (MyPy exige des valeurs littérales) et le catalogue publié par
+`GET /memories/categories`. Les trois sont donc vérifiées au démarrage par
+`assert_category_vocabulary_completeness` (doctrine ADR-085) : une catégorie
+présente dans l'énumération et absente d'une restatement disparaît du produit
+en silence. C'est exactement ce qui est arrivé à `procedural` jusqu'au
+2026-08-28 — le parseur rejetait la catégorie que le prompt d'extraction
+demandait, et l'échec était journalisé en `debug`.
 
 ### Exemples de Mémoires
 
@@ -501,7 +516,7 @@ safe_fire_and_forget(extract_memories_background(...))
 │ 4. Charger prompt externalisé          │
 │ 5. Appel LLM avec prompt formaté       │
 │ 6. Parser JSON (avec récupération)     │
-│ 7. Valider avec MemorySchema           │
+│ 7. Valider avec ExtractedMemory        │
 │ 8. store.aput() + vérification         │
 └────────────────────────────────────────┘
 ```

@@ -1,32 +1,26 @@
-"""
-Memory Schema for Long-Term User Profiling.
+"""Memory category vocabulary for long-term user profiling.
 
-Provides the MemorySchema used by the background memory extraction system.
+The categories themselves are stored as ``MemoryCategory``
+(``domains/memories/models.py``). This module holds the two faces the rest of
+the stack needs and cannot derive from that enum:
 
-Architecture:
-    The memory system builds a psychological profile of the user, not just a list of facts.
-    Each memory includes:
-    - content: The factual information
-    - category: Classification (preference, personal, relationship, event, pattern, sensitivity)
-    - emotional_weight: -10 (trauma) to +10 (joy) for emotional calibration
-    - trigger_topic: Keywords that should activate this memory
-    - usage_nuance: How the assistant should use this information
+- ``MemoryCategoryType`` — the literal type the save-memory tool exposes to the
+  model, and the one ``ExtractedMemory`` validates against;
+- ``get_memory_categories()`` — the catalogue ``GET /memories/categories``
+  publishes so a client can describe each category.
 
-Example:
-    >>> from src.domains.agents.tools.memory_tools import MemorySchema
-    >>> memory = MemorySchema(
-    ...     content="J'aime le café",
-    ...     category="preference",
-    ...     emotional_weight=5,
-    ... )
+Both restate one closed set, so both are asserted at boot (ADR-085): a category
+present in the enum and missing from a restatement disappears from the product
+in silence. Measured 2026-08-28 — ``procedural`` (ADR-236) was rejected by the
+extraction parser and absent from this catalogue, so the "rules & directives"
+memories could never be created and their group never appeared in the UI.
 """
 
-from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
-
 # Memory categories following the psychological profile approach
+# The SAME vocabulary as the database enum — see
+# domains/memories/schemas.py for why it is never restated by hand.
 MemoryCategoryType = Literal[
     "preference",  # User preferences and tastes
     "personal",  # Identity info (work, family, location)
@@ -34,122 +28,24 @@ MemoryCategoryType = Literal[
     "event",  # Significant events and milestones
     "pattern",  # Behavioral patterns
     "sensitivity",  # Sensitive topics (trauma, conflicts)
+    "procedural",  # Standing instructions about HOW to work (ADR-236)
 ]
 
 
-class MemorySchema(BaseModel):
-    """
-    Schema for structured user memory with psychological profiling.
-
-    This is not a simple key-value store - each memory captures:
-    - WHAT: The factual content
-    - HOW IMPORTANT: Emotional weight
-    - WHEN TO USE: Trigger topics
-    - HOW TO USE: Usage nuances for the assistant's personality
-
-    Attributes:
-        content: The factual information in one concise sentence
-        category: Classification for organization and prioritization
-        emotional_weight: Emotional calibration from -10 (trauma) to +10 (joy)
-        trigger_topic: Keywords that should activate this memory in conversations
-        usage_nuance: Instructions for the assistant on how to leverage this info
-        importance: Priority score for retrieval ranking (0.0-1.0)
-    """
-
-    content: str = Field(
-        ...,
-        description="Le fait ou l'information en une phrase concise",
-        min_length=3,
-        max_length=500,
-    )
-
-    category: MemoryCategoryType = Field(
-        ...,
-        description=(
-            "Catégorie de la mémoire: "
-            "preference (goûts), personal (identité), relationship (relations), "
-            "event (événements), pattern (comportements), sensitivity (sujets sensibles)"
-        ),
-    )
-
-    emotional_weight: int = Field(
-        default=0,
-        ge=-10,
-        le=10,
-        description=(
-            "Poids émotionnel de -10 (trauma/douleur profonde) à +10 (joie/fierté). "
-            "0 = neutre. Permet de calibrer la sensibilité du sujet. "
-            "IMPORTANT: ne pas laisser à 0 si une émotion est clairement détectée."
-        ),
-    )
-
-    trigger_topic: str = Field(
-        default="",
-        description=(
-            "Le sujet ou mot-clé qui doit activer ce souvenir dans les conversations. "
-            "Ex: 'voiture', 'père', 'travail', 'vacances', 'réunion'"
-        ),
-        max_length=100,
-    )
-
-    usage_nuance: str = Field(
-        default="",
-        description=(
-            "Comment utiliser cette information selon la personnalité de l'assistant. "
-            "Ex: 'Sujet sensible, pas de blague', "
-            "'À utiliser avec humour noir si ambiance le permet', "
-            "'Fierté évidente, peut être complimenté', "
-            "'Zone sensible, ne pas creuser sauf si l'utilisateur en parle'"
-        ),
-        max_length=300,
-    )
-
-    importance: float = Field(
-        default=0.7,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Score d'importance pour prioritisation dans la recherche. "
-            "0.9+ pour préférences explicites, 0.5 pour faits anecdotiques"
-        ),
-    )
-
-    # ===== CHAMPS PURGE AUTOMATIQUE =====
-
-    usage_count: int = Field(
-        default=0,
-        ge=0,
-        description=(
-            "Nombre de fois où cette mémoire a été récupérée avec pertinence "
-            "(score >= seuil configuré). Incrémenté automatiquement."
-        ),
-    )
-
-    last_accessed_at: datetime | None = Field(
-        default=None,
-        description=(
-            "Dernière date d'accès pertinent. None si jamais accédée depuis création. "
-            "Mis à jour automatiquement lors de la récupération pertinente."
-        ),
-    )
-
-    pinned: bool = Field(
-        default=False,
-        description=(
-            "Si True, cette mémoire ne sera JAMAIS supprimée automatiquement "
-            "par le processus de purge, peu importe son âge ou son usage."
-        ),
-    )
-
-
 def get_memory_categories() -> list[dict[str, str]]:
-    """
-    Get list of memory categories with descriptions.
+    """Publish the memory categories a client may display or filter on.
 
-    Useful for UI display and API documentation.
+    Served by ``GET /memories/categories``. The web UI renders its own
+    localized labels (``memories.categories.*``, six locales) and reads ``name``
+    only — the ``label``/``description`` here are the API's own description of
+    each category, for clients that have no translation catalogue.
+
+    Every stored category MUST appear: the settings screen groups what the
+    catalogue publishes, so an omission hides a whole family of memories.
+    Asserted at boot by ``assert_category_vocabulary_completeness``.
 
     Returns:
-        List of category dicts with name and description
+        One dict per category, with ``name``, ``label``, ``description``, ``icon``.
     """
     return [
         {
@@ -187,5 +83,11 @@ def get_memory_categories() -> list[dict[str, str]]:
             "label": "Zones sensibles",
             "description": "Sujets délicats nécessitant une approche prudente",
             "icon": "alert-triangle",
+        },
+        {
+            "name": "procedural",
+            "label": "Règles et directives",
+            "description": "Consignes durables sur la manière de travailler (ADR-236)",
+            "icon": "pin",
         },
     ]
