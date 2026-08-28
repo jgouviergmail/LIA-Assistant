@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.34.0] - 2026-08-28
+
+**LIA émettait 486 métriques, des logs structurés et un cœur d'alertes — et n'en lisait rien.** Instrumentée de partout, aveugle sur elle-même : un job de fond mort n'atteignait personne avant qu'un humain n'ouvre Grafana, une alerte partait en e-mail mais jamais vers l'assistante ni vers un administrateur dans le produit, et la classe de panne documentée « /health vert mais LangGraph mort » restait invisible par construction. Cette version ferme la boucle : LIA lit désormais sa propre télémétrie (ADR-247).
+
+**Une panne connue façonne maintenant la réponse au lieu d'un timeout.** Un advisor à coût nul sur plateforme saine injecte les capacités dégradées dans le planner et ReAct (« Brave est coupé → utilise Perplexity »), et la synthèse de réponse reçoit les échecs du run sous forme **typée** — code d'erreur et tête de message, jamais un log brut — avec une directive d'honnêteté : dire ce qui a réussi, ce qui a échoué et pourquoi, proposer le contournement, ne jamais inventer un diagnostic (doctrines ADR-182/184 tenues).
+
+**Tout est réservé aux administrateurs, et tout est borné.** Aucun langage de requête libre ne part d'un LLM : un catalogue de requêtes nommées (assert de complétude au boot) est le seul producteur de PromQL, un constructeur contraint le seul producteur de LogQL — plages et volumes plafonnés en constantes, parce que Loki sur le Pi a un historique d'OOM et qu'une injection doit être impossible à épeler. Le diagnostic LLM est plafonné par un budget USD quotidien atomique ; à 0, l'étape n'existe pas.
+
+### Added
+
+- **Sous-système d'auto-diagnostic** (`DIAGNOSTICS_ENABLED`, défaut faux — éteint, rien n'existe à l'exécution) : clients de lecture Prometheus/Loki/Alertmanager qui **ne lèvent jamais** (timeout court, disjoncteur par source, échec = résultat typé `unavailable` ; URL vide = source désactivée, une installation sans stack d'observabilité est inchangée).
+- **Boucle d'auto-contrôle** (leader élu, cadence réglable) : registre déclaratif de contrôles — signaux dorés Prometheus + sondes in-process (PostgreSQL, Redis, disjoncteurs, vivacité de la boucle elle-même) qui continuent quand Prometheus est mort — vers des instantanés persistés aux valeurs exactes. `unknown` plafonne le verdict à `degraded` : être aveugle n'est pas être sain, et la cécité n'est pas une panne.
+- **Mémoire d'incidents** à identité unique : le webhook Alertmanager (Bearer, fragments commités injectés par l'entrypoint, matrice rejouée en CI) et les verdicts critiques de l'auto-contrôle convergent vers UN incident ouvert par clé de corrélation (index unique partiel, upsert atomique sous concurrence webhook-vs-leader). Notification des superusers in-app/push — jamais d'e-mail, Alertmanager le fait déjà — derrière un cooldown atomique qui échoue ouvert.
+- **Diagnostic LLM ancré sur les runbooks** : slot `diagnostician` dédié, preuves et runbook cités comme données, sortie structurée (diagnostic, cause probable, actions recommandées — des propositions pour l'admin, jamais exécutées), incident sauté = diagnostic NULL donc réessayé au tick suivant.
+- **« LIA, diagnostique-toi »** : quatre outils de chat en lecture seule (santé, métrique du catalogue, logs bornés, incidents), check superuser à l'appel via une garde partagée extraite de l'outil DevOps ; bornes publiées dans les manifestes (doctrine ADR-184).
+- **Section Réglages « Santé de la plateforme »** (administration, i18n ×6) : verdicts par contrôle avec valeurs exactes, alertes en cours, capacités dégradées avec leur alternative, incidents et diagnostics — comptes exacts partout, rafraîchissement sans démontage (`aria-busy`).
+- **REST admin** `GET /admin/diagnostics/{overview,incidents,snapshots}` sous `require_superuser`, patron briefing (endpoints scindés, cache Redis court) — la vue d'ensemble est **la même implémentation** que l'outil de chat.
+- Tables `health_snapshots` et `incidents` (GLOBAL : aucune donnée utilisateur, hors export RGPD et purge de compte), migration `a6b7c8d9e0f1`.
+
+### Changed
+
+- Le planner et le setup ReAct reçoivent un bloc « PLATFORM DEGRADATIONS » **seulement quand il est non vide** — zéro token sur plateforme saine, fail-open par construction.
+- Le response node appuie sa synthèse d'échec sur `completed_steps` et les ToolMessages ReAct — délibérément **aucune clé d'état nouvelle** — via une directive versionnée dont le template est **injecté par l'appelant** : le graphe de domaines reste acyclique (diagnostics n'importe jamais agents, ratchet F009 au vert).
+- La garde superuser des outils DevOps est extraite en `agents/tools/admin_gate.py` et partagée (factorisation, comportement identique, tests devops inchangés).
+- L'entrypoint Alertmanager sait injecter le receiver LIA dans les trois modes (complet, email-only, minimal sans SMTP) depuis deux fragments commités — un auto-hébergeur sans SMTP garde ses incidents in-app.
+
+### Fixed
+
+- Le commentaire du `Dockerfile.prod` annonçait « API HTTPS » sur le port 8000 alors que le CMD ne porte aucun flag TLS (la terminaison est chez cloudflared) — le webhook Alertmanager dépend de ce fait, il est maintenant écrit juste.
+- `run_failfast_validations` a été décomposé (CC 16 → helpers dédiés) en absorbant les deux nouveaux asserts de boot du catalogue et du registre de contrôles — le ratchet de complexité ne monte pas.
+
+### Tests
+
+- 168 tests unitaires backend neufs (clients télémétrie sous `MockTransport` avec les chemins timeout/5xx/JSON malformé/circuit ouvert, bornes et injections du catalogue et du builder LogQL, moteur aveugle-mais-vivant, upsert d'incident, webhook Bearer, budget du diagnostic, advisor fail-open, extraction typée, matrice Alertmanager ×{templates, webhook on/off}) ; 6 tests composant pour la section admin (premier chargement vs rafraîchissement, totaux exacts, indisponibilité dite au lieu de « aucune alerte »).
+
 ## [1.33.2] - 2026-08-27
 
 **`task lint:docs` était vert pendant que six documents annonçaient six planchers de couverture différents, tous faux.** Le gate ne contrôlait que la navigation — les liens résolvent, les chemins de code existent — jamais ce que la documentation *affirme*. Une phrase bien formée et fausse lui était invisible. Elle ne l'est plus : chaque version et chaque seuil cité sont recalculés depuis la source qui les possède, et l'écart fait échouer le build. `docs/technical/CI_CD.md` certifiait au passage que le seuil avait « une seule source de vérité » — en citant la mauvaise valeur.

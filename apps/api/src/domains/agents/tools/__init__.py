@@ -293,3 +293,33 @@ if _DEVOPS_TOOLS_AVAILABLE:
             "claude_server_task_tool",
         ]
     )
+
+# Self-diagnostics tools (platform telemetry read access — feature-flagged)
+# Conditional import: only load when DIAGNOSTICS_ENABLED=true
+_DIAGNOSTICS_TOOLS_AVAILABLE = False
+try:
+    from src.core.config import settings as _diagnostics_settings
+
+    if getattr(_diagnostics_settings, "diagnostics_enabled", False):
+        from src.domains.agents.tools.diagnostics_tools import (
+            platform_health_tool,
+            platform_incidents_tool,
+            platform_logs_tool,
+            platform_metrics_tool,
+        )
+
+        _DIAGNOSTICS_TOOLS_AVAILABLE = True
+except Exception as _diagnostics_import_error:
+    _DIAGNOSTICS_TOOLS_AVAILABLE = False
+    _log_conditional_import_failure("diagnostics_tools", _diagnostics_import_error)
+
+# Conditionally extend __all__ with diagnostics tools
+if _DIAGNOSTICS_TOOLS_AVAILABLE:
+    __all__.extend(
+        [
+            "platform_health_tool",
+            "platform_incidents_tool",
+            "platform_logs_tool",
+            "platform_metrics_tool",
+        ]
+    )

@@ -203,6 +203,7 @@ anything sensitive. Each prompt is prefixed with its key (for example
 | `admin_name`           | always                | display name                                   | `Admin` |
 | `default_language`     | always                | `fr`, `en`, `es`, `de`, `it`, `zh-CN`          | `en`    |
 | `observability`        | always                | `yes` / `no`                                   | `no`    |
+| `self_diagnostics`     | always                | `yes` / `no` — LIA reads its own telemetry (ADR-247); with observability, alerts become in-app incidents | `no`    |
 | `skill_sandbox`        | always                | `yes` / `no`                                   | `no`    |
 | `admin_password`       | always *(hidden)*     | 10+ chars, 2 uppercase, 2 digits, 2 specials   | —       |
 | `provider_key_deepseek`| always *(hidden)*     | your DeepSeek API key                          | —       |
@@ -307,6 +308,7 @@ admin_email=admin@example.org
 admin_name=Ops
 default_language=fr
 observability=no
+self_diagnostics=no
 skill_sandbox=no
 admin_password=CHANGE_ME_Ab12!!cdEf
 provider_key_deepseek=CHANGE_ME_DEEPSEEK_KEY

@@ -6,7 +6,7 @@
 
 **Version** : 4.6
 **Date** : 2026-08-23
-**Application** : LIA v1.33.2
+**Application** : LIA v1.34.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -46,6 +46,7 @@
 30. [Le programme évolution : travail visible, apprentissage gouverné](#30-le-programme-évolution--travail-visible-apprentissage-gouverné)
 31. [Des yeux expressifs : un personnage piloté par les signaux](#31-des-yeux-expressifs--un-personnage-piloté-par-les-signaux)
 32. [Les applications natives : une coque, votre serveur](#32-les-applications-natives--une-coque-votre-serveur)
+33. [Auto-diagnostic : un assistant qui lit sa propre télémétrie](#33-auto-diagnostic--un-assistant-qui-lit-sa-propre-télémétrie)
 ---
 
 ## 1. Contexte et choix fondateurs
@@ -60,7 +61,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 473 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 245 ADRs, ~20 468 tests collectés par pytest sur 1 184 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 246 ADRs, ~20 468 tests collectés par pytest sur 1 184 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -81,7 +82,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | 20 468 collectés par pytest sur 1 184 fichiers de test + 6 327 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 245 |
+| ADRs (Architecture Decision Records) | 246 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -905,7 +906,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
-| Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) |
+| Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
 ### 20.2. Debug Panel embarqué
@@ -1479,5 +1480,19 @@ Les apps Android et iOS (ADR-246) sont des **coques WebView** publiées une seul
 **Le push est natif et volontairement asymétrique.** Android initialise Firebase **au runtime** avec les options que le serveur publie : les notifications d'un auto-hébergeur ne quittent jamais son propre projet. iOS ne le peut pas — APNs n'obéit qu'à l'équipe Apple propriétaire du bundle id — donc l'app publiée est réveillée par un **relais sans état** : la poignée *est* le jeton d'appareil scellé (Fernet, clé dédiée), la notification est une phrase fixe en six langues, et le relais n'apprend jamais qui est réveillé ni pourquoi. Le doute n'efface jamais un appareil : seuls « poignée illisible » et « appareil disparu » jettent un jeton.
 
 **Les douze départs OAuth reviennent dans l'app** — la décision « partir vers le navigateur système » est prise une seule fois, au point de passage que tous les flux partageaient déjà, et le retour lit la surface d'origine dans l'état OAuth, écrit par la seule fonction du dépôt qui en construise un. Un **banc dédié** pilote l'app debug réelle sur émulateur via le socket devtools — dix scènes sans aucun serveur, l'échec de navigation vers une origine `.invalid` servant d'oracle — et a trouvé trois défauts vivants avant son premier passage vert.
+
+## 33. Auto-diagnostic : un assistant qui lit sa propre télémétrie
+
+Jusqu'à l'ADR-247, LIA émettait toute cette observabilité et n'en lisait rien : instrumentée de partout, aveugle sur elle-même. Le sous-système d'auto-diagnostic ferme la boucle avec une règle de conception par pilier.
+
+**La lecture ne lève jamais.** Les clients Prometheus/Loki/Alertmanager (`infrastructure/telemetry/`) convertissent chaque mode d'échec — timeout, 5xx, JSON malformé, disjoncteur ouvert, source désactivée — en résultat typé `unavailable`. Une installation sans stack d'observabilité fonctionne inchangée : une URL vide désactive la source.
+
+**Aucun langage de requête libre ne part d'un LLM.** Un catalogue de requêtes nommées (assert de complétude au boot) est le seul producteur de PromQL, un constructeur contraint le seul producteur de LogQL — enum de services fermé, motif d'event strict, plages et volumes plafonnés en constantes. L'injection est impossible à épeler, et Loki (historique d'OOM sur le Pi) est protégé par construction.
+
+**L'auto-contrôle fonctionne même aveugle.** La boucle leader évalue les signaux dorés via Prometheus *et* des sondes in-process (PostgreSQL, Redis, disjoncteurs, sa propre vivacité) : Prometheus mort, les contrôles concernés passent `unknown` mais la boucle continue — et `unknown` plafonne le verdict global à `degraded`, car être aveugle n'est pas être sain, et la cécité n'est pas une panne.
+
+**Une panne, un incident.** Le webhook Alertmanager (Bearer, fragments commités, matrice rejouée en CI) et les verdicts critiques convergent vers un incident unique par clé de corrélation — index unique partiel, upsert atomique sous la concurrence webhook-contre-leader. Le diagnostic LLM est ancré sur le runbook de l'alerte, plafonné par un budget quotidien atomique, et ses recommandations restent des propositions : rien ne s'exécute depuis du texte de modèle.
+
+**La connaissance de la panne façonne la réponse.** Un advisor à coût nul sur plateforme saine injecte les capacités dégradées dans la planification (« Brave coupé → Perplexity »), et la synthèse reçoit les échecs du run sous forme typée — code et tête de message, jamais un log brut — avec une directive d'honnêteté : dire ce qui a réussi, ce qui a échoué et pourquoi, sans jamais inventer un diagnostic.
 
 *Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 245 ADRs, et du changelog (v1.0 à v1.33.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

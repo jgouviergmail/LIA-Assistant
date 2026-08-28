@@ -88,7 +88,9 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 51 since the expressive-eyes style picker joined Personalization
     // (2026-08-20). 52 since the location cascade left the Google Places
     // connector card for its own Personalization section (2026-08-27).
-    expect(TOKENS).toHaveLength(52);
+    // 53 since the admin platform-health section (self-diagnostics spec
+    // 2026-08-27) joined Administration / System.
+    expect(TOKENS).toHaveLength(53);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

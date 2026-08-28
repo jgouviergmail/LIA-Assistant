@@ -269,3 +269,34 @@ export function capabilityProvenanceTone(provenance: string): BadgeTone {
 export function skillTraitTone(trait: SkillTrait): BadgeTone {
   return SKILL_TRAIT[trait];
 }
+
+/** Self-diagnostics health verdicts (spec 2026-08-27). */
+const HEALTH: Record<string, BadgeTone> = {
+  ok: 'success',
+  degraded: 'warning',
+  critical: 'alert',
+  // Blindness is an indeterminate state, not a dormant one — `secondary`
+  // would claim "inactive", which unknown precisely is not.
+  unknown: 'outline',
+};
+
+/**
+ * Tone for a platform health verdict (check or snapshot).
+ *
+ * Args:
+ *   status: `ok` | `degraded` | `critical` | `unknown` as the API reports it.
+ *
+ * Returns:
+ *   The badge variant; an unrecognised value reads as indeterminate.
+ */
+export function healthTone(status: string): BadgeTone {
+  return HEALTH[status] ?? 'outline';
+}
+
+/** Incident lifecycle: open incidents wear their severity, resolved is done. */
+export function incidentTone(status: string, severity: string): BadgeTone {
+  if (status === 'resolved') {
+    return 'success';
+  }
+  return severity === 'critical' ? 'alert' : 'warning';
+}

@@ -439,6 +439,29 @@ DEVOPS_AGENT_MANIFEST = AgentManifest(
     updated_at=datetime.now(UTC),
 )
 
+DIAGNOSTICS_AGENT_MANIFEST = AgentManifest(
+    name="diagnostics_agent",
+    description=(
+        "Platform self-diagnostics agent (administrators only). Reads LIA's own "
+        "telemetry: current health snapshot and firing alerts, curated platform "
+        "metrics, bounded service logs, and the incident memory with stored "
+        "diagnoses. Read-only — it never restarts or modifies anything "
+        "(use devops_agent for actions on servers)."
+    ),
+    tools=[
+        "platform_health_tool",
+        "platform_metrics_tool",
+        "platform_logs_tool",
+        "platform_incidents_tool",
+    ],
+    max_parallel_runs=2,
+    default_timeout_ms=settings.default_tool_timeout_ms,
+    prompt_version="v1",
+    owner_team="Team AI",
+    version="1.0.0",
+    updated_at=datetime.now(UTC),
+)
+
 __all__ = [
     "CONTACT_AGENT_MANIFEST",
     "CONTEXT_AGENT_MANIFEST",
@@ -457,4 +480,5 @@ __all__ = [
     "BROWSER_AGENT_MANIFEST",
     "WEB_FETCH_AGENT_MANIFEST",
     "DEVOPS_AGENT_MANIFEST",
+    "DIAGNOSTICS_AGENT_MANIFEST",
 ]

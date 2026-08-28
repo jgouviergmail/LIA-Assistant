@@ -279,6 +279,33 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 interval_minutes=settings.product_rollup_interval_minutes,
             )
 
+        # Self-diagnostics self-check tick (spec 2026-08-27, pillar 2):
+        # golden signals + in-process probes → persisted snapshot. Leader-
+        # elected like every job here. next_run_time pins the FIRST run
+        # shortly after boot (product_rollup doctrine: an interval-only job
+        # starves when the API restarts more often than the interval).
+        if getattr(settings, "diagnostics_enabled", False):
+            from src.core.constants import SCHEDULER_JOB_ID_DIAGNOSTICS_SELF_CHECK
+            from src.infrastructure.scheduler.diagnostics_self_check import (
+                run_diagnostics_self_check,
+            )
+
+            scheduler.add_job(
+                run_diagnostics_self_check,
+                trigger="interval",
+                seconds=settings.diagnostics_self_check_interval_seconds,
+                next_run_time=datetime.now(UTC) + timedelta(minutes=2),
+                id=SCHEDULER_JOB_ID_DIAGNOSTICS_SELF_CHECK,
+                name="Self-diagnostics health check tick",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=120,
+            )
+            logger.info(
+                "diagnostics_self_check_job_scheduled",
+                interval_seconds=settings.diagnostics_self_check_interval_seconds,
+            )
+
         # Peers relayed-message delivery sweep (peers program, Lot 4): the
         # durable delivery guarantee — the post-confirmation kick only
         # shortens the happy-path latency. Also recovers crash-stranded

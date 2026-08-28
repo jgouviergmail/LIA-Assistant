@@ -4,7 +4,7 @@
 
 **Versión**: 5.1
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.33.2
+**Aplicación**: LIA v1.34.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -170,6 +170,9 @@ Un agente de navegación (Playwright/Chromium headless) puede navegar por sitios
 ### 3.8. Administración del servidor (DevOps)
 
 Al instalar Claude CLI (Claude Code) directamente en el servidor, los administradores pueden diagnosticar su infraestructura en lenguaje natural desde el chat de LIA: consultar logs de Docker, verificar el estado de los contenedores, monitorizar el espacio en disco, analizar errores. Esta funcionalidad está reservada a las cuentas de administrador.
+
+
+Y desde la v1.34, LIA también se vigila **a sí misma**: lee su propia telemetría, mantiene un historial de incidentes diagnosticados automáticamente a partir de sus runbooks de operación, avisa a los administradores cuando se abre algo crítico y les ofrece un panel de «Salud de la plataforma» en los ajustes. Cuando una avería es conocida, la tiene en cuenta en sus respuestas en lugar de dejarte esperar un tiempo de expiración.
 
 ### 3.9. Datos de salud personales
 

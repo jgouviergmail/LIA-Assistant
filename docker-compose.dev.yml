@@ -168,6 +168,7 @@ services:
       - api_venv:/app/.venv
       - ./.git:/app/.git:ro  # Mount .git for prompt versioning (read-only)
       - ./docs/knowledge:/app/docs/knowledge:ro  # System RAG knowledge files
+      - ./docs/runbooks:/app/docs/runbooks:ro  # Self-diagnostics runbook grounding (spec 2026-08-27)
       # Reference content for a fresh install. Mounted in dev for PARITY: the
       # seed gate was dead code precisely because nothing exercised it locally,
       # the same asymmetry that hid the missing gettext catalogues in prod.
@@ -366,10 +367,18 @@ services:
       - ./infrastructure/observability/alertmanager/docker-entrypoint.sh:/docker-entrypoint.sh:ro
       - ./infrastructure/observability/alertmanager/alertmanager.yml.template:/etc/alertmanager/alertmanager.yml.template:ro
       - ./infrastructure/observability/alertmanager/alertmanager-email-only.yml.template:/etc/alertmanager/alertmanager-email-only.yml.template:ro
+      - ./infrastructure/observability/alertmanager/lia-webhook-route.fragment:/etc/alertmanager/lia-webhook-route.fragment:ro
+      - ./infrastructure/observability/alertmanager/lia-webhook-receiver.fragment:/etc/alertmanager/lia-webhook-receiver.fragment:ro
       - ./infrastructure/observability/alertmanager/templates:/etc/alertmanager/templates:ro
       - alertmanager_data:/alertmanager
     env_file:
       - .env
+    environment:
+      # LIA self-diagnostics webhook (spec 2026-08-27). The DEV API serves
+      # HTTPS with a self-signed certificate — the receiver fragment carries
+      # insecure_skip_verify for exactly this case.
+      ALERTMANAGER_LIA_WEBHOOK_URL: ${ALERTMANAGER_LIA_WEBHOOK_URL:-}
+      ALERTMANAGER_LIA_WEBHOOK_SECRET: ${DIAGNOSTICS_WEBHOOK_SECRET:-}
     networks:
       - lia-network
 

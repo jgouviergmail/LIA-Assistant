@@ -35,6 +35,36 @@ def import_domain_models() -> None:
     import_all_models()
 
 
+def _validate_diagnostics_registries() -> None:
+    """Boot gates of the diagnostics subsystem (ADR-085 pattern).
+
+    The named-query catalogue is the ONLY producer of PromQL, so an undeclared
+    placeholder or metric must refuse to boot rather than fail at query time;
+    a check whose threshold field does not exist on Settings would silently
+    compare against nothing.
+
+    Raises:
+        RuntimeError: If either registry is structurally broken.
+    """
+    try:
+        from src.domains.diagnostics.query_catalogue import (
+            assert_query_catalogue_completeness,
+        )
+
+        assert_query_catalogue_completeness()
+    except AssertionError as exc:
+        logger.error("diagnostics_query_catalogue_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Diagnostics query catalogue incomplete: {exc}") from exc
+
+    try:
+        from src.domains.diagnostics.checks import assert_check_registry_completeness
+
+        assert_check_registry_completeness()
+    except AssertionError as exc:
+        logger.error("diagnostics_check_registry_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Diagnostics check registry incomplete: {exc}") from exc
+
+
 def run_failfast_validations() -> None:
     """Run the fail-fast boot validations (die at boot, not at first request).
 
@@ -182,6 +212,10 @@ def run_failfast_validations() -> None:
     except RuntimeError as exc:
         logger.error("system_settings_registry_incomplete", error=str(exc), exc_info=True)
         raise
+
+    # Validate the diagnostics registries (ADR-085 pattern, both structural
+    # and I/O-free, so they run regardless of the diagnostics feature flag).
+    _validate_diagnostics_registries()
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an

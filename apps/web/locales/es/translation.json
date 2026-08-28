@@ -2140,7 +2140,8 @@
           "hue_agent": "Agente de dominio para el control de la iluminación Philips Hue",
           "health_agent": "Agente de dominio que responde preguntas factuales sobre los datos de salud ingeridos",
           "voice_transcription": "Reconocimiento de voz del modo vocal (Sherpa local o ElevenLabs Scribe remoto)",
-          "voice_tts": "Síntesis de voz del asistente (Edge / OpenAI / ElevenLabs)"
+          "voice_tts": "Síntesis de voz del asistente (Edge / OpenAI / ElevenLabs)",
+          "diagnostician": "Diagnostica incidentes de la plataforma a partir de evidencias tipadas y runbooks (autodiagnóstico de administración)."
         },
         "voiceTts": {
           "sectionTitle": "Voz y ajustes del proveedor",
@@ -2294,6 +2295,49 @@
         "enabledSuccess": "El enlace de la demostración es visible",
         "disabledSuccess": "El enlace de la demostración está oculto",
         "error": "No se pudo cambiar el interruptor"
+      },
+      "diagnostics": {
+        "title": "Salud de la plataforma",
+        "description": "Autodiagnóstico: comprobaciones, alertas, incidentes y sus diagnósticos.",
+        "intro": "LIA comprueba continuamente sus propias señales vitales. Este panel muestra la última autocomprobación con valores medidos exactos, las alertas activas, las capacidades degradadas con sus alternativas sugeridas y la memoria de incidentes con los diagnósticos guardados. Todo es de solo lectura y visible únicamente para administradores.",
+        "refresh": "Actualizar",
+        "lastCheck": "Última comprobación:",
+        "noSnapshot": "Aún no se ha ejecutado ninguna autocomprobación",
+        "checksTitle": "Comprobaciones de salud",
+        "degradationsTitle": "Capacidades degradadas",
+        "alternativeHint": "usar {{alternative}} en su lugar",
+        "alertsTitle": "Alertas activas",
+        "noAlerts": "No hay ninguna alerta activa en este momento.",
+        "alertmanagerUnavailable": "Alertmanager no es accesible desde la API.",
+        "incidentsTitle": "Incidentes",
+        "noIncidents": "No se ha registrado ningún incidente.",
+        "diagnosisTitle": "Diagnóstico",
+        "probableCause": "Causa probable",
+        "recommendedActions": "Acciones recomendadas",
+        "noDiagnosisYet": "Sin diagnóstico todavía — el próximo ciclo de autocomprobación generará uno (si el presupuesto lo permite).",
+        "status": {
+          "ok": "OK",
+          "degraded": "Degradado",
+          "critical": "Crítico",
+          "unknown": "Desconocido",
+          "open": "Abierto",
+          "resolved": "Resuelto"
+        },
+        "source": {
+          "alert": "Alerta",
+          "self_check": "Autocomprobación"
+        },
+        "checks": {
+          "api_error_rate": "Tasa de HTTP 5xx",
+          "api_latency_p95": "Latencia HTTP p95",
+          "llm_failure_rate": "Tasa de fallos LLM",
+          "disk_usage": "Uso de disco",
+          "memory_usage": "Uso de memoria",
+          "database": "PostgreSQL",
+          "redis": "Redis",
+          "circuit_breakers": "Cortacircuitos abiertos",
+          "scheduler_tick": "Actividad del bucle de autocomprobación"
+        }
       }
     },
     "timezone": {
@@ -3455,7 +3499,8 @@
         "admin-capabilities": "capacidades, funciones, interruptores, funciones de la plataforma",
         "admin-public-demo-link": "demo, demostrador, enlace público, sala de exposición, compartir",
         "debug-settings": "depuración, diagnóstico, registros, panel, seguimiento de tokens",
-        "eyes-style": "ojos, avatar, animación, estilo, mirada, compañero, cozmo"
+        "eyes-style": "ojos, avatar, animación, estilo, mirada, compañero, cozmo",
+        "admin-diagnostics": "salud diagnóstico incidentes alertas supervisión autocomprobación estado plataforma prometheus loki"
       }
     },
     "haptics": {
@@ -4024,7 +4069,8 @@
       "set_vacation_responder": "Preparando la respuesta automática...",
       "create_email_filter": "Preparando el filtro de correo...",
       "write_spreadsheet": "Preparando la actualización de la hoja...",
-      "append_document_text": "Preparando la nota del documento..."
+      "append_document_text": "Preparando la nota del documento...",
+      "platform_diagnostics": "Comprobando la salud de la plataforma..."
     },
     "reasoning": {
       "title": "Razonamiento"
@@ -4347,6 +4393,10 @@
         "nativeApps": {
           "title": "📱 Aplicaciones nativas Android e iOS",
           "description": "Una aplicación publicada por tienda, cliente de cualquier servidor LIA autoalojado: la app carga la interfaz web de tu propio servidor, cuya dirección escribes en el primer arranque — las novedades web llegan así al instante, sin actualización de la tienda. El inicio de sesión sale al navegador del sistema (la única vía que Google permite) y regresa mediante un enlace profundo canjeado contra un secreto que solo la app posee. Las notificaciones son nativas en ambas plataformas y deliberadamente asimétricas: Android habla con el proyecto Firebase de tu servidor, mientras que el iPhone se despierta mediante un relé sin estado que pronuncia una frase fija y nunca sabe a quién se despertó ni por qué — tus mensajes nunca salen de tu servidor. Un banco automatizado conduce la app real por diez escenarios en cada cambio."
+        },
+        "selfDiagnostics": {
+          "title": "🩺 Autodiagnóstico y memoria de incidentes",
+          "description": "LIA lee su propia telemetría (Prometheus, Loki, Alertmanager) mediante clientes que nunca hacen fallar una petición: toda avería se convierte en un resultado tipado «unavailable». Una autocomprobación en el líder evalúa señales doradas y sondas in-process en instantáneas de salud con valores exactos; alertas y veredictos críticos convergen en un único incidente por clave de correlación, diagnosticado por un LLM con presupuesto limitado y basado en los runbooks de operación. Los administradores disponen de un panel de Salud de la plataforma, notificaciones proactivas y cuatro herramientas de chat de solo lectura — y una avería conocida da forma a las respuestas: las capacidades degradadas se esquivan al planificar, y los pasos fallidos se explican desde códigos de error tipados, nunca desde logs en bruto."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -4355,6 +4405,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_34_0": {
+          "title": "v1.34.0 — 🩺 LIA sabe diagnosticarse",
+          "date": "Agosto 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🩺 La salud de la plataforma, dentro del producto</b> — los administradores disponen de un nuevo panel de Ajustes que muestra lo que LIA mide continuamente sobre sí misma: veredictos por comprobación con valores exactos, alertas activas, capacidades degradadas con su alternativa sugerida y el historial de incidentes. Cuando se abre un incidente crítico, los administradores reciben una notificación en la aplicación y por push.",
+            "i2": "<b>🔎 «LIA, diagnostícate»</b> — en el chat, un administrador puede pedir a LIA su propio estado, una métrica del catálogo, registros acotados de un servicio o el diagnóstico guardado de un incidente. Cada incidente puede recibir un diagnóstico automático basado en el runbook de esa alerta, con causa probable y acciones recomendadas — propuestas para un humano, nunca ejecutadas solas, y limitadas por un presupuesto diario.",
+            "i3": "<b>🛟 Respuestas honestas ante fallos, para todos</b> — cuando un paso falla durante una petición, LIA ahora dice con precisión qué funcionó, qué falló y por qué, y aplica una alternativa conocida cuando existe (por ejemplo cambiar de proveedor de búsqueda web cuando uno está caído) en lugar de fallar por un tiempo de espera."
+          }
+        },
         "v1_33_2": {
           "title": "v1.33.2 — 📘 Autoalojamiento: la actualización, por fin escrita",
           "date": "Agosto 2026",
@@ -9904,7 +9964,7 @@
       "observability": {
         "title": "473 métricas Prometheus, 26 dashboards Grafana y tracing Langfuse",
         "excerpt": "LIA ofrece observabilidad empresarial con 473 métricas, dashboards Grafana, tracing LLM via Langfuse y alertas por correo con runbooks.",
-        "body": "<h2>Los tres pilares de la observabilidad</h2><p>LIA implementa los tres pilares de la observabilidad moderna:</p><ul><li><strong>Métricas</strong> — 473 métricas Prometheus que cubren HTTP, agentes, tokens, costos, OAuth y rendimiento</li><li><strong>Logs</strong> — Registro estructurado JSON mediante structlog, centralizado en Loki con filtrado de PII</li><li><strong>Trazas</strong> — Trazado distribuido mediante OpenTelemetry (Tempo) y trazado LLM mediante Langfuse</li></ul><h2>23 archivos de métricas especializados</h2><p>Cada dominio posee su propio archivo de métricas declarativo. Los 23 módulos cubren: HTTP, agents (SSE/router/LLM/HITL/planner), base de datos, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errores, sub-agentes, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métricas de salud, diarios, telefonía y límites de uso. Cada archivo define Counter, Histogram y Gauge Prometheus adaptados al dominio.</p><h2>Definición de métricas Prometheus</h2><p>Cada dominio define sus métricas de manera declarativa:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 dashboards Grafana</h2><p>LIA proporciona 26 paneles de control Grafana numerados del 01 al 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony y briefing. Cada dashboard ofrece vistas filtrables por usuario, por período y por entorno. El 26.º es un cockpit de producto: resultados validados (👍 explícito o una acción sin corregir), funnel de activación, retención y coste por resultado útil — el conteo exacto vive en PostgreSQL y Grafana lo lee mediante un rol de solo lectura restringido a vistas agregadas.</p><h2>KPIs objetivo extraídos del código</h2><p>LIA monitoriza indicadores precisos definidos en el código fuente: TTFT (Time To First Token) del streaming, latencia del router entre 0.1 y 2 segundos, duración de ejecución de las herramientas de agentes entre 0.1 y 10 segundos, confianza del router p50 &gt; 0.8, costo LLM por solicitud &lt; 0.05€, tasa de error HTTP 5xx &lt; 1%.</p><h2>Alertas por correo con runbooks</h2><p>La supervisión no se detiene en los dashboards: un núcleo de 14 alertas vitales — API, PostgreSQL o Redis caídos, disco, memoria de contenedores, tasa de errores 5xx, latencia de streaming, copia de seguridad nocturna fallida, URL pública inaccesible, certificado TLS próximo a expirar, limitación de tasa fuera de servicio — es evaluado continuamente por Prometheus y notificado por correo mediante Alertmanager. Cada alerta referencia su runbook (procedimiento de resolución paso a paso), los umbrales se configuran por entorno en archivos .env, y tests unitarios de promtool garantizan que los umbrales mostrados en las notificaciones coinciden exactamente con las expresiones de disparo. Una sonda blackbox prueba incluso la cadena completa de extremo a extremo, del edge de Cloudflare al frontend, exactamente como un usuario.</p><h2>Langfuse: trazado LLM dedicado</h2><p>La integración con Langfuse dispone de 8 métricas dedicadas para trazar cada llamada LLM: tokens consumidos (entrada/salida/caché), tiempo de respuesta, modelo utilizado, costo estimado y contexto de la solicitud. Esto permite identificar los prompts ineficientes, comparar los modelos LLM entre sí y optimizar el consumo de tokens a largo plazo.</p><h2>DevOps Claude CLI: Diagnóstico en lenguaje natural (v1.13.0)</h2><p>Última evolución del stack de observabilidad: los administradores ahora pueden diagnosticar servidores directamente desde la conversación de LIA. Claude Code CLI — instalado en el contenedor API Docker — inspecciona de forma autónoma los logs, verifica la salud de los contenedores y analiza el uso de recursos. Sesiones persistentes, permisos configurables por entorno y streaming en tiempo real de los pasos de investigación via SSE.</p>"
+        "body": "<h2>Los tres pilares de la observabilidad</h2><p>LIA implementa los tres pilares de la observabilidad moderna:</p><ul><li><strong>Métricas</strong> — 473 métricas Prometheus que cubren HTTP, agentes, tokens, costos, OAuth y rendimiento</li><li><strong>Logs</strong> — Registro estructurado JSON mediante structlog, centralizado en Loki con filtrado de PII</li><li><strong>Trazas</strong> — Trazado distribuido mediante OpenTelemetry (Tempo) y trazado LLM mediante Langfuse</li></ul><h2>23 archivos de métricas especializados</h2><p>Cada dominio posee su propio archivo de métricas declarativo. Los 23 módulos cubren: HTTP, agents (SSE/router/LLM/HITL/planner), base de datos, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errores, sub-agentes, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métricas de salud, diarios, telefonía y límites de uso. Cada archivo define Counter, Histogram y Gauge Prometheus adaptados al dominio.</p><h2>Definición de métricas Prometheus</h2><p>Cada dominio define sus métricas de manera declarativa:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 dashboards Grafana</h2><p>LIA proporciona 26 paneles de control Grafana numerados del 01 al 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony y briefing. Cada dashboard ofrece vistas filtrables por usuario, por período y por entorno. El 26.º es un cockpit de producto: resultados validados (👍 explícito o una acción sin corregir), funnel de activación, retención y coste por resultado útil — el conteo exacto vive en PostgreSQL y Grafana lo lee mediante un rol de solo lectura restringido a vistas agregadas.</p><h2>KPIs objetivo extraídos del código</h2><p>LIA monitoriza indicadores precisos definidos en el código fuente: TTFT (Time To First Token) del streaming, latencia del router entre 0.1 y 2 segundos, duración de ejecución de las herramientas de agentes entre 0.1 y 10 segundos, confianza del router p50 &gt; 0.8, costo LLM por solicitud &lt; 0.05€, tasa de error HTTP 5xx &lt; 1%.</p><h2>Alertas por correo con runbooks</h2><p>La supervisión no se detiene en los dashboards: un núcleo de 14 alertas vitales — API, PostgreSQL o Redis caídos, disco, memoria de contenedores, tasa de errores 5xx, latencia de streaming, copia de seguridad nocturna fallida, URL pública inaccesible, certificado TLS próximo a expirar, limitación de tasa fuera de servicio — es evaluado continuamente por Prometheus y notificado por correo mediante Alertmanager. Cada alerta referencia su runbook (procedimiento de resolución paso a paso), los umbrales se configuran por entorno en archivos .env, y tests unitarios de promtool garantizan que los umbrales mostrados en las notificaciones coinciden exactamente con las expresiones de disparo. Una sonda blackbox prueba incluso la cadena completa de extremo a extremo, del edge de Cloudflare al frontend, exactamente como un usuario.</p><h2>Langfuse: trazado LLM dedicado</h2><p>La integración con Langfuse dispone de 8 métricas dedicadas para trazar cada llamada LLM: tokens consumidos (entrada/salida/caché), tiempo de respuesta, modelo utilizado, costo estimado y contexto de la solicitud. Esto permite identificar los prompts ineficientes, comparar los modelos LLM entre sí y optimizar el consumo de tokens a largo plazo.</p><h2>DevOps Claude CLI: Diagnóstico en lenguaje natural (v1.13.0)</h2><p>Última evolución del stack de observabilidad: los administradores ahora pueden diagnosticar servidores directamente desde la conversación de LIA. Claude Code CLI — instalado en el contenedor API Docker — inspecciona de forma autónoma los logs, verifica la salud de los contenedores y analiza el uso de recursos. Sesiones persistentes, permisos configurables por entorno y streaming en tiempo real de los pasos de investigación via SSE.</p><h2>Y desde la v1.34: la asistente lee su propia telemetría</h2><p>Todo lo anterior existía para los humanos; la propia asistente no leía nada. El ADR-247 cerró ese bucle: una autocomprobación periódica convierte las señales doradas y sondas directas en instantáneas de salud con valores exactos; alertas y veredictos críticos convergen en un incidente por avería, diagnosticado por un LLM con presupuesto limitado y basado en los runbooks de operación; los administradores disponen de un panel de Salud de la plataforma, notificaciones proactivas y herramientas de chat de solo lectura. Y una avería conocida ahora da forma a las respuestas: las capacidades degradadas se esquivan al planificar, y los pasos fallidos se explican desde códigos de error tipados, nunca desde logs en bruto.</p>"
       },
       "prompt-engineering": {
         "title": "Sistema de prompts versionados: 78 prompts gestionados como código",
@@ -10120,7 +10180,8 @@
       "tabular_admin": "Administrar por archivo",
       "evolution": "Programa de evolución",
       "expressive_eyes": "Ojos expresivos",
-      "native_apps": "Apps nativas"
+      "native_apps": "Apps nativas",
+      "self_diagnostics": "Autodiagnóstico"
     }
   },
   "healthMetrics": {

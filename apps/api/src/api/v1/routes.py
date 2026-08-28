@@ -126,6 +126,16 @@ if getattr(settings, "peers_enabled", False):
 
     api_router.include_router(peers_router)  # User-to-user connections (peers program)
 
+if getattr(settings, "diagnostics_enabled", False):
+    from src.domains.diagnostics.router import router as diagnostics_admin_router
+    from src.domains.diagnostics.webhook_router import router as diagnostics_webhook_router
+
+    # Alertmanager → incident webhook (internal, shared-secret gated; the
+    # handler itself 404s while the secret is unset).
+    api_router.include_router(diagnostics_webhook_router)
+    # Admin health/incident surface (superuser-only, read-only).
+    api_router.include_router(diagnostics_admin_router)
+
 if getattr(settings, "mcp_enabled", False):
     from src.domains.user_mcp.admin_router import router as admin_mcp_router
 

@@ -501,6 +501,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'system',
     gate: { kind: 'superuser' },
   },
+  'admin-diagnostics': {
+    titleKey: 'settings.admin.diagnostics.title',
+    descriptionKey: 'settings.admin.diagnostics.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-diagnostics`,
+    group: 'system',
+    gate: { kind: 'superuser' },
+  },
   'debug-settings': {
     titleKey: 'settings.admin.debug.title',
     descriptionKey: 'settings.admin.debug.subtitle',

@@ -132,6 +132,9 @@ class PublicAnswers:
     api_domain: str | None
     caddy_email: str | None
     manifest_path: Path | None
+    # Self-diagnostics opt-in (ADR-247). Defaulted so older persisted states
+    # deserialize unchanged; the wizard always asks explicitly.
+    self_diagnostics: bool = False
 
 
 @dataclass(frozen=True)

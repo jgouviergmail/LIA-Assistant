@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Date**: 2026-08-23
-**Application**: LIA v1.33.2
+**Application**: LIA v1.34.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -46,6 +46,7 @@
 30. [The evolution program: visible work, governed learning](#30-the-evolution-program-visible-work-governed-learning)
 31. [Expressive eyes: a character driven by signals](#31-expressive-eyes-a-character-driven-by-signals)
 32. [Native apps: one shell, your server](#32-native-apps-one-shell-your-server)
+33. [Self-diagnostics: an assistant that reads its own telemetry](#33-self-diagnostics-an-assistant-that-reads-its-own-telemetry)
 ---
 
 ## 1. Context and founding choices
@@ -60,7 +61,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 473 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 245 ADRs, ~20,468 pytest-collected tests across 1,184 files, native observability, 6-level HITL |
+| Production reliability | 246 ADRs, ~20,468 pytest-collected tests across 1,184 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -81,7 +82,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 20,468 collected by pytest across 1,184 test files + 6,327 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 245 |
+| ADRs (Architecture Decision Records) | 246 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -906,7 +907,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
-| Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) |
+| Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
 ### 20.2. Embedded Debug Panel
@@ -1462,5 +1463,19 @@ The Android and iOS apps (ADR-246) are **WebView shells** published once per sto
 **Push is native and deliberately asymmetric.** Android initialises Firebase **at runtime** with options the server publishes: a self-hoster's notifications never leave their own project. iOS cannot — APNs answers only to the Apple team owning the bundle id — so the published app is woken through a **stateless relay**: the handle *is* the sealed device token (Fernet, dedicated key), the notification is one fixed sentence in six languages, and the relay never learns who was woken or why. Doubt never deletes a device: only "handle unreadable" and "device gone" may drop a token.
 
 **All twelve OAuth departures come home to the app** — the "leave for the system browser" decision is made once, at the chokepoint every flow already shared, and the return reads the originating surface from the OAuth state, written by the single function in the codebase that builds one. A **dedicated bench** drives the real debug app on an emulator over the WebView devtools socket — ten scenes with no server at all, navigation failure toward an `.invalid` origin serving as the oracle — and found three live defects before its first green run.
+
+## 33. Self-diagnostics: an assistant that reads its own telemetry
+
+Until ADR-247, LIA emitted all that observability and read none of it: instrumented everywhere, blind to itself. The self-diagnostics subsystem closes the loop with one design rule per pillar.
+
+**Reading never raises.** The Prometheus/Loki/Alertmanager clients (`infrastructure/telemetry/`) collapse every failure mode — timeout, 5xx, malformed JSON, open circuit breaker, disabled source — into a typed `unavailable` result. An install without the observability stack runs unchanged: an empty URL disables the source.
+
+**No free-form query language ever leaves an LLM.** A named-query catalogue (boot-time completeness assert) is the only producer of PromQL; a constrained builder is the only producer of LogQL — closed service enum, strict event pattern, range and volume caps as constants. Injection cannot be spelled, and Loki (an OOM history on the Pi) is protected by construction.
+
+**The self-check works even blind.** The leader loop evaluates golden signals through Prometheus *and* in-process probes (PostgreSQL, Redis, circuit breakers, its own liveness): with Prometheus down the affected checks turn `unknown` but the loop keeps running — and `unknown` caps the overall verdict at `degraded`, because blind is not healthy and blindness is not an outage.
+
+**One outage, one incident.** The Alertmanager webhook (Bearer, committed fragments, matrix replayed in CI) and critical verdicts converge into a single incident per correlation key — partial unique index, atomic upsert under webhook-versus-leader concurrency. The LLM diagnosis is grounded on the alert's runbook, capped by an atomic daily budget, and its recommendations stay proposals: nothing executes from model text.
+
+**Knowledge of the outage shapes the answer.** A zero-cost-when-healthy advisor injects degraded capabilities into planning ("Brave down → Perplexity"), and synthesis receives the run's failures in typed form — code and message head, never a raw log — with an honesty directive: say what succeeded, what failed and why, and never invent a diagnosis.
 
 *Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 245 ADRs, and the changelog (v1.0 to v1.33.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

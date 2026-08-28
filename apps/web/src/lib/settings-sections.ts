@@ -359,6 +359,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'admin-public-demo-link',
     declaredIn: 'components/settings/AdminPublicDemoLinkSection.tsx',
   },
+  'admin-diagnostics': {
+    tab: 'administration',
+    accordionValue: 'admin-diagnostics',
+    declaredIn: 'components/settings/AdminDiagnosticsSection.tsx',
+  },
   // Same historic naming note as `rag-spaces-admin`.
   'debug-settings': {
     tab: 'administration',

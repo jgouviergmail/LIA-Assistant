@@ -2114,6 +2114,7 @@ def _build_response_system_prompt(
     react_result: dict[str, Any] | None,
     recent_entities: str = "",
     peer_context: str = "",
+    runtime_failures_block: str = "",
 ) -> str:
     """Assemble the response LLM system prompt from all injected context.
 
@@ -2214,6 +2215,10 @@ def _build_response_system_prompt(
             )
         else:
             base_system_prompt += "\n\n" + _psyche_instruction
+    # Self-diagnostics honesty block (spec 2026-08-27, pillar 7): typed
+    # failures + platform degradations, computed by the caller (async path);
+    # empty string on a clean turn = zero prompt-token impact.
+    base_system_prompt += f"\n\n{runtime_failures_block}" if runtime_failures_block else ""
     logger.debug(
         "response_node_prompt_loaded",
         run_id=run_id,
@@ -3470,7 +3475,13 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 user_language,
             )
 
+        # Self-diagnostics honesty block (spec 2026-08-27, pillar 7).
+        from src.domains.agents.services.runtime_failure_directive import (
+            build_runtime_failures_block,
+        )
+
         base_system_prompt = _build_response_system_prompt(
+            runtime_failures_block=await build_runtime_failures_block(state),
             state=state,
             run_id=run_id,
             user_timezone=user_timezone,

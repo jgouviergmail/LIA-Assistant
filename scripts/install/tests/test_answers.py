@@ -36,6 +36,7 @@ BASE_PUBLIC = {
     "admin_name": "Ops",
     "default_language": "fr",
     "observability": "no",
+    "self_diagnostics": "no",
     "skill_sandbox": "no",
 }
 SECRETS = {
@@ -190,9 +191,7 @@ def test_password_policy_mirrors_the_backend_shape() -> None:
 
 
 def _write_answers(path: Path, values: dict[str, str]) -> Path:
-    path.write_text(
-        "".join(f"{k}={v}\n" for k, v in values.items()), encoding="utf-8"
-    )
+    path.write_text("".join(f"{k}={v}\n" for k, v in values.items()), encoding="utf-8")
     if os.name == "posix":
         path.chmod(0o600)
     return path
@@ -203,9 +202,7 @@ def test_non_interactive_reads_the_answers_file_and_never_prompts(
 ) -> None:
     answers = _write_answers(tmp_path / "answers.env", {**BASE_PUBLIC, **SECRETS})
     io = _ScriptedIO({}, {})
-    public, secrets = _collect(
-        io, non_interactive=True, answers_path=answers
-    )
+    public, secrets = _collect(io, non_interactive=True, answers_path=answers)
     assert public.admin_email == "admin@ops.tld"
     assert secrets.provider_keys["openai"] == "sk-secret"
     assert io.public_served == [] and io.secret_served == []

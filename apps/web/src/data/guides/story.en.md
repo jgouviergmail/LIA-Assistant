@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Date**: 2026-08-23
-**Application**: LIA v1.33.2
+**Application**: LIA v1.34.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 44 functional domains | **580,000** |
-| Automated tests, run on every commit and release | **27,400+** |
-| Documented architecture decisions (ADR) | **245** |
-| Versions shipped at a steady pace | **228** |
+| Automated tests, run on every commit and release | **27,600+** |
+| Documented architecture decisions (ADR) | **246** |
+| Versions shipped at a steady pace | **229** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 245 documented:
+Three structural decisions, among the 246 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -62,7 +62,7 @@ Three structural decisions, among the 245 documented:
 
 A system flown on instruments:
 
-- **Observability**: twenty-six dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 480 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration.
+- **Observability**: twenty-six dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 480 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration. And since v1.34, the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage.
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
 - **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.

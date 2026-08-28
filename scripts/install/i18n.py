@@ -48,6 +48,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Enable the observability stack (Prometheus/Grafana)? yes/no",
         "fr": "Activer la pile d'observabilité (Prometheus/Grafana) ? yes/no",
     },
+    "question.self_diagnostics": {
+        "en": "Enable LIA's self-diagnostics? The assistant checks its own health, keeps an incident history and, with the observability profile, turns alerts into in-app incidents (yes/no)",
+        "fr": "Activer l'auto-diagnostic de LIA ? L'assistante surveille sa propre santé, tient un historique d'incidents et, avec le profil observabilité, transforme les alertes en incidents dans l'application (yes/no)",
+    },
     "question.skill_sandbox": {
         "en": "Enable the script-skill sandbox (mounts the Docker socket)? yes/no",
         "fr": "Activer le bac à sable des skills scripts (monte la socket Docker) ? yes/no",

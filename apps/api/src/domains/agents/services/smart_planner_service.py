@@ -1257,6 +1257,19 @@ class SmartPlannerService:
         if iot_context:
             context = f"{context}\n\n{iot_context}" if context else iot_context
 
+        # Plan-time avoidance (spec 2026-08-27, pillar 7): currently degraded
+        # capabilities ride in the context so plans route around a KNOWN
+        # outage instead of discovering it by timeout. Empty on a healthy
+        # platform (zero tokens) and fail-open by construction.
+        from src.domains.diagnostics.advisor import (
+            format_degradations_block,
+            get_active_degradations,
+        )
+
+        degradations_block = format_degradations_block(await get_active_degradations())
+        if degradations_block:
+            context = f"{context}\n\n{degradations_block}" if context else degradations_block
+
         # The enriched English query (resolved references) is NOT injected here
         # anymore: buried in the system context the planner demonstrably ignored
         # it (prod 2026-07-17, twice — defaults substituted for stated facts,

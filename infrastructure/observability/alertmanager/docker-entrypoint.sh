@@ -12,6 +12,27 @@ echo "================================================================"
 echo "AlertManager Configuration Rendering"
 echo "================================================================"
 
+# ===== LIA SELF-DIAGNOSTICS WEBHOOK (spec 2026-08-27) =====
+# When BOTH variables are set, inject the committed fragments into the
+# rendered config: the route fragment right after the `  routes:` anchor,
+# the receiver fragment appended at EOF. Two trivial operations on purpose —
+# tests/unit/test_alertmanager_webhook_matrix.py replays exactly these and
+# validates the whole matrix in CI.
+inject_lia_webhook() {
+    CONFIG="$1"
+    [ -z "$ALERTMANAGER_LIA_WEBHOOK_URL" ] && return 0
+    [ -z "$ALERTMANAGER_LIA_WEBHOOK_SECRET" ] && return 0
+    sed -e "s|\${ALERTMANAGER_LIA_WEBHOOK_URL}|${ALERTMANAGER_LIA_WEBHOOK_URL}|g" \
+        -e "s|\${ALERTMANAGER_LIA_WEBHOOK_SECRET}|${ALERTMANAGER_LIA_WEBHOOK_SECRET}|g" \
+        /etc/alertmanager/lia-webhook-route.fragment > /tmp/lia-route.yml
+    sed -e "s|\${ALERTMANAGER_LIA_WEBHOOK_URL}|${ALERTMANAGER_LIA_WEBHOOK_URL}|g" \
+        -e "s|\${ALERTMANAGER_LIA_WEBHOOK_SECRET}|${ALERTMANAGER_LIA_WEBHOOK_SECRET}|g" \
+        /etc/alertmanager/lia-webhook-receiver.fragment > /tmp/lia-receiver.yml
+    sed -i "/^  routes:$/r /tmp/lia-route.yml" "$CONFIG"
+    cat /tmp/lia-receiver.yml >> "$CONFIG"
+    echo "LIA webhook: CONFIGURED (${ALERTMANAGER_LIA_WEBHOOK_URL})"
+}
+
 # ===== CHECK IF SMTP IS CONFIGURED =====
 REQUIRED_VARS="ALERTMANAGER_SMTP_SMARTHOST ALERTMANAGER_SMTP_FROM ALERTMANAGER_SMTP_AUTH_USERNAME ALERTMANAGER_SMTP_AUTH_PASSWORD ALERTMANAGER_BACKEND_TEAM_EMAIL"
 MISSING=""
@@ -24,7 +45,13 @@ if [ -n "$MISSING" ]; then
     echo "WARNING: Missing SMTP variables:$MISSING"
     echo "Starting with minimal log-only configuration."
 
-    cat > /etc/alertmanager/alertmanager.yml << 'EOF'
+    # The `  routes:` anchor line exists only when the webhook will be
+    # injected: an empty `routes:` key (null) is not a valid routes list.
+    ROUTES_ANCHOR=""
+    if [ -n "$ALERTMANAGER_LIA_WEBHOOK_URL" ] && [ -n "$ALERTMANAGER_LIA_WEBHOOK_SECRET" ]; then
+        ROUTES_ANCHOR="  routes:"
+    fi
+    cat > /etc/alertmanager/alertmanager.yml << EOF
 global:
   resolve_timeout: 5m
 route:
@@ -33,6 +60,7 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
+${ROUTES_ANCHOR}
 inhibit_rules:
   - source_match:
       severity: 'critical'
@@ -42,6 +70,9 @@ inhibit_rules:
 receivers:
   - name: 'default-log'
 EOF
+    # Same injection helper as the full modes: a self-hosted instance without
+    # SMTP still gets its incidents in-app when the webhook is configured.
+    inject_lia_webhook /etc/alertmanager/alertmanager.yml
     exec /bin/alertmanager "$@"
 fi
 
@@ -81,6 +112,8 @@ sed -e "s|\${ALERTMANAGER_SMTP_SMARTHOST}|${ALERTMANAGER_SMTP_SMARTHOST}|g" \
     -e "s|\${ALERTMANAGER_SLACK_WEBHOOK_SECURITY}|${ALERTMANAGER_SLACK_WEBHOOK_SECURITY}|g" \
     -e "s|\${ALERTMANAGER_PAGERDUTY_ROUTING_KEY}|${ALERTMANAGER_PAGERDUTY_ROUTING_KEY}|g" \
     "$TEMPLATE" > /etc/alertmanager/alertmanager.yml
+
+inject_lia_webhook /etc/alertmanager/alertmanager.yml
 
 echo "SMTP: ${ALERTMANAGER_SMTP_SMARTHOST}"
 echo "From: ${ALERTMANAGER_SMTP_FROM}"

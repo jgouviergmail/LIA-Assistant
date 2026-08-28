@@ -5343,3 +5343,65 @@ PUSH_RELAY_WAKE_COLLAPSE_ID = "lia-wake"
 # being inferred from configuration — a deployment can legitimately have both
 # relayed devices and devices reached through its own Apple account.
 PUSH_RELAY_HANDLE_PREFIX = "relay:"
+
+
+# =============================================================================
+# Self-diagnostics (spec: docs/superpowers/specs/2026-08-27-self-diagnostics-design.md)
+# =============================================================================
+
+# Telemetry source defaults are the compose service names on lia-network; an
+# empty URL disables that source (self-hosted installs without the
+# observability stack keep working unchanged).
+DIAGNOSTICS_PROMETHEUS_URL_DEFAULT = "http://prometheus:9090"
+DIAGNOSTICS_LOKI_URL_DEFAULT = "http://loki:3100"
+DIAGNOSTICS_ALERTMANAGER_URL_DEFAULT = "http://alertmanager:9093"
+
+DIAGNOSTICS_HTTP_TIMEOUT_SECONDS_DEFAULT = 5.0
+DIAGNOSTICS_SELF_CHECK_INTERVAL_SECONDS_DEFAULT = 300
+DIAGNOSTICS_SNAPSHOT_RETENTION_DAYS_DEFAULT = 30
+
+# HARD caps, not defaults: Loki on the Pi has an OOM history (see the measured
+# commentary in infrastructure/observability/promtail/promtail-config.yml), so
+# the LogQL builder clamps every query to these regardless of configuration.
+DIAGNOSTICS_LOKI_MAX_LINES = 500
+DIAGNOSTICS_LOKI_MAX_RANGE_HOURS = 24
+
+DIAGNOSTICS_LOKI_DEFAULT_LINES_DEFAULT = 200
+DIAGNOSTICS_NOTIFICATION_COOLDOWN_SECONDS_DEFAULT = 3600
+DIAGNOSTICS_FAILURE_CONTEXT_MAX_ENTRIES_DEFAULT = 10
+DIAGNOSTICS_ADVISOR_CACHE_TTL_SECONDS_DEFAULT = 30
+
+# LLM diagnosis budget: 0 disables the LLM step entirely (incidents still
+# record their deterministic evidence; diagnosis is marked "deferred").
+DIAGNOSTICS_DIAGNOSIS_DAILY_COST_CAP_USD_DEFAULT = 1.0
+DIAGNOSTICS_DIAGNOSIS_BATCH_SIZE_DEFAULT = 3
+DIAGNOSTICS_DIAGNOSIS_MAX_ACTIONS_DEFAULT = 5
+DIAGNOSTICS_RUNBOOKS_DIR_DEFAULT = "docs/runbooks/alerts"
+DIAGNOSTICS_RUNBOOK_MAX_CHARS_DEFAULT = 6000
+
+# Read-only tools; the ceiling exists to bound telemetry-backend load, not cost.
+DIAGNOSTICS_RATE_LIMIT_CALLS_DEFAULT = 20
+DIAGNOSTICS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+
+# Self-check thresholds (percent unless stated). Warn/crit pairs mirror the
+# ADR-119 core alert levels where one exists.
+DIAGNOSTICS_CHECK_API_ERROR_RATE_WARN_DEFAULT = 5.0
+DIAGNOSTICS_CHECK_API_ERROR_RATE_CRIT_DEFAULT = 20.0
+DIAGNOSTICS_CHECK_API_LATENCY_P95_WARN_DEFAULT = 3.0  # seconds
+DIAGNOSTICS_CHECK_API_LATENCY_P95_CRIT_DEFAULT = 10.0  # seconds
+DIAGNOSTICS_CHECK_LLM_FAILURE_RATE_WARN_DEFAULT = 10.0
+DIAGNOSTICS_CHECK_LLM_FAILURE_RATE_CRIT_DEFAULT = 50.0
+DIAGNOSTICS_CHECK_DISK_USAGE_WARN_DEFAULT = 80.0
+DIAGNOSTICS_CHECK_DISK_USAGE_CRIT_DEFAULT = 90.0
+DIAGNOSTICS_CHECK_MEMORY_USAGE_WARN_DEFAULT = 85.0
+DIAGNOSTICS_CHECK_MEMORY_USAGE_CRIT_DEFAULT = 95.0
+DIAGNOSTICS_CHECK_SCHEDULER_TICK_STALE_SECONDS_DEFAULT = 900
+
+DIAGNOSTICS_AGENT_NAME: str = "diagnostics_agent"
+SCHEDULER_JOB_ID_DIAGNOSTICS_SELF_CHECK = "diagnostics_self_check"
+
+REDIS_KEY_DIAGNOSTICS_ADVISOR_CACHE = "diagnostics:advisor:v1"
+REDIS_KEY_DIAGNOSTICS_OVERVIEW_CACHE = "diagnostics:overview:v1"
+REDIS_KEY_DIAGNOSTICS_SCHEDULER_TICK = "diagnostics:self_check:last_tick"
+REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX = "diagnostics:diagnosis_cost:"
+REDIS_KEY_DIAGNOSTICS_NOTIFY_PREFIX = "diagnostics:notify:"

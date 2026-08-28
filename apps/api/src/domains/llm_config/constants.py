@@ -434,6 +434,14 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=["structured_output"],
         power_tier=POWER_TIER_MEDIUM,
     ),
+    "diagnostician": LLMTypeMetadata(
+        llm_type="diagnostician",
+        display_name="Platform Diagnostician",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.diagnostician",
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_MEDIUM,
+    ),
     "compaction": LLMTypeMetadata(
         llm_type="compaction",
         display_name="Context Compaction",
@@ -1094,6 +1102,18 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=1000,
         timeout_seconds=30.0,
+    ),
+    # Self-diagnostics incident diagnosis (spec 2026-08-27): cheap, factual,
+    # structured-output; budget-capped by DIAGNOSTICS_DIAGNOSIS_DAILY_COST_CAP_USD.
+    "diagnostician": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1200,
+        timeout_seconds=45.0,
     ),
     # gpt-image-1 retires 2026-10-23; gpt-image-2 is what the reference seed
     # already pins for this slot (its llm_models row was missing until ADR-244).

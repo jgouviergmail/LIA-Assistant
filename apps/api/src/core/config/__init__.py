@@ -40,6 +40,7 @@ from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
 from .demo import DemoSettings
 from .devops import DevOpsSettings
+from .diagnostics import DiagnosticsSettings
 from .document_generation import DocumentGenerationSettings
 from .habits import HabitsSettings
 from .health_metrics import HealthMetricsSettings
@@ -124,6 +125,7 @@ class Settings(
     ImageGenerationSettings,
     DocumentGenerationSettings,
     DevOpsSettings,
+    DiagnosticsSettings,
     HealthMetricsSettings,
     AutomationSettings,
     HabitsSettings,
@@ -443,6 +445,7 @@ __all__ = [
     "UsageLimitsSettings",
     "ImageGenerationSettings",
     "DevOpsSettings",
+    "DiagnosticsSettings",
     "HealthMetricsSettings",
     "SchedulerSettings",
     "LocksSettings",

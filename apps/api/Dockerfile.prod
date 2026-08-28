@@ -261,7 +261,7 @@ RUN npm install -g @anthropic-ai/claude-code \
 # Switch to non-root user
 USER appuser
 
-# Expose ports (8000: API HTTPS, 9091: Prometheus metrics HTTP)
+# Expose ports (8000: API HTTP — TLS terminates at cloudflared; 9091: Prometheus metrics HTTP)
 EXPOSE 8000 9091
 
 # Health check

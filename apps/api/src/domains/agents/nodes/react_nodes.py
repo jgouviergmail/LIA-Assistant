@@ -541,6 +541,19 @@ async def react_setup_node(
         if skills_catalog:
             system_blocks.append(f"<AvailableSkills>\n{skills_catalog}\n</AvailableSkills>")
 
+    # Plan-time avoidance (spec 2026-08-27, pillar 7): currently degraded
+    # capabilities become one system block so the agent routes around a KNOWN
+    # outage instead of discovering it by timeout. Empty on a healthy platform
+    # (zero tokens) and fail-open by construction (advisor never raises).
+    from src.domains.diagnostics.advisor import (
+        format_degradations_block,
+        get_active_degradations,
+    )
+
+    degradations_block = format_degradations_block(await get_active_degradations())
+    if degradations_block:
+        system_blocks.append(degradations_block)
+
     duration_ms = int((time.monotonic() - start_time) * 1000)
     logger.info(
         "react_setup_complete",

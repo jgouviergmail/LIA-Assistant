@@ -118,6 +118,20 @@ def derive_environment(
         "NEXT_PUBLIC_APP_URL": "",
         "DEFAULT_LANGUAGE": public.default_language,
         "NODE_ENV": "production",
+        # Self-diagnostics (ADR-247): the flag follows the wizard answer; the
+        # Alertmanager webhook only exists when the observability profile runs
+        # on this install (prod API serves plain HTTP on 8000).
+        "DIAGNOSTICS_ENABLED": "true" if public.self_diagnostics else "false",
+        "DIAGNOSTICS_WEBHOOK_SECRET": (
+            secrets.token_urlsafe(32)
+            if public.self_diagnostics and public.observability
+            else ""
+        ),
+        "ALERTMANAGER_LIA_WEBHOOK_URL": (
+            "http://api:8000/api/v1/internal/diagnostics/alert-webhook"
+            if public.self_diagnostics and public.observability
+            else ""
+        ),
     }
 
 

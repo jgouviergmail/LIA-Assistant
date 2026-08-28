@@ -57,27 +57,19 @@ def settings_default_language() -> str:
 async def _check_user_is_admin(user_id: str) -> bool:
     """Check if the user has superuser privileges.
 
+    Thin wrapper around the shared gate (``admin_gate.user_is_superuser``) —
+    kept as a module-level seam because the confirmation-path tests patch
+    THIS name; the implementation lives in one place.
+
     Args:
         user_id: User UUID string.
 
     Returns:
         True if the user is a superuser, False otherwise.
     """
-    try:
-        from uuid import UUID
+    from src.domains.agents.tools.admin_gate import user_is_superuser
 
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            from src.domains.users.models import User
-
-            result = await db.get(User, UUID(str(user_id)))
-            if result is None:
-                return False
-            return bool(result.is_superuser)
-    except Exception as e:
-        logger.warning("devops_admin_check_failed", user_id=str(user_id), error=str(e))
-        return False
+    return await user_is_superuser(user_id)
 
 
 def _resolve_server(server_name: str = "") -> tuple[dict[str, Any] | None, str]:

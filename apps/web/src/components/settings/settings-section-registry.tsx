@@ -27,6 +27,7 @@ import AdminCapabilitiesSection from './AdminCapabilitiesSection';
 import AdminConnectorsSection from './AdminConnectorsSection';
 import AdminConsumptionExportSection from './AdminConsumptionExportSection';
 import AdminDebugSettingsSection from './AdminDebugSettingsSection';
+import AdminDiagnosticsSection from './AdminDiagnosticsSection';
 import AdminGoogleApiPricingSection from './AdminGoogleApiPricingSection';
 import AdminImagePricingSection from './AdminImagePricingSection';
 import AdminLLMConfigSection from './AdminLLMConfigSection';
@@ -183,6 +184,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
 
   // ---- Administration / System
   'admin-capabilities': { render: lng => <AdminCapabilitiesSection lng={lng} /> },
+  'admin-diagnostics': { render: lng => <AdminDiagnosticsSection lng={lng} /> },
   'admin-public-demo-link': { render: lng => <AdminPublicDemoLinkSection lng={lng} /> },
   'debug-settings': { render: lng => <AdminDebugSettingsSection lng={lng} /> },
 };

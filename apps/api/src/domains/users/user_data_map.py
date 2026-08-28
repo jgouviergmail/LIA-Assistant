@@ -349,6 +349,18 @@ TABLE_RULES: dict[str, TableRule] = {
         export=ExportPolicy.EXCLUDED,
         reason="Instance-wide configuration.",
     ),
+    "health_snapshots": TableRule(
+        data_class=TableDataClass.GLOBAL,
+        export=ExportPolicy.EXCLUDED,
+        reason="Platform self-check results (spec 2026-08-27) — no user data, "
+        "pruned by the diagnostics job's own retention.",
+    ),
+    "incidents": TableRule(
+        data_class=TableDataClass.GLOBAL,
+        export=ExportPolicy.EXCLUDED,
+        reason="Platform incident memory (spec 2026-08-27) — alert labels and "
+        "check evidence only, admin-facing, never user-owned.",
+    ),
     "instance_daily_budget": TableRule(
         data_class=TableDataClass.GLOBAL,
         export=ExportPolicy.EXCLUDED,

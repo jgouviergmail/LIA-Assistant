@@ -408,6 +408,20 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         registry.register_agent_manifest(DEVOPS_AGENT_MANIFEST)
         registry.register_tool_manifest(claude_server_task_catalogue_manifest)
 
+    # Self-diagnostics: platform telemetry read access (feature-flagged,
+    # admin check at call time — devops pattern)
+    if getattr(_get_settings(), "diagnostics_enabled", False):
+        from src.domains.agents.diagnostics.catalogue_manifests import (
+            DIAGNOSTICS_TOOL_MANIFESTS,
+        )
+        from src.domains.agents.registry.agent_manifest_definitions import (
+            DIAGNOSTICS_AGENT_MANIFEST,
+        )
+
+        registry.register_agent_manifest(DIAGNOSTICS_AGENT_MANIFEST)
+        for _diag_manifest in DIAGNOSTICS_TOOL_MANIFESTS:
+            registry.register_tool_manifest(_diag_manifest)
+
     # Telephony: agentic outbound calls (per-user connector, feature-flagged)
     if getattr(_get_settings(), "telephony_enabled", False):
         from src.domains.agents.telephony.catalogue_manifests import (

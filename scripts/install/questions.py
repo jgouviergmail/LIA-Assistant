@@ -128,6 +128,12 @@ def build_questions() -> tuple[Question, ...]:
             default="no",
         ),
         Question(
+            key="self_diagnostics",
+            kind=QuestionKind.BOOL,
+            message_id="question.self_diagnostics",
+            default="no",
+        ),
+        Question(
             key="skill_sandbox",
             kind=QuestionKind.BOOL,
             message_id="question.skill_sandbox",

@@ -185,6 +185,9 @@ services:
       - attachments_data:/app/data/attachments
       # System knowledge files for FAQ RAG indexation (read-only)
       - ./docs/knowledge:/app/docs/knowledge:ro
+      # Per-alert runbooks grounding the self-diagnostics LLM step (read-only,
+      # spec 2026-08-27; inert while DIAGNOSTICS_ENABLED=false)
+      - ./docs/runbooks:/app/docs/runbooks:ro
       # Reference content for a FRESH install (personalities, LLM pricing).
       # Read-only, and inert unless APPLY_SEEDS=true is set explicitly: the
       # entrypoint never infers "fresh install" from the database, because these
@@ -443,10 +446,16 @@ services:
       ALERTMANAGER_SLACK_WEBHOOK_WARNING: ${ALERTMANAGER_SLACK_WEBHOOK_WARNING:-}
       ALERTMANAGER_SLACK_WEBHOOK_SECURITY: ${ALERTMANAGER_SLACK_WEBHOOK_SECURITY:-}
       ALERTMANAGER_PAGERDUTY_ROUTING_KEY: ${ALERTMANAGER_PAGERDUTY_ROUTING_KEY:-}
+      # LIA self-diagnostics webhook (spec 2026-08-27): both set = incidents
+      # in-app. Prod API serves plain HTTP on 8000 (no --ssl-* in the CMD).
+      ALERTMANAGER_LIA_WEBHOOK_URL: ${ALERTMANAGER_LIA_WEBHOOK_URL:-}
+      ALERTMANAGER_LIA_WEBHOOK_SECRET: ${DIAGNOSTICS_WEBHOOK_SECRET:-}
     volumes:
       - ./infrastructure/observability/alertmanager/docker-entrypoint.sh:/docker-entrypoint.sh:ro
       - ./infrastructure/observability/alertmanager/alertmanager.yml.template:/etc/alertmanager/alertmanager.yml.template:ro
       - ./infrastructure/observability/alertmanager/alertmanager-email-only.yml.template:/etc/alertmanager/alertmanager-email-only.yml.template:ro
+      - ./infrastructure/observability/alertmanager/lia-webhook-route.fragment:/etc/alertmanager/lia-webhook-route.fragment:ro
+      - ./infrastructure/observability/alertmanager/lia-webhook-receiver.fragment:/etc/alertmanager/lia-webhook-receiver.fragment:ro
       - ./infrastructure/observability/alertmanager/templates:/etc/alertmanager/templates:ro
       - alertmanager_data:/alertmanager
     networks:

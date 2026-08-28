@@ -1,0 +1,17 @@
+  # ===== LIA SELF-DIAGNOSTICS WEBHOOK (spec 2026-08-27) =====
+  # The API turns deliveries into incidents (open on firing, close on
+  # resolved). Auth: Authorization Bearer — the only header mechanism every
+  # Alertmanager version supports. insecure_skip_verify is deliberate: the
+  # dev API serves HTTPS with a self-signed certificate while prod serves
+  # plain HTTP; the target is our own API on the compose network either way.
+  - name: 'lia-api-webhook'
+    webhook_configs:
+      - url: '${ALERTMANAGER_LIA_WEBHOOK_URL}'
+        send_resolved: true
+        max_alerts: 20
+        http_config:
+          authorization:
+            type: 'Bearer'
+            credentials: '${ALERTMANAGER_LIA_WEBHOOK_SECRET}'
+          tls_config:
+            insecure_skip_verify: true

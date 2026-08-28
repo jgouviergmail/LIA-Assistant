@@ -252,6 +252,7 @@ def collect_answers(
         admin_name=str(collected["admin_name"]),
         default_language=str(collected["default_language"]),
         observability=bool(collected["observability"]),
+        self_diagnostics=bool(collected.get("self_diagnostics", False)),
         skill_sandbox=bool(collected["skill_sandbox"]),
         server_host=(
             str(collected["server_host"]) if "server_host" in collected else None

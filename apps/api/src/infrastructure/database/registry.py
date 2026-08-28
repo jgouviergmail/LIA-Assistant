@@ -29,6 +29,7 @@ def import_all_models() -> None:
     import src.domains.chat.models  # noqa: F401
     import src.domains.connectors.models  # noqa: F401
     import src.domains.conversations.models  # noqa: F401
+    import src.domains.diagnostics.models  # noqa: F401
     import src.domains.google_api.models  # noqa: F401
     import src.domains.habits.models  # noqa: F401
     import src.domains.health_metrics.models  # noqa: F401

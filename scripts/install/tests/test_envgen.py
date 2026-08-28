@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import base64
+from dataclasses import replace
 import os
 import sys
 from pathlib import Path
@@ -176,3 +177,29 @@ def test_existing_env_must_be_private_to_be_reused(tmp_path: Path) -> None:
     with pytest.raises(EnvGenError) as excinfo:
         load_existing_generated_secrets(env_path, ("SECRET_KEY",))
     assert str(excinfo.value) == "env_file_not_private"
+
+
+def test_self_diagnostics_enabled_with_observability_wires_the_webhook() -> None:
+    """Opting in with the observability profile turns alerts into incidents."""
+    public = replace(_public(Exposure.LAN), observability=True, self_diagnostics=True)
+    env = derive_environment(public, generate_secrets())
+    assert env["DIAGNOSTICS_ENABLED"] == "true"
+    assert len(env["DIAGNOSTICS_WEBHOOK_SECRET"]) >= 32
+    assert (
+        env["ALERTMANAGER_LIA_WEBHOOK_URL"]
+        == "http://api:8000/api/v1/internal/diagnostics/alert-webhook"
+    )
+
+
+def test_self_diagnostics_without_observability_keeps_probes_only() -> None:
+    """No Alertmanager on this install: the flag works, the webhook stays off."""
+    public = replace(_public(Exposure.LAN), observability=False, self_diagnostics=True)
+    env = derive_environment(public, generate_secrets())
+    assert env["DIAGNOSTICS_ENABLED"] == "true"
+    assert env["ALERTMANAGER_LIA_WEBHOOK_URL"] == ""
+
+
+def test_self_diagnostics_defaults_to_disabled() -> None:
+    env = derive_environment(_public(Exposure.LAN), generate_secrets())
+    assert env["DIAGNOSTICS_ENABLED"] == "false"
+    assert env["ALERTMANAGER_LIA_WEBHOOK_URL"] == ""

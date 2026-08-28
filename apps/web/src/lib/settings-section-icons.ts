@@ -10,6 +10,7 @@
  */
 
 import {
+  Activity,
   Bell,
   Blocks,
   BookOpen,
@@ -107,6 +108,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   'admin-skills': Blocks,
   'rag-spaces-admin': Library,
   'admin-capabilities': SlidersHorizontal,
+  'admin-diagnostics': Activity,
   'admin-public-demo-link': Globe,
   'debug-settings': Bug,
 };

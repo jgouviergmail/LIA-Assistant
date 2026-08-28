@@ -1,0 +1,99 @@
+"""Snapshot → incident synchronisation (self-check side of the correlation).
+
+One outage ⇒ one incident: a check DECLARING an alertname converges on the
+alert's correlation key; a check without one correlates on its check_id.
+Critical opens (or touches); ok auto-resolves ONLY self_check-sourced
+incidents (the alert's own resolved event owns alert-sourced ones).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+from uuid import uuid4
+
+import pytest
+
+from src.domains.diagnostics import incident_sync
+from src.domains.diagnostics.checks import CheckResult, CheckStatus
+from src.domains.diagnostics.models import INCIDENT_SOURCE_SELF_CHECK
+
+
+class _FakeRepo:
+    def __init__(self) -> None:
+        self.opened: list[dict[str, Any]] = []
+        self.resolved: list[tuple[str, str | None]] = []
+        self.created_flag = True
+
+    async def open_or_touch_incident(self, **kwargs: Any) -> tuple[Any, bool, Any]:
+        self.opened.append(kwargs)
+        return uuid4(), self.created_flag, None
+
+    async def resolve_incident(self, correlation_key: str, *, source: str | None = None) -> int:
+        self.resolved.append((correlation_key, source))
+        return 1
+
+
+def _result(check_id: str, status: CheckStatus, alertname: str | None = None) -> CheckResult:
+    return CheckResult(check_id=check_id, status=status, value=1.0, detail="", alertname=alertname)
+
+
+@pytest.mark.unit
+class TestSyncIncidents:
+    async def test_critical_with_alertname_uses_the_alert_correlation_key(self) -> None:
+        repo = _FakeRepo()
+        outcome = await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("redis", CheckStatus.CRITICAL, alertname="RedisDown")],
+        )
+        assert outcome.opened_ids and repo.opened[0]["correlation_key"] == "RedisDown"
+        assert repo.opened[0]["source"] == INCIDENT_SOURCE_SELF_CHECK
+        assert repo.opened[0]["alertname"] == "RedisDown"
+
+    async def test_critical_without_alertname_uses_the_check_id(self) -> None:
+        repo = _FakeRepo()
+        await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("scheduler_tick", CheckStatus.CRITICAL)],
+        )
+        assert repo.opened[0]["correlation_key"] == "scheduler_tick"
+
+    async def test_ok_resolves_only_self_check_sourced(self) -> None:
+        repo = _FakeRepo()
+        await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("redis", CheckStatus.OK, alertname="RedisDown")],
+        )
+        assert repo.resolved == [("RedisDown", INCIDENT_SOURCE_SELF_CHECK)]
+        assert repo.opened == []
+
+    async def test_degraded_and_unknown_neither_open_nor_resolve(self) -> None:
+        """Degraded is watched, not incident-worthy; unknown is blindness."""
+        repo = _FakeRepo()
+        await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [
+                _result("disk_usage", CheckStatus.DEGRADED),
+                _result("api_error_rate", CheckStatus.UNKNOWN),
+            ],
+        )
+        assert repo.opened == []
+        assert repo.resolved == []
+
+    async def test_touch_of_existing_incident_reports_no_new_opening(self) -> None:
+        repo = _FakeRepo()
+        repo.created_flag = False
+        outcome = await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("redis", CheckStatus.CRITICAL, alertname="RedisDown")],
+        )
+        assert outcome.opened_ids == []
+        assert outcome.touched == 1
+
+    async def test_evidence_carries_the_exact_measured_value(self) -> None:
+        repo = _FakeRepo()
+        await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("redis", CheckStatus.CRITICAL, alertname="RedisDown")],
+        )
+        assert repo.opened[0]["evidence"]["value"] == 1.0
+        assert repo.opened[0]["evidence"]["check_id"] == "redis"
