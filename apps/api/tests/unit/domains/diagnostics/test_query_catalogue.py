@@ -39,7 +39,7 @@ class TestCatalogueStructure:
 
     def test_undeclared_placeholder_is_refused_by_the_assert(self) -> None:
         bad = NamedQuery(
-            key="bad_query",
+            query_id="bad_query",
             title="Bad",
             promql_template="sum(rate(http_requests_total[{undeclared}m]))",
             params=(),
@@ -52,7 +52,7 @@ class TestCatalogueStructure:
 
     def test_declared_metric_missing_from_template_is_refused(self) -> None:
         bad = NamedQuery(
-            key="bad_query",
+            query_id="bad_query",
             title="Bad",
             promql_template="vector(1)",
             params=(),
@@ -65,7 +65,7 @@ class TestCatalogueStructure:
 
     def test_unknown_external_metric_is_refused(self) -> None:
         bad = NamedQuery(
-            key="bad_query",
+            query_id="bad_query",
             title="Bad",
             promql_template="sum(mystery_exporter_bytes)",
             params=(),
@@ -109,7 +109,7 @@ class TestLiaMetricsResolveToProducers:
             for metric in query.lia_metrics:
                 assert (
                     metric in resolvable
-                ), f"{query.key} references '{metric}' which no producer registers"
+                ), f"{query.query_id} references '{metric}' which no producer registers"
 
 
 @pytest.mark.unit

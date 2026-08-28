@@ -59,7 +59,7 @@ class PromCheck:
 
     check_id: str
     title: str
-    query_key: str
+    query_id: str
     params: dict[str, float]
     warn_setting: str
     crit_setting: str
@@ -80,7 +80,7 @@ PROM_CHECKS: tuple[PromCheck, ...] = (
     PromCheck(
         check_id="api_error_rate",
         title="HTTP 5xx rate",
-        query_key="api_error_rate",
+        query_id="api_error_rate",
         params={"window_minutes": 15},
         warn_setting="diagnostics_check_api_error_rate_warn",
         crit_setting="diagnostics_check_api_error_rate_crit",
@@ -90,7 +90,7 @@ PROM_CHECKS: tuple[PromCheck, ...] = (
     PromCheck(
         check_id="api_latency_p95",
         title="HTTP p95 latency",
-        query_key="api_latency_p95",
+        query_id="api_latency_p95",
         params={"window_minutes": 15},
         warn_setting="diagnostics_check_api_latency_p95_warn",
         crit_setting="diagnostics_check_api_latency_p95_crit",
@@ -103,7 +103,7 @@ PROM_CHECKS: tuple[PromCheck, ...] = (
     PromCheck(
         check_id="llm_failure_rate",
         title="LLM API failure rate",
-        query_key="llm_failure_rate",
+        query_id="llm_failure_rate",
         params={"window_minutes": 30},
         warn_setting="diagnostics_check_llm_failure_rate_warn",
         crit_setting="diagnostics_check_llm_failure_rate_crit",
@@ -113,7 +113,7 @@ PROM_CHECKS: tuple[PromCheck, ...] = (
     PromCheck(
         check_id="disk_usage",
         title="Host disk usage",
-        query_key="disk_usage_percent",
+        query_id="disk_usage_percent",
         params={},
         warn_setting="diagnostics_check_disk_usage_warn",
         crit_setting="diagnostics_check_disk_usage_crit",
@@ -123,7 +123,7 @@ PROM_CHECKS: tuple[PromCheck, ...] = (
     PromCheck(
         check_id="memory_usage",
         title="Host memory usage",
-        query_key="memory_usage_percent",
+        query_id="memory_usage_percent",
         params={},
         warn_setting="diagnostics_check_memory_usage_warn",
         crit_setting="diagnostics_check_memory_usage_crit",
@@ -165,8 +165,8 @@ def assert_check_registry_completeness(
 
     for check in proms:
         assert (
-            check.query_key in QUERY_CATALOGUE
-        ), f"{check.check_id}: unknown catalogue key '{check.query_key}'"
+            check.query_id in QUERY_CATALOGUE
+        ), f"{check.check_id}: unknown catalogue key '{check.query_id}'"
         for setting_name in (check.warn_setting, check.crit_setting):
             assert hasattr(
                 settings, setting_name

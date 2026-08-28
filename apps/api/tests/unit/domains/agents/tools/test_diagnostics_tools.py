@@ -86,7 +86,7 @@ class TestAdminGateOnEveryTool:
         [
             lambda rt: diagnostics_tools.platform_health_tool.coroutine(runtime=rt),
             lambda rt: diagnostics_tools.platform_metrics_tool.coroutine(
-                query_key="api_error_rate", runtime=rt
+                query_id="api_error_rate", runtime=rt
             ),
             lambda rt: diagnostics_tools.platform_logs_tool.coroutine(service="api", runtime=rt),
             lambda rt: diagnostics_tools.platform_incidents_tool.coroutine(runtime=rt),
@@ -176,7 +176,7 @@ class TestPlatformMetricsTool:
 
         before = diagnostics_catalogue_miss_total.labels(surface="chat_tool")._value.get()
         result = await diagnostics_tools.platform_metrics_tool.coroutine(
-            query_key="nope", runtime=_runtime()
+            query_id="nope", runtime=_runtime()
         )
         assert result.success is False
         assert result.error_code == "INVALID_INPUT"
@@ -198,7 +198,7 @@ class TestPlatformMetricsTool:
 
         monkeypatch.setattr(diagnostics_tools, "PrometheusClient", _FakeProm)
         result = await diagnostics_tools.platform_metrics_tool.coroutine(
-            query_key="api_error_rate", window_minutes=30, runtime=_runtime()
+            query_id="api_error_rate", window_minutes=30, runtime=_runtime()
         )
         assert result.success is True
         assert result.structured_data["samples"][0]["value"] == 1.5
@@ -215,7 +215,7 @@ class TestPlatformMetricsTool:
 
         monkeypatch.setattr(diagnostics_tools, "PrometheusClient", _DownProm)
         result = await diagnostics_tools.platform_metrics_tool.coroutine(
-            query_key="api_error_rate", runtime=_runtime()
+            query_id="api_error_rate", runtime=_runtime()
         )
         assert result.success is False
         assert result.error_code == "UNAVAILABLE"

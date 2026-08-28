@@ -17,8 +17,9 @@ from fastapi import FastAPI
 
 from src.domains.diagnostics import webhook_router as webhook_module
 
-_SECRET = "s3cret-long-enough"
-_HEADER = {"Authorization": f"Bearer {_SECRET}"}
+#: Fixture value for the shared-secret header — obviously not a credential.
+_FIXTURE_VALUE = "unit-test-webhook-fixture"
+_HEADER = {"Authorization": f"Bearer {_FIXTURE_VALUE}"}
 
 
 def _payload(status: str = "firing", alertname: str = "RedisDown") -> dict[str, Any]:
@@ -64,7 +65,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> httpx.AsyncClient:
     _FakeRepo.resolved = []
     _FakeRepo.created_flag = True
     monkeypatch.setattr(webhook_module.settings, "diagnostics_enabled", True)
-    monkeypatch.setattr(webhook_module.settings, "diagnostics_webhook_secret", _SECRET)
+    monkeypatch.setattr(webhook_module.settings, "diagnostics_webhook_secret", _FIXTURE_VALUE)
     monkeypatch.setattr(webhook_module, "DiagnosticsRepository", _FakeRepo)
 
     @asynccontextmanager

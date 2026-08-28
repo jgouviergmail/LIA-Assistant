@@ -84,14 +84,14 @@ platform_metrics_catalogue_manifest = ToolManifest(
     description=(
         "**Tool: platform_metrics_tool** - Run ONE curated platform metric query "
         "(administrators only).\n"
-        "Free-form PromQL is not accepted: pick a query_key from the curated catalogue "
+        "Free-form PromQL is not accepted: pick a query_id from the curated catalogue "
         "(api_error_rate, api_latency_p95, http_request_rate, llm_failure_rate, "
         "llm_errors_by_kind, background_job_errors, dependency_up, disk_usage_percent, "
         "memory_usage_percent, circuit_breakers_open)."
     ),
     parameters=[
         ParameterSchema(
-            name="query_key",
+            name="query_id",
             type="string",
             required=True,
             description="Curated catalogue key (see tool description for the full list).",

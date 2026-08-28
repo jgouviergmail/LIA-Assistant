@@ -142,13 +142,13 @@ a throwaway `python -c` — record latency; calibrate defaults if measured cost 
 - Create: `apps/api/src/domains/diagnostics/checks.py` (registry + verdict types),
   `engine.py` (`run_self_check() -> HealthSnapshotDTO`)
 - Test: `test_checks.py` (registry completeness: unique ids, alertname unique-or-None, every
-  `query_key` exists in catalogue, thresholds read from settings — test computes from `settings`,
+  `query_id` exists in catalogue, thresholds read from settings — test computes from `settings`,
   never literals), `test_engine.py`
 
 **Interfaces (produces):** `CheckStatus` str-enum `ok|degraded|critical|unknown`;
 `CheckResult(check_id, status, value, detail, alertname)`; `HealthSnapshotDTO(taken_at, overall,
 results: list[CheckResult])` with `to_results_jsonb()`; `CHECK_REGISTRY: dict[str,
-CheckDefinition]` — Prometheus-backed checks (declarative: query_key, params, warn/crit
+CheckDefinition]` — Prometheus-backed checks (declarative: query_id, params, warn/crit
 comparators) + in-process checks (db ping via `get_db_context`, redis ping, circuit-breaker
 states, scheduler-tick freshness from Redis). Prometheus unreachable ⇒ those checks `unknown`,
 in-process still evaluated; overall = worst(critical > degraded > unknown-capped-at-degraded >
@@ -179,7 +179,7 @@ Job body: run engine → persist snapshot → prune retention → write schedule
 - Test: `test_admin_gate.py`, `test_diagnostics_tools.py`; devops tool tests still green
 
 **Interfaces (produces):** 4 read-only tools returning `UnifiedToolOutput` (devops shape):
-`platform_health_tool()`, `platform_metrics_tool(query_key, window_minutes=15)`,
+`platform_health_tool()`, `platform_metrics_tool(query_id, window_minutes=15)`,
 `platform_logs_tool(service, level="error", event="", minutes=60, limit=<settings default>)`,
 `platform_incidents_tool(incident_id="")`. Non-admin ⇒ `UnifiedToolOutput.failure(...,
 error_code="FORBIDDEN")` (devops wording). Truncation always states the exact dropped count.

@@ -30,9 +30,9 @@ class TestCheckRegistry:
         ids = [c.check_id for c in PROM_CHECKS] + [c.check_id for c in IN_PROCESS_CHECKS]
         assert len(ids) == len(set(ids))
 
-    def test_every_prom_check_query_key_exists_in_the_catalogue(self) -> None:
+    def test_every_prom_check_query_id_exists_in_the_catalogue(self) -> None:
         for check in PROM_CHECKS:
-            assert check.query_key in QUERY_CATALOGUE, check.check_id
+            assert check.query_id in QUERY_CATALOGUE, check.check_id
 
     def test_thresholds_resolve_on_settings_and_are_ordered(self) -> None:
         for check in PROM_CHECKS:
@@ -58,7 +58,7 @@ class TestCheckRegistry:
         bad = PromCheck(
             check_id="bogus",
             title="Bogus",
-            query_key="api_error_rate",
+            query_id="api_error_rate",
             params={},
             warn_setting="diagnostics_check_does_not_exist_warn",
             crit_setting="diagnostics_check_does_not_exist_crit",

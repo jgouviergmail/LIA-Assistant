@@ -91,7 +91,7 @@ async def run_self_check(prom_client: PrometheusClient | None = None) -> HealthS
     # do not justify concurrency, and a plain loop keeps failure attribution
     # trivial (systemic rule: a handful of indexed queries — loop, not gather).
     for check in PROM_CHECKS:
-        promql = render_query(check.query_key, **check.params)
+        promql = render_query(check.query_id, **check.params)
         prom_result = await client.instant_query(promql)
         if prom_result.status != "ok":
             results.append(

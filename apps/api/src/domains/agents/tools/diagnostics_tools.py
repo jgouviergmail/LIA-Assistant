@@ -138,9 +138,9 @@ async def platform_health_tool(
     scope="user",
 )
 async def platform_metrics_tool(
-    query_key: Annotated[
+    query_id: Annotated[
         str,
-        "Named query key from the curated catalogue (e.g. api_error_rate, "
+        "Named query identifier from the curated catalogue (e.g. api_error_rate, "
         "llm_failure_rate, disk_usage_percent). Free-form PromQL is not accepted.",
     ],
     window_minutes: Annotated[int, "Time window in minutes (clamped to 1-1440)"] = 15,
@@ -153,7 +153,7 @@ async def platform_metrics_tool(
     free-form-query escalation signal).
 
     Args:
-        query_key: Catalogue key.
+        query_id: Catalogue identifier.
         window_minutes: Rate/increase window; out-of-bounds values are clamped.
         runtime: LangChain tool runtime (injected).
 
@@ -168,18 +168,18 @@ async def platform_metrics_tool(
         diagnostics_catalogue_miss_total,
     )
 
-    if query_key not in QUERY_CATALOGUE:
+    if query_id not in QUERY_CATALOGUE:
         diagnostics_catalogue_miss_total.labels(surface="chat_tool").inc()
         available = ", ".join(sorted(QUERY_CATALOGUE))
         return UnifiedToolOutput.failure(
-            message=f"Unknown query '{query_key}'. Available queries: {available}",
+            message=f"Unknown query '{query_id}'. Available queries: {available}",
             error_code="INVALID_INPUT",
             metadata={"available_keys": sorted(QUERY_CATALOGUE)},
         )
 
     settings = get_settings()
-    query = QUERY_CATALOGUE[query_key]
-    promql = render_query(query_key, window_minutes=float(window_minutes))
+    query = QUERY_CATALOGUE[query_id]
+    promql = render_query(query_id, window_minutes=float(window_minutes))
     result = await PrometheusClient(
         base_url=settings.diagnostics_prometheus_url,
         timeout_seconds=settings.diagnostics_http_timeout_seconds,
@@ -196,7 +196,7 @@ async def platform_metrics_tool(
         for sample in result.samples[:_MAX_EMBEDDED_ROWS]
     ]
     data = {
-        "query_key": query_key,
+        "query_id": query_id,
         "title": query.title,
         "unit": query.unit,
         "window_minutes": window_minutes,

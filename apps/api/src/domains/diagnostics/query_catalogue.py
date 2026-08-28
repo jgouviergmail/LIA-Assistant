@@ -65,7 +65,7 @@ class QueryParam:
 class NamedQuery:
     """One curated PromQL query with declared metrics and bounded params."""
 
-    key: str
+    query_id: str
     title: str
     promql_template: str
     params: tuple[QueryParam, ...]
@@ -77,10 +77,10 @@ class NamedQuery:
 _WINDOW = QueryParam(name="window_minutes", min_value=1, max_value=1440, default=15)
 
 QUERY_CATALOGUE: dict[str, NamedQuery] = {
-    query.key: query
+    query.query_id: query
     for query in (
         NamedQuery(
-            key="api_error_rate",
+            query_id="api_error_rate",
             title="HTTP 5xx rate",
             promql_template=(
                 '100 * sum(rate(http_requests_total{status=~"5.."}[{window_minutes}m]))'
@@ -92,7 +92,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
-            key="api_latency_p95",
+            query_id="api_latency_p95",
             title="HTTP p95 latency",
             promql_template=(
                 "histogram_quantile(0.95, sum(rate("
@@ -104,7 +104,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
-            key="http_request_rate",
+            query_id="http_request_rate",
             title="HTTP request rate",
             promql_template="sum(rate(http_requests_total[{window_minutes}m]))",
             params=(_WINDOW,),
@@ -113,7 +113,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
-            key="llm_failure_rate",
+            query_id="llm_failure_rate",
             title="LLM API failure rate",
             promql_template=(
                 "100 * sum(rate(llm_api_errors_total[{window_minutes}m]))"
@@ -125,7 +125,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
-            key="llm_errors_by_kind",
+            query_id="llm_errors_by_kind",
             title="LLM API errors by kind",
             promql_template=(
                 "sum by (error_type) (increase(llm_api_errors_total[{window_minutes}m]))"
@@ -136,7 +136,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
-            key="background_job_errors",
+            query_id="background_job_errors",
             title="Background job errors by job",
             promql_template=(
                 "sum by (job_name) (increase(background_job_errors_total[{window_minutes}m]))"
@@ -147,7 +147,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
-            key="dependency_up",
+            query_id="dependency_up",
             title="Scrape-target availability",
             promql_template="up",
             params=(),
@@ -156,7 +156,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=("up",),
         ),
         NamedQuery(
-            key="disk_usage_percent",
+            query_id="disk_usage_percent",
             title="Host disk usage",
             promql_template=(
                 '100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}'
@@ -168,7 +168,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=("node_filesystem_avail_bytes", "node_filesystem_size_bytes"),
         ),
         NamedQuery(
-            key="memory_usage_percent",
+            query_id="memory_usage_percent",
             title="Host memory usage",
             promql_template=(
                 "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))"
@@ -179,7 +179,7 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=("node_memory_MemAvailable_bytes", "node_memory_MemTotal_bytes"),
         ),
         NamedQuery(
-            key="circuit_breakers_open",
+            query_id="circuit_breakers_open",
             title="Circuit-breaker states by service",
             promql_template="max by (service) (circuit_breaker_state)",
             params=(),
@@ -205,7 +205,7 @@ def assert_query_catalogue_completeness(
             neither declared nor allowlisted.
     """
     for key, query in (catalogue if catalogue is not None else QUERY_CATALOGUE).items():
-        assert key == query.key, f"catalogue key '{key}' != query.key '{query.key}'"
+        assert key == query.query_id, f"catalogue key '{key}' != query.query_id '{query.query_id}'"
         _assert_params_and_placeholders(query)
         _assert_declared_metrics(query)
 
@@ -223,10 +223,10 @@ def _assert_params_and_placeholders(query: NamedQuery) -> None:
     for param in query.params:
         assert (
             param.min_value <= param.default <= param.max_value
-        ), f"{query.key}: param '{param.name}' default outside [min, max]"
+        ), f"{query.query_id}: param '{param.name}' default outside [min, max]"
     placeholders = set(_PLACEHOLDER_RE.findall(query.promql_template))
     undeclared = placeholders - declared_params
-    assert not undeclared, f"{query.key}: undeclared placeholders {sorted(undeclared)}"
+    assert not undeclared, f"{query.query_id}: undeclared placeholders {sorted(undeclared)}"
 
 
 def _assert_declared_metrics(query: NamedQuery) -> None:
@@ -244,26 +244,26 @@ def _assert_declared_metrics(query: NamedQuery) -> None:
     for metric in declared_metrics:
         assert (
             metric in query.promql_template
-        ), f"{query.key}: declares metric '{metric}' its template never references"
+        ), f"{query.query_id}: declares metric '{metric}' its template never references"
     for external in query.external_metrics:
         assert (
             external in EXTERNAL_METRICS_ALLOWLIST
-        ), f"{query.key}: external metric '{external}' missing from the allowlist"
+        ), f"{query.query_id}: external metric '{external}' missing from the allowlist"
     for token in _METRIC_TOKEN_RE.findall(query.promql_template):
         if token in _NON_METRIC_TOKENS or token in declared_params:
             continue
         assert (
             token in declared_metrics or token in EXTERNAL_METRICS_ALLOWLIST
-        ), f"{query.key}: metric-shaped token '{token}' is neither declared nor allowlisted"
+        ), f"{query.query_id}: metric-shaped token '{token}' is neither declared nor allowlisted"
     # 'up' has no underscore so the token regex cannot see it; the
     # declared-in-template assertion above already covers it.
 
 
-def render_query(key: str, **params: float) -> str:
+def render_query(query_id: str, **params: float) -> str:
     """Render a catalogue query, clamping every parameter into its bounds.
 
     Args:
-        key: Catalogue key.
+        query_id: Catalogue identifier.
         **params: Parameter values by name; missing ones use their default,
             unknown ones are ignored (the catalogue is the authority).
 
@@ -273,7 +273,7 @@ def render_query(key: str, **params: float) -> str:
     Raises:
         KeyError: Unknown catalogue key (callers translate for their surface).
     """
-    query = QUERY_CATALOGUE[key]
+    query = QUERY_CATALOGUE[query_id]
     values: dict[str, int] = {}
     for param in query.params:
         raw = params.get(param.name, param.default)
