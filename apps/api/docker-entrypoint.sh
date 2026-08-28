@@ -114,6 +114,13 @@ fi
 # PRESENCE of a worker count turned multiprocess mode on for a single worker
 # too, which the flag-based test never did (prod always passed 4). One worker
 # needs no aggregation, and the MultiProcessCollector path is not free.
+# prometheus_client arms multiprocess mode on the PRESENCE of the variable, not
+# on its value, so a declared-but-EMPTY one (an env file aligned against the
+# example, prod 2026-08-28) turns aggregation on with no directory: every
+# metric file becomes a RELATIVE path and the first gauge import dies with
+# `PermissionError: gauge_mostrecent_7.db` in a read-only /app. Both paths that
+# do not arm the mode therefore UNSET it — the fallback below can then keep its
+# promise whatever the deployment's env file happens to declare.
 _workers="${WEB_CONCURRENCY:-1}"
 case "$*" in *--workers*) _workers=2 ;; esac
 if [ "$_workers" -gt 1 ] 2>/dev/null; then
@@ -125,8 +132,11 @@ if [ "$_workers" -gt 1 ] 2>/dev/null; then
         export PROMETHEUS_MULTIPROC_DIR="$_mp_dir"
         echo "Prometheus multiprocess mode enabled (PROMETHEUS_MULTIPROC_DIR=$_mp_dir)"
     else
+        unset PROMETHEUS_MULTIPROC_DIR
         echo "WARN: could not prepare '$_mp_dir' — Prometheus multiprocess DISABLED (single-process metrics, app still starts)"
     fi
+else
+    unset PROMETHEUS_MULTIPROC_DIR
 fi
 
 # Start application

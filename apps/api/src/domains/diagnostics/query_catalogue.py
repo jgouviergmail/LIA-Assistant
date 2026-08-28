@@ -83,7 +83,13 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             query_id="api_error_rate",
             title="HTTP 5xx rate",
             promql_template=(
-                '100 * sum(rate(http_requests_total{status=~"5.."}[{window_minutes}m]))'
+                # `or vector(0)`: on a healthy instance NO 5xx series exists,
+                # and an empty numerator makes the whole division empty — the
+                # check then reads "no data" and caps the snapshot at
+                # `degraded` forever (measured in prod, 2026-08-28). Zero
+                # errors must read as zero, not as ignorance.
+                '100 * (sum(rate(http_requests_total{status=~"5.."}[{window_minutes}m]))'
+                " or vector(0))"
                 " / clamp_min(sum(rate(http_requests_total[{window_minutes}m])), 1e-9)"
             ),
             params=(_WINDOW,),
@@ -116,7 +122,9 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             query_id="llm_failure_rate",
             title="LLM API failure rate",
             promql_template=(
-                "100 * sum(rate(llm_api_errors_total[{window_minutes}m]))"
+                # Same reason as api_error_rate: no failed call means no
+                # series, which is a 0 % failure rate, not an unknown one.
+                "100 * (sum(rate(llm_api_errors_total[{window_minutes}m])) or vector(0))"
                 " / clamp_min(sum(rate(llm_api_calls_total[{window_minutes}m])), 1e-9)"
             ),
             params=(_WINDOW,),

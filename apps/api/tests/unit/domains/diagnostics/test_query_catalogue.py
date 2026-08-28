@@ -158,3 +158,28 @@ class TestRendering:
         param = QUERY_CATALOGUE["api_error_rate"].params[0]
         assert isinstance(param, QueryParam)
         assert param.min_value < param.max_value
+
+
+@pytest.mark.unit
+class TestRatioQueriesAreTotal:
+    """A ratio whose numerator has no series must read 0, never "no data".
+
+    Measured in production on 2026-08-28 (v1.34.0 first tick): on a healthy
+    instance NO 5xx series exists, so `sum(rate(http_requests_total{status=~
+    "5.."}[15m]))` is an EMPTY vector, the division yields empty, the check
+    reports `unknown/no_data` — and `unknown` caps the snapshot at `degraded`.
+    A permanently degraded panel on a perfectly healthy platform is a false
+    alarm that teaches administrators to ignore it.
+    """
+
+    RATIO_KEYS = ("api_error_rate", "llm_failure_rate")
+
+    @pytest.mark.parametrize("query_id", RATIO_KEYS)
+    def test_numerator_falls_back_to_zero(self, query_id: str) -> None:
+        promql = render_query(query_id, window_minutes=15)
+        assert "or vector(0)" in promql, f"{query_id}: an absent numerator must read 0, not nothing"
+
+    @pytest.mark.parametrize("query_id", RATIO_KEYS)
+    def test_denominator_is_still_clamped(self, query_id: str) -> None:
+        """Zero traffic must not divide by zero either."""
+        assert "clamp_min(" in render_query(query_id, window_minutes=15)
