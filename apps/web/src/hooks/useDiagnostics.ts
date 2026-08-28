@@ -14,6 +14,12 @@ export interface DiagnosticsCheck {
   check_id: string;
   status: 'ok' | 'degraded' | 'critical' | 'unknown';
   value: number | null;
+  /**
+   * Unit of `value`, published by the backend's check registry. Never infer it
+   * from `check_id`: that is how a millisecond probe came to be rendered as a
+   * percentage (ADR-184 — what the system knows, it publishes).
+   */
+  unit: string;
   detail: string;
   alertname: string | null;
 }

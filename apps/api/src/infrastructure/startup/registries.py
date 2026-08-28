@@ -95,8 +95,10 @@ def _validate_diagnostics_registries() -> None:
 
     try:
         from src.domains.diagnostics.checks import assert_check_registry_completeness
+        from src.domains.diagnostics.engine import assert_probe_coverage
 
         assert_check_registry_completeness()
+        assert_probe_coverage()
     except AssertionError as exc:
         logger.error("diagnostics_check_registry_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Diagnostics check registry incomplete: {exc}") from exc

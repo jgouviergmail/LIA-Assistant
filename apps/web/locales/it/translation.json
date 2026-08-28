@@ -2338,7 +2338,8 @@
           "database": "PostgreSQL",
           "redis": "Redis",
           "circuit_breakers": "Interruttori aperti",
-          "scheduler_tick": "Attività del ciclo di autocontrollo"
+          "scheduler_tick": "Attività del ciclo di autocontrollo",
+          "platform_egress": "Connettività in uscita"
         }
       }
     },
@@ -3502,7 +3503,7 @@
         "admin-public-demo-link": "demo, dimostratore, link pubblico, vetrina, condividere",
         "debug-settings": "debug, diagnostica, log, pannello, tracciamento dei token",
         "eyes-style": "occhi, avatar, animazione, stile, sguardo, compagno, cozmo",
-        "admin-diagnostics": "salute diagnosi incidenti avvisi monitoraggio autocontrollo stato piattaforma prometheus loki"
+        "admin-diagnostics": "salute diagnosi incidenti avvisi monitoraggio autocontrollo stato piattaforma prometheus loki connettività uscita rete"
       }
     },
     "haptics": {
@@ -4407,6 +4408,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_34_1": {
+          "title": "v1.34.1 — 📌 Le tue istruzioni permanenti vengono di nuovo ricordate",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📌 Le memorie «regole e direttive» possono finalmente essere create</b> — la memoria a lungo termine ha una categoria per le istruzioni permanenti che dai sul modo di lavorare («rispondimi più brevemente», «inizia sempre dalla conclusione»). La schermata che le mostra era già consegnata, ma nulla poteva riempirla: il parser che trasforma un'estrazione in memoria rifiutava proprio quella categoria, e il rifiuto veniva registrato a livello di debug, così l'intera famiglia spariva in silenzio. Il vocabolario ha ora un'unica fonte di verità, verificata all'avvio su tutti e tre i punti che lo ripetono, e una memoria rifiutata viene registrata come avviso.",
+            "i2": "<b>🩺 La piattaforma sa ora dire di aver perso il mondo esterno</b> — LIA sorveglia la propria salute e ha incontrato un guasto vero il giorno stesso del rilascio: la macchina ha smesso di instradare il traffico dei suoi container, così ogni chiamata verso l'esterno falliva mentre il sito restava in piedi e in salute. LIA ha segnalato i sintomi in sei minuti, ma nulla poteva nominarne la causa. Un amministratore può ora attivare un controllo di connettività in uscita che lo dice chiaramente, e ogni valore di salute compare con l'unità dichiarata dal server, non con quella indovinata dalla schermata."
+          }
+        },
         "v1_34_0": {
           "title": "v1.34.0 — 🩺 LIA sa diagnosticarsi",
           "date": "Agosto 2026",

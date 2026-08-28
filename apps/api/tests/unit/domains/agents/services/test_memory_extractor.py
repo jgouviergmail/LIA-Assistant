@@ -21,12 +21,14 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from src.core.llm_agent_config import LLMAgentConfig
+from src.domains.agents.services.memory_extraction_parsing import (
+    parse_extraction_result,
+)
 from src.domains.agents.services.memory_extractor import (
     _cache_debug_result,
     _format_existing_memories_with_ids,
     _format_messages_for_extraction,
     _memory_extraction_debug_cache,
-    _parse_extraction_result,
     get_memory_extraction_debug,
 )
 from src.domains.memories.schemas import ExtractedMemory
@@ -133,7 +135,7 @@ class TestFormatMessagesForExtraction:
 
 
 class TestParseExtractionResult:
-    """Tests for _parse_extraction_result function."""
+    """Tests for parse_extraction_result function."""
 
     def test_parse_valid_json_array(self):
         """Test parsing of valid JSON array with memories."""
@@ -150,7 +152,7 @@ class TestParseExtractionResult:
             ]
         )
 
-        memories = _parse_extraction_result(json_result)
+        memories = parse_extraction_result(json_result)
 
         assert len(memories) == 1
         assert memories[0].content == "User prefers morning meetings"
@@ -160,7 +162,7 @@ class TestParseExtractionResult:
     def test_parse_empty_array(self):
         """Test parsing of empty JSON array (no new memories)."""
         json_result = "[]"
-        memories = _parse_extraction_result(json_result)
+        memories = parse_extraction_result(json_result)
 
         assert len(memories) == 0
 
@@ -179,7 +181,7 @@ class TestParseExtractionResult:
 ]
 ```"""
 
-        memories = _parse_extraction_result(json_result)
+        memories = parse_extraction_result(json_result)
 
         assert len(memories) == 1
         assert memories[0].content == "User likes coffee"
@@ -187,14 +189,14 @@ class TestParseExtractionResult:
     def test_parse_invalid_json_returns_empty(self):
         """Test that invalid JSON returns empty list (graceful degradation)."""
         invalid_json = "not valid json at all"
-        memories = _parse_extraction_result(invalid_json)
+        memories = parse_extraction_result(invalid_json)
 
         assert len(memories) == 0
 
     def test_parse_non_array_returns_empty(self):
         """Test that non-array JSON returns empty list."""
         json_result = json.dumps({"content": "This is an object, not an array"})
-        memories = _parse_extraction_result(json_result)
+        memories = parse_extraction_result(json_result)
 
         assert len(memories) == 0
 
@@ -217,11 +219,82 @@ class TestParseExtractionResult:
             ]
         )
 
-        memories = _parse_extraction_result(json_result)
+        memories = parse_extraction_result(json_result)
 
         # Only the valid memory should be parsed
         assert len(memories) == 1
         assert memories[0].content == "Valid memory"
+
+
+class TestRejectedEntryLoggingCarriesNoContent:
+    """A dropped extraction entry must be loud AND silent about its payload.
+
+    Raising this branch from ``debug`` to ``warning`` (2026-08-28) is what makes
+    a vocabulary drift visible — but WARNING is above the DEBUG line where the
+    repo allows memory content to appear. A Pydantic message renders
+    ``input_value=...``, and for this parser that value is the user's own
+    sentence, so the message must never be logged verbatim.
+    """
+
+    @staticmethod
+    def _capture(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+        from src.domains.agents.services import memory_extraction_parsing
+
+        captured: list[dict] = []
+
+        class _Recorder:
+            def warning(self, event: str, **kwargs: object) -> None:
+                captured.append({"event": event, **kwargs})
+
+            def __getattr__(self, _name: str):  # debug/info/error are no-ops
+                return lambda *args, **kwargs: None
+
+        monkeypatch.setattr(memory_extraction_parsing, "logger", _Recorder())
+        return captured
+
+    def test_the_rejection_is_logged(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        captured = self._capture(monkeypatch)
+        parse_extraction_result(
+            json.dumps([{"action": "create", "content": 42, "category": "personal"}])
+        )
+        assert [entry["event"] for entry in captured] == ["memory_item_validation_failed"]
+
+    def test_no_submitted_value_reaches_the_log(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The failing FIELD is the signal; the failing VALUE is user data."""
+        captured = self._capture(monkeypatch)
+        secret = "Ma soeur Claire est en soins palliatifs"
+        parse_extraction_result(
+            json.dumps([{"action": "create", "content": {"note": secret}, "category": "personal"}])
+        )
+        blob = json.dumps(captured, default=str, ensure_ascii=False)
+        assert "Claire" not in blob and "palliatifs" not in blob, blob
+        assert "content" in blob, "the failing field must still be named"
+
+    def test_a_drifted_category_stays_greppable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The whole point of the level change: seeing WHICH category was refused."""
+        captured = self._capture(monkeypatch)
+        parse_extraction_result(
+            json.dumps([{"action": "create", "content": "A rule.", "category": "imaginary"}])
+        )
+        assert captured[0]["category"] == "imaginary"
+
+    def test_a_category_that_is_not_a_token_is_not_printed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The field is model-provided: anything can be in it, content included."""
+        captured = self._capture(monkeypatch)
+        parse_extraction_result(
+            json.dumps(
+                [
+                    {
+                        "action": "create",
+                        "content": "A rule.",
+                        "category": "Claire est en soins palliatifs",
+                    }
+                ]
+            )
+        )
+        assert "Claire" not in json.dumps(captured, default=str, ensure_ascii=False)
 
 
 class TestExtractedMemorySchema:

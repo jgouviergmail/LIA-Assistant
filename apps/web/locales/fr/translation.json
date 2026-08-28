@@ -2807,7 +2807,8 @@
           "database": "PostgreSQL",
           "redis": "Redis",
           "circuit_breakers": "Disjoncteurs ouverts",
-          "scheduler_tick": "Vivacité de la boucle d'auto-contrôle"
+          "scheduler_tick": "Vivacité de la boucle d'auto-contrôle",
+          "platform_egress": "Connectivité sortante"
         }
       }
     },
@@ -3527,7 +3528,7 @@
         "admin-public-demo-link": "démo, démonstrateur, lien public, vitrine, partager",
         "debug-settings": "debug, diagnostics, journaux, panneau, suivi des jetons",
         "eyes-style": "yeux, avatar, animation, style, regard, compagnon, cozmo",
-        "admin-diagnostics": "santé diagnostic incidents alertes supervision auto-contrôle statut plateforme prometheus loki"
+        "admin-diagnostics": "santé diagnostic incidents alertes supervision auto-contrôle statut plateforme prometheus loki connectivité sortie réseau"
       }
     },
     "haptics": {
@@ -4419,6 +4420,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_34_1": {
+          "title": "v1.34.1 — 📌 Vos consignes durables sont de nouveau retenues",
+          "date": "Août 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📌 Les mémoires « règles et directives » peuvent enfin être créées</b> — la mémoire long terme possède une catégorie pour les consignes durables que vous donnez sur la manière de travailler (« réponds-moi plus brièvement », « commence toujours par la conclusion »). L'écran qui les affiche était livré, mais rien ne pouvait le remplir : l'analyseur qui transforme une extraction en mémoire rejetait précisément cette catégorie, et le rejet partait en journal de débogage — toute la famille disparaissait en silence. Le vocabulaire a désormais une seule autorité, vérifiée au démarrage sur les trois endroits qui le restatent, et une mémoire rejetée est journalisée en avertissement.",
+            "i2": "<b>🩺 La plateforme sait désormais dire qu'elle a perdu le monde extérieur</b> — LIA surveille sa propre santé, et elle a rencontré une vraie panne le jour de sa mise en service : la machine a cessé de router le trafic de ses conteneurs, si bien que tous les appels vers l'extérieur échouaient pendant que le site restait debout et en bonne santé. LIA a signalé les symptômes en six minutes, mais rien ne pouvait en nommer la cause. Un administrateur peut maintenant activer un contrôle de connectivité sortante qui le dit clairement, et chaque valeur de santé s'affiche avec l'unité que le serveur déclare, au lieu de celle que l'écran devinait."
+          }
+        },
         "v1_34_0": {
           "title": "v1.34.0 — 🩺 LIA sait se diagnostiquer",
           "date": "Août 2026",

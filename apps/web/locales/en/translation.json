@@ -2518,7 +2518,8 @@
           "database": "PostgreSQL",
           "redis": "Redis",
           "circuit_breakers": "Open circuit breakers",
-          "scheduler_tick": "Self-check loop liveness"
+          "scheduler_tick": "Self-check loop liveness",
+          "platform_egress": "Outbound connectivity"
         }
       }
     },
@@ -3522,7 +3523,7 @@
         "admin-public-demo-link": "demo, demonstrator, public link, showroom, share",
         "debug-settings": "debug, diagnostics, logs, panel, token tracking",
         "eyes-style": "eyes, avatar, animation, style, gaze, companion, cozmo",
-        "admin-diagnostics": "health diagnostics incidents alerts monitoring self-check platform status prometheus loki"
+        "admin-diagnostics": "health diagnostics incidents alerts monitoring self-check platform status prometheus loki connectivity egress outbound network"
       }
     },
     "haptics": {
@@ -4414,6 +4415,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_34_1": {
+          "title": "v1.34.1 — 📌 Your standing instructions are remembered again",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📌 “Rules & directives” memories can finally be created</b> — long-term memory has a category for the standing instructions you give about how LIA should work (“answer me more briefly”, “always start with the conclusion”). The screen that shows them shipped, but nothing could ever fill it: the parser that turns an extraction into a memory rejected that exact category, and the rejection was logged at debug level — so the whole family was dropped in silence. The vocabulary now has a single source of truth, checked at startup against all three places that restate it, and a rejected memory is logged as a warning.",
+            "i2": "<b>🩺 The platform can now say when it has lost the outside world</b> — LIA watches its own health, and it met a real outage the day it shipped: the machine stopped routing traffic for its containers, so every call to an external service failed while the site itself stayed up and healthy. LIA reported the symptoms within six minutes, but nothing could name the cause. An administrator can now enable a small outbound-connectivity check that says it plainly, and each health figure is shown with the unit the server declares instead of one the screen guessed."
+          }
+        },
         "v1_34_0": {
           "title": "v1.34.0 — 🩺 LIA can diagnose itself",
           "date": "August 2026",

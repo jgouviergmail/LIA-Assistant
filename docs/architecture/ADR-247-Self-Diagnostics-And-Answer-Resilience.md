@@ -74,3 +74,41 @@ runtime). Seven pillars:
 - Deferred behind measured escalation criteria (spec §3): free-form PromQL/LogQL
   for admins, Tempo reads, baseline anomaly detection, Tier-1 auto-remediation.
   The extension seams (registries) exist; the code deliberately does not.
+
+## Amendment (2026-08-28) — name the cause, not only the consequence
+
+Six hours after this subsystem reached production, it met a real platform
+outage and told the truth about the wrong thing.
+
+An automatic Debian upgrade (bubblewrap) restarted `systemd-sysctl`, which
+re-applied `/etc/sysctl.d/` in lexicographic order — where a hand-written
+`99-security.conf` ("disable IP routing") overrode `99-docker-optimize.conf`.
+`net.ipv4.ip_forward` fell to 0 and **every container lost outbound routing**
+while the host kept its own. `/health` stayed green, DNS kept resolving (the
+container resolver needs no forwarding) and the public site answered 200: every
+intuitive test exonerated a broken platform.
+
+LIA detected it in six minutes — `LLMAPIFailureRateHigh`, 100 % LLM failures,
+two open circuit breakers, an incident opened and an admin notified. All of it
+true, and none of it the cause. Three decisions follow:
+
+1. **`platform_egress`**, one bounded TCP connect per tick. The target is
+   **configured, never defaulted** (`DIAGNOSTICS_EGRESS_PROBE_TARGET`): point it
+   at a host the instance already talks to, so the probe discloses nothing new —
+   an installation must not acquire a third party from a constant, the rule
+   already applied to `PUSH_RELAY_URL`. Unconfigured, the check is **absent**:
+   `ok` would claim a measurement nobody took, `unknown` would cap every default
+   install at `degraded`. `InProcessCheck.enabled_setting` states this
+   declaratively and the boot assert refuses a gate no settings field backs.
+2. **Every check declares its unit**, and the API publishes it. The panel used
+   to infer the suffix from the check id with `%` as fallback — so this
+   millisecond probe would have rendered as a percentage. ADR-184's rule, one
+   layer further: what the system knows, it publishes to whoever renders it.
+3. **`assert_probe_coverage`** closes the symmetric hole: a registered check
+   with no probe raised `KeyError` mid-tick — no snapshot, no verdict, one
+   scheduler error nobody reads. ADR-085 doctrine, applied to a dispatch table.
+
+The host-side defect is not LIA's to fix, but it is LIA's to *say*. That is the
+whole point of this ADR: a platform that cannot describe its own failure makes
+its operator debug the wrong subsystem — here, Google OAuth, which was never
+broken.

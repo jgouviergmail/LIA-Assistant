@@ -38,6 +38,7 @@ from src.core.constants import (
     DIAGNOSTICS_DIAGNOSIS_BATCH_SIZE_DEFAULT,
     DIAGNOSTICS_DIAGNOSIS_DAILY_COST_CAP_USD_DEFAULT,
     DIAGNOSTICS_DIAGNOSIS_MAX_ACTIONS_DEFAULT,
+    DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS_DEFAULT,
     DIAGNOSTICS_FAILURE_CONTEXT_MAX_ENTRIES_DEFAULT,
     DIAGNOSTICS_HTTP_TIMEOUT_SECONDS_DEFAULT,
     DIAGNOSTICS_LOKI_DEFAULT_LINES_DEFAULT,
@@ -82,6 +83,24 @@ class DiagnosticsSettings(BaseSettings):
         ge=0.5,
         le=30.0,
         description="Per-request timeout for telemetry HTTP calls.",
+    )
+
+    diagnostics_egress_probe_target: str = Field(
+        default="",
+        description=(
+            "host:port the self-check opens a TCP connection to, to prove the "
+            "platform can still reach the outside. Empty disables the check "
+            "entirely — it is never reported as healthy on no measurement. Point "
+            "it at a host this instance ALREADY talks to (its LLM provider, "
+            "typically): probing anything else would disclose the instance's "
+            "existence to a third party nobody chose."
+        ),
+    )
+    diagnostics_egress_probe_timeout_seconds: float = Field(
+        default=DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS_DEFAULT,
+        ge=0.1,
+        le=30.0,
+        description="Per-attempt timeout of the egress probe.",
     )
 
     # ------------------------------------------------------------------

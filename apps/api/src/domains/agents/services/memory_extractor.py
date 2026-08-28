@@ -41,9 +41,10 @@ from src.core.constants import (
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
+from src.domains.agents.services.memory_extraction_parsing import (
+    parse_extraction_result,
+)
 from src.domains.agents.utils.extraction_guards import enforce_delete_cap
-from src.domains.agents.utils.json_parser import extract_json_from_llm_response
-from src.domains.memories.schemas import ExtractedMemory
 from src.domains.shared.extraction_targets import (
     find_last_user_message,
     is_synthetic_message,
@@ -274,64 +275,6 @@ def _format_existing_memories_with_ids(
         )
 
     return "\n".join(lines)
-
-
-# ============================================================================
-# LLM Output Parsing
-# ============================================================================
-
-
-def _parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
-    """Parse LLM extraction result into ExtractedMemory objects.
-
-    Handles common JSON parsing issues and supports both old format
-    (no action field → create) and new format (with action field).
-
-    Args:
-        result_text: Raw LLM output.
-
-    Returns:
-        List of validated ExtractedMemory objects.
-    """
-
-    def _parse_items(data: list) -> list[ExtractedMemory]:
-        entries = []
-        for item in data:
-            try:
-                entry = ExtractedMemory(**item)
-                # Reject create actions missing required content/category
-                if entry.action == "create" and (not entry.content or not entry.category):
-                    logger.debug(
-                        "memory_item_missing_required_fields",
-                        item=item,
-                        action=entry.action,
-                    )
-                    continue
-                entries.append(entry)
-            except Exception as e:
-                # WARNING, not debug: this branch is where a vocabulary drift
-                # hides. `procedural` was taught by the prompt and rejected
-                # here for months (2026-08-28) — every dropped rule looked
-                # exactly like "the user said nothing worth remembering".
-                # The category is logged on its own so the drift is greppable
-                # without reading the item (which carries user content).
-                logger.warning(
-                    "memory_item_validation_failed",
-                    action=item.get("action") if isinstance(item, dict) else None,
-                    category=item.get("category") if isinstance(item, dict) else None,
-                    error=str(e),
-                )
-                continue
-        return entries
-
-    # Central parser handles fences, array extraction, trailing commas and //
-    # comments (strict-first, instrumented via json_parse_* with this context).
-    result = extract_json_from_llm_response(
-        result_text, expected_type=list, context="memory_extraction"
-    )
-    if not result.success or not isinstance(result.data, list):
-        return []
-    return _parse_items(result.data)
 
 
 # ============================================================================
@@ -591,7 +534,7 @@ async def extract_memories_background(
         }
 
         # Parse result into actions
-        actions = _parse_extraction_result(result_content)
+        actions = parse_extraction_result(result_content)
 
         if not actions:
             if parent_run_id:

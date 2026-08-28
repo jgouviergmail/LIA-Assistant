@@ -25,22 +25,25 @@ import { healthTone, incidentTone } from '@/lib/status-tone';
 import type { BaseSettingsProps } from '@/types/settings';
 import type { TFunction } from 'i18next';
 
+/**
+ * Suffix per published unit. An unlisted unit renders bare, never guessed.
+ * `ms` keeps a NO-BREAK space so the unit cannot wrap away from its number in
+ * the narrow right-hand column.
+ */
+const UNIT_SUFFIX: Record<string, string> = {
+  percent: '%',
+  seconds: 's',
+  milliseconds: ' ms',
+  count: '',
+};
+
 /** Exact value with its unit — a shown number is the measured number. */
 function formatCheckValue(check: DiagnosticsCheck): string {
   if (check.value === null || check.value === undefined) {
     return '—';
   }
   const rounded = Math.round(check.value * 100) / 100;
-  if (check.check_id.includes('latency')) {
-    return `${rounded}s`;
-  }
-  if (check.check_id === 'circuit_breakers') {
-    return `${rounded}`;
-  }
-  if (check.check_id === 'scheduler_tick') {
-    return `${rounded}s`;
-  }
-  return `${rounded}%`;
+  return `${rounded}${UNIT_SUFFIX[check.unit] ?? ''}`;
 }
 
 function CheckRow({ check, t }: { check: DiagnosticsCheck; t: TFunction }) {
@@ -53,7 +56,9 @@ function CheckRow({ check, t }: { check: DiagnosticsCheck; t: TFunction }) {
           })}
         </p>
         {check.detail ? (
-          <p className="truncate text-xs text-muted-foreground">{check.detail}</p>
+          <p className="truncate text-xs text-muted-foreground" title={check.detail}>
+            {check.detail}
+          </p>
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">

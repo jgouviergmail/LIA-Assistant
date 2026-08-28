@@ -2336,7 +2336,8 @@
           "database": "PostgreSQL",
           "redis": "Redis",
           "circuit_breakers": "Offene Schutzschalter",
-          "scheduler_tick": "Aktivität der Selbstprüfschleife"
+          "scheduler_tick": "Aktivität der Selbstprüfschleife",
+          "platform_egress": "Ausgehende Verbindung"
         }
       }
     },
@@ -3500,7 +3501,7 @@
         "admin-public-demo-link": "Demo, Demonstrator, öffentlicher Link, Showroom, teilen",
         "debug-settings": "Debug, Diagnose, Protokolle, Panel, Token-Verfolgung",
         "eyes-style": "Augen, Avatar, Animation, Stil, Blick, Begleiter, Cozmo",
-        "admin-diagnostics": "zustand diagnose vorfälle alarme überwachung selbstprüfung plattform status prometheus loki"
+        "admin-diagnostics": "zustand diagnose vorfälle alarme überwachung selbstprüfung plattform status prometheus loki konnektivität ausgehend netzwerk"
       }
     },
     "haptics": {
@@ -4405,6 +4406,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_34_1": {
+          "title": "v1.34.1 — 📌 Ihre dauerhaften Anweisungen werden wieder gemerkt",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>📌 „Regeln & Anweisungen“-Erinnerungen lassen sich endlich anlegen</b> — das Langzeitgedächtnis hat eine Kategorie für die dauerhaften Anweisungen, die Sie zur Arbeitsweise geben („antworte mir kürzer“, „beginne immer mit dem Fazit“). Der Bildschirm dafür war ausgeliefert, nur konnte ihn nichts füllen: Der Parser, der eine Extraktion in eine Erinnerung verwandelt, wies genau diese Kategorie ab, und die Ablehnung wurde auf Debug-Ebene protokolliert — die ganze Familie verschwand lautlos. Das Vokabular hat jetzt eine einzige Quelle der Wahrheit, die beim Start gegen alle drei Stellen geprüft wird, und eine abgewiesene Erinnerung wird als Warnung protokolliert.",
+            "i2": "<b>🩺 Die Plattform kann jetzt sagen, wenn sie die Außenwelt verloren hat</b> — LIA überwacht ihre eigene Gesundheit und traf am Tag der Auslieferung auf einen echten Ausfall: Der Rechner leitete den Verkehr seiner Container nicht mehr weiter, sodass jeder Aufruf nach außen scheiterte, während die Website selbst gesund weiterlief. LIA meldete die Symptome binnen sechs Minuten, doch nichts konnte die Ursache benennen. Eine Administratorin kann nun eine kleine Prüfung der ausgehenden Verbindung aktivieren, die das klar ausspricht, und jeder Gesundheitswert erscheint mit der Einheit, die der Server angibt, statt einer erratenen."
+          }
+        },
         "v1_34_0": {
           "title": "v1.34.0 — 🩺 LIA kann sich selbst diagnostizieren",
           "date": "August 2026",

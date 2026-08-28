@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.34.1] - 2026-08-28
+
+**Une catégorie entière de la mémoire long terme n'a jamais pu s'écrire.** Les « règles et directives » — ces consignes durables que l'utilisateur donne sur la manière de travailler (« réponds-moi plus brièvement ») — avaient leur écran, leurs six traductions, leur en-tête d'injection en deuxième priorité et leur prompt d'extraction. Il leur manquait la seule chose qui compte : le droit d'exister. Le parseur qui transforme la sortie du LLM en mémoire rejetait la catégorie que ce même prompt réclamait, et le rejet partait en `debug`. Le lecteur a été livré avec un écrivain qui ne pouvait pas réussir, et le silence a tenu des mois.
+
+**Le vocabulaire a maintenant une seule autorité, confrontée au démarrage.** `MemoryCategory` est l'énumération que stocke la colonne ; trois surfaces la restatent parce qu'aucune ne peut la dériver — mesuré le 2026-08-28, `Literal[*tuple(...)]` fait dégrader le type en `Any` sous MyPy, donc la dérivation coûterait plus qu'elle ne rapporte. Les trois sont donc vérifiées au boot, doctrine ADR-085 : l'application refuse de démarrer sur la moindre dérive, dans les deux sens.
+
+**Le même jour, l'auto-diagnostic a rencontré sa première vraie panne — et a nommé la mauvaise chose.** Une mise à jour automatique de l'hôte a coupé le routage IP : tous les conteneurs ont perdu Internet pendant que `/health` restait vert, que le DNS continuait de résoudre et que l'hôte, lui, sortait très bien. LIA a détecté la conséquence en six minutes (100 % d'échecs LLM, deux disjoncteurs ouverts, incident ouvert et administrateur notifié) mais rien dans l'instantané ne pouvait dire **pourquoi**. Cette version ajoute la sonde qui manquait, et deux gardes qui rendaient ce genre d'angle mort possible.
+
+### Fixed
+
+- **Les mémoires « règles et directives » (`procedural`, ADR-236) peuvent enfin être créées.** Les deux `Literal` — celui qu'`ExtractedMemory` valide et celui que l'outil de mémoire expose au modèle — ignoraient la catégorie. Toute mémoire procédurale proposée par l'extraction levait une `ValidationError` avalée en `debug` : aucune n'a jamais été créée, et le groupe n'apparaissait donc jamais dans l'écran, qui ne montre que les catégories non vides. Symétriquement, une ligne `procedural` déjà stockée aurait fait échouer le modèle de réponse de la liste — emportant TOUTES les mémoires de l'utilisateur, pas une carte.
+- **`GET /memories/categories` publie les sept catégories**, contre six : le catalogue que lisent les clients pour décrire les catégories avait dérivé avec les deux `Literal`.
+- **Une entrée d'extraction rejetée est journalisée en `warning`**, plus en `debug` — c'est ce niveau qui a rendu le défaut invisible, pas la dérive elle-même. **Sans jamais recopier ce qui a été soumis** : `str(ValidationError)` rend `input_value=…`, c'est-à-dire ici la phrase de l'utilisateur, et `warning` est au-dessus de la ligne où le contenu a le droit d'apparaître. Le champ fautif et le type d'échec sont journalisés, la valeur jamais — et `category`, dont la publication est tout l'intérêt de la ligne, n'est imprimée que si elle ressemble à un jeton de vocabulaire.
+- **L'unité d'un contrôle de santé est publiée par l'API** au lieu d'être devinée côté client à partir de son identifiant, avec `%` en repli : la sonde ci-dessous, qui mesure des millisecondes, se serait affichée en pourcentage (doctrine ADR-184). Le formateur du panneau perd trois cas particuliers au passage.
+- **Un contrôle enregistré sans sonde ne peut plus passer inaperçu** : il levait un `KeyError` en plein tick — aucun instantané, aucun verdict, une seule erreur de planificateur que personne ne lit.
+
+### Added
+
+- **Sonde de connectivité sortante** (`platform_egress`, `DIAGNOSTICS_EGRESS_PROBE_TARGET`) : une connexion TCP bornée par tick, sans TLS ni requête. La cible est **configurée, jamais par défaut** — la pointer sur un hôte que l'instance appelle déjà ne divulgue rien de neuf, alors qu'une constante choisirait un tiers à la place de l'hébergeur (même règle que `PUSH_RELAY_URL`). Non configurée, le contrôle est **absent** : `ok` revendiquerait une mesure que personne n'a prise, et `unknown` ferait passer toute installation par défaut en `degraded`. Un échec ouvre un incident nommé `platform_egress` et se résout tout seul au retour.
+- `InProcessCheck.enabled_setting` : l'activation conditionnelle d'un contrôle devient déclarative, et l'assert de boot refuse une porte qu'aucun champ de configuration ne soutient.
+- `assert_probe_coverage` (patron ADR-085) : un contrôle sans sonde — ou une sonde qu'aucun contrôle ne déclare — empêche le démarrage.
+- Garde de complétude au démarrage (`_validate_memory_category_vocabulary`, patron ADR-085) : chacune des trois restatements est confrontée à `MemoryCategory`, avec le nom de la surface fautive dans le message. Une catégorie ajoutée à l'énumération et oubliée ailleurs empêche désormais le boot au lieu de disparaître.
+- 29 tests de garde (`test_category_vocabulary_guard.py`) : parité des trois surfaces, aller-retour écriture/lecture sur chacune des sept catégories, accord du prompt d'extraction et de la liste du front, niveau de journalisation du rejet, et **exécution** de la garde de boot — dont un cas où une surface tronquée doit bien empêcher le démarrage.
+
+### Changed
+
+- Suppression de `MemorySchema`, classe morte : plus aucun appelant depuis le passage à `ExtractedMemory`, elle restatait le vocabulaire une quatrième fois (six catégories) et son docstring se déclarait utilisée par l'extraction. `memory_tools.py` passe de 195 à 93 lignes.
+- L'analyse de la sortie d'extraction devient un module à part (`memory_extraction_parsing.py`) : une responsabilité — analyser, retenir, et **dire ce qui a été refusé sans le recopier**. `memory_extractor.py` repasse ainsi sous le plafond global de 600 SLOC et **sort du gel de taille** (47 fichiers gelés au lieu de 48).
+- `docs/technical/LONG_TERM_MEMORY.md` décrit le schéma réellement validé et nomme l'énumération comme autorité du vocabulaire ; `DIAGNOSTICS_DOMAIN.md` et l'ADR-247 consignent l'incident et les trois décisions qu'il a produites.
+
+### Tests
+
+- 29 tests pour le vocabulaire de mémoire, 6 pour la journalisation sans donnée personnelle, 15 pour la sonde de sortie et la couverture des sondes, 6 côté front pour le rendu des unités — dont un cas par unité publiée et un cas d'unité inconnue, qui doit s'afficher sans suffixe plutôt qu'avec le mauvais.
+
 ## [1.34.0] - 2026-08-28
 
 **LIA émettait 486 métriques, des logs structurés et un cœur d'alertes — et n'en lisait rien.** Instrumentée de partout, aveugle sur elle-même : un job de fond mort n'atteignait personne avant qu'un humain n'ouvre Grafana, une alerte partait en e-mail mais jamais vers l'assistante ni vers un administrateur dans le produit, et la classe de panne documentée « /health vert mais LangGraph mort » restait invisible par construction. Cette version ferme la boucle : LIA lit désormais sa propre télémétrie (ADR-247).

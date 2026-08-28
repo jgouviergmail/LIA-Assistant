@@ -17,6 +17,7 @@ import structlog
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_DIAGNOSTICS_OVERVIEW_CACHE
 from src.domains.diagnostics.advisor import get_active_degradations
+from src.domains.diagnostics.checks import with_units
 from src.domains.diagnostics.repository import DiagnosticsRepository
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.telemetry.alertmanager import AlertmanagerClient
@@ -78,7 +79,7 @@ async def build_overview(db: AsyncSession) -> dict[str, Any]:
     if snapshot is not None:
         overview["overall"] = snapshot.overall
         overview["taken_at"] = snapshot.taken_at.isoformat()
-        overview["checks"] = snapshot.results
+        overview["checks"] = with_units(snapshot.results)
     return overview
 
 

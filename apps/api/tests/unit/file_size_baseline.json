@@ -19,7 +19,6 @@
     "domains/agents/semantic/core_types.py": 974,
     "domains/agents/services/context_resolution_service.py": 761,
     "domains/agents/services/golden_patterns.py": 696,
-    "domains/agents/services/memory_extractor.py": 629,
     "domains/agents/services/orchestration/service.py": 713,
     "domains/agents/services/plan_pattern_learner.py": 639,
     "domains/agents/services/query_analyzer_service.py": 1018,

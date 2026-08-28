@@ -66,10 +66,18 @@ function overview(overrides: Partial<DiagnosticsOverview> = {}): DiagnosticsOver
         check_id: 'api_error_rate',
         status: 'ok',
         value: 0.4,
+        unit: 'percent',
         detail: '',
         alertname: 'HighErrorRate',
       },
-      { check_id: 'redis', status: 'critical', value: null, detail: 'ConnectionError', alertname: 'RedisDown' },
+      {
+        check_id: 'redis',
+        status: 'critical',
+        value: null,
+        unit: '',
+        detail: 'ConnectionError',
+        alertname: 'RedisDown',
+      },
     ],
     ...overrides,
   };
@@ -196,5 +204,54 @@ describe('AdminDiagnosticsSection', () => {
     wire({ incidentRows: [], total: 0 });
     render(<AdminDiagnosticsSection lng="en" />);
     expect(screen.getByText('settings.admin.diagnostics.noIncidents')).toBeInTheDocument();
+  });
+});
+
+describe('the unit comes from the API, never from the check id', () => {
+  // The renderer used to derive the suffix from `check_id`, defaulting to '%'.
+  // A check measuring milliseconds — the egress probe added after the
+  // 2026-08-28 outage — would have been shown as a percentage. The backend
+  // knows the unit and now publishes it (ADR-184).
+  beforeEach(() => {
+    incidentsHook.mockReturnValue({ data: { items: [], total: 0 }, loading: false, error: null, refetch: vi.fn() });
+    detailHook.mockReturnValue({ data: null, loading: false, error: null, refetch: vi.fn() });
+  });
+
+  it.each([
+    ['milliseconds', 12.3, '12.3 ms'],
+    ['percent', 0.4, '0.4%'],
+    ['seconds', 0.22, '0.22s'],
+    ['count', 2, '2'],
+    ['', 5, '5'],
+  ])('renders a %s value as %s', async (unit, value, expected) => {
+    overviewHook.mockReturnValue({
+      data: overview({
+        checks: [{ check_id: 'whatever', status: 'ok', value, unit, detail: '', alertname: null }],
+      }),
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<AdminDiagnosticsSection lng="en" />);
+
+    expect(await screen.findByText(expected)).toBeInTheDocument();
+  });
+
+  it('shows a dash when nothing was measured', async () => {
+    overviewHook.mockReturnValue({
+      data: overview({
+        checks: [
+          { check_id: 'database', status: 'ok', value: null, unit: '', detail: '', alertname: null },
+        ],
+      }),
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<AdminDiagnosticsSection lng="en" />);
+
+    expect(await screen.findByText('—')).toBeInTheDocument();
   });
 });

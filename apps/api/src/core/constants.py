@@ -5397,6 +5397,11 @@ DIAGNOSTICS_CHECK_MEMORY_USAGE_WARN_DEFAULT = 85.0
 DIAGNOSTICS_CHECK_MEMORY_USAGE_CRIT_DEFAULT = 95.0
 DIAGNOSTICS_CHECK_SCHEDULER_TICK_STALE_SECONDS_DEFAULT = 900
 
+# Egress probe: one bounded TCP connect per self-check tick. No default target —
+# pointing an installation at a host it does not already talk to would be a
+# third-party disclosure decided by a constant (same doctrine as PUSH_RELAY_URL).
+DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS_DEFAULT = 5.0
+
 DIAGNOSTICS_AGENT_NAME: str = "diagnostics_agent"
 SCHEDULER_JOB_ID_DIAGNOSTICS_SELF_CHECK = "diagnostics_self_check"
 

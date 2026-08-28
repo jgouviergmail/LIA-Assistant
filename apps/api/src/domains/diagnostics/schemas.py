@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from src.domains.diagnostics.checks import unit_for
 
 
 class WebhookAlert(BaseModel):
@@ -44,8 +46,22 @@ class CheckResultOut(BaseModel):
     check_id: str = Field(description="Check identifier.")
     status: str = Field(description="ok/degraded/critical/unknown.")
     value: float | None = Field(default=None, description="Exact measured value.")
+    unit: str = Field(
+        default="",
+        description=(
+            "Unit of `value`, resolved from the check registry. Published so the "
+            "client never infers it from the identifier (ADR-184)."
+        ),
+    )
     detail: str = Field(default="", description="Failure reason or context.")
     alertname: str | None = Field(default=None, description="Mirrored alertname, if any.")
+
+    @model_validator(mode="after")
+    def _resolve_unit_from_the_registry(self) -> CheckResultOut:
+        """Fill the unit from the registry, including for rows stored without it."""
+        if not self.unit:
+            self.unit = unit_for(self.check_id)
+        return self
 
 
 class SnapshotOut(BaseModel):

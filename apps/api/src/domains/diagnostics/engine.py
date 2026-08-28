@@ -10,8 +10,11 @@ exception IS the signal, and only the exception CLASS NAME is recorded
 
 from __future__ import annotations
 
+import asyncio
 import math
 import time
+from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from datetime import UTC, datetime
 
 import structlog
@@ -24,6 +27,7 @@ from src.domains.diagnostics.checks import (
     PROM_CHECKS,
     CheckResult,
     CheckStatus,
+    InProcessCheck,
     overall_status,
 )
 from src.domains.diagnostics.query_catalogue import render_query
@@ -134,13 +138,11 @@ async def run_self_check(prom_client: PrometheusClient | None = None) -> HealthS
             )
         )
 
-    probes = {
-        "database": _probe_database,
-        "redis": _probe_redis,
-        "circuit_breakers": _probe_circuit_breakers,
-        "scheduler_tick": _probe_scheduler_tick,
-    }
+    probes = probe_registry()
     for check_def in IN_PROCESS_CHECKS:
+        if check_def.enabled_setting and not getattr(settings, check_def.enabled_setting, None):
+            # Not configured: the check is ABSENT, not green. See InProcessCheck.
+            continue
         probe = probes[check_def.check_id]
         try:
             status, value, detail = await probe()
@@ -159,6 +161,50 @@ async def run_self_check(prom_client: PrometheusClient | None = None) -> HealthS
         )
 
     return HealthSnapshotDTO(taken_at=datetime.now(UTC), results=results)
+
+
+def probe_registry() -> dict[str, Callable[[], Awaitable[ProbeOutcome]]]:
+    """The in-process probes, by check id — built at call time on purpose.
+
+    One definition, two readers: ``run_self_check`` dispatches through it and
+    ``assert_probe_coverage`` compares its keys with the registry. Late binding
+    (rebuilt per call) is what lets a test substitute a probe by name.
+
+    Returns:
+        Mapping of ``check_id`` to the coroutine function evaluating it.
+    """
+    return {
+        "database": _probe_database,
+        "redis": _probe_redis,
+        "circuit_breakers": _probe_circuit_breakers,
+        "scheduler_tick": _probe_scheduler_tick,
+        "platform_egress": _probe_platform_egress,
+    }
+
+
+def assert_probe_coverage(
+    in_process_checks: tuple[InProcessCheck, ...] | None = None,
+) -> None:
+    """Refuse to boot when a registered check has no probe, or vice versa.
+
+    ``run_self_check`` looks the probe up by ``check_id``: a missing entry is a
+    ``KeyError`` that kills the whole tick — no snapshot, no verdict, and the
+    only trace is a scheduler error nobody reads. The reverse (a probe no check
+    declares) is dead code that fakes coverage. ADR-085 doctrine.
+
+    Args:
+        in_process_checks: Override for tests; defaults to the real registry.
+
+    Raises:
+        AssertionError: A check has no probe, or a probe has no check.
+    """
+    checks = in_process_checks if in_process_checks is not None else IN_PROCESS_CHECKS
+    declared = {check.check_id for check in checks}
+    implemented = set(probe_registry())
+    missing = declared - implemented
+    orphans = implemented - declared
+    assert not missing, f"in-process checks with no probe: {sorted(missing)}"
+    assert not orphans, f"probes with no check declaring them: {sorted(orphans)}"
 
 
 def _scalar_from_samples(samples: list[PromSample]) -> float | None:
@@ -203,6 +249,53 @@ async def _probe_circuit_breakers() -> ProbeOutcome:
             ",".join(open_services[:10]),
         )
     return CheckStatus.OK, 0.0, ""
+
+
+async def _probe_platform_egress() -> ProbeOutcome:
+    """Can this instance still open a connection to the outside at all?
+
+    Born from the 2026-08-28 outage: ``net.ipv4.ip_forward`` fell to 0 on the
+    host, every container lost outbound routing, and the platform could only
+    report the CONSEQUENCE — 100 % LLM failures, two open circuit breakers —
+    while the cause stayed invisible for four hours. DNS kept resolving (the
+    container resolver needs no forwarding) and the host itself reached the
+    internet fine, so every intuitive test exonerated a broken platform.
+
+    One bounded TCP connect, no TLS and no request: this measures reachability,
+    never a third party's health, and it borrows no credentials.
+
+    Returns:
+        ``ok`` with the connect duration in milliseconds, ``critical`` when the
+        target cannot be reached, ``unknown`` when the target is unreadable.
+    """
+    target = str(getattr(settings, "diagnostics_egress_probe_target", "") or "").strip()
+    host, separator, port_text = target.rpartition(":")
+    port = int(port_text) if port_text.isdigit() else 0
+    if not separator or not host or not 1 <= port <= 65535:
+        # A typo in the setting must never read as "the platform is cut off".
+        return CheckStatus.UNKNOWN, None, f"malformed target '{target}'"
+
+    timeout = float(settings.diagnostics_egress_probe_timeout_seconds)
+    started = time.monotonic()
+    writer: asyncio.StreamWriter | None = None
+    elapsed_ms = 0.0
+    try:
+        _reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port), timeout=timeout
+        )
+        # Stop the clock HERE: the teardown below is not part of what we measure,
+        # and a shown number is the measured number.
+        elapsed_ms = round((time.monotonic() - started) * 1000, 1)
+    except (TimeoutError, OSError) as exc:
+        # The exception IS the signal; only its class name is recorded.
+        return CheckStatus.CRITICAL, None, f"{target} unreachable ({type(exc).__name__})"
+    finally:
+        if writer is not None:
+            writer.close()
+            with suppress(Exception):
+                await writer.wait_closed()
+
+    return CheckStatus.OK, elapsed_ms, target
 
 
 async def _probe_scheduler_tick() -> ProbeOutcome:

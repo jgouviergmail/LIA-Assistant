@@ -38,6 +38,34 @@ advisor so a known outage shapes the answer instead of a timeout.
   `build_runtime_failures_block(state)`: what succeeded, what failed and *why*
   (typed codes only, ADR-182/184 — never raw logs, never invented diagnosis).
 
+## Naming the cause, not only the consequence
+
+Every check declares its **unit** (`KNOWN_UNITS`, closed set) and the API
+publishes it next to the value: a client that infers the unit from the check id
+eventually infers wrong — the millisecond egress probe would have rendered as a
+percentage (ADR-184 doctrine).
+
+`platform_egress` is the check the **2026-08-28 outage** asked for. The host
+stopped forwarding IP (`net.ipv4.ip_forward` reset to 0 by an automatic package
+upgrade re-applying a contradictory `sysctl.d` drop-in); every container lost
+outbound routing while `/health` stayed green, DNS kept resolving and the host
+itself reached the internet. LIA detected the *consequence* within six minutes —
+`LLMAPIFailureRateHigh`, 100 % LLM failures, two open circuit breakers — but
+nothing in the snapshot could say **why**. One bounded TCP connect per tick now
+does, and it is:
+
+- **configured, never guessed** (`DIAGNOSTICS_EGRESS_PROBE_TARGET`, `host:port`):
+  point it at a host the instance already talks to, so the probe discloses
+  nothing new — an installation must not acquire a third party from a default;
+- **absent when unconfigured**, not `ok` (that would claim a measurement nobody
+  took) and not `unknown` (that would cap every default install at `degraded`).
+  `InProcessCheck.enabled_setting` expresses this declaratively, and the boot
+  assert refuses a gate no `Settings` field backs.
+
+`assert_probe_coverage` closes the matching hole on the other side: an
+in-process check with no probe used to raise `KeyError` mid-tick — no snapshot,
+no verdict, one scheduler error nobody reads.
+
 ## Operations
 
 - Env: see `.env.example` §86 (`DIAGNOSTICS_*`, `ALERTMANAGER_LIA_WEBHOOK_URL`).

@@ -1,7 +1,7 @@
 # Self-Diagnostics & Platform Health
 
 ## Can LIA monitor itself?
-Yes — since v1.34 (ADR-247), LIA reads its own telemetry. A periodic self-check evaluates the platform's golden signals (error rate, latency, LLM failures, disk, memory) plus direct probes of PostgreSQL, Redis and its own loop, and stores health snapshots with exact measured values. This works even while the monitoring stack itself is down: the probes keep running, and the affected checks honestly report "unknown" instead of guessing.
+Yes — since v1.34 (ADR-247), LIA reads its own telemetry. A periodic self-check evaluates the platform's golden signals (error rate, latency, LLM failures, disk, memory) plus direct probes of PostgreSQL, Redis, its own loop and — when an administrator configures a target — the platform's outbound connectivity, and stores health snapshots with exact measured values, each with the unit the server declares. This works even while the monitoring stack itself is down: the probes keep running, and the affected checks honestly report "unknown" instead of guessing.
 
 ## Where do administrators see the platform's health?
 In **Settings > Platform health** (administrators only): the latest self-check with per-check verdicts and exact values, currently firing alerts, degraded capabilities with their suggested fallbacks, and the incident history with stored diagnoses. When a critical incident opens, administrators are also notified in-app and by push — never by e-mail, since the alerting stack already e-mails.

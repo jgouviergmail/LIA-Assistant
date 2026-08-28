@@ -157,9 +157,9 @@ class TestUnknownCategoryIsNotSilent:
         """The defect hid for months behind a debug-level swallow."""
         import inspect
 
-        from src.domains.agents.services import memory_extractor
+        from src.domains.agents.services import memory_extraction_parsing
 
-        source = inspect.getsource(memory_extractor)
+        source = inspect.getsource(memory_extraction_parsing)
         assert "memory_item_validation_failed" in source
         assert 'logger.warning(\n                    "memory_item_validation_failed"' in source, (
             "a dropped extraction entry must be a warning: at debug level, a "
