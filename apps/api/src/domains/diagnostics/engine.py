@@ -270,6 +270,13 @@ async def _probe_platform_egress() -> ProbeOutcome:
     """
     target = str(getattr(settings, "diagnostics_egress_probe_target", "") or "").strip()
     host, separator, port_text = target.rpartition(":")
+    if host.startswith("[") and host.endswith("]"):
+        # `[::1]:443` is the standard spelling for an IPv6 literal, but
+        # getaddrinfo does not accept the brackets: Linux raises `gaierror`
+        # (measured in CI 2026-08-28) where Windows tolerated them — so an IPv6
+        # target would have been reported as "the platform is cut off" on the
+        # very platform that runs in production.
+        host = host[1:-1]
     port = int(port_text) if port_text.isdigit() else 0
     if not separator or not host or not 1 <= port <= 65535:
         # A typo in the setting must never read as "the platform is cut off".

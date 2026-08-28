@@ -339,3 +339,54 @@ class TestPlatformEgressProbe:
             ]["checks"]
             missing = declared - set(labels)
             assert not missing, f"{locale}: no label for {sorted(missing)}"
+
+
+@pytest.mark.unit
+class TestIpv6BracketStripping:
+    """Brackets are the standard spelling and getaddrinfo refuses them.
+
+    Measured 2026-08-28: `[::1]` resolved on Windows and raised `gaierror` on
+    the Linux CI runner — i.e. on the platform that runs in production, where a
+    bracketed target would have been reported as "the platform is cut off"
+    rather than reached. The probe therefore strips them itself.
+    """
+
+    @pytest.mark.parametrize(
+        ("target", "expected_host", "expected_port"),
+        [
+            ("[::1]:8443", "::1", 8443),
+            ("[2a00:1450:400c:c06::5f]:443", "2a00:1450:400c:c06::5f", 443),
+            ("example.test:443", "example.test", 443),
+        ],
+    )
+    async def test_the_host_reaching_getaddrinfo_is_bracket_free(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        target: str,
+        expected_host: str,
+        expected_port: int,
+    ) -> None:
+        import asyncio
+
+        from src.core.config import settings
+
+        seen: dict[str, object] = {}
+
+        class _Writer:
+            def close(self) -> None:
+                return None
+
+            async def wait_closed(self) -> None:
+                return None
+
+        async def _capture(host: str, port: int, **_kwargs: object) -> tuple[object, object]:
+            seen["host"], seen["port"] = host, port
+            return object(), _Writer()
+
+        monkeypatch.setattr(settings, "diagnostics_egress_probe_target", target, raising=False)
+        monkeypatch.setattr(asyncio, "open_connection", _capture)
+
+        status, _value, _detail = await engine_module._probe_platform_egress()
+
+        assert status is CheckStatus.OK
+        assert seen == {"host": expected_host, "port": expected_port}
