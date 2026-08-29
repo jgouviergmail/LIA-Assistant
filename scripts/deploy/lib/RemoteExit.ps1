@@ -21,7 +21,18 @@
 # la consomment (deploy-prod.ps1, demo-prod.ps1) ; deux copies auraient diverge.
 # ============================================================================
 
-Set-StrictMode -Version Latest
+# NO `Set-StrictMode` HERE, and that is deliberate.
+#
+# `Set-StrictMode` is scope-based, and dot-sourcing executes a file's statements
+# in the CALLER's scope. Setting it here rewrote the semantics of the 1000-line
+# driver that loads this library: measured 2026-08-29 on a real deployment, it
+# killed `deploy-prod.ps1` at step 5 on the read `($null -eq $IsWindows)` —
+# the driver's own Windows PowerShell 5.1 compatibility idiom, since `$IsWindows`
+# simply does not exist on 5.1.
+#
+# The strictness this library wants for ITSELF is set by its test file, where it
+# applies to the test scope. `RemoteExit.Tests.ps1` also guards this file against
+# the line coming back.
 
 function Get-RemoteExitVerdict {
     <#

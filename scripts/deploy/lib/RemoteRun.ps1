@@ -20,7 +20,10 @@
 # rediriges.
 # ============================================================================
 
-Set-StrictMode -Version Latest
+# NO `Set-StrictMode` HERE — see the same note in `RemoteExit.ps1`. Dot-sourcing
+# applies it to the CALLER's scope, and it took down a real deployment at step 5
+# by turning the driver's `$IsWindows` compatibility read into an error. The
+# strictness is set by `RemoteRun.Tests.ps1`, which also guards this file.
 
 # Ecrit par le wrapper distant quand le verrou est deja tenu. Ce n'est pas un
 # code de sortie : un deploiement refuse n'a pas echoue, il n'a pas eu lieu.

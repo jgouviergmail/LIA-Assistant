@@ -20,6 +20,10 @@
 #Requires -Version 7.0
 
 BeforeAll {
+    # The strictness the library wants for itself: set HERE, where it
+    # applies to the test scope, instead of at the library's file scope,
+    # where dot-sourcing would impose it on every caller.
+    Set-StrictMode -Version Latest
     . (Join-Path $PSScriptRoot "RemoteRun.ps1")
 }
 
@@ -328,5 +332,45 @@ Describe "Invoke-RemoteDetached -- la machine a etats" {
             [Convert]::FromBase64String($exec.Calls[1]))
         $pollPayload | Should -Match "flock -n"
         $pollPayload | Should -Not -Match "pgrep"
+    }
+}
+
+# ============================================================================
+# A library must not change the strictness of the script that loads it.
+# ============================================================================
+# `Set-StrictMode` is scope-based and dot-sourcing runs a file's statements in
+# the CALLER's scope, so the line makes the LOADER strict — all of it.
+#
+# Cost, measured on a real deployment on 2026-08-29: `deploy-prod.ps1` died at
+# step 5 reading `($null -eq $IsWindows)`, its own Windows PowerShell 5.1
+# compatibility idiom (`$IsWindows` does not exist on 5.1). Production was
+# untouched — the driver had not reached the remote step — and SEC-040 scrubbed
+# the decrypted secret on the way out, which is the safety net doing its job on
+# its first real failure.
+#
+# The guard probes the CLASS rather than that symptom. Asserting on `$IsWindows`
+# would pass here forever: this suite runs under pwsh 7, where it is defined.
+# Reading a name that is undefined by construction fails on every edition.
+Describe "the library does not make its loader strict" {
+    It "leaves an undefined variable readable in the caller's scope" {
+        $probe = {
+            # Start from a NON-strict scope, which is the driver's situation:
+            # `BeforeAll` above made this suite strict on purpose, and without
+            # this reset the probe would throw whatever the library does.
+            Set-StrictMode -Off
+            . (Join-Path $PSScriptRoot "RemoteRun.ps1")
+            # Undefined by construction. Without a strict-mode leak this is
+            # $null; with one, it throws — which is exactly what took the
+            # deployment down, one scope away.
+            $null -eq $lia_probe_variable_that_is_never_defined
+        }
+        { & $probe } | Should -Not -Throw
+    }
+
+    It "does not call Set-StrictMode at file scope" {
+        # The readable half of the same rule: a reviewer adding the line back
+        # should be told why it cannot live here.
+        $source = Get-Content (Join-Path $PSScriptRoot "RemoteRun.ps1") -Raw
+        $source | Should -Not -Match "(?m)^Set-StrictMode"
     }
 }
