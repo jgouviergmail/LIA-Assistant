@@ -11,29 +11,29 @@
 --no-binary urllib3-future
 
 # Core Framework
-fastapi==0.136.3
-uvicorn[standard]==0.48.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
 
 # Database
-sqlalchemy[asyncio]==2.0.50
+sqlalchemy[asyncio]==2.0.52
 asyncpg==0.31.0
 psycopg[binary]==3.3.4  # PostgreSQL adapter v3 (modern, for LangGraph checkpointer & SQLAlchemy)
 psycopg-pool==3.3.1  # Async connection pool for LangGraph checkpointer & store (ADR-111; pinned: direct import)
-alembic==1.18.4
-pgvector==0.4.2
+alembic==1.19.1
+pgvector==0.5.0
 
 # Cache & Session
-redis==8.0.1
+redis==8.1.0
 
 # Configuration
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 pydantic==2.13.4
 jinja2==3.1.6  # Template engine for orchestration queries
-pydantic-settings==2.14.2  # GHSA-4xgf-cpjx-pc3j fix
+pydantic-settings==2.15.0  # GHSA-4xgf-cpjx-pc3j fix
 pyyaml>=6.0.3  # YAML parsing for SKILL.md files (agentskills.io standard). >=6.0.3: security floor
 email-validator==2.3.0
 python-dateutil==2.9.0.post0  # Date utilities for billing cycle calculations
-tzdata==2026.2  # IANA timezone database for Windows/Python 3.9+
+tzdata==2026.3  # IANA timezone database for Windows/Python 3.9+
 
 # Authentication & Security
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
@@ -41,7 +41,7 @@ bcrypt==5.0.0  # direct import (core/security/utils.py); was transitive-only via
 webauthn==2.8.0  # Passkeys (WebAuthn/FIDO2) server-side ceremonies (security program D1); 3.x needs cryptography>=49
 pyotp==2.10.0  # TOTP second factor (security program D1, Lot 2)
 qrcode==8.2  # TOTP enrollment QR (PNG data-URI via existing Pillow; security program D1, Lot 2)
-python-multipart==0.0.31  # CVE-2024-53981, CVE-2026-24486, CVE-2026-53540 fixes (DoS)
+python-multipart==0.0.32  # CVE-2024-53981, CVE-2026-24486, CVE-2026-53540 fixes (DoS)
 # 48.0.1 -> 50.0.0: CVE-2026-69247 (Bleichenbacher oracle on PKCS#7 decryption,
 # fixed only in 50.0.0), CVE-2026-69248 (a wildcard SAN escapes an intermediate
 # CA's name constraints) and CVE-2026-69249 (exponential chain building on
@@ -49,17 +49,17 @@ python-multipart==0.0.31  # CVE-2024-53981, CVE-2026-24486, CVE-2026-53540 fixes
 # but webauthn, asyncssh and python-jose all sit on this library. The <50 ceiling
 # came from pyOpenSSL 26.2 (transitive via webauthn); 26.4 lifts it to <51, so the
 # resolver moves both together.
-cryptography==50.0.0  # CVE-2024-12797, CVE-2026-26007, GHSA-537c-gmf6-5ccf fixes
+cryptography==50.0.1  # CVE-2024-12797, CVE-2026-26007, GHSA-537c-gmf6-5ccf fixes
 
 # Observability
 structlog==25.5.0
-geoip2==5.2.0  # IP geolocation (DB-IP Lite MMDB — free, CC-BY-4.0)
-opentelemetry-api==1.42.1
-opentelemetry-sdk==1.42.1
-opentelemetry-instrumentation-fastapi==0.63b1
-opentelemetry-exporter-otlp==1.42.1
-prometheus-client==0.25.0
-langfuse==4.7.1  # Phase 6 - LLM Observability
+geoip2==5.3.0  # IP geolocation (DB-IP Lite MMDB — free, CC-BY-4.0)
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-instrumentation-fastapi==0.65b0
+opentelemetry-exporter-otlp==1.44.0
+prometheus-client==0.26.0
+langfuse==4.14.5  # Phase 6 - LLM Observability
 
 # NOTE: slowapi was removed with its unused limiter (SEC-016) — rate limiting
 # is the in-house Redis sliding window (infrastructure/rate_limiting).
@@ -84,7 +84,7 @@ aiohttp>=3.14.3
 # Web Page Content Extraction (evolution F1 — Web Fetch Tool)
 readability-lxml==0.8.4.1    # Mozilla Readability algorithm (article extraction)
 lxml_html_clean==0.4.5     # Required by readability-lxml (split from lxml 5.2+)
-markdownify==1.2.2        # HTML → Markdown conversion
+markdownify==1.2.3        # HTML → Markdown conversion
 
 # Text-to-Speech (Edge TTS - Microsoft neural voices, free)
 edge-tts==7.2.8
@@ -92,31 +92,31 @@ edge-tts==7.2.8
 # Speech-to-Text (Sherpa-onnx - Offline, multi-language STT)
 # Uses SenseVoiceSmall model: FR/EN/DE/ES/IT/ZH/JA/KO in a single model
 # Precompiled wheels available for AMD64 (dev) and ARM64 (Raspberry Pi prod)
-sherpa-onnx>=1.10.0
+sherpa-onnx>=1.13.6
 # Declared explicitly because sherpa-onnx wheel metadata is inconsistent across
 # platforms (armv7l wheel declares no deps), so uv's universal resolver misses
 # it. The runtime wheels require sherpa-onnx-core==<sherpa-onnx version>:
 # ALWAYS upgrade both together (task deps:upgrade -- sherpa-onnx sherpa-onnx-core)
-sherpa-onnx-core>=1.10.0
+sherpa-onnx-core>=1.13.6
 
 # Task Scheduling
-apscheduler==3.11.2
+apscheduler==3.11.3
 
 # AI/ML Stack - LangChain/LangGraph 1.x ecosystem (2026-08-16 upgrade: 5 months of
 # upstream fixes on components LIA runs in production — ToolRetryMiddleware retries
 # only retryable errors, interrupts propagate through ToolRetry, SummarizationMiddleware
 # preserves history on summary failure, nested-subgraph checkpoint_ns regression fixed,
 # subgraphs cancelled on stream abort. Full audit: docs/plans + ADR if promoted.)
-langchain-core==1.5.6  # >=1.5.6 required by langchain-openai 1.5.2 — COUPLED bump, move both or neither; reasoning_effort standard param
-langchain==1.3.15  # middleware fixes used by every built agent (ToolRetry retryable-only, interrupt propagation, Summarization history preservation, HITL gate silent failures)
+langchain-core==1.6.0  # >=1.5.6 required by langchain-openai 1.5.2 — COUPLED bump, move both or neither; reasoning_effort standard param
+langchain==1.3.17  # middleware fixes used by every built agent (ToolRetry retryable-only, interrupt propagation, Summarization history preservation, HITL gate silent failures)
 langchain-text-splitters==1.1.2  # RecursiveCharacterTextSplitter for RAG Spaces document chunking
-langchain-openai==1.5.2  # Requires langchain-core>=1.5.6 (COUPLED bump). Owns BaseChatOpenAI._get_request_payload, which _deepseek_patched.py overrides — gate any bump on the DeepSeek round-trip tests, not only on test_langchain_migration_compat
+langchain-openai==1.6.0  # Requires langchain-core>=1.5.6 (COUPLED bump). Owns BaseChatOpenAI._get_request_payload, which _deepseek_patched.py overrides — gate any bump on the DeepSeek round-trip tests, not only on test_langchain_migration_compat
 openai==2.54.0  # Last 2.x release. 3.x deliberately excluded: it defaults to HTTPX2 and stops installing httpx, which LIA pins and uses everywhere
 langgraph==1.2.11  # >=1.2.11 required by langchain 1.3.15; fixes nested-subgraph checkpoint_ns regression (present in 1.2.4) + subgraph cancellation on stream abort
 langgraph-checkpoint==4.2.0  # history-consistency fixes; opt-in omit_expired (not used — LIA retention is delete_thread-based)
 langgraph-prebuilt==1.1.0  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
 langgraph-checkpoint-postgres==3.1.2  # delta-history walk fix; 3.1.1 carried the PYSEC-2026-3635 namespace-leak fix
-tiktoken==0.13.0
+tiktoken==0.14.0
 
 # Hybrid Memory Search - BM25 keyword matching combined with semantic search
 rank-bm25==0.2.2  # Okapi BM25 algorithm for keyword-based retrieval
@@ -129,41 +129,41 @@ tenacity==9.1.4  # Retry with exponential backoff (used by compaction service)
 
 # LLM Provider Integrations
 langchain-deepseek==1.1.0  # content-block streaming v2. Still patched locally via _deepseek_patched.py: the #37178 reasoning_content round-trip fix is NOT in 1.1.0 (verified against the tag source, 2026-08-16)
-langchain-anthropic==1.5.6  # reasoning tokens in usage_metadata (ADR-220 accounting); Opus 5/Fable 5 model profiles. Requires anthropic>=0.120
-langchain-google-genai==4.3.4  # reasoning_effort standard param; new Gemini request rules. 4.3.0 removed the default temperature — no effect: LIA always passes it explicitly (adapter.py)
+langchain-anthropic==1.6.1  # reasoning tokens in usage_metadata (ADR-220 accounting); Opus 5/Fable 5 model profiles. Requires anthropic>=0.120
+langchain-google-genai==4.3.5  # reasoning_effort standard param; new Gemini request rules. 4.3.0 removed the default temperature — no effect: LIA always passes it explicitly (adapter.py)
 anthropic==0.122.0  # Anthropic SDK, floor >=0.120 required by langchain-anthropic 1.5.6 (no direct SDK import in src/)
 
 # MCP (Model Context Protocol) — evolution F2
-mcp>=2.0.0,<2.1.0  # SDK v2: speaks MCP 2026-07-28 (stateless) AND falls back to the legacy initialize handshake (mode="auto", dual-era — proven against a 1.28.1 server). v2 transports run on httpx2; client API is Client (ClientSession retired). <2.1.0: brand-new major, pin the minor and widen deliberately.
-httpx2>=2.5.0  # httpx 2.x line under its new import name — required by mcp v2 transports; LIA's MCP auth classes subclass httpx2.Auth. Coexists with httpx 0.x (distinct package).
+mcp>=2.1.1,<2.2.0  # SDK v2: speaks MCP 2026-07-28 (stateless) AND falls back to the legacy initialize handshake (mode="auto", dual-era — proven against a 1.28.1 server). v2 transports run on httpx2; client API is Client (ClientSession retired). <2.1.0: brand-new major, pin the minor and widen deliberately.
+httpx2>=2.12.0  # httpx 2.x line under its new import name — required by mcp v2 transports; LIA's MCP auth classes subclass httpx2.Auth. Coexists with httpx 0.x (distinct package).
 
 # Browser Automation — Interactive web browsing (evolution F7)
-playwright==1.60.0  # Headless Chromium for web interaction via accessibility tree
+playwright==1.62.0  # Headless Chromium for web interaction via accessibility tree
 
 # Push Notifications
-firebase-admin==7.4.0  # Firebase Cloud Messaging for push notifications
-pytz==2026.2  # Timezone handling for reminders
+firebase-admin==7.5.0  # Firebase Cloud Messaging for push notifications
+pytz==2026.3.post1  # Timezone handling for reminders
 
 # Channels — Multi-Channel Messaging (evolution F3)
-python-telegram-bot>=21.0  # Telegram Bot API (async, v21+)
+python-telegram-bot>=22.8  # Telegram Bot API (async, v21+)
 pydub>=0.25.1  # Audio format conversion for voice messages (OGG→PCM, requires ffmpeg)
 audioop-lts==0.2.2  # stdlib `audioop` was removed in Python 3.13; pydub imports it at module load (Telegram voice OGG→PCM would break silently without this shim)
 
 # Apple iCloud Connectors — Email (IMAP), Calendar (CalDAV), Contacts (CardDAV)
-caldav>=3.0.1  # CalDAV client with async support (caldav.aio; the 2.x [async] extra was folded into the base package)
-imap-tools>=1.7.0  # IMAP email client (synchronous, wrapped via asyncio.to_thread)
+caldav>=3.2.1  # CalDAV client with async support (caldav.aio; the 2.x [async] extra was folded into the base package)
+imap-tools>=1.15.0  # IMAP email client (synchronous, wrapped via asyncio.to_thread)
 vobject>=0.9.8  # vCard/vCalendar parser (iCloud uses vCard 3.0)
 
 # Attachments — File Uploads & Vision Analysis (evolution F4)
 Pillow>=11.0.0  # Image validation, HEIC→JPEG conversion
 filetype>=1.2.0  # MIME detection by magic bytes (pure Python, ARM64 native)
-PyMuPDF>=1.25.0  # PDF text extraction (lightweight, ARM64 compatible)
+PyMuPDF>=1.28.2  # PDF text extraction (lightweight, ARM64 compatible)
 python-docx>=1.1.0  # DOCX text extraction for RAG Spaces
 python-pptx>=1.0.2  # PPTX text extraction for RAG Spaces. >=1.0.2: security floor
 openpyxl>=3.1.0  # XLSX text extraction for RAG Spaces
-numpy>=2.0  # Vector maths: semantic tool selection, embeddings, STT — imported by 4 modules and previously only transitive
+numpy>=2.5.2  # Vector maths: semantic tool selection, embeddings, STT — imported by 4 modules and previously only transitive
 pandas>=2.2  # ADR-249: the ephemeral-script sandbox runs on this image, and data combination is what models write pandas for (numpy/dateutil/pytz already present)
-striprtf>=0.0.26  # RTF text extraction for RAG Spaces (pure Python)
+striprtf>=0.0.33  # RTF text extraction for RAG Spaces (pure Python)
 
 # Skills — used by bundled system skills (scripts/)
 segno>=1.6.6  # Pure-Python QR code generator (no C deps, tiny) — qr-code skill. >=1.6.6: security floor
