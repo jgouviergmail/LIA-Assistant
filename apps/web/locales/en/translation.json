@@ -4415,6 +4415,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_36_0": {
+          "title": "v1.36.0 — 🧮 LIA can now compute instead of guessing",
+          "date": "August 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🧮 A short script instead of mental arithmetic</b> — an AI answers questions like \"how long are my layovers in total\", \"which of these people appear in both lists\" or \"what does this add up to across timezones\" <i>plausibly</i>, and nothing in the answer shows you it is wrong. When a step needs that kind of work, LIA now writes a few lines of Python and runs them in a locked-down sandbox — no network, no access to your data beyond what the turn already collected, a throwaway container each time — and answers with a result you could check. It stays a complement: most answers never need it, and it is deliberately told not to use it for anything it can answer directly. Administrators see every script that ran, in the debug panel."
+          }
+        },
         "v1_35_0": {
           "title": "v1.35.0 — 🔎 A search that gets cut short now says so",
           "date": "August 2026",

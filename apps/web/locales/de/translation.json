@@ -4406,6 +4406,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_36_0": {
+          "title": "v1.36.0 — 🧮 LIA rechnet jetzt, statt zu raten",
+          "date": "August 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🧮 Ein kurzes Skript statt Kopfrechnen</b> — eine KI beantwortet Fragen wie „wie lange dauern meine Zwischenstopps insgesamt“ oder „welche dieser Personen stehen auf beiden Listen“ <i>plausibel</i>, und nichts in der Antwort zeigt Ihnen, dass sie falsch ist. Wenn ein Schritt solche Arbeit braucht, schreibt LIA jetzt ein paar Zeilen Python und führt sie in einer abgeschotteten Sandbox aus — kein Netzwerk, kein Zugriff über die bereits gesammelten Daten hinaus, jedes Mal ein Wegwerf-Container — und antwortet mit einem überprüfbaren Ergebnis. Es bleibt eine Ergänzung: Die meisten Antworten brauchen es nicht. Administratoren sehen jedes ausgeführte Skript im Debug-Panel."
+          }
+        },
         "v1_35_0": {
           "title": "v1.35.0 — 🔎 Eine abgebrochene Suche sagt es jetzt",
           "date": "August 2026",

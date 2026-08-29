@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.36.0] - 2026-08-29
+
+**L'assistante peut désormais écrire un script et l'exécuter pour répondre.** Un modèle répond de façon *plausible* à l'arithmétique sur beaucoup de lignes, aux jointures par clé, aux durées entre fuseaux, à la déduplication — et rien, dans la réponse, ne permet de voir que c'est faux. En mode ReAct, quand une étape demande ce genre de travail, LIA écrit maintenant quelques lignes de Python et les exécute dans un bac à sable isolé, puis répond avec un résultat vérifiable au lieu d'un calcul de tête (ADR-249).
+
+**Rien de tout cela n'a exigé un nouveau bac à sable.** Celui des skills existait déjà, durci (SEC-001) : un conteneur jetable par exécution, sans socket Docker, sans réseau, système de fichiers en lecture seule, uid non privilégié, toutes capacités abandonnées, mémoire, CPU et durée bornés. Mesuré sur le Raspberry Pi de production **avant** toute décision : 279 ms de démarrage à froid, 459 ms avec numpy — moins de 2 % du budget de 30 s. La seule vraie question était donc : le **modèle** peut-il écrire ce qui y tourne, et sous quelles règles.
+
+### Added
+
+- **`run_python_tool`** (ReAct uniquement) : l'agent écrit un script court et reçoit sa sortie. C'est un **complément, jamais une obligation** — le prompt lui dit ce qu'il fait mal et l'invite à calculer là, et lui dit tout aussi explicitement de ne pas s'en servir pour une recherche simple, un calcul à deux nombres ou ce qu'il sait répondre directement.
+- **Les données du tour arrivent sur stdin**, en JSON : ce que les outils ont déjà collecté est référencé par le script au lieu d'être recopié dans sa source — recopier paierait les tokens deux fois et tronquerait précisément les gros cas qui justifient la fonctionnalité.
+- **Les scripts sont visibles des administrateurs**, dans le panneau de debug : code, intention déclarée, verdict et tête de sortie. Nulle part ailleurs — les cacher n'achèterait aucune sécurité (le modèle les a écrits) et coûterait toute la vérifiabilité.
+- `PYTHON_SANDBOX_TOOL_ENABLED` (défaut vrai, interrupteur d'urgence), un plafond de scripts par tour et une limite de débit par utilisateur.
+- **`execution_modes` sur les manifestes d'outils** : une restriction de mode devient un contrat que tout lecteur applique, avec repli ouvert pour les manifestes qui ne déclarent rien.
+- ADR-249, qui consigne les décisions, les mesures et l'exposition résiduelle assumée.
+
+### Changed
+
+- **`pandas` est ajouté et `numpy` enfin déclaré.** Décidé sur mesure, contre l'intuition de départ : l'image fait 3,76 Go donc pandas pèse ~1,5 %, et **toutes** ses dépendances dures étaient déjà présentes — le verrou s'est résolu sans montée de numpy. Au passage, `numpy` était importé par quatre modules applicatifs sans figurer dans aucun manifeste : une vraie violation d'entrée de build, corrigée.
+- Le point d'entrée d'exécution du bac à sable est partagé entre skills et scripts éphémères : **une seule implémentation**, donc un seul jeu de drapeaux d'isolation — impossible de durcir un chemin et d'oublier l'autre.
+
+### Security
+
+- **Le mode bac à sable hérité est refusé** pour du code écrit par un modèle : il n'isole que si l'API tourne en root, compromis acceptable pour un skill que l'utilisateur a installé, inacceptable pour du code produit en lisant un email. Échec fermé, jamais de repli silencieux.
+- **Double interdiction du pipeline** : le manifeste retire l'outil du catalogue du planner ET l'outil revérifie le mode à l'appel. Une seule des deux aurait laissé le planner planifier une étape refusée ensuite — une impasse inventée pour l'utilisateur.
+- La sortie du script est marquée **`untrusted`** avant de rentrer dans le contexte : c'est du code écrit par un modèle sur des données de tiers.
+
+### Tests
+
+- 33 tests : refus hors ReAct, drapeau, budget par tour, transmission des données, sortie marquée, trace d'erreur rendue au modèle pour réparation, refus du bac à sable hérité, bornes de source et d'entrée, filtre de mode appliqué par ses trois lecteurs, et rendu admin des scripts.
+
 ## [1.35.0] - 2026-08-28
 
 **« Je plonge dans tes emails… donne-moi une minute, je te sors ça. » — et le tour s'arrêtait là.** Les logs contredisent la lecture évidente : LIA n'avait pas refusé d'agir, elle avait travaillé six itérations, appelé un outil à chacune, et s'était fait couper en plein vol par son budget. Ce que l'utilisateur recevait n'était pas un refus, c'était une **pensée en cours servie comme réponse** — avec, en prime, des appels d'outils abandonnés en silence et rien pour dire que la recherche avait été interrompue. Cette version corrige les trois défauts que ce seul tour a révélés (ADR-248).

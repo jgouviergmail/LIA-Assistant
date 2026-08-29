@@ -422,6 +422,20 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         for _diag_manifest in DIAGNOSTICS_TOOL_MANIFESTS:
             registry.register_tool_manifest(_diag_manifest)
 
+    # Ephemeral Python: the agent's calculator (ADR-249, ReAct only — the
+    # manifest carries the restriction, the tool enforces it at call time).
+    if getattr(_get_settings(), "python_sandbox_tool_enabled", False):
+        from src.domains.agents.python_sandbox.catalogue_manifests import (
+            PYTHON_SANDBOX_CATALOGUE_MANIFESTS,
+        )
+        from src.domains.agents.registry.agent_manifest_definitions import (
+            PYTHON_SANDBOX_AGENT_MANIFEST,
+        )
+
+        registry.register_agent_manifest(PYTHON_SANDBOX_AGENT_MANIFEST)
+        for _py_manifest in PYTHON_SANDBOX_CATALOGUE_MANIFESTS:
+            registry.register_tool_manifest(_py_manifest)
+
     # Telephony: agentic outbound calls (per-user connector, feature-flagged)
     if getattr(_get_settings(), "telephony_enabled", False):
         from src.domains.agents.telephony.catalogue_manifests import (

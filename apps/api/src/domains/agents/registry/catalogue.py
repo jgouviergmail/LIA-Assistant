@@ -32,11 +32,16 @@ Usage:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from src.core.constants import DEFAULT_TOOL_TIMEOUT_MS
+from src.core.constants import (
+    DEFAULT_TOOL_TIMEOUT_MS,
+    EXECUTION_MODE_PIPELINE,
+    EXECUTION_MODE_REACT,
+)
 from src.domains.agents.context.schemas import ContextSaveMode
 
 # =============================================================================
@@ -482,6 +487,11 @@ class ToolManifest:
     permissions: PermissionProfile
 
     # Behavior
+    #: Execution modes this tool may run in (ADR-249). Both by default; a
+    #: restriction is a CONTRACT the planner catalogue reads, not a convention.
+    execution_modes: frozenset[str] = field(
+        default_factory=lambda: frozenset({EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT})
+    )
     max_iterations: int = 1
     supports_dry_run: bool = False
     reference_fields: list[str] = field(default_factory=list)
@@ -842,6 +852,31 @@ class AgentManifestNotFound(CatalogueError):
     def __init__(self, agent_name: str) -> None:
         self.agent_name = agent_name
         super().__init__(f"Agent manifest not found: {agent_name}")
+
+
+def manifests_for_mode(manifests: Iterable[Any], mode: str) -> list[Any]:
+    """Keep the manifests allowed in one execution mode (ADR-249).
+
+    A restriction that lived only in the tool's own refusal would let the
+    planner SEE a tool it cannot run, plan a step with it, and be refused at
+    execution — an invented dead end. Every reader of the manifest list applies
+    this filter, which is why it has exactly one implementation.
+
+    Fails OPEN: a manifest with no declared modes (older, third-party) is kept.
+
+    Args:
+        manifests: Tool manifests to filter.
+        mode: ``EXECUTION_MODE_PIPELINE`` or ``EXECUTION_MODE_REACT``.
+
+    Returns:
+        The manifests this mode may use, in order.
+    """
+    kept: list[Any] = []
+    for manifest in manifests:
+        modes = getattr(manifest, "execution_modes", None)
+        if not modes or mode in modes:
+            kept.append(manifest)
+    return kept
 
 
 class ToolManifestNotFound(CatalogueError):

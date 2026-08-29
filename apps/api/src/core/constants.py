@@ -5166,6 +5166,14 @@ DEVOPS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 600
 DEFAULT_EXECUTION_MODE: str = "pipeline"
 EXECUTION_MODE_PIPELINE: str = "pipeline"
 EXECUTION_MODE_REACT: str = "react"
+
+# ADR-249 — ephemeral Python in the existing skills sandbox. The agent's owning
+# name is its own so the tool never borrows a domain agent's identity in the
+# metrics or the catalogue.
+PYTHON_SANDBOX_AGENT_NAME: str = "python_sandbox_agent"
+PYTHON_SANDBOX_MAX_RUNS_PER_TURN_DEFAULT: int = 3
+PYTHON_SANDBOX_RATE_LIMIT_CALLS_DEFAULT: int = 20
+PYTHON_SANDBOX_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 300
 REACT_AGENT_MAX_ITERATIONS_DEFAULT: int = 90
 REACT_AGENT_TIMEOUT_SECONDS_DEFAULT: int = 300
 

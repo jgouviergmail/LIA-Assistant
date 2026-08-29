@@ -30,9 +30,14 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.config import settings
-from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX, MCP_USER_TOOL_NAME_PREFIX
+from src.core.constants import (
+    EXECUTION_MODE_REACT,
+    MCP_ITERATIVE_TASK_SUFFIX,
+    MCP_USER_TOOL_NAME_PREFIX,
+)
 from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence
+from src.domains.agents.registry.catalogue import manifests_for_mode
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
 
@@ -75,7 +80,7 @@ class ReactToolSelector:
         """
         # Use per-request manifests (filtered by active connectors + MCP settings)
         # Same source of truth as pipeline: build_request_tool_manifests()
-        available_manifests = get_request_tool_manifests()
+        available_manifests = manifests_for_mode(get_request_tool_manifests(), EXECUTION_MODE_REACT)
 
         priority_agents = self._domain_priority_agents(intelligence)
         wrapped_tools: list[ReactToolWrapper] = []

@@ -1156,12 +1156,20 @@ export interface SemanticValidationMetrics {
 /**
  * ReactExecutionMetrics - The ReAct loop of the turn (v3.4, ADR-070)
  */
+export interface EphemeralScript {
+  purpose: string; // One sentence, written by the model
+  code: string; // The source it ran — ADMIN SURFACE ONLY (ADR-249)
+  success: boolean;
+  output_head: string; // Head of stdout, or the traceback on failure
+}
+
 export interface ReactExecutionMetrics {
   iterations: number;
   max_iterations: number; // Published enforced bound (settings)
   elapsed_seconds: number;
   tool_names: string[]; // Tools available to the loop
   executed_tool_calls: number; // Distinct tool calls actually executed
+  scripts?: EphemeralScript[]; // Sandboxed scripts this turn (ADR-249)
 }
 
 /**

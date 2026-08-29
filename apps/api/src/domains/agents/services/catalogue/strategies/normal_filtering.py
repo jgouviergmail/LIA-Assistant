@@ -107,9 +107,11 @@ class NormalFilteringStrategy:
         # Build ToolFilter from intelligence
         tool_filter = ToolFilter.from_intelligence(intelligence)
 
+        from src.core.constants import EXECUTION_MODE_PIPELINE
         from src.core.context import get_request_tool_manifests
+        from src.domains.agents.registry.catalogue import manifests_for_mode
 
-        all_manifests = get_request_tool_manifests()
+        all_manifests = manifests_for_mode(get_request_tool_manifests(), EXECUTION_MODE_PIPELINE)
 
         # Extract semantic scores for filtering (exclude low-scoring tools)
         tool_scores: dict[str, float] = {}

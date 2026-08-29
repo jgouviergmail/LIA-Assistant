@@ -252,6 +252,9 @@ from src.core.constants import (
     PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT,
     PLANNER_TIMEOUT_SECONDS,
     PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT,
+    PYTHON_SANDBOX_MAX_RUNS_PER_TURN_DEFAULT,
+    PYTHON_SANDBOX_RATE_LIMIT_CALLS_DEFAULT,
+    PYTHON_SANDBOX_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     QUERY_ENGINE_SIMILARITY_THRESHOLD_DEFAULT,
     REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT,
     REACT_AGENT_MAX_ITERATIONS_DEFAULT,
@@ -605,6 +608,30 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=50,
         description="Adaptive budget of a single-domain query (ADR-238).",
+    )
+    python_sandbox_tool_enabled: bool = Field(
+        default=True,
+        description=(
+            "Let the ReAct agent write and run short Python scripts in the "
+            "existing skills sandbox (ADR-249). The emergency switch: off means "
+            "the tool does not exist at runtime."
+        ),
+    )
+    python_sandbox_max_runs_per_turn: int = Field(
+        default=PYTHON_SANDBOX_MAX_RUNS_PER_TURN_DEFAULT,
+        ge=1,
+        le=20,
+        description="Sandboxed script runs one turn may spend (bounds a repair loop).",
+    )
+    python_sandbox_rate_limit_calls: int = Field(
+        default=PYTHON_SANDBOX_RATE_LIMIT_CALLS_DEFAULT,
+        ge=1,
+        description="Max sandboxed script runs per user per window.",
+    )
+    python_sandbox_rate_limit_window: int = Field(
+        default=PYTHON_SANDBOX_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+        ge=1,
+        description="Rate-limit window for sandboxed script runs, in seconds.",
     )
     react_progress_extension_enabled: bool = Field(
         default=True,

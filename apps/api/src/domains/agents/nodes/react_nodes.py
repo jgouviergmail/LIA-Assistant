@@ -506,6 +506,12 @@ async def react_setup_node(
     # Build system prompt
     system_prompt = _build_system_prompt(state)
 
+    # ADR-249: a new turn starts with a full ephemeral-script budget and no
+    # data carried over from the previous one.
+    from src.domains.agents.tools.python_sandbox_tools import reset_turn_budget
+
+    reset_turn_budget()
+
     # Context blocks, in injection ORDER — the order is meaningful. Standing
     # rules lead: they govern how everything after them is used. Each builder is
     # best-effort and returns None when it has nothing to say (zero tokens).
@@ -979,6 +985,13 @@ async def react_execute_tools_node(
     )
 
     result: dict[str, Any] = {"messages": new_messages, "react_call_digests": call_digests}
+
+    # ADR-249: what the sandbox ran this turn, for the ADMIN debug panel only.
+    from src.domains.agents.tools.python_sandbox_tools import drain_turn_scripts
+
+    scripts = drain_turn_scripts()
+    if scripts:
+        result["react_scripts"] = scripts
     if productive_calls:
         # ADR-248: one PRODUCTIVE iteration, whatever the number of calls in it.
         result["react_productive_iterations"] = (
@@ -1000,6 +1013,12 @@ async def react_execute_tools_node(
         existing_turn_registry = dict(state.get("current_turn_registry") or {})
         existing_turn_registry.update(collected_registry)
         result["current_turn_registry"] = existing_turn_registry
+        # ADR-249: hand the turn's collected items to the sandbox tool, so a
+        # script REFERENCES the data instead of the model re-typing it into the
+        # source — which would pay the tokens twice and truncate the big cases.
+        from src.domains.agents.tools.python_sandbox_tools import set_turn_data
+
+        set_turn_data(existing_turn_registry)
 
     # Draft HITL handoff (parity with the pipeline draft_critique flow).
     # When a mutation tool prepared a draft, hand it off to the shared

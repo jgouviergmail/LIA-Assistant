@@ -109,6 +109,9 @@ def build_react_execution(debug_metrics: dict[str, Any], state: dict[str, Any] |
             "elapsed_seconds": float(state.get("react_elapsed_seconds") or 0.0),
             "tool_names": list(state.get("react_tool_names") or []),
             "executed_tool_calls": len(state.get("react_call_digests") or {}),
+            # ADR-249 — the code the model wrote, admin surface only (owner
+            # arbitration): it never reaches the answer.
+            "scripts": list(state.get("react_scripts") or []),
         }
     except (AttributeError, TypeError, ValueError) as err:
         logger.debug("debug_metrics_react_execution_failed", error=str(err))

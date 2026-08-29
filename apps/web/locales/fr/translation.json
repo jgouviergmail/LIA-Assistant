@@ -4420,6 +4420,14 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_36_0": {
+          "title": "v1.36.0 — 🧮 LIA calcule au lieu de deviner",
+          "date": "Août 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🧮 Un court script plutôt qu'un calcul de tête</b> — une IA répond de façon <i>plausible</i> à « combien durent mes escales au total », « lesquelles de ces personnes figurent dans les deux listes » ou « qu'est-ce que ça donne en tenant compte des fuseaux » — et rien, dans la réponse, ne vous montre que c'est faux. Quand une étape demande ce genre de travail, LIA écrit désormais quelques lignes de Python et les exécute dans un bac à sable verrouillé — sans réseau, sans accès à vos données au-delà de ce que le tour a déjà collecté, un conteneur jetable à chaque fois — puis répond avec un résultat vérifiable. Cela reste un complément : la plupart des réponses n'en ont pas besoin, et il lui est explicitement demandé de ne pas s'en servir pour ce qu'elle sait répondre directement. Les administrateurs voient chaque script exécuté, dans le panneau de débogage."
+          }
+        },
         "v1_35_0": {
           "title": "v1.35.0 — 🔎 Une recherche interrompue le dit désormais",
           "date": "Août 2026",

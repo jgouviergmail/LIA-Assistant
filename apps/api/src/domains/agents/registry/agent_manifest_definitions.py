@@ -462,6 +462,24 @@ DIAGNOSTICS_AGENT_MANIFEST = AgentManifest(
     updated_at=datetime.now(UTC),
 )
 
+PYTHON_SANDBOX_AGENT_MANIFEST = AgentManifest(
+    name="python_sandbox_agent",
+    description=(
+        "Ephemeral Python execution in an isolated sandbox (ADR-249). Runs a short "
+        "script the assistant writes to compute what a language model computes "
+        "badly: arithmetic over many rows, joins and deduplication on a key, "
+        "durations across timezones, statistics. No network, no database, fresh "
+        "container each run. ReAct mode only."
+    ),
+    tools=["run_python_tool"],
+    max_parallel_runs=1,
+    default_timeout_ms=settings.default_tool_timeout_ms,
+    prompt_version="v1",
+    owner_team="Team AI",
+    version="1.0.0",
+    updated_at=datetime.now(UTC),
+)
+
 __all__ = [
     "CONTACT_AGENT_MANIFEST",
     "CONTEXT_AGENT_MANIFEST",
@@ -481,4 +499,5 @@ __all__ = [
     "WEB_FETCH_AGENT_MANIFEST",
     "DEVOPS_AGENT_MANIFEST",
     "DIAGNOSTICS_AGENT_MANIFEST",
+    "PYTHON_SANDBOX_AGENT_MANIFEST",
 ]

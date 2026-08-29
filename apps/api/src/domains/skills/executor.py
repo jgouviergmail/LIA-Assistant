@@ -319,6 +319,52 @@ class SkillScriptExecutor:
             logger.warning("skill_script_unreadable", skill_name=skill_name, error=str(exc))
             return ScriptResult(success=False, output="", error="Script could not be read")
 
+        return await cls._run_source_in_container(
+            source=source,
+            label=skill_name,
+            origin=script_name,
+            stdin_payload=stdin_payload,
+            timeout=timeout,
+            max_output=max_output,
+            user_id=user_id,
+            settings=settings,
+        )
+
+    @classmethod
+    async def _run_source_in_container(
+        cls,
+        *,
+        source: str,
+        label: str,
+        origin: str,
+        stdin_payload: str,
+        timeout: int,
+        max_output: int,
+        user_id: str | None,
+        settings: Settings,
+    ) -> ScriptResult:
+        """Run Python SOURCE in a throwaway container (SEC-001).
+
+        The single place a sandboxed program is actually spawned, whether its
+        source came from an installed skill or from a model-authored ephemeral
+        script. One implementation means one set of isolation flags: a future
+        edit cannot harden one path and forget the other.
+
+        Args:
+            source: Python source to execute.
+            label: Short identity, exposed as ``SKILL_NAME`` and logged.
+            origin: What produced the source, for logs and errors.
+            stdin_payload: JSON payload handed to the program on stdin.
+            timeout: Wall-clock budget in seconds.
+            max_output: Maximum stdout kept, in bytes.
+            user_id: Caller, for the audit trail.
+            settings: Application settings.
+
+        Returns:
+            The result, or a failure describing why it could not run.
+        """
+        skill_name = label
+        script_name = origin
         if len(source.encode("utf-8")) > SKILLS_SCRIPT_SANDBOX_MAX_SOURCE_BYTES:
             # Fail loudly rather than hand the daemon a truncated program.
             return ScriptResult(
@@ -431,6 +477,77 @@ class SkillScriptExecutor:
             sandbox="container",
         )
         return ScriptResult(success=True, output=output, execution_time_ms=elapsed_ms)
+
+    @classmethod
+    async def execute_source(
+        cls,
+        *,
+        source: str,
+        payload: dict[str, Any],
+        label: str,
+        timeout_seconds: int | None = None,
+        user_id: str | None = None,
+    ) -> ScriptResult:
+        """Run model-authored Python in the sandbox, with no file and no skill.
+
+        An installed skill is code the user chose; this is code an LLM wrote
+        while reading third-party content, so an email can reach the
+        interpreter. The isolation that answers that is the one SEC-001 already
+        provides — no network, no credentials, read-only rootfs, uid 65534, all
+        capabilities dropped, throwaway container — and this method adds none of
+        its own. It adds exactly one rule:
+
+        **the legacy in-process mode is refused.** That mode only isolates when
+        the API runs as root, a trade-off accepted for code the user installed
+        deliberately and NOT acceptable for code a model produced. Fail closed.
+
+        Args:
+            source: Python source to run.
+            payload: JSON-serialisable data handed to the program on stdin.
+            label: Short identity for logs and the container's ``SKILL_NAME``.
+            timeout_seconds: Wall-clock budget (defaults to the sandbox's).
+            user_id: Caller, for the audit trail.
+
+        Returns:
+            The result, or a failure describing why it could not run.
+        """
+        from src.core.config import get_settings
+
+        settings = get_settings()
+        if str(settings.skills_script_sandbox).lower() != "container":
+            logger.warning(
+                "ephemeral_script_refused_no_container_sandbox",
+                sandbox=settings.skills_script_sandbox,
+                user_id=user_id,
+            )
+            return ScriptResult(
+                success=False,
+                output="",
+                error=(
+                    "Ephemeral scripts require the container sandbox; the current "
+                    "sandbox mode cannot isolate model-authored code."
+                ),
+            )
+
+        stdin_payload = json.dumps(payload, ensure_ascii=False, default=str)
+        max_input = settings.skills_script_max_input_kb * 1024
+        if len(stdin_payload.encode()) > max_input:
+            return ScriptResult(
+                success=False,
+                output="",
+                error=f"Input exceeds {settings.skills_script_max_input_kb}KB",
+            )
+
+        return await cls._run_source_in_container(
+            source=source,
+            label=label,
+            origin="ephemeral",
+            stdin_payload=stdin_payload,
+            timeout=timeout_seconds or settings.skills_script_timeout_seconds,
+            max_output=settings.skills_script_max_output_kb * 1024,
+            user_id=user_id,
+            settings=settings,
+        )
 
     @classmethod
     async def execute(

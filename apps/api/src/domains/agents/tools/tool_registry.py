@@ -397,6 +397,12 @@ def _import_tool_modules() -> None:
     if getattr(get_settings(), "devops_enabled", False):
         tool_modules.append(("src.domains.agents.tools.devops_tools", "devops_tools"))
 
+    # Ephemeral Python: the agent's calculator (ADR-249, ReAct only).
+    if getattr(get_settings(), "python_sandbox_tool_enabled", False):
+        tool_modules.append(
+            ("src.domains.agents.tools.python_sandbox_tools", "python_sandbox_tools")
+        )
+
     # Peers: user-to-user connections (relay drafts + shared-domain reads)
     if getattr(get_settings(), "peers_enabled", False):
         tool_modules.append(("src.domains.agents.tools.peers_tools", "peers_tools"))

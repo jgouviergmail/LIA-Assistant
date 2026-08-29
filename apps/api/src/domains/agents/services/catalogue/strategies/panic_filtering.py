@@ -157,9 +157,11 @@ class PanicFilteringStrategy:
         # KISS: Replicate the filtering logic from normal strategy
         # but use expanded_filter instead of building from intelligence
 
+        from src.core.constants import EXECUTION_MODE_PIPELINE
         from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
+        from src.domains.agents.registry.catalogue import manifests_for_mode
 
-        all_manifests = get_request_tool_manifests()
+        all_manifests = manifests_for_mode(get_request_tool_manifests(), EXECUTION_MODE_PIPELINE)
 
         # Panic mode: force-include ALL user MCP domains for safety net
         user_ctx = user_mcp_tools_ctx.get()

@@ -294,6 +294,17 @@ Both modes converge on the same Response Node and stream via SSE. The `react_age
    reaches the response node can reword a promise, never turn it into an action.
    Context blocks live in `nodes/react_context.py`, one best-effort builder each.
 
+**Ephemeral Python (ADR-249, ReAct only).** The agent may write a short script
+and run it in the SKILLS sandbox (SEC-001) when a step needs computation a model
+does badly — `run_python_tool`. Three rules that are not conventions: the
+manifest declares `execution_modes={"react"}` and every reader of the manifest
+list applies `manifests_for_mode` (a planner that SEES a tool it cannot run
+plans an invented dead end); `execute_source` refuses any sandbox mode other
+than `container`, because the legacy path only isolates when the API runs as
+root and this is code a model wrote while reading an email; and the turn's
+collected data reaches the script on stdin, never re-typed into the source. The
+code is admin-visible in the debug panel and nowhere else.
+
 The iteration budget is ADR-238's domain-span value as a STARTING allowance,
 extended while the loop keeps producing results (`react_progress_extension_enabled`);
 `react_agent_max_iterations` and the compute timeout stay the hard bounds. A
@@ -650,7 +661,7 @@ Run it after any Capacitor upgrade or any CSP change.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (247 ADR files, ADR-248 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (248 ADR files, ADR-249 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

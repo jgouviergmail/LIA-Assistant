@@ -4406,6 +4406,14 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_36_0": {
+          "title": "v1.36.0 — 🧮 LIA ahora calcula en vez de adivinar",
+          "date": "Agosto de 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>🧮 Un script corto en vez de cálculo mental</b> — una IA responde de forma <i>plausible</i> a «cuánto duran mis escalas en total» o «cuáles de estas personas aparecen en ambas listas», y nada en la respuesta te muestra que está mal. Cuando un paso requiere ese trabajo, LIA escribe ahora unas líneas de Python y las ejecuta en un entorno aislado —sin red, sin acceso a tus datos más allá de lo que ya recogió el turno, un contenedor desechable cada vez— y responde con un resultado verificable. Sigue siendo un complemento: la mayoría de las respuestas no lo necesitan. Los administradores ven cada script ejecutado en el panel de depuración."
+          }
+        },
         "v1_35_0": {
           "title": "v1.35.0 — 🔎 Una búsqueda interrumpida ahora lo dice",
           "date": "Agosto de 2026",
