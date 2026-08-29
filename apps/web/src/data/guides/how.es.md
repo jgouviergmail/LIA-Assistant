@@ -6,7 +6,7 @@
 
 **Versión**: 4.6
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.36.0
+**Aplicación**: LIA v1.37.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -47,6 +47,7 @@
 31. [Ojos expresivos: un personaje guiado por señales](#31-ojos-expresivos-un-personaje-guiado-por-señales)
 32. [Apps nativas: una carcasa, tu servidor](#32-apps-nativas-una-carcasa-tu-servidor)
 33. [Autodiagnóstico: un asistente que lee su propia telemetría](#33-autodiagnóstico-un-asistente-que-lee-su-propia-telemetría)
+34. [Calcular en vez de adivinar: un script efímero en el entorno aislado que ya existía](#34-calcular-en-vez-de-adivinar-un-script-efímero-en-el-entorno-aislado-que-ya-existía)
 ---
 
 ## 1. Contexto y decisiones fundacionales
@@ -1309,7 +1310,7 @@ La lección de ingeniería más valiosa vino de un defecto invisible: la primiti
 
 ## 24. Arquitectura de decisiones (ADR)
 
-245 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+248 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1413,7 +1414,7 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 245 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~20.468 tests en 1.184 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 248 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~20.468 tests en 1.184 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
@@ -1453,4 +1454,20 @@ Hasta el ADR-247, LIA emitía toda esa observabilidad y no leía nada: instrumen
 
 **El conocimiento de la avería da forma a la respuesta.** Un advisor de coste cero con plataforma sana inyecta las capacidades degradadas en la planificación («Brave caído → Perplexity»), y la síntesis recibe los fallos del run en forma tipada — código y cabecera del mensaje, nunca un log en bruto — con una directiva de honestidad: decir qué funcionó, qué falló y por qué, sin inventar jamás un diagnóstico.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 245 ADRs y del changelog (v1.0 a v1.33.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+## 34. Calcular en vez de adivinar: un script efímero en el entorno aislado que ya existía
+
+Pregunte a un modelo de lenguaje cuánto suman una serie de escalas, qué nombres aparecen en dos listas a la vez o qué da una columna de cifras teniendo en cuenta los husos horarios: responde — de forma plausible, fluida, y nada en la respuesta le muestra que se equivoca. No es un defecto del prompt: predecir el siguiente token no es hacer aritmética. Cinco líneas de Python sí lo son.
+
+**No se construyó ningún entorno aislado nuevo.** El de las habilidades (SEC-001) ya existía y ya estaba endurecido: contenedor desechable, sin socket de Docker, `--network none`, raíz de solo lectura, uid 65534, todas las capacidades retiradas. `execute_source` se limita a pasarle un código fuente en vez de una ruta de archivo, y ambos caminos comparten un único núcleo de ejecución — un solo juego de indicadores de aislamiento, así que es imposible endurecer uno y olvidar el otro.
+
+**La decisión siguió a una medición, no a una intuición.** En la Raspberry Pi de producción: 279 ms de arranque en frío, 357 ms para la biblioteca estándar, 459 ms con numpy — menos del 2 % del presupuesto de 30 segundos. La imagen de la API pesa 3,76 GB, así que añadir pandas cuesta en torno al 1,5 %, y todas sus dependencias duras ya estaban instaladas. La intuición inicial — «pandas lo haría todo más pesado» — erraba en un orden de magnitud, y fue la medición la que lo dijo.
+
+**Solo el modo autónomo, y aplicado dos veces.** El manifiesto de la herramienta declara `execution_modes={"react"}` y *todo* lector del catálogo aplica el filtro, de modo que el planificador determinista nunca ve la herramienta: un planificador que la viera programaría un paso que la ejecución después rechaza, es decir, un callejón sin salida inventado para el usuario. La herramienta vuelve a comprobar el modo en el contexto de ejecución tipado en el momento de la llamada. Una sola aplicación habría sido una trampa; dos forman un contrato.
+
+**Todo lo que se impone se publica.** El manifiesto anuncia la ausencia de red, de base de datos y de cualquier sistema de archivos escribible fuera de `/tmp`, la lista exacta de bibliotecas, los presupuestos de tamaño y de tiempo — y dice explícitamente cuándo *no* recurrir a la herramienta. Sin esa última frase, una herramienta capaz se convierte en un martillo; sin la primera, el modelo quema una iteración descubriendo un límite al chocar con él.
+
+**Los datos viajan por stdin y el presupuesto vive en el estado del grafo.** Copiar las filas del turno dentro del código pagaría esos tokens dos veces y truncaría exactamente los casos grandes que justifican la funcionalidad. Y el presupuesto por turno no vive deliberadamente en una variable de contexto: un valor fijado dentro de una tarea asyncio es invisible desde una tarea hermana, y un ejecutor de grafos es libre de lanzar cada nodo en la suya — el estado es el único lugar donde un presupuesto sobrevive a una iteración.
+
+**La salida no es de fiar, el código es auditable.** Lo que un script imprime es código escrito por un modelo ejecutándose sobre datos de terceros: por eso se marca como contenido no fiable, igual que el cuerpo de un correo. El código en sí, con su propósito declarado y su salida, es visible para los administradores en el panel de depuración: ocultarlo no compraría ninguna seguridad — el modelo lo escribió, ya está en su contexto — y costaría toda la verificabilidad.
+
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 248 ADRs y del changelog (v1.0 a v1.37.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

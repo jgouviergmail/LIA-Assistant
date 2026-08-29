@@ -81,6 +81,20 @@ def _fake_repo(tmp_path: Path, version: str = "1.31.2") -> Path:
     # The six localized label/separator shapes actually used by the guides.
     _write(guides / "how.en.md", "# How\n\n**Application**: LIA v%s\n" % version)
     _write(guides / "how.fr.md", "# How\n\n**Application** : LIA v%s\n" % version)
+    # The `how` guides close on a provenance note naming the changelog range
+    # they were written against. It is a version surface, and it stopped at
+    # v1.33.0 for four releases while their own sections described v1.37.0.
+    for locale, separator in (
+        ("en", "to"),
+        ("fr", "à"),
+        ("de", "bis"),
+        ("es", "a"),
+        ("it", "a"),
+        ("zh", "至"),
+    ):
+        note = guides / f"how.{locale}.md"
+        head = note.read_text(encoding="utf-8") if note.exists() else "# How\n"
+        _write(note, head + "\n*Written from the changelog (v1.0 %s v%s).*\n" % (separator, version))
     _write(guides / "why.de.md", "# Why\n\n**Anwendung**: LIA v%s\n" % version)
     _write(guides / "why.es.md", "# Why\n\n**Aplicación**: LIA v%s\n" % version)
     _write(guides / "story.it.md", "# Story\n\n**Applicazione**: LIA v%s\n" % version)
@@ -151,8 +165,11 @@ def _fake_counts(root: Path, *, adr_files: int, adr_latest: int, releases: int) 
         existing = path.read_text(encoding="utf-8") if path.exists() else "# Guide\n"
         _write(path, existing + text)
 
-    # The `how` guides quote the ADR count twice each: the codebase-metrics
-    # table and the reliability row. Only the label is translated.
+    # The `how` guides quote the ADR count FOUR times each: the codebase-metrics
+    # table, the reliability row, and two prose sentences. Only the label is
+    # translated. The prose pair joined the fixture at v1.37.0: the declared
+    # surface matched the table shape only, so those two occurrences drifted to
+    # 245 against a real 248 in five locales while the guard stayed green.
     for locale, metrics_label in (
         ("en", "ADRs (Architecture Decision Records)"),
         ("fr", "ADRs (Architecture Decision Records)"),
@@ -162,7 +179,10 @@ def _fake_counts(root: Path, *, adr_files: int, adr_latest: int, releases: int) 
     ):
         _append(
             f"how.{locale}.md",
-            f"\n| {metrics_label} | {adr_files} |\n\n{adr_files} ADRs, ~20,000 tests.\n",
+            f"\n| {metrics_label} | {adr_files} |\n\n{adr_files} ADRs, ~20,000 tests.\n\n"
+            f"{adr_files} ADRs in MADR format document the decisions.\n\n"
+            f"The {adr_files} ADRs document the rejected alternatives too.\n\n"
+            f"*Written from the source code and {adr_files} ADRs.*\n",
         )
 
     # zh writes those two counters in its own shapes, plus a third sentence

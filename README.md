@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.36.0</strong> — <strong>Computing instead of guessing</strong>. Ask an AI how long your layovers add up to, which people appear in both lists, or what a set of figures comes to across timezones, and it answers plausibly — with nothing in the answer to show you it is wrong. When a step needs that kind of work, the assistant now writes a few lines of Python and runs them in a locked-down sandbox: no network, nothing beyond the data the turn already collected, a throwaway container each time. It answers with a result you could check, and administrators see every script that ran. It stays a complement — most answers never need it, and it is explicitly told not to reach for it when it can answer directly. — 29 August 2026.
+  <strong>Version 1.37.0</strong> — <strong>Computing instead of guessing</strong>. Ask an AI how long your layovers add up to, which people appear in both lists, or what a set of figures comes to across timezones, and it answers plausibly — with nothing in the answer to show you it is wrong. When a step needs that kind of work, the assistant now writes a few lines of Python and runs them in a locked-down sandbox: no network, nothing beyond the data the turn already collected, a throwaway container each time. It answers with a result you could check, and administrators see every script that ran. It stays a complement — most answers never need it, and it is explicitly told not to reach for it when it can answer directly. — 29 August 2026.
 
 </p>
 

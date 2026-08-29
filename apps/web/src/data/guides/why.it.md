@@ -4,7 +4,7 @@
 
 **Versione**: 5.1
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.36.0
+**Applicazione**: LIA v1.37.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -113,7 +113,7 @@ LIA agisce concretamente nella tua vita digitale grazie a 20+ agenti specializza
 Scegli tu come ragiona LIA, tramite un semplice toggle (⚡) nell'intestazione della chat:
 
 - **Modalità Pipeline** (predefinita) — Un vero capolavoro di ingegneria: LIA pianifica tutti i passaggi in anticipo, li valida semanticamente ed esegue gli strumenti in parallelo. Risultato: la stessa potenza di un agente autonomo, ma con 4-8 volte meno token consumati. La modalità più economica e prevedibile.
-- **Modalità ReAct** (⚡) — L'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide cosa fare dopo. Più autonomo, più adattabile, ma più costoso in token. Ideale per ricerche esplorative o domande complesse il cui valore aggiunto giustifica il costo.
+- **Modalità ReAct** (⚡) — L'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide cosa fare dopo. Più autonomo, più adattabile, ma più costoso in token. Ideale per ricerche esplorative o domande complesse il cui valore aggiunto giustifica il costo. È inoltre l'unica modalità in grado di calcolare invece di stimare: quando un passo richiede aritmetica su molte righe o durate tra fusi orari, scrive poche righe di Python e le esegue in una sandbox isolata.
 
 ### 3.1. Conversazione naturale
 

@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Date**: 2026-08-23
-**Application**: LIA v1.36.0
+**Application**: LIA v1.37.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -47,6 +47,7 @@
 31. [Expressive eyes: a character driven by signals](#31-expressive-eyes-a-character-driven-by-signals)
 32. [Native apps: one shell, your server](#32-native-apps-one-shell-your-server)
 33. [Self-diagnostics: an assistant that reads its own telemetry](#33-self-diagnostics-an-assistant-that-reads-its-own-telemetry)
+34. [Computing instead of guessing: an ephemeral script in the sandbox that already existed](#34-computing-instead-of-guessing-an-ephemeral-script-in-the-sandbox-that-already-existed)
 ---
 
 ## 1. Context and founding choices
@@ -1305,7 +1306,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-245 ADRs in MADR format document the major architectural decisions. Some representative examples:
+248 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1438,7 +1439,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 245 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~20,468 tests across 1,184 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 248 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~20,468 tests across 1,184 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1478,4 +1479,20 @@ Until ADR-247, LIA emitted all that observability and read none of it: instrumen
 
 **Knowledge of the outage shapes the answer.** A zero-cost-when-healthy advisor injects degraded capabilities into planning ("Brave down → Perplexity"), and synthesis receives the run's failures in typed form — code and message head, never a raw log — with an honesty directive: say what succeeded, what failed and why, and never invent a diagnosis.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 245 ADRs, and the changelog (v1.0 to v1.33.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+## 34. Computing instead of guessing: an ephemeral script in the sandbox that already existed
+
+Ask a language model how long a series of layovers adds up to, which names appear in both of two lists, or what a column of figures comes to once timezones are taken into account, and it answers — plausibly, fluently, and with nothing in the answer to show you it is wrong. This is not a prompt defect: predicting the next token is not arithmetic. Five lines of Python are.
+
+**No new sandbox was built.** The skills sandbox (SEC-001) already existed and was already hardened: a throwaway container, no Docker socket, `--network none`, read-only root filesystem, uid 65534, every capability dropped. `execute_source` merely hands it a source string instead of a file path, and both paths share one execution core — one set of isolation flags, so hardening one can never leave the other behind.
+
+**The decision followed a measurement, not an intuition.** On the production Raspberry Pi: 279 ms cold start, 357 ms for the standard library, 459 ms with numpy — under 2 % of the 30-second budget. The API image weighs 3.76 GB, so adding pandas costs about 1.5 %, and all of its hard dependencies were already installed. The initial intuition — "pandas would weigh everything down" — was wrong by an order of magnitude, and the measurement is what said so.
+
+**The autonomous mode only, and enforced twice.** The tool's manifest declares `execution_modes={"react"}` and *every* reader of the catalogue applies the filter, so the deterministic planner never sees the tool at all: a planner that saw it would schedule a step execution then refuses, which is a dead end invented for the user. The tool then re-checks the mode from the typed runtime context at call time. One enforcement would have been a trap; two is a contract.
+
+**Everything enforced is published.** The manifest states the absence of network, of database and of any writable filesystem beyond `/tmp`, the exact library list, the size and time budgets — and says explicitly when *not* to reach for the tool. Without that last sentence a capable tool becomes a hammer; without the first, the model burns an iteration discovering a limit by hitting it.
+
+**The data travels on stdin, and the budget lives in the graph state.** Copying the turn's rows into the source would pay for those tokens twice and truncate exactly the large cases that justify the feature. And the per-turn budget deliberately does not live in a context variable: a value set inside one asyncio task is invisible to a sibling task, and a graph executor is free to run each node in its own — the state is the only place a budget survives an iteration.
+
+**The output is untrusted, the code is auditable.** Anything a script prints is model-written code running over third-party data, so it is marked as untrusted content exactly like the body of an email. The code itself, with its stated purpose and its output, is visible to administrators in the debug panel: hiding it would buy no security — the model wrote it, it is already in the context — and would cost all of the verifiability.
+
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 248 ADRs, and the changelog (v1.0 to v1.37.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

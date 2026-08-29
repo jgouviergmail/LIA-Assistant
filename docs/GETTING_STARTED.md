@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.36.0
+**Compatibility**: LIA v1.37.0
 
 ## Table of Contents
 
@@ -85,6 +85,7 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 | **Health Metrics** | iPhone Shortcuts ingestion + insights | Token-authenticated API |
 | **Image Generation** | AI image creation/editing | gpt-image / Imagen / Stability (admin catalogue) |
 | **MCP** | External tool servers (admin + per-user, OAuth 2.1) | Model Context Protocol |
+| **Sandboxed Python** | Short scripts the autonomous mode writes and runs to compute rather than estimate | Skills sandbox (Docker, no network) |
 
 Beyond integrations, LIA ships assistant-level systems configured later in this guide: long-term memory, interest learning, personal journals, psychological state (Psyche), proactive Heartbeat notifications, Today Briefing home page, RAG knowledge spaces, sub-agents, skills, scheduled actions and per-user usage limits.
 

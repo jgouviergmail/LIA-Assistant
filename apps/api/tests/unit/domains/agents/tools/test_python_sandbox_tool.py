@@ -22,6 +22,7 @@ which libraries exist — otherwise the model spends an iteration discovering it
 
 from __future__ import annotations
 
+import asyncio
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -238,24 +239,6 @@ class TestTheContractIsPublished:
         assert "do not use" in run_python_catalogue_manifest.description.lower()
 
 
-class TestTheLoopWiresIt:
-    """A budget nobody resets, or data nobody publishes, protects nothing."""
-
-    def test_the_setup_resets_the_turn_budget(self) -> None:
-        import inspect
-
-        from src.domains.agents.nodes import react_nodes
-
-        assert "reset_turn_budget()" in inspect.getsource(react_nodes.react_setup_node)
-
-    def test_the_execute_node_publishes_the_turn_data(self) -> None:
-        import inspect
-
-        from src.domains.agents.nodes import react_nodes
-
-        assert "set_turn_data(" in inspect.getsource(react_nodes.react_execute_tools_node)
-
-
 class TestTheAdminSeesTheCode:
     """The code is admin-facing ONLY (owner arbitration): debug panel, not answer."""
 
@@ -306,3 +289,86 @@ class TestTheAdminSeesTheCode:
 
         source = inspect.getsource(debug_metrics_stages.build_react_execution)
         assert '"scripts"' in source
+
+
+class TestItSurvivesTheGraphRunner:
+    """A ContextVar written in one task is invisible in a sibling task.
+
+    Measured 2026-08-29: `v.set()` inside `asyncio.create_task` does not
+    propagate back, and a graph runner is free to invoke each node in its own
+    task. Budget and data therefore live in STATE, and the ContextVar is only a
+    per-invocation carrier seeded from it — otherwise the budget silently reset
+    every iteration and the script always received an empty payload, with every
+    unit test still green because they all run in one task.
+    """
+
+    async def test_the_budget_is_seeded_from_state_not_carried_over(self) -> None:
+        from src.core.config import settings
+        from src.domains.agents.tools import python_sandbox_tools
+
+        settings_budget = settings.python_sandbox_max_runs_per_turn
+
+        # A fresh task, as a node invocation would be: nothing carried over.
+        async def invocation(already_spent: int) -> bool:
+            python_sandbox_tools.seed_turn(runs_spent=already_spent, items={})
+            with patch(
+                "src.domains.skills.executor.SkillScriptExecutor.execute_source",
+                new_callable=AsyncMock,
+                return_value=_ok(),
+            ):
+                return (await _call()).success
+
+        assert await asyncio.create_task(invocation(0)) is True
+        assert (
+            await asyncio.create_task(invocation(settings_budget)) is False
+        ), "a budget already spent in a previous node invocation must still bind"
+
+    async def test_the_data_is_seeded_from_state(self) -> None:
+        from src.domains.agents.tools import python_sandbox_tools
+
+        async def invocation() -> dict[str, Any]:
+            python_sandbox_tools.seed_turn(runs_spent=0, items={"x": {"n": 1}})
+            with patch(
+                "src.domains.skills.executor.SkillScriptExecutor.execute_source",
+                new_callable=AsyncMock,
+                return_value=_ok(),
+            ) as executor:
+                await _call()
+                return executor.await_args.kwargs["payload"]
+
+        payload = await asyncio.create_task(invocation())
+        assert payload["items"] == {"x": {"n": 1}}
+
+    async def test_the_consumed_count_is_readable_for_persistence(self) -> None:
+        from src.domains.agents.tools import python_sandbox_tools
+
+        python_sandbox_tools.seed_turn(runs_spent=1, items={})
+        with patch(
+            "src.domains.skills.executor.SkillScriptExecutor.execute_source",
+            new_callable=AsyncMock,
+            return_value=_ok(),
+        ):
+            await _call()
+
+        assert python_sandbox_tools.runs_spent() == 2
+
+    def test_the_execute_node_seeds_and_persists(self) -> None:
+        import inspect
+
+        from src.domains.agents.nodes import react_nodes
+
+        source = inspect.getsource(react_nodes.react_execute_tools_node)
+        assert "seed_turn(" in source, "the invocation must seed from state"
+        assert "react_script_runs" in source, "the consumed budget must return to state"
+
+    def test_the_setup_zeroes_the_state_counter(self) -> None:
+        import inspect
+
+        from src.domains.agents.nodes import react_nodes
+
+        assert '"react_script_runs": 0' in inspect.getsource(react_nodes.react_setup_node)
+
+    def test_the_counter_is_declared(self) -> None:
+        from src.domains.agents.models import MessagesState
+
+        assert "react_script_runs" in MessagesState.__annotations__

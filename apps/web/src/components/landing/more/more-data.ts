@@ -4,7 +4,7 @@
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (49 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (51 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -17,6 +17,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Contrast,
+  MessageSquareCheck,
   Eclipse,
   Eye,
   Orbit,
@@ -162,6 +163,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'activity_timeline',
       'capability_map',
       'capability_honesty',
+      'finished_answer',
       'air_quality_honesty',
       'plugin_report',
       'widgets_travel',
@@ -229,6 +231,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   alerts_hub: BellRing,
   capability_map: Orbit,
   capability_honesty: ToggleLeft,
+  finished_answer: MessageSquareCheck,
   air_quality_honesty: Wind,
   plugin_report: Puzzle,
   narrow_screens: Smartphone,
@@ -287,6 +290,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   alerts_hub: [],
   capability_map: [],
   capability_honesty: ['capability', 'reason'],
+  finished_answer: ['announce', 'done'],
   air_quality_honesty: ['index', 'category'],
   plugin_report: ['skill', 'server', 'installed', 'skipped', 'reason'],
   narrow_screens: [],

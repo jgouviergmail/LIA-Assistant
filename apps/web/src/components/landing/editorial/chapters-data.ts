@@ -22,6 +22,7 @@ import {
   Blocks,
   BookOpen,
   Bot,
+  Calculator,
   Brain,
   CalendarClock,
   Compass,
@@ -90,6 +91,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     catalog: [
       'natural_language',
       'multi_agent',
+      'computed_answers',
       'telephony',
       'browser_control',
       'smart_home',
@@ -232,6 +234,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'rag_spaces',
   'sub_agents',
   'browser_control',
+  'computed_answers',
   'devops_cli',
   // responsible & simple
   'control',
@@ -281,6 +284,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   rag_spaces: Library,
   sub_agents: Bot,
   browser_control: Monitor,
+  computed_answers: Calculator,
   devops_cli: Terminal,
   control: ShieldCheck,
   usage_limits: Gauge,

@@ -468,6 +468,24 @@ the API exactly. The prod image installs dependencies with `pip install
 --user`, hence `SKILLS_SCRIPT_SANDBOX_PYTHONPATH`; the dev image installs
 them system-wide and sets it empty.
 
+> **The home directory must be traversable.** `useradd -m` creates
+> `/home/appuser` at **0700**, and the sandbox runs as uid 65534: every file
+> under `SKILLS_SCRIPT_SANDBOX_PYTHONPATH` was world-readable and the whole
+> tree was still unreachable. The path sat on `sys.path` and produced
+> `ModuleNotFoundError` for every third-party package — the shipped `qr-code`
+> skill could not `import segno` in container mode. `Dockerfile.prod` now adds
+> `chmod 0755 /home/appuser` (traversal only, no write), and
+> `tests/unit/domains/skills/test_sandbox_pythonpath_reachable.py` reads the
+> Dockerfile to keep it that way. Unit tests could not catch this: they mock
+> the daemon, so the argv looked right and the permissions were never
+> exercised.
+
+`SkillExecutor.execute_source()` runs a **source string** through the same
+`_run_source_in_container()` core, for ADR-249's ephemeral scripts. One
+implementation means one set of isolation flags: hardening one path can never
+leave the other behind. It refuses the legacy subprocess mode outright — see
+below.
+
 If the Docker daemon is unreachable the execution is **refused**
 (`Script sandbox unavailable`) — it never falls back to the in-process path,
 since a sandbox that downgrades on demand protects nothing.

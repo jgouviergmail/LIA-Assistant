@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.36.0
+**Anwendung**: LIA v1.37.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -113,7 +113,7 @@ LIA handelt konkret in deinem digitalen Leben dank 20+ spezialisierter Agenten, 
 Du wählst, wie LIA denkt, über einen einfachen Toggle (⚡) im Chat-Header:
 
 - **Pipeline-Modus** (Standard) — Echte Ingenieurskunst: LIA plant alle Schritte im Voraus, validiert sie semantisch und führt Tools parallel aus. Ergebnis: dieselbe Leistung wie ein autonomer Agent, aber mit 4- bis 8-mal weniger Token-Verbrauch. Der wirtschaftlichste und vorhersagbarste Modus.
-- **ReAct-Modus** (⚡) — Der Assistent denkt Schritt für Schritt: Er ruft ein Tool auf, analysiert das Ergebnis und entscheidet dann, was als Nächstes zu tun ist. Autonomer, anpassungsfähiger, aber kostenintensiver bei den Tokens. Ideal für explorative Recherchen oder komplexe Fragen, bei denen der Mehrwert die Kosten rechtfertigt.
+- **ReAct-Modus** (⚡) — Der Assistent denkt Schritt für Schritt: Er ruft ein Tool auf, analysiert das Ergebnis und entscheidet dann, was als Nächstes zu tun ist. Autonomer, anpassungsfähiger, aber kostenintensiver bei den Tokens. Ideal für explorative Recherchen oder komplexe Fragen, bei denen der Mehrwert die Kosten rechtfertigt. Er ist zudem der einzige Modus, der rechnen statt schätzen kann: Braucht ein Schritt Arithmetik über viele Zeilen oder Dauern über Zeitzonen hinweg, schreibt er ein paar Zeilen Python und führt sie in einer abgeschotteten Sandbox aus.
 
 ### 3.1. Natürliche Unterhaltung
 

@@ -227,6 +227,27 @@ FIXED_SURFACES: tuple[Surface, ...] = (
         re.compile(rf"<strong>Version {_VERSION}</strong>"),
         "README version block",
     ),
+    # The `how` guides close on a provenance note naming the changelog range
+    # the document was written against. It is a claim about coverage, and the
+    # document IS extended every release — so the range belongs to the bump,
+    # not to whoever remembers. It stopped at v1.33.0 for four releases while
+    # the guide's own sections described v1.37.0 features. The separator is
+    # part of the sentence, hence one declaration per locale.
+    *(
+        Surface(
+            f"{GUIDES_DIR}/how.{locale}.md",
+            re.compile(rf"v1\.0 {separator} v{_VERSION}"),
+            f"how.{locale}.md provenance note (changelog range)",
+        )
+        for locale, separator in (
+            ("en", "to"),
+            ("fr", "à"),
+            ("de", "bis"),
+            ("es", "a"),
+            ("it", "a"),
+            ("zh", "至"),
+        )
+    ),
 )
 
 #: Surfaces quoting a derived count. The ``constants.ts`` patterns are anchored
@@ -293,14 +314,20 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "adr_files",
         "how.zh.md codebase-metrics table (ADR count)",
     ),
-    # The reliability row, five locales (zh is already covered by the
-    # "N 篇 ADR" surface below, which matches it).
+    # Every "N ADRs" of the five non-zh `how` guides, not just the reliability
+    # row. The row alone was declared, so the three PROSE occurrences of the
+    # same number drifted to 245 against a real 248 — in the same file, three
+    # lines below a guarded 248. A table guard cannot see a sentence: the zh
+    # surface above matches the token itself, and this is its counterpart.
+    # `expected=4` also means a sixth occurrence fails loudly instead of
+    # joining silently, which is the guide-stamp doctrine applied to counts.
     *(
         CountSurface(
             f"{GUIDES_DIR}/how.{locale}.md",
-            re.compile(rf"{_COUNT} ADRs, ~"),
+            re.compile(rf"\b{_COUNT} ADRs\b"),
             "adr_files",
-            f"how.{locale}.md reliability row (ADR count)",
+            f"how.{locale}.md ADR count (reliability row + 3 prose sentences)",
+            expected=4,
         )
         for locale in ("en", "fr", "de", "es", "it")
     ),

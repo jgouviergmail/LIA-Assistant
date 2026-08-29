@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.36.0
+**Anwendung**: LIA v1.37.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Codezeilen (ohne Tests) — 44 Fachdomänen | **580.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **27.600+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **248** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **232** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **233** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 

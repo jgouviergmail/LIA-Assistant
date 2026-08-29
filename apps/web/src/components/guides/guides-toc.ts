@@ -8,6 +8,7 @@ import {
   BookOpen,
   Brain,
   Cable,
+  Calculator,
   ClipboardCheck,
   ClipboardList,
   Compass,
@@ -103,6 +104,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'expressive_eyes', icon: Smile },
   { id: 'native_apps', icon: TabletSmartphone },
   { id: 'self_diagnostics', icon: Stethoscope },
+  { id: 'computed_answers', icon: Calculator },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Date**: 2026-08-23
-**Application**: LIA v1.36.0
+**Application**: LIA v1.37.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -113,7 +113,7 @@ LIA acts concretely in your digital life through 20+ specialized agents covering
 You choose how LIA reasons, via a simple toggle (⚡) in the chat header:
 
 - **Pipeline mode** (default) — A genuine feat of engineering: LIA plans all steps upfront, validates them semantically, then executes tools in parallel. Result: the same power as an autonomous agent, but with 4 to 8 times fewer tokens consumed. This is the most economical and predictable mode.
-- **ReAct mode** (⚡) — The assistant reasons step by step: it calls a tool, analyzes the result, then decides what to do next. More autonomous, more adaptable, but more costly in tokens. Ideal for exploratory research or complex questions where the added value justifies the cost.
+- **ReAct mode** (⚡) — The assistant reasons step by step: it calls a tool, analyzes the result, then decides what to do next. More autonomous, more adaptable, but more costly in tokens. Ideal for exploratory research or complex questions where the added value justifies the cost. It is also the only mode that can compute rather than estimate: when a step needs arithmetic over many rows or durations across timezones, it writes a few lines of Python and runs them in a locked-down sandbox.
 
 ### 3.1. Natural conversation
 

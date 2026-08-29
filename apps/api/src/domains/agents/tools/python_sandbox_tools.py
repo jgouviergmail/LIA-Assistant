@@ -50,11 +50,15 @@ __all__ = [
     "drain_turn_scripts",
     "reset_turn_budget",
     "run_python_tool",
-    "set_turn_data",
+    "runs_spent",
+    "seed_turn",
 ]
 
-#: Runs already spent this turn. Per-request state never lives on a module-level
-#: tool instance (systemic rule) — a ContextVar is the endorsed carrier.
+#: Runs already spent this turn. The ContextVar is only a per-INVOCATION
+#: carrier: a `.set()` inside one task is invisible in a sibling task (measured
+#: 2026-08-29), and a graph runner may invoke each node in its own task. The
+#: source of truth is graph STATE; ``seed_turn`` loads it at the top of every
+#: invocation and ``runs_spent`` hands the new total back for persistence.
 _runs_this_turn: ContextVar[int] = ContextVar("python_sandbox_runs", default=0)
 
 #: The turn's collected data, handed to the script on stdin so the model
@@ -68,11 +72,26 @@ _turn_scripts: ContextVar[list[dict[str, Any]] | None] = ContextVar(
 )
 
 
+def seed_turn(*, runs_spent: int, items: dict[str, Any]) -> None:
+    """Load this node invocation's carriers from graph state.
+
+    Args:
+        runs_spent: Script runs already consumed this turn (from state).
+        items: Data collected so far this turn (from the turn registry).
+    """
+    _runs_this_turn.set(int(runs_spent or 0))
+    _turn_data.set(items or {})
+    _turn_scripts.set(None)
+
+
+def runs_spent() -> int:
+    """Script runs consumed so far this turn, for persistence back into state."""
+    return int(_runs_this_turn.get() or 0)
+
+
 def reset_turn_budget() -> None:
     """Start a turn with a full budget, no carried-over data and no history."""
-    _runs_this_turn.set(0)
-    _turn_data.set(None)
-    _turn_scripts.set(None)
+    seed_turn(runs_spent=0, items={})
 
 
 def drain_turn_scripts() -> list[dict[str, Any]]:

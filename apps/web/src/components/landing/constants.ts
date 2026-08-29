@@ -9,6 +9,14 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   Re-measured 2026-08-29 (v1.37.0) on the running production instance =
+ *   107 (`len(registry._tool_manifests)` after `initialize_catalogue`), up
+ *   from the 102 carried since v1.30.x. FOUR of the five are drift that
+ *   predates this release — the tile had not been re-measured while the
+ *   diagnostics tools landed; the fifth is `run_python_tool` (ADR-249).
+ *   Agents were re-measured the same day and did NOT move: the sandbox
+ *   agent is a MANIFEST, not a builder, so `grep -c 'register_agent('`
+ *   still returns 18 (+ MCP iterative + sub-agents = 20).
  *   of `X = ToolManifest(` declarations. Re-measured 2026-08-05 (v1.27.14) = 88,
  *   down from the 89 carried since v1.27.6 — the grep and the runtime had drifted
  *   apart and stopped measuring the same thing: production registers 88, while
@@ -61,6 +69,11 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured at v1.37.0: backend 20,780 (`pytest tests/unit tests/agents
+ *   --collect-only --no-cov`) + frontend 6,368 (`vitest list`) = 27,148
+ *   -> 27,000 (unchanged: the sandbox-traversal guard and the FAQ length
+ *   ratchet did not cross the next thousand, and the figure is rounded DOWN
+ *   by contract).
  *   Re-measured at v1.36.0: backend 20,774 (`pytest tests/unit tests/agents
  *   --collect-only --no-cov`) + frontend 6,347 (`vitest list`) = 27,121
  *   -> 27,000 (unchanged: still short of the next thousand; the figure is
@@ -225,14 +238,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 102,
+  tools: 107,
   providers: 7,
   voiceLanguages: 99,
   metrics: 486,
   uiLanguages: 6,
   tests: 27000,
   adrs: 248,
-  releases: 232,
+  releases: 233,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

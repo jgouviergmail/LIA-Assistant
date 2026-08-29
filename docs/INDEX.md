@@ -103,7 +103,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TOKEN_TRACKING_AND_COUNTING.md](./technical/TOKEN_TRACKING_AND_COUNTING.md) | Token tracking, alignment DB/Prometheus | ✅ |
 | [DATABASE_SCHEMA.md](./technical/DATABASE_SCHEMA.md) | Schema PostgreSQL complet, migrations Alembic | ✅ |
 | [STACK_TECHNIQUE.md](./technical/STACK_TECHNIQUE.md) | Référence complète versions technologies | ✅ |
-| [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 4-node loop, pipeline vs ReAct, tools, HITL, skills | ✅ |
+| [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 4-node loop, pipeline vs ReAct, tools, HITL, skills, mémoire à parité pipeline et budget gagné à la progression (ADR-248), scripts Python éphémères dans le bac à sable des skills (ADR-249) | ✅ |
 | [Plan latence/TTFT](./superpowers/plans/2026-07-10-latency-optimization-plan.md) | Instrumentation par étage (`langgraph_stage_duration_seconds`), protocole reproductible (`scripts/perf/measure_ttft.py`), shortlist chiffrée & avant/après | 🚧 |
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
 | [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing — bounded context autonome sans LangGraph (ADR-077) : fetchers `asyncio.gather`, cache Redis par section, endpoints split cards/synthesis | ✅ |

@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.37.0] - 2026-08-29
+
+**Le bac à sable n'avait jamais eu accès à ses propres bibliothèques.** `useradd -m` crée le répertoire personnel en `0700` : tout y était lisible, mais le compte non privilégié du bac à sable ne pouvait pas le **traverser**. Conséquence restée invisible depuis SEC-001 — le skill enrichi `qr-code` livré avec LIA ne pouvait pas charger `segno`, et les scripts éphémères d'ADR-249 ne voyaient que la bibliothèque standard alors que leur manifeste annonçait numpy et pandas. Trouvé en exécutant un **vrai** script sur le serveur de production, pas par un test : les tests unitaires simulent le démon, donc l'argv paraissait correct et les permissions n'étaient jamais exercées.
+
+**Et un défaut de propagation que seule une relecture à froid pouvait voir.** Le budget de scripts et les données du tour voyageaient dans des `ContextVar`. Mesuré : un `.set()` effectué dans une tâche asyncio est **invisible** dans une tâche sœur — et un exécuteur de graphe est libre d'invoquer chaque nœud dans sa propre tâche. En production, le budget se serait réinitialisé à chaque itération et le script aurait toujours reçu une charge vide, pendant que tous les tests unitaires restaient verts, puisqu'ils s'exécutent dans une seule tâche.
+
+### Fixed
+
+- **Le compte du bac à sable peut enfin lire les paquets installés.** Le répertoire personnel devient traversable (`o+rx` uniquement, aucune écriture) : les paquets sont ceux de l'application, et le bac à sable n'a ni réseau, ni identifiants, ni système de fichiers inscriptible. Une garde lit désormais le Dockerfile — le seul endroit où la réponse existe.
+- **L'état du graphe redevient la source de vérité** pour le budget de scripts et les données transmises ; la `ContextVar` n'est plus qu'un porteur d'invocation, chargé depuis l'état au début de chaque exécution de nœud et reversé à la fin. Trois tests exécutent désormais l'outil dans une **tâche séparée**, ce qu'aucun test précédent ne faisait.
+- Un commentaire ne peut pas vivre à l'intérieur d'une continuation de ligne d'un `Dockerfile` : Docker lit le `&&` suivant comme une nouvelle instruction et refuse de construire l'image. Attrapé par la CI, que `ci:fast` ne peut pas anticiper puisqu'il ne construit aucune image.
+
+### Changed
+
+- **La FAQ « Comment fonctionne LIA » a été synthétisée** (demande du propriétaire) : 68 cartes, six langues, de 50 380 à 31 025 caractères en anglais, médiane 710 → 458, plus longue 1 533 → 640. Chaque carte garde son essentiel et son point le plus intéressant ; le détail vit dans les réponses de la FAQ, dans les guides et dans `docs/`. La dérive était silencieuse par nature — une phrase ajoutée par livraison, chacune justifiée — et `security` avait atteint 1 533 caractères une proposition à la fois. Un ratchet shrink-only la borne désormais, par locale et sur l'agrégat.
+- **Deux compteurs publics disaient faux depuis quatre livraisons.** Les cinq guides `how` non chinois annonçaient « 245 ADRs » contre 248 réels, et les six situaient le changelog « v1.0 à v1.33.0 » alors que leurs propres sections décrivaient v1.37.0. La garde ne couvrait que la ligne de tableau : **un compteur en PROSE échappe à une garde de TABLEAU**. Les deux surfaces sont maintenant déclarées dans `version_surfaces.py` — 21 faits réparés mécaniquement, et une sixième occurrence échouera bruyamment au lieu de rejoindre le lot en silence.
+- Le compteur d'outils de la page d'accueil passe de 102 à **107**, re-mesuré sur l'instance de production (`len(registry._tool_manifests)`). Quatre des cinq écarts précèdent cette version : la vignette n'avait pas été re-mesurée quand les outils de diagnostic sont arrivés. Le nombre d'agents, lui, ne bouge pas — l'agent du bac à sable est un **manifeste**, pas un constructeur.
+
+### Tests
+
+- 23 tests pour le lot : refus hors ReAct, drapeau, budget par tour **et sa survie d'une tâche à l'autre**, transmission des données depuis l'état, sortie marquée non fiable, trace d'erreur rendue au modèle, refus du mode bac à sable hérité, bornes de source et d'entrée, filtre de mode appliqué par ses trois lecteurs, rendu admin des scripts, et la traversabilité du répertoire de paquets.
+
 ## [1.36.0] - 2026-08-29
 
 **L'assistante peut désormais écrire un script et l'exécuter pour répondre.** Un modèle répond de façon *plausible* à l'arithmétique sur beaucoup de lignes, aux jointures par clé, aux durées entre fuseaux, à la déduplication — et rien, dans la réponse, ne permet de voir que c'est faux. En mode ReAct, quand une étape demande ce genre de travail, LIA écrit maintenant quelques lignes de Python et les exécute dans un bac à sable isolé, puis répond avec un résultat vérifiable au lieu d'un calcul de tête (ADR-249).

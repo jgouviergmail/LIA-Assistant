@@ -40,6 +40,52 @@ import {
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
 
+type FinishedPhase = 'announce' | 'working' | 'answer';
+const FINISHED_STEPS: readonly TimelineStep<FinishedPhase>[] = [
+  { at: 0, state: 'announce' },
+  { at: 1200, state: 'working' },
+  { at: 2400, state: 'answer' },
+];
+
+/**
+ * The turn that no longer stops after "give me a minute" (ADR-248).
+ *
+ * The announcement stays on screen and the answer lands under it — the point
+ * is not that the sentence disappears, it is that something follows it.
+ */
+function FinishedAnswerScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(FINISHED_STEPS, { active });
+  const answered = phase === 'answer';
+
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <MiniBubble side="assistant" className="w-4/5">
+        <span className="text-[10px] text-muted-foreground">{labels.announce}</span>
+      </MiniBubble>
+      <MiniBubble
+        side="assistant"
+        className={cn(
+          'w-4/5 space-y-1.5 transition-all duration-500 motion-reduce:transition-none',
+          answered ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        <SkeletonLine w="w-full" />
+        <SkeletonLine w="w-3/5" />
+      </MiniBubble>
+      <MiniToast
+        icon={Check}
+        tone="success"
+        className={cn(
+          'transition-opacity duration-300 motion-reduce:transition-none',
+          answered ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        {labels.done}
+      </MiniToast>
+    </div>
+  );
+}
+
 type BackgroundPhase = 'streaming' | 'away' | 'done' | 'back';
 const BACKGROUND_STEPS: readonly TimelineStep<BackgroundPhase>[] = [
   { at: 0, state: 'streaming' },
@@ -871,6 +917,7 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   oled_black: OledBlackScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,
+  finished_answer: FinishedAnswerScene,
   air_quality_honesty: AirQualityHonestyScene,
   plugin_report: PluginReportScene,
   background_response: BackgroundResponseScene,

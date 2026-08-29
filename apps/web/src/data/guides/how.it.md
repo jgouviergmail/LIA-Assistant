@@ -6,7 +6,7 @@
 
 **Versione**: 4.6
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.36.0
+**Applicazione**: LIA v1.37.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -47,6 +47,7 @@
 31. [Occhi espressivi: un personaggio guidato dai segnali](#31-occhi-espressivi-un-personaggio-guidato-dai-segnali)
 32. [App native: un guscio, il tuo server](#32-app-native-un-guscio-il-tuo-server)
 33. [Autodiagnosi: un assistente che legge la propria telemetria](#33-autodiagnosi-un-assistente-che-legge-la-propria-telemetria)
+34. [Calcolare invece di indovinare: uno script effimero nella sandbox che esisteva già](#34-calcolare-invece-di-indovinare-uno-script-effimero-nella-sandbox-che-esisteva-già)
 ---
 
 ## 1. Contesto e scelte fondanti
@@ -1311,7 +1312,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-245 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+248 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1415,7 +1416,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 245 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~20.468 test in 1.184 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 248 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~20.468 test in 1.184 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1455,4 +1456,20 @@ Fino all'ADR-247, LIA emetteva tutta questa osservabilità e non ne leggeva null
 
 **La conoscenza del guasto plasma la risposta.** Un advisor a costo zero su piattaforma sana inietta le capacità degradate nella pianificazione («Brave giù → Perplexity»), e la sintesi riceve i fallimenti del run in forma tipizzata — codice e testa del messaggio, mai un log grezzo — con una direttiva di onestà: dire cosa è riuscito, cosa è fallito e perché, senza mai inventare una diagnosi.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 245 ADRs e del changelog (da v1.0 a v1.33.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+## 34. Calcolare invece di indovinare: uno script effimero nella sandbox che esisteva già
+
+Chiedete a un modello linguistico quanto durano in totale una serie di scali, quali nomi compaiono in due elenchi insieme o quanto dà una colonna di cifre tenendo conto dei fusi orari: risponde — in modo plausibile, fluido, e nulla nella risposta vi mostra che è sbagliata. Non è un difetto del prompt: prevedere il token successivo non è fare aritmetica. Cinque righe di Python sì.
+
+**Non è stata costruita nessuna nuova sandbox.** Quella delle skill (SEC-001) esisteva già ed era già irrobustita: contenitore usa e getta, nessun socket Docker, `--network none`, radice in sola lettura, uid 65534, tutte le capacità rimosse. `execute_source` le passa semplicemente un sorgente al posto di un percorso di file, e i due percorsi condividono un unico nucleo di esecuzione — un solo insieme di flag di isolamento, quindi è impossibile irrobustirne uno e dimenticare l'altro.
+
+**La decisione ha seguito una misura, non un'intuizione.** Sul Raspberry Pi di produzione: 279 ms di avvio a freddo, 357 ms per la libreria standard, 459 ms con numpy — meno del 2 % del budget di 30 secondi. L'immagine dell'API pesa 3,76 GB, quindi aggiungere pandas costa circa l'1,5 %, e tutte le sue dipendenze dure erano già installate. L'intuizione iniziale — «pandas appesantirebbe tutto» — sbagliava di un ordine di grandezza, ed è stata la misura a dirlo.
+
+**Solo la modalità autonoma, e applicata due volte.** Il manifesto dello strumento dichiara `execution_modes={"react"}` e *ogni* lettore del catalogo applica il filtro, così il pianificatore deterministico non vede mai lo strumento: un pianificatore che lo vedesse programmerebbe un passo che l'esecuzione poi rifiuta, cioè un vicolo cieco inventato per l'utente. Lo strumento ricontrolla poi la modalità nel contesto di esecuzione tipizzato al momento della chiamata. Una sola applicazione sarebbe stata una trappola; due formano un contratto.
+
+**Tutto ciò che è imposto viene pubblicato.** Il manifesto annuncia l'assenza di rete, di database e di qualsiasi filesystem scrivibile fuori da `/tmp`, l'elenco esatto delle librerie, i budget di dimensione e di tempo — e dice esplicitamente quando *non* ricorrere allo strumento. Senza quest'ultima frase uno strumento capace diventa un martello; senza la prima, il modello brucia un'iterazione per scoprire un limite sbattendoci contro.
+
+**I dati viaggiano su stdin e il budget vive nello stato del grafo.** Ricopiare le righe del turno nel sorgente pagherebbe quei token due volte e troncherebbe esattamente i casi grandi che giustificano la funzionalità. E il budget per turno non vive deliberatamente in una variabile di contesto: un valore impostato dentro un task asyncio è invisibile da un task fratello, e un esecutore di grafi è libero di lanciare ogni nodo nel proprio — lo stato è l'unico posto in cui un budget sopravvive a un'iterazione.
+
+**L'output non è affidabile, il codice è verificabile.** Ciò che uno script stampa è codice scritto da un modello che gira su dati di terzi: per questo è marcato come contenuto non affidabile, esattamente come il corpo di un'email. Il codice stesso, con il suo scopo dichiarato e il suo output, è visibile agli amministratori nel pannello di debug: nasconderlo non comprerebbe alcuna sicurezza — il modello l'ha scritto, è già nel suo contesto — e costerebbe tutta la verificabilità.
+
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 248 ADRs e del changelog (da v1.0 a v1.37.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

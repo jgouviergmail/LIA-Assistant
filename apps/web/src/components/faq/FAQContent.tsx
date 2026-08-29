@@ -44,6 +44,7 @@ import {
   CalendarClock,
   Plug,
   Smartphone,
+  Calculator,
   Stethoscope,
   TabletSmartphone,
   Palette,
@@ -196,6 +197,7 @@ export const featureIcons = {
   selfHosting: Server,
   nativeApps: TabletSmartphone,
   selfDiagnostics: Stethoscope,
+  ephemeralScripts: Calculator,
   platformCapabilities: SlidersHorizontal,
   tabularAdmin: FileSpreadsheet,
 };
@@ -270,6 +272,7 @@ export const featureKeys = [
   'selfHosting',
   'nativeApps',
   'selfDiagnostics',
+  'ephemeralScripts',
   'platformCapabilities',
   'tabularAdmin',
 ];

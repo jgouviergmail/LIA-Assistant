@@ -4,6 +4,7 @@
 |---------|------|-----|
 | 1.0 | 2026-04-09 | [ADR-070](../architecture/ADR-070-ReAct-Execution-Mode.md) |
 | 1.1 | 2026-07-28 | [ADR-169](../architecture/ADR-169-React-System-Blocks-Are-State.md), [ADR-170](../architecture/ADR-170-React-Compute-Budget-And-Loop-Guard.md) |
+| 1.2 | 2026-08-29 | [ADR-248](../architecture/ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md), [ADR-249](../architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md) |
 
 ## Table of Contents
 
@@ -19,9 +20,10 @@
 10. [Turn isolation & data-precision guidance](#turn-isolation--data-precision-guidance-2026-07)
 11. [Token Tracking](#token-tracking)
 12. [Skills Integration](#skills-integration)
-13. [Configuration](#configuration)
-14. [Streaming Step Visibility](#streaming-step-visibility-v1162)
-15. [Key Files](#key-files)
+13. [Sandboxed Python](#sandboxed-python-adr-249)
+14. [Configuration](#configuration)
+15. [Streaming Step Visibility](#streaming-step-visibility-v1162)
+16. [Key Files](#key-files)
 
 ---
 
@@ -109,7 +111,12 @@ Routing from router: when `execution_mode == "react"` and the router classifies 
 Prepares tools, system prompt, and context for the ReAct loop:
 - Selects ALL available tools via `ReactToolSelector` (filtered by active connectors)
 - Builds system prompt from `react_agent_prompt.txt`
-- Injects memory context (resolved references + memory facts)
+- Injects the **same memory context as the pipeline** (ADR-248), built by
+  `src/domains/agents/nodes/react_context.py`: memory profile block, resolved references,
+  psychological portrait, journal excerpts, active skills — and the degraded-capability
+  advisor. Before ADR-248 the two modes read different subsets, so a directive the user had
+  stored took effect in one mode and silently did nothing in the other. `react_context.py`
+  and the pipeline builder now consume the same services; a parity test pins the block set.
 - Injects active skills catalogue (L1, filtered by `active_skills_ctx`)
 - Sets `react_start_time` (kept for observability; the deadline itself runs on compute — see below)
 - Stores tool names and HITL map in state (JSON-serializable)
@@ -171,11 +178,32 @@ worker, and **only the digest and a counter are stored** — neither the tool na
 arguments reach the PostgreSQL checkpoint. A validator refuses a terminal threshold at or below
 the block threshold.
 
+### Progress-earned iterations (ADR-248)
+
+The iteration ceiling is not a flat constant. `react_iteration_budget()` starts from the
+domain span the router detected (ADR-238's adaptive budget, shared with the pipeline), and
+`REACT_PROGRESS_EXTENSION_ENABLED` (default `true`) lets the loop buy extra iterations —
+but **only against productive ones**. `_is_productive_result()` is the predicate: a tool
+result that carries data extends the budget, a refusal, an empty result or an error does
+not. The extension is capped by `REACT_PROGRESS_EXTENSION_MAX_ITERATIONS`.
+
+The rule exists because the two failure modes are opposite and both were live: a fixed low
+ceiling cut multi-step work that was going *well*, and a fixed high ceiling let a loop that
+was going nowhere burn fifteen calls before saying so. Every exit is now named —
+`react_exit_reason()` records `completed`, `budget_exhausted`, `no_progress` or `timeout` —
+and the reason travels to the response node, so the answer can state what happened instead
+of inventing a diagnosis.
+
 ### react_finalize
 
 Collects iteration count and prepares metadata for the response node:
 - Records Prometheus metrics (iterations, duration, executions)
 - Sets `react_agent_result` for the response node passthrough
+- **Refuses to hand over mid-thought content** (ADR-248): when the loop ends on an
+  `AIMessage` that carries tool calls and no usable text, the turn does not ship the
+  model's last "let me look into your emails…" as the answer. That sentence was the
+  measured production defect: an announcement, then silence, because a budget exhaustion
+  had ended the turn on a message that was never meant to be final.
 
 ## Tool System
 
@@ -255,6 +283,48 @@ Skills are available to the ReAct agent through the same mechanism as the pipeli
 - The 4 skill tools (`activate_skill_tool`, `run_skill_script`, `read_skill_resource`, `import_user_skill` — ADR-118) are in the tool catalogue and available to the ReAct agent
 - Active skill filtering uses `active_skills_ctx` (same per-request context as pipeline)
 
+## Sandboxed Python (ADR-249)
+
+The ReAct agent can write a short Python script and run it, to answer questions a language
+model answers *plausibly* rather than correctly: arithmetic over many rows, joins by key,
+timezone-aware durations, deduplication.
+
+**No new sandbox was built.** `run_python_tool`
+(`src/domains/agents/tools/python_sandbox_tools.py`) calls
+`SkillExecutor.execute_source()`, which shares `_run_source_in_container()` with the rich
+skills path — one implementation, therefore one set of isolation flags: throwaway container,
+no Docker socket, `--network none`, read-only rootfs, uid 65534, all capabilities dropped
+(SEC-001). The **legacy in-process sandbox mode is refused** for model-written code: it only
+isolates when the API runs as root, an acceptable trade-off for a skill a user installed
+deliberately, not for code a model wrote after reading an e-mail. Fail closed, never a
+fallback.
+
+**ReAct only, enforced twice.** The manifest
+(`src/domains/agents/python_sandbox/catalogue_manifests.py`) declares
+`execution_modes=frozenset({EXECUTION_MODE_REACT})` and **every** reader of the catalogue
+applies `manifests_for_mode`, so the planner never sees the tool: a planner that saw it
+would schedule a step execution then refuses — a dead end invented for the user. The tool
+then re-reads `execution_mode` from the typed runtime context (ADR-231) at call time. One
+enforcement would have been a trap; two are a contract.
+
+**Everything enforced is published** (ADR-184): the manifest states the absence of network,
+database and writable filesystem beyond `/tmp`, the exact library list (stdlib + numpy,
+pandas, openpyxl, python-dateutil, pytz), the 30 s / 512 MB / 50 KB bounds — and says
+explicitly when *not* to use the tool.
+
+**The turn's data travels on stdin**, never copied into the source: copying would pay for
+those tokens twice and truncate exactly the large cases that justify the feature. The
+per-turn run budget lives in **graph state**, seeded into a ContextVar at the start of each
+node execution and drained back at the end — a `ContextVar.set()` inside one asyncio task is
+invisible to a sibling task, and a graph executor may run each node in its own (measured:
+same task 42, separate tasks 0).
+
+**Output is untrusted, code is auditable.** Results carry
+`structured_data={"content_trust": "untrusted", ...}` exactly like an e-mail body; the
+source and its stated purpose are surfaced to **administrators only**, in the debug panel's
+ReAct section. Hiding the code would buy no security — the model wrote it, it is already in
+context — and would cost all verifiability.
+
 ## Configuration
 
 ```env
@@ -266,6 +336,16 @@ REACT_AGENT_MAX_TOOLS=100             # Max tools bound to LLM (resolved count, 
 REACT_AGENT_HISTORY_WINDOW_TURNS=5    # Conversation history window
 REACT_MCP_EXPAND_ITERATIVE_ENABLED=true  # Expand iterative USER MCP servers into individual tools (false = keep task tool; MCP App servers always keep it)
 INITIATIVE_REACT_ENABLED=false        # Run the Initiative phase on the ReAct nominal path (ADR-070; pipeline uses INITIATIVE_ENABLED)
+
+# Progress-earned budget (ADR-248)
+REACT_PROGRESS_EXTENSION_ENABLED=true       # Productive iterations buy more iterations
+REACT_PROGRESS_EXTENSION_MAX_ITERATIONS=10  # Ceiling on what progress can buy
+
+# Sandboxed Python (ADR-249) — requires the container skills sandbox
+PYTHON_SANDBOX_TOOL_ENABLED=true      # Off means the tool does not exist at runtime
+PYTHON_SANDBOX_MAX_RUNS_PER_TURN=3    # Bounds a repair loop (1-20)
+PYTHON_SANDBOX_RATE_LIMIT_CALLS=20    # Per user, per window
+PYTHON_SANDBOX_RATE_LIMIT_WINDOW=300  # Window, seconds
 ```
 
 LLM type: `react_agent` — configurable in admin LLM config panel.
@@ -287,7 +367,10 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 
 | File | Purpose |
 |------|---------|
-| `src/domains/agents/nodes/react_nodes.py` | 4 node functions |
+| `src/domains/agents/nodes/react_nodes.py` | 4 node functions, iteration budget, exit reasons |
+| `src/domains/agents/nodes/react_context.py` | Memory/context blocks, at pipeline parity (ADR-248) |
+| `src/domains/agents/tools/python_sandbox_tools.py` | `run_python_tool` + per-turn run budget (ADR-249) |
+| `src/domains/agents/python_sandbox/catalogue_manifests.py` | Manifest: ReAct-only, published bounds |
 | `src/domains/agents/tools/react_tool_wrapper.py` | Tool wrapper (string output + registry) |
 | `src/domains/agents/services/react_tool_selector.py` | Tool selection (all available, capped) |
 | `src/domains/agents/prompts/v1/react_agent_prompt.txt` | System prompt |
@@ -296,3 +379,5 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | `src/domains/agents/models.py` | State fields (react_*, schema 1.2) |
 | `src/domains/agents/utils/execution_metadata.py` | Debug panel display metadata |
 | `docs/architecture/ADR-070-ReAct-Execution-Mode.md` | Architecture decision record |
+| `docs/architecture/ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md` | Memory parity, truncation honesty, earned budget |
+| `docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md` | Sandboxed scripts |
