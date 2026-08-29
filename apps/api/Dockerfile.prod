@@ -211,7 +211,15 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN useradd -m -u 1000 -s /bin/bash appuser
+RUN useradd -m -u 1000 -s /bin/bash appuser     # The skills sandbox (SEC-001) runs as uid 65534 with PYTHONPATH pointing
+    # inside this home. `useradd -m` creates it 0700, so the sandbox could not
+    # TRAVERSE it: everything below was world-readable and unreachable anyway.
+    # Measured in production 2026-08-29 — the shipped qr-code rich skill could
+    # not import `segno`, and ADR-249's ephemeral scripts saw the standard
+    # library only, while their manifest advertised numpy and pandas. Traversal
+    # only (o+rx): the packages are the application's own, the sandbox has no
+    # network, no credentials and a read-only rootfs.
+    && chmod 0755 /home/appuser
 
 # Set working directory
 WORKDIR /app

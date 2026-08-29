@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`pandas` est ajouté et `numpy` enfin déclaré.** Décidé sur mesure, contre l'intuition de départ : l'image fait 3,76 Go donc pandas pèse ~1,5 %, et **toutes** ses dépendances dures étaient déjà présentes — le verrou s'est résolu sans montée de numpy. Au passage, `numpy` était importé par quatre modules applicatifs sans figurer dans aucun manifeste : une vraie violation d'entrée de build, corrigée.
 - Le point d'entrée d'exécution du bac à sable est partagé entre skills et scripts éphémères : **une seule implémentation**, donc un seul jeu de drapeaux d'isolation — impossible de durcir un chemin et d'oublier l'autre.
 
+### Fixed
+
+- **Le bac à sable n'avait jamais accès aux bibliothèques tierces.** `useradd -m` crée `/home/appuser` en `0700`, or le bac à sable tourne en uid 65534 et son `PYTHONPATH` pointe dans ce répertoire : le chemin était bien dans `sys.path` et **tout import tiers levait `ModuleNotFoundError`**. Conséquence live et antérieure à cette version : le skill enrichi `qr-code` livré avec LIA ne pouvait pas importer `segno` en mode conteneur. Le répertoire personnel devient traversable (`o+rx` uniquement — les paquets sont ceux de l'application, et le bac à sable n'a ni réseau, ni identifiants, ni écriture). Trouvé en exécutant un vrai script en production, pas par les tests unitaires : ceux-ci simulent le démon, donc l'argv paraissait correct et les permissions n'étaient jamais exercées. Une garde lit désormais le Dockerfile, seul endroit où la réponse existe.
+
 ### Security
 
 - **Le mode bac à sable hérité est refusé** pour du code écrit par un modèle : il n'isole que si l'API tourne en root, compromis acceptable pour un skill que l'utilisateur a installé, inacceptable pour du code produit en lisant un email. Échec fermé, jamais de repli silencieux.
