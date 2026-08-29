@@ -37,6 +37,7 @@ from prometheus_client import Counter
 from pydantic import BaseModel
 
 from src.core.field_names import FIELD_CONTENT, FIELD_METADATA, FIELD_MODEL_NAME, FIELD_RESULT
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.infrastructure.cache.redis import get_redis_cache
 
 logger = structlog.get_logger(__name__)
@@ -549,14 +550,12 @@ def cache_llm_response(
                 logger.debug("llm_cache_disabled", func=func.__name__)
                 return await func(*args, **kwargs)
 
-            # Extract user_id from config for cache isolation (LangGraph pattern:
-            # config["configurable"]["user_id"]).
-            config = kwargs.get("config")
-            user_id = None
-            if config and isinstance(config, dict):
-                configurable = config.get("configurable", {})
-                if isinstance(configurable, dict):
-                    user_id = configurable.get("user_id")
+            # The cache is isolated per user. The identity comes from the typed
+            # run context (ADR-231); outside a run — this decorator also wraps
+            # calls made from scripts and tests — the key is simply not
+            # user-scoped, which is what the previous bag lookup did when the key
+            # was absent.
+            user_id = runtime_user_id_str(None)
             cache_key = _generate_cache_key(func.__name__, args, kwargs, user_id=user_id)
 
             # === READ boundary: a Redis read error degrades to a miss (never a

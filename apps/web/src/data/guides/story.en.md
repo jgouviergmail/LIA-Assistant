@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Date**: 2026-08-23
-**Application**: LIA v1.37.0
+**Application**: LIA v1.38.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 44 functional domains | **580,000** |
 | Automated tests, run on every commit and release | **27,600+** |
-| Documented architecture decisions (ADR) | **248** |
-| Versions shipped at a steady pace | **233** |
+| Documented architecture decisions (ADR) | **249** |
+| Versions shipped at a steady pace | **234** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 248 documented:
+Three structural decisions, among the 249 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -127,3 +127,5 @@ What this experience changes in a management practice:
 Then the assistant learned to show its own work: an Activity page listing everything it does on its own, learned rules you can read and correct, a memory that dates its recollections and archives without erasing, a voice that breathes with its mood. Autonomy grew exactly as the project's philosophy demanded: inside the frame, under the user's gaze.
 
 Then the assistant fit into a pocket without moving out of its home. One app per store, a client for whichever server its user runs: sign-in through the phone's real browser because the embedded one is refused, notifications that either come from the user's own project or pass through a relay built to know nothing, and a bench that drives the real app scene by scene — which found three live defects the compiler had blessed. The sovereignty thesis survived contact with the app stores: the data still has one home.
+
+Then the project turned the measurement on itself. It had promised fourteen moods and shipped a mapping that left five of them unreachable — the knobs to fix it had waited a year, deliberately switched off, until real usage could say whether they were needed. It had emitted hundreds of metrics and could not say which of them any human could actually see; now a metric that reaches no dashboard fails the build. And its own deployment ended on an error the operator had been told, in writing, to disregard — an instruction like that is not a workaround, it is the defect moved into prose. Three counters, three claims, three measurements. What a system says about itself is worth exactly what it has checked.

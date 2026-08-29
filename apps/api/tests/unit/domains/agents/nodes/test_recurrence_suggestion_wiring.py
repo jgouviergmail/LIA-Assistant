@@ -6,12 +6,14 @@ that merges the deterministic suggestion into the existing directive slot.
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import pytest
 from langchain_core.messages import HumanMessage
 
 from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
 from src.domains.agents.nodes.initiative_recurrence import initiative_node
+from tests.helpers.runtime_context import installed_runtime_context
 
 
 def _state():
@@ -27,13 +29,23 @@ def _state():
     }
 
 
-def _config():
-    return {
-        "configurable": {
-            "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
-            "thread_id": "t1",
-        }
-    }
+#: The config the node receives carries thread plumbing only (ADR-231).
+_CONFIG = {"configurable": {"thread_id": "t1"}}
+_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
+
+
+@pytest.fixture(autouse=True)
+def _run_context():
+    """Identity and the user's preferences travel on the typed run context."""
+    with installed_runtime_context(
+        user_id=_USER_ID,
+        thread_id="t1",
+        conversation_id="t1",
+        memory_enabled=False,
+        journals_enabled=False,
+        psyche_enabled=False,
+    ):
+        yield
 
 
 def _settings(**overrides):
@@ -62,8 +74,11 @@ class TestInitiativeRecurrenceWrapper:
                 "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
                 AsyncMock(return_value="Veux-tu automatiser cela ?"),
             ) as eval_mock,
+            # The identity now travels on the typed run context (ADR-231), so the
+            # node needs a real run installed — the bag key alone no longer feeds it.
+            installed_runtime_context(user_id=UUID("11111111-1111-1111-1111-111111111111")),
         ):
-            update = await initiative_node(_state(), _config())
+            update = await initiative_node(_state(), _CONFIG)
 
         assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "Veux-tu automatiser cela ?"
         # Signature built from QI shape (positional arg 2 is the signature).
@@ -86,7 +101,7 @@ class TestInitiativeRecurrenceWrapper:
                 AsyncMock(return_value="recurrence suggestion"),
             ) as eval_mock,
         ):
-            update = await initiative_node(_state(), _config())
+            update = await initiative_node(_state(), _CONFIG)
 
         assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "core suggestion"
         eval_mock.assert_not_awaited()
@@ -102,7 +117,7 @@ class TestInitiativeRecurrenceWrapper:
                 AsyncMock(return_value="never"),
             ) as eval_mock,
         ):
-            update = await initiative_node(_state(), _config())
+            update = await initiative_node(_state(), _CONFIG)
 
         assert STATE_KEY_INITIATIVE_SUGGESTION not in update
         eval_mock.assert_not_awaited()
@@ -120,7 +135,7 @@ class TestInitiativeRecurrenceWrapper:
                 AsyncMock(return_value="never"),
             ) as eval_mock,
         ):
-            update = await initiative_node(state, _config())
+            update = await initiative_node(state, _CONFIG)
 
         assert STATE_KEY_INITIATIVE_SUGGESTION not in update
         eval_mock.assert_not_awaited()
@@ -178,31 +193,13 @@ class TestRecurrenceRecordWiring:
         return SimpleNamespace(**defaults)
 
     def test_recorded_for_actionable_query(self):
-        config = {
-            "configurable": {
-                "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
-                "thread_id": "t1",
-                "user_memory_enabled": False,
-                "user_journals_enabled": False,
-                "user_psyche_enabled": False,
-            }
-        }
-        names = self._run(state=_state(), config=config, settings=self._extraction_settings())
+        names = self._run(state=_state(), config=_CONFIG, settings=self._extraction_settings())
         assert any(n.startswith("recurrence_record_") for n in names)
 
     def test_not_recorded_when_flag_off(self):
-        config = {
-            "configurable": {
-                "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
-                "thread_id": "t1",
-                "user_memory_enabled": False,
-                "user_journals_enabled": False,
-                "user_psyche_enabled": False,
-            }
-        }
         names = self._run(
             state=_state(),
-            config=config,
+            config=_CONFIG,
             settings=self._extraction_settings(recurrence_suggestion_enabled=False),
         )
         assert not any(n.startswith("recurrence_record_") for n in names)
@@ -210,14 +207,5 @@ class TestRecurrenceRecordWiring:
     def test_not_recorded_for_conversation_intent(self):
         state = _state()
         state["query_intelligence"]["intent"] = "conversation"
-        config = {
-            "configurable": {
-                "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
-                "thread_id": "t1",
-                "user_memory_enabled": False,
-                "user_journals_enabled": False,
-                "user_psyche_enabled": False,
-            }
-        }
-        names = self._run(state=state, config=config, settings=self._extraction_settings())
+        names = self._run(state=state, config=_CONFIG, settings=self._extraction_settings())
         assert not any(n.startswith("recurrence_record_") for n in names)

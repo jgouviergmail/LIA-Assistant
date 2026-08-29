@@ -43,7 +43,7 @@ Les **26 dashboards Grafana** fournissent une observabilite complete pour :
 | Schema version | 38 (Grafana 11.3) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
 | Navigation | Tag `lia` sur tous les dashboards |
-| Couverture metriques | 419/426 metriques du code referencees par au moins un panel (audit 2026-07 ; les 4 metriques ADR-131, celle d'ADR-134, celle d'ADR-135 et `heartbeat_source_dropped_total` d'ADR-148 attendent leurs panels — differe explicitement dans ces ADR) |
+| Couverture metriques | Mesuree, jamais estimee : `python scripts/audit/measure_metric_coverage.py` (dashboard, recording rule ou alerte comptent comme couverture). Le reste est un **ratchet shrink-only** — `apps/api/tests/unit/metric_coverage_baseline.json`, garde `test_metric_coverage_ratchet_guard.py` : une metrique qui n'atteint aucun panel doit y figurer explicitement, et en sort des qu'elle est cablee (`task ratchet:metrics`). |
 
 ---
 
@@ -76,6 +76,30 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | Prometheus | `prometheus` | Metriques + recording rules | Tous (01-26) |
 | Loki | `loki` | Logs structures | 05, 06, 07, 17 |
 | Tempo | `tempo` | Traces distribuees | 06 |
+
+### Retention et fenetre interrogeable
+
+| Source | Retention | Ou c'est configure |
+|--------|-----------|--------------------|
+| Loki (logs) | **168 h (7 jours)** | `infrastructure/observability/loki/loki-config.yml` (`limits_config.retention_period`, `compactor.retention_enabled`, `table_manager.retention_period`) |
+| Prometheus (metriques) | **15 j** ou **2 Go**, la premiere limite atteinte | `--storage.tsdb.retention.time` / `.size` (cf. `infrastructure/observability/prometheus/prometheus.yml` et `alerts-core.yml`) |
+
+> **PIEGE — un zero hors retention ne veut pas dire « aucun evenement ».** Une
+> requete Loki portant sur une fenetre plus ancienne que 7 jours renvoie
+> `status: success` avec **zero serie** : strictement indistinguable d'une
+> periode sans incident. Vecu le 2026-08-29 : une requete sur une fenetre
+> vieille de 5 semaines a renvoye 0 partout, y compris sur une periode ou 40
+> timeouts avaient ete mesures — d'ou une conclusion erronee « Loki est en
+> panne » (il etait sain). **Toujours inclure une periode de controle dont on
+> sait qu'elle contient des evenements** ; si elle rend 0 elle aussi, c'est la
+> requete ou la fenetre qui est en cause, pas la production.
+>
+> Ordre de grandeur mesure le 2026-08-29 : 7 jours de logs = **26,5 Mo** sur le
+> volume `lia_loki_data` (161 Go libres sur l'hote). Allonger la retention est
+> donc gratuit en disque — mais c'est une decision de **conservation de donnees
+> personnelles** (les logs portent des identifiants et des contenus), pas un
+> simple reglage technique : elle se tranche avec le proprietaire, pas en
+> passant.
 
 ### Fichiers de configuration
 

@@ -20,7 +20,14 @@ param(
     [string]$SshUser = "deploy",
     [string]$RemoteDir = "lia",
     [int]$MaxRetries = 3,
-    [int]$RetryDelaySeconds = 5
+    [int]$RetryDelaySeconds = 5,
+    # ADR-250: le deploiement distant tourne DETACHE et le pilote scrute son
+    # verdict. Ces deux bornes sont a l'operateur, pas au script : un Pi charge
+    # depasse les 11 minutes mesurees en v1.37.0, et le budget epuise ne rend
+    # pas un echec mais un `inconnu` -- il vaut donc mieux pouvoir l'allonger
+    # que d'apprendre a lire un verdict prudent comme une panne.
+    [int]$DeployPollSeconds = 5,
+    [int]$DeployBudgetSeconds = 2700
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,6 +41,28 @@ $localConfig = Join-Path $PSScriptRoot "deploy.local.ps1"
 if (Test-Path $localConfig) {
     . $localConfig
 }
+
+# ADR-250: la regle "255 ne dit rien du distant" vit dans UNE bibliotheque,
+# partagee avec demo-prod.ps1. Son absence est une erreur franche, pas une
+# degradation silencieuse : un pilote qui perdrait cette classification
+# recommencerait a annoncer des echecs qu'il ne peut pas constater.
+$remoteExitLib = Join-Path $PSScriptRoot "lib/RemoteExit.ps1"
+if (-not (Test-Path $remoteExitLib)) {
+    Write-Host "ERR: bibliotheque introuvable: $remoteExitLib" -ForegroundColor Red
+    exit 1
+}
+. $remoteExitLib
+
+# ADR-250: l'execution distante detachee. Meme regle que ci-dessus -- son
+# absence est une erreur franche : un pilote qui la perdrait retomberait sur
+# une session ssh bloquante, ou la survie du deploiement depend de la survie
+# de la connexion.
+$remoteRunLib = Join-Path $PSScriptRoot "lib/RemoteRun.ps1"
+if (-not (Test-Path $remoteRunLib)) {
+    Write-Host "ERR: bibliotheque introuvable: $remoteRunLib" -ForegroundColor Red
+    exit 1
+}
+. $remoteRunLib
 
 # Chemins
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -204,6 +233,84 @@ if ($RemoteDir -notmatch '\A[A-Za-z0-9][A-Za-z0-9._-]*\z') {
 # de segment de chemin ni de metacaractere shell.
 $StagingDir = "$RemoteDir.staging"
 
+# ============================================================================
+# SEC-040: les porteurs de secret dans PROD/, declares UNE fois
+# ============================================================================
+# `PROD/.env` est le fichier d'environnement de production EN CLAIR (l'etape 4
+# y renomme le `.env.prod` dechiffre). L'etape 10 supprime tout le bundle --
+# mais elle ne s'execute que sur le chemin nominal, et ce pilote a 14 sorties
+# prematurees (11 `exit`, 3 `throw`). Pire : `deploy:prod` se termine sur une
+# session SSH reinitialisee meme quand le deploiement REUSSIT (le skill
+# lia-deploy-prod le documente : "the exit code lies"), donc le chemin d'echec
+# est le chemin NOMINAL et la fuite etait systematique. Mesure le 2026-07-28 :
+# 434 Mo de bundle survivant a un deploiement qui avait pourtant abouti.
+#
+# La liste est EXACTE, jamais un glob : `provenance.env` vit dans le meme
+# repertoire, n'est pas un secret, et quatre tests le lisent.
+#
+# Elle sert deux fois -- a l'etape 3 (purger ce qu'une execution precedente
+# aurait laisse, AVANT de constituer le bundle) et dans le `finally` finel
+# (ne rien laisser derriere soi). Une seule declaration : deux listes
+# auraient diverge.
+# DEUX ensembles, et leur difference est le coeur du sujet : l'etape 3 purge
+# AVANT que le bundle parte, l'etape 4 a encore besoin de `.env.prod` pour le
+# renommer en `.env`. Les confondre supprime la source avant son renommage --
+# le bundle part alors SANS fichier d'environnement, et le deploiement echoue
+# a distance sur un `.env` absent. Mesure : cette erreur exacte a fait tomber
+# le test "renamed .env.prod to .env inside the bundle" a la premiere passe.
+#
+# `.env` figure dans le lot pre-transfert a dessein : un `.env` residuel d'une
+# execution avortee etait sinon EXPEDIE en production quand `.env.prod` est
+# absent, l'etape 4 ne le supprimant que sur la branche ou elle renomme.
+$SensitivePreTransfer = @(
+    ".env",                  # residu d'une execution precedente
+    ".env.prod.encrypted",   # archive SOPS
+    ".sops.yaml",            # regles de chiffrement
+    "keys"                   # cle age de production (repertoire)
+)
+
+# Le nettoyage final retire tout : le lot ci-dessus PLUS la production en clair
+# et sa source, qui n'ont plus aucune raison de survivre a l'execution.
+$SensitiveInProd = $SensitivePreTransfer + @(".env.prod")
+
+function Remove-SensitiveFromProd {
+    <#
+        .SYNOPSIS
+        Retire de PROD/ les seuls porteurs de secret, et rien d'autre.
+
+        .DESCRIPTION
+        Chirurgical par construction : un `Remove-Item PROD` complet
+        detruirait le bundle qu'un operateur inspecte apres un echec, et un
+        glob `*.env` emporterait `provenance.env`, qui n'est pas un secret.
+        Silencieux quand il n'y a rien a faire -- il s'execute a chaque sortie.
+    #>
+    param([string]$Dir, [switch]$Quiet)
+
+    if (-not (Test-Path $Dir)) { return @() }
+    $removed = @()
+    foreach ($name in $SensitiveInProd) {
+        $path = Join-Path $Dir $name
+        if (Test-Path $path) {
+            Remove-Item -Recurse -Force $path -ErrorAction SilentlyContinue
+            if (-not (Test-Path $path)) { $removed += $name }
+        }
+    }
+    # Le script parle une langue stricte : Write-Step (cyan, numerote),
+    # Write-Info (gris), Write-Success ("OK:", vert), Write-Warning ("WARN:"),
+    # Write-Err ("ERR:"). Un `Write-Host` brut dans une couleur absente de
+    # cette palette se lit comme une anomalie d'affichage.
+    #
+    # `Write-Success` et non `Write-Warning` : rien ne s'est mal passe ICI.
+    # Sur un chemin d'echec, cette ligne est meme la seule bonne nouvelle --
+    # elle dit a l'operateur que ses identifiants de production ne trainent
+    # pas sur son poste. Le marqueur SEC-040 suit la convention de SEC-013,
+    # deja porte par des messages d'execution.
+    if ($removed.Count -gt 0 -and -not $Quiet) {
+        Write-Success "SEC-040: secrets retires de PROD/ ($($removed -join ', '))"
+    }
+    return $removed
+}
+
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Magenta
 Write-Host "  DEPLOIEMENT PRODUCTION - LIA" -ForegroundColor Magenta
@@ -218,6 +325,15 @@ if ($DryRun) {
     Write-Host "  [DRY RUN] Aucune modification ne sera effectuee" -ForegroundColor Yellow
     Write-Host ""
 }
+
+# ============================================================================
+# SEC-040: a partir d'ici, TOUTE sortie passe par le nettoyage final
+# ============================================================================
+# PowerShell execute un `finally` sur `exit` comme sur un `throw` non rattrape,
+# en preservant le code de retour -- verifie sur powershell 5.1 ET pwsh 7. Le
+# corps n'est pas reindente : le langage n'y est pas sensible, et un
+# reindentation de 600 lignes aurait noye le correctif dans le diff.
+try {
 
 # ============================================================================
 # Etape 1: Chiffrement des fichiers .env
@@ -291,11 +407,9 @@ if (-not $DryRun) {
 # ============================================================================
 Write-Step "Nettoyage des fichiers sensibles dans PROD..."
 
-$filesToRemove = @(
-    (Join-Path $ProdDir "keys"),
-    (Join-Path $ProdDir ".env.prod.encrypted"),
-    (Join-Path $ProdDir ".sops.yaml")
-)
+# Derive de $SensitivePreTransfer (SEC-040) : le lot PRE-TRANSFERT, qui
+# exclut deliberement `.env.prod` -- l'etape 4 doit encore le renommer.
+$filesToRemove = $SensitivePreTransfer | ForEach-Object { Join-Path $ProdDir $_ }
 
 foreach ($file in $filesToRemove) {
     if (Test-Path $file) {
@@ -749,29 +863,155 @@ if (-not $DryRun) {
 # ============================================================================
 # Etape 9: Execution du script de deploiement sur le serveur
 # ============================================================================
+# ADR-250: le travail est DETACHE, son verdict est LU.
+#
+# Il tenait auparavant dans une session ssh bloquante, si bien que la survie du
+# deploiement dependait de la survie de la connexion -- et elle n'y survivait
+# pas : mesure du 2026-08-29 sur l'hote reel, tuer le client fait mourir le
+# script distant par SIGPIPE (exit 141) en ~6 s des qu'il ecrit sur le canal.
+# Sur un des deux essais, aucun verdict n'a meme ete ecrit. Le meme travail
+# lance detache survit a la destruction de tous les clients ssh et rend son
+# code exact.
+#
+# Le pilote ne DEDUIT donc plus rien d'un code de transport : il scrute un
+# fichier que le distant a ecrit. Un sondage qui echoue est reessaye, jamais
+# converti en verdict -- une coupure pendant la scrutation ne dit rien du
+# travail. Les six issues sont distinctes parce que la conduite a tenir l'est :
+# `RemoteFailure` autorise a parler d'echec, `Interrupted` et `Unknown` non.
 Write-Step "Execution du deploiement sur le serveur..."
 
-$deployCmd = "cd ~/$StagingDir && chmod +x deploy.sh && ./deploy.sh"
+$deployCmd = "chmod +x deploy.sh && ./deploy.sh"
 
-Write-Info "Commande: $deployCmd"
+Write-Info "Commande: cd ~/$StagingDir && $deployCmd"
 
 if (-not $DryRun) {
-    $fullDeployCmd = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$deployCmd`""
-    Write-Info "Execution: $fullDeployCmd"
-    # Cross-platform shell (F040): cmd /c is Windows-only. $IsWindows is $null on
-    # Windows PowerShell 5.1 (Windows-only), so that path stays byte-identical.
-    if (($null -eq $IsWindows) -or $IsWindows) {
-        cmd /c $fullDeployCmd
-    } else {
-        sh -c $fullDeployCmd
+    # La frontiere d'E/S, et rien d'autre : toute la machine a etats vit dans
+    # la bibliotheque, ou elle se verifie sans reseau ni attente.
+    #
+    # La charge voyage encodee (elle traverse PowerShell, le reassemblage
+    # d'arguments de ssh, puis le shell distant, et chacun revendique le
+    # guillemet). La PHASE, elle, voyage en clair a cote : sans elle, la trace
+    # du pilote et la table des processus de l'hote n'afficheraient qu'un bloc
+    # de base64. `sh -s --` la depose en parametre positionnel, ou le corps ne
+    # la lit pas -- elle n'est la que pour etre lisible.
+    $sshArgList = @("-p", "$SshPort") + $SshOptionsStr.Split(' ') + @($sshTarget)
+    $remoteExecutor = {
+        param([string]$Payload, [string]$Phase)
+
+        # Meme precaution que Invoke-WithRetry : ssh ecrit ses avertissements
+        # sur stderr, qu'un $ErrorActionPreference a "Stop" transformerait en
+        # exception sur une execution parfaitement normale.
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            $raw = & ssh @sshArgList "echo $Payload | base64 -d | sh -s -- lia-deploy-$Phase" 2>&1
+            # $global: EST OBLIGATOIRE ICI. `GetNewClosure()` recopie dans la
+            # portee de la closure toutes les variables visibles a sa creation,
+            # $LASTEXITCODE compris ; la lecture nue rend alors la valeur GELEE
+            # a ce moment-la, pas celle que ssh vient de poser. Mesure du
+            # 2026-08-29 : lecture nue 0, lecture globale 255, pour le meme
+            # appel. Le harnais l'a montre en silence -- un lancement dont la
+            # connexion tombait etait rapporte comme reussi, ce qui est
+            # exactement le verdict lu au mauvais endroit que tout ce chantier
+            # supprime.
+            $code = $global:LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $prevEap
+        }
+        return @{ ExitCode = $code; Output = ($raw | Out-String) }
+    }.GetNewClosure()
+
+    $outcome = Invoke-RemoteDetached -RemoteDir "~/$StagingDir" -Command $deployCmd `
+        -RemoteExecutor $remoteExecutor `
+        -PollIntervalSeconds $DeployPollSeconds -BudgetSeconds $DeployBudgetSeconds `
+        -OnLogLine { param($line) Write-Info $line }
+
+    # Les commandes qui permettent de trancher, factorisees : elles sont
+    # imprimees sur les quatre chemins ou le pilote ne sait pas conclure.
+    $inspectLines = @(
+        "  ssh -p $SshPort $sshTarget `"cd ~/$StagingDir && cat $($outcome.LogPath)`"",
+        "  ssh -p $SshPort $sshTarget `"cd $RemoteDir && docker compose -f docker-compose.prod.yml ps`"",
+        "  ssh -p $SshPort $sshTarget `"cat $RemoteDir/release-manifest.json`""
+    )
+    function Write-Inspect {
+        Write-Info ""
+        Write-Info "Pour trancher :"
+        foreach ($l in $inspectLines) { Write-Info $l }
     }
-    if ($LASTEXITCODE -ne 0) {
-        Write-Err "Echec du deploiement (exit code: $LASTEXITCODE)"
-        exit 1
+
+    switch ($outcome.Kind) {
+        "Success" {
+            Write-Success "Deploiement termine (execution $($outcome.RunId))"
+        }
+        "RemoteFailure" {
+            # Le seul etat ou l'on peut parler d'echec : le code a ete ECRIT
+            # par le distant, il ne vient pas du transport.
+            Write-Err "Echec du deploiement (exit code: $($outcome.ExitCode))"
+            Write-Info "Journal distant : ~/$StagingDir/$($outcome.LogPath)"
+            exit 1
+        }
+        "Busy" {
+            # Un deploiement etait deja en vol : celui-ci n'a pas eu lieu. Ce
+            # n'est pas un echec, et surtout il ne faut pas relancer -- l'etape
+            # 7 effacerait le staging sous le build de l'autre.
+            Write-Warning "Un deploiement est deja en cours sur le serveur : celui-ci n'a PAS eu lieu."
+            Write-Info "Rien n'a ete modifie a distance par cette execution."
+            Write-Info "Attendre la fin du deploiement en vol avant de relancer."
+            Write-Inspect
+            exit 1
+        }
+        "LaunchFailed" {
+            if ((Get-RemoteExitVerdict -ExitCode $outcome.ExitCode) -eq "ContactLost") {
+                # 255 au LANCEMENT : la connexion a pu tomber apres que l'hote
+                # ait deja forke le travail. On ne peut donc pas dire que rien
+                # n'a demarre -- c'est exactement la conclusion pressee que ce
+                # dispositif existe pour supprimer. La prose vient de la
+                # bibliotheque : les deux pilotes doivent dire la MEME chose
+                # d'une coupure. Premiere ligne en avertissement (elle porte le
+                # fait), le reste en information -- la palette est stricte.
+                $explanation = Get-ContactLostExplanation
+                Write-Warning $explanation[0]
+                foreach ($line in $explanation[1..($explanation.Count - 1)]) { Write-Info $line }
+                Write-Inspect
+                exit 1
+            }
+            # Tout autre code vient de la commande de lancement elle-meme, qui
+            # est synchrone : la, rien n'a demarre a distance et relancer est
+            # sans danger.
+            Write-Err "Lancement du deploiement impossible (exit code: $($outcome.ExitCode))"
+            Write-Info "Rien n'a demarre sur le serveur : l'operation est relancable telle quelle."
+            exit 1
+        }
+        "Interrupted" {
+            # Le travail s'est arrete en chemin sans ecrire de verdict : OOM,
+            # redemarrage, signal. Ni succes ni echec -- et surtout pas un
+            # echec du deploiement, qui affirmerait ce que personne n'a mesure.
+            Write-Warning "ADR-250: le deploiement distant s'est interrompu sans rendre de verdict."
+            Write-Info "Le verdict est INCONNU : le processus a disparu avant d'ecrire son code de"
+            Write-Info "sortie. Ce n'est pas un echec constate, c'est une absence de constat."
+            Write-Info ""
+            Write-Info "NE PAS relancer le deploiement tant que le doute persiste : il"
+            Write-Info "effacerait le repertoire de staging sous un build en vol."
+            Write-Inspect
+            exit 1
+        }
+        default {
+            # "Unknown" : le budget de scrutation est epuise alors que le
+            # travail tournait encore. On a cesse de regarder, il ne s'est rien
+            # passe de mal. Le budget est un parametre, precisement pour que
+            # cette prudence puisse etre allongee plutot qu'apprise par coeur.
+            Write-Warning "ADR-250: budget de scrutation epuise ($DeployBudgetSeconds s) -- le deploiement tourne ENCORE."
+            Write-Info "Le verdict est INCONNU : le travail distant n'a pas echoue, il n'a pas fini."
+            Write-Info "Relancer avec -DeployBudgetSeconds superieur pour l'attendre plus longtemps."
+            Write-Info ""
+            Write-Info "NE PAS relancer le deploiement : il effacerait le repertoire de staging"
+            Write-Info "sous un build encore en vol."
+            Write-Inspect
+            exit 1
+        }
     }
-    Write-Success "Deploiement termine"
 } else {
-    Write-Info "[DRY RUN] ssh -p $SshPort $SshOptionsStr $sshTarget `"$deployCmd`""
+    Write-Info "[DRY RUN] ssh -p $SshPort $SshOptionsStr $sshTarget <charge detachee ADR-250> ; cd ~/$StagingDir && $deployCmd"
 }
 
 # ============================================================================
@@ -849,3 +1089,19 @@ Write-Host "  Commandes utiles:" -ForegroundColor White
 Write-Host "    ssh -p $SshPort $SshUser@$SshHost `"cd $RemoteDir && docker compose -f docker-compose.prod.yml logs -f`"" -ForegroundColor Gray
 Write-Host "    ssh -p $SshPort $SshUser@$SshHost `"cd $RemoteDir && docker compose -f docker-compose.prod.yml ps`"" -ForegroundColor Gray
 Write-Host ""
+
+} finally {
+    # ========================================================================
+    # SEC-040: ne rien laisser derriere soi, quel que soit le chemin de sortie
+    # ========================================================================
+    # Ne s'applique JAMAIS en simulation : `-DryRun` doit laisser un PROD/
+    # preexistant strictement intact, y compris ses cles (contrat teste).
+    #
+    # Sur le chemin nominal, l'etape 10 a deja supprime tout le bundle : il n'y
+    # a plus rien a retirer et ce bloc reste muet. Il ne parle que lorsqu'il a
+    # reellement quelque chose a nettoyer, c'est-a-dire sur un echec -- ou sur
+    # ce faux echec qu'est une session SSH reinitialisee en fin de deploiement.
+    if (-not $DryRun) {
+        Remove-SensitiveFromProd -Dir $ProdDir | Out-Null
+    }
+}

@@ -4,7 +4,7 @@
 
 **Versión**: 1.7
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.37.0
+**Aplicación**: LIA v1.38.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 44 dominios funcionales | **580.000** |
 | Tests automatizados, ejecutados en cada commit y entrega | **27.600+** |
-| Decisiones de arquitectura documentadas (ADR) | **248** |
-| Versiones entregadas a ritmo regular | **233** |
+| Decisiones de arquitectura documentadas (ADR) | **249** |
+| Versiones entregadas a ritmo regular | **234** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 248 documentadas:
+Tres decisiones estructurantes, entre las 249 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -127,3 +127,5 @@ Lo que esta experiencia cambia en una práctica de dirección:
 Después el asistente aprendió a mostrar su propio trabajo: una página de Actividad que recoge todo lo que hace por sí mismo, reglas aprendidas que se pueden leer y corregir, una memoria que fecha sus recuerdos y archiva sin borrar, una voz que respira con su ánimo. La autonomía creció exactamente como exigía la filosofía del proyecto: dentro del marco, bajo la mirada del usuario.
 
 Luego el asistente cupo en el bolsillo sin mudarse de casa. Una app por tienda, cliente del servidor que cada cual ejecuta: inicio de sesión por el navegador real del teléfono porque el incrustado se rechaza, notificaciones que llegan del propio proyecto del usuario o pasan por un relé construido para no saber nada, y un banco que conduce la app real escena por escena — encontró tres defectos vivos que el compilador había bendecido. La tesis de la soberanía sobrevivió al contacto con las tiendas: los datos siguen teniendo una sola casa.
+
+Después el proyecto volvió la medición contra sí mismo. Prometía catorce estados de ánimo y entregaba una proyección que dejaba cinco fuera de alcance — los ajustes capaces de corregirlo habían esperado un año, deliberadamente apagados, a que el uso real dijera si hacían falta. Emitía cientos de métricas sin poder decir cuáles veía realmente un humano; ahora una métrica que no llega a ningún panel hace fallar la compilación. Y su propio despliegue terminaba con un error que una instrucción escrita pedía ignorar — una instrucción así no es un apaño, es el defecto trasladado a la prosa. Tres contadores, tres promesas, tres mediciones. Lo que un sistema dice de sí mismo vale exactamente lo que ha comprobado.

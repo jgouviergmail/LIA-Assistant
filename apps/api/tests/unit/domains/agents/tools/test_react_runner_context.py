@@ -2,11 +2,11 @@
 
 CLAUDE.md forbids inline language literals anywhere in Python — fallbacks and
 parameter defaults included — and requires defaults to come from settings or from
-``core.constants``. The canonical chokepoint
-(``services/orchestration/service.py``) already reads ``settings.default_language``
-and ``DEFAULT_TIMEZONE``; this runner deviated with ``"fr"`` and ``"UTC"``
-literals, so a sub-agent answered in French to a German user whenever the parent
-configurable happened to lack the key.
+``core.constants``. This runner deviated with ``"fr"`` and ``"UTC"`` literals, so a sub-agent answered
+in French to a German user whenever the parent configurable happened to lack the
+key. Since ADR-231 the sub-run inherits the parent's real values through
+``derive_sub_agent_context``, so the runner must carry no default of its own
+either — see ``test_the_sub_runner_reaches_for_no_default_at_all``.
 
 The scan is exact-equality on string constants, deliberately: a docstring
 mentioning ``e.g. "Europe/Paris"`` is legitimate documentation, a bare literal
@@ -139,13 +139,21 @@ def test_the_runner_no_longer_reprojects_the_context_by_hand() -> None:
 
 
 @pytest.mark.unit
-def test_the_canonical_sources_are_actually_imported() -> None:
-    """A guard on absence is weak; pin the presence of the replacement too."""
+def test_the_sub_runner_reaches_for_no_default_at_all() -> None:
+    """A guard on absence is weak; pin what replaced the literals.
+
+    The first fix swapped the ``"fr"``/``"UTC"`` literals for
+    ``settings.default_language``/``DEFAULT_TIMEZONE``. Completing ADR-231 made
+    even those wrong: the sub-run INHERITS the parent's real language and
+    timezone through ``derive_sub_agent_context``, so any default here would be
+    a fallback that can only fire by masking a broken inheritance — the German
+    user answered in the default language, one layer further down.
+    """
     source = RUNNER.read_text(encoding="utf-8")
 
     assert (
-        "settings.default_language" in source
-    ), "the sub-runner must read the default language from settings"
+        "default_language" not in source
+    ), "the sub-run inherits the parent's language; a default here can only mask a bug"
     assert (
-        "DEFAULT_TIMEZONE" in source
-    ), "the sub-runner must read the default timezone from core.constants"
+        "DEFAULT_TIMEZONE" not in source
+    ), "the sub-run inherits the parent's timezone; a default here can only mask a bug"

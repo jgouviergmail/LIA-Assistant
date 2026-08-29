@@ -13,11 +13,18 @@ from uuid import uuid4
 import pytest
 
 from src.domains.agents.services.smart_planner_service import SmartPlannerService
+from tests.helpers.runtime_context import installed_runtime_context, no_runtime_context
+
+#: The config the planner receives carries thread plumbing only; the acting user
+#: reaches _build_iot_device_context through the run context (ADR-231).
+_CONFIG: dict = {"configurable": {}}
 
 
-def _make_config(user_id: str | None = None) -> dict:
-    """Build a minimal RunnableConfig dict for testing."""
-    return {"configurable": {"user_id": user_id or str(uuid4())}}
+@pytest.fixture(autouse=True)
+def _run_context():
+    """Install a run context so the discovery sees an acting user."""
+    with installed_runtime_context(user_id=uuid4()):
+        yield
 
 
 def _make_light(name: str, light_id: str = "") -> dict:
@@ -52,28 +59,32 @@ class TestBuildIotDeviceContext:
     @pytest.mark.asyncio
     async def test_empty_when_no_domains(self) -> None:
         """Returns empty string when no domains are passed."""
-        config = _make_config()
+        config = _CONFIG
         assert await SmartPlannerService._build_iot_device_context(None, config) == ""
         assert await SmartPlannerService._build_iot_device_context([], config) == ""
 
     @pytest.mark.asyncio
     async def test_empty_when_non_hue_domain(self) -> None:
         """Returns empty string when domains don't include Hue."""
-        config = _make_config()
+        config = _CONFIG
         result = await SmartPlannerService._build_iot_device_context(["weather", "email"], config)
         assert result == ""
 
     @pytest.mark.asyncio
-    async def test_empty_when_no_user_id(self) -> None:
-        """Returns empty string when user_id is missing from config."""
-        config: dict = {"configurable": {}}
-        result = await SmartPlannerService._build_iot_device_context(["hue"], config)
+    async def test_empty_when_no_run_context(self) -> None:
+        """Returns empty string outside a run — the only way to have no user.
+
+        Identity is a mandatory field of LiaRuntimeContext (ADR-231), so
+        "no acting user" is no longer a missing key in a config dict.
+        """
+        with no_runtime_context():
+            result = await SmartPlannerService._build_iot_device_context(["hue"], _CONFIG)
         assert result == ""
 
     @pytest.mark.asyncio
     async def test_empty_when_no_hue_credentials(self) -> None:
         """Returns empty string when user has no Hue connector configured."""
-        config = _make_config()
+        config = _CONFIG
         mock_service = MagicMock()
         mock_service.get_hue_credentials = AsyncMock(return_value=None)
         mock_session = MagicMock()
@@ -94,7 +105,7 @@ class TestBuildIotDeviceContext:
     @pytest.mark.asyncio
     async def test_injects_light_and_room_names(self) -> None:
         """Injects exact light and room names into context string."""
-        config = _make_config()
+        config = _CONFIG
         lights = [_make_light("Plafond salon"), _make_light("Bureau")]
         rooms = [_make_room("Salon"), _make_room("Chambre")]
 
@@ -134,7 +145,7 @@ class TestBuildIotDeviceContext:
     @pytest.mark.asyncio
     async def test_graceful_failure_on_api_error(self) -> None:
         """Returns empty string on any exception (non-blocking)."""
-        config = _make_config()
+        config = _CONFIG
 
         with patch(
             "src.infrastructure.database.session.AsyncSessionLocal",
@@ -146,7 +157,7 @@ class TestBuildIotDeviceContext:
     @pytest.mark.asyncio
     async def test_empty_when_no_lights_or_rooms(self) -> None:
         """Returns empty string when bridge has no devices."""
-        config = _make_config()
+        config = _CONFIG
 
         mock_client = MagicMock()
         mock_client.list_lights = AsyncMock(return_value=[])

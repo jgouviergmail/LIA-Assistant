@@ -6,7 +6,7 @@
 
 **Versione**: 4.6
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.37.0
+**Applicazione**: LIA v1.38.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -61,8 +61,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 473 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 248 ADRs, ~20.468 test raccolti da pytest in 1.184 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 490 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 249 ADRs, ~21.521 test raccolti da pytest in 1.292 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -80,10 +80,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | 20.468 raccolti da pytest su 1.184 file di test + 6.327 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | 21.521 raccolti da pytest su 1.292 file di test + 6.368 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 248 |
+| ADR (Architecture Decision Record) | 249 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -903,13 +903,15 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 473 metriche custom (RED pattern) |
+| Prometheus | 490 metriche custom (RED pattern) |
 | Grafana | 26 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
 | Langfuse | Tracing specifico LLM (versioni prompt, utilizzo token) |
 | Alertmanager | Nucleo di 14 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) + webhook verso LIA: ogni avviso diventa un incidente nel prodotto (ADR-247) |
 | structlog | Logging strutturato con filtraggio PII |
+
+**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 490 definite, 433 cablate; le 57 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
 
 ### 20.2. Debug Panel integrato
 
@@ -1312,7 +1314,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-248 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+249 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1359,6 +1361,8 @@ Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve 
 **Principio fondamentale**: L'assistente non dice mai «sono contento» — invece, il suo vocabolario si scalda, le frasi si allungano, i suggerimenti diventano più audaci. Una guida di 540 parole (`psyche_usage_directive.txt`) spiega al LLM come tradurre ogni stato in comportamento concreto. Autovalutazione gratuita tramite tag XML nascosto `<psyche_eval/>`. Iniezione in tutti i punti di generazione rivolti all'utente.
 
 **Frontend**: Avatar emozionale con anello colorato per messaggio, dashboard a 4 grafici (umore/emozioni/relazione/motivazioni), guida educativa interattiva con 7 sezioni, espressività e stabilità personalizzabili.
+
+**Il quadro di riposo, ricentrato su misura**: la proiezione di Mehrabian faceva riposare **tutte e 14** le personalità del catalogo a D > 0, così i cinque stati d'animo che richiedono dominanza negativa restavano irraggiungibili a riposo — lo smorzamento è un'omotetia e non può correggerlo. Due impostazioni sono state consegnate **inerti** in v1.25.14 perché la loro attivazione fosse una decisione misurata. La misurazione di agosto 2026 (769 istantanee, 3 utenti, 90 giorni) ha confermato la diagnosi più nettamente della simulazione: quota di dominanza negativa **0,0 %**, e l'impulso che incoronava la gioia emozione dominante nel **31 %** dei turni, a prescindere dalla valutazione realmente riportata. Entrambe sono ora i valori predefiniti del codice: a 0,20 il catalogo abbraccia lo zero (7/14 riposano al di sotto, ordine esattamente preservato) e la valutazione riportata torna a governare il canale emotivo. Ciò che la stessa misurazione ha **confutato** è annotato anch'esso: anche l'attivazione è bloccata, ma dal flusso di valutazione e non dalla geometria dei punti di riposo — questo cambiamento non la corregge.
 
 ---
 
@@ -1416,7 +1420,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 248 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~20.468 test in 1.184 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 249 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~21.521 test in 1.292 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1472,4 +1476,4 @@ Chiedete a un modello linguistico quanto durano in totale una serie di scali, qu
 
 **L'output non è affidabile, il codice è verificabile.** Ciò che uno script stampa è codice scritto da un modello che gira su dati di terzi: per questo è marcato come contenuto non affidabile, esattamente come il corpo di un'email. Il codice stesso, con il suo scopo dichiarato e il suo output, è visibile agli amministratori nel pannello di debug: nasconderlo non comprerebbe alcuna sicurezza — il modello l'ha scritto, è già nel suo contesto — e costerebbe tutta la verificabilità.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 248 ADRs e del changelog (da v1.0 a v1.37.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 249 ADRs e del changelog (da v1.0 a v1.38.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

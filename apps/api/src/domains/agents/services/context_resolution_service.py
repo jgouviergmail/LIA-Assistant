@@ -28,7 +28,6 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import Settings, get_settings, settings
-from src.core.field_names import FIELD_USER_ID
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_CURRENT_TURN_ID,
@@ -38,6 +37,7 @@ from src.domains.agents.constants import (
     TURN_TYPE_REFERENCE,
 )
 from src.domains.agents.context.access import get_tcm_session
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.models import MessagesState
 from src.domains.agents.services.reference_resolver import ResolvedContext
 from src.domains.agents.utils.type_domain_mapping import TOOL_PATTERN_TO_DOMAIN_MAP
@@ -1031,7 +1031,7 @@ class ContextResolutionService:
         try:
             # Extract user_id and session_id from config
             configurable = config.get("configurable", {})
-            user_id = configurable.get(FIELD_USER_ID)
+            user_id = runtime_user_id_str()
             session_id = configurable.get("thread_id")
 
             if not user_id or not session_id:
@@ -1120,7 +1120,7 @@ class ContextResolutionService:
         try:
             # Extract user_id and session_id from config
             configurable = config.get("configurable", {})
-            user_id = configurable.get(FIELD_USER_ID)
+            user_id = runtime_user_id_str()
             session_id = configurable.get("thread_id")
 
             if not user_id or not session_id:

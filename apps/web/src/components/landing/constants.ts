@@ -54,7 +54,15 @@
  *   send_peer_message), which had never been carried into this tile.
  * - providers: ProviderType Literal in infrastructure/llm/providers/adapter.py
  *   (openai, anthropic, deepseek, perplexity, ollama, gemini, qwen)
- * - metrics: Prometheus metric definitions across src/ — re-measured 2026-08-27
+ * - metrics: Prometheus metric definitions across src/. Since v1.38.0 this tile
+ *   is a DERIVED count, not a hand-measurement: `version_surfaces.py` reads it
+ *   from `scripts/audit/measure_metric_coverage.py` (AST, not a grep — a grep
+ *   reads `ZoneInfo("UTC")` as an `Info` metric) and the CI guard fails on any
+ *   drift. It sat at 486 against a real 490, one line below two guarded
+ *   neighbours: a number next to a guarded number is the least likely one
+ *   anybody re-reads. The historical traces below record how it was taken
+ *   before; do not re-run the grep, run the scanner.
+ *   Previous re-measure 2026-08-27
  *   (v1.32.0): `grep -rhE '= (Counter|Gauge|Histogram|Summary)\(' src` = 486,
  *   the three series of `observability/metrics_llm_config.py` — capability
  *   mismatch, unmapped agent (ADR-244) and reasoning coercion (ADR-245).
@@ -69,6 +77,11 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured at v1.38.0: backend 20,817 (`pytest tests/unit tests/agents
+ *   --collect-only --no-cov`) + frontend 6,368 (`vitest list`) = 27,185
+ *   -> 27,000 (unchanged: the ADR-231 migration proofs, the metric-coverage
+ *   ratchet and the psyche default guards did not cross the next thousand,
+ *   and the figure is rounded DOWN by contract).
  *   Re-measured at v1.37.0: backend 20,780 (`pytest tests/unit tests/agents
  *   --collect-only --no-cov`) + frontend 6,368 (`vitest list`) = 27,148
  *   -> 27,000 (unchanged: the sandbox-traversal guard and the FAQ length
@@ -241,11 +254,11 @@ export const LANDING_STATS = {
   tools: 107,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 486,
+  metrics: 490,
   uiLanguages: 6,
   tests: 27000,
-  adrs: 248,
-  releases: 233,
+  adrs: 249,
+  releases: 234,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

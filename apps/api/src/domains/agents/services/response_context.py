@@ -35,6 +35,10 @@ from langchain_core.messages import HumanMessage
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_user_id_str,
+)
 from src.domains.agents.middleware.memory_injection import build_psychological_profile
 from src.domains.shared.extraction_targets import is_synthetic_message
 
@@ -201,7 +205,7 @@ async def fetch_response_context(
         is_trivial_message,
     )
 
-    _user_id_for_embed = config.get("configurable", {}).get("langgraph_user_id")
+    _user_id_for_embed = runtime_user_id_str(None)
     _thread_id_for_embed = config.get("configurable", {}).get("thread_id")
     user_msg_is_trivial = is_trivial_message(last_user_message) if last_user_message else True
     user_message_embedding: list[float] | None = None
@@ -246,15 +250,16 @@ async def fetch_response_context(
     # try/except semantics: an injection failure degrades to its neutral
     # default, and cancellation (CancelledError) propagates through gather
     # untouched.
-    user_memory_enabled = config.get("configurable", {}).get("user_memory_enabled", True)
-    user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
-    user_psyche_enabled = config.get("configurable", {}).get("user_psyche_enabled", False)
+    _ctx = runtime_context_if_running()
+    user_memory_enabled = _ctx.memory_enabled if _ctx is not None else True
+    user_journals_enabled = _ctx.journals_enabled if _ctx is not None else False
+    user_psyche_enabled = _ctx.psyche_enabled if _ctx is not None else False
 
     async def _inject_memory() -> tuple[str | None, dict[str, Any] | None]:
         """Long-term memory injection: psychological profile from semantic memory."""
         if not user_memory_enabled:
             return None, None
-        user_id = config.get("configurable", {}).get("langgraph_user_id")
+        user_id = runtime_user_id_str(None)
         if not (user_id and last_user_message):
             return None, None
         try:
@@ -311,7 +316,7 @@ async def fetch_response_context(
             from src.domains.rag_spaces.retrieval import retrieve_rag_context
             from src.infrastructure.database.session import get_db_context
 
-            user_id_for_rag = config.get("configurable", {}).get("langgraph_user_id")
+            user_id_for_rag = runtime_user_id_str(None)
             thread_id_for_rag = config.get("configurable", {}).get("thread_id")
             if not (user_id_for_rag and last_user_message):
                 return None, None
@@ -381,7 +386,7 @@ async def fetch_response_context(
         if not (settings.journals_enabled and user_journals_enabled):
             return "", None, []
         try:
-            user_id_for_journal = config.get("configurable", {}).get("langgraph_user_id")
+            user_id_for_journal = runtime_user_id_str(None)
             if not (user_id_for_journal and last_user_message):
                 return "", None, []
             from src.domains.journals.context_builder import (
@@ -422,7 +427,7 @@ async def fetch_response_context(
         if not (settings.journals_enabled and user_journals_enabled):
             return ""
         try:
-            _uid_for_portrait = config.get("configurable", {}).get("langgraph_user_id")
+            _uid_for_portrait = runtime_user_id_str(None)
             if not _uid_for_portrait:
                 return ""
             from src.domains.journals.portrait_builder import (
@@ -456,7 +461,7 @@ async def fetch_response_context(
             from src.domains.psyche.service import PsycheService
             from src.infrastructure.database.session import get_db_context
 
-            _user_id_for_psyche = config.get("configurable", {}).get("langgraph_user_id")
+            _user_id_for_psyche = runtime_user_id_str(None)
             if not _user_id_for_psyche:
                 return ""
             async with get_db_context() as _psyche_db:
@@ -483,7 +488,7 @@ async def fetch_response_context(
         decides which blocks may be read. Own failure boundary, like every
         other injection here.
         """
-        user_id_for_peer = config.get("configurable", {}).get("langgraph_user_id")
+        user_id_for_peer = runtime_user_id_str(None)
         if not (user_id_for_peer and last_user_message):
             return ""
 
@@ -532,7 +537,7 @@ async def fetch_response_context(
         live inside the builder.
         """
         try:
-            _uid = config.get("configurable", {}).get("langgraph_user_id")
+            _uid = runtime_user_id_str(None)
             if not _uid:
                 return ""
             from src.domains.habits.ambient import build_habits_rhythm_block

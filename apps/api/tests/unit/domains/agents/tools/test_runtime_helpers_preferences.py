@@ -12,22 +12,25 @@ locale for every supported language.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from langchain.tools import ToolRuntime
 
 from src.core.config import settings
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.runtime_helpers import get_user_preferences
 from src.domains.users.preferences_cache import UserPreferencesCache
+from tests.helpers.runtime_context import make_tool_runtime
 
 _USER_ID = uuid4()
 
 
-def _make_runtime(user_id: object = None) -> MagicMock:
-    runtime = MagicMock()
-    runtime.config = {"configurable": {"user_id": str(user_id or _USER_ID)}}
-    return runtime
+def _make_runtime(user_id: UUID | None = None) -> ToolRuntime[LiaRuntimeContext, Any]:
+    """The runtime the tool layer injects, carrying the acting user (ADR-231)."""
+    return make_tool_runtime(user_id=user_id or _USER_ID)
 
 
 def _make_user(timezone: str | None, language: str | None) -> MagicMock:

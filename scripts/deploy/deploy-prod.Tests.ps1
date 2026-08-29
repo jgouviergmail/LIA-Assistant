@@ -56,6 +56,11 @@ BeforeAll {
         Copy-Item (Join-Path $RepoDeployDir "deploy-prod.ps1") (Join-Path $proj "scripts/deploy/")
         Copy-Item (Join-Path $RepoDeployDir "prepare-prod.ps1") (Join-Path $proj "scripts/deploy/")
         Copy-Item (Join-Path $RepoDeployDir "lib/deploy_readiness_gate.sh") (Join-Path $proj "scripts/deploy/lib/")
+        # ADR-250: le pilote source cette bibliotheque au demarrage. Absente du
+        # bac a sable, il refuserait de demarrer -- ce qui est le comportement
+        # voulu en production, et une panne de fixture ici.
+        Copy-Item (Join-Path $RepoDeployDir "lib/RemoteExit.ps1") (Join-Path $proj "scripts/deploy/lib/")
+        Copy-Item (Join-Path $RepoDeployDir "lib/RemoteRun.ps1") (Join-Path $proj "scripts/deploy/lib/")
         # NOTE: deploy.local.ps1 deliberately NOT copied — hermetic defaults.
 
         Set-Content (Join-Path $proj "package.json") '{"version": "9.9.9-test"}'
@@ -129,12 +134,36 @@ FERNET_KEY=fake-fernet
 
     function Get-SandboxSha([string]$Proj) { (& git -C $Proj rev-parse HEAD).Trim() }
 
+    # ADR-250: the remote command travels base64-encoded, so the shim log no
+    # longer shows it in clear. Asserting on the marker alone would prove the
+    # driver called SOMETHING; decoding proves it called the deployment. The
+    # payload is the contract -- read it, do not paraphrase it.
+    function Get-LaunchPayload([string]$ShimLog) {
+        $m = [regex]::Match($ShimLog, "echo ([A-Za-z0-9+/=]+) \| base64 -d")
+        if (-not $m.Success) { return "" }
+        [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($m.Groups[1].Value))
+    }
+
     # --- PATH shims -----------------------------------------------------------
     # Each tool gets a Windows .bat AND a POSIX sh shim; both append their
     # invocation to $env:SHIM_LOG. ssh is scriptable via SSH_MODE:
     #   ok (default) | fail_twice (RETRY_COUNTER) | always_fail | fail_deploy
+    #   | drop_deploy (ADR-250: ssh answers 255 when the driver LAUNCHES the
+    #     detached deployment -- the TRANSPORT died, and since the host may
+    #     already have forked the work, that says NOTHING about the deployment)
+    #   | drop_poll (ADR-250: the launch lands, every subsequent poll loses the
+    #     connection -- the work is running and unobserved, which is `Unknown`,
+    #     never a failure)
+    #   | busy_deploy | interrupted_deploy (the two remaining detached verdicts)
     #   | bad_perms (SEC-013: hardening reports modes that were NOT applied)
     #   | empty_transfer (the transport moved nothing and said nothing)
+    #
+    # ADR-250 note: step 9 no longer runs `./deploy.sh` through a blocking ssh
+    # session. It launches it DETACHED and then polls a verdict file, so the
+    # shim answers two extra phases. The phases are matched on the plain-text
+    # `lia-deploy-launch` / `lia-deploy-poll` marker the driver puts beside the
+    # encoded payload -- the payload itself is base64 by construction, and a
+    # fixture that could read it would be relying on what production cannot.
     #
     # The shim also answers the transfer postcondition: the driver asks the host
     # how many entries landed in the staging directory, because a transport can
@@ -158,12 +187,23 @@ FERNET_KEY=fake-fernet
 echo ssh %* >> "%SHIM_LOG%"
 echo %* | findstr /C:"wc -l" >nul && goto :verify
 if "%SSH_MODE%"=="always_fail" exit /b 9
-if "%SSH_MODE%"=="fail_deploy" goto :faildeploy
+echo %* | findstr /C:"lia-deploy-launch" >nul && goto :launch
+echo %* | findstr /C:"lia-deploy-poll" >nul && goto :poll
 if "%SSH_MODE%"=="fail_twice" goto :failtwice
 goto :ok
-:faildeploy
-echo %* | findstr /C:"deploy.sh" >nul && exit /b 5
-goto :ok
+:launch
+if "%SSH_MODE%"=="drop_deploy" exit /b 255
+exit /b 0
+:poll
+if "%SSH_MODE%"=="drop_poll" exit /b 255
+if "%SSH_MODE%"=="fail_deploy" echo RC=5
+if "%SSH_MODE%"=="busy_deploy" echo RC=DEPLOY_BUSY
+if "%SSH_MODE%"=="interrupted_deploy" echo RC=
+if not "%SSH_MODE%"=="fail_deploy" if not "%SSH_MODE%"=="busy_deploy" if not "%SSH_MODE%"=="interrupted_deploy" echo RC=0
+echo ALIVE=0
+echo ---LOG---
+echo [remote] readiness gate green
+exit /b 0
 :failtwice
 set N=0
 if exist "%RETRY_COUNTER%" set /p N=<"%RETRY_COUNTER%"
@@ -197,9 +237,25 @@ case "$*" in
     ;;
 esac
 [ "$SSH_MODE" = "always_fail" ] && exit 9
-if [ "$SSH_MODE" = "fail_deploy" ]; then
-  case "$*" in *deploy.sh*) exit 5 ;; esac
-fi
+case "$*" in
+  *lia-deploy-launch*)
+    [ "$SSH_MODE" = "drop_deploy" ] && exit 255
+    exit 0
+    ;;
+  *lia-deploy-poll*)
+    [ "$SSH_MODE" = "drop_poll" ] && exit 255
+    case "$SSH_MODE" in
+      fail_deploy) echo "RC=5" ;;
+      busy_deploy) echo "RC=DEPLOY_BUSY" ;;
+      interrupted_deploy) echo "RC=" ;;
+      *) echo "RC=0" ;;
+    esac
+    echo "ALIVE=0"
+    echo "---LOG---"
+    echo "[remote] readiness gate green"
+    exit 0
+    ;;
+esac
 if [ "$SSH_MODE" = "fail_twice" ]; then
   N=0; [ -f "$RETRY_COUNTER" ] && N=$(cat "$RETRY_COUNTER")
   N=$((N+1)); echo $N > "$RETRY_COUNTER"
@@ -497,8 +553,10 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $bin = New-ShimSet $TestDrive
         $log = Join-Path $TestDrive "shim-bundle.log"
         $script:sha = Get-SandboxSha $proj
-        # SSH_MODE=fail_deploy: every remote op succeeds EXCEPT the final
-        # `./deploy.sh` execution → the driver exits 1 at step 9 and the local
+        # SSH_MODE=fail_deploy: every remote op succeeds, the detached job
+        # LAUNCHES, and the verdict file it writes carries 5 (ADR-250: the code
+        # comes from the server, so this is the one state where the driver may
+        # speak of a failed deployment) → the driver exits 1 at step 9 and the local
         # PROD bundle survives for inspection.
         $script:r = Invoke-DeployProd -Proj $proj -ShimBin $bin `
             -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "1") `
@@ -611,16 +669,53 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         (Join-Path $prod ".sops.yaml") | Should -Not -Exist
     }
 
-    It "renamed .env.prod to .env inside the bundle" {
-        (Join-Path $prod ".env") | Should -Exist
+    It "renamed .env.prod to .env inside the bundle, then scrubbed it (SEC-040)" {
+        # L'oracle a DEMENAGE, il n'a pas ete affaibli. Avant SEC-040 ce test
+        # lisait `PROD/.env` a la fin de l'execution ; ce fichier est desormais
+        # retire sur tout chemin de sortie, parce qu'il contient la production
+        # EN CLAIR. La preuve du renommage est donc prise sur ce qui survit :
+        # la source a disparu, et le nettoyage final NOMME `.env` parmi ce
+        # qu'il a retire -- ce qui etablit a la fois qu'il a existe et qu'il ne
+        # traine plus. C'est strictement plus d'information que "il existe".
         (Join-Path $prod ".env.prod") | Should -Not -Exist
+        (Join-Path $prod ".env") | Should -Not -Exist
+        $r.Output | Should -Match "SEC-040.*\.env"
     }
 
     It "drove the remote sequence: backup, cleanup, transfer, then deploy" {
         $shimLog | Should -Match "lia-backups"
         $shimLog | Should -Match "sudo rm -rf"
         $shimLog | Should -Match "rsync .*-avz.*--partial"
-        $shimLog | Should -Match ([regex]::Escape("chmod +x deploy.sh && ./deploy.sh"))
+        # ADR-250: decoded, because the payload is what the host executes.
+        (Get-LaunchPayload $shimLog) | Should -Match ([regex]::Escape("chmod +x deploy.sh && ./deploy.sh"))
+    }
+
+    It "launched the deployment DETACHED, not inside the ssh session (ADR-250)" {
+        # The three properties measured on the real host on 2026-08-29. A
+        # regression on any of them silently restores the old coupling: the
+        # work dies with the connection (SIGPIPE, exit 141, within seconds).
+        $payload = Get-LaunchPayload $shimLog
+        $payload | Should -Match "nohup"          # detached
+        $payload | Should -Match ">/dev/null"     # stdout off the channel
+        $payload | Should -Match "</dev/null"     # stdin off the channel
+        $payload | Should -Match "flock -n"       # one deployment at a time
+        # The verdict is WRITTEN by the remote, which is the whole point: the
+        # driver reads it instead of deducing it from an ssh exit code.
+        $payload | Should -Match ([regex]::Escape('echo $? > deploy.'))
+    }
+
+    It "polled for the verdict instead of holding the session open (ADR-250)" {
+        $shimLog | Should -Match "lia-deploy-launch"
+        $shimLog | Should -Match "lia-deploy-poll"
+        $iLaunch = $shimLog.IndexOf("lia-deploy-launch")
+        $iPoll = $shimLog.IndexOf("lia-deploy-poll")
+        $iPoll | Should -BeGreaterThan $iLaunch
+    }
+
+    It "streamed the remote log to the operator" {
+        # A detached job writes to a file; if the driver did not relay it, the
+        # operator would watch eleven minutes of nothing.
+        $r.Output | Should -Match ([regex]::Escape("[remote] readiness gate green"))
     }
 
     It "hardens the remote secret permissions before deploy (SEC-013)" {
@@ -629,7 +724,7 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $shimLog | Should -Match ([regex]::Escape("chmod 600"))
         $shimLog | Should -Match "\.env"
         $iHarden = $shimLog.IndexOf("stat -c")
-        $iDeploy = $shimLog.IndexOf("chmod +x deploy.sh")
+        $iDeploy = $shimLog.IndexOf("lia-deploy-launch")
         $iHarden | Should -BeGreaterThan 0
         $iDeploy | Should -BeGreaterThan $iHarden
     }
@@ -765,6 +860,231 @@ Describe "deploy-prod.ps1 full happy path (hermetic)" {
 # ============================================================================
 # Retry with exponential backoff
 # ============================================================================
+# ============================================================================
+# A lost connection is not a failed deployment (ADR-250).
+#
+# `ssh` propagates the remote exit code faithfully for every value EXCEPT 255,
+# which it also uses for every transport failure of its own (measured: remote
+# `exit 7` -> 7, `exit 1` -> 1, `exit 255` -> 255, unreachable host -> 255,
+# broken ProxyCommand -> 255). So on 255, and on 255 alone, the driver knows
+# strictly nothing about what happened on the server.
+#
+# This is not a corner case: `task deploy:prod` ends on a reset SSH session
+# even when the deployment SUCCEEDS -- the lia-deploy-prod skill documents it
+# under "the exit code lies" and asks the operator to disregard the error. A
+# prose instruction telling a human to ignore an error message is the trap;
+# the driver must say what it actually knows.
+#
+# Measured 2026-08-29 on the real host: killing the ssh client mid-run makes
+# the remote script die of SIGPIPE (exit 141) within seconds, so a 255 can
+# ALSO mean a deployment interrupted halfway -- which is precisely why the
+# driver must not guess in either direction.
+#
+# Since the deployment runs DETACHED, this 255 lands on the LAUNCH call. That
+# is the one place where the ambiguity survives the redesign: the host may have
+# forked the work before the channel died, so "nothing started" is exactly as
+# unprovable as "it failed". Every LATER loss of contact is a poll, and a poll
+# that does not connect is simply retried.
+# ============================================================================
+Describe "deploy-prod.ps1 does not call a lost connection a failed deployment (ADR-250)" {
+    BeforeAll {
+        $proj = New-DeploySandbox $TestDrive
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-drop.log"
+        $script:rDrop = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "1") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "drop_deploy" }
+    }
+
+    It "still exits non-zero (the local run did NOT complete its steps)" {
+        # Honesty cuts both ways: we do not know it failed, and we do not know
+        # it succeeded either. Claiming success here would be the mirror defect.
+        $rDrop.ExitCode | Should -Not -Be 0
+    }
+
+    It "does NOT claim the deployment failed" {
+        $rDrop.Output | Should -Not -Match "Echec du deploiement"
+    }
+
+    It "names what actually happened: contact lost, verdict unknown" {
+        $rDrop.Output | Should -Match "ADR-250"
+        $rDrop.Output | Should -Match "(?i)contact perdu"
+        $rDrop.Output | Should -Match "(?i)inconnu"
+    }
+
+    It "warns that the remote deployment may still be running" {
+        # The operator's most dangerous reflex is to re-run immediately: the
+        # staging directory would be wiped under a build still in flight.
+        $rDrop.Output | Should -Match "(?i)(en cours|peut encore)"
+    }
+
+    It "tells the operator how to find out, instead of leaving them guessing" {
+        $rDrop.Output | Should -Match "docker compose"
+    }
+
+    It "scrubbed the secret on this path too (SEC-040 covers it)" {
+        (Join-Path $proj "PROD/.env") | Should -Not -Exist
+    }
+}
+
+# ============================================================================
+# The three verdicts a detached deployment adds (ADR-250).
+#
+# Their whole value is that none of them is a failure, and the driver must not
+# round them to one. `Busy` means the deployment did not happen; `Interrupted`
+# means it stopped somewhere without writing a verdict; `Unknown` means we
+# stopped watching. Reporting any of the three as "Echec du deploiement" is the
+# invented diagnosis this ADR exists to remove -- and each of them must also
+# suppress the operator's most dangerous reflex, which is to re-run: step 7
+# would wipe the staging directory under a build still in flight.
+# ============================================================================
+Describe "deploy-prod.ps1 reports the detached verdicts without inventing a failure (ADR-250)" {
+    BeforeAll {
+        $bin = New-ShimSet $TestDrive
+
+        function Invoke-WithVerdict([string]$Mode, [string[]]$Extra = @()) {
+            $proj = New-DeploySandbox (Join-Path $TestDrive $Mode)
+            Invoke-DeployProd -Proj $proj -ShimBin $bin `
+                -Arguments (@("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "1") + $Extra) `
+                -EnvOverrides @{ SHIM_LOG = (Join-Path $TestDrive "$Mode.log"); SSH_MODE = $Mode }
+        }
+
+        $script:rBusy = Invoke-WithVerdict "busy_deploy"
+        $script:rInterrupted = Invoke-WithVerdict "interrupted_deploy"
+        # Budget 0: the first poll loses the connection and the watching window
+        # is already spent, so the loop reaches `Unknown` without sleeping.
+        $script:rUnknown = Invoke-WithVerdict "drop_poll" @("-DeployBudgetSeconds", "0", "-DeployPollSeconds", "1")
+    }
+
+    It "a refused deployment is not a failed one (Busy)" {
+        $rBusy.Output | Should -Not -Match "Echec du deploiement"
+        $rBusy.Output | Should -Match "(?i)deja en cours"
+        $rBusy.Output | Should -Match "(?i)n'a PAS eu lieu"
+        $rBusy.ExitCode | Should -Not -Be 0
+    }
+
+    It "an interrupted deployment is an absence of verdict, and says so" {
+        $rInterrupted.Output | Should -Not -Match "Echec du deploiement"
+        $rInterrupted.Output | Should -Match "ADR-250"
+        $rInterrupted.Output | Should -Match "(?i)inconnu"
+        $rInterrupted.Output | Should -Match "(?i)NE PAS relancer"
+    }
+
+    It "an exhausted watching budget says the work is still RUNNING" {
+        $rUnknown.Output | Should -Not -Match "Echec du deploiement"
+        $rUnknown.Output | Should -Match "(?i)budget de scrutation"
+        $rUnknown.Output | Should -Match "(?i)tourne ENCORE"
+        # The prudence must be adjustable, or an operator learns to read a
+        # cautious verdict as a breakage.
+        $rUnknown.Output | Should -Match "DeployBudgetSeconds"
+    }
+
+    It "a poll that cannot connect is RETRIED, never turned into a verdict" {
+        # The launch landed; only the polls lost contact. Announcing a lost
+        # contact here would re-import the very deduction the ADR removes.
+        $rUnknown.Output | Should -Not -Match "(?i)contact perdu"
+    }
+
+    It "scrubs the production secret on all three paths (SEC-040)" {
+        foreach ($mode in @("busy_deploy", "interrupted_deploy", "drop_poll")) {
+            (Join-Path $TestDrive "$mode/proj/PROD/.env") | Should -Not -Exist
+        }
+    }
+}
+
+# ============================================================================
+# The decrypted production secret must not outlive the run (SEC-040).
+#
+# `PROD/.env` is the production environment file IN CLEAR: step 4 renames the
+# decrypted `.env.prod` into it, and step 10 removes the whole bundle -- but
+# step 10 only runs on the happy path. The driver has 14 early exits (11 `exit`
+# + 3 `throw`) and no top-level `finally`, so every failure left a plaintext
+# copy of every production credential on the developer's machine.
+#
+# This is not hypothetical: `task deploy:prod` ends with a reset SSH session on
+# a SUCCESSFUL deployment (documented in the lia-deploy-prod skill: "the exit
+# code lies"), so the driver takes a failure path -- and leaks -- on runs that
+# actually worked. Measured 2026-07-28: a 434 MB PROD directory survived a
+# deployment that had in fact succeeded.
+#
+# The scrub must be surgical, not a glob: `provenance.env` sits in the same
+# directory, is NOT a secret, and four tests above read it. The bundle stays
+# inspectable on purpose -- a failed deploy is something an operator debugs.
+# ============================================================================
+Describe "deploy-prod.ps1 scrubs the decrypted secret from PROD on failure paths" {
+    BeforeAll {
+        $proj = New-DeploySandbox $TestDrive
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-scrub-deploy.log"
+        # fail_deploy: everything succeeds until `./deploy.sh`, which exits 5.
+        # The secret is already in place by then (step 4 ran at step 4).
+        $script:rFail = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "1") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "fail_deploy" }
+        $script:prodFail = Join-Path $proj "PROD"
+    }
+
+    It "took a failure path (guard: the rest of this block would be vacuous)" {
+        $rFail.ExitCode | Should -Not -Be 0
+    }
+
+    It "left NO decrypted .env behind" {
+        # Garde anti-vacuite : l'absence seule ne prouve rien -- a la premiere
+        # passe ce test etait VERT parce qu'une erreur de factorisation
+        # supprimait `.env.prod` avant que l'etape 4 puisse le renommer, si
+        # bien que `.env` n'avait jamais existe. Le message de nettoyage doit
+        # donc nommer `.env` : il a bien ete cree, puis retire.
+        $rFail.Output | Should -Match "SEC-040.*\.env"
+        (Join-Path $prodFail ".env") | Should -Not -Exist
+    }
+
+    It "left no other secret-bearing artifact behind" {
+        (Join-Path $prodFail ".env.prod") | Should -Not -Exist
+        (Join-Path $prodFail "keys") | Should -Not -Exist
+        (Join-Path $prodFail ".env.prod.encrypted") | Should -Not -Exist
+        (Join-Path $prodFail ".sops.yaml") | Should -Not -Exist
+    }
+
+    It "kept the bundle inspectable (a failed deploy is something one debugs)" {
+        (Join-Path $prodFail "deploy.sh") | Should -Exist
+        (Join-Path $prodFail "provenance.env") | Should -Exist
+        (Join-Path $prodFail "apps/api/src/main.py") | Should -Exist
+    }
+
+    It "says what it scrubbed, so the operator is not left guessing" {
+        # Matched on the SEC-040 marker, not on the word "secret": the driver
+        # already prints "Fichier de secrets du demonstrateur" at step 8, so a
+        # looser pattern passed BEFORE this feature existed -- a green test
+        # proving nothing. Falsified: this assertion failed on the red run only
+        # after the marker was made specific.
+        $rFail.Output | Should -Match "SEC-040"
+    }
+}
+
+Describe "deploy-prod.ps1 scrubs the secret when a retried operation gives up (throw path)" {
+    BeforeAll {
+        $proj = New-DeploySandbox $TestDrive
+        $bin = New-ShimSet $TestDrive
+        $log = Join-Path $TestDrive "shim-scrub-throw.log"
+        # always_fail makes Invoke-WithRetry exhaust its attempts and THROW.
+        # `throw` and `exit` are different termination paths; PowerShell runs
+        # `finally` for both (verified on powershell 5.1 and pwsh 7), and this
+        # test is what keeps that true.
+        $script:rThrow = Invoke-DeployProd -Proj $proj -ShimBin $bin `
+            -Arguments @("-SkipEncrypt", "-RetryDelaySeconds", "0", "-MaxRetries", "1") `
+            -EnvOverrides @{ SHIM_LOG = $log; SSH_MODE = "always_fail" }
+        $script:prodThrow = Join-Path $proj "PROD"
+    }
+
+    It "terminated abnormally (guard)" {
+        $rThrow.ExitCode | Should -Not -Be 0
+    }
+
+    It "left NO decrypted .env behind" {
+        (Join-Path $prodThrow ".env") | Should -Not -Exist
+    }
+}
+
 Describe "deploy-prod.ps1 retry behavior" {
     BeforeAll {
         $bin = New-ShimSet $TestDrive
@@ -1047,7 +1367,12 @@ Describe "deploy-prod.ps1 keeps the live directory intact during the build (A2)"
     }
 
     It "runs the remote deploy from the staging directory" {
-        $shimLog | Should -Match ([regex]::Escape("cd ~/lia.staging && chmod +x deploy.sh && ./deploy.sh"))
+        # ADR-250: the command now travels base64-encoded inside the detached
+        # launch payload, so the staging path is asserted where it is actually
+        # written -- decoded -- rather than on a shim line that no longer
+        # carries it.
+        (Get-LaunchPayload $shimLog) |
+            Should -Match ([regex]::Escape("cd ~/lia.staging && chmod +x deploy.sh && ./deploy.sh"))
     }
 
     It "stages the demonstrator secrets BEFORE the swap consumes the directory" {
@@ -1061,7 +1386,9 @@ Describe "deploy-prod.ps1 keeps the live directory intact during the build (A2)"
         # deploy — so the assertion held whatever the order, and proved nothing
         # (caught by re-injecting the defect, 2026-08-07).
         $push = [regex]::Match($shimLog, "(?m)^scp .*\.env\.demo-instance\.prod")
-        $swap = $shimLog.IndexOf("chmod +x deploy.sh")
+        # ADR-250: the swap is now triggered by the detached launch, whose
+        # plain-text marker is what the shim log carries.
+        $swap = $shimLog.IndexOf("lia-deploy-launch")
 
         $push.Success | Should -BeTrue -Because "the pipeline must push the demonstrator secrets itself"
         $swap | Should -BeGreaterThan -1

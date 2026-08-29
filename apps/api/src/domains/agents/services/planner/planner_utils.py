@@ -7,6 +7,7 @@ to build plans, create virtual catalogues, and extract item IDs.
 
 from typing import TYPE_CHECKING, Any
 
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.services.planner.domain_constants import DOMAIN_ID_FIELDS
 
 if TYPE_CHECKING:
@@ -47,7 +48,7 @@ def build_plan_from_steps(
 
     return ExecutionPlan(
         plan_id=f"smart_{configurable.get('run_id', 'unknown')}",
-        user_id=str(configurable.get("user_id", "")),
+        user_id=runtime_user_id_str() or "",
         session_id=extract_session_id_from_config(config, required=False) or "",
         steps=steps,
         execution_mode="sequential",

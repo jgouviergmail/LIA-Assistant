@@ -16,6 +16,7 @@ import pytest
 
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.tools.base import _extract_runtime_language
+from tests.helpers.runtime_context import make_tool_runtime
 
 ALL_LANGUAGES = ("fr", "en", "es", "de", "it", "zh-CN")
 
@@ -78,10 +79,13 @@ def test_category_not_activated_all_six_languages(language):
 
 
 def _runtime(user_language=None):
-    configurable = {"user_id": "u", "thread_id": "t"}
-    if user_language is not None:
-        configurable["user_language"] = user_language
-    return SimpleNamespace(config={"configurable": configurable})
+    """A runtime whose language lives on the typed context (ADR-231).
+
+    ``None`` means "the user expressed no preference", so the context keeps its
+    settings-driven default — the case the third test below pins.
+    """
+    overrides = {"language": user_language} if user_language is not None else {}
+    return make_tool_runtime(thread_id="t", conversation_id="t", **overrides)
 
 
 @pytest.mark.unit

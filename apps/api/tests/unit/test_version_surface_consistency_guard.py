@@ -198,6 +198,14 @@ class TestDerivedCounts:
             "(ADR-008 has no separate file, so it runs one above)."
         )
         assert counts["changelog_releases"] >= 200, "CHANGELOG scan found too few entries"
+        # Anti-rot floor for the REAL repository, kept here rather than in
+        # `version_surfaces` so that module stays pure enough to run against a
+        # three-metric fixture — the same split as MIN_EXPECTED_GUIDE_STAMPS.
+        # A scan that suddenly returns a handful means a moved source tree, and
+        # the repair would write that handful into six public documents.
+        assert (
+            counts["prometheus_metrics"] >= 300
+        ), "Metric scan found implausibly few metrics — moved source tree?"
 
     def test_every_declared_surface_actually_matches_something(self) -> None:
         """Guard the guard: a surface that matches nothing passes in silence.

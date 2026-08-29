@@ -8,12 +8,15 @@ in-memory tracker reset between tests.
 
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
+from langchain.tools import ToolRuntime
 
 from src.domains.agents.tools import document_generation_tools as mod
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
 from src.domains.document_generation.service import GeneratedDocumentResult
+from tests.helpers.runtime_context import make_tool_runtime
 
 SETTINGS_PATCH_PATH = "src.core.config.get_settings"
 
@@ -28,10 +31,18 @@ def reset_tracker():
     _rate_limit_tracker.clear()
 
 
-def _runtime(user_id: str | None = _USER_ID) -> MagicMock:
-    runtime = MagicMock()
-    runtime.config = {"configurable": {"user_id": user_id, "thread_id": "conv1"}}
-    return runtime
+def _runtime(user_id: str | None = _USER_ID) -> ToolRuntime | MagicMock:
+    """A runtime carrying the identity on its typed context (ADR-231).
+
+    ``user_id=None`` models a tool reached with no identity at all, which the
+    tool must refuse — so that case keeps a contextless runtime on purpose.
+    """
+    if user_id is None:
+        runtime = MagicMock()
+        runtime.config = {"configurable": {"thread_id": "conv1"}}
+        runtime.context = None
+        return runtime
+    return make_tool_runtime(user_id=UUID(user_id), thread_id="conv1", conversation_id="conv1")
 
 
 def _fake_settings(enabled: bool = True) -> MagicMock:

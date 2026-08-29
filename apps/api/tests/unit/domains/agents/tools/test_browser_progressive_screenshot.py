@@ -10,14 +10,19 @@ Phase: evolution — Browser Progressive Screenshots
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
+from langchain.tools import ToolRuntime
 
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.browser_tools import (
     _emit_progressive_screenshot,
     _screenshot_debounce,
 )
+from tests.helpers.runtime_context import DEFAULT_TEST_USER_ID, make_tool_runtime
 
 # ============================================================================
 # FIXTURES
@@ -35,32 +40,35 @@ def _clear_debounce() -> None:
 
 def _make_runtime(
     queue: object | None = None,
-    user_id: str = "test-user-123",
+    user_id: UUID = DEFAULT_TEST_USER_ID,
     thread_id: str = "conv-456",
     parent_thread_id: str | None = None,
-) -> MagicMock:
-    """Create a mock ToolRuntime with configurable dict.
+) -> ToolRuntime[LiaRuntimeContext, Any]:
+    """The ToolRuntime the tool layer injects (ADR-231).
+
+    The side channel and the acting user travel on the typed run context;
+    __parent_thread_id stays in configurable — it is thread plumbing a
+    nested call writes for its own callee, deliberately read by browser_tools.
 
     Args:
         queue: The side-channel queue (or None to omit).
-        user_id: User ID in configurable.
-        thread_id: Thread ID in configurable.
+        user_id: The acting user.
+        thread_id: The run's thread.
         parent_thread_id: Parent thread ID (forwarded from parent graph).
 
     Returns:
-        Mock runtime with .config attribute.
+        A ready-to-inject ToolRuntime.
     """
-    configurable: dict = {
-        "user_id": user_id,
-        "thread_id": thread_id,
-    }
-    if queue is not None:
-        configurable["__side_channel_queue"] = queue
+    configurable: dict = {}
     if parent_thread_id is not None:
         configurable["__parent_thread_id"] = parent_thread_id
-    runtime = MagicMock()
-    runtime.config = {"configurable": configurable}
-    return runtime
+    return make_tool_runtime(
+        configurable=configurable,
+        user_id=user_id,
+        thread_id=thread_id,
+        conversation_id=thread_id,
+        side_channel_queue=queue,
+    )
 
 
 def _make_session(

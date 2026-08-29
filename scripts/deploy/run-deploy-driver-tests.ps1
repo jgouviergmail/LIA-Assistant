@@ -33,7 +33,15 @@ if (-not $pester) {
     }
 }
 
-$suite = Join-Path $PSScriptRoot "deploy-prod.Tests.ps1"
-$result = Invoke-Pester -Path $suite -PassThru
+# Decouverte par REPERTOIRE, pas par fichier nomme. Pointer un seul fichier
+# faisait qu'un nouveau `*.Tests.ps1` -- y compris sous lib/ -- n'etait jamais
+# execute : il aurait suffi d'en ajouter un pour croire la surface couverte
+# alors que rien ne tournait. C'est la classe "jamais cable" que ce depot a
+# deja rencontree sur les sections de FAQ et les cartes de guides.
+#
+# `PassedCount -eq 0` ci-dessous reste la garde qui attrape une decouverte
+# vide (repertoire deplace, filtre casse) : zero test passe est un echec, pas
+# un succes silencieux.
+$result = Invoke-Pester -Path $PSScriptRoot -PassThru
 if ($result.FailedCount -gt 0 -or $result.PassedCount -eq 0) { exit 1 }
 exit 0

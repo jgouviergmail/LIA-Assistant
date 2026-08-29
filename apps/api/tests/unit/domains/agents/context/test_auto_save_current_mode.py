@@ -15,6 +15,9 @@ from src.domains.agents.context import (
     ContextTypeRegistry,
     ToolContextManager,
 )
+from tests.helpers.runtime_context import DEFAULT_TEST_USER_ID, installed_runtime_context
+
+USER_ID = str(DEFAULT_TEST_USER_ID)
 
 
 @pytest.fixture(autouse=True)
@@ -46,10 +49,15 @@ def manager():
 
 @pytest.fixture
 def config_ok():
-    return {
-        "configurable": {"user_id": "user-1", "thread_id": "thread-1"},
-        "metadata": {"turn_id": 42},
-    }
+    """Thread plumbing only — the acting user now travels on the run context."""
+    return {"configurable": {"thread_id": "thread-1"}, "metadata": {"turn_id": 42}}
+
+
+@pytest.fixture(autouse=True)
+def _run_context():
+    """auto_save reads the acting user from the run context (ADR-231)."""
+    with installed_runtime_context(user_id=DEFAULT_TEST_USER_ID, thread_id="thread-1"):
+        yield
 
 
 @pytest.mark.asyncio
@@ -57,7 +65,7 @@ async def test_current_mode_single_item_sets_current_leaves_list(manager, store,
     """CURRENT mode with 1 item: current is set, list remains empty."""
     # Pre-populate list with items (to verify they're preserved)
     await manager.save_list(
-        user_id="user-1",
+        user_id=USER_ID,
         session_id="thread-1",
         domain="contacts_current_test",
         items=[
@@ -85,7 +93,7 @@ async def test_current_mode_single_item_sets_current_leaves_list(manager, store,
 
     # LIST is preserved (still Alice + Bob)
     context_list = await manager.get_list(
-        user_id="user-1", session_id="thread-1", domain="contacts_current_test", store=store
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
     )
     assert context_list is not None
     assert len(context_list.items) == 2
@@ -94,7 +102,7 @@ async def test_current_mode_single_item_sets_current_leaves_list(manager, store,
 
     # CURRENT is Charlie
     current = await manager.get_current_item(
-        user_id="user-1", session_id="thread-1", domain="contacts_current_test", store=store
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
     )
     assert current is not None
     assert current["resource_name"] == "people/c"
@@ -106,7 +114,7 @@ async def test_current_mode_multiple_items_clears_current_leaves_list(manager, s
     """CURRENT mode with >1 items: current cleared, list preserved."""
     # Pre-populate list AND current
     await manager.save_list(
-        user_id="user-1",
+        user_id=USER_ID,
         session_id="thread-1",
         domain="contacts_current_test",
         items=[
@@ -117,7 +125,7 @@ async def test_current_mode_multiple_items_clears_current_leaves_list(manager, s
         store=store,
     )
     await manager.set_current_item(
-        user_id="user-1",
+        user_id=USER_ID,
         session_id="thread-1",
         domain="contacts_current_test",
         item={"resource_name": "people/a", "name": "Alice", "index": 1},
@@ -146,7 +154,7 @@ async def test_current_mode_multiple_items_clears_current_leaves_list(manager, s
 
     # LIST is preserved (still Alice + Bob)
     context_list = await manager.get_list(
-        user_id="user-1", session_id="thread-1", domain="contacts_current_test", store=store
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
     )
     assert context_list is not None
     names = [item["name"] for item in context_list.items]
@@ -154,7 +162,7 @@ async def test_current_mode_multiple_items_clears_current_leaves_list(manager, s
 
     # CURRENT is cleared
     current = await manager.get_current_item(
-        user_id="user-1", session_id="thread-1", domain="contacts_current_test", store=store
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
     )
     assert current is None
 
@@ -164,7 +172,7 @@ async def test_list_mode_overwrites_list(manager, store, config_ok):
     """LIST mode overwrites the list and auto-manages current."""
     # Seed with existing list
     await manager.save_list(
-        user_id="user-1",
+        user_id=USER_ID,
         session_id="thread-1",
         domain="contacts_current_test",
         items=[{"resource_name": "people/a", "name": "Alice"}],
@@ -192,7 +200,7 @@ async def test_list_mode_overwrites_list(manager, store, config_ok):
 
     # LIST is overwritten
     context_list = await manager.get_list(
-        user_id="user-1", session_id="thread-1", domain="contacts_current_test", store=store
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
     )
     assert context_list is not None
     names = [item["name"] for item in context_list.items]
@@ -200,7 +208,7 @@ async def test_list_mode_overwrites_list(manager, store, config_ok):
 
     # CURRENT is cleared (N>1)
     current = await manager.get_current_item(
-        user_id="user-1", session_id="thread-1", domain="contacts_current_test", store=store
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
     )
     assert current is None
 
@@ -209,7 +217,7 @@ async def test_list_mode_overwrites_list(manager, store, config_ok):
 async def test_none_mode_noop(manager, store, config_ok):
     """NONE mode does not touch list or current."""
     await manager.save_list(
-        user_id="user-1",
+        user_id=USER_ID,
         session_id="thread-1",
         domain="contacts_current_test",
         items=[{"resource_name": "people/a", "name": "Alice"}],
@@ -232,7 +240,7 @@ async def test_none_mode_noop(manager, store, config_ok):
     )
 
     context_list = await manager.get_list(
-        user_id="user-1", session_id="thread-1", domain="contacts_current_test", store=store
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
     )
     assert context_list is not None
     assert len(context_list.items) == 1

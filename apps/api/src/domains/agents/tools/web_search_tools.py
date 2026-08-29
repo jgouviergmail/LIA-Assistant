@@ -48,7 +48,7 @@ from src.domains.agents.constants import (
     WEB_SEARCH_SOURCE_WIKIPEDIA,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_user_id_str
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -472,8 +472,8 @@ async def unified_web_search_tool(
     user_uuid = None
 
     if runtime and runtime.config:
-        configurable = runtime.config.get("configurable") or {}
-        user_id_raw = configurable.get("user_id")
+        runtime.config.get("configurable") or {}
+        user_id_raw = tool_user_id_str(runtime)
         if user_id_raw:
             try:
                 user_uuid = parse_user_id(user_id_raw)

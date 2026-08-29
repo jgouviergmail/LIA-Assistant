@@ -1,6 +1,6 @@
 # ADR-142: Psyche Observability & Dominance Recentering
 
-**Status**: ✅ IMPLEMENTED (2026-07-22) — knobs shipped inert; activation gated by production measurement
+**Status**: ✅ IMPLEMENTED (2026-07-22) — knobs shipped inert · ✅ **ACTIVATED (2026-08-29)** — production baseline measured, both knobs promoted to code defaults and applied on every environment
 **Date**: 2026-07-22
 **Deciders**: jgouvier + Claude (pair analysis)
 **Technical Story**: Follow-up to [ADR-104](ADR-104-Psyche-De-Saturation.md) / [ADR-105](ADR-105-Psyche-Embodied-Expression.md). Trigger: evaluation of the external `kindalive` project as an enrichment source for mood/emotion naturalness.
@@ -51,14 +51,14 @@ Per-axis time constants (τ_A = 20 min): **refuted by ablation** — within burs
 
 **Chosen**: measurement instrument + two inert knobs + CI guards; activation is a separate, measured decision.
 
-### Implementation (all inert at merge)
+### Implementation (all inert at merge; defaults promoted 2026-08-29 — see Activation below)
 
 | Deliverable | Where |
 |---|---|
-| `PSYCHE_DOMINANCE_CENTER` (default 0.0) | `core/constants.py`, `core/config/psyche.py`, `engine.compute_pad_baseline(dominance_center=)`, 6 call sites in `psyche/service.py`, `.env*.example` |
-| `PSYCHE_PROACTIVE_JOY_PULSE` (default true) | same chain; `engine.compute_proactive_emotions(joy_pulse_enabled=)`, 1 call site |
+| `PSYCHE_DOMINANCE_CENTER` (shipped default 0.0 → **0.20 since 2026-08-29**) | `core/constants.py`, `core/config/psyche.py`, `engine.compute_pad_baseline(dominance_center=)`, 6 call sites in `psyche/service.py`, `.env*.example` |
+| `PSYCHE_PROACTIVE_JOY_PULSE` (shipped default true → **false since 2026-08-29**) | same chain; `engine.compute_proactive_emotions(joy_pulse_enabled=)`, 1 call site |
 | Measurement instrument (read-only, no PII) | `apps/api/scripts/measure_psyche.py` — ADR-104 battery per user (moods visited, octants, D<0/A<0 shares, dominant-emotion distribution with joy/pride flags, intensity ≥ 0.60 share, stickiness, co-active mean, post-idle magnitude) + live catalogue resting table. Placement inside the api build context (`Dockerfile.prod` does `COPY . .`) so `docker exec lia-api-prod python scripts/measure_psyche.py` works — repo-root `scripts/` does not ship |
-| CI guards | `tests/unit/domains/psyche/test_mood_reachability.py` — golden no-op characterization (14 resting PADs frozen at 1e-9), catalogue-straddle guard at 0.20 (≥5 each side, ordering preserved, P/A untouched), deterministic end-to-end reachability oracle (locked at 0.0 / unlocked at 0.20) |
+| CI guards | `tests/unit/domains/psyche/test_mood_reachability.py` — golden characterization of the RAW mapping (14 resting PADs frozen at 1e-9, center pinned to 0.0 so the activation knob translates without altering it), a companion test pinning the shipped defaults to the activated values, catalogue-straddle guard at 0.20 (≥5 each side, ordering preserved, P/A untouched) plus a straddle check on the shipped default itself, and a deterministic end-to-end reachability oracle (locked at 0.0 / unlocked at 0.20) |
 | Honesty micro-fixes | `repository.update` docstring (claimed nonexistent optimistic locking; known writer race documented), `models.py` trait/narrative/trait_snapshot Python comments (SQL `comment=` kept verbatim to avoid model/DB drift — reconcile in the next periodic comment-reconciliation migration, pattern `2026_07_13_1710`) |
 
 Tests: 24 new (5 center + 3 gate + 9 guards + 12 aggregators, minus overlaps), psyche domain suite 207 green. Script proven in-container against the dev DB. No migration, no frontend file, no i18n key.
@@ -68,11 +68,31 @@ Tests: 24 new (5 center + 3 gate + 9 guards + 12 aggregators, minus overlaps), p
 - Simulated magnitudes (55% joy share, 3→5-6 moods) come from **synthetic** appraisal streams; ADR-104 documents a synthetic-sim conclusion (F1) that real-LLM testing overturned. The §resting-point facts and the live-DB confirmation do NOT depend on the streams. This is why measurement gates activation.
 - The appraisal-prompt layer (self-report bias) and expression layer (ADR-105) remain unmeasured in production; they are OUT of scope here and must not be conflated with the state-layer effects at activation time.
 
-### Activation procedure (the missing ADR-104 step, now executable)
+### Activation procedure (the missing ADR-104 step) — EXECUTED 2026-08-29
 
-1. Run `measure_psyche.py --json-out before.json` on prod (≥ 30-day window) — this doubles as the overdue ADR-104 re-measurement.
-2. Flip `PSYCHE_PROACTIVE_JOY_PULSE=false` and `PSYCHE_DOMINANCE_CENTER=0.20`; restart.
-3. After ≥ 14 days, re-run with `--json-out after.json`; compare: distinct moods ≥ 7/14, top-mood share < 50%, D<0 share > 0% on calm exchanges, joy dominant share drops toward its appraisal-earned level, per-personality characteristic register preserved.
+1. ✅ **Baseline measured on production** (`measure_psyche.py`, 90-day and 30-day windows, 769 snapshots / 3 users). This doubles as the overdue ADR-104 re-measurement.
+2. ✅ **Both knobs promoted**: `PSYCHE_DOMINANCE_CENTER=0.20`, `PSYCHE_PROACTIVE_JOY_PULSE=false` — as **code defaults** (`core/constants.py`) and on all six `.env` surfaces; prod container recreated (`docker compose up -d api` — `docker restart` does not re-read `env_file`) and runtime-verified.
+3. ⏳ **After ≥ 14 days**, re-run with `--json-out after.json`; compare: distinct moods ≥ 7/14, top-mood share < 50%, D<0 share > 0% on calm exchanges, joy dominant share drops toward its appraisal-earned level, per-personality characteristic register preserved.
+
+#### What the production baseline showed (2026-08-29)
+
+The diagnosis held, and was **stronger than the simulation predicted**:
+
+| | Simulated (v1.25.14) | Production measured |
+|---|---|---|
+| Dominance lock | D<0 never reached | **D<0 = 0.0%** — 769 snapshots, 3 users, 90 days |
+| Joy pulse distortion | ~55% of turns | **31%** (90d) / **45.5%** (30d) main user; **93→100%** for a light user |
+| Catalogue resting D | 0/14 below zero, mean +0.216 | **0/14 below zero**, live mean **+0.234** |
+
+ADR-104's own scorecard, finally measurable: its **emotion-layer** fixes worked (pride 61% → 17.6%; dead emotions reachable; intensity ≥0.60 61.5% → 33.7%; co-active 4.52 → 3.4), its **mood-confinement** goal did not (still 4/14 moods, still 0% D<0 and 0% A<0).
+
+Immediate effect of the promotion, measured on the live catalogue: **0/14 → 7/14** personalities rest D<0, D spread [+0.063, +0.494] → [−0.137, +0.294], mean +0.234 → **+0.034**, and `rasta` reaches `content` — a mood previously unreachable at rest. `antagonist` stays assertive at +0.294; `cynic` moves `determined` → `neutral`, the character-fidelity trade-off this ADR flagged.
+
+#### Three findings the production data added
+
+1. **Pride over-correction is now real** — 0% dominant over the last 30 days. ADR-104's own matrix has this row: *pride < 5% → F3 over-corrected → re-add a cooldowned pride pulse* (needs a `last_pride_pulse_at` column). Trigger met; not addressed here.
+2. **Arousal is locked too, for a different reason.** The catalogue's A resting points already straddle zero (5/14 negative), yet production A<0 = 0.0%. That lock is **not** resting-point geometry — it is the appraisal stream never reporting low-arousal emotions (the F6 prompt layer). **This ADR does not fix it.**
+3. **The golden guard pins the seeded catalogue, not the live one.** `antagonist` rests at D=+0.494 in production vs +0.243 in the seeding migration the guard freezes (no later migration touched it — a runtime edit). The guard is green while the live catalogue drifted, which also moved the derived center +0.216 → +0.234. The straddle property is guaranteed for the seeded catalogue only.
 
 ### Readjustment Decision Matrix
 
@@ -87,7 +107,7 @@ Tests: 24 new (5 center + 3 gate + 9 guards + 12 aggregators, minus overlaps), p
 
 ## Validation
 
-- Golden no-op: 14/14 resting PADs identical at defaults (abs 1e-9) — merge proven inert.
+- Golden characterization: 14/14 raw resting PADs frozen at center=0.0 (abs 1e-9) — proved the v1.25.14 merge inert, and now pins the mapping the 0.20 translation must not alter.
 - Straddle at 0.20: 7/14 rest D < 0, ordering exactly preserved, P/A byte-identical.
 - Oracle: 3 moods / 87% top → 5 moods / 40% top on the same scripted regime.
 - Instrument: executed in `lia-api-dev` against the real dev DB; output confirmed the lock on live data (4/14 moods, 100% P+A+D+, stickiness 99.3%) and the catalogue mean +0.216.

@@ -17,15 +17,26 @@ message in state is still the original request. These tests pin that.
 
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, Mock, patch
+from uuid import UUID
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.response_node import response_node
+from tests.helpers.runtime_context import installed_runtime_context
 
 USER_ID = "22222222-2222-2222-2222-222222222222"
 RICH_MESSAGE = "envoie un mail à Marie pour lui dire que je déménage à Lyon en septembre"
+
+
+def _empty_context_bundle():
+    """The bundle the node expects, with every database-bound block empty."""
+    from src.domains.agents.services.response_context import ResponseContextBundle
+
+    # user_msg_is_trivial defaults to True on the dataclass; the fast path
+    # under test only schedules extractions for a NON-trivial turn.
+    return ResponseContextBundle(user_msg_is_trivial=False)
 
 
 def _patch_collaborators(stack: ExitStack) -> dict[str, Mock]:
@@ -62,6 +73,16 @@ def _patch_collaborators(stack: ExitStack) -> dict[str, Mock]:
         patch(
             "src.domains.agents.services.response_context.build_psychological_profile",
             AsyncMock(return_value=("", Mock(value="neutral"), [])),
+        )
+    )
+    # Hermeticity: with a real acting user on the run context (ADR-231), the node
+    # builds its journal / RAG / habit blocks for real and each one opens a database
+    # session. Against an unreachable database they only log a warning, but the
+    # connection attempts cost ~20 s per test — a unit test must not depend on that.
+    stack.enter_context(
+        patch(
+            "src.domains.agents.services.response_context.fetch_response_context",
+            AsyncMock(return_value=_empty_context_bundle()),
         )
     )
     stack.enter_context(
@@ -117,15 +138,21 @@ def _state(draft_action: str | None) -> MessagesState:
 
 
 def _config() -> dict:
-    return {
-        "metadata": {"run_id": "test-run"},
-        "configurable": {
-            "langgraph_user_id": USER_ID,
-            "thread_id": "thread-1",
-            "user_memory_enabled": True,
-            "user_journals_enabled": True,
-        },
-    }
+    """Thread plumbing only — identity and preferences live on the run context."""
+    return {"metadata": {"run_id": "test-run"}, "configurable": {"thread_id": "thread-1"}}
+
+
+@pytest.fixture(autouse=True)
+def _run_context():
+    """response_node reads the turn from the typed context (ADR-231)."""
+    with installed_runtime_context(
+        user_id=UUID(USER_ID),
+        thread_id="thread-1",
+        conversation_id="thread-1",
+        memory_enabled=True,
+        journals_enabled=True,
+    ):
+        yield
 
 
 @pytest.mark.unit

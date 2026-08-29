@@ -6,9 +6,15 @@ the rewrite onto ReactSubAgentRunner.
 """
 
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
+from langchain.tools import ToolRuntime
+
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from tests.helpers.runtime_context import make_tool_runtime
 
 
 class TestDelegateToolDefinition:
@@ -128,25 +134,24 @@ class TestDepthCheck:
 # ============================================================================
 
 
-class _FakeRuntime:
-    """Minimal ToolRuntime stand-in (dict-shaped config + truthy store)."""
+def _FakeRuntime(  # noqa: N802 — kept as a name so the call sites read unchanged
+    user_id: UUID = UUID("00000000-0000-0000-0000-000000000001"),
+    thread_id: str = "thread_abc",
+) -> ToolRuntime[LiaRuntimeContext, Any]:
+    """The runtime the tool layer injects, carrying a real run context.
 
-    def __init__(
-        self,
-        user_id: str = "00000000-0000-0000-0000-000000000001",
-        thread_id: str = "thread_abc",
-    ) -> None:
-        self.config = {
-            "configurable": {
-                "user_id": user_id,
-                "thread_id": thread_id,
-                "user_timezone": "Europe/Paris",
-                "user_language": "fr",
-            },
-            "metadata": {},
-            "callbacks": [],
-        }
-        self.store = MagicMock()  # truthy
+    It used to be a hand-rolled stand-in whose identity lived in
+    ``configurable``; since ADR-231 the tool reads ``runtime.context``, so a
+    stand-in without one exercises only the configuration-error path.
+    """
+    return make_tool_runtime(
+        user_id=user_id,
+        thread_id=thread_id,
+        conversation_id=thread_id,
+        timezone="Europe/Paris",
+        language="fr",
+        store=MagicMock(),  # truthy
+    )
 
 
 # ADR-083 Phase 2 Task 4 (Option B): the per-user `sub_agents_enabled`

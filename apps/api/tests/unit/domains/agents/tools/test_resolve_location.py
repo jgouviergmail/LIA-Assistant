@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from langchain.tools import ToolRuntime
@@ -36,6 +36,7 @@ from src.domains.agents.tools.location_resolution import (
     resolve_location,
 )
 from src.domains.users.user_location_service import LastKnownLocation
+from tests.helpers.runtime_context import make_contextless_tool_runtime, make_tool_runtime
 
 pytestmark = pytest.mark.unit
 
@@ -50,20 +51,21 @@ HOME = ResolvedLocation(lat=48.85, lon=2.35, source="home", address="1 rue de Pa
 def _runtime(
     geolocation: dict[str, float] | None = None,
     user_id: str | None = None,
-) -> ToolRuntime[None, dict[Any, Any]]:
-    configurable: dict[str, Any] = {}
+) -> ToolRuntime[Any, Any]:
+    """The runtime the tool layer injects (ADR-231).
+
+    Passing neither a geolocation nor a user models a tool running OUTSIDE a
+    graph run: since the context's ``user_id`` is mandatory and typed, that is
+    the only remaining shape in which a tool sees no acting user.
+    """
+    if geolocation is None and user_id is None:
+        return make_contextless_tool_runtime(state={})
+    overrides: dict[str, Any] = {}
     if geolocation is not None:
-        configurable["__browser_context"] = {"geolocation": geolocation}
+        overrides["browser_context"] = {"geolocation": geolocation}
     if user_id is not None:
-        configurable["user_id"] = user_id
-    return ToolRuntime(
-        state={},
-        context=None,
-        config={"configurable": configurable},
-        stream_writer=lambda _: None,
-        tool_call_id=None,
-        store=None,
-    )
+        overrides["user_id"] = UUID(user_id)
+    return make_tool_runtime(state={}, **overrides)
 
 
 def _patch_last_known(value: ResolvedLocation | None) -> Any:

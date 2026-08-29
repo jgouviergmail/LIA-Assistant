@@ -4317,7 +4317,7 @@
         },
         "psycheEngine": {
           "title": "🧠 Psyche Engine",
-          "description": "Un estado psicológico que se mueve con cada intercambio: ánimo sobre 22 emociones, energía, relación contigo, rasgos de personalidad. La asistente adapta su tono, su vocabulario y su comportamiento de forma orgánica — nunca lo anuncia, lo muestra — y el avatar de ánimo se anima sobre la respuesta en curso. Seguridad emocional incorporada: los recuerdos de fuerte carga negativa activan un modo protector."
+          "description": "Un estado psicológico que se mueve con cada intercambio: 14 estados de ánimo, 22 emociones, energía, relación contigo, rasgos de personalidad. La asistente adapta su tono, su vocabulario y su comportamiento de forma orgánica — nunca lo anuncia, lo muestra — y el avatar de ánimo se anima sobre la respuesta en curso. Seguridad emocional incorporada: los recuerdos de fuerte carga negativa activan un modo protector."
         },
         "personalJournals": {
           "title": "📓 Diarios Personales (consciencia estratificada)",
@@ -4410,6 +4410,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_38_0": {
+          "title": "v1.38.0 — 🎭 Una paleta de estados de ánimo por fin completa, y un despliegue que deja de mentir",
+          "date": "Agosto 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎭 LIA ya no está atrapada en un solo registro</b> — su mecánica de estado de ánimo dejaba en reposo a todas las personalidades en el lado afirmativo de la escala, de modo que cinco estados más serenos quedaban fuera de alcance en reposo, y un impulso interno coronaba la alegría como emoción dominante al margen de lo que realmente había evaluado: medido a lo largo de 90 días de producción, el 31 % de los turnos, y hasta la totalidad en un uso ligero. Ambos ajustes están ahora activos: la mitad de las personalidades reposa en un registro más calmado, y la emoción mostrada es la que LIA evaluó de verdad. Los personajes afirmativos siguen siéndolo.",
+            "i2": "<b>📊 Ninguna medición queda invisible para los administradores</b> — una métrica que ningún panel muestra es una métrica sobre la que nadie actúa: una fuente de contexto caída en silencio descartó así señales de salud durante una semana sin que nada lo advirtiera. Una comprobación automática verifica ahora que cada medición que LIA produce llegue a un panel, una regla o una alerta, y dos nuevos paneles de Grafana cubren la salud de las fuentes del heartbeat y las escrituras de caché omitidas.",
+            "i3": "<b>🚀 El despliegue dice lo que sabe — y deja de abandonar tus secretos</b> — para quienes se autoalojan: la puesta en producción terminaba con un error que había que aprender a ignorar, porque un corte de conexión era indistinguible de un fallo real. El despliegue se ejecuta ahora en el servidor, con independencia de tu terminal: cerrar el portátil o perder el Wi-Fi ya no lo interrumpe, y el mensaje final distingue por fin un fallo real de una pérdida de contacto. De paso, el archivo de secretos descifrado se borra de tu equipo en todas las salidas, errores incluidos."
+          }
+        },
         "v1_37_0": {
           "title": "v1.37.0 — 🧮 Respuestas calculadas, y un entorno aislado que por fin tiene sus herramientas",
           "date": "Agosto de 2026",

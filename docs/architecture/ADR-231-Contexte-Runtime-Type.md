@@ -1,6 +1,6 @@
 # ADR-231 : le contexte d'exécution devient typé — et LIA n'adopte pas Agent Server
 
-**Statut**: 🟡 PARTIELLEMENT IMPLÉMENTÉ (2026-08-19) — voir « État de l'implémentation »
+**Statut**: ✅ IMPLÉMENTÉ (2026-08-29) — voir « État de l'implémentation »
 **Date**: 2026-08-19
 **Décideurs**: Propriétaire (arbitrages « F1 = amorce du lot 2 », « lot 3 instruit puis reporté ») + Équipe LIA
 
@@ -261,18 +261,32 @@ de l'interopérabilité entre systèmes d'agents distincts.
   assert de complétude au nœud d'entrée ; 145 annotations `ToolRuntime`
   paramétrées ; le sous-runner **dérive** son contexte au lieu de le reprojeter.
 
-**Reste à faire — la récolte, pas la fondation** : les ~43 fichiers qui lisent
-encore le contexte dans `config["configurable"]` n'ont pas migré. C'est délibéré
-et sans risque : `configurable` reste peuplé et source de vérité, les deux plans
-coexistent, et l'état actuel est cohérent et déployable. Tant que la migration
-n'est pas faite, une valeur reste lue en deux endroits — le gain de typage est
-acquis sur les signatures et sur le contrat, pas encore sur les lectures.
+**La récolte est faite** (2026-08-29) : les 43 fichiers qui lisaient le contexte
+dans `config["configurable"]` lisent le contexte typé, l'allowlist du ratchet est
+**vide**, et le point de construction unique n'écrit plus dans le sac que
+`thread_id` — la plomberie LangGraph. Vider le **lecteur** sans vider
+l'**écrivain** aurait laissé les deux plans faisant autorité, et le plan non typé
+gagne toujours parce qu'il est le plus facile à atteindre : deux gardes le
+tiennent désormais, l'une sur les lectures, l'autre sur l'écriture au chokepoint.
 
-**Conséquence à connaître** : le contexte du sous-agent ReAct est désormais
-complet (dérivé), mais son `configurable` reste la projection à 7 clés. Un
-lecteur qui passe encore par `configurable` dans un sous-run voit donc toujours
-les 11 clés manquantes. Cela disparaît exactement quand la migration des lectures
-aboutit — pas avant.
+**Le compteur mentait, et c'est la leçon la plus chère du lot** : le scanner ne
+reconnaissait que les clés littérales, donc `configurable.get(FIELD_USER_ID)`
+n'était comptée nulle part. Il annonçait « 0 lecteur » alors que **huit fichiers**
+lisaient encore — dont un dans `infrastructure/`, hors du périmètre auquel
+personne ne pensait. Le scanner **découvre** maintenant les alias (toute constante
+de module valant une clé de contexte) plutôt que d'en tenir la liste, et un test
+épingle cette résolution sur un fichier synthétique pour qu'elle survive à
+l'absence de lecteur réel à attraper.
+
+**Conséquence acquise** : le sous-agent ReAct hérite du contexte parent **entier**
+et son `configurable` ne prétend plus rien. Il n'y a plus de valeur lue en deux
+endroits, ni de « 11 clés manquantes » à connaître.
+
+**Simplification que la migration rend possible** : l'attribution Langfuse d'un
+appel LLM de nœud lisait l'utilisateur dans le sac. `infrastructure/` ne peut pas
+importer `domains/` pour lire le contexte typé — elle lit donc l'identité sur son
+**propre** plan, `metadata["langfuse_user_id"]`, que `create_instrumented_config`
+écrit elle-même. La couche d'observabilité ne dépend plus du sac du graphe.
 
 ## Références
 
@@ -284,4 +298,7 @@ aboutit — pas avant.
 - `apps/api/src/domains/agents/context/runtime_context.py`,
   `apps/api/src/domains/agents/services/orchestration/service.py`,
   `apps/api/src/domains/agents/orchestration/parallel_executor.py`,
-  `apps/api/tests/unit/domains/agents/tools/test_tool_schema_contract.py`.
+  `apps/api/tests/unit/domains/agents/tools/test_tool_schema_contract.py`,
+  `apps/api/tests/unit/domains/agents/context/test_configurable_reader_ratchet.py`,
+  `scripts/audit/measure_configurable_readers.py`,
+  `apps/api/tests/helpers/runtime_context.py`.

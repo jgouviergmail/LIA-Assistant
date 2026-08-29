@@ -4326,7 +4326,7 @@
         },
         "psycheEngine": {
           "title": "🧠 Psyche Engine",
-          "description": "A psychological state that moves with every exchange: mood across 22 emotions, energy, the relationship with you, personality traits. The assistant adapts its tone, its vocabulary and its behaviour organically — it never announces it, it shows it — and the mood avatar animates on the current reply. Built-in emotional safety: memories with a strong negative charge trigger a protective mode."
+          "description": "A psychological state that moves with every exchange: 14 moods, 22 emotions, energy, the relationship with you, personality traits. The assistant adapts its tone, its vocabulary and its behaviour organically — it never announces it, it shows it — and the mood avatar animates on the current reply. Built-in emotional safety: memories with a strong negative charge trigger a protective mode."
         },
         "personalJournals": {
           "title": "📓 Personal Journals (stratified consciousness)",
@@ -4419,6 +4419,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_38_0": {
+          "title": "v1.38.0 — 🎭 A full palette of moods, and a deployment that stops lying",
+          "date": "August 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🎭 LIA is no longer stuck in a single register</b> — her mood mechanics rested every personality on the assertive side of the scale, so five calmer moods stayed out of reach at rest, and an internal pulse crowned joy the dominant emotion regardless of what she had actually appraised: measured over 90 days of production, 31% of turns, and up to every single turn for a light user. Both settings are now active: half the personalities rest in a calmer register, and the emotion shown is the one LIA really appraised. Assertive characters stay assertive.",
+            "i2": "<b>📊 No measurement stays invisible to administrators</b> — a metric no dashboard displays is a metric nobody acts on: a context source failing silently once dropped health signals for a week with nothing to flag it. An automatic check now verifies that every measurement LIA produces reaches a dashboard, a rule or an alert, and two new Grafana panels cover heartbeat source health and skipped cache writes.",
+            "i3": "<b>🚀 The deployment says what it knows — and stops leaving your secrets behind</b> — for self-hosters: going to production used to end on an error you had to learn to disregard, because a dropped connection was indistinguishable from a real failure. The deployment now runs on the server, independently of your terminal: closing the laptop or losing Wi-Fi no longer interrupts it, and the closing message finally tells a real failure apart from a lost contact. Along the way, the decrypted secrets file is wiped from your machine on every exit path, errors included."
+          }
+        },
         "v1_37_0": {
           "title": "v1.37.0 — 🧮 Answers that were computed, and a sandbox that finally has its tools",
           "date": "August 2026",

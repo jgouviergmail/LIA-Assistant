@@ -51,6 +51,7 @@ from src.domains.agents.constants import (
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_EXECUTION_PLAN,
 )
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.initiative_plan import (
     _build_initiative_plan,
@@ -640,7 +641,7 @@ async def _initiative_core(
         }
 
     # ── 5. Load user context (memory + interests) in parallel ────────
-    user_id = (config.get("configurable") or {}).get("user_id", "")
+    user_id = runtime_user_id_str()
     user_language = state.get("user_language", "fr")
     user_timezone = state.get("user_timezone", "UTC")
 

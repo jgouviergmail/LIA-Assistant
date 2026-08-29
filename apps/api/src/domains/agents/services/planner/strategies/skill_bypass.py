@@ -27,6 +27,7 @@ If no match → falls through to the LLM planner.
 from typing import TYPE_CHECKING, Any
 
 from src.core.config import get_settings
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.orchestration.plan_schemas import ExecutionStep, StepType
 from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.infrastructure.observability.logging import get_logger
@@ -70,7 +71,7 @@ class SkillBypassStrategy:
 
         Cheap presence check. The full verification (user-scoped lookup,
         deterministic flag, active skills filter) happens in ``plan`` so that
-        user isolation is enforced with the proper ``user_id`` from config.
+        user isolation is enforced with the acting user from the run context.
 
         Args:
             intelligence: Parsed query intelligence including ``detected_skill_name``.
@@ -99,8 +100,8 @@ class SkillBypassStrategy:
 
         Args:
             intelligence: Query intelligence with ``detected_skill_name``.
-            config: Runnable config — ``configurable.user_id`` and
-                ``configurable.oauth_scopes`` are read for scoping and filtering.
+            config: Runnable config — ``configurable.oauth_scopes`` is read for
+                filtering; the acting user comes from the run context (ADR-231).
             catalogue: Unused (virtual catalogue is built from the template).
             validation_feedback: Unused in bypass (no replan).
             clarification_response: Unused in bypass.
@@ -122,7 +123,7 @@ class SkillBypassStrategy:
         if not skill_name:
             return PlanningResult(plan=None, success=False, error="No skill detected")
 
-        user_id = str(config.get("configurable", {}).get("user_id", ""))
+        user_id = runtime_user_id_str() or ""
 
         # User-scoped lookup: a user's own skill overrides an admin skill with
         # the same name; skills owned by other users are never reachable.
@@ -182,7 +183,7 @@ class SkillBypassStrategy:
             configurable = config.get("configurable", {})
             plan = ExecutionPlan(
                 plan_id=f"smart_{configurable.get('run_id', 'unknown')}",
-                user_id=str(configurable.get("user_id", "")),
+                user_id=runtime_user_id_str() or "",
                 session_id=extract_session_id_from_config(config, required=False) or "",
                 steps=[],
                 execution_mode="sequential",

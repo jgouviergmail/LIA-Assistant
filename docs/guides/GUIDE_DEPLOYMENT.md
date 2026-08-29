@@ -1037,6 +1037,52 @@ aws application-autoscaling put-scaling-policy \
 
 ---
 
+### Le pilote auto-hébergé : exécution détachée et verdict lu (ADR-250)
+
+`task deploy:prod` (`scripts/deploy/deploy-prod.ps1`) ne tient plus le
+déploiement dans une session SSH bloquante. Le travail est **lancé détaché** sur
+l'hôte, et le pilote **lit** un verdict que le distant a écrit.
+
+**Pourquoi** : `ssh` propage fidèlement tout code distant **sauf 255**, qu'il
+emploie aussi pour ses propres échecs de transport — sur 255, l'appelant ne sait
+rien. Et le travail ne survivait pas à sa connexion : tuer le client fait mourir
+le script distant par **SIGPIPE (exit 141) en ~6 s** (mesure 2026-08-29), soit
+bien avant tout keepalive. Détaché, le même travail survit à la destruction de
+tous les clients `ssh` et rend son code exact.
+
+**Ce que le pilote peut dire, et ce qu'il refuse de dire** :
+
+| Verdict affiché | Ce qui est établi | Conduite |
+|-----------------|-------------------|----------|
+| `OK: Deploiement termine` | le distant a écrit `0` | rien |
+| `Echec du deploiement (exit code: N)` | le distant a écrit `N` | **seul** cas où « le déploiement a échoué » est vrai ; lire le journal distant indiqué |
+| `deja en cours` | un autre déploiement tient le verrou | le vôtre **n'a pas eu lieu** ; attendre |
+| `interrompu sans rendre de verdict` | processus disparu sans écrire | verdict **inconnu** ; ne pas relancer |
+| `budget de scrutation epuise` | il tourne **encore** | attendre, ou relancer avec `-DeployBudgetSeconds` plus grand |
+| `contact perdu` (ADR-250) | la connexion est tombée **au lancement** | l'hôte a pu forker le travail ; ne pas relancer |
+
+> **Les quatre derniers ne sont pas des échecs.** Les présenter comme tels serait
+> un diagnostic inventé. Sur chacun, le pilote imprime les trois commandes qui
+> tranchent (journal distant, `docker compose ps`, `release-manifest.json`) et
+> demande de **ne pas relancer** : l'étape 7 effacerait le répertoire de staging
+> sous un build encore en vol.
+
+**Un seul déploiement à la fois** est garanti par un `flock` pris par le
+processus détaché. Le verrou est géré par le noyau, donc libéré même si le
+processus est tué : il n'y a jamais de verrou fantôme à nettoyer à la main.
+
+**Paramètres** :
+
+```powershell
+# Attendre plus longtemps (défaut : 2700 s) — un Pi chargé dépasse les ~11 min
+# mesurées, et « budget épuisé » veut dire « il tourne encore », pas « il a raté ».
+.\scripts\deploy\deploy-prod.ps1 -DeployBudgetSeconds 5400
+# Rythme de scrutation (défaut : 5 s)
+.\scripts\deploy\deploy-prod.ps1 -DeployPollSeconds 10
+```
+
+---
+
 ## CI/CD Pipeline
 
 ### GitHub Actions Workflow
@@ -1440,6 +1486,44 @@ chmod 600 ~/<deploy-dir>/.env && chmod 700 ~/<deploy-dir>
 > Après la fermeture de tout chemin d'accès élargi aux secrets (p. ex. retrait
 > du socket Docker de l'API), prévoir une **rotation** des secrets qui ont pu
 > être exposés. La rotation est hors périmètre du durcissement de permissions.
+
+### Le secret déchiffré ne survit pas à l'exécution (SEC-040)
+
+`PROD/.env` est le fichier d'environnement de production **en clair** : l'étape 4
+y renomme le `.env.prod` déchiffré. L'étape 10 supprime tout le bundle — mais
+elle ne s'exécute que sur le chemin nominal, alors que le pilote a **14 sorties
+prématurées** (11 `exit`, 3 `throw`).
+
+Tant que `task deploy:prod` se terminait sur un faux échec (ADR-250), le chemin
+d'échec **était** le chemin nominal : la fuite était systématique. Mesure du
+2026-07-28 — **434 Mo de bundle** survivant à un déploiement qui avait pourtant
+abouti, portant tous les identifiants de production sur le poste du développeur.
+
+Un `finally` de premier niveau couvre désormais **toutes** les sorties.
+PowerShell l'exécute sur `exit` comme sur un `throw` non rattrapé, en préservant
+le code de retour (vérifié sur Windows PowerShell 5.1 **et** pwsh 7).
+
+Trois propriétés, chacune apprise d'un défaut :
+
+- **La liste est exacte, jamais un glob.** `provenance.env` vit dans le même
+  répertoire, n'est pas un secret, et quatre tests le lisent.
+- **Deux ensembles, et leur différence est le sujet.** La purge pré-transfert
+  exclut délibérément `.env.prod` : l'étape 4 doit encore le renommer en `.env`.
+  Les confondre supprime la source avant son renommage — le bundle part **sans
+  fichier d'environnement** et le déploiement échoue à distance.
+- **Le nettoyage est chirurgical.** Un `Remove-Item PROD` complet détruirait le
+  bundle qu'un opérateur inspecte après un échec.
+
+`-DryRun` en est exempt par contrat : une simulation doit laisser un `PROD/`
+préexistant strictement intact, clés comprises.
+
+**Vérification manuelle** (sur le poste, après une exécution interrompue) :
+
+```powershell
+# Ne doit rien lister : ni .env, ni .env.prod, ni keys/, ni .sops.yaml
+Get-ChildItem PROD -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -in @(".env", ".env.prod", ".env.prod.encrypted", ".sops.yaml", "keys") }
+```
 
 ### AWS Secrets Manager
 

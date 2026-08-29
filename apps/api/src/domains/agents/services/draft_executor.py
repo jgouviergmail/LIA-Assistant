@@ -16,7 +16,7 @@ Flow:
     → result → agent_results["draft_execution"] = {...}
 
 Dependency Injection:
-    Uses ToolDependencies from config["configurable"]["__deps"] which provides
+    Uses ToolDependencies from the typed run context (ADR-231), which provides
     access to ConnectorService and DB session (same as tools).
 
 Generic Pattern:
@@ -44,8 +44,13 @@ from uuid import UUID
 import structlog
 from langchain_core.runnables import RunnableConfig
 
-from src.core.field_names import FIELD_METADATA, FIELD_USER_ID
+from src.core.field_names import FIELD_METADATA
 from src.domains.agents.context.access import get_tcm_session
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_deps,
+    runtime_user_id_str,
+)
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.services.draft_executor_registry import ensure_executors_registered
 from src.domains.agents.services.draft_executor_types import (
@@ -60,6 +65,7 @@ if TYPE_CHECKING:
     from src.domains.agents.context.access import TcmSession
 
 logger = structlog.get_logger(__name__)
+
 
 # The registry lives in `draft_executor_types` and its population in
 # `draft_executor_registry` (file-size ratchet: this engine must not grow with
@@ -222,7 +228,7 @@ async def execute_draft_if_confirmed(
             - draft_id: Draft identifier
             - draft_type: Type of draft
             - draft_content: Draft content dict
-        config: RunnableConfig with metadata (user_id) and __deps (ToolDependencies)
+        config: RunnableConfig with metadata (user_id); dependencies come from the run context
         run_id: Run ID for logging
         user_language: User's language for localized messages (default: "fr")
 
@@ -608,7 +614,7 @@ async def _execute_confirmed_draft(
 
     Args:
         draft_action_result: Confirmation result from draft_critique_node
-        config: RunnableConfig with __deps containing ToolDependencies
+        config: RunnableConfig (thread plumbing); ToolDependencies come from the run context
         run_id: Run ID for logging
         user_language: User's language for localized messages
 
@@ -653,7 +659,7 @@ async def _execute_confirmed_draft(
         )
 
     # Extract ToolDependencies from config
-    deps = config.get("configurable", {}).get("__deps")
+    deps = runtime_deps()
     if not deps:
         error_msg = "ToolDependencies not found in config"
         logger.error(
@@ -676,10 +682,10 @@ async def _execute_confirmed_draft(
             user_language=user_language,
         )
 
-    # Extract user_id from config
-    # LOT 6 FIX: LangGraph may not preserve metadata through node execution,
-    # but configurable is always passed. Try configurable first, then metadata.
-    user_id_str = config.get("configurable", {}).get(FIELD_USER_ID)
+    # The run context is the identity's single authority (ADR-231); the
+    # metadata fallback below survives for the legacy call paths that build a
+    # RunnableConfig by hand, outside a graph run.
+    user_id_str = runtime_user_id_str()
     # RunnableConfig.get() with a non-literal key (FIELD_METADATA) collapses to
     # ``object``; narrow to a dict once so the fallback + logging type-check.
     raw_metadata = config.get(FIELD_METADATA, {})
@@ -716,7 +722,7 @@ async def _execute_confirmed_draft(
         # Execute draft using the registered executor
         # Executor functions have signature: (draft_content, user_id, deps) -> result_dict
         token = _CURRENT_SIDE_CHANNEL_QUEUE.set(
-            config.get("configurable", {}).get("__side_channel_queue")
+            _c.side_channel_queue if (_c := runtime_context_if_running()) is not None else None
         )
         try:
             result_data = await executor_fn(draft_content, user_id, deps)
@@ -796,7 +802,7 @@ async def _execute_confirmed_batch(
 
     Args:
         draft_action_result: Batch result with {"action": "confirm_batch", "batch": [...]}
-        config: RunnableConfig with __deps containing ToolDependencies
+        config: RunnableConfig (thread plumbing); ToolDependencies come from the run context
         run_id: Run ID for logging
         user_language: User's language for localized messages
 

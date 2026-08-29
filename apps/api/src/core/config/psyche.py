@@ -134,8 +134,10 @@ class PsycheSettings(BaseSettings):
         description=(
             "Recentering (ADR-142): translation subtracted from the damped dominance "
             "baseline so the personality catalogue straddles D=0 instead of resting "
-            "entirely assertive. 0.0 = no translation (today's behavior); 0.20 = "
-            "measured activation candidate (catalogue mean +0.216)."
+            "entirely assertive. Default 0.20 since 2026-08-29, promoted after the "
+            "production baseline (0/14 personalities rested D<0, five moods "
+            "unreachable). 0.0 restores the pre-promotion behavior; 0.15 is the "
+            "gentler fallback."
         ),
     )
 
@@ -163,10 +165,12 @@ class PsycheSettings(BaseSettings):
     psyche_proactive_joy_pulse: bool = Field(
         default=PSYCHE_PROACTIVE_JOY_PULSE_DEFAULT,
         description=(
-            "Gate on the sustained-quality proactive joy pulse (ADR-142). True keeps "
-            "today's behavior; false removes the pulse so the LLM-reported appraisal "
-            "owns the emotion channel (measured: the pulse crowned joy dominant 55% "
-            "of ordinary-regime turns, same mechanism as the removed pride pulse)."
+            "Gate on the sustained-quality proactive joy pulse (ADR-142). Default "
+            "False since 2026-08-29 so the LLM-reported appraisal owns the emotion "
+            "channel: production measured the pulse crowning joy dominant 31% of "
+            "turns over 90 days (45.5% over the last 30, up to 100% for a light "
+            "user), the same distortion mechanism as the removed pride pulse. "
+            "True restores the legacy pulse."
         ),
     )
 

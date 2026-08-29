@@ -47,7 +47,7 @@ async def resolve_user_location_for_prompt(
 
     Args:
         config: The graph's RunnableConfig. ``configurable`` carries
-            ``__browser_context`` (precise, user-consented geolocation) and
+            ``LiaRuntimeContext.browser_context`` (precise, user-consented geolocation) and
             ``user_id`` (home-address lookup) — both consumed downstream by
             :func:`resolve_location`'s source helpers.
         user_message: Latest user message, for location-phrase detection.

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -34,6 +34,7 @@ from src.domains.skills.tools import (
     _resolve_edit_target,
     replacement_token,
 )
+from tests.helpers.runtime_context import make_tool_runtime
 
 _USER = uuid4()
 
@@ -357,9 +358,13 @@ class TestManifestIsReadable:
             "source_path": str(skill_dir / "SKILL.md"),
             "all_resources": ["references/rules.md"],
         }
-        runtime = MagicMock()
-        runtime.config = {"configurable": {"user_id": str(_USER), "thread_id": "t"}}
-        runtime.store = MagicMock()
+        # The identity travels on the typed context since ADR-231.
+        runtime = make_tool_runtime(
+            user_id=_USER if isinstance(_USER, UUID) else UUID(str(_USER)),
+            thread_id="t",
+            conversation_id="t",
+            store=MagicMock(),
+        )
 
         with patch(
             "src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=cached

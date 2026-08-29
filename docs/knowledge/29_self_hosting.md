@@ -99,3 +99,11 @@ which is the guard working as intended.
 
 Script skills, which execute code, require an extra opt-in overlay because they
 need access to the Docker socket. A generic installation runs without it.
+
+## My deployment ended on an error — did it fail?
+Read the closing message rather than the exit code, and since v1.38.0 the message tells you which of six things happened. Only one of them is a failed deployment: the one where the server itself returned a non-zero code, and the driver then points you at the remote log. "Already in progress" means your deployment did not happen at all and nothing changed remotely; "interrupted" means it stopped mid-flight without writing a verdict; "watching budget exhausted" means it is still running and you stopped watching — re-run with a larger `-DeployBudgetSeconds`, or simply wait; "contact lost" means the connection dropped while launching, and the server may have started the work anyway. On all four, do not re-run: the driver would wipe the staging directory under a build still in flight. It prints the three commands that settle the question instead.
+
+Before v1.38.0 the deployment ran inside the SSH session, so closing your laptop or losing Wi-Fi killed it within seconds. It now runs on the server, independently of your terminal.
+
+## Does the deployment leave my production secrets on my machine?
+No, not since v1.38.0. Building the bundle decrypts your production environment file in clear on your own machine. That copy — along with the encryption keys and the encrypted archive — is now removed on every exit path, including every error path, not only when the deployment succeeds. The bundle itself is left in place after a failure so you can inspect it. A simulation run (`-DryRun`) never touches anything.

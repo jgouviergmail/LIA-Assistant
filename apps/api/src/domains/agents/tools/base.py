@@ -87,11 +87,8 @@ def _extract_runtime_language(runtime: Any) -> SupportedLanguage:
     Normalizes to a supported i18n code ("zh" -> "zh-CN"), defaulting to the
     configured default language when absent or on any malformed runtime.
     """
-    try:
-        configurable = runtime.config.get("configurable") or {}
-        raw = configurable.get("user_language") or settings.default_language
-    except AttributeError, TypeError:
-        raw = settings.default_language
+    context = getattr(runtime, "context", None)
+    raw = context.language if isinstance(context, LiaRuntimeContext) else settings.default_language
     return _normalize_language(raw)
 
 

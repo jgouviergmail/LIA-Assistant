@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Date**: 2026-08-23
-**Application**: LIA v1.37.0
+**Application**: LIA v1.38.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -367,6 +367,8 @@ The **Psyche Engine** gives LIA a dynamic psychological state that evolves with 
 - **Motivations** that influence the assistant's proactivity
 
 You're not talking to a tool — you're interacting with an entity whose vocabulary warms up when touched, whose sentences shorten under tension, whose humor emerges when the exchange is light. And it never says so — it **shows** it.
+
+And a promise like that is worth exactly what the measurement behind it is worth. Fourteen moods were advertised, and until August 2026 five of them were unreachable at rest: the mapping left every personality on the assertive side of the scale, while an internal pulse crowned joy the dominant emotion on 31 % of turns whatever LIA had actually appraised. Both knobs had shipped a year earlier, deliberately switched off, so that turning them on would be a measured decision rather than an intuition. The measurement was taken on real usage; the range is now genuinely reachable. We would rather publish that story than a number nobody checked.
 
 This inner life has a face: the mood emoji animates on the current reply, the colored ring pulses when the mood shifts, and the milestones of your relationship are celebrated with a discreet wink.
 

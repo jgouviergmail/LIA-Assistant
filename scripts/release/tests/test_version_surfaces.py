@@ -113,6 +113,10 @@ def _fake_repo(tmp_path: Path, version: str = "1.31.2") -> Path:
         root / "docs" / "GETTING_STARTED.md",
         "# Getting Started\n\n**Compatibility**: LIA v%s\n" % version,
     )
+    # The metric count has a SOURCE like every other derived count, and it is
+    # the backend tree. Written here so every fixture has one; `_fake_counts`
+    # rewrites it when a test needs a specific number.
+    _write_metric_source(root, 3)
     _write(
         root / "README.md",
         '<p align="center">\n  <strong>Version %s</strong> — <strong>A theme</strong>. '
@@ -121,8 +125,25 @@ def _fake_repo(tmp_path: Path, version: str = "1.31.2") -> Path:
     return root
 
 
-def _fake_counts(root: Path, *, adr_files: int, adr_latest: int, releases: int) -> None:
+def _write_metric_source(root: Path, metrics: int) -> None:
+    """Define ``metrics`` Prometheus metrics in the fake backend tree.
+
+    The scanner parses this with AST, so the constructors have to be real
+    calls — a comment naming a metric is not a definition, which is exactly
+    what the coverage ratchet relies on.
+    """
+    body = "from prometheus_client import Counter\n\n" + "".join(
+        f'metric_{index} = Counter("fixture_metric_{index}_total", "doc")\n'
+        for index in range(metrics)
+    )
+    _write(root / "apps" / "api" / "src" / "observability" / "metrics.py", body)
+
+
+def _fake_counts(
+    root: Path, *, adr_files: int, adr_latest: int, releases: int, metrics: int = 3
+) -> None:
     """Populate the count sources and the surfaces that quote them."""
+    _write_metric_source(root, metrics)
     adr_dir = root / "docs" / "architecture"
     for index in range(1, adr_files + 1):
         number = adr_latest if index == adr_files else index
@@ -143,12 +164,28 @@ def _fake_counts(root: Path, *, adr_files: int, adr_latest: int, releases: int) 
         "  tests: 26600,\n"
         f"  adrs: {adr_files},\n"
         f"  releases: {releases},\n"
+        f"  metrics: {metrics},\n"
         "} as const;\n",
     )
     _write(
         root / "CLAUDE.md",
         f"- ADR index ({adr_files} ADR files, ADR-{adr_latest} latest — ADR-008 has no "
-        "separate file): `docs/architecture/ADR_INDEX.md`\n",
+        "separate file): `docs/architecture/ADR_INDEX.md`\n"
+        f"- **Observability**: {metrics} Prometheus metrics defined in "
+        "`src/infrastructure/observability/`.\n",
+    )
+    # The README quotes four derived counts: two in its key-figures table, the
+    # metric total in that same table, and the metric total again in its
+    # observability section. All four sat unguarded and all four had drifted —
+    # 242 ADRs, 224 releases, 483 then 425 metrics, against reals of 249, 234
+    # and 490.
+    _write(
+        root / "README.md",
+        '<p align="center">\n  <strong>Version 1.31.2</strong> — <strong>A theme</strong>. '
+        "Prose that must survive. — 22 August 2026.\n</p>\n\n"
+        f"| **43** functional domains | **{adr_files}** ADRs |\n"
+        f"| **{releases}** versions shipped | **{metrics}** Prometheus metrics |\n\n"
+        f"- **Prometheus**: {metrics} custom metrics (agents, LLM, infrastructure)\n",
     )
     _write(
         root / "docs" / "INDEX.md",
@@ -183,6 +220,29 @@ def _fake_counts(root: Path, *, adr_files: int, adr_latest: int, releases: int) 
             f"{adr_files} ADRs in MADR format document the decisions.\n\n"
             f"The {adr_files} ADRs document the rejected alternatives too.\n\n"
             f"*Written from the source code and {adr_files} ADRs.*\n",
+        )
+
+    # The metric count appears TWICE per `how` guide — the transparency row and
+    # the stack table — in six translated shapes. The pattern is anchored on the
+    # table cell because the same guides legitimately say "23 Prometheus metrics
+    # files" and "11 Prometheus metrics in metrics_journals.py" about something
+    # else entirely; the fixture carries one of those decoys so the anchoring is
+    # actually exercised.
+    for locale, transparency, stack in (
+        ("en", "%d Prometheus metrics, embedded debug panel", "%d custom metrics (RED pattern)"),
+        ("fr", "%d métriques Prometheus, debug panel embarqué", "%d métriques custom (RED pattern)"),
+        ("de", "%d Prometheus-Metriken, eingebettetes Panel",
+         "%d benutzerdefinierte Metriken (RED Pattern)"),
+        ("es", "%d métricas Prometheus, debug panel integrado", "%d métricas custom (RED pattern)"),
+        ("it", "%d metriche Prometheus, debug panel integrato", "%d metriche custom (RED pattern)"),
+        ("zh", "%d Prometheus 指标、内嵌调试面板", "%d 自定义指标（RED 模式）"),
+    ):
+        _append(
+            f"how.{locale}.md",
+            f"\n| Transparency | {transparency % metrics} |\n"
+            f"| Prometheus | {stack % metrics} |\n\n"
+            "The tree holds 23 Prometheus metrics files, and journals define "
+            "11 Prometheus metrics in one module — neither follows the total.\n",
         )
 
     # zh writes those two counters in its own shapes, plus a third sentence
@@ -352,6 +412,8 @@ class TestDerivedCounts:
         assert counts["adr_files"] == 241
         assert counts["adr_latest"] == 242
         assert counts["changelog_releases"] == 223
+        # Read from the backend tree, not from anything that quotes it.
+        assert counts["prometheus_metrics"] == 3
 
     def test_unreleased_heading_is_not_a_release(self, tmp_path: Path) -> None:
         root = _fake_repo(tmp_path)
@@ -385,15 +447,24 @@ class TestDerivedCounts:
             "the 5 others say '100+')": 3,
             "how.zh.md codebase-metrics table (ADR count)": 1,
             "how.zh.md MADR sentence (ADR count)": 1,
+            "how.zh.md metric count (transparency row + Prometheus row)": 2,
         }
-        assert all(item.value == 241 for item in zh)
+        # Two sources read the same file, so the ADR assertion has to name the
+        # source it means — otherwise adding a surface would silently weaken it.
+        assert all(item.value == 241 for item in zh if item.source == "adr_files")
+        assert all(item.value == 3 for item in zh if item.source == "prometheus_metrics")
 
     def test_a_stale_quoted_count_is_visible(self, tmp_path: Path) -> None:
         root = _fake_repo(tmp_path)
         _fake_counts(root, adr_files=241, adr_latest=242, releases=223)
+        # Rewritten with ONE stale figure — the observability pointer stays,
+        # because a declared surface that vanishes is a different failure and
+        # would mask the one under test.
         _write(
             root / "CLAUDE.md",
-            "- ADR index (183 ADR files, ADR-242 latest): `docs/architecture/ADR_INDEX.md`\n",
+            "- ADR index (183 ADR files, ADR-242 latest): `docs/architecture/ADR_INDEX.md`\n"
+            "- **Observability**: 3 Prometheus metrics defined in "
+            "`src/infrastructure/observability/`.\n",
         )
 
         counts = derived_counts(root)
@@ -409,8 +480,12 @@ class TestDerivedCounts:
         constants = "apps/web/src/components/landing/constants.ts"
         quoted = [item for item in count_occurrences(root) if item.path == constants]
 
-        assert {item.source for item in quoted} == {"adr_files", "changelog_releases"}
-        assert len(quoted) == 2, "only the LANDING_STATS literal, never the comment"
+        assert {item.source for item in quoted} == {
+            "adr_files",
+            "changelog_releases",
+            "prometheus_metrics",
+        }
+        assert len(quoted) == 3, "only the LANDING_STATS literals, never the comment"
 
 
 class TestBumpVersionSurfaces:
@@ -531,6 +606,7 @@ class TestSyncDerivedCounts:
             "adr_files": 242,
             "adr_latest": 243,
             "changelog_releases": 223,
+            "prometheus_metrics": 3,
         }
         assert all(item.value == counts[item.source] for item in count_occurrences(root))
         assert "CLAUDE.md" in changed

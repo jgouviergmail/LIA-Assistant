@@ -4912,16 +4912,21 @@ PSYCHE_BASELINE_DAMPING_DEFAULT: float = 0.75  # Resting-point magnitude toward 
 # Dominance recentering (ADR-142). The Mehrabian mapping rests ALL 14 catalogue
 # personalities at D > 0 (spread +0.063..+0.349) — damping is a homothety and cannot
 # fix that, so the five mood centroids requiring D < 0 stay unreachable at rest.
-# A fixed translation subtracted after damping recenters the frame; 0.0 keeps
-# today's behavior (inert at merge), 0.20 is the measured activation candidate
-# (catalogue mean +0.216) pending the production measurement campaign.
-PSYCHE_DOMINANCE_CENTER_DEFAULT: float = 0.0  # Translation on D baseline (0 = off; tunable)
-# Joy-pulse gate (ADR-142). Deterministic replay measured the sustained-quality joy
-# pulse firing on 40/60 ordinary-regime turns, crowning joy the dominant emotion 55%
-# of the time regardless of the actual appraisal — the same distortion mechanism as
-# the removed pride pulse (61% in production). True keeps today's behavior (inert at
-# merge); switch to false so the reported appraisal owns the emotion channel.
-PSYCHE_PROACTIVE_JOY_PULSE_DEFAULT: bool = True  # Joy pulse on sustained quality (true = today)
+# A fixed translation subtracted after damping recenters the frame. Shipped inert
+# (0.0) in v1.25.14, PROMOTED to 0.20 on 2026-08-29 once the production baseline
+# confirmed the lock on live data: D<0 share 0.0% over 769 snapshots / 3 users /
+# 90 days, live catalogue mean +0.234. At 0.20 the catalogue straddles zero
+# (7/14 rest D<0) with the personality D-ordering preserved and assertive
+# characters keeping their register. 0.0 restores the pre-promotion behavior;
+# 0.15 is the documented gentler fallback if character fidelity suffers.
+PSYCHE_DOMINANCE_CENTER_DEFAULT: float = 0.20  # Translation on D baseline (0 = off; tunable)
+# Joy-pulse gate (ADR-142). The sustained-quality joy pulse crowned joy the dominant
+# emotion regardless of what the appraisal actually reported — the same distortion
+# mechanism as the removed pride pulse. Production measurement (2026-08-29) put it at
+# 31% of turns over 90 days, 45.5% over the last 30, and 93-100% for a light user.
+# Shipped inert (True) in v1.25.14, PROMOTED to False on 2026-08-29 so the reported
+# appraisal owns the emotion channel. True restores the legacy pulse.
+PSYCHE_PROACTIVE_JOY_PULSE_DEFAULT: bool = False  # Joy pulse on sustained quality (false = gated)
 
 # Emotion parameters
 PSYCHE_EMOTION_DECAY_RATE_DEFAULT: float = 0.4  # Per hour, exponential (was 0.3 — faster turnover)

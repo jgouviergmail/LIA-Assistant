@@ -51,9 +51,11 @@ from src.core.constants import (
 __all__ = [
     "LiaRuntimeContext",
     "assert_runtime_context",
-    "current_runtime_context",
     "derive_sub_agent_context",
     "runtime_context_if_running",
+    "runtime_user_id_str",
+    "tool_runtime_context",
+    "tool_user_id_str",
 ]
 
 
@@ -146,25 +148,122 @@ class LiaRuntimeContext:
         )
 
 
-def current_runtime_context() -> LiaRuntimeContext:
-    """Read the run-scoped context from anywhere inside a graph run.
+def tool_runtime_context(runtime: object) -> LiaRuntimeContext | None:
+    """The context a tool was injected with, or None.
 
-    Backed by a ContextVar, so it crosses ``asyncio.gather``, ``asyncio.to_thread``
-    and ``asyncio.create_task`` — verified before relying on it, because the
-    parallel executor reads it from inside a ``gather`` fan-out where no ``config``
-    or ``runtime`` parameter is threaded through.
+    A tool must read its OWN ``runtime.context`` rather than the ambient
+    ContextVar: the runtime is the explicit contract the tool layer hands it, it
+    is what a test can construct, and it is what stays correct if a tool is ever
+    driven from outside the run that built the context.
+    :func:`runtime_context_if_running` is the counterpart for code that has no
+    runtime parameter to read — nodes, services, the parallel executor.
 
-    This is why no private key was added back to ``config["configurable"]`` to
-    carry the context: that bag is exactly what ADR-231 removes.
+    Args:
+        runtime: The injected ``ToolRuntime`` (or None).
 
     Returns:
-        The context of the run in progress.
-
-    Raises:
-        RuntimeError: Outside a graph run. Deliberately not caught here — a
-            missing context must fail loudly rather than degrade (ADR-085).
+        The typed context, or None when the tool ran outside the agent layer.
     """
-    return assert_runtime_context(get_runtime(LiaRuntimeContext).context)
+    context = getattr(runtime, "context", None) if runtime is not None else None
+    return context if isinstance(context, LiaRuntimeContext) else None
+
+
+def tool_user_id_str(runtime: object, default: str | None = None) -> str | None:
+    """The acting user's id as a string, from the tool's own runtime.
+
+    Args:
+        runtime: The injected ``ToolRuntime``.
+        default: What to return when the tool has no context.
+
+    Returns:
+        The stringified user id, or ``default``.
+    """
+    context = tool_runtime_context(runtime)
+    return str(context.user_id) if context is not None else default
+
+
+def runtime_language(default: str | None = None) -> str:
+    """The run's language, backend-canonical.
+
+    Args:
+        default: What to answer outside a run. ``None`` means the configured
+            default language — the same source the context itself uses, so the
+            two can never disagree.
+
+    Returns:
+        The language code.
+    """
+    context = runtime_context_if_running()
+    if context is not None:
+        return context.language
+    return default if default is not None else settings.default_language
+
+
+def runtime_timezone(default: str = DEFAULT_TIMEZONE) -> str:
+    """The run's display timezone.
+
+    Args:
+        default: What to answer outside a run. Call sites differ deliberately —
+            ``DEFAULT_TIMEZONE`` ("UTC") is the storage default, while
+            ``DEFAULT_USER_DISPLAY_TIMEZONE`` is what a human-facing rendering
+            falls back to — so the default stays explicit rather than assumed.
+
+    Returns:
+        An IANA timezone name.
+    """
+    context = runtime_context_if_running()
+    return context.timezone if context is not None else default
+
+
+def runtime_psyche_enabled(default: bool = False) -> bool:
+    """Whether the psyche engine is enabled for this run."""
+    context = runtime_context_if_running()
+    return context.psyche_enabled if context is not None else default
+
+
+def runtime_browser_context() -> Any:
+    """The consented geolocation and client hints, or None outside a run."""
+    context = runtime_context_if_running()
+    return context.browser_context if context is not None else None
+
+
+def runtime_display_mode(default: str = RESPONSE_DISPLAY_MODE_DEFAULT) -> str:
+    """The render mode the user chose (cards / html / markdown).
+
+    Args:
+        default: What to answer outside a run.
+
+    Returns:
+        The display mode.
+    """
+    context = runtime_context_if_running()
+    return context.display_mode if context is not None else default
+
+
+def runtime_deps() -> Any:
+    """The tool dependency container carried by the run, or None outside one."""
+    context = runtime_context_if_running()
+    return context.deps if context is not None else None
+
+
+def runtime_user_id_str(default: str | None = "") -> str | None:
+    """The run's user id, as the string most call sites still speak.
+
+    The canonical identity is a ``uuid.UUID`` on the context; Store namespaces,
+    log fields and tool payloads are string-keyed, so the projection happens here
+    once instead of at every call site — which is how the codebase ended up with
+    a ``user_id`` and a ``langgraph_user_id`` spelling of the same value.
+
+    Args:
+        default: What to return outside a graph run (a direct call from a unit
+            test or a script). Each call site keeps the default its previous bag
+            lookup used, so migrating changes no behaviour.
+
+    Returns:
+        The stringified user id, or ``default`` outside a run.
+    """
+    context = runtime_context_if_running()
+    return str(context.user_id) if context is not None else default
 
 
 def derive_sub_agent_context(parent: LiaRuntimeContext, *, thread_id: str) -> LiaRuntimeContext:
@@ -197,7 +296,7 @@ def derive_sub_agent_context(parent: LiaRuntimeContext, *, thread_id: str) -> Li
 def runtime_context_if_running() -> LiaRuntimeContext | None:
     """Read the run context, tolerating callers that run outside a graph.
 
-    Distinguishes the two situations :func:`current_runtime_context` conflates:
+    Distinguishes the two situations a naive read conflates:
 
     - **No graph run at all** — a direct call from a unit test, a script, or a
       service reached outside the agent layer. Returns ``None``; that is not the
@@ -216,6 +315,14 @@ def runtime_context_if_running() -> LiaRuntimeContext | None:
     try:
         runtime = get_runtime(LiaRuntimeContext)
     except RuntimeError:
+        # No RunnableConfig at all: a plain call from a test or a script.
+        return None
+    if runtime is None:
+        # A RunnableConfig exists but carries no LangGraph runtime. This happens
+        # whenever a tool is invoked through ``.ainvoke()`` outside the graph —
+        # LangChain installs a child config, LangGraph never filled it — and
+        # ``get_runtime`` reads that slot with ``.get()``, so it returns None
+        # instead of raising. Treating it as "no run" is what the caller means.
         return None
     return assert_runtime_context(runtime.context)
 

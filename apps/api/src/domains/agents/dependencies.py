@@ -21,16 +21,13 @@ Usage in tools:
         connector_service = await deps.get_connector_service()
         client = await deps.get_or_create_client(...)
 
-Usage in graph execution:
+Usage in graph execution (ADR-231):
     async with get_db_context() as db:
         deps = ToolDependencies(db_session=db)
-        config = {
-            "configurable": {
-                "user_id": str(user_id),
-                "__deps": deps,  # Inject dependencies
-            }
-        }
-        async for chunk in agent.astream(state, config):
+        context = LiaRuntimeContext.for_conversation(
+            user_id=user_id, conversation_id=conversation_id, deps=deps
+        )
+        async for chunk in agent.astream(state, config, context=context):
             yield chunk
 """
 
@@ -349,17 +346,15 @@ def get_dependencies(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> ToolDepend
             db = deps.db
             service = await deps.get_connector_service()
     """
-    deps = runtime.config.get("configurable", {}).get("__deps")
+    context = getattr(runtime, "context", None)
+    deps = context.deps if isinstance(context, LiaRuntimeContext) else None
     if not deps:
-        logger.error(
-            "tool_dependencies_not_found",
-            config_keys=list(runtime.config.get("configurable", {}).keys()),
-        )
+        logger.error("tool_dependencies_not_found", has_context=context is not None)
         raise RuntimeError(
-            "ToolDependencies not injected in runtime.config. "
-            "Ensure dependencies are added during graph execution:\n"
-            "  deps = ToolDependencies(db_session=db)\n"
-            '  config = {"configurable": {"__deps": deps}}'
+            "ToolDependencies not injected in the run context. They travel on "
+            "LiaRuntimeContext.deps since ADR-231 (they used to be the private "
+            'configurable["__deps"] key); ensure the tool is invoked through the '
+            "agent graph, which builds the context at its single chokepoint."
         )
     # Type assertion: we validated deps is ToolDependencies via the if check above
     assert isinstance(deps, ToolDependencies), "Expected ToolDependencies instance"

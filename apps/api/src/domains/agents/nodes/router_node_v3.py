@@ -20,6 +20,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
 from src.core.constants import (
+    EXECUTION_MODE_PIPELINE,
     STATE_KEY_INITIATIVE_FOLLOWUPS,
     STATE_KEY_INITIATIVE_ITERATION,
     STATE_KEY_INITIATIVE_RESULTS,
@@ -42,6 +43,7 @@ from src.domains.agents.constants import (
     STATE_KEY_TURN_TYPE,
     STATE_KEY_VALIDATION_RESULT,
 )
+from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
 from src.domains.agents.utils.state_tracking import track_state_updates
@@ -66,6 +68,22 @@ logger = get_logger(__name__)
 
 # New state keys for v3
 STATE_KEY_QUERY_INTELLIGENCE = "query_intelligence"
+
+
+def _resolve_execution_mode() -> str:
+    """The run's execution mode (ADR-070), from the typed context.
+
+    Read through the run-scoped context rather than ``config["configurable"]``
+    (ADR-231): the mode is a user preference the chokepoint owns, not LangGraph
+    plumbing. Outside a run — a direct call from a unit test or a script — the
+    canonical default applies, which is what the previous bag lookup did whenever
+    the key was absent.
+
+    Returns:
+        ``"pipeline"`` or ``"react"``.
+    """
+    context = runtime_context_if_running()
+    return context.execution_mode if context is not None else EXECUTION_MODE_PIPELINE
 
 
 @trace_node("router_v3")
@@ -352,8 +370,8 @@ async def router_node_v3(
         "_query_intelligence_obj": intelligence,
         # Store tool selection result for debug panel (semantic similarity of domain tools)
         "tool_selection_result": tool_scores_dict,
-        # ADR-070: Inject execution_mode from configurable into state for routing
-        "execution_mode": configurable.get("user_execution_mode", "pipeline"),
+        # ADR-070: publish the run's execution mode into the state for routing
+        "execution_mode": _resolve_execution_mode(),
     }
 
     # Resolved context for response_node registry filtering.

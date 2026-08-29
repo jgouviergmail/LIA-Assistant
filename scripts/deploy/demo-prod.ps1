@@ -34,6 +34,18 @@ $ErrorActionPreference = "Stop"
 $localConfig = Join-Path $PSScriptRoot "deploy.local.ps1"
 if (Test-Path $localConfig) { . $localConfig }
 
+# ADR-250: meme regle que deploy-prod.ps1, meme bibliotheque. `up -d --build
+# --wait` construit les images SUR le Pi -- c'est une operation longue, donc
+# exactement celle qu'une coupure de transport interrompt, et `exit $code` sur
+# un 255 affirmait "remote command exited 255" alors que la commande distante
+# n'avait peut-etre jamais rendu de code du tout.
+$remoteExitLib = Join-Path $PSScriptRoot "lib/RemoteExit.ps1"
+if (-not (Test-Path $remoteExitLib)) {
+    Write-Host "ERR: bibliotheque introuvable: $remoteExitLib" -ForegroundColor Red
+    exit 1
+}
+. $remoteExitLib
+
 if ($SshHost -eq "your-server-ip") {
     Write-Host "ERR: no host configured." -ForegroundColor Red
     Write-Host "     Create scripts/deploy/deploy.local.ps1 with `$SshHost / `$SshPort / `$SshUser," -ForegroundColor Gray
@@ -105,6 +117,19 @@ function Invoke-Remote {
     & ssh $SshOptions.Split(' ') -p $SshPort $Target "echo $encoded | base64 -d | sh"
     if ($LASTEXITCODE -ne 0) {
         $code = $LASTEXITCODE
+
+        if ((Get-RemoteExitVerdict -ExitCode $code) -eq "ContactLost") {
+            # 255 : la commande distante n'a peut-etre jamais rendu de code.
+            # L'annoncer comme "remote command exited 255" attribuait au
+            # serveur une reponse qu'il n'avait pas donnee. Les diagnostics
+            # sont sautes : ils passent par la meme connexion, qui est morte.
+            foreach ($line in Get-ContactLostExplanation) {
+                Write-Host "  $line" -ForegroundColor Yellow
+            }
+            Write-Host "  Pour trancher : ssh -p $SshPort $Target `"cd ~/$RemoteDir && $Compose ps`"" -ForegroundColor Gray
+            exit $code
+        }
+
         Write-Host "  ERR: remote command exited $code" -ForegroundColor Red
 
         # An operator should not have to go and fetch the reason. A container

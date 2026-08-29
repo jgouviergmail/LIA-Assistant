@@ -16,6 +16,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.nodes.initiative_node import _extract_run_id, _initiative_core
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ async def _resolve_recurrence_suggestion(
     qi_primary = get_qi_attr(state, "primary_domain", default=None)
     if qi_intent != "action" or not qi_primary:
         return None
-    user_id = config.get("configurable", {}).get("langgraph_user_id")
+    user_id = runtime_user_id_str(None)
     if not user_id:
         return None
 

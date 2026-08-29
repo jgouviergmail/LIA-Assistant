@@ -20,8 +20,11 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.config import settings
-from src.core.field_names import FIELD_IS_AUTOMATED_SOURCE
 from src.domains.agents.constants import STATE_KEY_MESSAGES
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_user_id_str,
+)
 from src.domains.agents.services.memory_extractor import extract_memories_background
 from src.domains.agents.services.open_loop_extractor import extract_open_loops_background
 from src.domains.interests.services import extract_interests_background
@@ -36,6 +39,7 @@ if TYPE_CHECKING:
     from src.domains.agents.models import MessagesState
 
 logger = structlog.get_logger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # Extraction observability (metric label vocabulary)
@@ -141,8 +145,12 @@ def _schedule_post_response_extractions(
             turn, for deferred self-evaluation (T → T+1, ADR-079).
         psyche_appraisal: Parsed self-report from the response, or None.
     """
-    user_memory_enabled = config.get("configurable", {}).get("user_memory_enabled", True)
-    user_psyche_enabled = config.get("configurable", {}).get("user_psyche_enabled", False)
+    user_memory_enabled = (
+        _c.memory_enabled if (_c := runtime_context_if_running()) is not None else True
+    )
+    user_psyche_enabled = (
+        _c.psyche_enabled if (_c := runtime_context_if_running()) is not None else False
+    )
 
     # ===================================================================
     # PHASE 4 - LONG-TERM MEMORY EXTRACTION (Background)
@@ -154,14 +162,14 @@ def _schedule_post_response_extractions(
     #
     # GUARD: Skip extraction for automated sources (e.g. scheduled actions).
     # Only direct user-typed messages should feed long-term memory / interests /
-    # journal / psyche. The signal is an explicit configurable flag set by the
-    # caller (scheduled_action_executor passes is_automated_source=True). It is
-    # read from `configurable` — NOT metadata — because configurable survives the
-    # Langfuse config enrichment (which rebuilds metadata and would drop the key).
+    # journal / psyche. The flag travels on the typed run context (ADR-231), set
+    # by the caller (scheduled_action_executor passes is_automated_source=True).
+    # It used to be read from `configurable` — NOT metadata — because the Langfuse
+    # enrichment rebuilds metadata and would drop the key; the context is immune
+    # to that rebuild by construction.
     # Proactive notifications (heartbeat, interests) never reach response_node.
-    _is_automated_source = bool(
-        config.get("configurable", {}).get(FIELD_IS_AUTOMATED_SOURCE, False)
-    )
+    _run_context = runtime_context_if_running()
+    _is_automated_source = _run_context is not None and _run_context.is_automated_source
 
     try:
         # user_memory_enabled already defined above for injection
@@ -185,7 +193,7 @@ def _schedule_post_response_extractions(
                 run_id=run_id,
             )
         else:
-            user_id = config.get("configurable", {}).get("langgraph_user_id")
+            user_id = runtime_user_id_str(None)
             thread_id = config.get("configurable", {}).get("thread_id", "unknown")
 
             if user_id:
@@ -249,7 +257,7 @@ def _schedule_post_response_extractions(
                 "interest_extraction_skipped_trivial",
                 run_id=run_id,
             )
-        elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
+        elif not (user_id := runtime_user_id_str(None)):
             _record_extraction(KIND_INTERESTS, OUTCOME_NO_USER)
             logger.debug(
                 "interest_extraction_skipped_no_user",
@@ -306,7 +314,7 @@ def _schedule_post_response_extractions(
         elif not settings.open_loops_enabled:
             _record_extraction(KIND_OPEN_LOOPS, OUTCOME_FEATURE_DISABLED)
             logger.debug("open_loop_extraction_skipped_disabled", run_id=run_id)
-        elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
+        elif not (user_id := runtime_user_id_str(None)):
             _record_extraction(KIND_OPEN_LOOPS, OUTCOME_NO_USER)
             logger.debug("open_loop_extraction_skipped_no_user", run_id=run_id)
         else:
@@ -347,7 +355,9 @@ def _schedule_post_response_extractions(
     # Non-blocking: extraction runs after response is returned to user.
     # GUARD: Same automated source filter as memory/interest extraction.
     try:
-        user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
+        user_journals_enabled = (
+            _c.journals_enabled if (_c := runtime_context_if_running()) is not None else False
+        )
         if _is_automated_source:
             _record_extraction(KIND_JOURNAL, OUTCOME_AUTOMATED_SOURCE)
             logger.info(
@@ -366,7 +376,7 @@ def _schedule_post_response_extractions(
                 "journal_extraction_skipped_trivial",
                 run_id=run_id,
             )
-        elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
+        elif not (user_id := runtime_user_id_str(None)):
             _record_extraction(KIND_JOURNAL, OUTCOME_NO_USER)
             logger.debug(
                 "journal_extraction_skipped_no_user",
@@ -436,7 +446,7 @@ def _schedule_post_response_extractions(
         elif user_msg_is_trivial:
             _record_extraction(KIND_PSYCHE, OUTCOME_TRIVIAL)
             logger.debug("psyche_update_skipped_trivial", run_id=run_id)
-        elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
+        elif not (user_id := runtime_user_id_str(None)):
             _record_extraction(KIND_PSYCHE, OUTCOME_NO_USER)
             logger.debug("psyche_update_skipped_no_user", run_id=run_id)
         else:
@@ -492,7 +502,7 @@ def _schedule_post_response_extractions(
         elif qi_intent != "action" or not qi_primary:
             # only actionable domain queries can recur into automations
             _record_extraction(KIND_RECURRENCE, OUTCOME_NOT_APPLICABLE)
-        elif user_id := config.get("configurable", {}).get("langgraph_user_id"):
+        elif user_id := runtime_user_id_str(None):
             from zoneinfo import ZoneInfo
 
             from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE

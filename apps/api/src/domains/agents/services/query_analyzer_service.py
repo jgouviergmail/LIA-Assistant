@@ -55,6 +55,11 @@ from src.domains.agents.analysis.query_intelligence import (
     SemanticFallback,
     UserGoal,
 )
+from src.domains.agents.context.runtime_context import (
+    runtime_language,
+    runtime_timezone,
+    runtime_user_id_str,
+)
 from src.domains.agents.services.analysis.domain_availability import build_available_domains
 from src.domains.agents.services.analysis.peer_directory import (
     apply_peer_domain_correction,
@@ -532,9 +537,9 @@ async def analyze_query(
                     location_str += f" ({address})"
 
         # Extract user timezone and language from config (critical for correct date calculations)
-        configurable = (base_config or {}).get("configurable", {})
-        user_timezone = configurable.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-        user_language = configurable.get("user_language", settings.default_language)
+        (base_config or {}).get("configurable", {})
+        user_timezone = runtime_timezone(DEFAULT_USER_DISPLAY_TIMEZONE)
+        user_language = runtime_language()
 
         # Build available skills for semantic identification.
         # skill_name is declared in QueryAnalysisOutput with default=None.
@@ -547,7 +552,7 @@ async def analyze_query(
             from src.core.context import active_skills_ctx
             from src.domains.skills.cache import SkillsCache
 
-            _qa_user_id = configurable.get("langgraph_user_id", "")
+            _qa_user_id = runtime_user_id_str() or ""
             _qa_active = active_skills_ctx.get()
             _qa_skills = SkillsCache.get_for_user(_qa_user_id)
             _qa_visible = [
@@ -850,7 +855,7 @@ class QueryAnalyzerService:
         try:
             # === STEP 1: Memory facts retrieval + reference resolution ===
             # Delegated to MemoryResolver (SRP: single service for memory operations)
-            user_id = configurable.get("langgraph_user_id")
+            user_id = runtime_user_id_str(None)
             if not user_id or not isinstance(user_id, str):
                 user_id = ""  # Fallback to empty string for memory resolver
             # Use original_query (user's language) for memory embedding search.

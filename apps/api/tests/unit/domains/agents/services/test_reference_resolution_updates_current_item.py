@@ -14,7 +14,7 @@ update current_item as a side effect of successful reference resolution.
 from collections.abc import Iterator
 from typing import Any
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from langgraph.store.memory import InMemoryStore
@@ -28,6 +28,7 @@ from src.domains.agents.services.context_resolution_service import (
     ContextResolutionService,
 )
 from src.domains.agents.services.query_analyzer_service import ContextReferenceOutput
+from tests.helpers.runtime_context import installed_runtime_context
 
 
 @pytest.fixture(autouse=True)
@@ -53,8 +54,13 @@ def store() -> InMemoryStore:
 
 
 @pytest.fixture
-def user_id() -> str:
-    return str(uuid4())
+def user_uuid() -> UUID:
+    return uuid4()
+
+
+@pytest.fixture
+def user_id(user_uuid: UUID) -> str:
+    return str(user_uuid)
 
 
 @pytest.fixture
@@ -63,11 +69,18 @@ def session_id() -> str:
 
 
 @pytest.fixture
-def runnable_config(user_id: str, session_id: str) -> dict[str, Any]:
-    return {
-        "configurable": {"user_id": user_id, "thread_id": session_id},
-        "metadata": {},
-    }
+def runnable_config(session_id: str) -> dict[str, Any]:
+    """Thread plumbing only — the acting user travels on the run context."""
+    return {"configurable": {"thread_id": session_id}, "metadata": {}}
+
+
+@pytest.fixture(autouse=True)
+def _run_context(user_uuid: UUID, session_id: str):
+    """The resolution service reads the acting user from the context (ADR-231)."""
+    with installed_runtime_context(
+        user_id=user_uuid, thread_id=session_id, conversation_id=session_id
+    ):
+        yield
 
 
 @pytest.fixture

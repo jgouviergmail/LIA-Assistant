@@ -9,7 +9,7 @@ three; ``runtime_helpers`` keeps the generic runtime plumbing.
 Three sources, one doctrine:
 
 - **browser**: the live position shipped with the request
-  (``__browser_context``), zero I/O;
+  (``LiaRuntimeContext.browser_context``), zero I/O;
 - **last_known**: the opt-in persisted position (ADR-073, generalized by
   ADR-219) — used only while fresh, and always carrying ``as_of`` so the
   consumer can state its age instead of presenting a dated point as the
@@ -25,7 +25,11 @@ from typing import Any, NamedTuple
 
 from langchain.tools import ToolRuntime
 
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    tool_runtime_context,
+    tool_user_id_str,
+)
 from src.domains.agents.tools.runtime_helpers import parse_user_id
 from src.infrastructure.observability.logging import get_logger
 
@@ -51,13 +55,13 @@ async def get_browser_geolocation(
     runtime: ToolRuntime[LiaRuntimeContext | None, Any],
 ) -> ResolvedLocation | None:
     """
-    Get browser geolocation from runtime config.
+    Get browser geolocation from the run context.
 
-    The browser context is passed from frontend through ChatRequest.context
-    and propagated to RunnableConfig.configurable["__browser_context"].
+    The browser context is passed from the frontend through ChatRequest.context
+    and reaches the tool as ``LiaRuntimeContext.browser_context`` (ADR-231).
 
     Args:
-        runtime: ToolRuntime containing config with browser context
+        runtime: ToolRuntime carrying the run context
 
     Returns:
         ResolvedLocation if geolocation available, None otherwise
@@ -68,7 +72,8 @@ async def get_browser_geolocation(
         ...     print(f"User is at {geoloc.lat}, {geoloc.lon}")
     """
     try:
-        browser_context = (runtime.config.get("configurable") or {}).get("__browser_context")
+        _ctx = tool_runtime_context(runtime)
+        browser_context = _ctx.browser_context if _ctx is not None else None
         if not browser_context:
             return None
 
@@ -119,7 +124,7 @@ async def get_user_home_location(
     for use in location-aware tools.
 
     Args:
-        runtime: ToolRuntime containing user_id in config
+        runtime: ToolRuntime carrying the run context (the acting user)
 
     Returns:
         ResolvedLocation if home location configured, None otherwise
@@ -130,7 +135,7 @@ async def get_user_home_location(
         ...     print(f"Home is at {home.address}")
     """
     try:
-        user_id_raw = (runtime.config.get("configurable") or {}).get("user_id")
+        user_id_raw = tool_user_id_str(runtime)
         if not user_id_raw:
             logger.warning("get_user_home_location_no_user_id")
             return None
@@ -192,7 +197,7 @@ async def get_user_last_known_location(
     and the freshness TTL (a stale position is worse than the home fallback).
 
     Args:
-        runtime: ToolRuntime containing user_id in config.
+        runtime: ToolRuntime carrying the run context (the acting user).
 
     Returns:
         ResolvedLocation with ``source="last_known"`` and ``as_of`` set to the
@@ -200,7 +205,7 @@ async def get_user_last_known_location(
         fresh is stored, or any lookup step fails (degrade, never raise).
     """
     try:
-        user_id_raw = (runtime.config.get("configurable") or {}).get("user_id")
+        user_id_raw = tool_user_id_str(runtime)
         if not user_id_raw:
             return None
 

@@ -97,10 +97,12 @@ from src.core.field_names import (
     FIELD_STEP_ID,
     FIELD_TOOL_NAME,
     FIELD_TURN_ID,
-    FIELD_USER_ID,
 )
 from src.domains.agents.constants import TOOL_LOCAL_QUERY_ENGINE
-from src.domains.agents.context.runtime_context import runtime_context_if_running
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_user_id_str,
+)
 from src.domains.agents.data_registry.models import RegistryItemType, generate_registry_id
 from src.domains.agents.orchestration.condition_evaluator import (
     ConditionEvaluator,
@@ -608,7 +610,7 @@ async def _load_execution_contexts(
     context: dict[str, Any] = {}
 
     try:
-        user_id = config.get("configurable", {}).get(FIELD_USER_ID)
+        user_id = runtime_user_id_str()
         thread_id = config.get("configurable", {}).get("thread_id")
 
         logger.info(
@@ -1022,7 +1024,7 @@ async def _auto_save_wave_contexts(
     manager = ToolContextManager()
 
     # Extract user_id and session_id from config
-    user_id = config.get("configurable", {}).get(FIELD_USER_ID)
+    user_id = runtime_user_id_str()
     session_id = config.get("configurable", {}).get("thread_id", "")
 
     # Check store is available
@@ -1123,10 +1125,9 @@ async def _auto_save_wave_contexts(
 
         # Build RunnableConfig for auto_save (same pattern as plan_executor.py)
         config_dict = {
-            "configurable": {
-                FIELD_USER_ID: str(user_id),
-                "thread_id": session_id,
-            },
+            # Thread plumbing only: the acting user reaches ``auto_save`` through
+            # the typed run context, not through a re-projected bag (ADR-231).
+            "configurable": {"thread_id": session_id},
             FIELD_METADATA: {FIELD_TURN_ID: wave_id},
         }
         save_config = RunnableConfig(**config_dict)

@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.37.0
+**Anwendung**: LIA v1.38.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 44 Fachdomänen | **580.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **27.600+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **248** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **233** |
+| Dokumentierte Architekturentscheidungen (ADR) | **249** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **234** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 248 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 249 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -127,3 +127,5 @@ Was diese Erfahrung in einer Führungspraxis verändert:
 Dann lernte der Assistent, seine eigene Arbeit zu zeigen: eine Aktivitätsseite, die alles auflistet, was er von selbst tut, gelernte Regeln, die man lesen und korrigieren kann, ein Gedächtnis, das seine Erinnerungen datiert und archiviert statt löscht, eine Stimme, die mit seiner Stimmung atmet. Die Autonomie wuchs genau so, wie es die Philosophie des Projekts verlangte: im Rahmen, unter den Augen des Nutzers.
 
 Dann passte der Assistent in die Tasche, ohne sein Zuhause zu verlassen. Eine App pro Store, Client des Servers, den jeder selbst betreibt: Anmeldung über den echten Browser des Telefons, weil der eingebettete verweigert wird, Benachrichtigungen, die aus dem eigenen Projekt des Nutzers kommen oder durch ein Relais laufen, das gebaut wurde, um nichts zu wissen, und ein Prüfstand, der die echte App Szene für Szene fährt — er fand drei lebende Fehler, die der Compiler abgesegnet hatte. Die Souveränitätsthese überlebte den Kontakt mit den App-Stores: Die Daten haben weiterhin nur ein Zuhause.
+
+Dann richtete das Projekt die Messung auf sich selbst. Es versprach vierzehn Stimmungen und lieferte eine Abbildung, die fünf davon unerreichbar ließ — die Stellschrauben dafür hatten ein Jahr lang bewusst ausgeschaltet gewartet, bis die reale Nutzung sagen konnte, ob sie nötig waren. Es sendete Hunderte von Metriken, ohne sagen zu können, welche davon ein Mensch tatsächlich sieht; jetzt lässt eine Metrik, die kein Dashboard erreicht, den Build rot werden. Und sein eigenes Deployment endete mit einem Fehler, den eine schriftliche Anweisung zu ignorieren bat — eine solche Anweisung ist kein Workaround, sie ist der in Prosa verschobene Defekt. Drei Zähler, drei Versprechen, drei Messungen. Was ein System über sich selbst sagt, ist genau so viel wert wie das, was es überprüft hat.

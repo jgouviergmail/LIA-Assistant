@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.orchestration.plan_schemas import parameters_to_dict
 
 if TYPE_CHECKING:
@@ -78,7 +79,7 @@ def _build_initiative_plan(
         StepType,
     )
 
-    user_id = (config.get("configurable") or {}).get("user_id", "unknown")
+    user_id = runtime_user_id_str("unknown")
     manifests = get_request_tool_manifests()
     manifest_by_name = {m.name: m for m in manifests}
     steps = []

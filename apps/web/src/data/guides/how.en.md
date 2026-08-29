@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Date**: 2026-08-23
-**Application**: LIA v1.37.0
+**Application**: LIA v1.38.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -61,8 +61,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 473 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 248 ADRs, ~20,468 pytest-collected tests across 1,184 files, native observability, 6-level HITL |
+| Full transparency | 490 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 249 ADRs, ~21,521 pytest-collected tests across 1,292 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -80,10 +80,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 20,468 collected by pytest across 1,184 test files + 6,327 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 21,521 collected by pytest across 1,292 test files + 6,368 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 248 |
+| ADRs (Architecture Decision Records) | 249 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -903,13 +903,15 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 473 custom metrics (RED pattern) |
+| Prometheus | 490 custom metrics (RED pattern) |
 | Grafana | 26 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
+
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 490 defined, 433 wired; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1306,7 +1308,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-248 ADRs in MADR format document the major architectural decisions. Some representative examples:
+249 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1383,6 +1385,12 @@ Psyche context is injected into **all** user-facing generation points: main resp
 - **Interactive education guide**: 7 sections ordered Layer 1→5 with descriptive tables for 14 moods and 22 emotions.
 - **Settings**: expressiveness, stability, mood refresh, full reset with explicit descriptions of what is preserved/reset.
 
+### 26.7. The resting frame, recentred on measurement
+
+The Mehrabian mapping rested **all 14** catalogue personalities at D > 0 (spread +0.063 to +0.349). Damping is a homothety and cannot fix that, so the five mood centroids requiring negative dominance stayed unreachable at rest. Two knobs shipped **inert** in v1.25.14 — a translation applied after damping, and a gate on the sustained-quality joy pulse — precisely so activation would be a measured decision rather than an intuition.
+
+The measurement was taken on production in August 2026 (769 snapshots, 3 users, 90 days), and the diagnosis held more strongly than the simulation had predicted: negative-dominance share **0.0 %**, live catalogue mean +0.234, and the joy pulse crowning joy the dominant emotion on **31 %** of turns (45.5 % over the last 30) regardless of the appraisal actually reported. Both knobs are now code defaults: at 0.20 the catalogue straddles zero — 7/14 rest below it, with the personality ordering exactly preserved and P/A untouched — and the reported appraisal owns the emotion channel again. What the same measurement **refuted** is recorded too: arousal is locked as well, but by the appraisal stream never reporting low-arousal emotions, not by resting-point geometry — so this change does not fix it, and must not be read as if it did.
+
 ---
 
 ## 27. Deterministic habit learning
@@ -1439,7 +1447,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 248 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~20,468 tests across 1,184 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 249 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~21,521 tests across 1,292 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1495,4 +1503,4 @@ Ask a language model how long a series of layovers adds up to, which names appea
 
 **The output is untrusted, the code is auditable.** Anything a script prints is model-written code running over third-party data, so it is marked as untrusted content exactly like the body of an email. The code itself, with its stated purpose and its output, is visible to administrators in the debug panel: hiding it would buy no security — the model wrote it, it is already in the context — and would cost all of the verifiability.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 248 ADRs, and the changelog (v1.0 to v1.37.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 249 ADRs, and the changelog (v1.0 to v1.38.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

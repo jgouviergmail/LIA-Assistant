@@ -1973,6 +1973,57 @@
             }
           },
           "description": "Legacy cache format hits (v1) - should decrease to 0 after migration."
+        },
+        {
+          "id": 130,
+          "type": "timeseries",
+          "title": "Cache Writes Skipped",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 107
+          },
+          "targets": [
+            {
+              "expr": "sum by (reason) (rate(llm_cache_write_skipped_total[$__rate_interval]))",
+              "legendFormat": "{{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Results the cache deliberately did NOT store, by reason (e.g. empty result). A rising rate means the cache is being bypassed and the hit rate above cannot improve. Empty panel = zero events in the window (healthy)."
         }
       ]
     },

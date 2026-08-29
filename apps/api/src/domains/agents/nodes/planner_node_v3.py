@@ -30,6 +30,7 @@ from langchain_core.runnables import RunnableConfig
 from src.core.config import settings
 from src.core.constants import (
     CLARIFICATION_RECIPIENT_FIELDS,
+    EXECUTION_MODE_PIPELINE,
     TOOL_NAME_DELEGATE_SUB_AGENT,
 )
 from src.core.field_names import FIELD_RUN_ID
@@ -48,6 +49,11 @@ from src.domains.agents.constants import (
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_VALIDATION_RESULT,
 )
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_language,
+    runtime_user_id_str,
+)
 from src.domains.agents.models import MessagesState
 from src.domains.agents.utils.shape_agnostic import read_field
 from src.domains.agents.utils.state_tracking import track_state_updates
@@ -62,6 +68,7 @@ from src.infrastructure.observability.metrics_agents import (
 from src.infrastructure.observability.tracing import trace_node
 
 logger = get_logger(__name__)
+
 
 # New state keys for v3
 STATE_KEY_PLANNING_RESULT = "planning_result"
@@ -418,13 +425,15 @@ async def planner_node_v3(
     # =========================================================================
     journal_context = ""
     journal_planner_debug: dict | None = None
-    user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
+    user_journals_enabled = (
+        _c.journals_enabled if (_c := runtime_context_if_running()) is not None else False
+    )
     from src.core.config import get_settings as _get_settings
 
     _settings = _get_settings()
     if getattr(_settings, "journals_enabled", False) and user_journals_enabled:
         try:
-            user_id_for_journal = configurable.get("langgraph_user_id")
+            user_id_for_journal = runtime_user_id_str(None)
             if user_id_for_journal and intelligence:
                 from src.domains.journals.context_builder import build_journal_context
                 from src.infrastructure.database.session import get_db_context
@@ -530,7 +539,11 @@ async def planner_node_v3(
                 planner_retry_success_total,
             )
 
-            execution_mode = configurable.get("user_execution_mode", "pipeline")
+            execution_mode = (
+                _c.execution_mode
+                if (_c := runtime_context_if_running()) is not None
+                else EXECUTION_MODE_PIPELINE
+            )
             planner_plans_created_total.labels(execution_mode=execution_mode).inc()
             if panic_mode_attempted.get():
                 planner_retries_total.labels(
@@ -559,7 +572,7 @@ async def planner_node_v3(
 
         validator = PlanValidator(get_global_registry())
         validation_context = ValidationContext(
-            user_id=configurable.get("user_id", "unknown"),
+            user_id=runtime_user_id_str("unknown"),
             session_id=configurable.get("session_id", run_id),
             available_scopes=state.get("oauth_scopes", []),
             allow_hitl=True,  # Allow HITL by default
@@ -748,9 +761,9 @@ async def _resolve_clarification_reference(
             get_memory_reference_resolution_service,
         )
 
-        configurable = config.get("configurable", {})
+        config.get("configurable", {})
         # Use langgraph_user_id (str) like QueryAnalyzerService
-        user_id = configurable.get("langgraph_user_id")
+        user_id = runtime_user_id_str(None)
 
         if not user_id:
             logger.debug(
@@ -777,8 +790,8 @@ async def _resolve_clarification_reference(
 
         # Resolve using memory reference resolution service
         # Extract user_language from config for multilingual resolution
-        configurable = config.get("configurable", {}) if config else {}
-        user_language = configurable.get("user_language", settings.default_language)
+        config.get("configurable", {}) if config else {}
+        user_language = runtime_language()
 
         resolution_service = get_memory_reference_resolution_service()
         result = await resolution_service.resolve_pre_planner(

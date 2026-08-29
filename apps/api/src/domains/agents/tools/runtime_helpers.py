@@ -140,9 +140,12 @@ from langchain.tools import ToolRuntime
 from langgraph.store.base import BaseStore
 
 from src.core.config import settings
-from src.core.field_names import FIELD_ERROR_MESSAGE, FIELD_ERROR_TYPE, FIELD_USER_ID
+from src.core.field_names import FIELD_ERROR_MESSAGE, FIELD_ERROR_TYPE
 from src.core.i18n_api_messages import APIMessages
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    tool_user_id_str,
+)
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -322,8 +325,9 @@ def validate_runtime_config(
     Validate and extract runtime configuration from ToolRuntime.
 
     This helper eliminates the ~15 lines of duplication in each tool for:
-    - Extracting user_id from runtime.config.configurable
-    - Extracting session_id from runtime.config.configurable
+    - Taking user_id from the typed run context (ADR-231), projected to the
+      string the tool layer and the Store namespaces expect
+    - Extracting session_id (LangGraph's thread_id) from runtime.config.configurable
     - Validating that runtime.store is available
 
     Args:
@@ -356,14 +360,22 @@ def validate_runtime_config(
             error_code="configuration_error",
         )
 
-    # Extract user_id
-    user_id = (runtime.config.get("configurable") or {}).get(FIELD_USER_ID)
-    if not user_id:
-        logger.error("missing_user_id", tool_name=tool_name)
+    # Identity comes from the typed run context, never from the bag (ADR-231).
+    # The context is the only place where it is a single canonical uuid.UUID; the
+    # string projection is deliberate at this boundary, because tool code and the
+    # Store namespaces below are string-keyed. Anyone needing the UUID itself
+    # reads ``runtime.context.user_id``.
+    context = getattr(runtime, "context", None)
+    if not isinstance(context, LiaRuntimeContext):
+        logger.error("missing_runtime_context", tool_name=tool_name)
         return UnifiedToolOutput.failure(
-            message=f"{FIELD_USER_ID} missing in config.configurable",
+            message=(
+                "runtime context missing (tool must be invoked via the agent graph, "
+                "which injects a LiaRuntimeContext)"
+            ),
             error_code="configuration_error",
         )
+    user_id = str(context.user_id)
 
     # Extract session_id (thread_id in LangGraph v1.0 terminology)
     # LangGraph v1.0 uses "thread_id" in config.configurable for conversation threads
@@ -575,7 +587,7 @@ async def get_user_preferences(
     user_language = settings.default_language
 
     try:
-        user_id_raw = runtime.config.get("configurable", {}).get("user_id")
+        user_id_raw = tool_user_id_str(runtime)
         if user_id_raw:
             user_id = parse_user_id(user_id_raw)
             cached = UserPreferencesCache.get(str(user_id))
@@ -683,7 +695,7 @@ async def save_to_context_store(
 
     # Context save is non-critical
     with suppress(Exception):
-        user_id_raw = runtime.config.get("configurable", {}).get("user_id")
+        user_id_raw = tool_user_id_str(runtime)
         thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
         if user_id_raw and thread_id:
@@ -832,7 +844,7 @@ async def get_connector_preference(
         from src.domains.connectors.repository import ConnectorRepository
 
         # Get user_id from runtime config
-        user_id_raw = runtime.config.get("configurable", {}).get("user_id")
+        user_id_raw = tool_user_id_str(runtime)
         if not user_id_raw:
             return default
 
@@ -954,8 +966,9 @@ def get_original_user_message(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> s
     """
     Get original user message from runtime config.
 
-    The user message is passed from AgentService through
-    RunnableConfig.configurable["__user_message"].
+    The message travels on the typed run context (ADR-231) — it used to be the
+    private ``configurable["__user_message"]`` key (now ``LiaRuntimeContext.user_message``), an enforced but unpublished
+    contract.
 
     This is useful for tools that need to detect location phrases
     like "chez moi" or "nearby" in the original query.
@@ -971,10 +984,8 @@ def get_original_user_message(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> s
         >>> if "chez moi" in user_msg.lower():
         ...     # Use home location
     """
-    try:
-        return (runtime.config.get("configurable") or {}).get("__user_message", "")
-    except Exception:
-        return ""
+    context = getattr(runtime, "context", None)
+    return context.user_message if isinstance(context, LiaRuntimeContext) else ""
 
 
 def extract_coordinates(
@@ -1081,14 +1092,12 @@ async def resolve_contact_to_email(
         return None
 
     try:
-        configurable = runtime.config.get("configurable", {})
-        deps = configurable.get("__deps")
-        user_id_raw = configurable.get("user_id")
-
-        if not deps or not user_id_raw:
+        context = getattr(runtime, "context", None)
+        if not isinstance(context, LiaRuntimeContext) or not context.deps:
             return None
 
-        user_uuid = parse_user_id(user_id_raw)
+        deps = context.deps
+        user_uuid = context.user_id
 
         # Resolve active contacts provider (Google or Apple) dynamically
         try:
@@ -1301,8 +1310,8 @@ def emit_side_channel_chunk(
         chunk: A ChatStreamChunk instance to emit. Must be fully constructed by caller.
     """
     try:
-        configurable = (runtime.config.get("configurable") or {}) if runtime else {}
-        queue = configurable.get("__side_channel_queue")
+        context = getattr(runtime, "context", None) if runtime else None
+        queue = context.side_channel_queue if isinstance(context, LiaRuntimeContext) else None
         if queue is not None:
             queue.put_nowait(chunk)
     except Exception as e:

@@ -29,8 +29,10 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
+from langchain.tools import ToolRuntime
 
 from src.domains.agents.registry.catalogue import ToolManifest
 from src.domains.agents.tools import (
@@ -49,6 +51,7 @@ from src.domains.relations.schemas import (
     RelationPeerMessage,
 )
 from src.domains.reminders.models import Reminder
+from tests.helpers.runtime_context import make_tool_runtime
 from tests.unit.domains.agents.registry.reference_harness import (
     completed_step,
     type_mismatches,
@@ -181,19 +184,19 @@ def _db_context_double() -> Any:
     return ctx
 
 
-def _tool_runtime() -> MagicMock:
-    """A runtime carrying the ids every tool here reads off its config.
+def _tool_runtime() -> ToolRuntime:
+    """A runtime carrying the ids every tool here reads.
 
-    Not reminder-specific: routes and relation reads pull the same two keys.
+    Not reminder-specific: routes and relation reads pull the same identity.
+    Built through the shared helper so the typed context is real — since
+    ADR-231 the identity comes from ``runtime.context``, not from the bag.
     """
-    runtime = MagicMock()
-    runtime.config = {
-        "configurable": {
-            "user_id": "11111111-1111-1111-1111-111111111111",
-            "thread_id": "session-under-test",
-        }
-    }
-    return runtime
+    return make_tool_runtime(
+        user_id=UUID("11111111-1111-1111-1111-111111111111"),
+        thread_id="session-under-test",
+        conversation_id="session-under-test",
+        store=MagicMock(),
+    )
 
 
 async def _run_create_reminder() -> UnifiedToolOutput:

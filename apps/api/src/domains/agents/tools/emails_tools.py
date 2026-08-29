@@ -7,7 +7,7 @@ Pattern:
         arg: str,
         runtime: ToolRuntime,  # Unified access to runtime resources
     ) -> UnifiedToolOutput:
-        user_id = runtime.config.get("configurable", {}).get("user_id")
+        user_id = tool_user_id_str(runtime)
         # Use runtime.config, runtime.store, runtime.state, etc.
 
 Data Registry Mode (LOT 5):
@@ -51,7 +51,11 @@ from src.core.i18n_types import get_language_name
 from src.core.validators import validate_email
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    tool_runtime_context,
+    tool_user_id_str,
+)
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.tools.base import ConnectorTool
@@ -773,7 +777,7 @@ async def get_emails_tool(
     # Save to context (for $context.emails references)
     if runtime and runtime.store:
         try:
-            user_id_raw = runtime.config.get("configurable", {}).get("user_id")
+            user_id_raw = tool_user_id_str(runtime)
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
             if user_id_raw and thread_id:
@@ -1072,7 +1076,7 @@ async def search_emails_tool(
         # Context save is non-critical
         with suppress(Exception):
             # Extract user_id and thread_id from runtime.config
-            user_id_raw = runtime.config.get("configurable", {}).get("user_id")
+            user_id_raw = tool_user_id_str(runtime)
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
             if user_id_raw and thread_id:
@@ -1531,7 +1535,7 @@ async def get_email_details_tool(
         # Context save is non-critical
         with suppress(Exception):
             # Extract user_id and thread_id from runtime.config
-            user_id_raw = runtime.config.get("configurable", {}).get("user_id")
+            user_id_raw = tool_user_id_str(runtime)
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
             if user_id_raw and thread_id:
@@ -1991,7 +1995,11 @@ async def send_email_tool(
     """
     # Get user language from runtime config (default: settings.default_language)
     user_language: SupportedLanguage = (
-        runtime.config.get("configurable", {}).get("user_language", settings.default_language)
+        (
+            tool_runtime_context(runtime).language
+            if tool_runtime_context(runtime) is not None
+            else settings.default_language
+        )
         if runtime and runtime.config
         else settings.default_language
     )
@@ -2058,12 +2066,14 @@ async def send_email_tool(
             # This is more efficient and produces better subjects based on actual body content
             # Extract user_id from runtime config for psyche context
             _email_user_id = (
-                str(runtime.config.get("configurable", {}).get("user_id", ""))
-                if runtime and runtime.config
-                else ""
+                (tool_user_id_str(runtime) or "") if runtime and runtime.config else ""
             ) or None
             _sender_name = (
-                runtime.config.get("configurable", {}).get("user_display_name")
+                (
+                    tool_runtime_context(runtime).display_name
+                    if tool_runtime_context(runtime) is not None
+                    else None
+                )
                 if runtime and runtime.config
                 else None
             )

@@ -487,6 +487,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - **No PII at INFO level**: names, emails, GPS coordinates, memory/journal content, message bodies. Counters and IDs at INFO; contents at DEBUG or redacted. The DB encrypts what the logs must not leak.
 - An `except` handler whose body is only `pass` is forbidden (CodeQL `py/empty-except`; 193 sites purged 2026-07). Intentional best-effort swallows use `contextlib.suppress(SpecificError)` with the justification comment ABOVE the block (canonical example: metrics emission in `infrastructure/database/session.py`); when one branch must swallow while another logs, nest `with suppress(...)` inside the `try` (canonical example: `agents/api/sse_keepalive.py`). A swallow that hides a real signal gets a `logger.debug(...)` instead. Enforced in CI by the AST guard `apps/api/tests/unit/test_no_empty_except_guard.py`.
 - A docstring describing behavior the code does not have **is a bug**: fix the code or the doc in the same change — never leave the contradiction (audited examples: "uses asyncio.to_thread" without to_thread, "connection pool" on a single connection, "streaming check" that loads everything in RAM).
+- **A metric nobody can see is a metric nobody acts on.** Every Prometheus metric defined in code must be referenced by a Grafana panel, a recording rule or an alert. ADR-148 is the cost of ignoring this: `heartbeat_health_signals_timeout` had no metric at all, so a source failing open dropped the health signals on **46.5 % of heartbeat ticks for a week** with nothing to notice it. Enforced by the shrink-only ratchet `apps/api/tests/unit/test_metric_coverage_ratchet_guard.py` (+ `metric_coverage_baseline.json`): a newly blind metric fails the build, and a metric that becomes wired must leave the baseline (`task ratchet:metrics` — it only removes, never adds). Two traps the guard closes by construction: a labelled counter that never fired exposes **no series**, so a panel watching for a rare failure needs `... or vector(0)` and `"noValue": "0"` or it renders "No data" where an operator expects a green 0; and coverage is read from panel/rule **expressions only** — a metric named in a comment is not wired.
 - Dead code is deleted, not kept "for later": an unwired subsystem with settings/i18n/tests attached costs maintenance on every change and fakes coverage. Wire it or remove it — record the decision in a short ADR.
 - Optional configuration is validated as a matrix, not only in the empty and fully configured cases. Every supported Alertmanager receiver combination must start and route representative labels correctly; every dashboard query must resolve to an actual metric producer, recording rule, or documented datasource. Syntax-only validation is insufficient.
 
@@ -500,7 +501,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - **HITL (Human-in-the-Loop)**: 6 approval levels (plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review). Classified in `src/domains/agents/services/hitl_classifier.py`. Note: the plan-approval level is currently auto-approved (`approval_gate_node` is a pass-through — tool-level HITL supersedes it); do not build on plan-level interrupts without re-wiring the gate.
 - **Smart Services**: QueryAnalyzerService, SmartPlannerService, SmartCatalogueService use LRU caching and pattern learning to reduce LLM token usage.
 - **SSE Streaming**: Responses stream to the frontend via Server-Sent Events.
-- **Observability**: 500+ Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
+- **Observability**: 490 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
 - **LLM Factory**: `src/infrastructure/llm/factory.py` provides multi-provider LLM instantiation (OpenAI, Anthropic, Google, DeepSeek, Ollama). Provider adapters in `src/infrastructure/llm/providers/`.
 
 ## Good Practices
@@ -667,7 +668,7 @@ Run it after any Capacitor upgrade or any CSP change.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (248 ADR files, ADR-249 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (249 ADR files, ADR-250 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

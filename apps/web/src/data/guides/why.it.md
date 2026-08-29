@@ -4,7 +4,7 @@
 
 **Versione**: 5.1
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.37.0
+**Applicazione**: LIA v1.38.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -367,6 +367,8 @@ Il **Psyche Engine** dà a LIA uno stato psicologico dinamico che evolve a ogni 
 - **Motivazioni** che influenzano la proattività dell'assistente
 
 Non stai parlando con uno strumento — interagisci con un'entità il cui vocabolario si scalda quando viene toccata, le cui frasi si accorciano sotto tensione, il cui umorismo emerge quando lo scambio è leggero. E non lo dice mai — lo **mostra**.
+
+E una promessa del genere vale esattamente quanto vale la misura che la sostiene. Quattordici stati d'umore erano annunciati; fino ad agosto 2026 cinque di essi restavano irraggiungibili a riposo: la proiezione lasciava tutte le personalità sul lato assertivo della scala, mentre un impulso interno incoronava la gioia emozione dominante nel 31 % dei turni, qualunque cosa LIA avesse davvero valutato. Entrambe le impostazioni erano state consegnate un anno prima, deliberatamente spente, perché accenderle fosse una decisione misurata e non un'intuizione. La misura è stata presa sull'uso reale; la tavolozza è ora davvero raggiungibile. Preferiamo pubblicare questa storia piuttosto che un numero che nessuno ha verificato.
 
 Questa vita interiore ha un volto: l'emoji dell'umore si anima sulla risposta corrente, l'anello colorato pulsa quando l'umore cambia, e le tappe della tua relazione vengono celebrate con un discreto occhiolino.
 

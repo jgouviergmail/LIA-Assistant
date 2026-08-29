@@ -46,6 +46,7 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_TASKS,
     CONTEXT_DOMAIN_WEATHER,
 )
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -102,7 +103,10 @@ class ToolOutputMixin:
         fallback = default if default is not None else settings.default_language
         runtime = getattr(self, "runtime", None)
         if runtime and runtime.config:
-            return runtime.config.get("configurable", {}).get("user_language", fallback)
+            context = getattr(runtime, "context", None)
+            if isinstance(context, LiaRuntimeContext):
+                return context.language
+            return fallback
         return fallback
 
     def create_registry_item(

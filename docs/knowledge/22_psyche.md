@@ -62,3 +62,7 @@ After each response, LIA self-evaluates: what emotion did this exchange trigger?
 **Does changing personality affect the Psyche?** Yes. When you switch personality, Big Five traits and mood baseline are automatically updated. The mood is repositioned to the new personality's resting point.
 
 **What's the difference between Refresh Mood and Reset Everything?** Refresh Mood clears mood and emotions but keeps the relationship intact. Reset Everything also resets the relationship stage, trust, depth, and domain confidence — like a first meeting.
+
+**Why does LIA often seem upbeat, or never quite calm?** Until August 2026 that was a real defect, not an impression. The mapping from the psychological state to a mood left every personality resting on the assertive side of the scale, so five of the fourteen moods were unreachable at rest; and an internal pulse tied to sustained conversation quality crowned joy the dominant emotion on 31 % of turns regardless of what LIA had actually appraised. Both were corrected in v1.38.0 after measuring real usage: half the personalities now rest in a calmer register, and the emotion you see is the one LIA appraised. Assertive personalities stay assertive — the ordering between them is unchanged.
+
+**Is the whole range of moods actually reachable?** Yes, at rest as well as in conversation. That was the point of the correction above: a mood the engine can name but never reach is a mood that does not exist.

@@ -20,13 +20,17 @@
 > **Observability & dominance recentering added in [ADR-142](../architecture/ADR-142-Psyche-Observability-And-Dominance-Recentering.md).**
 > The ADR-104 production re-measurement is now instrumented: `apps/api/scripts/measure_psyche.py`
 > replays the full metric battery read-only (per-user moods/octants/emotions + live catalogue
-> resting table). Two knobs ship **inert** (defaults preserve the behavior described here):
-> `PSYCHE_DOMINANCE_CENTER` (0.0; a post-damping translation of the dominance baseline —
+> resting table). Two knobs shipped **inert** in v1.25.14 and were **promoted to the activated
+> values on 2026-08-29** after the production baseline (D<0 share 0.0% over 769 snapshots;
+> joy dominant 31-100% of turns), so the defaults below now differ from the behavior this
+> document describes elsewhere:
+> `PSYCHE_DOMINANCE_CENTER` (**now 0.20**; a post-damping translation of the dominance baseline —
 > the raw mapping rests ALL 14 personalities at D > 0, locking five moods out of reach at
-> rest, and damping alone cannot recenter a homothety) and `PSYCHE_PROACTIVE_JOY_PULSE`
-> (true; gates the sustained-quality joy pulse that crowned joy dominant over the actual
-> appraisal). CI guards (`test_mood_reachability.py`) freeze the 14 resting points and
-> pin mood reachability. Activation is a measured decision — see ADR-142's procedure.
+> rest, and damping alone cannot recenter a homothety — at 0.20, 7/14 personalities now
+> rest D<0) and `PSYCHE_PROACTIVE_JOY_PULSE` (**now false**; gates the sustained-quality joy
+> pulse that crowned joy dominant over the actual appraisal). Set them back to `0.0` / `true`
+> to restore the pre-promotion behavior. CI guards (`test_mood_reachability.py`) freeze the
+> raw resting points and pin mood reachability. See ADR-142 for the measured evidence.
 
 ## Table of Contents
 

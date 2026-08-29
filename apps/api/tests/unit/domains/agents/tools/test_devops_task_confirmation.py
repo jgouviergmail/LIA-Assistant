@@ -26,6 +26,7 @@ from src.domains.agents.tools.devops_tools import (
     claude_server_task_tool,
     execute_devops_task_draft,
 )
+from tests.helpers.runtime_context import make_tool_runtime
 
 _SERVERS = '[{"name": "prod-host", "host": "local", "username": "<user>"}]'
 
@@ -37,15 +38,12 @@ def _runtime() -> MagicMock:
     A real ``ToolRuntime`` also exposes ``store``; ``validate_runtime_config``
     reads it, so a bare namespace would fail for the wrong reason.
     """
-    runtime = MagicMock()
-    runtime.config = {
-        "configurable": {
-            "user_id": str(uuid4()),
-            "thread_id": str(uuid4()),
-            "__side_channel_queue": object(),
-        }
-    }
-    return runtime
+    return make_tool_runtime(
+        user_id=uuid4(),
+        thread_id=str(uuid4()),
+        side_channel_queue=object(),
+        store=MagicMock(),
+    )
 
 
 def _settings(**overrides: object) -> SimpleNamespace:

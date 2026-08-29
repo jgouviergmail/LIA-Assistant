@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from src.domains.agents.data_registry.models import RegistryItemType
     from src.domains.agents.drafts.display import DraftDisplayConfig
 from urllib.parse import urlparse
-from uuid import UUID
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -71,6 +70,16 @@ from src.domains.agents.constants import (
 from src.domains.agents.context.recent_entities import (
     build_recent_entities_context,
     should_ground_from_recent_entities,
+)
+from src.domains.agents.context.runtime_context import (
+    runtime_browser_context,
+    runtime_context_if_running,
+    runtime_deps,
+    runtime_display_mode,
+    runtime_language,
+    runtime_psyche_enabled,
+    runtime_timezone,
+    runtime_user_id_str,
 )
 
 # V3 Display Architecture imports
@@ -217,12 +226,12 @@ def _should_inject_html_directive(display_mode: str | None, route_to: str | None
 # ============================================================================
 
 
-def _extract_viewport_from_config(config: RunnableConfig) -> str:
-    """
-    Extract viewport from browser context in config.
+def _extract_viewport() -> str:
+    """Extract the viewport from the run's browser context.
 
-    Browser context is passed via config.configurable["__browser_context"]
-    from the orchestration service.
+    The browser context reaches this node through the typed runtime context
+    (ADR-231), fed by the orchestration service from the client's consented
+    client hints.
 
     Priority:
     1. viewport_width (pixels) -> uses env breakpoint via viewport_from_width()
@@ -233,15 +242,12 @@ def _extract_viewport_from_config(config: RunnableConfig) -> str:
     - V3_DISPLAY_VIEWPORT_MOBILE_MAX_WIDTH (default 430px)
     - <= 430px = mobile, > 430px = desktop
 
-    Args:
-        config: RunnableConfig with browser context
-
     Returns:
         Viewport string: "mobile" or "desktop" (default)
     """
     from src.domains.agents.display.config import viewport_from_width
 
-    browser_context = (config.get("configurable") or {}).get("__browser_context")
+    browser_context = runtime_browser_context()
     if not browser_context:
         return "desktop"
 
@@ -493,7 +499,7 @@ async def _execute_draft_if_confirmed(
 
     Args:
         state: Current graph state with draft_action_result
-        config: Runnable config with __deps (ToolDependencies) and metadata
+        config: Runnable config (thread plumbing) and metadata; dependencies come from the run context
         run_id: Run ID for logging
 
     Returns:
@@ -1546,7 +1552,7 @@ async def _activate_response_skills(
 
         skill_sections: list[str] = []
         activated_names: set[str] = set()
-        skill_user_id = config.get("configurable", {}).get("langgraph_user_id")
+        skill_user_id = runtime_user_id_str(None)
         active = active_skills_ctx.get()
 
         # --- Helpers: skill classification for activation strategy ---
@@ -1668,8 +1674,7 @@ async def _activate_response_skills(
                     prompt_name="skill_react_agent_prompt",
                 )
 
-                configurable = config.get("configurable", {})
-                _user_lang = configurable.get("user_language", "fr")
+                _user_lang = runtime_language()
                 # ADR-137 follow-up: the sub-agent cannot resolve a position on
                 # its own (empty bypass plan, no location tool) — feed it the
                 # canonical resolution so it never invents one ("ma position").
@@ -1689,7 +1694,7 @@ async def _activate_response_skills(
                     _data_summary = format_agent_results_for_prompt(
                         _raw_agent_results,
                         current_turn_id=state.get("current_turn_id"),
-                        user_timezone=config.get("configurable", {}).get("user_timezone", "UTC"),
+                        user_timezone=runtime_timezone(),
                     )
                     if _data_summary:
                         _agent_data = (
@@ -1727,14 +1732,14 @@ async def _activate_response_skills(
                     get_global_registry,
                 )
 
+                # ``configurable`` carries thread plumbing ONLY: the runner derives
+                # the sub-run's identity, timezone and language from the typed
+                # context it reads itself (ADR-231), so re-listing them here would
+                # be a second, silently divergent authority.
+                _parent_thread_id = config.get("configurable", {}).get("thread_id", "")
                 _skill_parent = SimpleNamespace(
                     config={
-                        "configurable": {
-                            "user_id": configurable.get("langgraph_user_id", ""),
-                            "thread_id": configurable.get("thread_id", ""),
-                            "user_timezone": configurable.get("user_timezone", "UTC"),
-                            "user_language": _user_lang,
-                        },
+                        "configurable": {"thread_id": _parent_thread_id},
                         "callbacks": config.get("callbacks"),
                         "metadata": config.get("metadata", {}),
                     },
@@ -2233,7 +2238,7 @@ def _build_response_system_prompt(
 
 
 def _launch_knowledge_enrichment(
-    state: MessagesState, config: RunnableConfig, run_id: str, user_language: str
+    state: MessagesState, run_id: str, user_language: str
 ) -> tuple[Any, dict[str, Any] | None]:
     """Launch the Brave-search knowledge enrichment task (non-blocking).
 
@@ -2243,8 +2248,7 @@ def _launch_knowledge_enrichment(
     """
     # Get query_intelligence for keyword extraction
     query_intelligence = state.get("query_intelligence")
-    # Get ToolDependencies from config (injected at graph execution start)
-    tool_deps = config.get("configurable", {}).get("__deps")
+    tool_deps = runtime_deps()
     # Launch knowledge enrichment task in parallel (non-blocking)
     # Track enrichment result for debug panel (even if enrichment wasn't executed)
     enrichment_task = None
@@ -2258,9 +2262,11 @@ def _launch_knowledge_enrichment(
     else:
         from src.domains.agents.services import get_knowledge_enrichment_service
 
-        # Parse user_id from config (langgraph_user_id is the standard key)
-        user_id_str = config.get("configurable", {}).get("langgraph_user_id")
-        user_id = UUID(user_id_str) if user_id_str else None
+        # Identity is a mandatory ``uuid.UUID`` on the run context: no string
+        # round-trip to parse, and no second authority on who the run is for
+        # (ADR-231). The None case is now "no run at all", not "no user".
+        run_context = runtime_context_if_running()
+        user_id = run_context.user_id if run_context is not None else None
         if not user_id:
             knowledge_enrichment_result = {"skip_reason": "no_user_id"}
         else:
@@ -3087,7 +3093,7 @@ def _parse_psyche_appraisal(
 
 
 def _resolve_turn_preamble(
-    state: MessagesState, config: RunnableConfig, run_id: str
+    state: MessagesState, run_id: str
 ) -> tuple[str, str, str, str, bool, Any, bool]:
     """Resolve per-turn display context and detect vision attachments.
 
@@ -3110,12 +3116,8 @@ def _resolve_turn_preamble(
     # Get user timezone and language from state (with fallbacks to i18n defaults)
     user_timezone = state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
     user_language = state.get("user_language", settings.default_language)
-    user_viewport = _extract_viewport_from_config(config)
-    logger.debug(
-        "response_node_viewport_detected",
-        run_id=run_id,
-        viewport=user_viewport,
-    )
+    user_viewport = _extract_viewport()
+    logger.debug("response_node_viewport_detected", run_id=run_id, viewport=user_viewport)
     # DISPLAY MODE: resolve once, up-front — it gates several style decisions below.
     # In the "html" mode the prompt carries the rich-HTML directive, so the Markdown
     # style precedent that accumulates in the LLM's conversational history must be
@@ -3125,9 +3127,7 @@ def _resolve_turn_preamble(
     # (e.g. the ReAct agent's final_message) is left intact — it is the input to
     # reformat, not a style precedent. The "cards" and "markdown" modes keep the
     # historical behaviour (flag stays False) — no regression.
-    user_display_mode = config.get("configurable", {}).get(
-        "user_display_mode", RESPONSE_DISPLAY_MODE_CARDS
-    )
+    user_display_mode = runtime_display_mode(RESPONSE_DISPLAY_MODE_CARDS)
     neutralize_history_formatting = user_display_mode == RESPONSE_DISPLAY_MODE_HTML
     # === VISION LLM SWITCH (evolution F4 — File Attachments) ===
     # Detect if current turn has image attachments → use vision_analysis LLM
@@ -3333,7 +3333,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             neutralize_history_formatting,
             current_turn_attachments,
             has_vision_content,
-        ) = _resolve_turn_preamble(state, config, run_id)
+        ) = _resolve_turn_preamble(state, run_id)
         # =====================================================================
         # ADR-070: ReAct mode — inject the agent's final message as agent_results
         # so the response LLM can reformulate with personality, display mode, etc.
@@ -3364,7 +3364,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
         # Knowledge enrichment: launch Brave Search in parallel (non-blocking).
         enrichment_task, knowledge_enrichment_result = _launch_knowledge_enrichment(
-            state, config, run_id, user_language
+            state, run_id, user_language
         )
 
         data_for_filtering = _build_data_for_filtering(current_turn_registry, user_language, run_id)
@@ -3382,7 +3382,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             pop_response_context,
         )
 
-        user_psyche_enabled = config.get("configurable", {}).get("user_psyche_enabled", False)
+        user_psyche_enabled = runtime_psyche_enabled()
 
         context_bundle = await pop_response_context(run_id)
         if context_bundle is None:

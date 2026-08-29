@@ -11,8 +11,10 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock
+from uuid import UUID
 
 import pytest
+from langchain.tools import ToolRuntime
 
 from src.domains.agents.tools import diagnostics_tools
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -24,18 +26,21 @@ from src.infrastructure.telemetry.models import (
     PromResult,
     PromSample,
 )
+from tests.helpers.runtime_context import make_tool_runtime
 
 
-def _runtime() -> MagicMock:
-    runtime = MagicMock()
-    runtime.config = {
-        "configurable": {
-            "user_id": "8a7b6c5d-0000-0000-0000-0000000000aa",
-            "thread_id": "thread-1",
-        }
-    }
-    runtime.store = MagicMock()
-    return runtime
+def _runtime() -> ToolRuntime:
+    """A real ToolRuntime carrying a typed context (ADR-231).
+
+    ``validate_runtime_config`` takes the identity from ``runtime.context``, so a
+    MagicMock — whose ``context`` is another mock — no longer satisfies it.
+    """
+    return make_tool_runtime(
+        user_id=UUID("8a7b6c5d-0000-0000-0000-0000000000aa"),
+        thread_id="thread-1",
+        conversation_id="thread-1",
+        store=MagicMock(),
+    )
 
 
 class _FakeRepo:

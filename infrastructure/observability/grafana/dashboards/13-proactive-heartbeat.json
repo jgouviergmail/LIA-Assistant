@@ -1114,6 +1114,127 @@
           "description": "Reverse-geocoding outcomes for heartbeat notifications."
         }
       ]
+    },
+    {
+      "id": 26,
+      "type": "row",
+      "title": "Heartbeat — Context Source Health",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 45
+      },
+      "panels": [
+        {
+          "id": 27,
+          "type": "stat",
+          "title": "Context Sources Dropped (24h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 46
+          },
+          "targets": [
+            {
+              "expr": "sum(increase(heartbeat_source_dropped_total[24h])) or vector(0)",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 1,
+                    "color": "red"
+                  }
+                ]
+              },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "description": "Heartbeat context sources abandoned during aggregation (timeout or error). Sources fail open, so a drop leaves NO trace in the notification itself — health signals were dropped on 46.5% of ticks for a week before anyone noticed (ADR-148). Green 0 is the healthy state; any drop turns it red."
+        },
+        {
+          "id": 28,
+          "type": "timeseries",
+          "title": "Source Drops by Reason",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 16,
+            "x": 8,
+            "y": 46
+          },
+          "targets": [
+            {
+              "expr": "sum by (source, reason) (rate(heartbeat_source_dropped_total[$__rate_interval]))",
+              "legendFormat": "{{source}} — {{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Which source was dropped and why (timeout = the wall-clock budget it shares with the other fetchers; error = an exception). Empty panel = zero drops in the window (healthy)."
+        }
+      ]
     }
   ]
 }

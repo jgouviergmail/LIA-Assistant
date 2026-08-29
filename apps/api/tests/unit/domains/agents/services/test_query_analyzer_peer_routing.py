@@ -16,6 +16,7 @@ calendar, invalidated on missing scopes.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
 from langchain_core.messages import HumanMessage
@@ -30,6 +31,9 @@ from src.domains.agents.services.query_analyzer_service import (
     QueryAnalysisResult,
     QueryAnalyzerService,
 )
+from tests.helpers.runtime_context import installed_runtime_context
+
+_USER_ID = UUID("00000000-0000-4000-8000-0000000000b1")
 
 QUERY = "Jerome G est-il disponible demain à 10h ?"
 PEER = "Jérôme G"
@@ -101,7 +105,7 @@ async def _run(
             query=query,
             messages=[HumanMessage(content=query)],
             state={"user_language": "fr"},
-            config={"configurable": {"langgraph_user_id": "u-1"}},
+            config={"configurable": {}},
             original_query=query,
         )
     return mock_analyze, mock_expand
@@ -220,6 +224,7 @@ async def test_directory_is_loaded_once_per_turn():
     """One indexed query per turn — never one per prompt rebuild."""
     service = _make_service()
     with (
+        installed_runtime_context(user_id=_USER_ID),
         patch(
             "src.domains.agents.services.query_analyzer_service.load_connected_peer_names",
             AsyncMock(return_value=[PEER]),
@@ -235,8 +240,8 @@ async def test_directory_is_loaded_once_per_turn():
             query=QUERY,
             messages=[HumanMessage(content=QUERY)],
             state={"user_language": "fr"},
-            config={"configurable": {"langgraph_user_id": "u-1"}},
+            config={"configurable": {}},
             original_query=QUERY,
         )
 
-    mock_load.assert_awaited_once_with("u-1")
+    mock_load.assert_awaited_once_with(str(_USER_ID))

@@ -35,7 +35,8 @@ from typing import TYPE_CHECKING
 
 from langchain_core.runnables import RunnableConfig
 
-from src.core.field_names import FIELD_THREAD_ID, FIELD_USER_ID
+from src.core.field_names import FIELD_THREAD_ID
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -87,7 +88,7 @@ async def get_tcm_session(config: RunnableConfig) -> TcmSession | None:
             return None
 
         configurable = config.get("configurable", {}) if config else {}
-        user_id = configurable.get(FIELD_USER_ID)
+        user_id = runtime_user_id_str()
         session_id = configurable.get(FIELD_THREAD_ID)
         if not user_id or not session_id:
             return None

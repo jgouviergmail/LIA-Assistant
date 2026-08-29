@@ -13,12 +13,14 @@ mocked so the tool wiring is what's under test.
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from langchain.tools import ToolRuntime
 
 from src.core.exceptions import ValidationError
 from src.domains.skills.tools import _coerce_files, import_user_skill
+from tests.helpers.runtime_context import make_tool_runtime
 
 pytestmark = pytest.mark.unit
 
@@ -75,16 +77,14 @@ priority: 50
 """
 
 
-def _runtime() -> MagicMock:
-    rt = MagicMock()
-    rt.config = {
-        "configurable": {
-            "user_id": str(_USER),
-            "thread_id": "thread-123",
-        }
-    }
-    rt.store = MagicMock()
-    return rt
+def _runtime() -> ToolRuntime:
+    """A runtime carrying the identity on its typed context (ADR-231)."""
+    return make_tool_runtime(
+        user_id=_USER if isinstance(_USER, UUID) else UUID(str(_USER)),
+        thread_id="thread-123",
+        conversation_id="thread-123",
+        store=MagicMock(),
+    )
 
 
 class TestImportUserSkillTool:

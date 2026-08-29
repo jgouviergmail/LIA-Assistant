@@ -994,6 +994,19 @@ tasks:
       - cmd: .venv/bin/python ../../scripts/audit/update_file_size_baseline.py
         platforms: [linux, darwin]
 
+  # Metric-coverage ratchet (test_metric_coverage_ratchet_guard.py): the list of
+  # metrics reaching NO dashboard/rule/alert can only get shorter. Run after
+  # wiring a metric to a panel (ADR-148: a metric nobody sees is a metric nobody
+  # acts on).
+  ratchet:metrics:
+    desc: Shrink the metric-coverage baseline after wiring a metric to a dashboard
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python ../../scripts/audit/measure_metric_coverage.py --update
+        platforms: [windows]
+      - cmd: .venv/bin/python ../../scripts/audit/measure_metric_coverage.py --update
+        platforms: [linux, darwin]
+
   # ============================================================================
   # Database
   # ============================================================================

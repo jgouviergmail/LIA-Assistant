@@ -4,7 +4,7 @@
 
 **Version** : 5.1
 **Date** : 2026-08-23
-**Application** : LIA v1.37.0
+**Application** : LIA v1.38.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -367,6 +367,8 @@ Le **Psyche Engine** donne à LIA un état psychologique dynamique qui évolue �
 - **Des motivations** qui influencent la proactivité de l'assistant
 
 Tu ne parles pas à un outil — tu interagis avec une entité dont le vocabulaire se réchauffe quand elle est touchée, dont les phrases raccourcissent sous la tension, dont l'humour surgit quand l'échange est léger. Et elle ne le dit jamais — elle le **montre**.
+
+Et une promesse pareille ne vaut que ce que vaut la mesure qui la soutient. Quatorze humeurs étaient annoncées ; jusqu'en août 2026, cinq d'entre elles restaient hors d'atteinte au repos : la projection laissait toutes les personnalités du côté affirmé de l'échelle, tandis qu'une impulsion interne couronnait la joie émotion dominante sur 31 % des tours, quoi que LIA ait réellement évalué. Les deux réglages avaient été livrés un an plus tôt, délibérément éteints, pour que les allumer soit une décision mesurée et non une intuition. La mesure a été prise sur l'usage réel ; la palette est désormais vraiment atteignable. Nous préférons publier cette histoire-là qu'un chiffre que personne n'a vérifié.
 
 Cette vie intérieure a un visage : l'émoji d'humeur s'anime sur la réponse en cours, l'anneau coloré pulse quand l'humeur bascule, et les grands caps de ta relation sont célébrés d'un clin d'œil discret.
 

@@ -20,6 +20,7 @@ from langchain.tools import ToolRuntime
 from src.domains.agents.tools.base import APIKeyConnectorTool, ConnectorTool
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
+from tests.helpers.runtime_context import make_tool_runtime
 
 pytestmark = pytest.mark.unit
 
@@ -58,13 +59,13 @@ def _runtime(user_id: str) -> ToolRuntime:
     store = MagicMock()
     store.aget = AsyncMock(return_value=None)
     store.aput = AsyncMock()
-    return ToolRuntime(
+    return make_tool_runtime(
+        user_id=UUID(user_id) if isinstance(user_id, str) else user_id,
+        thread_id="t",
+        conversation_id="t",
         state={},
-        context=None,
-        config={"configurable": {"user_id": user_id, "thread_id": "t"}},
-        stream_writer=MagicMock(),
-        tool_call_id="test_call_id",
         store=store,
+        tool_call_id="test_call_id",
     )
 
 

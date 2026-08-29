@@ -724,7 +724,7 @@ async def react_execute_tools_node(
 
     Args:
         state: Current graph state with messages and tool metadata.
-        config: RunnableConfig with __deps for tool execution.
+        config: RunnableConfig (thread plumbing); tool dependencies travel on the run context.
 
     Returns:
         State update with ToolMessages and collected registry items.

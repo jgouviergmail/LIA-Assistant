@@ -58,7 +58,10 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.manager import ToolContextManager
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    tool_user_id_str,
+)
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.tools.base import ConnectorTool
 
@@ -541,7 +544,7 @@ async def search_events_tool(
     if runtime and runtime.store:
         # Context save is non-critical
         with suppress(RuntimeError, ValueError, OSError):
-            user_id_raw = runtime.config.get("configurable", {}).get("user_id")
+            user_id_raw = tool_user_id_str(runtime)
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
             if user_id_raw and thread_id:
@@ -906,7 +909,7 @@ async def get_event_details_tool(
     if runtime and runtime.store:
         # Context save is non-critical
         with suppress(RuntimeError, ValueError, OSError):
-            user_id_raw = runtime.config.get("configurable", {}).get("user_id")
+            user_id_raw = tool_user_id_str(runtime)
             thread_id = runtime.config.get("configurable", {}).get("thread_id")
 
             if user_id_raw and thread_id:

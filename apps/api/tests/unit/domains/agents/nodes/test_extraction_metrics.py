@@ -11,12 +11,15 @@ delta-based: Prometheus counters are process-global, so an absolute value would
 couple this module to test ordering.
 """
 
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from langchain_core.messages import HumanMessage
 
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.nodes.post_response_extractions import (
     KIND_INTERESTS,
     KIND_JOURNAL,
@@ -36,6 +39,7 @@ from src.domains.agents.nodes.post_response_extractions import (
 from src.infrastructure.observability.metrics_extractions import (
     post_response_extraction_scheduled_total,
 )
+from tests.helpers.runtime_context import installed_runtime_context, make_runtime_context
 
 USER_ID = "11111111-1111-1111-1111-111111111111"
 
@@ -66,17 +70,24 @@ def _config(
     journals: bool = True,
     psyche: bool = True,
     user_id: str | None = USER_ID,
-):
-    configurable = {
-        "thread_id": "thread-1",
-        "is_automated_source": automated,
-        "user_memory_enabled": memory,
-        "user_journals_enabled": journals,
-        "user_psyche_enabled": psyche,
-    }
-    if user_id is not None:
-        configurable["langgraph_user_id"] = user_id
-    return {"configurable": configurable}
+) -> LiaRuntimeContext | None:
+    """The run context the scheduler reads (ADR-231), not a configurable bag.
+
+    user_id=None returns None: identity is a mandatory field of the context,
+    so "the turn has no acting user" is now expressible only as "there is no run
+    context" — which is exactly what the no-user branches guard against.
+    """
+    if user_id is None:
+        return None
+    return make_runtime_context(
+        user_id=UUID(user_id),
+        thread_id="thread-1",
+        conversation_id="thread-1",
+        is_automated_source=automated,
+        memory_enabled=memory,
+        journals_enabled=journals,
+        psyche_enabled=psyche,
+    )
 
 
 def _settings(
@@ -93,13 +104,20 @@ def _settings(
     )
 
 
-def _run(state, config, settings_ns, *, trivial: bool = False) -> None:
-    """Invoke the scheduler with the background tasks neutralized."""
+def _run(state, context, settings_ns, *, trivial: bool = False) -> None:
+    """Invoke the scheduler with the background tasks neutralized.
+
+    The RunnableConfig carries thread plumbing only; everything the scheduler
+    reads about the turn now comes from the installed run context.
+    """
+    config = {"configurable": {"thread_id": "thread-1"}}
 
     def _fake_fire_and_forget(coro, *, name="", run_id=None):
         coro.close()  # prevent un-awaited coroutine warnings
 
+    installed = installed_runtime_context(context) if context is not None else nullcontext()
     with (
+        installed,
         patch(
             "src.domains.agents.nodes.post_response_extractions.safe_fire_and_forget",
             side_effect=_fake_fire_and_forget,
@@ -207,14 +225,28 @@ class TestExtractionMetrics:
         assert _counter(KIND_RECURRENCE, OUTCOME_FEATURE_DISABLED) == before_recurrence + 1
 
     def test_missing_user_is_counted(self):
-        """No user id in configurable — every kind that has the branch says so."""
-        kinds = (KIND_MEMORY, KIND_INTERESTS, KIND_OPEN_LOOPS, KIND_JOURNAL, KIND_PSYCHE)
+        """No run context at all — the kinds gated on identity alone say so.
+
+        Since ADR-231, identity and the user's preferences travel on the SAME
+        typed context, so "no acting user" and "no preferences" are one state:
+        journal and psyche default to OFF with no context, so they hit their
+        preference gate first and report ``user_disabled``; memory defaults to ON
+        and reaches the identity check, as do the kinds gated on a global setting
+        only. The outcome a dashboard reads must be the one the code can actually
+        emit, so each kind is asserted on the branch it really takes.
+        """
+        kinds = (KIND_MEMORY, KIND_INTERESTS, KIND_OPEN_LOOPS)
         before = {k: _counter(k, OUTCOME_NO_USER) for k in kinds}
+        before_disabled = {
+            k: _counter(k, OUTCOME_USER_DISABLED) for k in (KIND_JOURNAL, KIND_PSYCHE)
+        }
 
         _run(_state(), _config(user_id=None), _settings())
 
         for kind in kinds:
             assert _counter(kind, OUTCOME_NO_USER) == before[kind] + 1, kind
+        for kind, was in before_disabled.items():
+            assert _counter(kind, OUTCOME_USER_DISABLED) == was + 1, kind
 
     def test_non_actionable_query_is_not_applicable_for_recurrence(self):
         """Only actionable domain queries can recur into automations."""

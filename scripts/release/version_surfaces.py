@@ -39,6 +39,7 @@ Usage::
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 from dataclasses import dataclass
@@ -71,6 +72,11 @@ __all__ = [
 SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 _VERSION = r"(?P<version>\d+\.\d+\.\d+)"
 _COUNT = r"(?P<count>\d+)"
+
+#: This repository, derived from this file rather than from a caller-supplied
+#: root: sibling TOOLING is loaded from here, while the sources being measured
+#: always come from the ``root`` argument.
+_MODULE_ROOT = Path(__file__).resolve().parents[2]
 
 GUIDES_DIR = "apps/web/src/data/guides"
 
@@ -266,6 +272,15 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "changelog_releases",
         "LANDING_STATS.releases",
     ),
+    # `metrics` sat next to two guarded neighbours and was not one: it read 486
+    # against a real 490. A number that lives one line below a guarded number
+    # is the least likely one anybody re-reads.
+    CountSurface(
+        "apps/web/src/components/landing/constants.ts",
+        re.compile(rf"^  metrics: {_COUNT},", re.MULTILINE),
+        "prometheus_metrics",
+        "LANDING_STATS.metrics",
+    ),
     CountSurface(
         "CLAUDE.md",
         re.compile(rf"\({_COUNT} ADR files"),
@@ -436,6 +451,91 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         re.compile(rf"Architecture Decision Records \({_COUNT} ADR files\)"),
         "adr_files",
         "INDEX.md architects' table (ADR file count)",
+    ),
+    # The Prometheus metric count, quoted in eight places against ONE source.
+    # Measured 2026-08-29 before declaring them: CLAUDE.md said 500+, README
+    # said 483 in its metrics table and 425 in its observability section, the
+    # six `how` guides said 473 twice each — five different numbers, all of
+    # them read as facts, for a value the code owns. This is CLAUDE.md's own
+    # rule #1 ("never restate a value the code owns") applied to itself.
+    CountSurface(
+        "CLAUDE.md",
+        re.compile(rf"{_COUNT} Prometheus metrics defined in"),
+        "prometheus_metrics",
+        "CLAUDE.md observability pointer (metric count)",
+    ),
+    CountSurface(
+        "README.md",
+        re.compile(rf"\*\*{_COUNT}\*\* Prometheus metrics"),
+        "prometheus_metrics",
+        "README.md key-figures table (metric count)",
+    ),
+    CountSurface(
+        "README.md",
+        re.compile(rf"\*\*Prometheus\*\*: {_COUNT} custom metrics"),
+        "prometheus_metrics",
+        "README.md observability section (metric count)",
+    ),
+    # The README's own key-figures row drifted the same way: 242 ADRs against
+    # a real 249, and 224 releases against a real count it never re-read.
+    CountSurface(
+        "README.md",
+        re.compile(rf"\*\*{_COUNT}\*\* ADRs"),
+        "adr_files",
+        "README.md key-figures table (ADR count)",
+    ),
+    CountSurface(
+        "README.md",
+        re.compile(rf"\*\*{_COUNT}\*\* versions shipped"),
+        "changelog_releases",
+        "README.md key-figures table (release count)",
+    ),
+    # Anchored on the TABLE CELL (`| N ...`), not on the words alone: the same
+    # guides legitimately say "23 Prometheus metrics files" (a file count) and
+    # "11 Prometheus metrics in metrics_journals.py" (a per-module count). A
+    # looser pattern swallowed all four and would have forced two unrelated
+    # numbers to follow the global total.
+    CountSurface(
+        f"{GUIDES_DIR}/how.en.md",
+        re.compile(rf"\| {_COUNT} (?:Prometheus metrics,|custom metrics \(RED)"),
+        "prometheus_metrics",
+        "how.en.md metric count (transparency row + Prometheus row)",
+        expected=2,
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.fr.md",
+        re.compile(rf"\| {_COUNT} métriques (?:Prometheus,|custom \(RED)"),
+        "prometheus_metrics",
+        "how.fr.md metric count (transparency row + Prometheus row)",
+        expected=2,
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.de.md",
+        re.compile(rf"\| {_COUNT} (?:Prometheus-Metriken,|benutzerdefinierte Metriken \(RED)"),
+        "prometheus_metrics",
+        "how.de.md metric count (transparency row + Prometheus row)",
+        expected=2,
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.es.md",
+        re.compile(rf"\| {_COUNT} métricas (?:Prometheus,|custom \(RED)"),
+        "prometheus_metrics",
+        "how.es.md metric count (transparency row + Prometheus row)",
+        expected=2,
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.it.md",
+        re.compile(rf"\| {_COUNT} metriche (?:Prometheus,|custom \(RED)"),
+        "prometheus_metrics",
+        "how.it.md metric count (transparency row + Prometheus row)",
+        expected=2,
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.zh.md",
+        re.compile(rf"\| {_COUNT} (?:Prometheus 指标、|自定义指标（RED)"),
+        "prometheus_metrics",
+        "how.zh.md metric count (transparency row + Prometheus row)",
+        expected=2,
     ),
 )
 
@@ -628,6 +728,52 @@ def version_occurrences(root: Path) -> list[Occurrence]:
     return found
 
 
+def _prometheus_metric_count(root: Path) -> int:
+    """How many Prometheus metrics the backend defines.
+
+    Loaded from ``scripts/audit/measure_metric_coverage.py`` rather than
+    reimplemented: that module owns the AST scan (a regex over the source
+    over-counts — it reads ``ZoneInfo("UTC")`` as an ``Info`` metric), and the
+    coverage ratchet already depends on it. Two scanners would have disagreed,
+    which is precisely the failure this surface exists to close: seven public
+    documents quoted five different metric counts (500+, 483, 473, 450+, 425)
+    for one source, and every one of them read as a fact.
+
+    The scanner is loaded from THIS repository, never from ``root``: it is
+    code, not data. ``root`` supplies the sources being counted, which is what
+    lets the function run against a synthetic fixture — the same split as
+    ``MIN_EXPECTED_GUIDE_STAMPS``, whose anti-rot floor lives in the CI guard
+    so this module stays pure.
+
+    Args:
+        root: Repository root holding the sources to scan.
+
+    Returns:
+        Number of distinct metric names defined under ``root/apps/api/src``.
+
+    Raises:
+        SurfaceError: If the scanner or the backend source tree is missing.
+            An absent source tree is never counted as zero: every surface
+            quoting a real number would read as drifted, and the repair would
+            write zeros into six public documents.
+    """
+    scanner = _MODULE_ROOT / "scripts" / "audit" / "measure_metric_coverage.py"
+    if not scanner.is_file():
+        raise SurfaceError(f"Metric scanner not found at {scanner} — broken checkout?")
+
+    src_dir = root / "apps" / "api" / "src"
+    if not src_dir.is_dir():
+        raise SurfaceError(f"Backend source tree not found at {src_dir} — wrong root?")
+
+    spec = importlib.util.spec_from_file_location("_measure_metric_coverage", scanner)
+    if spec is None or spec.loader is None:  # pragma: no cover - defensive
+        raise SurfaceError(f"Cannot load the metric scanner at {scanner}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    return len(module.metrics_defined_in_code(src_dir))
+
+
 def derived_counts(root: Path) -> dict[str, int]:
     """Recompute the counts quoted by public surfaces from their sources.
 
@@ -636,8 +782,9 @@ def derived_counts(root: Path) -> dict[str, int]:
 
     Returns:
         ``adr_files`` (ADR markdown files), ``adr_latest`` (highest ADR number
-        — ADR-008 has no file, so it runs one above the count), and
-        ``changelog_releases`` (``## [x]`` headings, excluding ``Unreleased``).
+        — ADR-008 has no file, so it runs one above the count),
+        ``changelog_releases`` (``## [x]`` headings, excluding ``Unreleased``)
+        and ``prometheus_metrics`` (metrics defined in the backend).
 
     Raises:
         SurfaceError: If a source directory or file is missing or empty.
@@ -662,6 +809,7 @@ def derived_counts(root: Path) -> dict[str, int]:
         "adr_files": len(adr_files),
         "adr_latest": max(numbers),
         "changelog_releases": len(releases),
+        "prometheus_metrics": _prometheus_metric_count(root),
     }
 
 

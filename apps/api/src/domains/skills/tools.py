@@ -16,6 +16,8 @@ from typing import Annotated, Any
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 
+from src.core.config import settings
+from src.core.constants import DEFAULT_TIMEZONE
 from src.domains.agents.constants import AGENT_QUERY
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -229,15 +231,20 @@ async def run_skill_script(
     # skill scripts can localize their output without the plan_template having
     # to pass these explicitly. Keys are prefixed with ``_`` to signal they
     # are framework-managed and avoid collisions with user-defined parameters.
-    # Explicit user-provided values take precedence.
-    runtime_configurable = (
-        runtime.config.get("configurable", {}) if runtime and runtime.config else {}
+    # Explicit user-provided values take precedence. Language and timezone come
+    # from the typed run context (ADR-231); its own defaults are the canonical
+    # ones, so the previous inline "en"/"UTC" literals are gone with the bag.
+    raw_context = getattr(runtime, "context", None) if runtime else None
+    context: LiaRuntimeContext | None = (
+        raw_context if isinstance(raw_context, LiaRuntimeContext) else None
     )
     enriched_parameters: dict[str, Any] = dict(coerced_parameters or {})
     if "_lang" not in enriched_parameters:
-        enriched_parameters["_lang"] = runtime_configurable.get("user_language", "en")
+        enriched_parameters["_lang"] = (
+            context.language if context is not None else settings.default_language
+        )
     if "_tz" not in enriched_parameters:
-        enriched_parameters["_tz"] = runtime_configurable.get("user_timezone", "UTC")
+        enriched_parameters["_tz"] = context.timezone if context is not None else DEFAULT_TIMEZONE
 
     from src.domains.skills.executor import SkillScriptExecutor
 

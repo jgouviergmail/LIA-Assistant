@@ -7,7 +7,6 @@ branches — skip reasons, error fallbacks, protected-item preservation — that
 the end-to-end characterization suite exercises only partially.
 """
 
-import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -28,6 +27,7 @@ from src.domains.agents.nodes.response_node import (
     _record_plan_pattern_learning,
     _render_response_html,
 )
+from tests.helpers.runtime_context import installed_runtime_context
 
 _RESP = "src.domains.agents.nodes.response_node"
 
@@ -78,9 +78,8 @@ def test_build_data_for_filtering_error_returns_marker():
 
 
 def test_launch_knowledge_enrichment_skips_without_query_intelligence():
-    state = {"query_intelligence": None}
-    config: dict = {"configurable": {}}
-    task, result = _launch_knowledge_enrichment(state, config, "r", "fr")
+    with installed_runtime_context():
+        task, result = _launch_knowledge_enrichment({"query_intelligence": None}, "r", "fr")
     assert task is None
     assert isinstance(result, dict) and "skip_reason" in result
 
@@ -193,62 +192,65 @@ def test_prepare_turn_registry_override_none_for_non_search_intent():
 # --- _launch_knowledge_enrichment (all skip branches + full path) ------------
 
 
-def _launch(state, config):
-    return _launch_knowledge_enrichment(state, config, "r", "fr")
+def _launch(state, **context_overrides):
+    """Run the helper inside a run context, the only place ``deps``/``user_id`` live now."""
+    with installed_runtime_context(**context_overrides):
+        return _launch_knowledge_enrichment(state, "r", "fr")
 
 
 def test_launch_ke_feature_disabled():
     with patch(f"{_RESP}.settings.knowledge_enrichment_enabled", False):
-        task, res = _launch({"query_intelligence": {}}, {"configurable": {}})
+        task, res = _launch({"query_intelligence": {}})
     assert task is None and res == {"skip_reason": "feature_disabled"}
 
 
 def test_launch_ke_no_query_intelligence():
     with patch(f"{_RESP}.settings.knowledge_enrichment_enabled", True):
-        task, res = _launch({"query_intelligence": None}, {"configurable": {"__deps": object()}})
+        task, res = _launch({"query_intelligence": None}, deps=object())
     assert task is None and res == {"skip_reason": "no_query_intelligence"}
 
 
 def test_launch_ke_no_tool_deps():
     with patch(f"{_RESP}.settings.knowledge_enrichment_enabled", True):
-        task, res = _launch({"query_intelligence": {"a": 1}}, {"configurable": {}})
+        task, res = _launch({"query_intelligence": {"a": 1}})
     assert task is None and res == {"skip_reason": "no_tool_deps"}
 
 
-def test_launch_ke_no_user_id():
-    cfg = {"configurable": {"__deps": object()}}
+def test_launch_ke_outside_a_run_skips_on_dependencies():
+    """No context at all is the only remaining way to have no acting user.
+
+    ``LiaRuntimeContext.user_id`` is mandatory and typed, so a run can no longer
+    carry dependencies while missing its user — the ambiguity ADR-231 removed.
+    Outside a run, the dependency guard fires first and says so.
+    """
     with patch(f"{_RESP}.settings.knowledge_enrichment_enabled", True):
-        task, res = _launch({"query_intelligence": {"a": 1}}, cfg)
-    assert task is None and res == {"skip_reason": "no_user_id"}
+        task, res = _launch_knowledge_enrichment({"query_intelligence": {"a": 1}}, "r", "fr")
+    assert task is None and res == {"skip_reason": "no_tool_deps"}
 
 
 def test_launch_ke_skip_domain_web_search():
-    cfg = {"configurable": {"__deps": object(), "langgraph_user_id": str(uuid.uuid4())}}
     qi = {"encyclopedia_keywords": ["x"], "primary_domain": "web_search"}
     with patch(f"{_RESP}.settings.knowledge_enrichment_enabled", True):
-        task, res = _launch({"query_intelligence": qi}, cfg)
+        task, res = _launch({"query_intelligence": qi}, deps=object())
     assert task is None and res == {"skip_reason": "web_search_domain"}
 
 
 def test_launch_ke_mcp_domain():
-    cfg = {"configurable": {"__deps": object(), "langgraph_user_id": str(uuid.uuid4())}}
     qi = {"encyclopedia_keywords": ["x"], "primary_domain": "mcp_gmail"}
     with patch(f"{_RESP}.settings.knowledge_enrichment_enabled", True):
-        task, res = _launch({"query_intelligence": qi}, cfg)
+        task, res = _launch({"query_intelligence": qi}, deps=object())
     assert task is None and res == {"skip_reason": "mcp_domain"}
 
 
 def test_launch_ke_no_keywords():
-    cfg = {"configurable": {"__deps": object(), "langgraph_user_id": str(uuid.uuid4())}}
     qi = {"encyclopedia_keywords": [], "primary_domain": None}
     with patch(f"{_RESP}.settings.knowledge_enrichment_enabled", True):
-        task, res = _launch({"query_intelligence": qi}, cfg)
+        task, res = _launch({"query_intelligence": qi}, deps=object())
     assert task is None and res == {"skip_reason": "no_keywords"}
 
 
 @pytest.mark.asyncio
 async def test_launch_ke_full_path_creates_task():
-    cfg = {"configurable": {"__deps": object(), "langgraph_user_id": str(uuid.uuid4())}}
     qi = {"encyclopedia_keywords": ["paris"], "primary_domain": None}
     fake_service = Mock(enrich=AsyncMock(return_value=None))
     with (
@@ -258,7 +260,7 @@ async def test_launch_ke_full_path_creates_task():
             Mock(return_value=fake_service),
         ),
     ):
-        task, res = _launch({"query_intelligence": qi}, cfg)
+        task, res = _launch({"query_intelligence": qi}, deps=object())
         assert task is not None
         assert res is None  # not set when a task is launched
         await task  # drain the task so it is not garbage-collected pending

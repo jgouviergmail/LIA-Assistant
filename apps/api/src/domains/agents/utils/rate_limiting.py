@@ -37,11 +37,12 @@ import structlog
 from langchain.tools import ToolRuntime
 
 from src.core.config import settings as _app_settings
-from src.core.field_names import FIELD_TOOL_NAME, FIELD_USER_ID
+from src.core.field_names import FIELD_TOOL_NAME
 from src.domains.agents.constants import (
     RATE_LIMIT_DEFAULT_READ_WINDOW_SECONDS,
     RATE_LIMIT_SCOPE_USER,
 )
+from src.domains.agents.context.runtime_context import tool_user_id_str
 from src.infrastructure.observability.metrics_agents import agent_tool_rate_limit_hits
 
 logger = structlog.get_logger(__name__)
@@ -172,7 +173,7 @@ def rate_limit(
                 return await func(*args, **kwargs)
 
             # Extract user_id from runtime.config
-            user_id = (runtime.config.get("configurable") or {}).get(FIELD_USER_ID)
+            user_id = tool_user_id_str(runtime)
 
             if not user_id:
                 # If user_id not available, skip rate limiting (fail open)

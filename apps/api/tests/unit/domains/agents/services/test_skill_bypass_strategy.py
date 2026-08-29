@@ -11,6 +11,7 @@ Verifies that:
 
 from dataclasses import dataclass, field
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
 
@@ -18,6 +19,7 @@ from src.domains.agents.services.planner.strategies.skill_bypass import (
     SkillBypassStrategy,
     _filter_steps_by_scopes,
 )
+from tests.helpers.runtime_context import installed_runtime_context
 
 
 def _make_intelligence(
@@ -113,19 +115,32 @@ NON_DETERMINISTIC_NO_SCRIPTS_SKILL = {
 }
 
 
-def _make_config(
-    user_id: str = "test-user-123",
-    oauth_scopes: list[str] | None = None,
-) -> dict:
-    """Create a minimal RunnableConfig dict."""
+def _make_config(oauth_scopes: list[str] | None = None) -> dict:
+    """A RunnableConfig carrying only what still lives in the bag.
+
+    ``run_id``/``session_id`` are node-local plumbing and ``oauth_scopes`` is a
+    value the caller writes for its own callee; the acting user moved to the
+    typed run context (ADR-231) — install it with :func:`_acting_user`.
+    """
     return {
         "configurable": {
-            "user_id": user_id,
             "run_id": "test-run",
             "session_id": "test-session",
             "oauth_scopes": oauth_scopes or [],
         }
     }
+
+
+#: Stable identity for the tests that do not care who the user is.
+_DEFAULT_USER = UUID("00000000-0000-4000-8000-0000000000a1")
+_ALICE = UUID("00000000-0000-4000-8000-0000000000a2")
+
+
+@pytest.fixture(autouse=True)
+def _acting_user():
+    """Every plan runs for someone: skill scoping keys on the acting user."""
+    with installed_runtime_context(user_id=_DEFAULT_USER):
+        yield
 
 
 @dataclass(frozen=True)
@@ -449,22 +464,24 @@ class TestPlan:
     @pytest.mark.unit
     async def test_user_override_prefers_user_skill_over_admin(self):
         """A user's own skill with same name must override the admin version."""
-        user_id = "alice"
         alice_briefing = _make_skill(
             "briefing-quotidien",
             ["task"],
             deterministic=False,  # Alice's version is non-deterministic
             scope="user",
-            owner_id=user_id,
+            owner_id=str(_ALICE),
         )
 
         strategy = SkillBypassStrategy()
         intel = _make_intelligence(detected_skill_name="briefing-quotidien")
-        config = _make_config(user_id=user_id)
+        config = _make_config()
 
-        with patch(
-            "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
-            side_effect=_make_cache_lookup([BRIEFING_SKILL, alice_briefing]),
+        with (
+            installed_runtime_context(user_id=_ALICE),
+            patch(
+                "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+                side_effect=_make_cache_lookup([BRIEFING_SKILL, alice_briefing]),
+            ),
         ):
             result = await strategy.plan(intelligence=intel, config=config)
 
@@ -477,13 +494,7 @@ class TestPlan:
         """Config without oauth_scopes key → scope-requiring steps filtered out."""
         strategy = SkillBypassStrategy()
         intel = _make_intelligence(detected_skill_name="briefing-quotidien")
-        config = {
-            "configurable": {
-                "user_id": "test-user",
-                "run_id": "test-run",
-                "session_id": "test-session",
-            }
-        }
+        config = {"configurable": {"run_id": "test-run", "session_id": "test-session"}}
 
         result = await strategy.plan(intelligence=intel, config=config)
 

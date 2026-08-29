@@ -1461,10 +1461,13 @@ emit_side_channel_chunk(runtime, chunk)
 
 ### Nested agents (ReAct)
 
-When creating a nested agent (e.g., `create_react_agent` for browser), forward
-the `__side_channel_queue` in the nested `RunnableConfig.configurable` so that
-tools inside the nested agent can also emit side-channel events. See
-`browser_tools.py` for an example with `__parent_thread_id` forwarding.
+When creating a nested agent (e.g., `create_react_agent` for browser), pass the
+parent's run context to the sub-run — derive it with `derive_sub_agent_context`
+rather than re-listing keys, so the side channel (and everything else) travels
+whole. Only `__parent_thread_id` stays in the nested `RunnableConfig.configurable`:
+it is thread plumbing a nested call writes for its own callee, not run context.
+See `react_runner.py` for the derivation and `browser_tools.py` for the
+`__parent_thread_id` read.
 
 ---
 

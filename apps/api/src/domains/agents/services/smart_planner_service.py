@@ -32,6 +32,11 @@ from src.core.constants import (
 )
 from src.core.context import exclude_sub_agents_from_prompt, panic_mode_attempted
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence
+from src.domains.agents.context.runtime_context import (
+    runtime_language,
+    runtime_timezone,
+    runtime_user_id_str,
+)
 from src.domains.agents.prompts import (
     get_smart_planner_prompt,
 )
@@ -867,8 +872,8 @@ class SmartPlannerService:
             from src.domains.connectors.service import ConnectorService
             from src.infrastructure.database.session import AsyncSessionLocal
 
-            configurable = config.get("configurable", {})
-            user_id = configurable.get("user_id")
+            config.get("configurable", {})
+            user_id = runtime_user_id_str(None)
             if not user_id:
                 return ""
 
@@ -1052,7 +1057,7 @@ class SmartPlannerService:
         from src.core.context import active_skills_ctx
         from src.domains.skills.injection import build_skills_catalog
 
-        user_id = config.get("configurable", {}).get("user_id", "")
+        user_id = runtime_user_id_str() or ""
         return build_skills_catalog(
             str(user_id),
             active_skills=active_skills_ctx.get(),
@@ -1214,7 +1219,6 @@ class SmartPlannerService:
         journal into another user's prompt under concurrency (N-47).
         """
         from src.core.config import get_settings
-        from src.core.constants import DEFAULT_TIMEZONE
         from src.domains.agents.services.plan_pattern_learner import (
             get_learned_patterns_prompt,
         )
@@ -1222,9 +1226,9 @@ class SmartPlannerService:
         _settings = get_settings()
 
         # Extract user preferences from config
-        configurable = config.get("configurable", {})
-        user_timezone = configurable.get("user_timezone", DEFAULT_TIMEZONE)
-        user_language = configurable.get("user_language", _settings.default_language)
+        config.get("configurable", {})
+        user_timezone = runtime_timezone()
+        user_language = runtime_language(_settings.default_language)
 
         # Semantic deps injection:
         # - Multi-domain: always (cross-domain chains need type info)
@@ -1607,7 +1611,7 @@ class SmartPlannerService:
         # detected is None: accept only a real, known skill.
         from src.domains.skills.cache import SkillsCache
 
-        user_id = config.get("configurable", {}).get("user_id", "")
+        user_id = runtime_user_id_str() or ""
         known = SkillsCache.get_by_name_for_user(
             llm_skill_name, str(user_id)
         ) or SkillsCache.get_by_name(llm_skill_name)
@@ -1761,7 +1765,7 @@ class SmartPlannerService:
 
         return ExecutionPlan(
             plan_id=f"smart_{configurable.get('run_id', 'unknown')}",
-            user_id=str(configurable.get("user_id", "")),
+            user_id=str(runtime_user_id_str() or ""),
             session_id=extract_session_id_from_config(config, required=False) or "",
             steps=steps,
             execution_mode=execution_mode,

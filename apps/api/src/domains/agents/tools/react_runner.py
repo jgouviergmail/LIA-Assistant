@@ -29,13 +29,12 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph.prebuilt import create_react_agent
 
-from src.core.config import settings
-from src.core.constants import DEFAULT_TIMEZONE
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
     derive_sub_agent_context,
     runtime_context_if_running,
+    runtime_user_id_str,
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.llm.factory import get_llm
@@ -252,7 +251,7 @@ class ReactSubAgentRunner:
             parent_store = parent_runtime.store if parent_runtime else None
             parent_config = parent_runtime.config if parent_runtime else {}
             parent_configurable = parent_config.get("configurable", {})
-            user_id = parent_configurable.get("user_id", "unknown")
+            user_id = runtime_user_id_str("unknown")
 
             react_agent = create_react_agent(
                 llm,
@@ -288,21 +287,16 @@ class ReactSubAgentRunner:
                 else None
             )
 
+            # The bag now carries LangGraph plumbing ONLY. Everything run-scoped
+            # (identity, preferences, dependencies, side channel) reaches the
+            # sub-run through ``nested_context`` above — re-listing it here is
+            # what used to lose 11 of the parent's 17 values in silence.
             nested_config = RunnableConfig(
                 configurable={
-                    "user_id": user_id,
                     "thread_id": nested_thread_id,
-                    "__deps": parent_configurable.get("__deps"),
-                    "__side_channel_queue": parent_configurable.get("__side_channel_queue"),
+                    # Read deliberately by browser_tools to attribute a sub-run's
+                    # artefacts to the conversation that spawned it.
                     "__parent_thread_id": parent_configurable.get("thread_id"),
-                    # Canonical defaults, same sources as the chokepoint that
-                    # builds the parent configurable — an inline literal here
-                    # answered in French to a German user whenever the parent
-                    # lacked the key (ADR-231).
-                    "user_timezone": parent_configurable.get("user_timezone", DEFAULT_TIMEZONE),
-                    "user_language": parent_configurable.get(
-                        "user_language", settings.default_language
-                    ),
                 },
                 callbacks=parent_config.get("callbacks"),
                 metadata=nested_metadata,

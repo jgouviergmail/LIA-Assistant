@@ -80,9 +80,9 @@ from src.core.field_names import (
     FIELD_TIMESTAMP,
     FIELD_TOOL_NAME,
     FIELD_TURN_ID,
-    FIELD_USER_ID,
 )
 from src.domains.agents.context.registry import ContextTypeRegistry
+from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.context.schemas import (
     ContextMetadata,
     ContextSaveMode,
@@ -848,7 +848,7 @@ class ToolContextManager:
             return
 
         # Extract user_id and session_id from config
-        user_id = config.get("configurable", {}).get(FIELD_USER_ID)
+        user_id = runtime_user_id_str()
         if not user_id:
             logger.error(
                 "auto_save_failed_missing_user_id",

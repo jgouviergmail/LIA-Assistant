@@ -14,14 +14,18 @@ the body, so blocked/allowed transitions are still fully exercised.
 """
 
 import json
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from langchain.tools import ToolRuntime
 
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools import image_generation_tools
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
+from tests.helpers.runtime_context import make_tool_runtime
 
 # Patch path for get_settings (imported inside the rate_limit wrapper)
 SETTINGS_PATCH_PATH = "src.core.config.get_settings"
@@ -36,11 +40,9 @@ def reset_tracker():
 
 
 @pytest.fixture
-def mock_runtime() -> MagicMock:
-    """ToolRuntime carrying the user_id the limiter keys on."""
-    runtime = MagicMock()
-    runtime.config = {"configurable": {"user_id": "rate-limit-test-user"}}
-    return runtime
+def mock_runtime() -> ToolRuntime[LiaRuntimeContext, Any]:
+    """ToolRuntime carrying the acting user the limiter keys on (ADR-231)."""
+    return make_tool_runtime()
 
 
 @pytest.fixture

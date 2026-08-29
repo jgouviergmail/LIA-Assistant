@@ -20,6 +20,7 @@ from src.domains.agents.tools.devops_tools import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
+from tests.helpers.runtime_context import make_tool_runtime
 
 
 class TestResolveServer:
@@ -135,8 +136,7 @@ class TestClaudeServerTaskRateLimit:
         fake_settings.devops_rate_limit_window = 60
         max_calls = fake_settings.devops_rate_limit_calls
 
-        runtime = MagicMock()
-        runtime.config = {"configurable": {"user_id": "devops-rate-limit-user"}}
+        runtime = make_tool_runtime()
 
         with (
             # The decorator lambdas resolve get_settings from the tool module;

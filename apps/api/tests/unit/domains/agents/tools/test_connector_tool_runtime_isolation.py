@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.dependencies import ToolDependencies
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.mixins import ToolOutputMixin
@@ -65,15 +66,27 @@ class _ProbeTool(ToolOutputMixin, ConnectorTool[Any]):
 
 
 class _Runtime:
-    """Duck-typed ToolRuntime: config + store are all execute() reads."""
+    """Duck-typed ToolRuntime: config, context and store are what execute() reads.
+
+    Carries a real ``LiaRuntimeContext`` since ADR-231 — the dependencies and the
+    language live there now. That also widens what this probe proves: the context
+    is per-request too, so a leak of it would show up here just like a leak of the
+    runtime itself.
+    """
 
     def __init__(self, user_id: str, language: str, deps: ToolDependencies) -> None:
+        self.context = LiaRuntimeContext(
+            user_id=uuid.UUID(user_id),
+            thread_id=f"thread-{user_id}",
+            conversation_id=f"thread-{user_id}",
+            language=language,
+            deps=deps,
+        )
         self.config = {
             "configurable": {
                 "user_id": user_id,
                 "thread_id": f"thread-{user_id}",
                 "user_language": language,
-                "__deps": deps,
             }
         }
         self.store = object()
@@ -103,9 +116,19 @@ async def test_runtime_isolated_between_interleaved_executions() -> None:
 
     with patch.dict(UserPreferencesCache._entries, PREFS, clear=False):
         task_a = asyncio.create_task(tool.execute(_Runtime(USER_A, "fr", deps)))
-        # Let A reach the gate (its runtime is stored by then)
-        while not gate_a._waiters:  # noqa: SLF001 — deterministic sync point
+        # Let A reach the gate (its runtime is stored by then). Bounded: an
+        # unbounded spin turns any early failure of A into a suite-wide HANG with
+        # no failure name — which is exactly what happened when the dependency
+        # lookup moved to the typed context.
+        for _ in range(10_000):
+            if gate_a._waiters:  # noqa: SLF001 — deterministic sync point
+                break
+            if task_a.done():
+                await task_a  # re-raise A's real error instead of spinning
             await asyncio.sleep(0)
+        else:  # pragma: no cover — only on a genuine deadlock
+            task_a.cancel()
+            raise AssertionError("task A never reached the gate")
 
         result_b = json.loads(await tool.execute(_Runtime(USER_B, "en", deps)))
 

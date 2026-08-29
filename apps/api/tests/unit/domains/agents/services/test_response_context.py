@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from src.domains.agents.services import response_context as rc
+from tests.helpers.runtime_context import installed_runtime_context
 
 
 @pytest.fixture(autouse=True)
@@ -279,11 +280,12 @@ class TestUserRagDebugPayload:
 
         from langchain_core.messages import HumanMessage
 
-        bundle = await rc.fetch_response_context(
-            {"messages": [HumanMessage(content="what does my contract say?")]},
-            {"configurable": {"langgraph_user_id": str(uuid4()), "thread_id": "t-1"}},
-            "run-1",
-        )
+        with installed_runtime_context(user_id=uuid4(), thread_id="t-1"):
+            bundle = await rc.fetch_response_context(
+                {"messages": [HumanMessage(content="what does my contract say?")]},
+                {"configurable": {"thread_id": "t-1"}},
+                "run-1",
+            )
         return bundle.rag_injection_debug or {}
 
     async def test_payload_carries_the_enforced_bounds(
@@ -343,7 +345,7 @@ class TestPeerContextInjectionFailsSoft:
 
         bundle = await rc.fetch_response_context(
             {"messages": [HumanMessage(content="des nouvelles de Marie ?")]},
-            {"configurable": {"langgraph_user_id": "not-a-uuid"}},
+            {"configurable": {}},
             "run-x",
         )
 

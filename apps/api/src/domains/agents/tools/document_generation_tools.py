@@ -19,7 +19,7 @@ from langchain_core.tools import InjectedToolArg
 from src.core.config import settings
 from src.core.i18n import normalize_language
 from src.domains.agents.constants import AGENT_DOCUMENT_GENERATION
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_user_id_str
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
 from src.domains.agents.utils.rate_limiting import rate_limit
@@ -91,7 +91,7 @@ async def generate_document(
 
     # --- 1. Extract runtime context ---
     configurable = runtime.config.get("configurable", {}) if runtime else {}
-    user_id_raw = configurable.get("user_id")
+    user_id_raw = tool_user_id_str(runtime)
     if not user_id_raw:
         logger.warning("document_generation_no_user_id", has_runtime=runtime is not None)
         return UnifiedToolOutput.failure(

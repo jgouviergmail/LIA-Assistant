@@ -22,6 +22,10 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_user_id_str,
+)
 from src.domains.agents.middleware.memory_injection import build_psychological_profile
 from src.domains.agents.models import MessagesState
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -117,10 +121,11 @@ async def build_memory_profile_block(
         searching for this message.
     """
     configurable = config.get("configurable", {}) or {}
-    if not configurable.get("user_memory_enabled", True):
+    _ctx = runtime_context_if_running()
+    if not (_ctx.memory_enabled if _ctx is not None else True):
         return None
 
-    user_id = configurable.get("langgraph_user_id") or ""
+    user_id = runtime_user_id_str() or ""
     query = last_user_text(state)
     if not user_id or not query:
         return None
@@ -187,10 +192,11 @@ async def build_user_model_block(config: RunnableConfig) -> str | None:
     if not getattr(settings, "journals_enabled", False):
         return None
     try:
-        configurable = config.get("configurable", {}) or {}
-        if not configurable.get("user_journals_enabled", False):
+        config.get("configurable", {}) or {}
+        _ctx = runtime_context_if_running()
+        if not (_ctx.journals_enabled if _ctx is not None else False):
             return None
-        user_id = configurable.get("langgraph_user_id", "")
+        user_id = runtime_user_id_str() or ""
         if not user_id:
             return None
         from src.domains.journals.portrait_builder import build_journal_user_model_block
@@ -223,10 +229,11 @@ async def build_journal_directives_block(
         return None
     try:
         configurable = config.get("configurable", {}) or {}
-        user_id = configurable.get("langgraph_user_id", "")
+        user_id = runtime_user_id_str() or ""
         max_directives = settings.journal_react_context_max_entries
         query = last_user_text(state)
-        if not (configurable.get("user_journals_enabled", False) and user_id):
+        _ctx = runtime_context_if_running()
+        if not ((_ctx.journals_enabled if _ctx is not None else False) and user_id):
             return None
         if max_directives <= 0 or not query:
             return None
@@ -267,9 +274,9 @@ def build_skills_catalog_block(config: RunnableConfig) -> str | None:
     from src.core.context import active_skills_ctx
     from src.domains.skills.injection import build_skills_catalog
 
-    configurable = config.get("configurable", {}) or {}
+    config.get("configurable", {}) or {}
     catalog = build_skills_catalog(
-        user_id=configurable.get("langgraph_user_id", ""),
+        user_id=runtime_user_id_str() or "",
         active_skills=active_skills_ctx.get(),
     )
     if not catalog:

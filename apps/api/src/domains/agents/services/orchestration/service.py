@@ -26,7 +26,6 @@ from src.core.config import settings
 from src.core.field_names import (
     FIELD_CONVERSATION_ID,
     FIELD_DECISION,
-    FIELD_IS_AUTOMATED_SOURCE,
     FIELD_RUN_ID,
     FIELD_SESSION_ID,
     FIELD_USER_ID,
@@ -693,12 +692,10 @@ class OrchestrationService:
 
         Handles:
         - RunnableConfig creation with thread_id, callbacks, metadata
-        - Tool dependencies injection (__deps)
-        - Browser context injection (__browser_context) for location-aware tools
-        - User message injection (__user_message) for location phrase detection
         - Token tracking callback
         - Langfuse callbacks for observability
-        - Runtime context passed to graph.astream (not yet consumed — see ADR-231)
+        - Typed run context (ADR-231): identity, preferences, dependencies, browser
+          context, original user message and SSE side channel, passed to graph.astream
         - Graph.astream() execution with stream_mode=["values", "messages", "updates", "custom"]
 
         Args:
@@ -714,8 +711,9 @@ class OrchestrationService:
             user_message: Original user message for location phrase detection (e.g., "chez moi")
             user_memory_enabled: User preference for long-term memory (extraction + injection)
             user_journals_enabled: User preference for personal journals (extraction + injection)
-            is_automated_source: True for automated runs (scheduled actions); placed in
-                configurable so response_node skips memory/interest/journal/psyche extraction
+            is_automated_source: True for automated runs (scheduled actions); carried
+                on the run context so response_node skips memory/interest/journal/psyche
+                extraction
 
         Yields:
             (mode, chunk): Raw graph stream outputs
@@ -748,36 +746,15 @@ class OrchestrationService:
                 error_type=type(e).__name__,
             )
 
-        # Extract user preferences from state for planner temporal context
-        from src.core.constants import DEFAULT_TIMEZONE
-
-        user_timezone = state.get("user_timezone", DEFAULT_TIMEZONE)
-        user_language = state.get("user_language", settings.default_language)
-
         # === NEW: Create RunnableConfig with thread_id for checkpoint persistence ===
+        # ``configurable`` carries LangGraph PLUMBING ONLY. The 17 run-scoped values
+        # it used to carry — identity, preferences, dependencies, the SSE side
+        # channel — now travel on the typed ``LiaRuntimeContext`` built below
+        # (ADR-231). Keeping both planes populated would leave two authorities on
+        # the same fact, and the untyped one always wins by being easier to read.
         runnable_config = RunnableConfig(
             configurable={
                 "thread_id": str(conversation_id),  # Links to LangGraph checkpoint
-                FIELD_USER_ID: user_id,
-                "langgraph_user_id": str(user_id),  # For LangMem memory injection
-                "store": memory_store,  # For long-term memory injection
-                "user_memory_enabled": user_memory_enabled,  # User preference for memory
-                "user_journals_enabled": user_journals_enabled,  # User preference for journals
-                "user_psyche_enabled": user_psyche_enabled,  # User preference for psyche engine
-                "user_display_mode": user_display_mode,  # User display mode (cards/html/markdown)
-                "user_execution_mode": user_execution_mode,  # Execution mode (pipeline/react) — ADR-070
-                # Automated-source flag survives Langfuse enrichment (only metadata is
-                # overwritten, configurable is preserved) — read by response_node guard.
-                FIELD_IS_AUTOMATED_SOURCE: is_automated_source,
-                "__deps": tool_deps,
-                "__browser_context": browser_context,  # For location-aware tools (weather, places)
-                "__user_message": user_message,  # Original message for location phrase detection
-                "__side_channel_queue": side_channel_queue,  # SSE side-channel for tools
-                # User preferences for planner temporal context (datetime injection)
-                "user_timezone": user_timezone,
-                "user_language": user_language,
-                # Sender identity for content-generating tools (email signatures)
-                "user_display_name": state.get("user_display_name"),
             },
             metadata={
                 FIELD_RUN_ID: run_id,

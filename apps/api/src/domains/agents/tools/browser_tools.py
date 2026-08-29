@@ -38,7 +38,11 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.agents.constants import AGENT_BROWSER, CONTEXT_DOMAIN_BROWSERS
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    tool_runtime_context,
+    tool_user_id_str,
+)
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -83,12 +87,13 @@ async def _emit_progressive_screenshot(
 
     try:
         configurable = (runtime.config.get("configurable") or {}) if runtime else {}
-        queue = configurable.get("__side_channel_queue")
+        _ctx = tool_runtime_context(runtime)
+        queue = _ctx.side_channel_queue if _ctx is not None else None
         if queue is None:
             return
 
         # Debounce: skip if too soon after last emission for this user
-        user_id = configurable.get("user_id", "unknown")
+        user_id = tool_user_id_str(runtime, "unknown")
         now = time.monotonic()
         last_time = _screenshot_debounce.get(user_id, 0.0)
         if now - last_time < settings.browser_screenshot_debounce_seconds:
@@ -197,9 +202,12 @@ async def _get_session(
         raise ValueError("Browser not enabled")
 
     # Extract user preferences from runtime config for browser locale/timezone
-    configurable = (runtime.config.get("configurable") or {}) if runtime else {}
-    user_language = configurable.get("user_language", "fr")
-    user_timezone = configurable.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
+    (runtime.config.get("configurable") or {}) if runtime else {}
+    # Language and timezone come from the typed context (ADR-231); its own
+    # defaults are the canonical ones, so the inline "fr" literal is gone.
+    _ctx = tool_runtime_context(runtime)
+    user_language = _ctx.language if _ctx is not None else settings.default_language
+    user_timezone = _ctx.timezone if _ctx is not None else DEFAULT_USER_DISPLAY_TIMEZONE
 
     session = await pool.acquire_session(user_id, user_language, user_timezone)
     return pool, session

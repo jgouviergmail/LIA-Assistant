@@ -1,0 +1,4 @@
+{
+  "_doc": "SHRINK-ONLY ratchet (ADR-231, task 11). Files still reading the run-scoped context out of the untyped `config[\"configurable\"]` bag instead of the typed LiaRuntimeContext. Enforced by tests/unit/domains/agents/context/test_configurable_reader_ratchet.py: a NEW reader fails the build, and an entry whose file has been migrated ALSO fails it (stale entries hide a stalled migration). Entries are removed by `python ../../scripts/audit/measure_configurable_readers.py --update`; the script can never add one. Adding an entry by hand is an explicit, reviewable decision and needs a real reason, not the seeding placeholder.",
+  "files": {}
+}

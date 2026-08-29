@@ -21,12 +21,16 @@ identical builder — never a second implementation.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
+from uuid import UUID
 
 import pytest
 from langchain_core.messages import HumanMessage
 
 from src.domains.agents.nodes import react_context
+from tests.helpers.runtime_context import installed_runtime_context, no_runtime_context
 
 pytestmark = [pytest.mark.unit]
 
@@ -37,14 +41,26 @@ def _state(text: str = "Combien de temps durent mes escales ?") -> dict[str, Any
     return {"messages": [HumanMessage(content=text)]}
 
 
-def _config(**overrides: Any) -> dict[str, Any]:
-    configurable = {
-        "langgraph_user_id": "11111111-1111-1111-1111-111111111111",
-        "thread_id": "thread-1",
-        "user_memory_enabled": True,
-    }
-    configurable.update(overrides)
-    return {"configurable": configurable}
+#: The config the loop receives carries thread plumbing only (ADR-231).
+_CONFIG: dict[str, Any] = {"configurable": {"thread_id": "thread-1"}}
+
+
+@contextmanager
+def _run(**overrides: Any) -> Iterator[dict[str, Any]]:
+    """Install the run context the builder reads, and yield its config.
+
+    Identity and the memory preference travel on ``LiaRuntimeContext``; passing
+    ``user_id=None`` models "outside a run", the only remaining shape in which
+    the builder sees no acting user.
+    """
+    if overrides.get("user_id", "") is None:
+        with no_runtime_context():
+            yield _CONFIG
+        return
+    overrides.setdefault("user_id", UUID("11111111-1111-1111-1111-111111111111"))
+    overrides.setdefault("memory_enabled", True)
+    with installed_runtime_context(thread_id="thread-1", **overrides):
+        yield _CONFIG
 
 
 @pytest.fixture
@@ -70,7 +86,8 @@ class TestTheLoopReceivesTheProfile:
     async def test_the_profile_becomes_a_system_block(
         self, profile_builder: list[dict[str, Any]]
     ) -> None:
-        block = await react_context.build_memory_profile_block(_state(), _config())
+        with _run() as config:
+            block = await react_context.build_memory_profile_block(_state(), config)
 
         assert block is not None
         assert PROFILE in block
@@ -81,7 +98,8 @@ class TestTheLoopReceivesTheProfile:
         """One implementation for both modes — a second one would drift."""
         from src.core.config import settings
 
-        await react_context.build_memory_profile_block(_state(), _config())
+        with _run() as config:
+            await react_context.build_memory_profile_block(_state(), config)
 
         assert len(profile_builder) == 1
         call = profile_builder[0]
@@ -94,17 +112,17 @@ class TestTheUserRemainsInControl:
     async def test_memory_disabled_by_the_user_injects_nothing(
         self, profile_builder: list[dict[str, Any]]
     ) -> None:
-        block = await react_context.build_memory_profile_block(
-            _state(), _config(user_memory_enabled=False)
-        )
+        with _run(memory_enabled=False) as config:
+            block = await react_context.build_memory_profile_block(_state(), config)
 
         assert block is None
         assert profile_builder == [], "no search may run when memory is off"
 
-    async def test_no_user_id_injects_nothing(self, profile_builder: list[dict[str, Any]]) -> None:
-        block = await react_context.build_memory_profile_block(
-            _state(), _config(langgraph_user_id="")
-        )
+    async def test_no_run_context_injects_nothing(
+        self, profile_builder: list[dict[str, Any]]
+    ) -> None:
+        with _run(user_id=None) as config:
+            block = await react_context.build_memory_profile_block(_state(), config)
 
         assert block is None
         assert profile_builder == []
@@ -118,7 +136,8 @@ class TestTheUserRemainsInControl:
         user's recent memories. Skipping the whole profile would make the loop
         LESS memory-aware than the other mode.
         """
-        block = await react_context.build_memory_profile_block(_state("ok"), _config())
+        with _run() as config:
+            block = await react_context.build_memory_profile_block(_state("ok"), config)
 
         assert block is not None
         assert profile_builder[0]["query_embedding"] is None, "no vector was paid for"
@@ -143,7 +162,8 @@ class TestDegradationMatchesThePipeline:
         monkeypatch.setattr(react_context, "build_psychological_profile", _fake_profile)
         monkeypatch.setattr(react_context, "get_or_compute_embedding", _broken_embedding)
 
-        block = await react_context.build_memory_profile_block(_state(), _config())
+        with _run() as config:
+            block = await react_context.build_memory_profile_block(_state(), config)
 
         assert block is not None and PROFILE in block
         assert calls[0]["query_embedding"] is None
@@ -164,7 +184,8 @@ class TestItNeverBreaksTheTurn:
         monkeypatch.setattr(react_context, "build_psychological_profile", _boom)
         monkeypatch.setattr(react_context, "get_or_compute_embedding", _fake_embedding)
 
-        assert await react_context.build_memory_profile_block(_state(), _config()) is None
+        with _run() as config:
+            assert await react_context.build_memory_profile_block(_state(), config) is None
 
 
 class TestTheDeadKeyIsGone:

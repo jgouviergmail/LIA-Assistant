@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.37.0
+**Anwendung**: LIA v1.38.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -367,6 +367,8 @@ Die **Psyche Engine** verleiht LIA einen dynamischen psychologischen Zustand, de
 - **Motivationen**, die die Proaktivität des Assistenten beeinflussen
 
 Du sprichst nicht mit einem Werkzeug — Du interagierst mit einer Entität, deren Sprache sich erwärmt, wenn sie berührt wird, deren Sätze sich unter Anspannung verkürzen, deren Humor aufblitzt, wenn der Austausch leicht ist. Und sie sagt es nie — sie **zeigt** es.
+
+Und ein solches Versprechen ist genau so viel wert wie die Messung dahinter. Vierzehn Stimmungen wurden angekündigt; bis August 2026 blieben fünf davon im Ruhezustand unerreichbar: Die Abbildung ließ alle Persönlichkeiten auf der bestimmten Seite der Skala, während ein interner Impuls Freude in 31 % der Züge zur dominanten Emotion krönte, ganz gleich was LIA tatsächlich bewertet hatte. Beide Stellschrauben waren ein Jahr zuvor bewusst ausgeschaltet ausgeliefert worden, damit ihr Einschalten eine gemessene Entscheidung wäre und keine Intuition. Die Messung erfolgte an echter Nutzung; die Bandbreite ist nun wirklich erreichbar. Wir veröffentlichen lieber diese Geschichte als eine Zahl, die niemand geprüft hat.
 
 Dieses Innenleben hat ein Gesicht: Das Stimmungs-Emoji animiert sich auf der aktuellen Antwort, der farbige Ring pulsiert, wenn die Stimmung kippt, und die Meilensteine deiner Beziehung werden mit einem dezenten Augenzwinkern gefeiert.
 

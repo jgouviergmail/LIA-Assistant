@@ -13,25 +13,29 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import MagicMock
 
+from langchain.tools import ToolRuntime
+
 from src.domains.agents.tools.runtime_helpers import emit_side_channel_chunk
+from tests.helpers.runtime_context import make_tool_runtime
 
 # ============================================================================
 # FIXTURES
 # ============================================================================
 
 
-def _make_runtime(configurable: dict | None = None) -> MagicMock:
-    """Create a mock ToolRuntime with a config dict.
+def _make_runtime(side_channel_queue: object | None = None) -> ToolRuntime:
+    """A runtime carrying (or not) the side channel the emitter writes to.
+
+    The queue travels on the typed run context since ADR-231 — it used to be the
+    private ``configurable["__side_channel_queue"]`` key.
 
     Args:
-        configurable: Dict to put under runtime.config["configurable"].
+        side_channel_queue: The queue to expose, or None for the no-op case.
 
     Returns:
-        Mock runtime with .config attribute.
+        A real ToolRuntime whose context carries the queue.
     """
-    runtime = MagicMock()
-    runtime.config = {"configurable": configurable} if configurable is not None else {}
-    return runtime
+    return make_tool_runtime(side_channel_queue=side_channel_queue)
 
 
 def _make_chunk(chunk_type: str = "browser_screenshot") -> MagicMock:
@@ -59,7 +63,7 @@ class TestEmitSideChannelChunk:
     def test_puts_chunk_in_queue(self) -> None:
         """Puts chunk in queue when __side_channel_queue exists in configurable."""
         queue = MagicMock()
-        runtime = _make_runtime({"__side_channel_queue": queue})
+        runtime = _make_runtime(queue)
         chunk = _make_chunk()
 
         emit_side_channel_chunk(runtime, chunk)
@@ -93,7 +97,7 @@ class TestEmitSideChannelChunk:
         """Never raises when queue.put_nowait() raises (e.g., full queue)."""
         queue = MagicMock()
         queue.put_nowait.side_effect = asyncio.QueueFull()
-        runtime = _make_runtime({"__side_channel_queue": queue})
+        runtime = _make_runtime(queue)
         chunk = _make_chunk()
 
         # Should not raise
@@ -121,7 +125,7 @@ class TestEmitSideChannelChunk:
     def test_queue_receives_exact_chunk_object(self) -> None:
         """Queue receives the exact same chunk object passed in (no transformation)."""
         queue = MagicMock()
-        runtime = _make_runtime({"__side_channel_queue": queue})
+        runtime = _make_runtime(queue)
         chunk = _make_chunk("custom_type")
 
         emit_side_channel_chunk(runtime, chunk)

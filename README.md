@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.37.0</strong> — <strong>Computing instead of guessing</strong>. Ask an AI how long your layovers add up to, which people appear in both lists, or what a set of figures comes to across timezones, and it answers plausibly — with nothing in the answer to show you it is wrong. When a step needs that kind of work, the assistant now writes a few lines of Python and runs them in a locked-down sandbox: no network, nothing beyond the data the turn already collected, a throwaway container each time. It answers with a result you could check, and administrators see every script that ran. It stays a complement — most answers never need it, and it is explicitly told not to reach for it when it can answer directly. — 29 August 2026.
+  <strong>Version 1.38.0</strong> — <strong>A fuller emotional range, and honesty about what can be known</strong>. LIA's mood mechanics rested every personality on the assertive side of the scale, so five calmer moods were unreachable at rest, and an internal pulse crowned joy the dominant emotion regardless of what she had actually appraised — 31% of turns, measured over 90 days of production. Both settings are now active on that evidence: half the catalogue rests in a calmer register, and the emotion shown is the one she really appraised. The same rule runs through the rest of the release — every metric the system produces must now reach a dashboard a human can read, the run context has one place it is read from instead of two, and a production deployment reports a verdict it observed rather than one deduced from a connection that had merely dropped. — 29 August 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **43** functional domains | **570,000** lines of code (excl. tests) | **26,800+** automated tests | **242** ADRs                                                           |
-| **224** versions shipped  | **6 languages**, parity enforced in CI  | **483** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **45** functional domains | **570,000** lines of code (excl. tests) | **27,100+** automated tests | **249** ADRs                                                           |
+| **234** versions shipped  | **6 languages**, parity enforced in CI  | **490** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -330,7 +330,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 425 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 490 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering

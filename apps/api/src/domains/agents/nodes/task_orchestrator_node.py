@@ -407,7 +407,7 @@ async def _handle_execution_plan(
         execution_plan: ExecutionPlan from planner with validated steps
         state: Current state with messages, user context
         run_id: Run ID for logging and tracing
-        config: RunnableConfig with __deps for tool dependency injection
+        config: RunnableConfig (thread plumbing); tool dependencies travel on the run context
 
     Returns:
         Updated state dict with:

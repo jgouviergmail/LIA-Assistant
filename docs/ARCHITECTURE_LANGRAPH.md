@@ -721,9 +721,17 @@ Presentation attendue:
 > qui doit survivre à une reprise HITL ne peut y vivre) et **jamais copié**
 > (l'identité des objets traverse nœud → sous-graphe → outil). Un assert à
 > l'entrée du graphe refuse tout run dont le contexte manque ; hors nœud, la
-> lecture passe par `current_runtime_context()` (ContextVar traversant
-> `asyncio.gather` / `to_thread` / `create_task`), jamais par une clé privée de
-> `configurable`.
+> lecture passe par `runtime_context_if_running()` (ContextVar traversant
+> `asyncio.gather` / `to_thread` / `create_task`), et dans un outil par
+> `tool_runtime_context(runtime)` — jamais par une clé de `configurable`.
+>
+> **Depuis le 2026-08-29, la migration est terminée** : `configurable` ne porte
+> plus que `thread_id` (la plomberie LangGraph), plus une seule des 17 valeurs
+> run-scoped. Deux gardes shrink-only le tiennent — l'une refuse un nouveau
+> lecteur du sac, l'autre refuse que le point de construction unique y réécrive
+> une clé de contexte. Le scanner **découvre** les alias constants
+> (`configurable.get(FIELD_USER_ID)`), après avoir annoncé « 0 lecteur » alors
+> que huit fichiers lisaient encore.
 
 ```python
 class MessagesState(TypedDict):

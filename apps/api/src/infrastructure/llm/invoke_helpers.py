@@ -448,14 +448,25 @@ def create_instrumented_config_from_node(
         extracted_session_id = extracted_session_id or state_session_id
         extracted_user_id = extracted_user_id or state_user_id
 
-    # If still not available, try to extract from base_config.configurable
+    # If still not available, fall back to the config the caller already carries.
+    # ``thread_id`` is LangGraph plumbing and stays in ``configurable``; the acting
+    # user does NOT — it moved to the typed run context, which this layer must not
+    # import (ADR-231). Observability reads it from the observability plane
+    # instead: ``langfuse_user_id`` is written by ``create_instrumented_config``
+    # itself, so the graph's enriched config carries it, and a hand-built config
+    # may still spell it ``user_id``.
     if base_config:
         configurable = base_config.get("configurable", {})
         if not extracted_session_id:
             # Note: Using string literal to avoid circular imports (infrastructure shouldn't depend on agents.constants)
             extracted_session_id = configurable.get("thread_id") or configurable.get("session_id")
         if not extracted_user_id:
-            extracted_user_id = configurable.get(FIELD_USER_ID)
+            # Literal key, like every other metadata read here: only a literal
+            # resolves the ``RunnableConfig`` TypedDict value to a mapping.
+            base_metadata = base_config.get("metadata") or {}
+            extracted_user_id = base_metadata.get("langfuse_user_id") or base_metadata.get(
+                FIELD_USER_ID
+            )
 
     # Build enriched metadata
     enriched_metadata = {

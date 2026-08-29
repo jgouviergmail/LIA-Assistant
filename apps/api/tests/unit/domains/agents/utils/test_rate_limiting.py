@@ -7,6 +7,7 @@ with sliding window algorithm and per-user isolation.
 
 import json
 import time
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +18,10 @@ from src.domains.agents.utils.rate_limiting import (
     rate_limit,
     reset_rate_limits,
 )
+from tests.helpers.runtime_context import make_contextless_tool_runtime, make_tool_runtime
+
+USER_1 = uuid.UUID("00000000-0000-4000-8000-000000000011")
+USER_2 = uuid.UUID("00000000-0000-4000-8000-000000000012")
 
 # Patch path for get_settings (imported inside wrapper)
 SETTINGS_PATCH_PATH = "src.core.config.get_settings"
@@ -37,10 +42,8 @@ def reset_tracker():
 
 @pytest.fixture
 def mock_runtime():
-    """Create a mock ToolRuntime with user_id."""
-    runtime = MagicMock()
-    runtime.config = {"configurable": {"user_id": "test_user_123"}}
-    return runtime
+    """The ToolRuntime the tool layer injects, carrying the acting user."""
+    return make_tool_runtime()
 
 
 @pytest.fixture
@@ -181,8 +184,9 @@ class TestRateLimitDecoratorNoRuntime:
     @pytest.mark.asyncio
     async def test_allows_call_without_user_id(self, mock_settings):
         """Test that calls are allowed when user_id is missing (fail open)."""
-        runtime = MagicMock()
-        runtime.config = {"configurable": {}}  # No user_id
+        # Since ADR-231 identity is a mandatory field of the run context, so
+        # "no acting user" is only expressible as "the tool ran outside a run".
+        runtime = make_contextless_tool_runtime()
 
         @rate_limit(max_calls=1, window_seconds=60)
         async def test_tool(runtime=None):
@@ -206,11 +210,8 @@ class TestRateLimitDecoratorScopes:
         async def test_tool(runtime=None):
             return "success"
 
-        user1_runtime = MagicMock()
-        user1_runtime.config = {"configurable": {"user_id": "user_1"}}
-
-        user2_runtime = MagicMock()
-        user2_runtime.config = {"configurable": {"user_id": "user_2"}}
+        user1_runtime = make_tool_runtime(user_id=USER_1)
+        user2_runtime = make_tool_runtime(user_id=USER_2)
 
         with patch(SETTINGS_PATCH_PATH, return_value=mock_settings):
             with patch("src.domains.agents.utils.rate_limiting.agent_tool_rate_limit_hits"):
@@ -231,11 +232,8 @@ class TestRateLimitDecoratorScopes:
         async def test_tool(runtime=None):
             return "success"
 
-        user1_runtime = MagicMock()
-        user1_runtime.config = {"configurable": {"user_id": "user_1"}}
-
-        user2_runtime = MagicMock()
-        user2_runtime.config = {"configurable": {"user_id": "user_2"}}
+        user1_runtime = make_tool_runtime(user_id=USER_1)
+        user2_runtime = make_tool_runtime(user_id=USER_2)
 
         with patch(SETTINGS_PATCH_PATH, return_value=mock_settings):
             with patch("src.domains.agents.utils.rate_limiting.agent_tool_rate_limit_hits"):
