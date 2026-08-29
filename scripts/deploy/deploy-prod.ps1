@@ -929,7 +929,7 @@ if (-not $DryRun) {
     # Les commandes qui permettent de trancher, factorisees : elles sont
     # imprimees sur les quatre chemins ou le pilote ne sait pas conclure.
     $inspectLines = @(
-        "  ssh -p $SshPort $sshTarget `"cd ~/$StagingDir && cat $($outcome.LogPath)`"",
+        "  ssh -p $SshPort $sshTarget `"cat $($outcome.LogPath)`"",
         "  ssh -p $SshPort $sshTarget `"cd $RemoteDir && docker compose -f docker-compose.prod.yml ps`"",
         "  ssh -p $SshPort $sshTarget `"cat $RemoteDir/release-manifest.json`""
     )
@@ -947,7 +947,7 @@ if (-not $DryRun) {
             # Le seul etat ou l'on peut parler d'echec : le code a ete ECRIT
             # par le distant, il ne vient pas du transport.
             Write-Err "Echec du deploiement (exit code: $($outcome.ExitCode))"
-            Write-Info "Journal distant : ~/$StagingDir/$($outcome.LogPath)"
+            Write-Info "Journal distant : $($outcome.LogPath)"
             exit 1
         }
         "Busy" {

@@ -219,6 +219,59 @@ strictly intact, keys included.
   silence — a launch whose connection dropped was reported as successful, which
   is exactly the verdict-read-from-the-wrong-place this whole ADR removes.
 
+## What the first real deployment found
+
+Two defects that no test could have produced, both found by running the thing
+on 2026-08-29 — and the second is the one this ADR would have been wrong
+without.
+
+### A library must not make its loader strict
+
+`Set-StrictMode` is scope-based, and dot-sourcing runs a file's statements in
+the CALLER's scope. Both libraries opened with `Set-StrictMode -Version Latest`,
+which therefore rewrote the semantics of the thousand-line driver that loads
+them. The deployment died at step 5 on `Impossible d'extraire la variable
+«$IsWindows»` — the driver's own Windows PowerShell 5.1 compatibility idiom,
+since `$IsWindows` does not exist there.
+
+The Pester suite could not have caught it: it runs under `pwsh` 7, where
+`$IsWindows` IS defined. The guard added is therefore written against the
+CLASS — from an explicitly non-strict scope, dot-source the library and read a
+name undefined by construction — which fails on every edition.
+
+Production was untouched (the remote step was never reached), and **SEC-040
+scrubbed the decrypted secret on the way out**: the safety net introduced in the
+same change did its job on its first real failure.
+
+### The verdict must not live in a directory the job renames
+
+The second run deployed successfully — `.rc` = 0, seventeen containers up,
+the intended commit running — and the driver saw none of it.
+
+`deploy.sh` ends on ADR-215's atomic swap, `mv "$STAGING_DIR" "$LIVE_DIR"`. The
+verdict file, the log and the lock were written **inside the staging
+directory**, so they moved at the exact moment the work succeeded. From there
+the poll's `cd ~/lia.staging 2>/dev/null || exit 0` found nothing and exited
+**silently**, and an empty response is indistinguishable from "no verdict yet,
+still running". A fully successful deployment would have been reported `Unknown`
+forty-five minutes later.
+
+Two independent faults, and the second is the more general one:
+
+- **The artifacts were inside the blast radius.** They now live in
+  `$HOME/.lia-deploy/`, which the deployment never renames, wipes or swaps —
+  the lock included, so mutual exclusion survives the swap too.
+- **A poll that found nothing said nothing.** `|| exit 0` is the same defect as
+  the exit code this ADR set out to stop trusting, one layer down: an absent
+  answer was read as a state. The poll no longer changes directory at all, reads
+  absolute paths, and always prints its two lines — "the file is not there" is a
+  report, not a silence.
+
+The lesson generalises past this driver: **a watcher must not keep its evidence
+inside the thing it watches**, and every branch of a probe must produce an
+answer. The poll payload had no test of its own until this incident, which is
+exactly how a `cd` into a directory the job renames survived review.
+
 ## Alternatives considered
 
 - **Keep the blocking session and raise the keepalive.** Refused: measured, the

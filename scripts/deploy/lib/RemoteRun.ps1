@@ -29,6 +29,20 @@
 # code de sortie : un deploiement refuse n'a pas echoue, il n'a pas eu lieu.
 $script:DeployBusyMarker = "DEPLOY_BUSY"
 
+# Ou vivent le verdict, le journal et le verrou -- HORS du repertoire de
+# travail, et c'est structurel.
+#
+# `deploy.sh` termine par un `mv` du repertoire de staging sur le repertoire
+# vivant (l'echange atomique d'ADR-215). Des artefacts ecrits dans le staging
+# partent donc avec lui, exactement au moment ou le travail REUSSIT. Mesure du
+# 2026-08-29 sur la production : `.rc` a 0, 17 conteneurs sains, et un pilote
+# qui n'a jamais rien vu parce qu'il regardait un chemin qui n'existait plus.
+#
+# `$HOME` est resolu par le shell DISTANT : la chaine voyage encodee, aucun
+# shell du trajet ne l'expanse avant lui.
+$script:ArtifactDir = '$HOME/.lia-deploy'
+$script:DefaultLockPath = '$HOME/.lia-deploy/deploy.lock'
+
 function New-DetachedLaunchPayload {
     <#
         .SYNOPSIS
@@ -68,9 +82,10 @@ function New-DetachedLaunchPayload {
     # Artefacts nommes PAR EXECUTION : il n'y a donc rien a purger, et rien
     # qu'un lancement concurrent puisse detruire. Le verrou, lui, reste au
     # chemin FIXE -- un verrou par execution serait pris a tous les coups et
-    # ne garderait rien.
-    $RcPath = "deploy.$RunId.rc"
-    $LogPath = "deploy.$RunId.log"
+    # ne garderait rien. Tous trois vivent hors du repertoire de travail, que
+    # le deploiement renomme (voir $script:ArtifactDir).
+    $RcPath = "$($script:ArtifactDir)/deploy.$RunId.rc"
+    $LogPath = "$($script:ArtifactDir)/deploy.$RunId.log"
 
     # Le corps detache : verrou, puis travail, puis verdict. `exec 9>` ouvre le
     # descripteur pour toute la duree ; `flock -n` echoue immediatement si un
@@ -93,9 +108,11 @@ function New-DetachedLaunchPayload {
                "qui terminerait la chaine et livrerait le reste au shell externe.")
     }
 
-    # `cd` synchrone : un repertoire absent doit faire echouer le lancement
-    # tout de suite, pas silencieusement dans un processus detache.
-    return "cd $RemoteDir && nohup sh -c '$inner' >/dev/null 2>&1 </dev/null &"
+    # `mkdir` et `cd` synchrones : un repertoire d'artefacts impossible a creer
+    # ou un repertoire de travail absent doivent faire echouer le LANCEMENT tout
+    # de suite, pas silencieusement dans un processus detache.
+    return ("mkdir -p $($script:ArtifactDir) && cd $RemoteDir && " +
+            "nohup sh -c '$inner' >/dev/null 2>&1 </dev/null &")
 }
 
 function New-DeployRunId {
@@ -213,6 +230,14 @@ function New-DetachedPollPayload {
         tuee elle-meme. Le verrou repond a la meme question sans ce piege, et
         il est deja pris par le travail.
 
+        AUCUN `cd`, et c'est une correction, pas une simplification. La forme
+        precedente commencait par `cd <repertoire de travail> || exit 0` : quand
+        `deploy.sh` a renomme ce repertoire, le sondage sortait SANS RIEN DIRE,
+        et une reponse vide est indistinguable de "pas encore de verdict". Un
+        deploiement reussi restait donc invisible jusqu'a epuisement du budget.
+        Les chemins sont absolus et les deux lignes sont toujours imprimees :
+        "le fichier n'est pas la" est une reponse, pas un silence.
+
         L'ordre "verdict d'abord" n'est pas cosmetique : le `.rc` est ecrit
         AVANT que le shell ne rende le verrou, donc verrou libre implique
         verdict deja ecrit. Lire le `.rc` en premier evite d'observer un etat
@@ -226,12 +251,13 @@ function New-DetachedPollPayload {
         [Parameter(Mandatory = $true)][int]$FromLine
     )
 
-    return "cd $RemoteDir 2>/dev/null || exit 0; " +
-           "printf 'RC=%s
-' `"`$(cat deploy.$RunId.rc 2>/dev/null)`"; " +
+    $rc = "$($script:ArtifactDir)/deploy.$RunId.rc"
+    $log = "$($script:ArtifactDir)/deploy.$RunId.log"
+    return "printf 'RC=%s
+' `"`$(cat $rc 2>/dev/null)`"; " +
            "if flock -n $LockPath -c true 2>/dev/null; then echo ALIVE=0; else echo ALIVE=1; fi; " +
            "echo ---LOG---; " +
-           "tail -n +$FromLine deploy.$RunId.log 2>/dev/null"
+           "tail -n +$FromLine $log 2>/dev/null"
 }
 
 function Invoke-RemoteDetached {
@@ -272,15 +298,15 @@ function Invoke-RemoteDetached {
         [Parameter(Mandatory = $true)][string]$Command,
         [Parameter(Mandatory = $true)][scriptblock]$RemoteExecutor,
         [string]$RunId = (New-DeployRunId),
-        [string]$LockPath = "deploy.lock",
+        [string]$LockPath = $script:DefaultLockPath,
         [int]$PollIntervalSeconds = 5,
         [int]$BudgetSeconds = 2700,
         [scriptblock]$OnLogLine = $null,
         [scriptblock]$Sleeper = { param($s) Start-Sleep -Seconds $s }
     )
 
-    $rcPath = "deploy.$RunId.rc"
-    $logPath = "deploy.$RunId.log"
+    $rcPath = "$($script:ArtifactDir)/deploy.$RunId.rc"
+    $logPath = "$($script:ArtifactDir)/deploy.$RunId.log"
 
     $launch = New-DetachedLaunchPayload -RemoteDir $RemoteDir -Command $Command `
         -RunId $RunId -LockPath $LockPath

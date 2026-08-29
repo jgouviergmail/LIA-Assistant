@@ -701,7 +701,12 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $payload | Should -Match "flock -n"       # one deployment at a time
         # The verdict is WRITTEN by the remote, which is the whole point: the
         # driver reads it instead of deducing it from an ssh exit code.
-        $payload | Should -Match ([regex]::Escape('echo $? > deploy.'))
+        $payload | Should -Match ([regex]::Escape('echo $? > $HOME/.lia-deploy/deploy.'))
+        # ...and it is written OUTSIDE the directory `deploy.sh` renames onto
+        # the live one. Measured 2026-08-29: with the artifacts inside it, a
+        # deployment that had fully succeeded stayed invisible to its own driver
+        # from the atomic swap onward.
+        $payload | Should -Not -Match ([regex]::Escape('> deploy.20260829'))
     }
 
     It "polled for the verdict instead of holding the session open (ADR-250)" {

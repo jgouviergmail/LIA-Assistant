@@ -374,3 +374,68 @@ Describe "the library does not make its loader strict" {
         $source | Should -Not -Match "(?m)^Set-StrictMode"
     }
 }
+
+# ============================================================================
+# The verdict must survive the job renaming its own directory.
+# ============================================================================
+# `deploy.sh` ends on ADR-215's atomic swap: `mv "$STAGING_DIR" "$LIVE_DIR"`.
+# Artifacts written inside the staging directory therefore MOVE at the exact
+# moment the work succeeds.
+#
+# Measured on the real production deployment, 2026-08-29: `.rc` = 0, seventeen
+# containers up, v1.38.0 running — and the driver saw none of it. Its poll began
+# with `cd ~/lia.staging 2>/dev/null || exit 0`, so from the swap onward it
+# exited silently with no output, and an empty answer is indistinguishable from
+# "no verdict yet". A fully successful deployment would have been reported
+# `Unknown` forty-five minutes later.
+#
+# Two properties, and neither had a test before this incident.
+Describe "the verdict outlives the atomic swap (ADR-250)" {
+    BeforeAll {
+        $script:swapLaunch = New-DetachedLaunchPayload `
+            -RemoteDir "~/lia.staging" -Command "./deploy.sh" `
+            -RunId "20260829-231431-46il" -LockPath '$HOME/.lia-deploy/deploy.lock'
+        $script:swapPoll = New-DetachedPollPayload `
+            -RemoteDir "~/lia.staging" -RunId "20260829-231431-46il" `
+            -LockPath '$HOME/.lia-deploy/deploy.lock' -FromLine 1
+    }
+
+    It "writes the verdict OUTSIDE the directory the deployment renames" {
+        $swapLaunch | Should -Match ([regex]::Escape('$HOME/.lia-deploy/deploy.20260829-231431-46il.rc'))
+        $swapLaunch | Should -Not -Match ([regex]::Escape('> deploy.20260829-231431-46il.rc'))
+    }
+
+    It "writes the log there too, so the operator can still read it after the swap" {
+        $swapLaunch | Should -Match ([regex]::Escape('$HOME/.lia-deploy/deploy.20260829-231431-46il.log'))
+    }
+
+    It "holds the lock outside it as well, so exclusion survives the swap" {
+        $swapLaunch | Should -Match ([regex]::Escape('exec 9>$HOME/.lia-deploy/deploy.lock'))
+    }
+
+    It "creates the artifact directory synchronously, before detaching" {
+        # A directory it cannot create must fail the LAUNCH, where the caller
+        # still gets an exit code — not silently inside a detached process.
+        $swapLaunch | Should -Match ([regex]::Escape('mkdir -p $HOME/.lia-deploy && cd ~/lia.staging'))
+    }
+
+    It "polls WITHOUT changing directory" {
+        # The `cd` was the defect: it made the answer depend on a path the job
+        # is free to rename underneath it.
+        $swapPoll | Should -Not -Match "cd "
+    }
+
+    It "never exits silently: a missing file is an answer, not a silence" {
+        # `|| exit 0` produced an empty response that the parser read as
+        # "still running". Both lines are now unconditional.
+        $swapPoll | Should -Not -Match ([regex]::Escape("exit 0"))
+        $swapPoll | Should -Match "printf 'RC=%s"
+        $swapPoll | Should -Match "ALIVE=0"
+        $swapPoll | Should -Match "ALIVE=1"
+    }
+
+    It "reads the artifacts by absolute path" {
+        $swapPoll | Should -Match ([regex]::Escape('$HOME/.lia-deploy/deploy.20260829-231431-46il.rc'))
+        $swapPoll | Should -Match ([regex]::Escape('$HOME/.lia-deploy/deploy.20260829-231431-46il.log'))
+    }
+}
