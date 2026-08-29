@@ -29,6 +29,11 @@ from src.domains.agents.context.schemas import (
     ContextSaveMode,
     ToolContextList,
 )
+from tests.helpers.runtime_context import (
+    DEFAULT_TEST_USER_ID,
+    installed_runtime_context,
+    no_runtime_context,
+)
 
 # ============================================================================
 # Fixtures
@@ -651,6 +656,17 @@ class TestClassifySaveMode:
 class TestAutoSave:
     """Test auto_save method with LIST and DETAILS routing."""
 
+    @pytest.fixture(autouse=True)
+    def _run_context(self):
+        """auto_save reads the acting user from the run context (ADR-231).
+
+        Installed rather than passed: `runtime_user_id_str()` reads the
+        ContextVar, which is what a node or a tool sees in production. A
+        ToolRuntime would not answer it.
+        """
+        with installed_runtime_context(user_id=DEFAULT_TEST_USER_ID, thread_id="sess456"):
+            yield
+
     @pytest.mark.asyncio
     async def test_auto_save_routes_to_save_list(self, manager, mock_store):
         """Test auto_save routes to save_list for LIST mode."""
@@ -665,7 +681,7 @@ class TestAutoSave:
         }
 
         config = {
-            "configurable": {"user_id": "user123", "thread_id": "sess456"},
+            "configurable": {"thread_id": "sess456"},
             "metadata": {"turn_id": 5},
         }
 
@@ -694,7 +710,7 @@ class TestAutoSave:
         }
 
         config = {
-            "configurable": {"user_id": "user123", "thread_id": "sess456"},
+            "configurable": {"thread_id": "sess456"},
             "metadata": {"turn_id": 5},
         }
 
@@ -726,7 +742,7 @@ class TestAutoSave:
         }
 
         config = {
-            "configurable": {"user_id": "user123", "thread_id": "sess456"},
+            "configurable": {"thread_id": "sess456"},
             "metadata": {"turn_id": 5},
         }
 
@@ -757,7 +773,7 @@ class TestAutoSave:
         }
 
         config = {
-            "configurable": {"user_id": "user123", "thread_id": "sess456"},
+            "configurable": {"thread_id": "sess456"},
             "metadata": {"turn_id": 5},
         }
 
@@ -773,8 +789,14 @@ class TestAutoSave:
             assert mock_save_list.call_count == 0
 
     @pytest.mark.asyncio
-    async def test_auto_save_skips_when_no_user_id(self, manager, mock_store):
-        """Test auto_save skips when user_id is missing from config."""
+    async def test_auto_save_skips_when_there_is_no_run(self, manager, mock_store):
+        """auto_save skips when it runs outside any graph run.
+
+        Renamed with the mechanism: since ADR-231 the acting user is a typed,
+        mandatory field of the run context, so "no user" cannot be expressed as
+        an empty bag any more. It is expressed by there being no run at all —
+        which is also the only way this can happen in production.
+        """
         result_data = {
             "success": True,
             "contacts": [{"resource_name": "people/c1", "name": "Jean"}],
@@ -782,11 +804,14 @@ class TestAutoSave:
         }
 
         config = {
-            "configurable": {},  # Missing user_id
+            "configurable": {"thread_id": "sess456"},
             "metadata": {"turn_id": 5},
         }
 
-        with patch.object(manager, "save_list", new_callable=AsyncMock) as mock_save_list:
+        with (
+            no_runtime_context(),
+            patch.object(manager, "save_list", new_callable=AsyncMock) as mock_save_list,
+        ):
             await manager.auto_save(
                 context_type="contacts",
                 result_data=result_data,
@@ -807,7 +832,7 @@ class TestAutoSave:
         }
 
         config = {
-            "configurable": {"user_id": "user123"},  # Missing thread_id
+            "configurable": {},  # Missing thread_id
             "metadata": {"turn_id": 5},
         }
 
@@ -829,7 +854,7 @@ class TestAutoSave:
         }
 
         config = {
-            "configurable": {"user_id": "user123", "thread_id": "sess456"},
+            "configurable": {"thread_id": "sess456"},
             "metadata": {"turn_id": 5},
         }
 

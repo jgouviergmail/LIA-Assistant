@@ -11,7 +11,7 @@ Updated for UnifiedToolOutput format with Data Registry support
 """
 
 import json
-from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -19,6 +19,7 @@ from langgraph.prebuilt.tool_node import ToolRuntime
 
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.schemas import APIKeyCredentials
+from tests.helpers.runtime_context import make_tool_runtime
 
 
 def create_mock_perplexity_client() -> AsyncMock:
@@ -58,23 +59,22 @@ def create_mock_api_key_dependencies(
 
 
 def create_mock_runtime(user_id: str) -> ToolRuntime:
-    """Create a mock ToolRuntime with configurable user_id."""
-    runtime = create_autospec(ToolRuntime, instance=True)
-    configurable = {
-        "user_id": user_id,
-        "thread_id": f"test_thread_{user_id[:8]}",
-    }
+    """The runtime the graph injects, carrying a real typed context (ADR-231).
 
-    runtime.config = {"configurable": configurable}
+    It used to be an autospec mock whose ``context`` was ``{}`` and whose
+    identity sat in ``configurable``. Both halves are now wrong: the tool layer
+    reads the acting user from the typed context, and a plain dict is not one.
+    """
     mock_store = MagicMock()
     mock_store.get = MagicMock(return_value=None)
     mock_store.put = MagicMock()
-    runtime.store = mock_store
-    runtime.state = {}
-    runtime.context = {}
-    runtime.stream_writer = MagicMock()
-    runtime.tool_call_id = "test_call_id"
-    return runtime
+    return make_tool_runtime(
+        user_id=user_id,
+        configurable={"thread_id": f"test_thread_{user_id[:8]}"},
+        store=mock_store,
+        state={},
+        tool_call_id="test_call_id",
+    )
 
 
 class TestPerplexitySearchTool:

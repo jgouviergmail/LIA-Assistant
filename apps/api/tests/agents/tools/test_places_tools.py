@@ -20,6 +20,7 @@ from langgraph.prebuilt.tool_node import ToolRuntime
 
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.schemas import ConnectorCredentials
+from tests.helpers.runtime_context import make_tool_runtime
 
 
 def create_mock_oauth_dependencies(
@@ -98,21 +99,13 @@ def create_mock_runtime(user_id: str) -> ToolRuntime:
     mock_store.aget = AsyncMock(return_value=None)
     mock_store.aput = AsyncMock()
 
-    return ToolRuntime(
-        state={},
-        # ContextT resolves to None for unparametrized tools: passing {} trips
-        # PydanticSerializationUnexpectedValue when LangChain serializes the
-        # runtime during args validation (audit F028, warnings-as-errors).
-        context=None,
-        config={
-            "configurable": {
-                "user_id": user_id,
-                "thread_id": f"test_thread_{user_id[:8]}",
-            }
-        },
-        stream_writer=MagicMock(),
-        tool_call_id="test_call_id",
+    # ADR-231: identity in the typed context, LangGraph plumbing in the bag.
+    return make_tool_runtime(
+        user_id=user_id,
+        configurable={"thread_id": f"test_thread_{user_id[:8]}"},
         store=mock_store,
+        state={},
+        tool_call_id="test_call_id",
     )
 
 

@@ -17,6 +17,10 @@ import pytest
 from src.domains.agents.context.schemas import ContextMetadata, ToolContextList
 from src.domains.agents.tools.context_tools import get_context_list
 from src.domains.agents.tools.output import UnifiedToolOutput
+from tests.helpers.runtime_context import (
+    make_contextless_tool_runtime,
+    make_tool_runtime,
+)
 
 
 @pytest.fixture
@@ -46,14 +50,7 @@ class TestGetContextListTool:
     async def test_valid_context_with_2_items(self, mock_registry_contacts):
         """Test valid context with 2 items returns full list."""
         # Given: Runtime mock with valid config and store
-        runtime = MagicMock()
-        runtime.config = {
-            "configurable": {
-                "user_id": str(uuid4()),
-                "thread_id": str(uuid4()),
-            }
-        }
-        runtime.store = MagicMock()
+        runtime = make_tool_runtime(configurable={"thread_id": str(uuid4())}, store=MagicMock())
 
         # Mock ToolContextManager.get_list to return 2 contacts
         mock_context_list = ToolContextList(
@@ -92,14 +89,7 @@ class TestGetContextListTool:
     async def test_valid_context_with_15_items_truncated(self, mock_registry_contacts):
         """Test context with 15 items returns 10 items with truncated=true."""
         # Given: Runtime mock with valid config and store
-        runtime = MagicMock()
-        runtime.config = {
-            "configurable": {
-                "user_id": str(uuid4()),
-                "thread_id": str(uuid4()),
-            }
-        }
-        runtime.store = MagicMock()
+        runtime = make_tool_runtime(configurable={"thread_id": str(uuid4())}, store=MagicMock())
 
         # Create 15 items
         items = [
@@ -138,14 +128,7 @@ class TestGetContextListTool:
     async def test_empty_context_returns_no_context_error(self, mock_registry_contacts):
         """Test empty context returns no_context error."""
         # Given: Runtime mock with valid config and store
-        runtime = MagicMock()
-        runtime.config = {
-            "configurable": {
-                "user_id": str(uuid4()),
-                "thread_id": str(uuid4()),
-            }
-        }
-        runtime.store = MagicMock()
+        runtime = make_tool_runtime(configurable={"thread_id": str(uuid4())}, store=MagicMock())
 
         # Mock empty context
         with patch("src.domains.agents.tools.context_tools.ToolContextManager") as MockManager:
@@ -164,14 +147,7 @@ class TestGetContextListTool:
     async def test_invalid_domain_returns_invalid_domain_error(self, mock_registry_contacts):
         """Test invalid domain returns invalid_domain error with available domains."""
         # Given: Runtime mock with valid config and store
-        runtime = MagicMock()
-        runtime.config = {
-            "configurable": {
-                "user_id": str(uuid4()),
-                "thread_id": str(uuid4()),
-            }
-        }
-        runtime.store = MagicMock()
+        runtime = make_tool_runtime(configurable={"thread_id": str(uuid4())}, store=MagicMock())
 
         # When: Call with invalid domain "foo"
         result = await get_context_list.coroutine(domain="foo", runtime=runtime)
@@ -185,17 +161,14 @@ class TestGetContextListTool:
         # Should list valid domains like ["contacts"]
         assert isinstance(result.metadata["available_domains"], list)
 
-    async def test_missing_user_id_returns_configuration_error(self):
-        """Test missing user_id returns configuration_error."""
-        # Given: Runtime mock with missing user_id
-        runtime = MagicMock()
-        runtime.config = {
-            "configurable": {
-                # user_id missing
-                "thread_id": str(uuid4()),
-            }
-        }
-        runtime.store = MagicMock()
+    async def test_missing_run_context_returns_configuration_error(self):
+        """A tool invoked outside a run has no identity, hence no context."""
+        # Given: a runtime carrying no run context
+        # ADR-231: the acting user is a mandatory, typed field of the run
+        # context, so "no user" is only expressible as "no run context".
+        runtime = make_contextless_tool_runtime(
+            configurable={"thread_id": str(uuid4())}, store=MagicMock()
+        )
 
         # When: Call the underlying function directly
         result = await get_context_list.coroutine(domain="contacts", runtime=runtime)
@@ -204,19 +177,12 @@ class TestGetContextListTool:
         assert isinstance(result, UnifiedToolOutput)
         assert result.success is False
         assert result.error_code == "configuration_error"
-        assert "user_id" in result.message
+        assert "context" in result.message
 
     async def test_missing_session_id_returns_configuration_error(self):
         """Test missing session_id (thread_id) returns configuration_error."""
         # Given: Runtime mock with missing thread_id
-        runtime = MagicMock()
-        runtime.config = {
-            "configurable": {
-                "user_id": str(uuid4()),
-                # thread_id missing
-            }
-        }
-        runtime.store = MagicMock()
+        runtime = make_tool_runtime(configurable={"thread_id": None}, store=MagicMock())
 
         # When: Call the underlying function directly
         result = await get_context_list.coroutine(domain="contacts", runtime=runtime)
@@ -237,14 +203,7 @@ class TestGetContextListTool:
     async def test_items_have_correct_indexes(self, mock_registry_contacts):
         """Test items retain original indexes (0, 1, 2...)."""
         # Given: Runtime mock with valid config and store
-        runtime = MagicMock()
-        runtime.config = {
-            "configurable": {
-                "user_id": str(uuid4()),
-                "thread_id": str(uuid4()),
-            }
-        }
-        runtime.store = MagicMock()
+        runtime = make_tool_runtime(configurable={"thread_id": str(uuid4())}, store=MagicMock())
 
         items = [
             {"index": 0, "resource_name": "people/c1", "name": "First"},

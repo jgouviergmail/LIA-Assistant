@@ -14,6 +14,7 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.response_node import format_agent_results_for_prompt, response_node
 from src.domains.agents.orchestration.schemas import ContactsResultData
 from src.domains.agents.prompts import get_response_prompt
+from tests.helpers.runtime_context import installed_runtime_context
 
 
 def _close_scheduled_coroutine(coro: Coroutine[Any, Any, Any], **_kwargs: Any) -> None:
@@ -517,16 +518,16 @@ async def test_response_node_schedules_extraction_for_direct_user():
         agent_results={},
         metadata={"user_id": "test-user"},
     )
-    config = {
-        "metadata": {"run_id": "test-run"},
-        "configurable": {
-            "langgraph_user_id": str(uuid.uuid4()),
-            "user_memory_enabled": True,
-            # FIELD_IS_AUTOMATED_SOURCE intentionally absent -> default False (direct user).
-        },
-    }
+    # ADR-231: identity and the user's preferences ride on the typed run
+    # context; the config carries LangGraph plumbing only.
+    config = {"metadata": {"run_id": "test-run"}, "configurable": {"thread_id": "thread-1"}}
 
-    with ExitStack() as stack:
+    with (
+        # `is_automated_source` intentionally left at its default False: this
+        # test is about a DIRECT user input.
+        installed_runtime_context(user_id=uuid.uuid4(), thread_id="thread-1", memory_enabled=True),
+        ExitStack() as stack,
+    ):
         mocks = _setup_response_node_patches(stack)
         await response_node(state, config)
 

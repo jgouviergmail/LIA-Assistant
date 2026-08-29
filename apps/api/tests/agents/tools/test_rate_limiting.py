@@ -27,6 +27,7 @@ from src.domains.agents.tools.google_contacts_tools import (
     list_contacts_tool,
     search_contacts_tool,
 )
+from tests.helpers.runtime_context import make_tool_runtime
 
 # ============================================================================
 # PHASE 3.1: Rate Limiting on Google Contacts Tools
@@ -236,9 +237,8 @@ async def test_rate_limit_respects_global_disable():
         call_count += 1
         return f"call_{call_count}"
 
-    # Mock runtime with user_id
-    mock_runtime = MagicMock()
-    mock_runtime.config = {"configurable": {"user_id": "test_user_123"}}
+    # ADR-231: the decorator reads the acting user from the typed run context.
+    mock_runtime = make_tool_runtime()
 
     # Test 1: Rate limiting enabled (default) - should enforce limits
     with patch("src.core.config.get_settings") as mock_get_settings:
@@ -283,8 +283,7 @@ async def test_rate_limit_clears_tracker_when_disabled():
     async def test_tool(runtime=None):
         return "success"
 
-    mock_runtime = MagicMock()
-    mock_runtime.config = {"configurable": {"user_id": "test_user_456"}}
+    mock_runtime = make_tool_runtime()
 
     # Enable rate limiting and make some calls to populate tracker
     with patch("src.core.config.get_settings") as mock_get_settings:

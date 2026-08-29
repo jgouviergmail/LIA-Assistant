@@ -14,7 +14,7 @@ Tests mock:
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from langgraph.prebuilt.tool_node import ToolRuntime
@@ -25,9 +25,23 @@ from src.domains.agents.tools import (
     search_contacts_tool,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
+from tests.helpers.runtime_context import installed_runtime_context, make_tool_runtime
 
 # Test user ID (valid UUID format)
 TEST_USER_ID = str(uuid4())
+
+
+@pytest.fixture(autouse=True)
+def _run_context():
+    """These tools run INSIDE a graph run, so the context is installed too.
+
+    Injecting a ToolRuntime is not the same thing: `ToolContextManager.auto_save`
+    reads the acting user from the run-context ContextVar. Without this, every
+    tool call here logged `auto_save_failed_missing_user_id` and silently stopped
+    saving anything — the assertions still passed, on half the work.
+    """
+    with installed_runtime_context(user_id=UUID(TEST_USER_ID)) as context:
+        yield context
 
 
 def create_mock_tool_dependencies(
@@ -90,10 +104,10 @@ def create_mock_runtime(
         tool_deps: Optional mock ToolDependencies. If provided, will be injected
             into config["configurable"]["__deps"].
     """
-    configurable = {
-        "user_id": user_id,
-        "thread_id": f"test_thread_{user_id[:8]}",
-    }
+    # ADR-231: the acting user rides in the TYPED context, never in the bag.
+    # `configurable` keeps only what LangGraph itself owns, plus the per-call
+    # dependency injection this suite is actually about.
+    configurable: dict[str, object] = {"thread_id": f"test_thread_{user_id[:8]}"}
 
     # Inject ToolDependencies if provided
     if tool_deps is not None:
@@ -106,16 +120,12 @@ def create_mock_runtime(
     mock_store.aget = AsyncMock(return_value=None)
     mock_store.aput = AsyncMock()
 
-    return ToolRuntime(
-        state={},
-        # ContextT resolves to None for unparametrized tools: passing {} trips
-        # PydanticSerializationUnexpectedValue when LangChain serializes the
-        # runtime during args validation (audit F028, warnings-as-errors).
-        context=None,
-        config={"configurable": configurable},
-        stream_writer=MagicMock(),
-        tool_call_id="test_call_id",
+    return make_tool_runtime(
+        user_id=user_id,
+        configurable=configurable,
         store=mock_store,
+        state={},
+        tool_call_id="test_call_id",
     )
 
 

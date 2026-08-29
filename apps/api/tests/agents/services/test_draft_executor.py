@@ -19,6 +19,7 @@ Created: 2025-11-26
 LARS LOT 7: Tests E2E
 """
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -37,6 +38,10 @@ from src.domains.agents.services.draft_executor import (  # noqa: E402
     ensure_executors_registered,
     execute_draft_if_confirmed,
     register_executor,
+)
+from tests.helpers.runtime_context import (  # noqa: E402
+    installed_runtime_context,
+    no_runtime_context,
 )
 
 # ============================================================================
@@ -75,40 +80,38 @@ def mock_tool_dependencies():
 
 
 @pytest.fixture
-def mock_config_with_deps(mock_tool_dependencies) -> RunnableConfig:
-    """Create RunnableConfig with ToolDependencies and user_id."""
-    user_id = str(uuid4())
-    return RunnableConfig(
-        configurable={
-            "__deps": mock_tool_dependencies,
-        },
-        metadata={
-            "user_id": user_id,
-            "conversation_id": str(uuid4()),
-        },
-    )
+def mock_config_with_deps(mock_tool_dependencies) -> Iterator[RunnableConfig]:
+    """A RunnableConfig under an installed run context carrying the deps.
+
+    ADR-231: the executor reads its ToolDependencies and the acting user from
+    the run context, not from the config it is handed. The config keeps only
+    what LangGraph itself owns, and the fixture installs the context — which is
+    the shape a node sees in production.
+    """
+    with installed_runtime_context(deps=mock_tool_dependencies):
+        yield RunnableConfig(
+            configurable={},
+            metadata={"conversation_id": str(uuid4())},
+        )
 
 
 @pytest.fixture
-def mock_config_without_deps() -> RunnableConfig:
-    """Create RunnableConfig without ToolDependencies (error case)."""
-    return RunnableConfig(
-        configurable={},
-        metadata={
-            "user_id": str(uuid4()),
-        },
-    )
+def mock_config_without_deps() -> Iterator[RunnableConfig]:
+    """A run whose context carries no ToolDependencies (error case)."""
+    with installed_runtime_context(deps=None):
+        yield RunnableConfig(configurable={}, metadata={})
 
 
 @pytest.fixture
-def mock_config_without_user_id(mock_tool_dependencies) -> RunnableConfig:
-    """Create RunnableConfig without user_id (error case)."""
-    return RunnableConfig(
-        configurable={
-            "__deps": mock_tool_dependencies,
-        },
-        metadata={},
-    )
+def mock_config_outside_a_run(mock_tool_dependencies) -> Iterator[RunnableConfig]:
+    """A config handed to the executor OUTSIDE any graph run (error case).
+
+    Renamed from ``mock_config_outside_a_run``: identity is now a mandatory,
+    typed field of the run context, so an unidentified caller is not a config
+    missing a key — it is a caller with no run at all.
+    """
+    with no_runtime_context():
+        yield RunnableConfig(configurable={}, metadata={})
 
 
 @pytest.fixture
@@ -544,28 +547,41 @@ class TestDraftExecutorErrorHandling:
             mock_metric.labels.assert_called_with(draft_type="email", outcome="failed")
 
     @pytest.mark.asyncio
-    async def test_missing_user_id_returns_error_result(
-        self, email_draft_action_confirm, mock_config_without_user_id
+    async def test_the_run_context_outranks_a_metadata_user_id(
+        self, email_draft_action_confirm, mock_tool_dependencies
     ):
-        """Test that missing user_id returns error result."""
+        """The context is the ONLY authority on who acts (ADR-231).
+
+        This replaces a "missing user_id" test that could no longer fail: the
+        executor reads its dependencies from the run context, so by the time it
+        needs an identity a context provably exists — and its ``user_id`` is a
+        mandatory UUID. The interesting property is therefore not "what happens
+        without a user" but "what happens when metadata claims a DIFFERENT one",
+        which is exactly how a second authority would show itself.
+        """
+        impostor = "550e8400-e29b-41d4-a716-446655440000"
+        mock_execute = AsyncMock(return_value={"success": True})
+
         with (
+            installed_runtime_context(deps=mock_tool_dependencies) as context,
             patch(
                 "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
-                {"email": AsyncMock()},
+                {"email": mock_execute},
             ),
             patch(
                 "src.domains.agents.services.draft_executor.registry_drafts_executed_total"
             ) as mock_metric,
         ):
             mock_metric.labels.return_value.inc = MagicMock()
+            config = RunnableConfig(configurable={}, metadata={"user_id": impostor})
 
-            result = await execute_draft_if_confirmed(
-                email_draft_action_confirm, mock_config_without_user_id, "run_123"
-            )
+            result = await execute_draft_if_confirmed(email_draft_action_confirm, config, "run_123")
 
-            assert result is not None
-            assert result.success is False
-            assert "user_id not found" in result.error
+            assert result.success is True
+            # Second positional arg: the identity handed to the executor.
+            user_id_arg = mock_execute.call_args[0][1]
+            assert user_id_arg == context.user_id
+            assert str(user_id_arg) != impostor
 
     @pytest.mark.asyncio
     async def test_unknown_draft_type_returns_error_result(self, mock_config_with_deps):
@@ -816,19 +832,21 @@ class TestResponseNodeIntegrationPattern:
             assert "action" in agent_result
 
     @pytest.mark.asyncio
-    async def test_handles_uuid_string_user_id(
+    async def test_passes_the_context_user_as_a_uuid(
         self, email_draft_action_confirm, mock_tool_dependencies
     ):
-        """Test that string UUID user_id is properly converted."""
-        user_id_str = "550e8400-e29b-41d4-a716-446655440000"
-        config = RunnableConfig(
-            configurable={"__deps": mock_tool_dependencies},
-            metadata={"user_id": user_id_str},
-        )
+        """Executors receive a ``UUID``, never a string.
 
+        This replaces a pair of tests that fed a UUID *string* and a UUID
+        *object* through ``metadata`` and asserted the coercion between them.
+        The coercion is gone with the fallback that needed it: the context field
+        is typed, so there is one shape to pass on. What still has to hold — and
+        what these executors' signatures depend on — is that it is a UUID.
+        """
         mock_execute = AsyncMock(return_value={"success": True})
 
         with (
+            installed_runtime_context(deps=mock_tool_dependencies) as context,
             patch(
                 "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
                 {"email": mock_execute},
@@ -838,42 +856,14 @@ class TestResponseNodeIntegrationPattern:
             ) as mock_metric,
         ):
             mock_metric.labels.return_value.inc = MagicMock()
+            config = RunnableConfig(configurable={}, metadata={})
 
             result = await execute_draft_if_confirmed(email_draft_action_confirm, config, "run_123")
 
             assert result.success is True
-            # Verify executor was called with UUID (not string)
-            call_args = mock_execute.call_args
-            user_id_arg = call_args[0][1]  # Second positional arg
+            user_id_arg = mock_execute.call_args[0][1]
             assert isinstance(user_id_arg, UUID)
-
-    @pytest.mark.asyncio
-    async def test_handles_uuid_object_user_id(
-        self, email_draft_action_confirm, mock_tool_dependencies
-    ):
-        """Test that UUID object user_id is properly handled."""
-        user_id = uuid4()
-        config = RunnableConfig(
-            configurable={"__deps": mock_tool_dependencies},
-            metadata={"user_id": user_id},
-        )
-
-        mock_execute = AsyncMock(return_value={"success": True})
-
-        with (
-            patch(
-                "src.domains.agents.services.draft_executor.EXECUTOR_REGISTRY",
-                {"email": mock_execute},
-            ),
-            patch(
-                "src.domains.agents.services.draft_executor.registry_drafts_executed_total"
-            ) as mock_metric,
-        ):
-            mock_metric.labels.return_value.inc = MagicMock()
-
-            result = await execute_draft_if_confirmed(email_draft_action_confirm, config, "run_123")
-
-            assert result.success is True
+            assert user_id_arg == context.user_id
 
 
 if __name__ == "__main__":

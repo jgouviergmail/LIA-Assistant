@@ -39,17 +39,13 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Literal
-from uuid import UUID
 
 import structlog
 from langchain_core.runnables import RunnableConfig
 
-from src.core.field_names import FIELD_METADATA
 from src.domains.agents.context.access import get_tcm_session
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
-    runtime_deps,
-    runtime_user_id_str,
 )
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.services.draft_executor_registry import ensure_executors_registered
@@ -658,9 +654,11 @@ async def _execute_confirmed_draft(
             user_language=user_language,
         )
 
-    # Extract ToolDependencies from config
-    deps = runtime_deps()
-    if not deps:
+    # ADR-231: dependencies AND identity ride on the run context, so it is
+    # read once and the guard below narrows it for everything that follows.
+    run_context = runtime_context_if_running()
+    deps = run_context.deps if run_context is not None else None
+    if run_context is None or not deps:
         error_msg = "ToolDependencies not found in config"
         logger.error(
             "draft_executor_no_deps",
@@ -682,48 +680,18 @@ async def _execute_confirmed_draft(
             user_language=user_language,
         )
 
-    # The run context is the identity's single authority (ADR-231); the
-    # metadata fallback below survives for the legacy call paths that build a
-    # RunnableConfig by hand, outside a graph run.
-    user_id_str = runtime_user_id_str()
-    # RunnableConfig.get() with a non-literal key (FIELD_METADATA) collapses to
-    # ``object``; narrow to a dict once so the fallback + logging type-check.
-    raw_metadata = config.get(FIELD_METADATA, {})
-    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
-    if not user_id_str:
-        # Fallback to metadata (older path, may not work in all cases)
-        user_id_str = metadata.get("user_id")
-    if not user_id_str:
-        error_msg = "user_id not found in config (checked configurable and metadata)"
-        logger.error(
-            "draft_executor_no_user_id",
-            run_id=run_id,
-            draft_id=draft_id,
-            configurable_keys=list(config.get("configurable", {}).keys()),
-            metadata_keys=list(metadata.keys()),
-        )
-        registry_drafts_executed_total.labels(
-            draft_type=draft_type,
-            outcome="failed",
-        ).inc()
-
-        return DraftExecutionResult(
-            success=False,
-            draft_id=draft_id,
-            draft_type=draft_type,
-            action="confirm",
-            error=error_msg,
-            user_language=user_language,
-        )
+    # There is no "missing user" state left to handle. The guard above has
+    # already returned when there is no run, and `LiaRuntimeContext.user_id` is
+    # a mandatory `uuid.UUID`. The
+    # metadata fallback that used to live here — and the error branch behind
+    # it — became unreachable the day dependencies moved onto the context.
+    # Reading metadata again would reintroduce a second authority on who acts.
+    user_id = run_context.user_id
 
     try:
-        user_id = UUID(user_id_str) if isinstance(user_id_str, str) else user_id_str
-
         # Execute draft using the registered executor
         # Executor functions have signature: (draft_content, user_id, deps) -> result_dict
-        token = _CURRENT_SIDE_CHANNEL_QUEUE.set(
-            _c.side_channel_queue if (_c := runtime_context_if_running()) is not None else None
-        )
+        token = _CURRENT_SIDE_CHANNEL_QUEUE.set(run_context.side_channel_queue)
         try:
             result_data = await executor_fn(draft_content, user_id, deps)
         finally:

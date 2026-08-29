@@ -16,6 +16,11 @@ from src.domains.agents.tools.runtime_helpers import (
     handle_tool_exception,
     validate_runtime_config,
 )
+from tests.helpers.runtime_context import (
+    DEFAULT_TEST_USER_ID,
+    make_contextless_tool_runtime,
+    make_tool_runtime,
+)
 
 
 class TestValidateRuntimeConfig:
@@ -23,31 +28,30 @@ class TestValidateRuntimeConfig:
 
     def test_valid_runtime_config(self):
         """Test successful validation with all required fields."""
-        # Given: Valid runtime with all fields (using LangGraph v1.0 standard: thread_id)
-        runtime = Mock()
-        runtime.config = {
-            "configurable": {
-                "user_id": "user123",
-                "thread_id": "sess456",  # LangGraph v1.0 uses thread_id
-            }
-        }
-        runtime.store = Mock()
+        # Given: the runtime the graph injects — identity in the TYPED context
+        # (ADR-231), thread_id still in `configurable` because it is LangGraph
+        # plumbing rather than run context.
+        store = Mock()
+        runtime = make_tool_runtime(configurable={"thread_id": "sess456"}, store=store)
 
         # When: Validate config
         result = validate_runtime_config(runtime, "test_tool")
 
         # Then: Returns ValidatedRuntimeConfig
         assert isinstance(result, ValidatedRuntimeConfig)
-        assert result.user_id == "user123"
+        assert result.user_id == str(DEFAULT_TEST_USER_ID)
         assert result.session_id == "sess456"  # Normalized internally to session_id
-        assert result.store is runtime.store
+        assert result.store is store
 
-    def test_missing_user_id(self):
-        """Test validation fails when user_id is missing."""
-        # Given: Runtime without user_id
-        runtime = Mock()
-        runtime.config = {"configurable": {"session_id": "sess456"}}
-        runtime.store = Mock()
+    def test_missing_run_context(self):
+        """A tool invoked outside a run has no identity at all.
+
+        Since ADR-231 the acting user lives in a typed context whose ``user_id``
+        is mandatory, so "no user" is not a missing key any more — it is the
+        absence of the context itself. That is the case this test now names.
+        """
+        # Given: a runtime with no run context
+        runtime = make_contextless_tool_runtime(configurable={"thread_id": "sess456"}, store=Mock())
 
         # When: Validate config
         result = validate_runtime_config(runtime, "test_tool")
@@ -56,14 +60,13 @@ class TestValidateRuntimeConfig:
         assert isinstance(result, UnifiedToolOutput)
         assert result.success is False
         assert result.error_code == "configuration_error"
-        assert "user_id" in result.message
+        assert "context" in result.message
 
     def test_missing_session_id(self):
         """Test validation fails when thread_id (session_id) is missing."""
-        # Given: Runtime without thread_id
-        runtime = Mock()
-        runtime.config = {"configurable": {"user_id": "user123"}}
-        runtime.store = Mock()
+        # Given: Runtime without thread_id. The context is present — this is
+        # about the LangGraph plumbing key, not about identity.
+        runtime = make_tool_runtime(configurable={"thread_id": None}, store=Mock())
 
         # When: Validate config
         result = validate_runtime_config(runtime, "test_tool")
@@ -77,14 +80,7 @@ class TestValidateRuntimeConfig:
     def test_missing_store(self):
         """Test validation fails when store is None."""
         # Given: Runtime without store
-        runtime = Mock()
-        runtime.config = {
-            "configurable": {
-                "user_id": "user123",
-                "thread_id": "sess456",  # Using thread_id (LangGraph v1.0)
-            }
-        }
-        runtime.store = None
+        runtime = make_tool_runtime(configurable={"thread_id": "sess456"}, store=None)
 
         # When: Validate config
         result = validate_runtime_config(runtime, "test_tool")
@@ -97,15 +93,15 @@ class TestValidateRuntimeConfig:
 
     def test_missing_configurable_dict(self):
         """Test validation fails when config.configurable is None."""
-        # Given: Runtime with None configurable
-        runtime = Mock()
-        runtime.config = {"configurable": None}
-        runtime.store = Mock()
+        # Given: Runtime with None configurable — the context is there, the
+        # plumbing is not, so the thread_id lookup is what must fail cleanly.
+        runtime = make_tool_runtime(store=Mock())
+        runtime.config["configurable"] = None
 
         # When: Validate config
         result = validate_runtime_config(runtime, "test_tool")
 
-        # Then: Returns error UnifiedToolOutput (user_id missing)
+        # Then: Returns error UnifiedToolOutput
         assert isinstance(result, UnifiedToolOutput)
         assert result.success is False
         assert result.error_code == "configuration_error"
@@ -172,14 +168,8 @@ class TestHelperIntegration:
     def test_typical_tool_workflow(self):
         """Test typical workflow: validate config → use it → handle errors."""
         # Given: Valid runtime
-        runtime = Mock()
-        runtime.config = {
-            "configurable": {
-                "user_id": "user123",
-                "thread_id": "sess456",  # Using thread_id (LangGraph v1.0)
-            }
-        }
-        runtime.store = Mock()
+        store = Mock()
+        runtime = make_tool_runtime(configurable={"thread_id": "sess456"}, store=store)
 
         # Step 1: Validate runtime config
         config = validate_runtime_config(runtime, "my_tool")
@@ -192,27 +182,25 @@ class TestHelperIntegration:
         session_id = config.session_id
         store = config.store
 
-        assert user_id == "user123"
+        assert user_id == str(DEFAULT_TEST_USER_ID)
         assert session_id == "sess456"
         assert store is runtime.store
 
     def test_early_return_on_validation_error(self):
         """Test early return pattern when validation fails."""
-        # Given: Invalid runtime (missing user_id)
-        runtime = Mock()
-        runtime.config = {"configurable": {"thread_id": "sess456"}}  # Using thread_id
-        runtime.store = Mock()
+        # Given: Invalid runtime (no run context, hence no identity)
+        runtime = make_contextless_tool_runtime(configurable={"thread_id": "sess456"}, store=Mock())
 
         # When: Validate (would be in tool code)
         config = validate_runtime_config(runtime, "my_tool")
 
-        # Then: Can immediately return error response
-        if isinstance(config, UnifiedToolOutput):
-            # Early return pattern - UnifiedToolOutput can be returned directly
-            assert config.success is False
-            assert config.error_code == "configuration_error"
-            assert "user_id" in config.message
-            # In real tool code: return config
+        # Then: Can immediately return error response. Asserted OUTSIDE the
+        # isinstance guard: written inside it, the whole block was skipped the
+        # day validation started succeeding, and the test passed vacuously.
+        assert isinstance(config, UnifiedToolOutput)
+        assert config.success is False
+        assert config.error_code == "configuration_error"
+        assert "context" in config.message
 
     def test_exception_handling_in_tool(self):
         """Test exception handling pattern in tool."""
