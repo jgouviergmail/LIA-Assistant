@@ -7,6 +7,18 @@
  * identifier out of every component's source and resolves its lucide alias.
  * Completeness is the `Record` type: a new token fails to compile until it has
  * an icon here.
+ *
+ * Every section carries its OWN glyph, with exactly one deliberate exception:
+ * `user-consumption-export` and `admin-consumption-export` share
+ * `FileSpreadsheet`, because they share one component that branches on `mode`.
+ * Giving them separate glyphs would mean writing `icon={MAP[mode]}`, which the
+ * registry test cannot read — and that test's "exactly one icon per file" rule
+ * is worth more than the distinction: the two live in different tabs and never
+ * appear on screen together.
+ *
+ * The other eleven shared glyphs were resolved in the same pass. `Plug` covered
+ * four sections; colour cannot separate a repeated shape, so the shape had to
+ * change.
  */
 
 import {
@@ -14,35 +26,50 @@ import {
   Bell,
   Blocks,
   BookOpen,
+  BookUser,
+  Boxes,
   Brain,
   Bug,
+  Cable,
   CalendarClock,
+  Coins,
+  Compass,
   Cpu,
   DollarSign,
-  Eye,
   DownloadCloud,
+  Drama,
+  Eye,
   FileSpreadsheet,
   Fingerprint,
   Gauge,
   Globe,
+  Handshake,
   HeartPulse,
   Image as ImageIcon,
   Languages,
   LayoutDashboard,
   LayoutGrid,
-  MapPin,
   Library,
+  LibraryBig,
   ListTodo,
+  MapPin,
   Megaphone,
   MessageCircle,
   Mic,
+  Microscope,
   MonitorSmartphone,
   Palette,
   PhoneCall,
   Plug,
   Puzzle,
-  Sparkles,
+  Radar,
+  Receipt,
+  Repeat,
+  Server,
+  ServerCog,
+  Signpost,
   SlidersHorizontal,
+  Sparkles,
   TerminalSquare,
   Type,
   Users,
@@ -73,19 +100,19 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   'image-generation': ImageIcon,
   connectors: Plug,
   'telephony-calls': PhoneCall,
-  'admin-mcp-servers': Plug,
-  'mcp-servers': Plug,
+  'admin-mcp-servers': ServerCog,
+  'mcp-servers': Server,
   'debug-panel': Bug,
 
   // ---- Features
   personality: Sparkles,
   psyche: Brain,
-  memories: Brain,
-  interests: Sparkles,
+  memories: BookUser,
+  interests: Compass,
   'open-loops': ListTodo,
-  habits: CalendarClock,
-  'peer-connections': Users,
-  heartbeat: Bell,
+  habits: Repeat,
+  'peer-connections': Handshake,
+  heartbeat: Radar,
   'scheduled-actions': CalendarClock,
   journals: BookOpen,
   'health-metrics': HeartPulse,
@@ -99,16 +126,16 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   'admin-usage-limits': Gauge,
   'admin-consumption-export': FileSpreadsheet,
   'admin-broadcast': Megaphone,
-  'admin-connectors': Plug,
+  'admin-connectors': Cable,
   'admin-llm-pricing': DollarSign,
-  'admin-google-api-pricing': Globe,
-  'admin-image-pricing': ImageIcon,
+  'admin-google-api-pricing': Coins,
+  'admin-image-pricing': Receipt,
   'admin-llm-config': Cpu,
-  'admin-personalities': Sparkles,
-  'admin-skills': Blocks,
-  'rag-spaces-admin': Library,
+  'admin-personalities': Drama,
+  'admin-skills': Boxes,
+  'rag-spaces-admin': LibraryBig,
   'admin-capabilities': SlidersHorizontal,
   'admin-diagnostics': Activity,
-  'admin-public-demo-link': Globe,
-  'debug-settings': Bug,
+  'admin-public-demo-link': Signpost,
+  'debug-settings': Microscope,
 };

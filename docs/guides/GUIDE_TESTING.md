@@ -2114,6 +2114,10 @@ Règles :
    68 % ne laisserait que 2,04 pt, sous la marge d'environ 4 points que le
    paragraphe suivant explique — un gate plus serré rougirait la CI sur l'écart
    de plateforme, sans régression réelle.
+   Re-mesuré le **2026-08-30 : réel 70,06 %** (19 529 tests du sous-ensemble
+   gated, v1.38.1). Le plancher **reste à 67 %**, pour la raison ci-dessus et
+   non par oubli : le réel n'a bougé que de 0,02 pt en trois jours, donc la
+   marge n'a pas changé non plus.
 
    La marge volontairement conservée (~4 pts) couvre l'écart entre la mesure
    locale (Windows) et le runner CI (Linux) : quelques branches dépendent de la

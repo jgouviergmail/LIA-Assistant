@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Globe, RefreshCw } from 'lucide-react';
+import {
+  Coins,
+  RefreshCw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchInput } from '@/components/ui/search-input';
@@ -295,7 +298,7 @@ export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps)
         value="admin-google-api-pricing"
         title={t('settings.admin.google_api.title')}
         description={t('settings.admin.google_api.description')}
-        icon={Globe}
+        icon={Coins}
       >
         <Skeleton className="mb-4 h-8 w-64" />
         <TableSkeleton rows={5} />
@@ -524,7 +527,7 @@ export default function AdminGoogleApiPricingSection({ lng }: BaseSettingsProps)
       value="admin-google-api-pricing"
       title={t('settings.admin.google_api.title')}
       description={t('settings.admin.google_api.description')}
-      icon={Globe}
+      icon={Coins}
     >
       {content}
       {confirmDialog}

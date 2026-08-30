@@ -77,6 +77,10 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured at v1.38.1: backend 20,816 (`pytest tests/unit tests/agents
+ *   --collect-only --no-cov`) + frontend 6,409 (`vitest list`) = 27,225
+ *   -> 27,000 (unchanged: the settings-tone suites and the /more card did not
+ *   cross the next thousand, and the figure is rounded DOWN by contract).
  *   Re-measured at v1.38.0: backend 20,817 (`pytest tests/unit tests/agents
  *   --collect-only --no-cov`) + frontend 6,368 (`vitest list`) = 27,185
  *   -> 27,000 (unchanged: the ADR-231 migration proofs, the metric-coverage
@@ -257,8 +261,8 @@ export const LANDING_STATS = {
   metrics: 490,
   uiLanguages: 6,
   tests: 27000,
-  adrs: 249,
-  releases: 234,
+  adrs: 250,
+  releases: 235,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

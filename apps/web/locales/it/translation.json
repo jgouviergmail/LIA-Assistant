@@ -4412,6 +4412,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_38_1": {
+          "title": "v1.38.1 — 🎨 Impostazioni che si ritrovano a colpo d'occhio",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 Ogni famiglia di impostazioni ha il suo colore, ogni impostazione la sua icona</b> — la pagina elencava cinquantatré sezioni che disegnavano tutte la stessa icona blu sulla stessa pastiglia blu, e sedici di esse prendevano in prestito anche il disegno di un'altra (una stessa spina serviva a quattro impostazioni diverse). Il colore non separa una forma ripetuta: sono state corrette entrambe le cose — un disegno proprio per impostazione e un colore per famiglia, dodici colori che si imparano invece di cinquantatré da decifrare. Stesso principio nella colonna laterale, che sul telefono è l'elenco delle impostazioni.",
+            "i2": "<b>♿ Il colore non porta mai da solo un'informazione</b> — la sezione aperta si distingue ancora per lo sfondo, il peso e il colore d'accento, non diventando una tredicesima tinta; e se una capacità è attiva resta segnalato da un pallino pieno o vuoto. Chi non percepisce questi colori non perde nulla. Ciascuno è stato misurato su tutti i temi — chiaro, scuro e OLED, sui cinque colori d'accento — prima della consegna."
+          }
+        },
         "v1_38_0": {
           "title": "v1.38.0 — 🎭 Una tavolozza di stati d'animo finalmente completa, e un deployment che smette di mentire",
           "date": "Agosto 2026",
@@ -6765,7 +6774,7 @@
           },
           "q19": {
             "question": "Come trovo rapidamente un'impostazione?",
-            "answer": "<p>La pagina delle impostazioni elenca tutte le sezioni in una barra che non scorre mai via, e apre quella che scegli nel pannello accanto. Il campo <strong>«Cerca un'impostazione»</strong>, in cima alla barra, ti ci porta direttamente.</p><strong>Che cosa capisce la ricerca:</strong><br>• Il <strong>titolo</strong> e la <strong>descrizione</strong> di ogni sezione<br>• <strong>Sinonimi</strong> tradotti: «modalità scura» per l'aspetto, «2FA» o «TOTP» per l'autenticazione forte, «GDPR» per l'esportazione dei dati, «cron» per le azioni pianificate<br>• Accenti e apostrofi vengono ignorati — «theme» trova «Thème»<br><br><strong>Quando scegli un risultato:</strong><br>LIA apre la sezione nel pannello e vi porta il cursore. Tutto è utilizzabile da tastiera — frecce per scorrere, Invio per aprire, Esc per chiudere — e il numero di risultati viene annunciato agli screen reader.<br><br>Alcune sezioni esistono solo se la funzione è attiva sul tuo account: in tal caso LIA te lo dice, invece di lasciarti davanti a una pagina immutata."
+            "answer": "<p>La pagina delle impostazioni elenca tutte le sezioni in una barra che non scorre mai via, e apre quella che scegli nel pannello accanto. Il campo <strong>«Cerca un'impostazione»</strong>, in cima alla barra, ti ci porta direttamente.</p><strong>Che cosa capisce la ricerca:</strong><br>• Il <strong>titolo</strong> e la <strong>descrizione</strong> di ogni sezione<br>• <strong>Sinonimi</strong> tradotti: «modalità scura» per l'aspetto, «2FA» o «TOTP» per l'autenticazione forte, «GDPR» per l'esportazione dei dati, «cron» per le azioni pianificate<br>• Accenti e apostrofi vengono ignorati — «theme» trova «Thème»<br><br><strong>Quando scegli un risultato:</strong><br>LIA apre la sezione nel pannello e vi porta il cursore. Tutto è utilizzabile da tastiera — frecce per scorrere, Invio per aprire, Esc per chiudere — e il numero di risultati viene annunciato agli screen reader.<br><br><strong>Prima ancora di cercare:</strong><br>Ogni famiglia di impostazioni ha il suo colore e ogni impostazione la sua icona, sulle schede iniziali come nella colonna — una sezione già visitata si ritrova così dall'aspetto, senza leggere. Il colore raggruppa e decora: non porta mai da solo un'informazione, e la sezione aperta resta segnalata dallo sfondo e dal colore d'accento.<br><br>Alcune sezioni esistono solo se la funzione è attiva sul tuo account: in tal caso LIA te lo dice, invece di lasciarti davanti a una pagina immutata."
           },
           "q20": {
             "question": "Dove vedo tutto ciò che LIA mi ha inviato, senza frugare nelle impostazioni?",
@@ -8052,6 +8061,10 @@
         "title": "Le impostazioni, fianco a fianco",
         "desc": "Tutte le sezioni stanno in una barra che non scorre mai via, e quella che scegli si apre per intero accanto. Sul telefono l’elenco viene prima e la sezione prende lo schermo, con un ritorno."
       },
+      "settings_tones": {
+        "title": "Un colore per famiglia",
+        "desc": "Ogni famiglia di impostazioni ha la sua tinta e ogni impostazione il suo disegno: l'occhio ritrova una sezione senza rileggere l'elenco. Il colore decora e raggruppa; da solo non dice mai nulla."
+      },
       "server_escape_hatch": {
         "title": "Un indirizzo digitato male non è un vicolo cieco",
         "desc": "Le app native includono la propria schermata offline: riprova, o cambia server — un refuso al primo avvio non obbliga mai a reinstallare."
@@ -8141,6 +8154,11 @@
       },
       "settings_shell": {
         "section": "Aspetto"
+      },
+      "settings_tones": {
+        "row1": "Sicurezza",
+        "row2": "Notifiche",
+        "row3": "Aspetto"
       },
       "pricing_workbook": {
         "preview": "Anteprima prima della scrittura"
@@ -10246,7 +10264,8 @@
       "expressive_eyes": "Occhi espressivi",
       "native_apps": "App native",
       "self_diagnostics": "Autodiagnosi",
-      "computed_answers": "Risposte calcolate"
+      "computed_answers": "Risposte calcolate",
+      "measured_palette": "Una tavolozza misurata"
     }
   },
   "healthMetrics": {

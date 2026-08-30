@@ -80,12 +80,65 @@ application-side guard at all.
 - Darkening a soft tint on hover (`hover:bg-<accent>/25`) — hover feedback on
   soft variants is border + shadow, the tint stays `/15`.
 
+## The two fixed palettes (and why they are tokens)
+
+Almost every chrome colour follows the accent the user picked. Two do not, on
+purpose, and both are declared as `--color-*` tokens **precisely so this guard
+covers them** — a fixed palette written as Tailwind literals sits outside a
+guard that reads token pairs, which is the hole `badge.tsx` records for the
+fixed badge variants it removed.
+
+1. **The chat skill badge** — cyan is the skill signal, in the chat and on the
+   landing alike. Light and dark need different ramp steps; see the deviations
+   note in the design system.
+2. **The twelve settings group tones** (`--color-settings-*`, v1.38.1). The
+   settings shell lists 53 sections under 12 group headings, and every one of
+   them drew the same `text-primary` glyph on the same `bg-primary/10` chip.
+   A tone per GROUP — never per item, 53 hues would be noise — gives the eye a
+   map. It paints the overview cards and the rail rows; the OPEN section's
+   header keeps the accent, because a section header is a title and
+   `apps/web/CLAUDE.md` rules that a title icon is in the theme colour.
+
+### What the settings tones are measured against
+
+The glyph is a **non-text graphical object**, so the floor is 3:1 (WCAG 1.4.11),
+not 4.5. It is measured on the two grounds it actually sits on, for all 15
+palettes:
+
+| Ground | Where | Worst of the twelve |
+|---|---|---|
+| the chip — the tone itself at 12 % over `card` | overview cards | **3.64** light · 5.30 dark · 5.98 OLED |
+| `background`, and `accent/60` while hovered | rail rows, which have no chip | **3.75** at rest · **3.45** hovered (light) |
+
+Two properties were assumed, measured, and turned out false — both are now
+enforced rather than intended:
+
+- **A single chroma clips.** sRGB's gamut is not a cylinder: at 55 % lightness
+  a violet holds 0.25 of chroma and a teal only 0.09. One shared chroma put
+  **six of the twenty-four tones outside sRGB**, where the browser clamps them
+  — rendering neither the hue nor the chroma declared. Each hue now carries its
+  own maximum, less a 6 % margin.
+- **Even 30° spacing is not even to the eye.** Once chroma follows the gamut,
+  two pairs landed 0.116 apart in sRGB — under the guard's own 0.12 floor. The
+  twelve angles are searched on the **worse of light and dark**, because the two
+  lightnesses cut different gamut slices: a set optimised on light alone left a
+  pair at 0.113 in dark. Closest pair now 0.199.
+
+Colour here is decoration plus grouping, **never state** (WCAG 1.4.1): the open
+rail row keeps the accent ink, background and weight, and a capability's
+on/off stays a filled or hollow dot. A reader who does not perceive these hues
+loses nothing.
+
 ## Enforcement (three layers)
 
 1. **Unit guard** — `apps/web/src/styles/__tests__/design-contrast.guard.test.ts`
    parses `globals.css`, converts OKLCH→sRGB, and asserts the full pair matrix
    for all 15 palettes, including hover blends and self-tints. Any palette
-   edit below AA fails `pnpm test` before a browser ever renders it. A second
+   edit below AA fails `pnpm test` before a browser ever renders it. It also
+   holds the two fixed palettes above: the settings tones are checked on both
+   of their grounds, and a distinctness check — run in BOTH modes, since the
+   two lightnesses cut different gamut slices — refuses two group tones that
+   would read as the same swatch. A second
    guard, `text-opacity.guard.test.ts`, freezes the dimmed-text debt per file
    and **derives** its floor from these same palettes rather than hardcoding
    one — re-tune a palette and the ratchet re-tunes with it.

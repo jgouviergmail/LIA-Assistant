@@ -1,7 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Plug, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Plug,
+  ServerCog,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -49,7 +54,7 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
       value="admin-mcp-servers"
       title={t('settings.admin_mcp.title')}
       description={t('settings.admin_mcp.description')}
-      icon={Plug}
+      icon={ServerCog}
     >
       {loading ? (
         <div className="flex justify-center py-8">

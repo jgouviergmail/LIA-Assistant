@@ -15,7 +15,15 @@
  * (ADR-207). Renders nothing when the instance flag is off.
  */
 
-import { CalendarClock, CircleSlash, Flame, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  CircleSlash,
+  Flame,
+  Pause,
+  Play,
+  RefreshCw,
+  Repeat,
+  Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -170,7 +178,7 @@ export function HabitsSettings({ lng }: BaseSettingsProps) {
       value="habits"
       title={t('settings.habits.title')}
       description={t('settings.habits.description')}
-      icon={CalendarClock}
+      icon={Repeat}
     >
       {content}
     </SettingsSection>

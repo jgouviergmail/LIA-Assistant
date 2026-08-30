@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.38.1] - 2026-08-30
+
+**Cinquante-trois réglages, trente-sept dessins.** La page des réglages rendait chaque section avec la même icône bleue sur la même pastille bleue, et seize d'entre elles empruntaient en plus le dessin d'une autre — `Plug` servait quatre fois. Le regard n'avait donc qu'une seule forme répétée pour s'orienter dans une liste de cinquante-trois entrées.
+
+**La couleur ne répare pas une forme répétée** : deux prises restent deux prises, même en deux couleurs. Cette version fait les deux choses séparément — un dessin propre par section, et une teinte par **groupe**, jamais par item : douze couleurs sont une carte que l'œil apprend, cinquante-trois seraient du bruit.
+
+**C'est une dérogation assumée, la deuxième du produit** après le badge cyan des skills. Partout ailleurs la chrome suit l'accent choisi par l'utilisateur ; ici non, et c'est écrit dans le design system avec ses mesures. La couleur n'y est jamais un **état** : la ligne ouverte du rail garde l'accent, et le témoin de capacité reste une pastille pleine ou creuse — qui ne voit pas ces teintes ne perd rien.
+
+### Added
+
+- **Douze teintes de groupe** sur les icônes des réglages, en tokens `--color-settings-*` — cartes de la vue d'ensemble et lignes du rail. Des tokens et non des classes utilitaires, précisément pour que la garde de contraste les couvre : une palette fixe écrite en classes serait restée hors de sa portée.
+- **Un glyphe propre pour quinze sections** qui partageaient celui d'une autre. Une seule exception subsiste, écrite dans le registre : les deux exports de consommation partagent un composant qui se branche sur son mode, et leur donner deux dessins imposerait une forme que la garde « exactement une icône par fichier » ne sait pas lire. Ils vivent dans des onglets différents.
+- **`toneForSection`**, règle unique partagée par les deux listes — la carte et la ligne du rail ne peuvent plus diverger sur une section — avec repli sur l'accent pour un appelant hors table.
+
+### Changed
+
+- La garde de contraste couvre les **quinze palettes** (cinq accents × clair / sombre / OLED) sur **deux fonds** chacune : la pastille, et le rail nu où le glyphe n'en a pas. Pire cas mesuré **3,64** sur la pastille et **3,45** au survol, pour un plancher de 3,0 — le glyphe est un objet graphique non textuel (WCAG 1.4.11).
+- La garde de distinction vérifie désormais **les deux modes**. Ce n'est pas de la symétrie : les deux clartés découpent des tranches différentes du gamut, et un jeu optimisé sur le seul thème clair laissait deux teintes à 0,113 en sombre — sous son propre plancher.
+- **L'en-tête de la section ouverte garde l'accent**, délibérément : la règle propriétaire du 2026-08-05 veut qu'une icône de titre soit en couleur du thème. La conséquence est connue et acceptée — le glyphe change de couleur entre la liste et le volet, qui ne sont jamais affichés ensemble.
+
+### Fixed
+
+- **Six des vingt-quatre teintes sortaient du gamut sRGB** et étaient écrêtées en silence par le navigateur : ni la teinte ni le chroma écrits n'étaient rendus, et la promesse « aucun groupe ne paraît plus pâle qu'un autre » ne tenait pas pour celles-là. Cause mesurée : un chroma unique pour douze teintes, alors que le gamut n'est pas un cylindre — à clarté 55 %, un violet porte 0,25 là où un sarcelle plafonne à 0,09. Chaque teinte porte maintenant son propre maximum, moins 6 % de marge.
+- **Deux couples de teintes étaient indiscernables** (0,116 d'écart pour un plancher de 0,12) : l'espacement régulier de 30° suppose une roue perceptuellement uniforme, ce qu'elle cesse d'être dès que le chroma suit le gamut. Les douze angles sont désormais **cherchés** sur le pire des deux modes — la paire la plus proche passe de 0,116 à **0,199**, et le contraste s'améliore au passage.
+- **Deux glyphes empruntaient un sens déjà dépensé** : `ExternalLink` est l'affordance « ceci ouvre ailleurs » dans sept fichiers, et `Wrench` désigne un outil de l'agent dans le panneau HITL. Remplacés par `Signpost` et `Microscope`. `SquareTerminal` a été écarté pour une raison qu'aucune recherche textuelle ne montre : lucide l'a renommé depuis `TerminalSquare`, déjà utilisé — c'eût été un doublon **visuel**.
+
+### Tests
+
+- **Cinq tests pinnent la teinte là où elle est rendue**, et pas seulement là où elle est déclarée : la garde de contraste mesure la table de couleurs, ce qui resterait vrai si aucun composant ne l'appliquait jamais. Vérifiés en réinjectant le défaut — quatre rougissent si l'on annule le rendu, le cinquième si l'on teinte la ligne courante du rail.
+- Les attentes sont **dérivées des tables** plutôt qu'écrites en dur : une section changeant de groupe garde le test vrai au lieu de le faire échouer pour la mauvaise raison.
+- 6 409 tests frontend verts ; couverture 76,82 / 72,09 / 73,91 / 77,46 — `floor(mesuré − 2)` ne franchit aucun palier, les seuils restent 74/70/71/75. Backend 20 816 collectés : 27 225 au total, arrondi À LA BAISSE à 27 000 sur la landing par contrat.
+
+### Documentation
+
+- **ADR-251** — la décision et ce qu'elle a coûté : deux défauts distincts (la forme répétée, puis la couleur unique) corrigés séparément, une teinte par groupe et jamais par item, des tokens plutôt que des classes pour que la garde de contraste couvre la palette, et cinq alternatives écartées avec leur raison. Les deux intuitions démenties par la mesure y sont consignées comme telles.
+- **Guide technique, section 35** dans les six langues — « Mesurer une couleur avant de la livrer ». Ce n'est pas un journal de version : la page explique une méthode, à savoir qu'un gamut n'est pas un cylindre et qu'un espacement régulier n'est pas un espacement perçu.
+- **`docs/a11y/CONTRAST_TOKENS.md`** décrit désormais les **deux** palettes fixes du produit — le badge cyan des skills et les teintes de réglages — avec leurs mesures et la raison pour laquelle elles sont des tokens. La note de design system vivait dans `.claude/`, qui n'est pas livré : un lecteur du dépôt ne l'aurait jamais vue.
+- **FAQ, « Comment retrouver un réglage rapidement ? »** dans les six langues : chercher n'est plus la seule réponse, puisqu'une section déjà visitée se retrouve à l'allure. La réponse dit aussi ce que la couleur ne fait pas.
+- **Une carte de plus sur la page « Encore + »** (`settings_tones`, section « Quand tu cherches »), avec sa scène animée — qui **lit** la table des teintes au lieu de la recopier, et montre le vrai coupable : la prise qui servait quatre fois.
+- **`docs/knowledge/03_settings.md`** réaligné sur l'interface réelle : la section décrivait encore « une trentaine de sections repliées réparties en onglets », état antérieur à ADR-227, et excluait de la recherche un onglet Administration qu'elle couvre désormais.
+
 ## [1.38.0] - 2026-08-29
 
 **Trois plans faisaient encore autorité là où un seul devait suffire — et le quatrième mentait sur ce qu'il savait.** Cette version solde quatre chantiers qui partagent une même règle : une valeur a un endroit où on la lit, un nombre affiché est un nombre mesuré, et un verdict qu'on ne peut pas constater ne s'annonce pas.

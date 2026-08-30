@@ -1,7 +1,16 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Blocks, Download, Languages, Pencil, RotateCcw, Trash2, Upload } from 'lucide-react';
+import {
+  Blocks,
+  Boxes,
+  Download,
+  Languages,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -175,7 +184,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
       value="admin-skills"
       title={t('settings.skills.admin_title')}
       description={t('settings.skills.admin_description')}
-      icon={Blocks}
+      icon={Boxes}
     >
       {/* Header with import + reload buttons */}
       <div className="flex items-center justify-between mb-4">

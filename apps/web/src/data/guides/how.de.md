@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Datum**: 2026-08-23
-**Application**: LIA v1.38.0
+**Application**: LIA v1.38.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -48,6 +48,7 @@
 32. [Native Apps: eine Hülle, Ihr Server](#32-native-apps-eine-hülle-ihr-server)
 33. [Selbstdiagnose: ein Assistent, der die eigene Telemetrie liest](#33-selbstdiagnose-ein-assistent-der-die-eigene-telemetrie-liest)
 34. [Rechnen statt raten: ein flüchtiges Skript in der bereits vorhandenen Sandbox](#34-rechnen-statt-raten-ein-flüchtiges-skript-in-der-bereits-vorhandenen-sandbox)
+35. [Eine Farbe messen, bevor man sie ausliefert: die Palette der Einstellungen](#35-eine-farbe-messen-bevor-man-sie-ausliefert-die-palette-der-einstellungen)
 ---
 
 ## 1. Kontext und grundlegende Entscheidungen
@@ -62,7 +63,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 490 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 249 ADRs, ~21.521 von pytest gesammelte Tests in 1.292 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 250 ADRs, ~21.521 von pytest gesammelte Tests in 1.292 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -83,7 +84,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Tests | 21.521 von pytest über 1.292 Testdateien gesammelt + 6.368 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 249 |
+| ADRs (Architecture Decision Records) | 250 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1312,7 +1313,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-249 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+250 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1418,7 +1419,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 249 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~21.521 Tests in 1.292 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 250 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~21.521 Tests in 1.292 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1474,4 +1475,20 @@ Fragen Sie ein Sprachmodell, wie lange eine Reihe von Zwischenstopps insgesamt d
 
 **Die Ausgabe ist nicht vertrauenswürdig, der Code ist prüfbar.** Was ein Skript ausgibt, stammt aus modellgeschriebenem Code über Fremddaten und wird daher als nicht vertrauenswürdiger Inhalt markiert, genau wie der Text einer E-Mail. Der Code selbst ist samt erklärtem Zweck und Ausgabe für Administratoren im Debug-Panel sichtbar: Ihn zu verstecken brächte keine Sicherheit — das Modell hat ihn geschrieben, er steht bereits in seinem Kontext — und kostete die gesamte Nachprüfbarkeit.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 249 ADRs und des Changelogs (v1.0 bis v1.38.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+## 35. Eine Farbe messen, bevor man sie ausliefert: die Palette der Einstellungen
+
+Die Einstellungsseite listet dreiundfünfzig Abschnitte. Alle zeichneten dasselbe Symbol, in derselben Farbe, auf demselben Feld — und sechzehn davon liehen sich zusätzlich die Zeichnung eines anderen. Zur Orientierung blieb dem Auge eine einzige, wiederholte Form.
+
+**Farbe repariert keine wiederholte Form.** Zwei Stecker bleiben zwei Stecker, auch in zwei Farben: es waren zwei verschiedene Mängel, und sie wurden getrennt behoben — eine eigene Zeichnung je Abschnitt, dann ein Farbton je **Gruppe**. Je Gruppe und nie je Eintrag: zwölf Farben sind eine Karte, die das Auge lernt, dreiundfünfzig wären ein Rauschen, das es entziffert.
+
+**Tokens, keine Utility-Klassen.** Die Palette ist fest und liegt außerhalb der vom Nutzer gewählten Akzentfarbe — die zweite solche Abweichung des Produkts nach dem cyanfarbenen Skill-Abzeichen. Als wörtliche Klassen geschrieben wäre sie aus dem Sichtfeld der Kontrastprüfung gefallen, die Token-Paare liest; als `--color-settings-*` geschrieben fällt sie konstruktionsbedingt hinein. Was man erzwingt, muss für das lesbar sein, was es prüft.
+
+**Der sRGB-Gamut ist kein Zylinder.** Erste Intuition: zwölf gleichmäßig verteilte Farbtöne, ein Chroma, eine Helligkeit je Modus. Die Messung sagte Nein — bei 55 % Helligkeit trägt ein Violett 0,25 Chroma, während ein Petrol bei 0,09 endet, und sechs der vierundzwanzig Töne lagen außerhalb des Gamuts, stillschweigend vom Browser beschnitten, der dann weder den geschriebenen Farbton noch das Chroma darstellte. Jeder Farbton trägt nun sein eigenes Maximum, abzüglich einer Reserve.
+
+**Gleichmäßiger Abstand ist kein wahrgenommener Abstand.** Sobald das Chroma dem Gamut folgte, lagen zwei Paare 0,116 auseinander — unter der Unterscheidbarkeitsschwelle, die die Prüfung selbst setzt. Die zwölf Winkel werden daher **gesucht**, und zwar auf dem schlechteren der beiden Modi: die beiden Helligkeiten schneiden verschiedene Scheiben des Gamuts, und ein nur am hellen Thema optimierter Satz ließ im dunklen noch ein Paar bei 0,113. Das nächste Paar misst jetzt 0,199.
+
+**Farbe nennt nie einen Zustand.** Der geöffnete Abschnitt hebt sich durch Hintergrund, Schriftstärke und Akzentfarbe ab — nicht dadurch, dass er ein dreizehnter Farbton würde — und ob eine Fähigkeit aktiv ist, zeigt weiterhin ein gefüllter oder hohler Punkt. Das ist WCAG 1.4.1 ernst genommen: wer diese zwölf Töne nicht wahrnimmt, verliert keine Information. Da das Symbol ein nicht-textliches grafisches Objekt ist, liegt seine Schwelle bei 3:1, gemessen auf den beiden Untergründen, die es tatsächlich belegt — dem Kartenfeld und der blanken Leiste, samt Hover.
+
+**Eine Regel für beide Listen.** Die Übersichtskarte und die Leistenzeile lesen dieselbe Funktion: sie können bei einem Abschnitt nicht auseinanderlaufen, und ein Aufrufer außerhalb der Tabelle fällt auf die Akzentfarbe zurück statt auf nichts.
+
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 250 ADRs und des Changelogs (v1.0 bis v1.38.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

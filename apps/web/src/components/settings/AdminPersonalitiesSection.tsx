@@ -24,7 +24,15 @@ import {
   translatePersonality,
 } from '@/lib/api/personality';
 import { PersonalityResponse, PersonalityCreate, PersonalityUpdate } from '@/types/personality';
-import { Plus, Pencil, Trash2, Languages, GripVertical, Star, Sparkles } from 'lucide-react';
+import {
+  Drama,
+  GripVertical,
+  Languages,
+  Pencil,
+  Plus,
+  Star,
+  Trash2,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
 import { usePersonalityStore } from '@/stores/personalityStore';
@@ -298,7 +306,7 @@ export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
         value="admin-personalities"
         title={t('settings.admin.personalities.title')}
         description={t('settings.admin.personalities.description')}
-        icon={Sparkles}
+        icon={Drama}
       >
         <TableSkeleton rows={5} />
       </SettingsSection>
@@ -606,7 +614,7 @@ export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
       value="admin-personalities"
       title={t('settings.admin.personalities.title')}
       description={t('settings.admin.personalities.description')}
-      icon={Sparkles}
+      icon={Drama}
     >
       {content}
       {confirmDialog}

@@ -4419,6 +4419,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_38_1": {
+          "title": "v1.38.1 — 🎨 Settings you can find at a glance",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 Every settings family has its own colour, every setting its own icon</b> — the page listed fifty-three sections that all drew the same blue icon on the same blue chip, and sixteen of them borrowed another section's drawing on top of that (one plug shape served four different settings). Colour cannot separate a repeated shape, so both were fixed: a distinct icon per setting, and one colour per family — twelve colours you learn, not fifty-three you decipher. It works the same way in the sidebar, which is the settings list on a phone.",
+            "i2": "<b>♿ The colour never carries meaning on its own</b> — the section you have open still stands out by its background, its weight and the accent colour, not by being a thirteenth hue; and whether a capability is on is still shown by a filled or hollow dot. Anyone who does not perceive these colours loses nothing. Each of them was measured against every theme — light, dark and OLED, across the five accent colours — before shipping."
+          }
+        },
         "v1_38_0": {
           "title": "v1.38.0 — 🎭 A full palette of moods, and a deployment that stops lying",
           "date": "August 2026",
@@ -6772,7 +6781,7 @@
           },
           "q19": {
             "question": "How do I find a setting quickly?",
-            "answer": "<p>The settings page lists every section in a rail that never scrolls away, and opens the one you pick in the panel beside it. The <strong>\"Search a setting\"</strong> field, at the top of the rail, takes you straight there.</p><strong>What the search understands:</strong><br>• The <strong>title</strong> and <strong>description</strong> of every section<br>• Translated <strong>synonyms</strong>: \"dark\" for Appearance, \"2FA\" or \"TOTP\" for Strong authentication, \"GDPR\" for your data export, \"cron\" for Scheduled actions<br>• Accents and apostrophes are ignored — \"theme\" finds \"Thème\"<br><br><strong>When you pick a result:</strong><br>LIA opens the section in the panel and brings the cursor to it. Everything works from the keyboard — arrows to walk, Enter to open, Escape to dismiss — and the number of matches is announced to screen readers.<br><br>Some sections only exist when the feature is active on your account: LIA then tells you so, rather than leaving you in front of a page that did not move."
+            "answer": "<p>The settings page lists every section in a rail that never scrolls away, and opens the one you pick in the panel beside it. The <strong>\"Search a setting\"</strong> field, at the top of the rail, takes you straight there.</p><strong>What the search understands:</strong><br>• The <strong>title</strong> and <strong>description</strong> of every section<br>• Translated <strong>synonyms</strong>: \"dark\" for Appearance, \"2FA\" or \"TOTP\" for Strong authentication, \"GDPR\" for your data export, \"cron\" for Scheduled actions<br>• Accents and apostrophes are ignored — \"theme\" finds \"Thème\"<br><br><strong>When you pick a result:</strong><br>LIA opens the section in the panel and brings the cursor to it. Everything works from the keyboard — arrows to walk, Enter to open, Escape to dismiss — and the number of matches is announced to screen readers.<br><br><strong>Before you search at all:</strong><br>Each family of settings has its own colour and each setting its own icon, on the home cards as in the rail — so a section you have already visited is found by its look, not by reading. The colour groups and decorates: it never carries an information on its own, and the section you have open is still marked by its background and its accent.<br><br>Some sections only exist when the feature is active on your account: LIA then tells you so, rather than leaving you in front of a page that did not move."
           },
           "q20": {
             "question": "Where can I see everything LIA sent me, without digging through settings?",
@@ -8059,6 +8068,10 @@
         "title": "Settings, side by side",
         "desc": "Every section sits in a rail that never scrolls away, and the one you pick opens whole beside it. On a phone the list comes first, and a section takes the screen with a way back."
       },
+      "settings_tones": {
+        "title": "A colour per family",
+        "desc": "Each family of settings carries its own tint and each setting its own drawing, so the eye finds a section again without rereading the list. The colour decorates and groups; it never says anything on its own."
+      },
       "server_escape_hatch": {
         "title": "A mistyped server is not a dead end",
         "desc": "The native apps ship their own offline screen: retry, or switch servers — a typo at first launch never means reinstalling."
@@ -8148,6 +8161,11 @@
       },
       "settings_shell": {
         "section": "Appearance"
+      },
+      "settings_tones": {
+        "row1": "Security",
+        "row2": "Notifications",
+        "row3": "Appearance"
       },
       "pricing_workbook": {
         "preview": "Preview before writing"
@@ -10324,7 +10342,8 @@
       "expressive_eyes": "Expressive eyes",
       "native_apps": "Native apps",
       "self_diagnostics": "Self-diagnostics",
-      "computed_answers": "Computed answers"
+      "computed_answers": "Computed answers",
+      "measured_palette": "A measured palette"
     }
   },
   "psyche": {

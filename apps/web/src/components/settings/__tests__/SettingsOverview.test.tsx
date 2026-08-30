@@ -11,7 +11,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { SETTINGS_GROUP_TONES } from '@/lib/settings-group-tones';
 import { buildSettingsShellModel } from '@/lib/settings-shell-model';
+import { SETTINGS_SEARCH_META } from '@/lib/settings-search';
 import type { SettingsSearchAvailability } from '@/lib/settings-search';
 
 const { useCapabilities, useMediaQuery } = vi.hoisted(() => ({
@@ -200,5 +202,50 @@ describe('SettingsOverview — what each section currently holds', () => {
     expect(within(memoriesCard()).getByText(/capabilities\.state_active/)).toBeVisible();
     expect(memoriesCard()).not.toHaveAccessibleName(/capabilities\.state_active/);
     expect(memoriesCard()).toHaveAccessibleName(/memories\.settings\.title/);
+  });
+  /**
+   * The group tone, where it is actually rendered.
+   *
+   * Deliberate deviation from the accent rule (see `lib/settings-group-tones.ts`),
+   * so it needs a test on the SURFACE and not only on the token table: the
+   * contrast guard checks the twelve colours exist and are legible, which stays
+   * true even if no component ever applies one.
+   */
+  describe('group tones', () => {
+    /** The chip is the first span inside the card; the glyph is its svg. */
+    const chipOf = (card: HTMLElement) => card.querySelector('span');
+    const glyphOf = (card: HTMLElement) => card.querySelector('svg');
+
+    it('paints each card with the tone of the group it belongs to', () => {
+      renderOverview();
+      const card = screen.getByRole('button', { name: /settings\.theme\.title/ });
+      // Derived, not hard-coded: `theme` moving to another group must keep this
+      // test true rather than red for the wrong reason.
+      const tone = SETTINGS_GROUP_TONES[SETTINGS_SEARCH_META['theme'].group];
+
+      expect(chipOf(card)).toHaveClass(tone.chip);
+      expect(glyphOf(card)).toHaveClass(tone.glyph);
+    });
+
+    it('gives two different groups two different tones', () => {
+      renderOverview();
+      const personalization = screen.getByRole('button', { name: /settings\.theme\.title/ });
+      const memory = memoriesCard();
+
+      const a = SETTINGS_GROUP_TONES[SETTINGS_SEARCH_META['theme'].group];
+      const b = SETTINGS_GROUP_TONES[SETTINGS_SEARCH_META['memories'].group];
+      expect(a.glyph).not.toBe(b.glyph);
+      expect(glyphOf(personalization)).toHaveClass(a.glyph);
+      expect(glyphOf(memory)).toHaveClass(b.glyph);
+    });
+
+    it('no longer paints every card with the accent', () => {
+      // The defect this replaced: 53 sections, one repeated `bg-primary/10`
+      // chip. Asserting the absence is what makes a silent revert fail here.
+      renderOverview();
+      const card = screen.getByRole('button', { name: /settings\.theme\.title/ });
+      expect(chipOf(card)).not.toHaveClass('bg-primary/10');
+      expect(glyphOf(card)).not.toHaveClass('text-primary');
+    });
   });
 });

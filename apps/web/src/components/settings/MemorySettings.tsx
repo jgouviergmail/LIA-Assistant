@@ -2,18 +2,19 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Brain,
-  Trash2,
-  Download,
   AlertTriangle,
-  Pencil,
-  Save,
-  X,
+  BookUser,
+  Brain,
   Clock,
+  Download,
+  Pencil,
   Pin,
   PinOff,
-  RefreshCw,
   Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -963,7 +964,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
       value="memories"
       title={t('memories.settings.title')}
       description={t('memories.settings.description')}
-      icon={Brain}
+      icon={BookUser}
     >
       {content}
     </SettingsSection>

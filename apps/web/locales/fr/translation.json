@@ -4424,6 +4424,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_38_1": {
+          "title": "v1.38.1 — 🎨 Des réglages qu'on retrouve d'un coup d'œil",
+          "date": "Août 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 Chaque famille de réglages a sa couleur, chaque réglage son icône</b> — la page listait cinquante-trois sections qui dessinaient toutes la même icône bleue sur la même pastille bleue, et seize d'entre elles empruntaient en plus le dessin d'une autre (une même prise servait à quatre réglages différents). La couleur ne sépare pas une forme répétée : les deux ont donc été corrigés — un dessin propre par réglage, et une couleur par famille, douze couleurs qu'on apprend plutôt que cinquante-trois qu'on déchiffre. Même principe dans la colonne latérale, qui est la liste des réglages sur téléphone.",
+            "i2": "<b>♿ La couleur ne porte jamais seule une information</b> — la section ouverte se distingue toujours par son fond, sa graisse et la couleur d'accent, pas en devenant une treizième teinte ; et qu'une capacité soit active reste signalé par une pastille pleine ou creuse. Qui ne perçoit pas ces couleurs ne perd rien. Chacune a été mesurée sur tous les thèmes — clair, sombre et OLED, pour les cinq couleurs d'accent — avant d'être livrée."
+          }
+        },
         "v1_38_0": {
           "title": "v1.38.0 — 🎭 Une palette d'humeurs enfin complète, et un déploiement qui ne ment plus",
           "date": "Août 2026",
@@ -6777,7 +6786,7 @@
           },
           "q19": {
             "question": "Comment retrouver un réglage rapidement ?",
-            "answer": "<p>La page des réglages liste toutes les sections dans un rail qui ne s'en va jamais, et ouvre celle que tu choisis dans le panneau à côté. Le champ <strong>« Rechercher un réglage »</strong>, en haut du rail, t'y emmène directement.</p><strong>Ce que la recherche comprend :</strong><br>• Le <strong>titre</strong> et la <strong>description</strong> de chaque section<br>• Des <strong>synonymes</strong> traduits : « sombre » pour l'apparence, « 2FA » ou « TOTP » pour l'authentification forte, « RGPD » pour l'export de tes données, « cron » pour les actions planifiées<br>• Les accents et les apostrophes sont ignorés — « theme » trouve « Thème »<br><br><strong>Quand tu choisis un résultat :</strong><br>LIA ouvre la section dans le panneau et y amène le curseur. Tout est utilisable au clavier — flèches pour parcourir, Entrée pour ouvrir, Échap pour refermer — et le nombre de résultats est annoncé aux lecteurs d'écran.<br><br>Certaines sections n'existent que si la fonction est active sur ton compte : dans ce cas, LIA te le dit plutôt que de te laisser devant une page inchangée."
+            "answer": "<p>La page des réglages liste toutes les sections dans un rail qui ne s'en va jamais, et ouvre celle que tu choisis dans le panneau à côté. Le champ <strong>« Rechercher un réglage »</strong>, en haut du rail, t'y emmène directement.</p><strong>Ce que la recherche comprend :</strong><br>• Le <strong>titre</strong> et la <strong>description</strong> de chaque section<br>• Des <strong>synonymes</strong> traduits : « sombre » pour l'apparence, « 2FA » ou « TOTP » pour l'authentification forte, « RGPD » pour l'export de tes données, « cron » pour les actions planifiées<br>• Les accents et les apostrophes sont ignorés — « theme » trouve « Thème »<br><br><strong>Quand tu choisis un résultat :</strong><br>LIA ouvre la section dans le panneau et y amène le curseur. Tout est utilisable au clavier — flèches pour parcourir, Entrée pour ouvrir, Échap pour refermer — et le nombre de résultats est annoncé aux lecteurs d'écran.<br><br><strong>Avant même de chercher :</strong><br>Chaque famille de réglages a sa couleur et chaque réglage son icône, sur les cartes d’accueil comme dans le rail — une section déjà visitée se retrouve donc à l’allure, sans lire. La couleur regroupe et décore : elle ne porte jamais seule une information, et la section ouverte reste signalée par son fond et sa couleur d’accent.<br><br>Certaines sections n'existent que si la fonction est active sur ton compte : dans ce cas, LIA te le dit plutôt que de te laisser devant une page inchangée."
           },
           "q20": {
             "question": "Où voir tout ce que LIA m'a envoyé, sans fouiller les réglages ?",
@@ -8064,6 +8073,10 @@
         "title": "Les réglages, côte à côte",
         "desc": "Toutes les sections tiennent dans un rail qui ne s’en va jamais, et celle que vous choisissez s’ouvre en entier juste à côté. Sur téléphone, la liste vient d’abord et la section prend l’écran, avec un retour."
       },
+      "settings_tones": {
+        "title": "Une couleur par famille",
+        "desc": "Chaque famille de réglages porte sa teinte et chaque réglage son propre dessin : l’œil retrouve une section sans relire la liste. La couleur décore et regroupe, elle ne dit jamais rien à elle seule."
+      },
       "server_escape_hatch": {
         "title": "Une adresse mal saisie n’est pas une impasse",
         "desc": "Les apps natives embarquent leur propre écran hors-ligne : réessayer, ou changer de serveur — une coquille au premier lancement n’oblige jamais à réinstaller."
@@ -8153,6 +8166,11 @@
       },
       "settings_shell": {
         "section": "Apparence"
+      },
+      "settings_tones": {
+        "row1": "Sécurité",
+        "row2": "Notifications",
+        "row3": "Apparence"
       },
       "pricing_workbook": {
         "preview": "Aperçu avant écriture"
@@ -10250,7 +10268,8 @@
       "expressive_eyes": "Yeux expressifs",
       "native_apps": "Apps natives",
       "self_diagnostics": "Auto-diagnostic",
-      "computed_answers": "Réponses calculées"
+      "computed_answers": "Réponses calculées",
+      "measured_palette": "Une palette mesurée"
     }
   },
   "healthMetrics": {

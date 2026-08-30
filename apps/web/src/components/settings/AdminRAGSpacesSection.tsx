@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Library, RefreshCw, AlertTriangle, Database, CheckCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle,
+  Database,
+  LibraryBig,
+  RefreshCw,
+} from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -407,7 +413,7 @@ export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
   return (
     <SettingsSection
       value="rag-spaces-admin"
-      icon={Library}
+      icon={LibraryBig}
       title={t('settings.admin.ragSpaces.title')}
       description={t('settings.admin.ragSpaces.subtitle')}
     >

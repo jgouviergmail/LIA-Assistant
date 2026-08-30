@@ -501,9 +501,19 @@ the jump.
 
 ## How do I find a setting quickly?
 
-The settings page stacks some thirty collapsed sections across several tabs. The
-**"Search a setting"** field, just below the tabs, saves you from walking
-through them.
+The settings page lists every section in a rail that never scrolls away, and
+opens the one you pick in the panel beside it. On a phone the list comes first
+and the section takes the screen, with a way back. Two things get you to the
+one you want.
+
+**By its look, before searching at all:**
+Each family of settings carries its own colour and each setting its own icon —
+on the home cards as in the rail. A section you have already visited is found
+by its appearance rather than by reading. The colour groups and decorates: it
+never carries an information on its own, and the section you have open is still
+marked by its background, its weight and the accent colour.
+
+**By searching.** The **"Search a setting"** field sits at the top of the rail.
 
 **What the search looks at:**
 - The **title** and **description** of every section
@@ -522,9 +532,6 @@ Some sections only render when the feature is active on your account or once
 they have data — recent calls, strong authentication, the data export. Rather
 than leaving you in front of a page that did not move, LIA tells you the section
 is not showing here.
-
-The Administration tab is not covered by this search; a superuser is told so
-below the results.
 
 ## Where can I see everything LIA sent me?
 The **Alerts** destination in the navigation bar gathers five streams in one

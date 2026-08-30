@@ -1,7 +1,9 @@
 'use client';
 
 import { toast } from 'sonner';
-import { Bug } from 'lucide-react';
+import {
+  Microscope,
+} from 'lucide-react';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -232,7 +234,7 @@ export default function AdminDebugSettingsSection({ lng }: BaseSettingsProps) {
   return (
     <SettingsSection
       value="debug-settings"
-      icon={Bug}
+      icon={Microscope}
       title={t('settings.admin.debug.title')}
       description={t('settings.admin.debug.subtitle')}
     >

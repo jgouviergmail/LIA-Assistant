@@ -22,6 +22,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { SETTINGS_SECTION_ICONS } from '@/lib/settings-section-icons';
+import { toneForSection } from '@/lib/settings-group-tones';
 import type { SettingsSectionToken, SettingsTab } from '@/lib/settings-sections';
 import type { SettingsShellTab } from '@/lib/settings-shell-model';
 import { cn } from '@/lib/utils';
@@ -89,6 +90,7 @@ export function SettingsRail({ lng, model, activeToken, onSelect }: SettingsRail
                   {group.sections.map(section => {
                     const Icon = SETTINGS_SECTION_ICONS[section.token];
                     const active = section.token === activeToken;
+                    const tone = toneForSection(section.token);
                     return (
                       <li key={section.token}>
                         <button
@@ -103,11 +105,17 @@ export function SettingsRail({ lng, model, activeToken, onSelect }: SettingsRail
                               : 'text-foreground hover:bg-accent/60'
                           )}
                         >
+                          {/* The tone marks the GROUP; the current row is
+                              still unmistakable without it — the whole row
+                              takes `bg-primary/10`, medium weight and the
+                              accent ink, so "you are here" never rests on a
+                              hue among twelve. Below `lg` this rail IS the
+                              settings list, which is why it is toned at all.
+                              Both grounds it sits on (page background, and
+                              `accent/60` while hovered) are measured in
+                              `design-contrast.guard.test.ts`. */}
                           <Icon
-                            className={cn(
-                              'h-4 w-4 shrink-0',
-                              active ? 'text-primary' : 'text-muted-foreground'
-                            )}
+                            className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : tone.glyph)}
                             aria-hidden="true"
                           />
                           <span className="min-w-0 flex-1 truncate">{t(section.titleKey)}</span>

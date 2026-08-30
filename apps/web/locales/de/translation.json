@@ -4410,6 +4410,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_38_1": {
+          "title": "v1.38.1 — 🎨 Einstellungen, die man auf einen Blick findet",
+          "date": "August 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 Jede Einstellungsfamilie hat ihre Farbe, jede Einstellung ihr Symbol</b> — die Seite listete dreiundfünfzig Abschnitte, die alle dasselbe blaue Symbol auf demselben blauen Feld zeichneten, und sechzehn davon liehen sich zusätzlich die Zeichnung einer anderen (ein Stecker stand für vier verschiedene Einstellungen). Farbe trennt keine wiederholte Form, also wurde beides behoben: ein eigenes Symbol je Einstellung und eine Farbe je Familie — zwölf Farben, die man lernt, statt dreiundfünfzig, die man entziffert. In der Seitenleiste gilt dasselbe; auf dem Telefon ist sie die Einstellungsliste.",
+            "i2": "<b>♿ Die Farbe trägt nie allein eine Information</b> — der geöffnete Abschnitt hebt sich weiterhin durch Hintergrund, Schriftstärke und Akzentfarbe ab, nicht dadurch, dass er ein dreizehnter Farbton würde; und ob eine Fähigkeit aktiv ist, zeigt weiterhin ein gefüllter oder hohler Punkt. Wer diese Farben nicht wahrnimmt, verliert nichts. Jede wurde vor der Auslieferung gegen alle Themes gemessen — hell, dunkel und OLED, über die fünf Akzentfarben hinweg."
+          }
+        },
         "v1_38_0": {
           "title": "v1.38.0 — 🎭 Eine endlich vollständige Stimmungspalette und ein Deployment, das nicht mehr lügt",
           "date": "August 2026",
@@ -6763,7 +6772,7 @@
           },
           "q19": {
             "question": "Wie finde ich eine Einstellung schnell?",
-            "answer": "<p>Die Einstellungsseite listet jeden Bereich in einer Leiste, die nie wegscrollt, und öffnet den gewählten im Panel daneben. Das Feld <strong>„Einstellung suchen“</strong> oben in der Leiste bringt dich direkt hin.</p><strong>Was die Suche versteht:</strong><br>• <strong>Titel</strong> und <strong>Beschreibung</strong> jedes Bereichs<br>• Übersetzte <strong>Synonyme</strong>: „Dunkelmodus“ für das Erscheinungsbild, „2FA“ oder „TOTP“ für die starke Authentifizierung, „DSGVO“ für den Datenexport, „Cron“ für geplante Aktionen<br>• Akzente und Apostrophe werden ignoriert — „theme“ findet „Thème“<br><br><strong>Wenn Sie ein Ergebnis wählen:</strong><br>LIA öffnet den Bereich im Panel und setzt den Cursor darauf. Alles ist über die Tastatur bedienbar — Pfeiltasten zum Durchlaufen, Enter zum Öffnen, Escape zum Schließen — und die Trefferzahl wird Screenreadern angesagt.<br><br>Manche Bereiche existieren nur, wenn die Funktion für dein Konto aktiv ist: LIA sagt es dir dann, statt Sie vor einer unveränderten Seite stehen zu lassen."
+            "answer": "<p>Die Einstellungsseite listet jeden Bereich in einer Leiste, die nie wegscrollt, und öffnet den gewählten im Panel daneben. Das Feld <strong>„Einstellung suchen“</strong> oben in der Leiste bringt dich direkt hin.</p><strong>Was die Suche versteht:</strong><br>• <strong>Titel</strong> und <strong>Beschreibung</strong> jedes Bereichs<br>• Übersetzte <strong>Synonyme</strong>: „Dunkelmodus“ für das Erscheinungsbild, „2FA“ oder „TOTP“ für die starke Authentifizierung, „DSGVO“ für den Datenexport, „Cron“ für geplante Aktionen<br>• Akzente und Apostrophe werden ignoriert — „theme“ findet „Thème“<br><br><strong>Wenn Sie ein Ergebnis wählen:</strong><br>LIA öffnet den Bereich im Panel und setzt den Cursor darauf. Alles ist über die Tastatur bedienbar — Pfeiltasten zum Durchlaufen, Enter zum Öffnen, Escape zum Schließen — und die Trefferzahl wird Screenreadern angesagt.<br><br><strong>Noch bevor Sie suchen:</strong><br>Jede Einstellungsfamilie hat ihre Farbe und jede Einstellung ihr Symbol — auf den Startkarten wie in der Leiste. Einen bereits besuchten Abschnitt finden Sie so am Aussehen wieder, ohne zu lesen. Die Farbe gruppiert und schmückt: allein trägt sie nie eine Information, und der geöffnete Abschnitt bleibt durch Hintergrund und Akzentfarbe gekennzeichnet.<br><br>Manche Bereiche existieren nur, wenn die Funktion für dein Konto aktiv ist: LIA sagt es dir dann, statt Sie vor einer unveränderten Seite stehen zu lassen."
           },
           "q20": {
             "question": "Wo sehe ich alles, was LIA mir geschickt hat, ohne die Einstellungen zu durchsuchen?",
@@ -8050,6 +8059,10 @@
         "title": "Einstellungen, nebeneinander",
         "desc": "Alle Bereiche stehen in einer Leiste, die nie wegscrollt, und der gewählte öffnet sich vollständig daneben. Auf dem Telefon kommt die Liste zuerst, und ein Bereich nimmt den Bildschirm ein, mit einem Weg zurück."
       },
+      "settings_tones": {
+        "title": "Eine Farbe je Familie",
+        "desc": "Jede Einstellungsfamilie trägt ihren Farbton und jede Einstellung ihre eigene Zeichnung, sodass das Auge einen Abschnitt wiederfindet, ohne die Liste erneut zu lesen. Die Farbe schmückt und gruppiert; allein sagt sie nie etwas."
+      },
       "server_escape_hatch": {
         "title": "Eine falsch eingetippte Adresse ist keine Sackgasse",
         "desc": "Die nativen Apps bringen ihren eigenen Offline-Bildschirm mit: erneut versuchen oder den Server wechseln — ein Tippfehler beim ersten Start bedeutet nie eine Neuinstallation."
@@ -8139,6 +8152,11 @@
       },
       "settings_shell": {
         "section": "Darstellung"
+      },
+      "settings_tones": {
+        "row1": "Sicherheit",
+        "row2": "Benachrichtigungen",
+        "row3": "Erscheinungsbild"
       },
       "pricing_workbook": {
         "preview": "Vorschau vor dem Schreiben"
@@ -10244,7 +10262,8 @@
       "expressive_eyes": "Ausdrucksstarke Augen",
       "native_apps": "Native Apps",
       "self_diagnostics": "Selbstdiagnose",
-      "computed_answers": "Berechnete Antworten"
+      "computed_answers": "Berechnete Antworten",
+      "measured_palette": "Eine gemessene Palette"
     }
   },
   "healthMetrics": {

@@ -42,6 +42,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { activeLabel } from '@/components/capabilities/capability-state';
 import { capabilityOfSection } from '@/lib/capability-sections';
 import { SETTINGS_SECTION_ICONS } from '@/lib/settings-section-icons';
+import { toneForSection } from '@/lib/settings-group-tones';
 import type { SettingsSectionToken } from '@/lib/settings-sections';
 import type { SettingsShellTab } from '@/lib/settings-shell-model';
 import { cn } from '@/lib/utils';
@@ -106,6 +107,13 @@ export function SettingsOverview({ lng, model, onSelect, children }: SettingsOve
             <ul className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 xl:grid-cols-3">
               {group.sections.map(section => {
                 const Icon = SETTINGS_SECTION_ICONS[section.token];
+                // The tone belongs to the GROUP, never to the section: 53 hues
+                // would be noise, 12 are a map the eye can learn. Resolved by
+                // the same function the rail uses, so the two lists cannot
+                // disagree about a section. The OPEN section's header keeps the
+                // accent — owner rule, `apps/web/CLAUDE.md`: a title icon is in
+                // the theme colour.
+                const tone = toneForSection(section.token);
                 const capability = capabilityOfSection(section.token);
                 const node = capability ? statusOf.get(capability) : undefined;
                 return (
@@ -115,8 +123,8 @@ export function SettingsOverview({ lng, model, onSelect, children }: SettingsOve
                       onClick={() => onSelect(section.token)}
                       className="flex h-full w-full items-start gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-primary/60 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                      <span className="flex shrink-0 rounded-lg bg-primary/10 p-2">
-                        <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
+                      <span className={cn('flex shrink-0 rounded-lg p-2', tone.chip)}>
+                        <Icon className={cn('h-4 w-4', tone.glyph)} aria-hidden="true" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold leading-tight">

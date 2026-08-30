@@ -1,7 +1,9 @@
 'use client';
 
 import { toast } from 'sonner';
-import { Plug } from 'lucide-react';
+import {
+  Cable,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
 import { useApiQuery } from '@/hooks/useApiQuery';
@@ -157,7 +159,7 @@ export default function AdminConnectorsSection({ lng }: BaseSettingsProps) {
         value="admin-connectors"
         title={t('settings.admin.connectors.title')}
         description={t('settings.admin.connectors.description')}
-        icon={Plug}
+        icon={Cable}
       >
         <div className="animate-pulse text-muted-foreground">
           {t('settings.admin.connectors.loading')}
@@ -241,7 +243,7 @@ export default function AdminConnectorsSection({ lng }: BaseSettingsProps) {
       value="admin-connectors"
       title={t('settings.admin.connectors.title')}
       description={t('settings.admin.connectors.description')}
-      icon={Plug}
+      icon={Cable}
     >
       {content}
     </SettingsSection>

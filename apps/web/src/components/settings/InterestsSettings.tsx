@@ -2,17 +2,18 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Sparkles,
-  Trash2,
-  Plus,
   Ban,
   Clock,
-  Gauge,
-  Pencil,
+  Compass,
   Download,
-  Moon,
-  RotateCcw,
+  Gauge,
   History,
+  Moon,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  Trash2,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -873,7 +874,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
       value="interests"
       title={t('interests.settings.title')}
       description={t('interests.settings.description')}
-      icon={Sparkles}
+      icon={Compass}
     >
       {content}
     </SettingsSection>

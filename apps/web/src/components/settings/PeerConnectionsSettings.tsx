@@ -12,7 +12,13 @@
  * precedent).
  */
 
-import { Eye, Handshake, Radar, ShieldOff, Users, UserSearch } from 'lucide-react';
+import {
+  Eye,
+  Handshake,
+  Radar,
+  ShieldOff,
+  UserSearch,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -205,7 +211,7 @@ export function PeerConnectionsSettings({ lng }: BaseSettingsProps) {
       value="peer-connections"
       title={t('settings.peers.title')}
       description={t('settings.peers.description')}
-      icon={Users}
+      icon={Handshake}
     >
       {content}
     </SettingsSection>

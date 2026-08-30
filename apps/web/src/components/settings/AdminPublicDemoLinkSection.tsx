@@ -2,7 +2,10 @@
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { ExternalLink, Globe } from 'lucide-react';
+import {
+  ExternalLink,
+  Signpost,
+} from 'lucide-react';
 
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
@@ -118,7 +121,7 @@ export default function AdminPublicDemoLinkSection({ lng }: BaseSettingsProps) {
       value="admin-public-demo-link"
       title={t('settings.admin.publicDemoLink.title')}
       description={t('settings.admin.publicDemoLink.description')}
-      icon={Globe}
+      icon={Signpost}
     >
       {content}
     </SettingsSection>

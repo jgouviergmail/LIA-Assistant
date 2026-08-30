@@ -6,7 +6,7 @@
 
 **Versione**: 4.6
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.38.0
+**Applicazione**: LIA v1.38.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -48,6 +48,7 @@
 32. [App native: un guscio, il tuo server](#32-app-native-un-guscio-il-tuo-server)
 33. [Autodiagnosi: un assistente che legge la propria telemetria](#33-autodiagnosi-un-assistente-che-legge-la-propria-telemetria)
 34. [Calcolare invece di indovinare: uno script effimero nella sandbox che esisteva già](#34-calcolare-invece-di-indovinare-uno-script-effimero-nella-sandbox-che-esisteva-già)
+35. [Misurare un colore prima di consegnarlo: la tavolozza delle impostazioni](#35-misurare-un-colore-prima-di-consegnarlo-la-tavolozza-delle-impostazioni)
 ---
 
 ## 1. Contesto e scelte fondanti
@@ -62,7 +63,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 490 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 249 ADRs, ~21.521 test raccolti da pytest in 1.292 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 250 ADRs, ~21.521 test raccolti da pytest in 1.292 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -83,7 +84,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Test | 21.521 raccolti da pytest su 1.292 file di test + 6.368 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 249 |
+| ADR (Architecture Decision Record) | 250 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1314,7 +1315,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-249 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+250 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1420,7 +1421,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 249 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~21.521 test in 1.292 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 250 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~21.521 test in 1.292 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1476,4 +1477,20 @@ Chiedete a un modello linguistico quanto durano in totale una serie di scali, qu
 
 **L'output non è affidabile, il codice è verificabile.** Ciò che uno script stampa è codice scritto da un modello che gira su dati di terzi: per questo è marcato come contenuto non affidabile, esattamente come il corpo di un'email. Il codice stesso, con il suo scopo dichiarato e il suo output, è visibile agli amministratori nel pannello di debug: nasconderlo non comprerebbe alcuna sicurezza — il modello l'ha scritto, è già nel suo contesto — e costerebbe tutta la verificabilità.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 249 ADRs e del changelog (da v1.0 a v1.38.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+## 35. Misurare un colore prima di consegnarlo: la tavolozza delle impostazioni
+
+La pagina delle impostazioni elenca cinquantatré sezioni. Disegnavano tutte la stessa icona, dello stesso colore, sulla stessa pastiglia — e sedici di esse prendevano in prestito anche il disegno di un'altra. Per orientarsi, l'occhio aveva una sola forma ripetuta.
+
+**Il colore non ripara una forma ripetuta.** Due spine restano due spine, anche in due colori: erano due difetti distinti e sono stati corretti separatamente — un disegno proprio per sezione, poi una tinta per **gruppo**. Per gruppo e mai per voce: dodici colori sono una mappa che l'occhio impara, cinquantatré sarebbero un rumore da decifrare.
+
+**Token, non classi di utilità.** La tavolozza è fissa, fuori dall'accento scelto dall'utente — la seconda deroga del prodotto, dopo il distintivo ciano delle skill. Scritta come classi letterali sarebbe uscita dal campo della guardia di contrasto, che legge coppie di token; scritta come `--color-settings-*` vi rientra per costruzione. Un vincolo che si impone dev'essere leggibile da ciò che lo verifica.
+
+**Il gamut sRGB non è un cilindro.** Prima intuizione: dodici tinte spaziate regolarmente, un croma unico, una luminosità per modo. La misura ha detto di no — al 55 % di luminosità un viola porta 0,25 di croma dove un verde acqua si ferma a 0,09, e sei delle ventiquattro tinte cadevano fuori dal gamut, tagliate in silenzio dal browser, che allora non rendeva né la tinta né il croma scritti. Ogni tinta porta ora il proprio massimo, meno un margine.
+
+**Una spaziatura regolare non è una spaziatura percepita.** Una volta che il croma ha seguito il gamut, due coppie si sono trovate a 0,116 l'una dall'altra, sotto la soglia di distinzione che la guardia stessa impone. I dodici angoli sono quindi **cercati**, e sul peggiore dei due modi: le due luminosità tagliano fette diverse del gamut, e un insieme ottimizzato sul solo tema chiaro lasciava ancora una coppia a 0,113 in scuro. La coppia più vicina misura ora 0,199.
+
+**Il colore non enuncia mai uno stato.** La sezione aperta si distingue per lo sfondo, il peso e il colore d'accento — non diventando una tredicesima tinta — e se una capacità è attiva resta indicato da un pallino pieno o vuoto. È la regola WCAG 1.4.1 presa sul serio: chi non percepisce queste dodici tinte non perde alcuna informazione. Essendo il glifo un oggetto grafico non testuale, la sua soglia è 3:1, misurata sui due fondi che occupa davvero — la pastiglia delle schede e la colonna nuda, passaggio del cursore compreso.
+
+**Una sola regola per le due liste.** La scheda della panoramica e la riga della colonna leggono la stessa funzione: non possono divergere su una sezione, e un chiamante fuori tabella ripiega sull'accento invece che sul nulla.
+
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 250 ADRs e del changelog (da v1.0 a v1.38.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

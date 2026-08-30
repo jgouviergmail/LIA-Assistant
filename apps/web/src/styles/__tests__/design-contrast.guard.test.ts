@@ -22,6 +22,10 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  SETTINGS_GROUP_TONES,
+  SETTINGS_TONE_CHIP_ALPHA,
+} from '../../lib/settings-group-tones';
+import {
   type Palette,
   type Rgb,
   allPalettes,
@@ -334,6 +338,131 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
       failures,
       `\nselection contrast failures (primary/${literal![1]}):\n  ${failures.join('\n  ')}\n`
     ).toEqual([]);
+  });
+
+
+  /**
+   * Settings group tones — the second fixed-palette chrome element.
+   *
+   * These deliberately do NOT follow the user's accent (see
+   * `lib/settings-group-tones.ts` for why), which is exactly the condition
+   * that put the skill badge's cyan in this file: a fixed palette outside the
+   * guard is a palette nobody re-measures. They are declared as `--color-*`
+   * tokens precisely so this block can read them rather than restate them.
+   *
+   * The tones are fixed, so they are resolved from the DEFAULT palette of the
+   * mode and measured against the ACTIVE palette's card — which is the real
+   * situation on an accent theme: the ground moves, the tone does not.
+   *
+   * Threshold is 3:1, not 4.5: the glyph is a non-text graphical object
+   * (WCAG 1.4.11). The ground is the chip, i.e. the tone itself at
+   * `SETTINGS_TONE_CHIP_ALPHA` over the card — blended here rather than
+   * approximated by the bare card, because that blend is what the eye sees.
+   */
+  describe('settings group tones (fixed palette, all themes x modes)', () => {
+    const tokenOf = (glyphClass: string) => glyphClass.replace(/^text-/, '');
+    const GROUPS = Object.entries(SETTINGS_GROUP_TONES);
+
+    it('declares a tone for every settings group', () => {
+      // Completeness is the `Record` type at compile time; restated so a
+      // `Partial`-weakening refactor reds a test rather than only a review.
+      expect(GROUPS.length).toBeGreaterThanOrEqual(12);
+    });
+
+    for (const [name, palette] of Object.entries(palettes)) {
+      const isLight = name.endsWith('-light');
+      const tones = isLight ? palettes['default-light'] : palettes['default-dark'];
+
+      it(`${name}: every group glyph clears 3:1 on its own chip`, () => {
+        const failures: string[] = [];
+        for (const [group, tone] of GROUPS) {
+          const token = tokenOf(tone.glyph);
+          const ink = tones[token];
+          if (!ink) {
+            failures.push(`${group}: --color-${token} is not declared in globals.css`);
+            continue;
+          }
+          const chip = blend(ink, palette['card'], SETTINGS_TONE_CHIP_ALPHA);
+          const ratio = contrast(ink, chip);
+          if (ratio < NON_TEXT) failures.push(`${group}: ${ratio.toFixed(2)} < ${NON_TEXT}`);
+        }
+        expect(
+          failures,
+          `\n${name} settings-tone failures:\n  ${failures.join('\n  ')}\n`
+        ).toEqual([]);
+      });
+    }
+
+
+    /**
+     * The rail renders the same tones WITHOUT a chip: the glyph sits directly
+     * on the page background, and on `accent/60` while a row is hovered. Below
+     * `lg` the rail is the landing screen, so this is the only settings list a
+     * phone ever shows — leaving its grounds unmeasured would have guarded the
+     * surface that matters least.
+     */
+    for (const [name, palette] of Object.entries(palettes)) {
+      const isLight = name.endsWith('-light');
+      const tones = isLight ? palettes['default-light'] : palettes['default-dark'];
+
+      it(`${name}: every group glyph clears 3:1 on the rail, at rest and hovered`, () => {
+        const hover = blend(palette['accent'], palette['background'], 0.6);
+        const failures: string[] = [];
+        for (const [group, tone] of GROUPS) {
+          const ink = tones[tone.glyph.replace(/^text-/, '')];
+          if (!ink) {
+            failures.push(`${group}: tone token missing`);
+            continue;
+          }
+          for (const [where, ground] of [
+            ['at rest', palette['background']],
+            ['hovered', hover],
+          ] as const) {
+            const ratio = contrast(ink, ground);
+            if (ratio < NON_TEXT) {
+              failures.push(`${group} ${where}: ${ratio.toFixed(2)} < ${NON_TEXT}`);
+            }
+          }
+        }
+        expect(
+          failures,
+          `\n${name} rail-tone failures:\n  ${failures.join('\n  ')}\n`
+        ).toEqual([]);
+      });
+    }
+    /**
+     * Two groups that render side by side must not read as the same colour.
+     * A tone table that passes contrast and still collides is a table that
+     * looks coloured without being legible — the exact failure this change
+     * exists to avoid.
+     */
+    /**
+     * Distinctness is checked in BOTH modes, and that is not symmetry for its
+     * own sake: the two lightnesses cut different slices of the sRGB gamut, so
+     * hues that separate cleanly at 55% can collapse at 72%. Measured while
+     * choosing them — a set optimised on light alone left two 0.113 apart in
+     * dark, under this very floor.
+     */
+    it.each(['default-light', 'default-dark'])('keeps the twelve tones distinct in %s', name => {
+      const tones = palettes[name];
+      const inks = GROUPS.map(([group, tone]) => [group, tones[tokenOf(tone.glyph)]] as const).filter(
+        (entry): entry is readonly [string, Rgb] => Boolean(entry[1])
+      );
+      expect(inks, 'no settings tone token resolved').not.toHaveLength(0);
+
+      const tooClose: string[] = [];
+      for (let i = 0; i < inks.length; i++) {
+        for (let j = i + 1; j < inks.length; j++) {
+          const [a, ca] = inks[i];
+          const [b, cb] = inks[j];
+          // Euclidean distance in sRGB is crude, but it only has to catch
+          // "these two are the same swatch", not rank near-neighbours.
+          const d = Math.hypot(ca[0] - cb[0], ca[1] - cb[1], ca[2] - cb[2]);
+          if (d < 0.12) tooClose.push(`${a} vs ${b}: ${d.toFixed(3)}`);
+        }
+      }
+      expect(tooClose, `\ntones too close to tell apart:\n  ${tooClose.join('\n  ')}\n`).toEqual([]);
+    });
   });
 
   it('parses all 15 palettes with the full token set', () => {

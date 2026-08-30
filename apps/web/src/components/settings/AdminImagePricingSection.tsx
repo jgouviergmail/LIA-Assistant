@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
-import { ImageIcon, RefreshCw } from 'lucide-react';
+import {
+  Receipt,
+  RefreshCw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchInput } from '@/components/ui/search-input';
@@ -267,7 +270,7 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
         value="admin-image-pricing"
         title={t('settings.admin.image_pricing.title')}
         description={t('settings.admin.image_pricing.description')}
-        icon={ImageIcon}
+        icon={Receipt}
       >
         <Skeleton className="mb-4 h-8 w-64" />
         <TableSkeleton rows={5} />
@@ -442,7 +445,7 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
       value="admin-image-pricing"
       title={t('settings.admin.image_pricing.title')}
       description={t('settings.admin.image_pricing.description')}
-      icon={ImageIcon}
+      icon={Receipt}
     >
       {content}
       {confirmDialog}

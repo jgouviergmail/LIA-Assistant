@@ -68,6 +68,13 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-08-30 after the settings group-tone
+        // lot (twelve fixed `--color-settings-*` tokens measured across the 15
+        // palettes, the tone applied by the overview cards and the rail, and
+        // one distinct glyph per section):
+        // statements 76.82 / branches 72.08 / functions 73.92 / lines 77.46.
+        // Unchanged 74/70/71/75 (floor(measured - 2) per axis — no axis
+        // crosses an integer step this time).
         // Global floor — re-measured 2026-08-24 after the native push lot
         // (ADR-246: the shell enrolment path inside useFCMToken, the
         // platform-agnostic push config boundary, and the relay handle the

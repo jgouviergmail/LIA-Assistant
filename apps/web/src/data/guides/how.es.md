@@ -6,7 +6,7 @@
 
 **Versión**: 4.6
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.38.0
+**Aplicación**: LIA v1.38.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -48,6 +48,7 @@
 32. [Apps nativas: una carcasa, tu servidor](#32-apps-nativas-una-carcasa-tu-servidor)
 33. [Autodiagnóstico: un asistente que lee su propia telemetría](#33-autodiagnóstico-un-asistente-que-lee-su-propia-telemetría)
 34. [Calcular en vez de adivinar: un script efímero en el entorno aislado que ya existía](#34-calcular-en-vez-de-adivinar-un-script-efímero-en-el-entorno-aislado-que-ya-existía)
+35. [Medir un color antes de entregarlo: la paleta de los ajustes](#35-medir-un-color-antes-de-entregarlo-la-paleta-de-los-ajustes)
 ---
 
 ## 1. Contexto y decisiones fundacionales
@@ -62,7 +63,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 490 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 249 ADRs, ~21.521 tests recogidos por pytest en 1.292 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 250 ADRs, ~21.521 tests recogidos por pytest en 1.292 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -83,7 +84,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Tests | 21.521 recopilados por pytest en 1.292 archivos de prueba + 6.368 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 755, de las cuales 32 compartidas mediante conftest |
 | Documentos de documentación | 549 |
-| ADRs (Architecture Decision Records) | 249 |
+| ADRs (Architecture Decision Records) | 250 |
 | Métricas Prometheus | 486 definiciones |
 | Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1312,7 +1313,7 @@ La lección de ingeniería más valiosa vino de un defecto invisible: la primiti
 
 ## 24. Arquitectura de decisiones (ADR)
 
-249 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+250 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1418,7 +1419,7 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 249 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~21.521 tests en 1.292 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 250 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~21.521 tests en 1.292 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
@@ -1474,4 +1475,20 @@ Pregunte a un modelo de lenguaje cuánto suman una serie de escalas, qué nombre
 
 **La salida no es de fiar, el código es auditable.** Lo que un script imprime es código escrito por un modelo ejecutándose sobre datos de terceros: por eso se marca como contenido no fiable, igual que el cuerpo de un correo. El código en sí, con su propósito declarado y su salida, es visible para los administradores en el panel de depuración: ocultarlo no compraría ninguna seguridad — el modelo lo escribió, ya está en su contexto — y costaría toda la verificabilidad.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 249 ADRs y del changelog (v1.0 a v1.38.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+## 35. Medir un color antes de entregarlo: la paleta de los ajustes
+
+La página de ajustes enumera cincuenta y tres secciones. Todas dibujaban el mismo icono, en el mismo color, sobre la misma pastilla — y dieciséis de ellas tomaban además prestado el dibujo de otra. Para orientarse, la vista solo tenía una forma repetida.
+
+**El color no repara una forma repetida.** Dos enchufes siguen siendo dos enchufes, aunque sean de dos colores: eran dos defectos distintos y se corrigieron por separado — un dibujo propio por sección y luego un tono por **grupo**. Por grupo y nunca por elemento: doce colores son un mapa que la vista aprende, cincuenta y tres serían un ruido que descifra.
+
+**Tokens, no clases de utilidad.** La paleta es fija, fuera del acento elegido por el usuario — la segunda excepción del producto, tras la insignia cian de las skills. Escrita como clases literales habría quedado fuera del alcance de la guarda de contraste, que lee pares de tokens; escrita como `--color-settings-*` queda dentro por construcción. Una restricción que se impone debe ser legible para lo que la verifica.
+
+**El gamut sRGB no es un cilindro.** Primera intuición: doce tonos espaciados regularmente, un croma único, una luminosidad por modo. La medición dijo que no — al 55 % de luminosidad un violeta soporta 0,25 de croma donde un verde azulado se detiene en 0,09, y seis de los veinticuatro tonos caían fuera del gamut, recortados en silencio por el navegador, que entonces no representaba ni el tono ni el croma escritos. Cada tono lleva ahora su propio máximo, menos un margen.
+
+**Un espaciado regular no es un espaciado percibido.** Una vez que el croma siguió al gamut, dos parejas quedaron a 0,116 una de otra, por debajo del umbral de distinción que la propia guarda impone. Los doce ángulos se **buscan**, por tanto, y sobre el peor de los dos modos: las dos luminosidades cortan rebanadas distintas del gamut, y un conjunto optimizado solo sobre el tema claro dejaba aún una pareja a 0,113 en oscuro. La pareja más próxima mide ahora 0,199.
+
+**El color nunca enuncia un estado.** La sección abierta se distingue por su fondo, su grosor y el color de acento — no por convertirse en un decimotercer tono — y que una capacidad esté activa se sigue indicando con un punto lleno o hueco. Es la regla WCAG 1.4.1 tomada en serio: quien no percibe estos doce tonos no pierde ninguna información. Al ser el glifo un objeto gráfico no textual, su umbral es de 3:1, medido sobre los dos fondos que ocupa realmente — la pastilla de las tarjetas y la columna desnuda, con el paso del cursor incluido.
+
+**Una sola regla para las dos listas.** La tarjeta de la vista general y la fila de la columna leen la misma función: no pueden divergir en una sección, y un llamante fuera de la tabla recae en el acento en lugar de en nada.
+
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 250 ADRs y del changelog (v1.0 a v1.38.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

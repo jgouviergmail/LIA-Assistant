@@ -4410,6 +4410,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_38_1": {
+          "title": "v1.38.1 — 🎨 Ajustes que se encuentran de un vistazo",
+          "date": "Agosto 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>🎨 Cada familia de ajustes tiene su color, cada ajuste su icono</b> — la página listaba cincuenta y tres secciones que dibujaban todas el mismo icono azul sobre la misma pastilla azul, y dieciséis de ellas tomaban además prestado el dibujo de otra (un mismo enchufe servía a cuatro ajustes distintos). El color no separa una forma repetida: se corrigieron ambas cosas — un dibujo propio por ajuste y un color por familia, doce colores que se aprenden en lugar de cincuenta y tres que se descifran. Lo mismo en la columna lateral, que en el móvil es la lista de ajustes.",
+            "i2": "<b>♿ El color nunca transmite una información por sí solo</b> — la sección abierta sigue distinguiéndose por su fondo, su grosor y el color de acento, no por convertirse en un decimotercer tono; y que una capacidad esté activa se sigue indicando con un punto lleno o hueco. Quien no percibe estos colores no pierde nada. Cada uno se midió contra todos los temas — claro, oscuro y OLED, en los cinco colores de acento — antes de entregarse."
+          }
+        },
         "v1_38_0": {
           "title": "v1.38.0 — 🎭 Una paleta de estados de ánimo por fin completa, y un despliegue que deja de mentir",
           "date": "Agosto 2026",
@@ -6763,7 +6772,7 @@
           },
           "q19": {
             "question": "¿Cómo encuentro un ajuste rápidamente?",
-            "answer": "<p>La página de ajustes lista todas las secciones en un riel que nunca se va, y abre la que eliges en el panel de al lado. El campo <strong>«Buscar un ajuste»</strong>, en la parte superior del riel, te lleva directamente.</p><strong>Lo que entiende la búsqueda:</strong><br>• El <strong>título</strong> y la <strong>descripción</strong> de cada sección<br>• <strong>Sinónimos</strong> traducidos: «modo oscuro» para la apariencia, «2FA» o «TOTP» para la autenticación fuerte, «RGPD» para la exportación de datos, «cron» para las acciones programadas<br>• Los acentos y los apóstrofos se ignoran — «theme» encuentra «Thème»<br><br><strong>Cuando eliges un resultado:</strong><br>LIA abre la sección en el panel y lleva allí el cursor. Todo funciona con el teclado — flechas para recorrer, Intro para abrir, Escape para cerrar — y el número de resultados se anuncia a los lectores de pantalla.<br><br>Algunas secciones solo existen si la función está activa en tu cuenta: LIA te lo indica en ese caso, en lugar de dejarte ante una página que no ha cambiado."
+            "answer": "<p>La página de ajustes lista todas las secciones en un riel que nunca se va, y abre la que eliges en el panel de al lado. El campo <strong>«Buscar un ajuste»</strong>, en la parte superior del riel, te lleva directamente.</p><strong>Lo que entiende la búsqueda:</strong><br>• El <strong>título</strong> y la <strong>descripción</strong> de cada sección<br>• <strong>Sinónimos</strong> traducidos: «modo oscuro» para la apariencia, «2FA» o «TOTP» para la autenticación fuerte, «RGPD» para la exportación de datos, «cron» para las acciones programadas<br>• Los acentos y los apóstrofos se ignoran — «theme» encuentra «Thème»<br><br><strong>Cuando eliges un resultado:</strong><br>LIA abre la sección en el panel y lleva allí el cursor. Todo funciona con el teclado — flechas para recorrer, Intro para abrir, Escape para cerrar — y el número de resultados se anuncia a los lectores de pantalla.<br><br><strong>Antes incluso de buscar:</strong><br>Cada familia de ajustes tiene su color y cada ajuste su icono, tanto en las tarjetas de inicio como en la columna — así una sección ya visitada se reencuentra por su aspecto, sin leer. El color agrupa y decora: nunca transmite por sí solo una información, y la sección abierta sigue marcada por su fondo y su color de acento.<br><br>Algunas secciones solo existen si la función está activa en tu cuenta: LIA te lo indica en ese caso, en lugar de dejarte ante una página que no ha cambiado."
           },
           "q20": {
             "question": "¿Dónde veo todo lo que LIA me ha enviado, sin rebuscar en los ajustes?",
@@ -8050,6 +8059,10 @@
         "title": "Los ajustes, uno al lado del otro",
         "desc": "Todas las secciones caben en un riel que nunca se va, y la que eliges se abre entera justo al lado. En el móvil la lista va primero y la sección ocupa la pantalla, con una vuelta atrás."
       },
+      "settings_tones": {
+        "title": "Un color por familia",
+        "desc": "Cada familia de ajustes tiene su tono y cada ajuste su propio dibujo: la vista vuelve a encontrar una sección sin releer la lista. El color decora y agrupa; por sí solo nunca dice nada."
+      },
       "server_escape_hatch": {
         "title": "Una dirección mal escrita no es un callejón sin salida",
         "desc": "Las apps nativas incluyen su propia pantalla sin conexión: reintentar o cambiar de servidor — una errata en el primer arranque nunca obliga a reinstalar."
@@ -8139,6 +8152,11 @@
       },
       "settings_shell": {
         "section": "Apariencia"
+      },
+      "settings_tones": {
+        "row1": "Seguridad",
+        "row2": "Notificaciones",
+        "row3": "Apariencia"
       },
       "pricing_workbook": {
         "preview": "Vista previa antes de escribir"
@@ -10244,7 +10262,8 @@
       "expressive_eyes": "Ojos expresivos",
       "native_apps": "Apps nativas",
       "self_diagnostics": "Autodiagnóstico",
-      "computed_answers": "Respuestas calculadas"
+      "computed_answers": "Respuestas calculadas",
+      "measured_palette": "Una paleta medida"
     }
   },
   "healthMetrics": {

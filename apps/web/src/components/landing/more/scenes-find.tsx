@@ -1,23 +1,29 @@
 /**
  * Scenes of section 04 — "When you search": the master-detail settings shell,
- * the everyday-words settings search, settings deep links that survive a
- * reload, full history search, the phone logo navigation.
+ * the group tones that turn a flat list into a map, the everyday-words settings
+ * search, settings deep links that survive a reload, full history search, the
+ * phone logo navigation.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
 'use client';
 
 import {
+  Bell,
   ChevronDown,
+  Fingerprint,
   Hash,
   Link2,
   Moon,
   Palette,
   PanelLeft,
+  Plug,
   RotateCw,
   Search,
   Star,
 } from 'lucide-react';
+
+import { SETTINGS_GROUP_TONES } from '@/lib/settings-group-tones';
 
 import { cn } from '@/lib/utils';
 
@@ -396,8 +402,62 @@ function RelationSectionsScene({ active, labels }: SceneProps) {
   );
 }
 
+type TonesPhase = 'flat' | 'toned';
+const TONES_STEPS: readonly TimelineStep<TonesPhase>[] = [
+  { at: 0, state: 'flat' },
+  { at: 1300, state: 'toned' },
+];
+
+/**
+ * The settings list before and after v1.38.1: one repeated glyph in one ink —
+ * `Plug`, which really did serve four different settings — then a drawing per
+ * section in its family's tone.
+ *
+ * The three glyphs are the ones the registry actually assigns (Fingerprint,
+ * Bell, Palette); the labels name the FAMILY, which is what the card is about.
+ *
+ * The tones are READ from `SETTINGS_GROUP_TONES`, never restated here — this
+ * stage would otherwise become a second, drifting authority on a palette the
+ * contrast guard measures elsewhere.
+ */
+function SettingsTonesScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(TONES_STEPS, { active });
+  const toned = phase === 'toned';
+  // Keyed by the label slot, not the translated text: two locales are free to
+  // render the same word for two rows without React seeing one element.
+  const rows = [
+    { key: 'row1', icon: Fingerprint, label: labels.row1, tone: SETTINGS_GROUP_TONES.security },
+    {
+      key: 'row2',
+      icon: Bell,
+      label: labels.row2,
+      tone: SETTINGS_GROUP_TONES.notifications_communication,
+    },
+    {
+      key: 'row3',
+      icon: Palette,
+      label: labels.row3,
+      tone: SETTINGS_GROUP_TONES.personalization,
+    },
+  ];
+  return (
+    <div className={cn(STAGE, 'justify-center gap-1.5')}>
+      {rows.map(row => (
+        <MiniSettingRow
+          key={row.key}
+          className="max-w-[200px]"
+          icon={toned ? row.icon : Plug}
+          label={row.label}
+          iconClassName={toned ? row.tone.glyph : 'text-muted-foreground'}
+        />
+      ))}
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
+  settings_tones: SettingsTonesScene,
   settings_search: SettingsSearchScene,
   deep_links: DeepLinksScene,
   history_search: HistorySearchScene,

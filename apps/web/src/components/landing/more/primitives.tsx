@@ -111,11 +111,14 @@ export function MiniSettingRow({
   label,
   highlighted,
   className,
+  /** Glyph colour; defaults to the muted ink every other scene draws it in. */
+  iconClassName = 'text-muted-foreground',
 }: {
   icon: LucideIcon;
   label?: string;
   highlighted?: boolean;
   className?: string;
+  iconClassName?: string;
 }) {
   return (
     <div
@@ -125,7 +128,7 @@ export function MiniSettingRow({
         className
       )}
     >
-      <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
+      <Icon className={cn('h-3 w-3 shrink-0 transition-colors duration-500', iconClassName)} />
       {label ? (
         <span className="truncate text-[10px] text-foreground/80">{label}</span>
       ) : (

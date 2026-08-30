@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.38.0</strong> — <strong>A fuller emotional range, and honesty about what can be known</strong>. LIA's mood mechanics rested every personality on the assertive side of the scale, so five calmer moods were unreachable at rest, and an internal pulse crowned joy the dominant emotion regardless of what she had actually appraised — 31% of turns, measured over 90 days of production. Both settings are now active on that evidence: half the catalogue rests in a calmer register, and the emotion shown is the one she really appraised. The same rule runs through the rest of the release — every metric the system produces must now reach a dashboard a human can read, the run context has one place it is read from instead of two, and a production deployment reports a verdict it observed rather than one deduced from a connection that had merely dropped. — 29 August 2026.
+  <strong>Version 1.38.1</strong> — <strong>Settings you can find at a glance</strong>. The settings shell listed fifty-three sections that all drew the same blue icon on the same blue chip — and sixteen of them borrowed another section's drawing on top of that, one plug shape serving four different settings. Colour cannot separate a repeated shape, so both were fixed: a distinct glyph per section, and one tone per GROUP rather than per item, because twelve colours are a map you learn and fifty-three are noise you decipher. It is the product's second fixed palette, deliberately outside the accent theme and measured against all fifteen of them before shipping — and colour here never carries state, so a reader who does not perceive it loses nothing. — 30 August 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **45** functional domains | **570,000** lines of code (excl. tests) | **27,100+** automated tests | **249** ADRs                                                           |
-| **234** versions shipped  | **6 languages**, parity enforced in CI  | **490** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **250** ADRs                                                           |
+| **235** versions shipped  | **6 languages**, parity enforced in CI  | **490** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)

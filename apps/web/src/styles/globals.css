@@ -86,6 +86,34 @@
      Declared as a reference, so it follows whichever background the active
      theme and mode resolve to. */
   --color-ring-offset-background: var(--color-background);
+
+
+  /* Settings group tones (deliberate deviation — see lib/settings-group-tones.ts).
+     Twelve hues at one lightness per mode, so no group reads
+     paler than its neighbour. The ANGLES are not evenly spaced and the CHROMA
+     is per hue — both were, and neither survived measurement:
+     sRGB's gamut is not a cylinder, so at this lightness a violet holds 0.25
+     and a teal only 0.09. A single chroma put six of the twenty-four tones
+     outside sRGB, where the browser clamps them — rendering neither the hue
+     nor the chroma written here. Each value is the hue's own maximum less a
+     6 % margin, so nothing clips.
+     FIXED: unlike every other chrome colour they do
+     not follow the user's accent, which is why they are tokens — that is what
+     puts them inside `design-contrast.guard.test.ts`, which reads `--color-*`
+     and blends each tone over its own 12% chip before measuring. Light: the lightest
+     that clears 3:1 for all twelve hues on the near-white card. */
+  --color-settings-security: oklch(55% 0.21 6); /* red — the one hue with a convention here */
+  --color-settings-automation-tracking: oklch(55% 0.20 32); /* amber */
+  --color-settings-system: oklch(55% 0.13 52); /* ochre */
+  --color-settings-content-extensions: oklch(55% 0.11 100); /* olive */
+  --color-settings-connections-integrations: oklch(55% 0.14 132); /* green */
+  --color-settings-extensions-data: oklch(55% 0.15 148); /* emerald */
+  --color-settings-ai-connectors: oklch(55% 0.10 174); /* teal */
+  --color-settings-notifications-communication: oklch(55% 0.10 230); /* sky */
+  --color-settings-identity-memory: oklch(55% 0.18 256); /* blue */
+  --color-settings-personalization: oklch(55% 0.24 284); /* indigo */
+  --color-settings-voice-media: oklch(55% 0.26 310); /* violet */
+  --color-settings-users-access: oklch(55% 0.23 336); /* rose */
 }
 
 @layer theme {
@@ -132,6 +160,34 @@
     --color-border: oklch(32% 0.005 250);
     --color-input: oklch(32% 0.005 250);
     --color-ring: oklch(68% 0.2 250);
+
+  
+  /* Settings group tones (deliberate deviation — see lib/settings-group-tones.ts).
+     Twelve hues at one lightness per mode, so no group reads
+     paler than its neighbour. The ANGLES are not evenly spaced and the CHROMA
+     is per hue — both were, and neither survived measurement:
+     sRGB's gamut is not a cylinder, so at this lightness a violet holds 0.25
+     and a teal only 0.09. A single chroma put six of the twenty-four tones
+     outside sRGB, where the browser clamps them — rendering neither the hue
+     nor the chroma written here. Each value is the hue's own maximum less a
+     6 % margin, so nothing clips.
+     FIXED: unlike every other chrome colour they do
+     not follow the user's accent, which is why they are tokens — that is what
+     puts them inside `design-contrast.guard.test.ts`, which reads `--color-*`
+     and blends each tone over its own 12% chip before measuring. Dark: the darkest
+     that clears 3:1 for all twelve hues on the dark and OLED card. */
+    --color-settings-security: oklch(72% 0.17 6); /* red — the one hue with a convention here */
+    --color-settings-automation-tracking: oklch(72% 0.16 32); /* amber */
+    --color-settings-system: oklch(72% 0.17 52); /* ochre */
+    --color-settings-content-extensions: oklch(72% 0.14 100); /* olive */
+    --color-settings-connections-integrations: oklch(72% 0.19 132); /* green */
+    --color-settings-extensions-data: oklch(72% 0.20 148); /* emerald */
+    --color-settings-ai-connectors: oklch(72% 0.13 174); /* teal */
+    --color-settings-notifications-communication: oklch(72% 0.13 230); /* sky */
+    --color-settings-identity-memory: oklch(72% 0.14 256); /* blue */
+    --color-settings-personalization: oklch(72% 0.14 284); /* indigo */
+    --color-settings-voice-media: oklch(72% 0.19 310); /* violet */
+    --color-settings-users-access: oklch(72% 0.24 336); /* rose */
 
     /* Native form controls (select dropdown panels, scrollbars, date pickers)
        follow the app theme — without this the browser renders them in the

@@ -28,6 +28,7 @@ import {
   Mic,
   MousePointerClick,
   Network,
+  Palette,
   Plug,
   Puzzle,
   Rocket,
@@ -105,6 +106,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'native_apps', icon: TabletSmartphone },
   { id: 'self_diagnostics', icon: Stethoscope },
   { id: 'computed_answers', icon: Calculator },
+  { id: 'measured_palette', icon: Palette },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

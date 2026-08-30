@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Clock, Gauge, History, SlidersHorizontal } from 'lucide-react';
+import {
+  Clock,
+  Gauge,
+  History,
+  Radar,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
@@ -217,7 +223,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
       value="heartbeat"
       title={t('heartbeat.settings.title')}
       description={t('heartbeat.settings.description')}
-      icon={Bell}
+      icon={Radar}
     >
       {content}
     </SettingsSection>

@@ -2,15 +2,16 @@
 
 import { useState, useCallback } from 'react';
 import {
-  Plug,
-  Unplug,
-  Plus,
-  Trash2,
-  Pencil,
-  Zap,
-  Sparkles,
   AlertTriangle,
   MoreVertical,
+  Pencil,
+  Plug,
+  Plus,
+  Server,
+  Sparkles,
+  Trash2,
+  Unplug,
+  Zap,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -724,7 +725,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       value="mcp-servers"
       title={t('settings.mcp.title')}
       description={t('settings.mcp.description')}
-      icon={Plug}
+      icon={Server}
     >
       {/* Header: count + add button */}
       <div className="flex items-center justify-between mb-4">

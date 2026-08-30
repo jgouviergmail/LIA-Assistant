@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Date**: 2026-08-23
-**Application**: LIA v1.38.0
+**Application**: LIA v1.38.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -48,6 +48,7 @@
 32. [Native apps: one shell, your server](#32-native-apps-one-shell-your-server)
 33. [Self-diagnostics: an assistant that reads its own telemetry](#33-self-diagnostics-an-assistant-that-reads-its-own-telemetry)
 34. [Computing instead of guessing: an ephemeral script in the sandbox that already existed](#34-computing-instead-of-guessing-an-ephemeral-script-in-the-sandbox-that-already-existed)
+35. [Measuring a colour before shipping it: the settings palette](#35-measuring-a-colour-before-shipping-it-the-settings-palette)
 ---
 
 ## 1. Context and founding choices
@@ -62,7 +63,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 490 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 249 ADRs, ~21,521 pytest-collected tests across 1,292 files, native observability, 6-level HITL |
+| Production reliability | 250 ADRs, ~21,521 pytest-collected tests across 1,292 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -83,7 +84,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 21,521 collected by pytest across 1,292 test files + 6,368 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 249 |
+| ADRs (Architecture Decision Records) | 250 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1308,7 +1309,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-249 ADRs in MADR format document the major architectural decisions. Some representative examples:
+250 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1447,7 +1448,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 249 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~21,521 tests across 1,292 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 250 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~21,521 tests across 1,292 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1503,4 +1504,20 @@ Ask a language model how long a series of layovers adds up to, which names appea
 
 **The output is untrusted, the code is auditable.** Anything a script prints is model-written code running over third-party data, so it is marked as untrusted content exactly like the body of an email. The code itself, with its stated purpose and its output, is visible to administrators in the debug panel: hiding it would buy no security — the model wrote it, it is already in the context — and would cost all of the verifiability.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 249 ADRs, and the changelog (v1.0 to v1.38.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+## 35. Measuring a colour before shipping it: the settings palette
+
+The settings page lists fifty-three sections. Every one of them drew the same icon, in the same colour, on the same chip — and sixteen of them borrowed another section's drawing on top of that. To find its way, the eye had a single repeated shape.
+
+**Colour does not repair a repeated shape.** Two plugs remain two plugs, even in two colours: these were two distinct defects and they were fixed separately — a drawing of its own per section, then a tone per **group**. Per group and never per item: twelve colours are a map the eye learns, fifty-three would be noise it deciphers.
+
+**Tokens, not utility classes.** The palette is fixed, outside the accent the user picked — the product's second such deviation, after the cyan skill badge. Written as literal classes it would have fallen outside the contrast guard, which reads token pairs; written as `--color-settings-*` it falls inside by construction. A constraint you enforce must be legible to whatever verifies it.
+
+**The sRGB gamut is not a cylinder.** First intuition: twelve evenly spaced hues, one chroma, one lightness per mode. Measurement said no — at 55 % lightness a violet holds 0.25 of chroma where a teal tops out at 0.09, and six of the twenty-four tones fell outside the gamut, silently clamped by the browser, which then rendered neither the hue nor the chroma written. Each hue now carries its own maximum, less a margin.
+
+**Even spacing is not perceived spacing.** Once chroma followed the gamut, two pairs sat 0.116 apart — below the distinctness floor the guard itself imposes. The twelve angles are therefore **searched**, and on the worse of the two modes: the two lightnesses cut different slices of the gamut, and a set optimised on the light theme alone still left a pair at 0.113 in dark. The closest pair now measures 0.199.
+
+**Colour never states a state.** The open section stands out by its background, its weight and the accent colour — not by becoming a thirteenth hue — and whether a capability is active is still shown by a filled or hollow dot. That is WCAG 1.4.1 taken seriously: whoever does not perceive these twelve tones loses no information. The glyph being a non-text graphical object, its floor is 3:1, measured on the two grounds it actually occupies — the card chip and the bare rail, hover included.
+
+**One rule for both lists.** The overview card and the rail row read the same function: they cannot diverge on a section, and a caller outside the table falls back to the accent rather than to nothing.
+
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 250 ADRs, and the changelog (v1.0 to v1.38.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
