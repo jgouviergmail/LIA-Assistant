@@ -54,6 +54,11 @@ if TYPE_CHECKING:
     from src.domains.chat.service import TrackingContext
     from src.domains.conversations.service import ConversationService
 
+from src.domains.agents.expressivity.annotation import (
+    TONE_TAG_MARKER,
+    strip_tone_fragments,
+)
+
 logger = get_logger(__name__)
 
 # Default id of langgraph.types.Interrupt when no real interrupt id was
@@ -180,6 +185,33 @@ def _serialize_registry_items(registry: dict[str, Any]) -> dict[str, dict[str, A
         else:
             serialized[item_id] = item
     return serialized
+
+
+def _strip_inline_tags(content: str) -> str:
+    """Sweep the machine tags the model appends, from ONE streamed token.
+
+    Two of them travel in band today — the psyche self-report and the ADR-253
+    tone register — and both arrive a few characters at a time, so a partial
+    tag would flash on screen if this ran anywhere but here. Full cleanup of
+    the persisted answer happens later, in the response node.
+
+    They are swept together on purpose: the second one was written as a copy of
+    the first, complete with its own guard and its own early return, and that
+    is how a third tag would have been written too.
+
+    Args:
+        content: One streamed token, already coerced to text.
+
+    Returns:
+        The token without any tag fragment; empty when nothing else was in it.
+    """
+    if "psyche_eval" in content:
+        from src.domains.psyche.constants import PSYCHE_EVAL_STREAMING_PATTERN
+
+        content = PSYCHE_EVAL_STREAMING_PATTERN.sub("", content).strip()
+    if TONE_TAG_MARKER in content.lower():
+        content = strip_tone_fragments(content).strip()
+    return content
 
 
 class StreamingService:
@@ -1866,15 +1898,9 @@ class StreamingService:
                 # text so the psyche check below and ChatStreamChunk stay str-safe.
                 content = coerce_content_to_text(message.content)
 
-                # Psyche Engine: Strip psyche_eval tag fragments from streaming tokens
-                # Prevents brief flash of the tag during SSE streaming.
-                # The content_replacement chunk handles full cleanup after response_node.
-                if "<psyche_eval" in content or "psyche_eval" in content:
-                    from src.domains.psyche.constants import PSYCHE_EVAL_STREAMING_PATTERN
-
-                    content = PSYCHE_EVAL_STREAMING_PATTERN.sub("", content).strip()
-                    if not content:
-                        return sse_chunks  # Skip empty chunk after tag removal
+                content = _strip_inline_tags(content)
+                if not content:
+                    return sse_chunks  # Nothing but tag fragments in this token.
 
                 token_chunk = self.format_token_chunk(content)
                 sse_chunks.append((token_chunk, content))

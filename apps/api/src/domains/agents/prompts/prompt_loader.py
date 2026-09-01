@@ -175,6 +175,8 @@ PromptName = Literal[
     "for_each_directive_prompt",
     "semantic_validator_prompt",
     "semantic_pivot_prompt",
+    # Per-turn expressivity annotation (ADR-253)
+    "expressivity_tone_instruction",
     # Psyche Engine (self-report, summary, narrative, usage directive)
     "psyche_self_report_instruction",
     "psyche_summary_prompt",
@@ -542,3 +544,30 @@ __all__ = [
     "load_prompt_with_fallback",
     "validate_all_prompts",
 ]
+
+
+#: The marker the response prompt ends with. Whatever it says has to be the
+#: last thing the model reads, so every optional block goes BEFORE it.
+FINAL_REMINDER_MARKER = "### FINAL REMINDER ###"
+
+
+def inject_before_final_reminder(prompt: str, block: str) -> str:
+    """Place an optional instruction block ahead of the final reminder.
+
+    Two callers had written this placement out by hand — the psyche self-report
+    and, one commit later, the expressivity tone tag — and a third would have
+    written it again. The rule is small but it is a rule: a block appended
+    AFTER the final reminder silently demotes the reminder, and a prompt that
+    happens to carry no reminder must still receive the block.
+
+    Args:
+        prompt: The assembled system prompt.
+        block: The instruction block to insert.
+
+    Returns:
+        A new prompt with the block before the reminder, or appended when the
+        prompt carries no reminder.
+    """
+    if FINAL_REMINDER_MARKER in prompt:
+        return prompt.replace(FINAL_REMINDER_MARKER, block + "\n\n" + FINAL_REMINDER_MARKER)
+    return prompt + "\n\n" + block

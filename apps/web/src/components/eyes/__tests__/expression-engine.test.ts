@@ -18,9 +18,6 @@ import type { MoodLabel } from '@/types/psyche';
 
 import {
   deriveExpression,
-  deriveReaction,
-  contentHeuristicExpression,
-  emotionToExpression,
   moodToIdleExpression,
   idleFamilyForMood,
   resolveIdleFamily,
@@ -69,6 +66,10 @@ import {
   BLINK_MIN_DELAY_MS,
   BLINK_MAX_DELAY_MS,
   type ExpressionInputs,
+  ACCESSORY_DURATION_MS,
+  EYE_EXPRESSIONS,
+  accessoryForExpression,
+  type Rng,
 } from '../expression-engine';
 
 /** Baseline inputs: an idle chat, psyche off, daytime, user active. */
@@ -227,39 +228,6 @@ describe('deriveExpression — priority chain', () => {
 // Emotion → expression mapping (post-response reaction)
 // ---------------------------------------------------------------------------
 
-describe('emotionToExpression', () => {
-  it.each([
-    ['joy', 'joy'],
-    ['gratitude', 'tender'],
-    ['pride', 'joy'],
-    ['amusement', 'joy'],
-    ['enthusiasm', 'excited'],
-    ['tenderness', 'tender'],
-    ['playfulness', 'joy'],
-    ['relief', 'joy'],
-    ['wonder', 'surprise'],
-    ['frustration', 'anger'],
-    ['concern', 'worried'],
-    ['melancholy', 'sad'],
-    ['disappointment', 'sad'],
-    ['nervousness', 'fear'],
-    ['curiosity', 'attentive'],
-    ['serenity', 'neutral'],
-    ['surprise', 'surprise'],
-    ['empathy', 'tender'],
-    ['confusion', 'question'],
-    ['determination', 'focused'],
-    ['protectiveness', 'focused'],
-    ['resolve', 'focused'],
-  ] as const)('%s → %s', (emotion, expected) => {
-    expect(emotionToExpression(emotion)).toBe(expected);
-  });
-
-  it('unknown emotion falls back to neutral', () => {
-    expect(emotionToExpression('unheard_of')).toBe('neutral');
-  });
-});
-
 // ---------------------------------------------------------------------------
 // Mood → idle expression mapping (all 14 canonical moods)
 // ---------------------------------------------------------------------------
@@ -337,169 +305,12 @@ describe('idleFamilyForMood', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Post-done reaction resolution (self-report first, heuristic fallback)
+// Post-done reaction resolution — the FALLBACK path (ADR-253)
 // ---------------------------------------------------------------------------
-
-describe('deriveReaction', () => {
-  it('uses the per-turn psyche self-report when present', () => {
-    expect(
-      deriveReaction({
-        psycheEmotions: [{ name: 'enthusiasm', intensity: 0.7 }],
-        content: 'Voilà !',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('excited');
-  });
-
-  it('ignores a below-threshold emotion and falls back to the heuristic', () => {
-    expect(
-      deriveReaction({
-        psycheEmotions: [{ name: 'frustration', intensity: 0.1 }],
-        content: 'Et voilà le résultat ! Superbe !',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('excited');
-  });
-
-  it('falls back to the content heuristic when psyche is absent (race or disabled)', () => {
-    expect(
-      deriveReaction({
-        psycheEmotions: null,
-        content: 'Would you like me to go further?',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('question');
-  });
-
-  it('returns null when neither source yields a signal', () => {
-    expect(
-      deriveReaction({
-        psycheEmotions: null,
-        content: 'Voici la liste des tâches du jour.',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBeNull();
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Content heuristic — language-neutral (punctuation / emoji / structure only)
 // ---------------------------------------------------------------------------
-
-describe('contentHeuristicExpression', () => {
-  it('error responses look worried', () => {
-    expect(
-      contentHeuristicExpression({ content: 'anything', isError: true, hasArtifacts: false })
-    ).toBe('worried');
-  });
-
-  it('generated artifacts (images/documents) look joyful — proud to show', () => {
-    expect(
-      contentHeuristicExpression({ content: 'Voici :', isError: false, hasArtifacts: true })
-    ).toBe('joy');
-  });
-
-  it('joyful emoji → joy (any language)', () => {
-    expect(
-      contentHeuristicExpression({ content: '任务完成 🎉', isError: false, hasArtifacts: false })
-    ).toBe('joy');
-    expect(
-      contentHeuristicExpression({ content: 'Fatto! 😄', isError: false, hasArtifacts: false })
-    ).toBe('joy');
-  });
-
-  it('sad emoji → sad', () => {
-    expect(
-      contentHeuristicExpression({ content: 'Désolée… 😢', isError: false, hasArtifacts: false })
-    ).toBe('sad');
-  });
-
-  it('trailing question mark → question, including fullwidth (zh)', () => {
-    expect(
-      contentHeuristicExpression({
-        content: 'Souhaitez-vous continuer ?',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('question');
-    expect(
-      contentHeuristicExpression({ content: '需要我继续吗？', isError: false, hasArtifacts: false })
-    ).toBe('question');
-    expect(
-      contentHeuristicExpression({
-        content: 'Weiter machen?\n',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('question');
-  });
-
-  it('a trailing question mark inside a code fence does not count', () => {
-    expect(
-      contentHeuristicExpression({
-        content: 'Voici :\n```py\nx?\n```',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('focused');
-  });
-
-  it('two or more exclamation marks → excited, including fullwidth (zh)', () => {
-    expect(
-      contentHeuristicExpression({
-        content: 'Bravo ! C’est fait !',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('excited');
-    expect(
-      contentHeuristicExpression({
-        content: '太棒了！完成了！',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('excited');
-  });
-
-  it('a single exclamation mark is not enough', () => {
-    expect(
-      contentHeuristicExpression({ content: 'Voilà !', isError: false, hasArtifacts: false })
-    ).toBeNull();
-  });
-
-  it('a fenced code block → focused', () => {
-    expect(
-      contentHeuristicExpression({
-        content: 'Voici le script :\n```bash\nls\n```',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBe('focused');
-  });
-
-  it('plain informative text yields no reaction', () => {
-    expect(
-      contentHeuristicExpression({
-        content: 'Votre réunion est à 15h.',
-        isError: false,
-        hasArtifacts: false,
-      })
-    ).toBeNull();
-    expect(
-      contentHeuristicExpression({ content: '', isError: false, hasArtifacts: false })
-    ).toBeNull();
-  });
-
-  it('priority: emoji beats trailing question mark', () => {
-    expect(
-      contentHeuristicExpression({ content: 'On y va ? 🎉', isError: false, hasArtifacts: false })
-    ).toBe('joy');
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Inactivity staging & hour bands
@@ -787,5 +598,50 @@ describe('proportional wake', () => {
   it('the short wake never startles (no surprise beat)', () => {
     expect(WAKE_SHORT_PERFORMANCE.some(s => s.expression === 'surprise')).toBe(false);
     expect(WAKE_PERFORMANCE[0].expression).toBe('surprise');
+  });
+});
+
+describe('cartoon accessories', () => {
+  const always: Rng = () => 0;
+  const never: Rng = () => 0.999;
+
+  it('only the emotions that earn one can summon one', () => {
+    expect(accessoryForExpression('sad', always)).toBe('tear');
+    expect(accessoryForExpression('worried', always)).toBe('sweat');
+    expect(accessoryForExpression('fear', always)).toBe('sweat');
+    expect(accessoryForExpression('joy', always)).toBe('sparkle');
+    expect(accessoryForExpression('excited', always)).toBe('sparkle');
+  });
+
+  it('the rest of the vocabulary summons nothing at all', () => {
+    const summoning = EYE_EXPRESSIONS.filter(
+      expression => accessoryForExpression(expression, always) !== null
+    );
+    expect(summoning.sort()).toEqual(['excited', 'fear', 'joy', 'sad', 'worried']);
+  });
+
+  it('stays RARE — an unlucky roll brings nothing, whatever the emotion', () => {
+    EYE_EXPRESSIONS.forEach(expression => {
+      expect(accessoryForExpression(expression, never)).toBeNull();
+    });
+  });
+
+  it('never fires more often than one arrival in three', () => {
+    // Rarity is the whole design: an accessory on every sad face stops
+    // meaning "this one really landed" within a day of use.
+    const rates = EYE_EXPRESSIONS.map(expression => {
+      let hits = 0;
+      for (let index = 0; index < 1000; index += 1) {
+        if (accessoryForExpression(expression, () => index / 1000)) hits += 1;
+      }
+      return hits / 1000;
+    });
+    expect(Math.max(...rates)).toBeLessThanOrEqual(0.35);
+  });
+
+  it('declares a duration for every accessory it can produce', () => {
+    (['tear', 'sweat', 'sparkle'] as const).forEach(accessory => {
+      expect(ACCESSORY_DURATION_MS[accessory]).toBeGreaterThan(0);
+    });
   });
 });

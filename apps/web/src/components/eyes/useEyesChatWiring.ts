@@ -6,9 +6,9 @@
  * Kept out of ChatPage on purpose (its render function sits under the
  * shrink-only complexity ratchet). The hook:
  *  - marks a new turn on the idle→sending transition (per-turn signals reset)
- *  - resolves the post-response reaction when a turn completes: the per-turn
- *    psyche self-report from the done snapshot first, the language-neutral
- *    content heuristic when the snapshot is missing (race or psyche disabled)
+ *  - resolves the post-response reaction when a turn completes: the register
+ *    the answering model declared for that answer (ADR-253) when it arrived,
+ *    the same register inferred from the answer's shape when it did not
  *  - hands the page two stable recorders for typing and notifications
  *
  * Messages are read through a ref: they change on every streamed token, and
@@ -17,11 +17,10 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import { deriveReaction } from '@/components/eyes/expression-engine';
+import { REGISTER_EXPRESSIONS, inferToneFromContent, toneAmplitude } from '@/components/eyes/tone';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import type { Message } from '@/types/chat';
 import type { ChatState } from '@/types/chat-state';
-import type { PsycheStateSummary } from '@/types/psyche';
 
 export interface EyesChatWiring {
   /** Call from the chat-input change handler (records typing activity). */
@@ -30,32 +29,31 @@ export interface EyesChatWiring {
   onNotification: () => void;
 }
 
-/** Emotions list from a done psyche snapshot (v2 list, v1 single fallback). */
-function snapshotEmotions(
-  snapshot: PsycheStateSummary | undefined
-): Array<{ name: string; intensity: number }> | null {
-  if (!snapshot) return null;
-  if (snapshot.active_emotions?.length) return snapshot.active_emotions;
-  if (snapshot.active_emotion) {
-    return [{ name: snapshot.active_emotion, intensity: snapshot.emotion_intensity }];
-  }
-  return null;
-}
-
 /** Resolve and store the reaction for the message that just completed. */
 function reactToCompletedTurn(messages: Message[]): void {
   const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
   if (!lastAssistant) return;
-  const snapshot = lastAssistant.metadata?.psyche_state as PsycheStateSummary | undefined;
-  const reaction = deriveReaction({
-    psycheEmotions: snapshotEmotions(snapshot),
+  const source = {
     content: lastAssistant.content ?? '',
     isError: lastAssistant.metadata?.type === 'error',
     hasArtifacts: Boolean(
       lastAssistant.generatedImages?.length || lastAssistant.generatedDocuments?.length
     ),
-  });
-  if (reaction) useEyesSignalsStore.getState().setReaction(reaction);
+  };
+  // ONE path, ONE vocabulary. The register the model declared is the better
+  // signal — it knows what it chose — but it only arrives on a minority of
+  // turns (measured: the in-band tag and the months-old psyche tag fired on
+  // exactly the same 2 of 16 real turns), so the answer's own shape supplies
+  // one when it does not. Both produce the same annotation, so the face is
+  // computed the same way either way.
+  //
+  // The psyche is NOT consulted: it models a trait, and an argmax over a
+  // near-constant vector is a constant — measured over fourteen consecutive
+  // turns, it named the same emotion on thirteen.
+  const tone = useEyesSignalsStore.getState().pendingTone ?? inferToneFromContent(source);
+  useEyesSignalsStore
+    .getState()
+    .setReaction(REGISTER_EXPRESSIONS[tone.register], toneAmplitude(tone), tone.accent);
 }
 
 export function useEyesChatWiring(

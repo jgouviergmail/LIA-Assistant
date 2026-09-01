@@ -89,6 +89,7 @@ from src.domains.agents.display.config import config_for_viewport
 from src.domains.agents.display.html_renderer import NestedData, get_html_renderer
 from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
 from src.domains.agents.drafts.models import DraftAction
+from src.domains.agents.expressivity.turn import inject_tone_instruction, take_tone_annotation
 
 # Extracted modules (Phase 3 refactoring)
 from src.domains.agents.formatters.agent_results import format_agent_results_for_prompt
@@ -111,7 +112,7 @@ from src.domains.agents.prompts import (
     get_error_fallback_message,
     get_response_prompt,
 )
-from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.prompts.prompt_loader import inject_before_final_reminder, load_prompt
 from src.domains.agents.services.plan_blockers import (
     executed_tool_names,
     format_plan_blockers,
@@ -2211,15 +2212,10 @@ def _build_response_system_prompt(
         )
     # PSYCHE ENGINE: Inject self-report instruction (before FINAL REMINDER)
     if settings.psyche_enabled and user_psyche_enabled and psyche_context:
-        _psyche_instruction = str(load_prompt("psyche_self_report_instruction"))
-        _final_reminder = "### FINAL REMINDER ###"
-        if _final_reminder in base_system_prompt:
-            base_system_prompt = base_system_prompt.replace(
-                _final_reminder,
-                _psyche_instruction + "\n\n" + _final_reminder,
-            )
-        else:
-            base_system_prompt += "\n\n" + _psyche_instruction
+        base_system_prompt = inject_before_final_reminder(
+            base_system_prompt, str(load_prompt("psyche_self_report_instruction"))
+        )
+    base_system_prompt = inject_tone_instruction(base_system_prompt)
     # Self-diagnostics honesty block (spec 2026-08-27, pillar 7): typed
     # failures + platform degradations, computed by the caller (async path);
     # empty string on a clean turn = zero prompt-token impact.
@@ -3714,6 +3710,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         psyche_appraisal, final_content = _parse_psyche_appraisal(
             final_content, user_psyche_enabled, run_id
         )
+        final_content = take_tone_annotation(final_content, run_id)
 
         # Intelligent filtering: parse <relevant_ids> and filter the current-turn registry.
         final_content, current_turn_registry = _apply_relevant_ids_filtering(

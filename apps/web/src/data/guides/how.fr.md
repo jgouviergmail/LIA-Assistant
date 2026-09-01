@@ -6,7 +6,7 @@
 
 **Version** : 4.6
 **Date** : 2026-08-23
-**Application** : LIA v1.38.1
+**Application** : LIA v1.38.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -49,6 +49,7 @@
 33. [Auto-diagnostic : un assistant qui lit sa propre télémétrie](#33-auto-diagnostic--un-assistant-qui-lit-sa-propre-télémétrie)
 34. [Calculer au lieu de deviner : un script éphémère dans le bac à sable qui existait déjà](#34-calculer-au-lieu-de-deviner-un-script-éphémère-dans-le-bac-à-sable-qui-existait-déjà)
 35. [Mesurer une couleur avant de la livrer : la palette des réglages](#35-mesurer-une-couleur-avant-de-la-livrer-la-palette-des-réglages)
+36. [Un trait n'est pas une réaction : le registre déclaré par la réponse](#36-un-trait-nest-pas-une-réaction--le-registre-déclaré-par-la-réponse)
 ---
 
 ## 1. Contexte et choix fondateurs
@@ -63,7 +64,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 490 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 250 ADRs, ~21 521 tests collectés par pytest sur 1 292 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 252 ADRs, ~21 584 tests collectés par pytest sur 1 296 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -81,10 +82,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 21 521 collectés par pytest sur 1 292 fichiers de test + 6 368 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | 21 584 collectés par pytest sur 1 296 fichiers de test + 6 662 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 250 |
+| ADRs (Architecture Decision Records) | 252 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1319,7 +1320,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-250 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+252 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1465,7 +1466,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 250 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~21 521 tests sur 1 292 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 252 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~21 584 tests sur 1 296 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1537,4 +1538,22 @@ La page des réglages liste cinquante-trois sections. Elles dessinaient toutes l
 
 **Une seule règle pour les deux listes.** La carte de la vue d'ensemble et la ligne du rail lisent la même fonction : elles ne peuvent pas diverger sur une section, et un appelant hors table retombe sur l'accent plutôt que sur rien.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 250 ADRs, et du changelog (v1.0 à v1.38.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+## 36. Un trait n'est pas une réaction : le registre déclaré par la réponse
+
+Le visage du compagnon choisissait son expression de fin de tour dans l'émotion dominante de la psyché. La mesure a tranché : sur quatorze tours consécutifs, cette émotion était la même sur treize d'entre eux, avec une amplitude de 0,02.
+
+**Ce n'est pas un défaut de la psyché, c'est sa définition.** Une psyché modélise une vie intérieure : elle est un **trait**, elle bouge lentement, et c'est exactement ce qu'on lui demande. Le défaut était de lui faire répondre d'un **événement ponctuel** — un `argmax` sur un vecteur quasi constant est une constante.
+
+**Le seul qui connaisse le registre d'une réponse est le modèle qui l'a écrite.** Toute autre source n'en lit que la surface. La réponse déclare donc elle-même son registre, dans un vocabulaire qui appartient à l'animation et à rien d'autre : douze registres, choisis sous une contrainte unique — *deux registres que le visage jouerait à l'identique sont un seul registre portant deux noms.* C'est la raison pour laquelle la liste n'est pas plus longue.
+
+**En bande, parce que deux exigences se croisent.** Le signal doit venir du modèle qui a écrit la réponse, **et** arriver à l'instant où la réponse arrive — le visage réagit à la complétion, et une passe d'arrière-plan court après cet instant. Un marqueur posé en fin de génération satisfait les deux : aucun appel de modèle supplémentaire, et il arrive avec le dernier jeton. Le motif n'a pas été inventé pour l'occasion — c'est celui de l'auto-évaluation de la psyché, éprouvé en production. Les fragments sont filtrés du flux pour que rien ne clignote à l'écran, et le marqueur complet est retiré du texte conservé.
+
+**L'intensité est une indication de jeu, pas une confiance.** Le rendu la **surjoue** plutôt que de la reproduire : une caricature qui joue un 0,8 à 0,8 ressemble à un appel visio. Et c'est le **registre qui plafonne** ce que l'intensité peut acheter — une réponse factuelle déclarée au maximum reste un visage neutre livré avec conviction, jamais une célébration. L'intensité dit avec quelle force le registre est passé ; elle ne dit jamais lequel c'était.
+
+**Ce qui est appliqué doit être publié.** Un registre que l'instruction propose mais que le code refuse produit un tour sans visage, en silence ; un registre que le code accepte mais que l'instruction tait est un visage qui n'arrivera jamais. Les deux listes sont tenues ensemble par un test, et la copie côté navigateur est tenue sur la copie côté serveur.
+
+**Le marqueur n'arrive pas à tous les tours, et le repli en tient compte.** Première mesure en conditions réelles : le marqueur de ton et celui de la psyché ont été émis sur exactement les mêmes deux tours sur seize — un taux qui est une propriété du modèle de réponse, pas de la fonctionnalité. Un visage qui ne réagit qu'un tour sur huit étant un visage cassé, le repli ne peut plus ne rien renvoyer : il lit la **forme** de la réponse — longueur, blocs de code, densité de ponctuation, emoji, jamais les mots, donc six locales identiques — et parle **le même vocabulaire** que le marqueur. Une seule table de registres, une seule courbe d'amplitude, une seule route.
+
+**Et la psyché garde ce qu'elle fait bien** : la famille d'humeur au repos — respiration, cadence de clignement, poids des gestes d'inactivité. Un trait doit colorer un comportement de repos, jamais une réaction.
+
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 252 ADRs, et du changelog (v1.0 à v1.38.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

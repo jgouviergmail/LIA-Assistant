@@ -14,6 +14,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { EyesWidget } from '../EyesWidget';
 import { anchoredPosition } from '../useEyesAnchor';
 import {
+  ACCESSORY_DURATION_MS,
   BLINK_DURATION_MS,
   BLINK_MIN_DELAY_MS,
   EMOTE_EXIT_MS,
@@ -71,6 +72,27 @@ function settleMask(): void {
     vi.advanceTimersByTime(MASK_APPLY_DELAY_MS + 5);
   });
 }
+
+/**
+ * Budget for the four tests that advance the clock by fifteen simulated
+ * minutes (the dozing stages and the wake performances).
+ *
+ * Those minutes stopped being free with ADR-252: the widget runs a real
+ * animation loop now, so fifteen simulated minutes are roughly 27 000
+ * animation frames. Measured 2026-08-31 with coverage instrumentation, this
+ * file run on its own: 2.8-3.2 s each — the same order as the suite's
+ * documented worst case (~3.3 s, the settings mega-forms). They exceed the
+ * 15 s default only in the FULL parallel run, where this repository measures a
+ * ~5x stretch.
+ *
+ * That is the cost of simulating a quarter of an hour of animation, not a slow
+ * test: the same fifteen minutes cost about 0.01 % of a CPU in a browser. Four
+ * rounds of optimisation went in first (loops walked instead of channels, a
+ * pure-idle fast path, one settling check per frame, tighter write precision);
+ * what is left is inherent. The budget is per-test on purpose — the global
+ * default must keep catching a genuinely hung test at 15 s.
+ */
+const LONG_CLOCK_TIMEOUT_MS = 40_000;
 
 function eyesRoot(): HTMLElement {
   const root = document.querySelector('.lia-eyes');
@@ -257,17 +279,21 @@ describe('EyesWidget — expression wiring', () => {
     expect(eyesRoot().dataset.expression).toBe('speaking');
   });
 
-  it('dozes off from mount without any user gesture (progressive sleep)', () => {
-    // Pinned for the same reason as the wake-startle test: a free-RNG flicker
-    // during the long doze can hold the frame at the assertion instant.
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    renderWidget();
-    expect(eyesRoot().dataset.expression).toBe('neutral');
-    act(() => {
-      vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
-    });
-    expect(eyesRoot().dataset.expression).toBe('sleep');
-  });
+  it(
+    'dozes off from mount without any user gesture (progressive sleep)',
+    () => {
+      // Pinned for the same reason as the wake-startle test: a free-RNG flicker
+      // during the long doze can hold the frame at the assertion instant.
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      renderWidget();
+      expect(eyesRoot().dataset.expression).toBe('neutral');
+      act(() => {
+        vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
+      });
+      expect(eyesRoot().dataset.expression).toBe('sleep');
+    },
+    LONG_CLOCK_TIMEOUT_MS
+  );
 
   it('an error is worried, then decays back to idle after the hold', () => {
     renderWidget({ chatStatus: 'error' });
@@ -295,17 +321,17 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
       .mockReturnValueOnce(0) // hold → SACCADE_HOLD_MIN_MS
       .mockReturnValue(0.9);
     renderWidget();
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('0');
+    expect(eyesRoot().dataset.gazeX).toBe('0');
     act(() => {
       vi.advanceTimersByTime(IDLE_GESTURE_MIN_DELAY_MS + 10);
     });
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('-0.35');
-    expect(eyesRoot().style.getPropertyValue('--gaze-ms')).toBe(`${SACCADE_MOVE_MS}ms`);
+    expect(eyesRoot().dataset.gazeX).toBe('-0.35');
+    expect(eyesRoot().dataset.gazeMs).toBe(String(SACCADE_MOVE_MS));
     act(() => {
       vi.advanceTimersByTime(SACCADE_HOLD_MIN_MS + 10);
     });
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('0');
-    expect(eyesRoot().style.getPropertyValue('--gaze-ms')).toBe(`${GAZE_RETURN_MS}ms`);
+    expect(eyesRoot().dataset.gazeX).toBe('0');
+    expect(eyesRoot().dataset.gazeMs).toBe(String(GAZE_RETURN_MS));
   });
 
   it('a wander interrupted by minimizing STILL comes home (no gaze drift, ever)', () => {
@@ -323,7 +349,7 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     act(() => {
       vi.advanceTimersByTime(IDLE_GESTURE_MIN_DELAY_MS + 10);
     });
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('-0.35');
+    expect(eyesRoot().dataset.gazeX).toBe('-0.35');
     // Minimize MID-HOLD: the wander loop is torn down…
     fireEvent.click(screen.getByRole('button', { name: 'eyes.minimize' }));
     act(() => {
@@ -331,7 +357,7 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     });
     // …but the homing timer survives: restored eyes sit exactly at center.
     fireEvent.click(screen.getByRole('button', { name: 'eyes.restore' }));
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('0');
+    expect(eyesRoot().dataset.gazeX).toBe('0');
   });
 
   it('plays a one-shot gesture class then clears it (rng → tilt on calm)', () => {
@@ -362,26 +388,26 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     act(() => {
       vi.advanceTimersByTime(READING_STEP_MS + 10);
     });
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('-0.18');
-    expect(eyesRoot().style.getPropertyValue('--gaze-ms')).toBe(`${READING_MOVE_MS}ms`);
+    expect(eyesRoot().dataset.gazeX).toBe('-0.18');
+    expect(eyesRoot().dataset.gazeMs).toBe(String(READING_MOVE_MS));
     expect(eyesRoot().dataset.gesture).toBeUndefined();
     // Second beat walks further right along the same line.
     act(() => {
       vi.advanceTimersByTime(READING_STEP_MS);
     });
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('0.2');
+    expect(eyesRoot().dataset.gazeX).toBe('0.2');
   });
 
   it('a masked change is a three-beat: blink starts, face swaps at lid-top, lids clear', () => {
     const { rerender } = renderWidget({ chatStatus: 'idle' });
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(false);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(false);
     rerender(<EyesWidget chatStatus="sending" streamPhase="answer" hitlAwaiting={false} />);
     act(() => {
       vi.advanceTimersByTime(1);
     });
     // Beat 1: the lid sweep starts immediately — the face has NOT changed yet
     // (the morph happens out of sight, at the top of the blink).
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(true);
     expect(eyesRoot().dataset.expression).toBe('neutral');
     // Beat 2: at lid-top the new face lands.
     settleMask();
@@ -390,7 +416,7 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     act(() => {
       vi.advanceTimersByTime(BLINK_DURATION_MS + 10);
     });
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(false);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(false);
   });
 
   it('an idle mood flicker plays a mini scene then settles back (rng → daydream)', () => {
@@ -498,16 +524,20 @@ describe('EyesWidget — emotes & slapstick', () => {
     expect(document.querySelector('.lia-emote')).toBeNull();
   });
 
-  it('deep sleep floats the drifting "z"', () => {
-    // Pinned for the same reason as the wake-startle test: a free-RNG flicker
-    // during the long doze can hold the frame at the assertion instant.
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    renderWidget();
-    act(() => {
-      vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
-    });
-    expect(document.querySelector('.lia-emote')?.getAttribute('data-emote')).toBe('z');
-  });
+  it(
+    'deep sleep floats the drifting "z"',
+    () => {
+      // Pinned for the same reason as the wake-startle test: a free-RNG flicker
+      // during the long doze can hold the frame at the assertion instant.
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      renderWidget();
+      act(() => {
+        vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
+      });
+      expect(document.querySelector('.lia-emote')?.getAttribute('data-emote')).toBe('z');
+    },
+    LONG_CLOCK_TIMEOUT_MS
+  );
 
   it('a rare silly beat plays a slapstick gesture then clears (rng-forced swap)', () => {
     // Consumption order at mount: blink delay, idle delay; at the idle tick:
@@ -541,57 +571,65 @@ describe('EyesWidget — character moments', () => {
     expect(eyesRoot().dataset.expression).not.toBe('surprise');
   });
 
-  it('waking from DEEP sleep plays the full startle: jolt, look around, settle', () => {
-    // 0.5 keeps the idle life benign across the long doze + settle window:
-    // silly roll declines (0.5 > SILLY_PROBABILITY) and every gesture pick
-    // lands on saccade/glance/perk, none of which touch data-expression —
-    // free RNG here let a flicker steal the frame right at the settle
-    // assertion (seen only on CI runners).
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    renderWidget();
-    act(() => {
-      // Fall asleep, then STAY asleep past the short-nap threshold: the
-      // startle is earned by deep sleep, a quick doze only gets the short
-      // recollection (see the short-nap test).
-      vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + SHORT_NAP_MS + 1500);
-    });
-    expect(eyesRoot().dataset.expression).toBe('sleep');
-    fireEvent.keyDown(document.body, { key: 'a' });
-    act(() => {
-      vi.advanceTimersByTime(10);
-    });
-    expect(eyesRoot().dataset.expression).toBe('surprise');
-    act(() => {
-      vi.advanceTimersByTime(WAKE_PERFORMANCE[0].ms + 10);
-    });
-    expect(eyesRoot().dataset.expression).toBe('attentive');
-    const total = WAKE_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
-    act(() => {
-      vi.advanceTimersByTime(total + 1200);
-    });
-    expect(eyesRoot().dataset.expression).toBe('neutral');
-  });
+  it(
+    'waking from DEEP sleep plays the full startle: jolt, look around, settle',
+    () => {
+      // 0.5 keeps the idle life benign across the long doze + settle window:
+      // silly roll declines (0.5 > SILLY_PROBABILITY) and every gesture pick
+      // lands on saccade/glance/perk, none of which touch data-expression —
+      // free RNG here let a flicker steal the frame right at the settle
+      // assertion (seen only on CI runners).
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      renderWidget();
+      act(() => {
+        // Fall asleep, then STAY asleep past the short-nap threshold: the
+        // startle is earned by deep sleep, a quick doze only gets the short
+        // recollection (see the short-nap test).
+        vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + SHORT_NAP_MS + 1500);
+      });
+      expect(eyesRoot().dataset.expression).toBe('sleep');
+      fireEvent.keyDown(document.body, { key: 'a' });
+      act(() => {
+        vi.advanceTimersByTime(10);
+      });
+      expect(eyesRoot().dataset.expression).toBe('surprise');
+      act(() => {
+        vi.advanceTimersByTime(WAKE_PERFORMANCE[0].ms + 10);
+      });
+      expect(eyesRoot().dataset.expression).toBe('attentive');
+      const total = WAKE_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
+      act(() => {
+        vi.advanceTimersByTime(total + 1200);
+      });
+      expect(eyesRoot().dataset.expression).toBe('neutral');
+    },
+    LONG_CLOCK_TIMEOUT_MS
+  );
 
-  it('waking from a SHORT nap is a quick recollection, not a startle', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    renderWidget();
-    act(() => {
-      vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
-    });
-    expect(eyesRoot().dataset.expression).toBe('sleep');
-    // Woken moments after dozing off: attentive beat, then back to the room —
-    // never the full jolt.
-    fireEvent.keyDown(document.body, { key: 'a' });
-    act(() => {
-      vi.advanceTimersByTime(10);
-    });
-    expect(eyesRoot().dataset.expression).toBe('attentive');
-    const total = WAKE_SHORT_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
-    act(() => {
-      vi.advanceTimersByTime(total + 1200);
-    });
-    expect(eyesRoot().dataset.expression).toBe('neutral');
-  });
+  it(
+    'waking from a SHORT nap is a quick recollection, not a startle',
+    () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      renderWidget();
+      act(() => {
+        vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
+      });
+      expect(eyesRoot().dataset.expression).toBe('sleep');
+      // Woken moments after dozing off: attentive beat, then back to the room —
+      // never the full jolt.
+      fireEvent.keyDown(document.body, { key: 'a' });
+      act(() => {
+        vi.advanceTimersByTime(10);
+      });
+      expect(eyesRoot().dataset.expression).toBe('attentive');
+      const total = WAKE_SHORT_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
+      act(() => {
+        vi.advanceTimersByTime(total + 1200);
+      });
+      expect(eyesRoot().dataset.expression).toBe('neutral');
+    },
+    LONG_CLOCK_TIMEOUT_MS
+  );
 });
 
 describe('EyesWidget — motion one-shots', () => {
@@ -625,21 +663,21 @@ describe('EyesWidget — motion one-shots', () => {
   it('blinks on schedule and clears the flag after one cycle (double blink at low RNG)', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     renderWidget();
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(false);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(false);
     // rng=0 → first blink exactly at BLINK_MIN_DELAY_MS.
     act(() => {
       vi.advanceTimersByTime(BLINK_MIN_DELAY_MS);
     });
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(true);
     act(() => {
       vi.advanceTimersByTime(BLINK_DURATION_MS);
     });
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(false);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(false);
     // rng=0 → double blink: second cycle after the gap.
     act(() => {
       vi.advanceTimersByTime(200);
     });
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(true);
   });
 });
 
@@ -674,7 +712,7 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
     });
     // First beat of MOOD_SHIFT_RISE_PERFORMANCE: an upward attentive spark.
     expect(eyesRoot().dataset.expression).toBe('attentive');
-    expect(eyesRoot().style.getPropertyValue('--gaze-y')).toBe('-0.4');
+    expect(eyesRoot().dataset.gazeY).toBe('-0.4');
     act(() => {
       vi.advanceTimersByTime(MOOD_SHIFT_RISE_PERFORMANCE[0].ms + 10);
     });
@@ -699,7 +737,7 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
       vi.advanceTimersByTime(1500);
     });
     expect(eyesRoot().dataset.expression).toBe('attentive');
-    expect(eyesRoot().style.getPropertyValue('--gaze-y')).toBe('0');
+    expect(eyesRoot().dataset.gazeY).toBe('0');
     act(() => {
       vi.advanceTimersByTime(WONDER_PERFORMANCE[0].ms);
     });
@@ -749,7 +787,7 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
     act(() => {
       vi.advanceTimersByTime(READING_STEP_MS + 10);
     });
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('-0.18');
+    expect(eyesRoot().dataset.gazeX).toBe('-0.18');
     // Minimize MID-LINE: the reading loop is torn down...
     fireEvent.click(screen.getByRole('button', { name: 'eyes.minimize' }));
     fireEvent.click(screen.getByRole('button', { name: 'eyes.restore' }));
@@ -757,7 +795,7 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
       vi.advanceTimersByTime(10);
     });
     // ...but the teardown sent the gaze home: restored eyes sit at center.
-    expect(eyesRoot().style.getPropertyValue('--gaze-x')).toBe('0');
+    expect(eyesRoot().dataset.gazeX).toBe('0');
   });
 
   it('overlapping blink pulses never cut the lid mid-cycle (last pulse wins)', () => {
@@ -774,7 +812,7 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
       vi.advanceTimersByTime(IDLE_GESTURE_MIN_DELAY_MS + 10);
     });
     // The pre-gaze blink pulse is on.
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(true);
     // A masked transition lands 200 ms later and re-pulses the SAME timer:
     // the lid must stay down past the first pulse's own 420 ms deadline.
     act(() => {
@@ -786,12 +824,12 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
     act(() => {
       vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS - 200);
     });
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(true);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(true);
     // ...and clears one full cycle after the LAST pulse, not the first.
     act(() => {
       vi.advanceTimersByTime(BLINK_DURATION_MS + 50);
     });
-    expect(eyesRoot().classList.contains('is-blinking')).toBe(false);
+    expect(eyesRoot().dataset.blinking === 'true').toBe(false);
   });
 
   it('a notification cuts a running idle beat short (the glance must not be hidden)', () => {
@@ -839,5 +877,87 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
       vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
     });
     expect(eyesRoot().dataset.expression).toBe('sad');
+  });
+});
+
+describe('EyesWidget — cartoon accessories (RNG-pinned)', () => {
+  it('brings a bead of sweat to a worried face, then takes it back', () => {
+    // Rolls low: the accessory fires. Pinning the RNG is what makes a
+    // deliberately RARE beat testable at all.
+    vi.spyOn(Math, 'random').mockReturnValue(0.02);
+    renderWidget({ chatStatus: 'error' });
+    settleMask();
+    expect(eyesRoot().dataset.expression).toBe('worried');
+    expect(document.querySelector('.lia-accessory')?.getAttribute('data-accessory')).toBe('sweat');
+
+    act(() => {
+      vi.advanceTimersByTime(ACCESSORY_DURATION_MS.sweat + 50);
+    });
+    expect(document.querySelector('.lia-accessory')).toBeNull();
+  });
+
+  it('takes back a sparkle EARNED BY AN ACCENT, exactly like any other', () => {
+    // An accessory set by one owner and cleared by another is an accessory
+    // that never clears: the accent path set the sparkle and scheduled
+    // nothing, so it sat on the face until the next expression change.
+    useEyesSignalsStore.getState().setReaction('excited', 1.4, 'sparkle');
+    renderWidget({ chatStatus: 'idle' });
+    settleMask();
+    expect(document.querySelector('.lia-accessory')?.getAttribute('data-accessory')).toBe(
+      'sparkle'
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(ACCESSORY_DURATION_MS.sparkle + 50);
+    });
+    expect(document.querySelector('.lia-accessory')).toBeNull();
+  });
+
+  it('never plays an accent beat under reduced motion', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as unknown as MediaQueryList
+    );
+    useEyesSignalsStore.getState().setReaction('excited', 1.4, 'sparkle');
+    renderWidget({ chatStatus: 'idle' });
+    settleMask();
+    expect(document.querySelector('.lia-accessory')).toBeNull();
+  });
+
+  it('brings nothing on an unlucky roll — most arrivals stay plain', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    renderWidget({ chatStatus: 'error' });
+    settleMask();
+    expect(eyesRoot().dataset.expression).toBe('worried');
+    expect(document.querySelector('.lia-accessory')).toBeNull();
+  });
+
+  it('never plays one under reduced motion — a flourish is the first thing spared', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.02);
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as unknown as MediaQueryList
+    );
+    renderWidget({ chatStatus: 'error' });
+    settleMask();
+    expect(document.querySelector('.lia-accessory')).toBeNull();
   });
 });

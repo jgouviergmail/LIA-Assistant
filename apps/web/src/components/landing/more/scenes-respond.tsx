@@ -7,7 +7,10 @@
 
 'use client';
 
-import { Trash2, HelpCircle, ChevronDown,
+import {
+  Trash2,
+  HelpCircle,
+  ChevronDown,
   ArrowDown,
   Check,
   ChevronRight,
@@ -329,10 +332,7 @@ function PeerActionsScene({ active, labels }: SceneProps) {
   const replyPicked = phase === 'reply' || phase === 'prefilled';
   return (
     <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
-      <MiniBubble
-        side="assistant"
-        className="w-3/4 space-y-1.5 border-primary/25 bg-primary/10"
-      >
+      <MiniBubble side="assistant" className="w-3/4 space-y-1.5 border-primary/25 bg-primary/10">
         <span className="flex items-center gap-1.5">
           <Handshake className="h-3 w-3 text-primary" />
           <SkeletonLine w="w-10" className="h-1.5" />
@@ -457,16 +457,42 @@ function MiniEye({ phase, right }: { phase: EyesPhase; right?: boolean }) {
 }
 
 /**
- * The expressive eyes follow the turn: they watch the input, squint upward
- * while thinking, sweep while searching, then smile at the finished answer.
+ * One glowing mouth, as a FILLED shape rather than a stroke.
+ *
+ * The real widget draws it the same way and for the same reason: under two
+ * filled, glowing eyes a hairline is a line drawing wearing a screen face. It
+ * is a slab whose height and corner radii morph — flat-topped and wide for a
+ * smile, a small rounded bar at rest — never a perfect half-disc.
+ */
+function MiniMouth({ phase }: { phase: EyesPhase }) {
+  return (
+    <span
+      className={cn(
+        'block bg-primary shadow-[0_0_6px] shadow-primary/40',
+        'transition-all duration-500 ease-out',
+        phase === 'joy' ? 'h-2 w-6 rounded-t-[3px] rounded-b-[10px]' : 'h-[3px] w-3 rounded-full',
+        phase === 'think' && 'w-2 -rotate-6',
+        phase === 'search' && 'w-2.5'
+      )}
+    />
+  );
+}
+
+/**
+ * The expressive face follows the turn: it watches the input, squints upward
+ * while thinking, sweeps while searching, then smiles at the finished answer —
+ * mouth included, because the mouth is what carries the register of the reply.
  */
 function ExpressiveEyesScene({ active }: SceneProps) {
   const phase = useLoopedTimeline(EYES_STEPS, { active });
   return (
     <div className={cn(STAGE, 'items-center justify-center gap-2.5')}>
-      <div className="flex items-center gap-2">
-        <MiniEye phase={phase} />
-        <MiniEye phase={phase} right />
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex items-center gap-2">
+          <MiniEye phase={phase} />
+          <MiniEye phase={phase} right />
+        </div>
+        <MiniMouth phase={phase} />
       </div>
       <MiniBubble side="assistant" className="w-3/5 space-y-1">
         <SkeletonLine w={phase === 'joy' ? 'w-full' : 'w-1/3'} />

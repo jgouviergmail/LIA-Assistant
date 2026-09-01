@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Date**: 2026-08-23
-**Application**: LIA v1.38.1
+**Application**: LIA v1.38.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -371,6 +371,8 @@ You're not talking to a tool — you're interacting with an entity whose vocabul
 And a promise like that is worth exactly what the measurement behind it is worth. Fourteen moods were advertised, and until August 2026 five of them were unreachable at rest: the mapping left every personality on the assertive side of the scale, while an internal pulse crowned joy the dominant emotion on 31 % of turns whatever LIA had actually appraised. Both knobs had shipped a year earlier, deliberately switched off, so that turning them on would be a measured decision rather than an intuition. The measurement was taken on real usage; the range is now genuinely reachable. We would rather publish that story than a number nobody checked.
 
 This inner life has a face: the mood emoji animates on the current reply, the colored ring pulses when the mood shifts, and the milestones of your relationship are celebrated with a discreet wink.
+
+And that face has to tell the truth about the answer, not about the mood of the moment. It used to pick its expression from the inner life's dominant emotion — but that is a **trait**: it moves slowly, which is the point of it. Measured across fourteen consecutive turns, it named the same emotion on thirteen of them. So the face smiled as much after an error as after good news. LIA now states the **register** of what she has just written, and the face plays that one: a technical explanation keeps a focused look, a failure reads as a failure. A trait colours a resting presence; it should never answer for a single moment.
 
 And this presence follows you: outside the chat, a floating companion keeps LIA at your side across the whole dashboard — at rest, at work, or carrying a notification.
 

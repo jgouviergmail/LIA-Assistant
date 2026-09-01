@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.38.1
+**Anwendung**: LIA v1.38.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -371,6 +371,8 @@ Du sprichst nicht mit einem Werkzeug — Du interagierst mit einer Entität, der
 Und ein solches Versprechen ist genau so viel wert wie die Messung dahinter. Vierzehn Stimmungen wurden angekündigt; bis August 2026 blieben fünf davon im Ruhezustand unerreichbar: Die Abbildung ließ alle Persönlichkeiten auf der bestimmten Seite der Skala, während ein interner Impuls Freude in 31 % der Züge zur dominanten Emotion krönte, ganz gleich was LIA tatsächlich bewertet hatte. Beide Stellschrauben waren ein Jahr zuvor bewusst ausgeschaltet ausgeliefert worden, damit ihr Einschalten eine gemessene Entscheidung wäre und keine Intuition. Die Messung erfolgte an echter Nutzung; die Bandbreite ist nun wirklich erreichbar. Wir veröffentlichen lieber diese Geschichte als eine Zahl, die niemand geprüft hat.
 
 Dieses Innenleben hat ein Gesicht: Das Stimmungs-Emoji animiert sich auf der aktuellen Antwort, der farbige Ring pulsiert, wenn die Stimmung kippt, und die Meilensteine deiner Beziehung werden mit einem dezenten Augenzwinkern gefeiert.
+
+Und dieses Gesicht muss die Wahrheit über die Antwort sagen, nicht über die augenblickliche Stimmung. Es wählte seinen Ausdruck aus der dominanten Emotion des Innenlebens — doch die ist ein **Merkmal**: sie bewegt sich langsam, und genau darum geht es. Über vierzehn aufeinanderfolgende Züge gemessen, nannte sie in dreizehn Fällen dieselbe Emotion. Das Gesicht lächelte also nach einem Fehler ebenso wie nach einer guten Nachricht. Jetzt gibt LIA selbst das **Register** dessen an, was sie gerade geschrieben hat, und das Gesicht spielt dieses: eine technische Erklärung behält einen konzentrierten Ausdruck, ein Fehlschlag liest sich als Fehlschlag. Ein Merkmal färbt eine ruhende Präsenz; es darf nie für einen Augenblick antworten.
 
 Und diese Präsenz folgt dir: Außerhalb des Chats hält ein schwebender Begleiter LIA im gesamten Dashboard an deiner Seite — ruhend, arbeitend oder mit einer Benachrichtigung.
 

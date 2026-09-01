@@ -58,6 +58,7 @@ def test_system_prompt_base_only_when_no_extras():
     with (
         patch(f"{_RESP}.get_response_prompt", Mock(return_value="BASE")),
         patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
+        patch(f"{_RESP}.inject_tone_instruction", Mock(side_effect=lambda p: p)),
     ):
         out = _prompt()
     assert out == "BASE"
@@ -67,9 +68,43 @@ def test_system_prompt_appends_user_model_block():
     with (
         patch(f"{_RESP}.get_response_prompt", Mock(return_value="BASE")),
         patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
+        patch(f"{_RESP}.inject_tone_instruction", Mock(side_effect=lambda p: p)),
     ):
         out = _prompt(user_model_block="PORTRAIT")
     assert out == "BASE\n\nPORTRAIT"
+
+
+def test_system_prompt_asks_the_model_to_declare_its_register(monkeypatch):
+    """ADR-253: the avatar's tone signal is requested in the response prompt.
+
+    It is not optional scenery. Without this block the model never emits the
+    tag, `done` carries no register, and the face falls back to reading
+    punctuation -- which had nothing to say about nine of fourteen real
+    answers when the defect was measured.
+    """
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "expressivity_enabled", True)
+    with (
+        patch(f"{_RESP}.get_response_prompt", Mock(return_value="BASE")),
+        patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
+    ):
+        out = _prompt()
+    assert "<lia_tone" in out
+    assert out.startswith("BASE")
+
+
+def test_system_prompt_costs_nothing_when_expressivity_is_off(monkeypatch):
+    """The flag removes the prompt tokens, not just the parsing."""
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "expressivity_enabled", False)
+    with (
+        patch(f"{_RESP}.get_response_prompt", Mock(return_value="BASE")),
+        patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
+    ):
+        out = _prompt()
+    assert out == "BASE"
 
 
 def test_system_prompt_injects_initiative_suggestion():

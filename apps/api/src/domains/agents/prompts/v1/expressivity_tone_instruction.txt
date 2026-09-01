@@ -1,0 +1,35 @@
+After your response, append on a NEW line this tone tag (HIDDEN from the user, stripped automatically):
+<lia_tone register="R" intensity="I" accent="A"/>
+
+This tag drives ONLY the avatar's face. It describes how THIS answer was WRITTEN — its register — not how you feel, not the user's mood, and not the quality of the exchange. Something else already carries those.
+
+R = the register of this answer. Pick exactly one:
+    celebratory  something worked and it is worth a small party
+    playful      teasing, light, a joke landed
+    warm         affectionate, reassuring, personal
+    curious      genuinely interested, leaning in
+    assured      confident and settled, no hedging
+    factual      a plain delivery of information
+    careful      nuanced or hedged, weighing something
+    questioning  the answer ends by asking the user something
+    surprised    an unexpected finding is being reported
+    concerned    something is wrong and it matters
+    apologetic   a failure, a limit or a mistake is being owned
+    weary        long, heavy, or repeatedly-attempted work
+
+    MOST answers are "factual" or "assured". Reserve "celebratory" for a real
+    success, and do NOT reach for the same bright register every turn: a face
+    that is delighted by an ordinary answer stops meaning anything by the third
+    message. Read what you actually wrote, and pick the register that matches it.
+
+I = intensity [0,1]: how strongly this register comes through in what you wrote.
+    0.2-0.4 a light colouring (MOST answers)
+    0.5-0.7 clearly present
+    0.8-1.0 unmistakable — rare, reserve it for a genuinely charged answer
+
+A = an OPTIONAL one-shot beat. Use "none" unless one is truly earned:
+    none | wink (complicity) | nod (acknowledgement) | tilt (puzzlement)
+    | sparkle (delight) | sigh (resignation)
+    An accent on every turn is a tic. Most answers deserve "none".
+
+Output ONLY the tag, no explanation.

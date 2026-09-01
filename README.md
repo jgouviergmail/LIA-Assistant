@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.38.1</strong> — <strong>Settings you can find at a glance</strong>. The settings shell listed fifty-three sections that all drew the same blue icon on the same blue chip — and sixteen of them borrowed another section's drawing on top of that, one plug shape serving four different settings. Colour cannot separate a repeated shape, so both were fixed: a distinct glyph per section, and one tone per GROUP rather than per item, because twelve colours are a map you learn and fifty-three are noise you decipher. It is the product's second fixed palette, deliberately outside the accent theme and measured against all fifteen of them before shipping — and colour here never carries state, so a reader who does not perceive it loses nothing. — 30 August 2026.
+  <strong>Version 1.38.2</strong> — <strong>A face that answers the tone, not the habit</strong>. After every reply the chat avatar wore roughly the same pleased expression — including after an error or a three-screen technical explanation. The measurement said why: the face was picking its expression from the psyche's dominant emotion, and a psyche is a TRAIT — over fourteen consecutive production turns it named the same emotion on thirteen of them, drifting by 0.02. An argmax over a near-constant vector is a constant. The model that writes the answer now declares its own REGISTER instead, in a vocabulary that belongs to the animation and to nothing else: twelve registers, twelve genuinely distinct faces, only two of which smile. It travels in band on the same generation, so it costs no extra model call, and it is stripped from the stream before a single character reaches the screen. The mouth became a solid shape rather than a hairline at the same time, and it now arrives at the corners the way a real smile does. — 1 September 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **250** ADRs                                                           |
-| **235** versions shipped  | **6 languages**, parity enforced in CI  | **490** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **252** ADRs                                                           |
+| **236** versions shipped  | **6 languages**, parity enforced in CI  | **490** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)

@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import { generateFallbackHitlQuestion } from '@/lib/hitl-utils';
 import { normalizeHitlPayload } from '@/lib/hitl-payload';
 import { generateUUID } from '@/lib/utils';
+import { parseToneAnnotation } from '@/components/eyes/tone';
 import { usePsycheStore } from '@/stores/psycheStore';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import type { PsycheStateSummary } from '@/types/psyche';
@@ -713,6 +714,12 @@ export function handleDone(chunk: ChatStreamChunk, context: SSEHandlerContext): 
   if (metadata?.psyche_state) {
     usePsycheStore.getState().updateFromSSE(metadata.psyche_state as PsycheStateSummary);
   }
+
+  // Expressivity (ADR-253): the register the answering model declared for THIS
+  // answer. Parked BEFORE STREAM_DONE for the same reason the trace is: the
+  // dispatch below flips the status to idle, and that transition is what makes
+  // the avatar react.
+  useEyesSignalsStore.getState().setTone(parseToneAnnotation(metadata?.expressivity));
 
   // Execution trace (Lot 2 P2-V1): attach the flip-surviving backstage record
   // to the completed message BEFORE STREAM_DONE flips status to idle. Skipped

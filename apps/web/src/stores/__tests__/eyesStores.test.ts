@@ -59,7 +59,7 @@ describe('eyesSignalsStore', () => {
   });
 
   it('a reaction is held for its window then reads as expired', () => {
-    useEyesSignalsStore.getState().setReaction('excited', 1000);
+    useEyesSignalsStore.getState().setReaction('excited', 1, 'none', 1000);
     expect(useEyesSignalsStore.getState().liveReaction(1000 + REACTION_HOLD_MS - 1)).toBe(
       'excited'
     );
@@ -67,9 +67,26 @@ describe('eyesSignalsStore', () => {
   });
 
   it('setReaction(null) clears the held reaction', () => {
-    useEyesSignalsStore.getState().setReaction('joy', 1000);
-    useEyesSignalsStore.getState().setReaction(null, 2000);
+    useEyesSignalsStore.getState().setReaction('joy', 1, 'none', 1000);
+    useEyesSignalsStore.getState().setReaction(null, 1, 'none', 2000);
     expect(useEyesSignalsStore.getState().liveReaction(2000)).toBeNull();
+  });
+
+  it('carries how forcefully the answer was written, for the same window', () => {
+    useEyesSignalsStore.getState().setReaction('joy', 1.3, 'none', 1000);
+    expect(useEyesSignalsStore.getState().liveEmphasis(1000 + REACTION_HOLD_MS - 1)).toBe(1.3);
+    // Once the reaction is over the face goes back to its authored amplitude —
+    // an emphasis that outlived its answer would colour unrelated expressions.
+    expect(useEyesSignalsStore.getState().liveEmphasis(1000 + REACTION_HOLD_MS)).toBe(1);
+  });
+
+  it('reads as unemphatic when there is no reaction at all', () => {
+    expect(useEyesSignalsStore.getState().liveEmphasis(5000)).toBe(1);
+  });
+
+  it('defaults the emphasis when a caller omits it', () => {
+    useEyesSignalsStore.getState().setReaction('sad', undefined, 'none', 1000);
+    expect(useEyesSignalsStore.getState().liveEmphasis(1000)).toBe(1);
   });
 
   it('reset returns every signal to its initial value', () => {
@@ -166,7 +183,9 @@ describe('eyesWidgetStore', () => {
   it('rehydrating a stale persisted style falls back to the default', async () => {
     localStorage.setItem(
       EYES_WIDGET_PREFS_KEY,
-      JSON.stringify({ state: { visible: true, size: 'md', style: 'retired-style', position: null } })
+      JSON.stringify({
+        state: { visible: true, size: 'md', style: 'retired-style', position: null },
+      })
     );
     await useEyesWidgetStore.persist.rehydrate();
     expect(useEyesWidgetStore.getState().style).toBe('cozmo');
@@ -177,5 +196,43 @@ describe('eyesWidgetStore', () => {
     await useEyesWidgetStore.persist.rehydrate();
     expect(useEyesWidgetStore.getState().style).toBe('cozmo');
     expect(useEyesWidgetStore.getState().size).toBe('auto');
+  });
+});
+
+describe('eyesSignalsStore — the answer register (ADR-253)', () => {
+  beforeEach(() => {
+    useEyesSignalsStore.getState().reset();
+  });
+
+  it('carries the one-shot accent for the same window as its reaction', () => {
+    useEyesSignalsStore.getState().setReaction('excited', 1.5, 'sparkle', 1000);
+    expect(useEyesSignalsStore.getState().liveAccent(1000 + REACTION_HOLD_MS - 1)).toBe('sparkle');
+    // Once the reaction is over the accent is over with it: a beat that
+    // outlived its answer would punctuate an unrelated expression.
+    expect(useEyesSignalsStore.getState().liveAccent(1000 + REACTION_HOLD_MS)).toBe('none');
+  });
+
+  it('reads as unaccented when there is no reaction at all', () => {
+    expect(useEyesSignalsStore.getState().liveAccent(5000)).toBe('none');
+  });
+
+  it('defaults the accent when a caller omits it', () => {
+    useEyesSignalsStore.getState().setReaction('joy', 1, undefined, 1000);
+    expect(useEyesSignalsStore.getState().liveAccent(1000)).toBe('none');
+  });
+
+  it('holds the declared tone until the turn that consumes it', () => {
+    const tone = { register: 'warm', intensity: 0.6, accent: 'nod' } as const;
+    useEyesSignalsStore.getState().setTone(tone);
+    expect(useEyesSignalsStore.getState().pendingTone).toEqual(tone);
+    // A new turn must not inherit the previous answer's register.
+    useEyesSignalsStore.getState().beginTurn();
+    expect(useEyesSignalsStore.getState().pendingTone).toBeNull();
+  });
+
+  it('clears the tone when a done event carries none', () => {
+    useEyesSignalsStore.getState().setTone({ register: 'weary', intensity: 0.4, accent: 'sigh' });
+    useEyesSignalsStore.getState().setTone(null);
+    expect(useEyesSignalsStore.getState().pendingTone).toBeNull();
   });
 });

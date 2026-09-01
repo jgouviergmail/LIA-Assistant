@@ -4424,6 +4424,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_38_2": {
+          "title": "v1.38.2 — 🙂 Un visage qui répond au ton, pas à l'habitude",
+          "date": "Septembre 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🙂 Le visage de LIA répond au TON de sa réponse</b> — après chaque message, l'avatar affichait à peu près toujours la même expression réjouie, y compris après une erreur ou une longue explication technique. LIA indique désormais elle-même le registre de ce qu'elle vient d'écrire — chaleureux, assuré, factuel, désolé, intrigué, préoccupé… — et le visage le joue. Douze expressions distinctes au lieu d'une, dont deux seulement sourient : une réponse technique garde un visage concentré.",
+            "i2": "<b>👄 Une bouche expressive</b> — l'avatar a maintenant une bouche qui porte l'expression : elle s'ouvre, se creuse, penche d'un côté et suit les mouvements du visage. Elle arrive par les coins, comme un vrai sourire, au lieu d'apparaître d'un bloc.",
+            "i3": "<b>🛠️ Correctif de déploiement</b> — sur certaines installations, un conteneur de supervision refusait de démarrer après une mise à jour, avec une erreur de permission sur son script de démarrage. Corrigé, et une vérification automatique empêche désormais ce cas de revenir."
+          }
+        },
         "v1_38_1": {
           "title": "v1.38.1 — 🎨 Des réglages qu'on retrouve d'un coup d'œil",
           "date": "Août 2026",
@@ -6703,7 +6713,7 @@
           },
           "q25": {
             "question": "C'est quoi les petits yeux animés sur la page de chat ?",
-            "answer": "Ce sont les <strong>yeux expressifs</strong> de LIA — un petit widget compagnon qui reflète ce que l'assistant fait et ressent. Ils regardent la zone de saisie pendant que tu écris, se plissent quand LIA réfléchit, balayent de gauche à droite quand elle cherche, et réagissent au ton de chaque réponse ; laissés tranquilles, ils clignent, jettent des coups d'œil, s'endorment, et font parfois une facétie.<br><br><strong>Fais-en les tiens :</strong> déplace-les où tu veux (les flèches du clavier marchent aussi, et ils ne dérivent jamais de là où tu les as posés), touche-les sur mobile pour révéler les boutons de taille et de masquage, ou réduis-les en un petit point de rappel. Six styles visuels sont disponibles dans <strong>Réglages › Personnalisation › Style des yeux</strong>, avec aperçus animés. Si ton système demande la réduction des animations, les yeux restent immobiles."
+            "answer": "Ce sont les <strong>yeux expressifs</strong> de LIA — un petit widget compagnon qui reflète ce que l'assistant fait et ressent. Ils regardent la zone de saisie pendant que tu écris, se plissent quand LIA réfléchit, balayent de gauche à droite quand elle cherche, et jouent le <strong>registre</strong> de chaque réponse — LIA indique elle-même si ce qu'elle vient d'écrire est chaleureux, assuré, factuel, désolé, intrigué ou préoccupé, et le visage le joue, bouche comprise. Douze expressions distinctes, dont deux seulement sourient : une réponse technique garde un visage concentré. Laissés tranquilles, ils clignent, jettent des coups d'œil, s'endorment, et font parfois une facétie.<br><br><strong>Fais-en les tiens :</strong> déplace-les où tu veux (les flèches du clavier marchent aussi, et ils ne dérivent jamais de là où tu les as posés), touche-les sur mobile pour révéler les boutons de taille et de masquage, ou réduis-les en un petit point de rappel. Six styles visuels sont disponibles dans <strong>Réglages › Personnalisation › Style des yeux</strong>, avec aperçus animés. Si ton système demande la réduction des animations, les yeux restent immobiles."
           }
         }
       },
@@ -7902,8 +7912,8 @@
         "desc": "Glisse un fichier sur la fenêtre : LIA le prend, proprement."
       },
       "expressive_eyes": {
-        "title": "Des yeux qui suivent la conversation",
-        "desc": "Un petit regard animé dans le chat : il observe, réfléchit, cherche — et s’illumine avec la réponse."
+        "title": "Un visage qui répond au ton",
+        "desc": "Douze expressions, bouche comprise : LIA indique le registre de ce qu’elle vient d’écrire, et le visage le joue. Deux seulement sourient."
       },
       "followup_chips": {
         "title": "La suite, en un clic",
@@ -10269,7 +10279,8 @@
       "native_apps": "Apps natives",
       "self_diagnostics": "Auto-diagnostic",
       "computed_answers": "Réponses calculées",
-      "measured_palette": "Une palette mesurée"
+      "measured_palette": "Une palette mesurée",
+        "declared_register": "Le registre déclaré"
     }
   },
   "healthMetrics": {

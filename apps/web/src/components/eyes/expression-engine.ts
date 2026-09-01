@@ -21,32 +21,47 @@ import type { VoiceModeState } from '@/stores/voiceModeStore';
 // =============================================================================
 
 /** The rendering vocabulary: every value maps to one CSS expression recipe. */
-export type EyeExpression =
-  | 'neutral'
-  | 'joy'
-  | 'excited'
-  | 'tender'
-  | 'surprise'
-  | 'fear'
-  | 'anger'
-  | 'sad'
-  | 'worried'
-  | 'question'
-  | 'thinking'
-  | 'searching'
-  | 'focused'
-  | 'attentive'
-  | 'speaking'
-  | 'bored'
-  | 'tired'
-  | 'sleepy'
-  | 'sleep'
-  | 'wink';
+/**
+ * The expression vocabulary, as a runtime list — same single-source pattern as
+ * `EYE_STYLE_IDS`. The rig's pose table and its completeness guard walk this
+ * array, so an expression added here without a pose reds the build.
+ */
+export const EYE_EXPRESSIONS = [
+  'neutral',
+  'joy',
+  'excited',
+  'tender',
+  'surprise',
+  'fear',
+  'anger',
+  'sad',
+  'worried',
+  'question',
+  'thinking',
+  'searching',
+  'focused',
+  'attentive',
+  'speaking',
+  'bored',
+  'tired',
+  'sleepy',
+  'sleep',
+  'wink',
+] as const;
+
+export type EyeExpression = (typeof EYE_EXPRESSIONS)[number];
 
 /** Normalized gaze offset: x/y in [-1, 1], (0, 0) = straight ahead. */
 export interface Gaze {
   x: number;
   y: number;
+}
+
+/** Clamp one gaze axis into its declared range. One implementation, shared by
+ * the component (which publishes the aim as a data attribute) and the rig
+ * (which springs toward it) — two clamps would be two sources of truth. */
+export function clampGazeAxis(value: number): number {
+  return Math.min(1, Math.max(-1, value));
 }
 
 /** What the widget renders: an expression, optionally looking somewhere. */
@@ -112,8 +127,6 @@ export const REACTION_HOLD_MS = 4000;
 export const NOTIFICATION_PING_MS = 2500;
 /** Typing is considered live for this long after the last keystroke. */
 export const TYPING_ACTIVE_MS = 1800;
-/** Minimum self-report intensity for an emotion to drive the reaction. */
-export const REACTION_EMOTION_MIN_INTENSITY = 0.25;
 
 // =============================================================================
 // Directed gazes (scene geography: input below, toasts top-right)
@@ -210,37 +223,6 @@ export function deriveExpression(inputs: ExpressionInputs): ExpressionFrame {
 // Psyche mappings
 // =============================================================================
 
-/** Post-response emotion (psyche self-report vocabulary) → expression. */
-const EMOTION_EXPRESSIONS: Record<string, EyeExpression> = {
-  joy: 'joy',
-  gratitude: 'tender',
-  pride: 'joy',
-  amusement: 'joy',
-  enthusiasm: 'excited',
-  tenderness: 'tender',
-  playfulness: 'joy',
-  relief: 'joy',
-  wonder: 'surprise',
-  frustration: 'anger',
-  concern: 'worried',
-  melancholy: 'sad',
-  disappointment: 'sad',
-  nervousness: 'fear',
-  curiosity: 'attentive',
-  serenity: 'neutral',
-  surprise: 'surprise',
-  empathy: 'tender',
-  confusion: 'question',
-  determination: 'focused',
-  protectiveness: 'focused',
-  resolve: 'focused',
-};
-
-/** Map a psyche emotion name to an eye expression (neutral on unknown). */
-export function emotionToExpression(emotion: string): EyeExpression {
-  return EMOTION_EXPRESSIONS[emotion] ?? 'neutral';
-}
-
 /**
  * Idle baseline for each of the 14 canonical psyche moods.
  *
@@ -306,8 +288,6 @@ export function moodToIdleExpression(mood: MoodLabel): EyeExpression {
 // =============================================================================
 
 export interface ReactionSource {
-  /** `active_emotions` from the done psyche snapshot (null: absent/disabled). */
-  psycheEmotions: Array<{ name: string; intensity: number }> | null;
   /** Final response text (already rendered to the user). */
   content: string;
   /** The turn ended in an error bubble. */
@@ -317,18 +297,23 @@ export interface ReactionSource {
 }
 
 /**
- * Resolve the post-response reaction.
+ * Resolve the post-response reaction WITHOUT a declared register.
  *
- * The per-turn psyche self-report (the LLM appraising its own exchange) is
- * the primary signal; when it is absent — psyche disabled, or the
- * fire-and-forget update lost the race with the SSE done — a language-neutral
- * content heuristic takes over. Returns null when nothing is worth reacting to.
+ * This is the fallback path — the tone annotation (ADR-253) is the signal, and
+ * it is resolved by the caller before this is ever reached. What is left here
+ * reads the delivered text: punctuation, emoji and structure, never words, so
+ * all six locales behave identically.
+ *
+ * The psyche used to come FIRST here, and that was the defect. It models an
+ * inner life, which is a trait: measured over fourteen consecutive production
+ * turns its dominant emotion was `enthusiasm` on thirteen, drifting by 0.02,
+ * so the argmax was a constant and every answer earned the same face. It is
+ * not consulted for a reaction any more — it still shapes the IDLE mood
+ * family, which is exactly what a trait should shape.
+ *
+ * Returns null when nothing is worth reacting to.
  */
 export function deriveReaction(source: ReactionSource): EyeExpression | null {
-  const top = source.psycheEmotions?.[0];
-  if (top && top.intensity >= REACTION_EMOTION_MIN_INTENSITY) {
-    return emotionToExpression(top.name);
-  }
   return contentHeuristicExpression(source);
 }
 
@@ -631,6 +616,96 @@ const EXPRESSION_EMOTES: Partial<Record<EyeExpression, string>> = {
 /** Floating glyph for an expression, or null when the eyes speak alone. */
 export function emoteForExpression(expression: EyeExpression): string | null {
   return EXPRESSION_EMOTES[expression] ?? null;
+}
+
+/**
+ * How EMPHATIC the assistant's answer was, as a multiplier on the reaction.
+ *
+ * `deriveReaction` decides WHICH expression a turn earns. This decides with
+ * what FORCE it lands — the dimension the psyche does not carry and should not
+ * be asked to: the psyche models what LIA feels, not how a message happened to
+ * be written, and stretching it into an animation input would make a model of
+ * an inner life answerable for a punctuation mark.
+ *
+ * Everything here is read from the delivered text, which is public by
+ * definition: exclamation marks, celebratory emoji and shouting push it up; an
+ * ellipsis, a code block or a long expository answer pull it down. The result
+ * multiplies the pose exaggeration, so the SAME emotion arrives bigger after
+ * "Done!" than after a three-screen technical explanation.
+ */
+export const EMPHASIS_MIN = 0.75;
+export const EMPHASIS_MAX = 1.4;
+
+/** Past this length an answer is expository: it is read, not exclaimed. */
+const EXPOSITORY_LENGTH = 900;
+
+/** A shout: three or more capitals in a row. */
+const SHOUTED_WORD = /\b\p{Lu}{3,}\b/u;
+
+/** Anything in the emoji planes — a count, not a classification. */
+const ANY_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
+
+export function responseEmphasis(source: {
+  content: string;
+  isError: boolean;
+  hasArtifacts: boolean;
+}): number {
+  const text = withoutCodeFences(source.content);
+  let emphasis = 1;
+
+  emphasis += Math.min((text.match(/[!！]/g) ?? []).length, 3) * 0.07;
+  emphasis += Math.min((text.match(ANY_EMOJI) ?? []).length, 3) * 0.05;
+  if (SHOUTED_WORD.test(text)) emphasis += 0.08;
+  // Delivering something made is a small event of its own.
+  if (source.hasArtifacts) emphasis += 0.1;
+
+  // Hesitation and technical delivery are both quieter registers.
+  if (/(\.\.\.|…)/.test(text)) emphasis -= 0.08;
+  if (/```/.test(source.content)) emphasis -= 0.1;
+  if (text.length > EXPOSITORY_LENGTH) emphasis -= 0.06;
+
+  return Math.min(EMPHASIS_MAX, Math.max(EMPHASIS_MIN, emphasis));
+}
+
+// =============================================================================
+// Cartoon accessories — the rarest register of the vocabulary
+// =============================================================================
+
+/**
+ * A one-shot cartoon accessory: a tear at the corner, a bead of sweat at the
+ * temple, a spark of delight.
+ *
+ * These are the one place the character is allowed to be openly cartoon, and
+ * rarity is what keeps that from becoming a tic: they are rolled ONCE when an
+ * expression arrives, never while it is held, and most arrivals roll nothing.
+ * An accessory that showed up on every sad face would stop meaning "this one
+ * really landed" within a day of use.
+ */
+export type EyeAccessory = 'tear' | 'sweat' | 'sparkle';
+
+/** How long an accessory plays before it is cleared (matches its CSS). */
+export const ACCESSORY_DURATION_MS: Record<EyeAccessory, number> = {
+  tear: 1900,
+  sweat: 1300,
+  sparkle: 1000,
+};
+
+/** Which accessory an expression can summon, and how often it bothers. */
+const EXPRESSION_ACCESSORIES: Partial<
+  Record<EyeExpression, { accessory: EyeAccessory; chance: number }>
+> = {
+  sad: { accessory: 'tear', chance: 0.3 },
+  worried: { accessory: 'sweat', chance: 0.22 },
+  fear: { accessory: 'sweat', chance: 0.35 },
+  joy: { accessory: 'sparkle', chance: 0.22 },
+  excited: { accessory: 'sparkle', chance: 0.3 },
+};
+
+/** Roll for the accessory an arriving expression brings with it, if any. */
+export function accessoryForExpression(expression: EyeExpression, rng: Rng): EyeAccessory | null {
+  const candidate = EXPRESSION_ACCESSORIES[expression];
+  if (!candidate) return null;
+  return rng() < candidate.chance ? candidate.accessory : null;
 }
 
 // =============================================================================

@@ -120,6 +120,8 @@ function eyesDisplayProps(
     gesture: behavior.gesture,
     emote: behavior.emote?.glyph ?? null,
     emoteLeaving: behavior.emote?.leaving ?? false,
+    accessory: behavior.accessory,
+    emphasis: behavior.emphasis,
   };
 }
 

@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Date**: 2026-08-23
-**Application**: LIA v1.38.1
+**Application**: LIA v1.38.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -49,6 +49,7 @@
 33. [Self-diagnostics: an assistant that reads its own telemetry](#33-self-diagnostics-an-assistant-that-reads-its-own-telemetry)
 34. [Computing instead of guessing: an ephemeral script in the sandbox that already existed](#34-computing-instead-of-guessing-an-ephemeral-script-in-the-sandbox-that-already-existed)
 35. [Measuring a colour before shipping it: the settings palette](#35-measuring-a-colour-before-shipping-it-the-settings-palette)
+36. [A trait is not a reaction: the register the answer declares](#36-a-trait-is-not-a-reaction-the-register-the-answer-declares)
 ---
 
 ## 1. Context and founding choices
@@ -63,7 +64,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 490 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 250 ADRs, ~21,521 pytest-collected tests across 1,292 files, native observability, 6-level HITL |
+| Production reliability | 252 ADRs, ~21,584 pytest-collected tests across 1,296 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -81,10 +82,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 21,521 collected by pytest across 1,292 test files + 6,368 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 21,584 collected by pytest across 1,296 test files + 6,662 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 250 |
+| ADRs (Architecture Decision Records) | 252 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1309,7 +1310,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-250 ADRs in MADR format document the major architectural decisions. Some representative examples:
+252 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1448,7 +1449,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 250 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~21,521 tests across 1,292 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 252 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~21,584 tests across 1,296 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1520,4 +1521,22 @@ The settings page lists fifty-three sections. Every one of them drew the same ic
 
 **One rule for both lists.** The overview card and the rail row read the same function: they cannot diverge on a section, and a caller outside the table falls back to the accent rather than to nothing.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 250 ADRs, and the changelog (v1.0 to v1.38.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+## 36. A trait is not a reaction: the register the answer declares
+
+The companion's face used to pick its end-of-turn expression from the psyche's dominant emotion. The measurement settled it: across fourteen consecutive turns that emotion was the same on thirteen of them, drifting by 0.02.
+
+**That is not a flaw in the psyche, it is its definition.** A psyche models an inner life: it is a **trait**, it moves slowly, and that is exactly what it is asked to do. The flaw was making it answer for a **single event** — an argmax over a near-constant vector is a constant.
+
+**The only one who knows the register of an answer is the model that wrote it.** Every other source reads its surface. So the answer declares its own register, in a vocabulary that belongs to the animation and to nothing else: twelve registers, chosen under one constraint — *two registers the face would play identically are one register with two names.* That is why the list is not longer.
+
+**In band, because two requirements cross.** The signal has to come from the model that wrote the answer, **and** land at the instant the answer lands — the face reacts on completion, and a background pass runs after that instant. A marker placed at the end of the generation satisfies both: no extra model call, and it arrives with the last token. The pattern was not invented for the occasion — it is the psyche's self-report mechanism, proven in production. Fragments are filtered out of the stream so nothing flashes on screen, and the complete marker is removed from the stored text.
+
+**Intensity is stage direction, not confidence.** The renderer **overplays** it rather than reproducing it: a cartoon that plays a 0.8 at 0.8 looks like a video call. And it is the **register that caps** what intensity can buy — a factual answer declared at maximum is still a plain face delivered with conviction, never a celebration. Intensity says how strongly the register came through; it never says which register it was.
+
+**What is enforced must be published.** A register the instruction offers but the code refuses produces a turn with no face, silently; a register the code accepts but the instruction never mentions is a face that can never happen. A test holds the two lists together, and the browser-side copy is held to the server-side one.
+
+**The marker does not arrive on every turn, and the fallback accounts for it.** First measurement in real conditions: the tone marker and the psyche marker were emitted on exactly the same two turns out of sixteen — a rate that is a property of the response model, not of the feature. A face that reacts one turn in eight is a broken face, so the fallback can no longer return nothing: it reads the **shape** of the answer — length, code fences, punctuation density, emoji, never words, so all six locales behave identically — and speaks the **same vocabulary** as the marker. One register table, one amplitude curve, one path.
+
+**And the psyche keeps what it is good at**: the idle mood family — breathing pace, blink cadence, the weight of idle gestures. A trait should colour a resting behaviour, never a reaction.
+
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 252 ADRs, and the changelog (v1.0 to v1.38.2). All metrics, versions, and patterns cited are verifiable in the codebase.*

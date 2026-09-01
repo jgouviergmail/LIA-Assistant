@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Datum**: 2026-08-23
-**Application**: LIA v1.38.1
+**Application**: LIA v1.38.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -49,6 +49,7 @@
 33. [Selbstdiagnose: ein Assistent, der die eigene Telemetrie liest](#33-selbstdiagnose-ein-assistent-der-die-eigene-telemetrie-liest)
 34. [Rechnen statt raten: ein flüchtiges Skript in der bereits vorhandenen Sandbox](#34-rechnen-statt-raten-ein-flüchtiges-skript-in-der-bereits-vorhandenen-sandbox)
 35. [Eine Farbe messen, bevor man sie ausliefert: die Palette der Einstellungen](#35-eine-farbe-messen-bevor-man-sie-ausliefert-die-palette-der-einstellungen)
+36. [Ein Merkmal ist keine Reaktion: das von der Antwort deklarierte Register](#36-ein-merkmal-ist-keine-reaktion-das-von-der-antwort-deklarierte-register)
 ---
 
 ## 1. Kontext und grundlegende Entscheidungen
@@ -63,7 +64,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 490 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 250 ADRs, ~21.521 von pytest gesammelte Tests in 1.292 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 252 ADRs, ~21.584 von pytest gesammelte Tests in 1.296 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -81,10 +82,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 21.521 von pytest über 1.292 Testdateien gesammelt + 6.368 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 21.584 von pytest über 1.296 Testdateien gesammelt + 6.662 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 250 |
+| ADRs (Architecture Decision Records) | 252 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1313,7 +1314,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-250 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+252 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1419,7 +1420,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 250 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~21.521 Tests in 1.292 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 252 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~21.584 Tests in 1.296 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1491,4 +1492,22 @@ Die Einstellungsseite listet dreiundfünfzig Abschnitte. Alle zeichneten dasselb
 
 **Eine Regel für beide Listen.** Die Übersichtskarte und die Leistenzeile lesen dieselbe Funktion: sie können bei einem Abschnitt nicht auseinanderlaufen, und ein Aufrufer außerhalb der Tabelle fällt auf die Akzentfarbe zurück statt auf nichts.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 250 ADRs und des Changelogs (v1.0 bis v1.38.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+## 36. Ein Merkmal ist keine Reaktion: das von der Antwort deklarierte Register
+
+Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der dominanten Emotion der Psyche. Die Messung war eindeutig: über vierzehn aufeinanderfolgende Züge war diese Emotion in dreizehn Fällen dieselbe, mit einer Schwankung von 0,02.
+
+**Das ist kein Fehler der Psyche, das ist ihre Definition.** Eine Psyche modelliert ein Innenleben: sie ist ein **Merkmal**, sie bewegt sich langsam, und genau das wird von ihr verlangt. Der Fehler bestand darin, sie für ein **punktuelles Ereignis** antworten zu lassen — ein Argmax über einen nahezu konstanten Vektor ist eine Konstante.
+
+**Nur wer die Antwort geschrieben hat, kennt ihr Register.** Jede andere Quelle liest bloß deren Oberfläche. Die Antwort deklariert daher ihr Register selbst, in einem Vokabular, das der Animation gehört und sonst nichts: zwölf Register, gewählt unter einer einzigen Bedingung — *zwei Register, die das Gesicht identisch spielen würde, sind ein Register mit zwei Namen.* Deshalb ist die Liste nicht länger.
+
+**Im Datenstrom, weil sich zwei Anforderungen kreuzen.** Das Signal muss von dem Modell kommen, das die Antwort geschrieben hat, **und** in dem Moment eintreffen, in dem die Antwort eintrifft — das Gesicht reagiert auf den Abschluss, und ein Hintergrunddurchlauf kommt danach. Eine Markierung am Ende der Generierung erfüllt beides: kein zusätzlicher Modellaufruf, und sie kommt mit dem letzten Token. Das Muster wurde nicht eigens erfunden — es ist der Selbstbericht der Psyche, in der Produktion erprobt. Fragmente werden aus dem Stream gefiltert, damit nichts auf dem Bildschirm aufblitzt, und die vollständige Markierung wird aus dem gespeicherten Text entfernt.
+
+**Die Intensität ist eine Spielanweisung, keine Konfidenz.** Die Darstellung **übertreibt** sie, statt sie wiederzugeben: eine Zeichenfigur, die eine 0,8 als 0,8 spielt, wirkt wie ein Videoanruf. Und es ist das **Register, das begrenzt**, was Intensität kaufen kann — eine sachliche Antwort mit maximaler Intensität bleibt ein neutrales Gesicht, mit Überzeugung vorgetragen, nie eine Feier. Die Intensität sagt, wie stark das Register durchkam; sie sagt nie, welches es war.
+
+**Was durchgesetzt wird, muss veröffentlicht sein.** Ein Register, das die Anweisung anbietet und der Code ablehnt, erzeugt still einen Zug ohne Gesicht; ein Register, das der Code akzeptiert und die Anweisung verschweigt, ist ein Gesicht, das nie eintritt. Ein Test hält beide Listen zusammen, und die Browser-Kopie wird an der Server-Kopie gemessen.
+
+**Die Markierung kommt nicht in jedem Zug, und der Rückfall berücksichtigt das.** Erste Messung unter realen Bedingungen: die Ton-Markierung und die Psyche-Markierung wurden bei genau denselben zwei von sechzehn Zügen ausgegeben — eine Rate, die eine Eigenschaft des Antwortmodells ist, nicht der Funktion. Ein Gesicht, das nur in einem von acht Zügen reagiert, ist ein kaputtes Gesicht; der Rückfall darf daher nicht mehr nichts liefern: er liest die **Form** der Antwort — Länge, Codeblöcke, Interpunktionsdichte, Emoji, niemals Wörter, sodass alle sechs Sprachen sich gleich verhalten — und spricht **dasselbe Vokabular** wie die Markierung. Eine Registertabelle, eine Amplitudenkurve, ein Weg.
+
+**Und die Psyche behält, was sie gut kann**: die Stimmungsfamilie im Ruhezustand — Atemrhythmus, Blinzeltakt, Gewichtung der Ruhegesten. Ein Merkmal soll ein Ruheverhalten färben, nie eine Reaktion.
+
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 252 ADRs und des Changelogs (v1.0 bis v1.38.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

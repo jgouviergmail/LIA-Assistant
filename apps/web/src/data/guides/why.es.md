@@ -4,7 +4,7 @@
 
 **Versión**: 5.1
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.38.1
+**Aplicación**: LIA v1.38.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -371,6 +371,8 @@ No hablas con una herramienta — interactúas con una entidad cuyo vocabulario 
 Y una promesa así vale exactamente lo que vale la medición que la sostiene. Se anunciaban catorce estados de ánimo; hasta agosto de 2026, cinco de ellos quedaban fuera de alcance en reposo: la proyección dejaba a todas las personalidades en el lado afirmativo de la escala, mientras un impulso interno coronaba la alegría como emoción dominante en el 31 % de los turnos, evaluara LIA lo que evaluara. Ambos ajustes se habían entregado un año antes, deliberadamente apagados, para que encenderlos fuese una decisión medida y no una intuición. La medición se tomó sobre el uso real; la paleta es ahora realmente alcanzable. Preferimos publicar esa historia antes que una cifra que nadie ha comprobado.
 
 Esta vida interior tiene rostro: el emoji de humor se anima en la respuesta actual, el anillo de color late cuando el humor cambia, y los hitos de tu relación se celebran con un guiño discreto.
+
+Y ese rostro debe decir la verdad sobre la respuesta, no sobre el humor del momento. Elegía su expresión a partir de la emoción dominante de la vida interior — pero esa es un **rasgo**: se mueve despacio, y ese es justamente su sentido. Medida a lo largo de catorce turnos consecutivos, nombraba la misma emoción en trece de ellos. El rostro sonreía por igual tras un error que tras una buena noticia. Ahora LIA indica ella misma el **registro** de lo que acaba de escribir, y el rostro interpreta ese: una explicación técnica conserva un aire concentrado, un fallo se lee como un fallo. Un rasgo tiñe una presencia en reposo; nunca debe responder por un instante.
 
 Y esta presencia te sigue: fuera del chat, un acompañante flotante mantiene a LIA a tu lado por todo el panel — en reposo, trabajando o con una notificación.
 

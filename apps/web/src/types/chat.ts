@@ -201,6 +201,14 @@ export interface DoneMetadata {
   generated_documents?: GeneratedDocument[];
   // Browser screenshot card
   browser_screenshot?: { url: string; alt: string };
+  /** Expressivity (ADR-253): the register the answering model declared
+   * for THIS answer, for the avatar to overplay. Live-only — it is not
+   * persisted, because a reloaded history must not re-perform. */
+  expressivity?: {
+    register: string;
+    intensity: number;
+    accent: string;
+  };
   // Psyche Engine: mood state summary from post-response processing
   psyche_state?: {
     mood_label: string;

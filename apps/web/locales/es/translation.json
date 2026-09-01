@@ -4410,6 +4410,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_38_2": {
+          "title": "v1.38.2 — 🙂 Un rostro que responde al tono, no a la costumbre",
+          "date": "Septiembre de 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🙂 El rostro de LIA responde al TONO de su respuesta</b> — tras cada mensaje, el avatar mostraba casi siempre la misma expresión complacida, incluso tras un error o una larga explicación técnica. Ahora LIA indica ella misma el registro de lo que acaba de escribir — cálido, seguro, factual, disculpándose, curioso, preocupado… — y el rostro lo interpreta. Doce expresiones distintas en lugar de una, y solo dos sonríen: una respuesta técnica conserva un rostro concentrado.",
+            "i2": "<b>👄 Una boca expresiva</b> — el avatar tiene ahora una boca que sostiene la expresión: se abre, se ahonda, se inclina hacia un lado y acompaña los movimientos del rostro. Empieza por las comisuras, como una sonrisa de verdad, en vez de aparecer de golpe.",
+            "i3": "<b>🛠️ Corrección de despliegue</b> — en algunas instalaciones, un contenedor de supervisión se negaba a arrancar tras una actualización, con un error de permisos en su script de inicio. Corregido, y una verificación automática impide que el caso vuelva a producirse."
+          }
+        },
         "v1_38_1": {
           "title": "v1.38.1 — 🎨 Ajustes que se encuentran de un vistazo",
           "date": "Agosto 2026",
@@ -6689,7 +6699,7 @@
           },
           "q25": {
             "question": "¿Qué son los ojitos animados de la página del chat?",
-            "answer": "Son los <strong>ojos expresivos</strong> de LIA — un pequeño widget compañero que refleja lo que el asistente hace y siente. Miran el campo de escritura mientras tecleas, se entornan cuando LIA piensa, barren de lado a lado cuando busca y reaccionan al tono de cada respuesta; si los dejas tranquilos, parpadean, echan vistazos, se adormecen y de vez en cuando hacen una travesura.<br><br><strong>Hazlos tuyos:</strong> arrástralos a donde quieras (las flechas del teclado también funcionan, y nunca se desvían de donde los dejaste), tócalos en el móvil para mostrar los botones de tamaño y ocultar, o redúcelos a un puntito de recuperación. Hay seis estilos visuales en <strong>Ajustes › Personalización › Estilo de los ojos</strong>, con vistas previas animadas. Con la reducción de movimiento del sistema activada, los ojos permanecen quietos."
+            "answer": "Son los <strong>ojos expresivos</strong> de LIA — un pequeño widget compañero que refleja lo que el asistente hace y siente. Miran el campo de escritura mientras tecleas, se entornan cuando LIA piensa, barren de lado a lado cuando busca e interpretan el <strong>registro</strong> de cada respuesta — LIA indica ella misma si lo que acaba de escribir es cálido, seguro, factual, disculpándose, curioso o preocupado, y el rostro lo interpreta, boca incluida. Doce expresiones distintas, de las que solo dos sonríen: una respuesta técnica conserva un rostro concentrado. Si los dejas tranquilos, parpadean, echan vistazos, se adormecen y de vez en cuando hacen una travesura.<br><br><strong>Hazlos tuyos:</strong> arrástralos a donde quieras (las flechas del teclado también funcionan, y nunca se desvían de donde los dejaste), tócalos en el móvil para mostrar los botones de tamaño y ocultar, o redúcelos a un puntito de recuperación. Hay seis estilos visuales en <strong>Ajustes › Personalización › Estilo de los ojos</strong>, con vistas previas animadas. Con la reducción de movimiento del sistema activada, los ojos permanecen quietos."
           }
         }
       },
@@ -7888,8 +7898,8 @@
         "desc": "Arrastra un archivo a la ventana: LIA lo recoge, limpiamente."
       },
       "expressive_eyes": {
-        "title": "Ojos que siguen la conversación",
-        "desc": "Una pequeña mirada animada en el chat: observa, piensa, busca — y se ilumina con la respuesta."
+        "title": "Un rostro que responde al tono",
+        "desc": "Doce expresiones, boca incluida: LIA indica el registro de lo que acaba de escribir y el rostro lo interpreta. Solo dos sonríen."
       },
       "followup_chips": {
         "title": "El siguiente paso, a un clic",
@@ -10263,7 +10273,8 @@
       "native_apps": "Apps nativas",
       "self_diagnostics": "Autodiagnóstico",
       "computed_answers": "Respuestas calculadas",
-      "measured_palette": "Una paleta medida"
+      "measured_palette": "Una paleta medida",
+        "declared_register": "El registro declarado"
     }
   },
   "healthMetrics": {

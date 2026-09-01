@@ -4410,6 +4410,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_38_2": {
+          "title": "v1.38.2 — 🙂 Ein Gesicht, das auf den Ton antwortet, nicht auf Gewohnheit",
+          "date": "September 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🙂 LIAs Gesicht antwortet auf den TON ihrer Antwort</b> — nach jeder Nachricht zeigte der Avatar nahezu immer denselben erfreuten Ausdruck, auch nach einem Fehler oder einer langen technischen Erklärung. LIA benennt jetzt selbst das Register dessen, was sie gerade geschrieben hat — herzlich, souverän, sachlich, entschuldigend, neugierig, besorgt … — und das Gesicht spielt es. Zwölf unterschiedliche Ausdrücke statt einem, und nur zwei davon lächeln: eine technische Antwort behält ein konzentriertes Gesicht.",
+            "i2": "<b>👄 Ein ausdrucksstarker Mund</b> — der Avatar hat jetzt einen Mund, der den Ausdruck trägt: Er öffnet sich, vertieft sich, neigt sich zur Seite und folgt den Bewegungen des Gesichts. Er beginnt an den Mundwinkeln, wie ein echtes Lächeln, statt auf einmal zu erscheinen.",
+            "i3": "<b>🛠️ Deployment-Korrektur</b> — auf manchen Installationen startete ein Überwachungs-Container nach einem Update nicht mehr, mit einem Berechtigungsfehler auf seinem Startskript. Behoben, und eine automatische Prüfung verhindert diesen Fall künftig."
+          }
+        },
         "v1_38_1": {
           "title": "v1.38.1 — 🎨 Einstellungen, die man auf einen Blick findet",
           "date": "August 2026",
@@ -6689,7 +6699,7 @@
           },
           "q25": {
             "question": "Was sind die kleinen animierten Augen auf der Chat-Seite?",
-            "answer": "Das sind LIAs <strong>ausdrucksstarke Augen</strong> — ein kleines Begleiter-Widget, das spiegelt, was der Assistent gerade tut und fühlt. Sie beobachten das Eingabefeld, während du tippst, kneifen sich zusammen, wenn LIA nachdenkt, schweifen beim Suchen hin und her und reagieren auf den Ton jeder Antwort; in Ruhe gelassen blinzeln sie, schauen umher, dösen ein und erlauben sich gelegentlich einen Streich.<br><br><strong>Mach sie zu deinen:</strong> Ziehe sie wohin du willst (Pfeiltasten funktionieren auch, und sie driften nie von ihrem Platz), tippe sie auf dem Handy an, um Größen- und Ausblenden-Knöpfe zu zeigen, oder reduziere sie auf einen kleinen Wiederherstellungspunkt. Sechs visuelle Stile stehen unter <strong>Einstellungen › Personalisierung › Augen-Stil</strong> mit Live-Vorschauen bereit. Bei reduzierter Bewegung im System bleiben die Augen still."
+            "answer": "Das sind LIAs <strong>ausdrucksstarke Augen</strong> — ein kleines Begleiter-Widget, das spiegelt, was der Assistent gerade tut und fühlt. Sie beobachten das Eingabefeld, während du tippst, kneifen sich zusammen, wenn LIA nachdenkt, schweifen beim Suchen hin und her und spielen das <strong>Register</strong> jeder Antwort — LIA gibt selbst an, ob das soeben Geschriebene herzlich, souverän, sachlich, entschuldigend, neugierig oder besorgt ist, und das Gesicht spielt es, Mund inbegriffen. Zwölf unterschiedliche Ausdrücke, von denen nur zwei lächeln: eine technische Antwort behält ein konzentriertes Gesicht. In Ruhe gelassen blinzeln sie, schauen umher, dösen ein und erlauben sich gelegentlich einen Streich.<br><br><strong>Mach sie zu deinen:</strong> Ziehe sie wohin du willst (Pfeiltasten funktionieren auch, und sie driften nie von ihrem Platz), tippe sie auf dem Handy an, um Größen- und Ausblenden-Knöpfe zu zeigen, oder reduziere sie auf einen kleinen Wiederherstellungspunkt. Sechs visuelle Stile stehen unter <strong>Einstellungen › Personalisierung › Augen-Stil</strong> mit Live-Vorschauen bereit. Bei reduzierter Bewegung im System bleiben die Augen still."
           }
         }
       },
@@ -7888,8 +7898,8 @@
         "desc": "Zieh eine Datei auf das Fenster: LIA nimmt sie sauber entgegen."
       },
       "expressive_eyes": {
-        "title": "Augen, die dem Gespräch folgen",
-        "desc": "Ein kleiner animierter Blick im Chat: er beobachtet, denkt nach, sucht — und leuchtet mit der Antwort auf."
+        "title": "Ein Gesicht, das auf den Ton antwortet",
+        "desc": "Zwölf Ausdrücke, Mund inbegriffen: LIA benennt das Register dessen, was sie gerade geschrieben hat, und das Gesicht spielt es. Nur zwei davon lächeln."
       },
       "followup_chips": {
         "title": "Der nächste Schritt, ein Klick",
@@ -10263,7 +10273,8 @@
       "native_apps": "Native Apps",
       "self_diagnostics": "Selbstdiagnose",
       "computed_answers": "Berechnete Antworten",
-      "measured_palette": "Eine gemessene Palette"
+      "measured_palette": "Eine gemessene Palette",
+        "declared_register": "Das deklarierte Register"
     }
   },
   "healthMetrics": {

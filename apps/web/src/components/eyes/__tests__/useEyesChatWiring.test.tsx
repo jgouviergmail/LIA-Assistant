@@ -45,25 +45,59 @@ afterEach(() => {
 describe('useEyesChatWiring', () => {
   it('idle → sending starts a new turn (clears step kind and reaction)', () => {
     useEyesSignalsStore.getState().recordStep('tool');
-    useEyesSignalsStore.getState().setReaction('joy', Date.now());
+    useEyesSignalsStore.getState().setReaction('joy', 1, 'none', Date.now());
     const { rerender } = render(<Probe status="idle" messages={[]} />);
     rerender(<Probe status="sending" messages={[]} />);
     expect(useEyesSignalsStore.getState().lastStepKind).toBeNull();
     expect(useEyesSignalsStore.getState().reaction).toBeNull();
   });
 
-  it('streaming → idle reacts from the per-turn psyche self-report', () => {
+  it('streaming → idle reacts from the REGISTER the answer declared', () => {
+    useEyesSignalsStore
+      .getState()
+      .setTone({ register: 'celebratory', intensity: 0.9, accent: 'sparkle' });
+    const message = assistantMessage({ content: 'Termine.' });
+    const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    rerender(<Probe status="idle" messages={[message]} />);
+    const reaction = useEyesSignalsStore.getState().reaction;
+    expect(reaction?.expression).toBe('excited');
+    expect(reaction?.accent).toBe('sparkle');
+    // A celebration is played BIG — that is the whole point of a declared
+    // intensity the renderer is allowed to overplay.
+    expect(reaction?.emphasis).toBeGreaterThan(1.4);
+  });
+
+  it('IGNORES a psyche self-report, however strong', () => {
+    // The defect this closed: over fourteen consecutive production turns the
+    // psyche named `enthusiasm` on thirteen of them, drifting by 0.02, so the
+    // face was identical every time. A trait cannot answer for one turn.
     const message = assistantMessage({
+      content: 'Voici la liste des taches du jour.',
       metadata: {
         psyche_state: {
           mood_label: 'serene',
-          active_emotions: [{ name: 'enthusiasm', intensity: 0.8 }],
+          active_emotions: [{ name: 'enthusiasm', intensity: 0.95 }],
         },
       },
     });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
     rerender(<Probe status="idle" messages={[message]} />);
-    expect(useEyesSignalsStore.getState().reaction?.expression).toBe('excited');
+    // The answer's SHAPE decides instead, and a plain informative one is
+    // `factual` — the resting face, played with intent. What matters is that
+    // a 0.95 `enthusiasm` bought nothing.
+    expect(useEyesSignalsStore.getState().reaction?.expression).toBe('neutral');
+  });
+
+  it('a plain answer earns an HONEST face, not a grin and not nothing', () => {
+    // Measured on 16 consecutive real turns: the declared tag arrives on a
+    // minority of them, so "no tag, no reaction" would leave the face inert
+    // most of the time. A plain answer is `factual`, played small.
+    const message = assistantMessage({ content: 'Le rendez-vous est a 14h.' });
+    const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    rerender(<Probe status="idle" messages={[message]} />);
+    const reaction = useEyesSignalsStore.getState().reaction;
+    expect(reaction?.expression).toBe('neutral');
+    expect(reaction?.emphasis).toBeLessThan(1.1);
   });
 
   it('falls back to the content heuristic when the snapshot is missing', () => {
@@ -73,21 +107,24 @@ describe('useEyesChatWiring', () => {
     expect(useEyesSignalsStore.getState().reaction?.expression).toBe('question');
   });
 
-  it('stores no reaction for a plain informative answer', () => {
-    const message = assistantMessage({ content: 'La réunion est à 15h.' });
+  it('plays a technical delivery as ASSURED, never as a celebration', () => {
+    // The complaint that started this: every answer ended on the same smile.
+    const message = assistantMessage({ content: 'Voici :\n```sh\ntask lint\n```' });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
     rerender(<Probe status="idle" messages={[message]} />);
-    expect(useEyesSignalsStore.getState().reaction).toBeNull();
+    expect(useEyesSignalsStore.getState().reaction?.expression).toBe('focused');
   });
 
-  it('a generated artifact reads as joy even with plain text', () => {
+  it('a generated artifact is a small event, and it sparkles', () => {
     const message = assistantMessage({
       content: 'Voici le document.',
       generatedDocuments: [{ url: '/d/1', filename: 'doc.pdf', doc_type: 'pdf', size_bytes: 1024 }],
     });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
     rerender(<Probe status="idle" messages={[message]} />);
-    expect(useEyesSignalsStore.getState().reaction?.expression).toBe('joy');
+    const reaction = useEyesSignalsStore.getState().reaction;
+    expect(reaction?.expression).toBe('excited');
+    expect(reaction?.accent).toBe('sparkle');
   });
 
   it('history hydration (idle → idle with new messages) never reacts', () => {

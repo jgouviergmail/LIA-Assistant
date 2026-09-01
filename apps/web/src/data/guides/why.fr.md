@@ -4,7 +4,7 @@
 
 **Version** : 5.1
 **Date** : 2026-08-23
-**Application** : LIA v1.38.1
+**Application** : LIA v1.38.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -371,6 +371,8 @@ Tu ne parles pas à un outil — tu interagis avec une entité dont le vocabulai
 Et une promesse pareille ne vaut que ce que vaut la mesure qui la soutient. Quatorze humeurs étaient annoncées ; jusqu'en août 2026, cinq d'entre elles restaient hors d'atteinte au repos : la projection laissait toutes les personnalités du côté affirmé de l'échelle, tandis qu'une impulsion interne couronnait la joie émotion dominante sur 31 % des tours, quoi que LIA ait réellement évalué. Les deux réglages avaient été livrés un an plus tôt, délibérément éteints, pour que les allumer soit une décision mesurée et non une intuition. La mesure a été prise sur l'usage réel ; la palette est désormais vraiment atteignable. Nous préférons publier cette histoire-là qu'un chiffre que personne n'a vérifié.
 
 Cette vie intérieure a un visage : l'émoji d'humeur s'anime sur la réponse en cours, l'anneau coloré pulse quand l'humeur bascule, et les grands caps de ta relation sont célébrés d'un clin d'œil discret.
+
+Et ce visage doit dire la vérité sur la réponse, pas sur l'humeur du moment. Il choisissait son expression dans l'émotion dominante de la vie intérieure — or celle-ci est un **trait** : elle bouge lentement, c'est sa raison d'être. Mesurée sur quatorze tours consécutifs, elle nommait la même émotion sur treize d'entre eux. Le visage souriait donc autant après une erreur qu'après une bonne nouvelle. Désormais, LIA indique elle-même le **registre** de ce qu'elle vient d'écrire, et le visage joue celui-là : une explication technique garde un air concentré, un échec se lit comme un échec. Un trait colore une présence au repos ; il ne doit jamais répondre d'un instant.
 
 Et cette présence te suit : hors du chat, un compagnon flottant garde LIA à tes côtés sur tout le tableau de bord — au repos, au travail, ou porteur d'une notification.
 

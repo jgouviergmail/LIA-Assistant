@@ -71,9 +71,7 @@ def _iter_python_sources(root: Path) -> list[Path]:
     """
     skip = {"__pycache__", ".venv", "node_modules", ".git"}
     return sorted(
-        p
-        for p in root.rglob("*.py")
-        if not any(part in skip for part in p.parts)
+        p for p in root.rglob("*.py") if not any(part in skip for part in p.parts)
     )
 
 
@@ -136,7 +134,9 @@ def check_chat_deep_link_navigation() -> CheckResult:
         # Shape 2: any identifier this file built from a deep-link helper, then
         # handed to the client router.
         for name in {match.group(1) for match in assigned.finditer(text)}:
-            offenders += re.finditer(rf"\.(?:push|replace)\(\s*{re.escape(name)}\s*[,)]", text)
+            offenders += re.finditer(
+                rf"\.(?:push|replace)\(\s*{re.escape(name)}\s*[,)]", text
+            )
         for match in offenders:
             lineno = text.count("\n", 0, match.start()) + 1
             snippet = " ".join(match.group(0).split())[:80]
@@ -250,6 +250,44 @@ def check_alembic_single_head() -> CheckResult:
     return result
 
 
+def check_compose_entrypoint_needs_no_exec_bit() -> CheckResult:
+    """A bind-mounted script must be run BY an interpreter, never executed.
+
+    A compose `entrypoint: /docker-entrypoint.sh` needs the file on the HOST to
+    carry the executable bit, because a bind mount brings the host's mode with
+    it — no Dockerfile `chmod +x` can help, since nothing was copied into the
+    image. That bit has to survive a Windows checkout (NTFS has no exec bit)
+    and then rsync or scp before it reaches the server.
+
+    It did not, on 2026-08-31: production refused to start Alertmanager with
+    `exec: "/docker-entrypoint.sh": permission denied`, after the atomic swap
+    had already replaced the live directory. The file is `100755` in git; the
+    transport is where the bit was lost.
+
+    `entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]` needs only READ
+    permission and removes the whole class. `docker-compose.dev.yml` already
+    knew the shape (`command: sh /generate-certs.sh`); one service did not.
+    """
+    result = CheckResult(
+        "compose_entrypoint_exec_bit",
+        "Compose entrypoint/command executing a bind-mounted script directly",
+    )
+    # A bare scalar ending in `.sh`: no interpreter in front, no list form.
+    pattern = re.compile(r"^\s*(entrypoint|command):\s*(\S+\.sh)\s*$")
+    for path in sorted(REPO_ROOT.glob("docker-compose*.yml")):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            match = pattern.match(line)
+            if not match:
+                continue
+            rel = path.relative_to(REPO_ROOT)
+            result.details.append(
+                f"{rel}:{lineno}: {match.group(1)}: {match.group(2)} "
+                f'-- run it through an interpreter: ["/bin/sh", "{match.group(2)}"]'
+            )
+    result.failed = bool(result.details)
+    return result
+
+
 def check_env_example_completeness() -> CheckResult:
     """Settings fields should be documented in `.env.example`.
 
@@ -289,6 +327,7 @@ CHECKS = (
     check_redis_setex_serialization,
     check_raw_http_exception,
     check_alembic_single_head,
+    check_compose_entrypoint_needs_no_exec_bit,
     check_env_example_completeness,
 )
 

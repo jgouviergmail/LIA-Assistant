@@ -4882,6 +4882,14 @@ REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE: int = 4096
 # Reference: docs/architecture/ADR-XXX-Psyche-Engine.md
 
 # System-level feature default
+# ---------------------------------------------------------------------------
+# Per-turn expressivity annotation (ADR-253)
+# ---------------------------------------------------------------------------
+# The avatar's OWN tone signal, declared in band by the answering model. On by
+# default: the alternative is an avatar reacting to a trait that barely moves,
+# which is the defect this replaced.
+EXPRESSIVITY_ENABLED_DEFAULT: bool = True
+
 PSYCHE_ENABLED_DEFAULT: bool = True
 
 # Expression layer: embodied voice injection (ADR-104 A-E) vs the legacy graduated

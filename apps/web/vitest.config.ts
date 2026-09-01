@@ -68,6 +68,21 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-08-31 (second pass) after the mouth
+        // and the speech bubble (ADR-252: the signed mouth curve and its
+        // derived arc, the speaking flap, the comic bubble and its geometric
+        // clearance guard):
+        // statements 77.41 / branches 72.56 / functions 74.34 / lines 78.01.
+        // Raised 75/70/72/75 -> 75/70/72/76 (floor(measured - 2) per axis —
+        // lines alone crosses an integer step this time).
+        // Global floor — re-measured 2026-08-31 after the expressive-eyes
+        // animation rig (ADR-252: the analytic spring integrator, the channel
+        // table, the pose/style/script tables, the tape and loop mechanisms,
+        // the shared frame clock, the DOM writer, the brow and pupil organs,
+        // the matter layer and the CSS boundary guards — ~250 new tests):
+        // statements 77.39 / branches 72.52 / functions 74.33 / lines 77.98.
+        // Raised 74/70/71/75 -> 75/70/72/75 (floor(measured - 2) per axis —
+        // statements and functions cross an integer step this time).
         // Global floor — re-measured 2026-08-30 after the settings group-tone
         // lot (twelve fixed `--color-settings-*` tokens measured across the 15
         // palettes, the tone applied by the overview cards and the rail, and
@@ -290,10 +305,10 @@ export default defineConfig({
         // statements 76.47 / branches 71.60 / functions 73.52 / lines 77.13.
         // Raised 74/69/71/74 -> 74/69/71/75 (floor(measured - 2) per axis —
         // lines alone crosses an integer step this time).
-        statements: 74,
+        statements: 75,
         branches: 70,
-        functions: 71,
-        lines: 75,
+        functions: 72,
+        lines: 76,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,
@@ -315,6 +330,18 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           lines: 100,
+        },
+        // The expressive-eyes animation rig (ADR-252). Measured 2026-08-31:
+        // `components/eyes` 95.24 / 88.31 / 97.29 / 97.62 and its `rig`
+        // subtree 99.78 / 98.11 / 100 / 100. The rig is pure and clock-driven,
+        // so its behaviour is testable frame by frame — which is exactly why
+        // it must stay near-total: the motion IS the feature, and a regression
+        // there is invisible to every other gate.
+        'src/components/eyes/**/*.{ts,tsx}': {
+          statements: 93,
+          branches: 86,
+          functions: 95,
+          lines: 95,
         },
         // UI primitives with real logic/variants — chantier couverture frontend
         // Lot 1 (2026-07-15), re-measured 2026-07-19 after the lightbox focus

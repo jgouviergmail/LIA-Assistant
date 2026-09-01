@@ -1,29 +1,36 @@
+'use client';
+
 /**
- * ExpressiveEyes — two solid cartoon eyes, purely presentational.
+ * ExpressiveEyes — two cartoon eyes, declarative on the outside, rigged on
+ * the inside.
  *
- * The component only declares state; ALL motion lives in `styles/eyes.css`:
- *  - `data-expression` selects the CSS recipe (lids, squash, loops)
- *  - `data-gesture` plays one idle-life gesture (tilt, bounce, slow blink…)
- *  - `--gaze-x` / `--gaze-y` custom properties aim the gaze ([-1, 1]);
- *    `--gaze-ms` tunes the travel time (a saccade JUMPS, a return eases)
- *  - `is-blinking` runs one blink cycle (the host toggles it on a timer —
- *    never on `animationend`, which jsdom does not emit)
- *  - the size preset scales everything through the container font-size
+ * The component states WHAT the character is doing; `useEyesRig` decides HOW
+ * it gets there and writes the motion straight onto this node as `--rig-*`
+ * custom properties, sixty times a second, without re-rendering anything.
+ * The stylesheet consumes those properties and owns everything that is DRAWN
+ * rather than moved (silhouette, skin, matter, per-style identity).
+ *
+ * Two vocabularies on the DOM, and the distinction is the whole architecture:
+ *  - `data-*` = STATE the host declares (expression, style, mood family,
+ *    gesture, blink, gaze aim). Stable, readable, testable.
+ *  - `--rig-*` = MOTION the rig computes. Never declared by a stylesheet.
  *
  * Decorative by contract: `aria-hidden`, no role, no text. The interactive
  * chrome (drag, size, hide) belongs to `EyesWidget`.
  */
 
 import { cn } from '@/lib/utils';
+import { clampGazeAxis } from '@/components/eyes/expression-engine';
 import type {
+  EyeAccessory,
   EyeExpression,
   Gaze,
   IdleGesture,
   IdleMoodFamily,
 } from '@/components/eyes/expression-engine';
 import { DEFAULT_EYE_STYLE, type EyeStyleId } from '@/components/eyes/eye-styles';
+import { useEyesRig } from '@/components/eyes/useEyesRig';
 import type { EyesSize } from '@/stores/eyesWidgetStore';
-import type { CSSProperties } from 'react';
 
 export interface ExpressiveEyesProps {
   expression: EyeExpression;
@@ -34,31 +41,44 @@ export interface ExpressiveEyesProps {
   blinking?: boolean;
   /** Active idle-life gesture (host-managed transient value). */
   gesture?: IdleGesture | null;
-  /** Gaze travel time override in ms (saccade jump vs eased return). */
+  /** Gaze travel time in ms — a saccade jumps, an eased return glides. */
   gazeDurationMs?: number;
   /** Floating emote glyph above the eyes ('?', '!', 'z', '…'), or null. */
   emote?: string | null;
   /** True while the emote plays its leave animation before unmounting. */
   emoteLeaving?: boolean;
+  /** Rare one-shot cartoon accessory (a tear, a bead of sweat, a spark). */
+  accessory?: EyeAccessory | null;
   /** Visual style from the eye-style registry (CSS recipe sheet selector). */
   styleId?: EyeStyleId;
-  /** Mood family pacing the breathing loop (CSS `data-family` selector). */
+  /** Mood family pacing the breathing loop and the gesture weights. */
   idleFamily?: IdleMoodFamily;
+  /** How forcefully the pose lands, from how the answer was written. */
+  emphasis?: number;
   className?: string;
 }
 
-function clampAxis(value: number): number {
-  return Math.min(1, Math.max(-1, value));
-}
-
-/** Gaze CSS custom properties (module-level: keeps the component under the
- * CC ratchet). */
-function gazeStyle(gaze: Gaze | null, gazeDurationMs: number | undefined): CSSProperties {
-  return {
-    '--gaze-x': String(clampAxis(gaze?.x ?? 0)),
-    '--gaze-y': String(clampAxis(gaze?.y ?? 0)),
-    ...(gazeDurationMs !== undefined ? { '--gaze-ms': `${gazeDurationMs}ms` } : {}),
-  } as CSSProperties;
+/**
+ * One eye, and its layer stack — each layer carries exactly one kind of
+ * motion, which is what lets a blink, a pose and a breath coexist:
+ *
+ *   .lia-eye        the eye box: its own travel, and the style's base tilt
+ *     .lia-eye-brow the brow, OUTSIDE the lid layer (a lid never clips a brow)
+ *     .lia-eye-blink the blink, and nothing else
+ *       .lia-eye-shape the pose, the silhouette, and the sustained lids
+ *         .lia-eye-pupil dilation and its own deeper gaze parallax
+ */
+function Eye({ side }: { side: 'left' | 'right' }) {
+  return (
+    <span className={`lia-eye lia-eye--${side}`}>
+      <span className="lia-eye-brow" />
+      <span className="lia-eye-blink">
+        <span className="lia-eye-shape">
+          <span className="lia-eye-pupil" />
+        </span>
+      </span>
+    </span>
+  );
 }
 
 /** The floating emote glyph above the eyes ('?', '!', 'z', '…'). */
@@ -71,43 +91,68 @@ function EyesEmote({ emote, leaving }: { emote: string | null; leaving: boolean 
   );
 }
 
-export function ExpressiveEyes({
-  expression,
-  gaze,
-  size,
-  blinking = false,
-  gesture = null,
-  gazeDurationMs,
-  emote = null,
-  emoteLeaving = false,
-  styleId = DEFAULT_EYE_STYLE,
-  idleFamily = 'calm',
-  className,
-}: ExpressiveEyesProps) {
-  const style = gazeStyle(gaze, gazeDurationMs);
+/**
+ * Fill in what the host left out.
+ *
+ * A dozen optional props with a default each is a dozen branches, and the
+ * complexity ratchet counts them in whatever function holds them. They
+ * belong in one pure place rather than in the component, which then has
+ * nothing left to decide.
+ */
+function resolved(props: ExpressiveEyesProps) {
+  return {
+    blinking: props.blinking ?? false,
+    gesture: props.gesture ?? null,
+    emote: props.emote ?? null,
+    emoteLeaving: props.emoteLeaving ?? false,
+    accessory: props.accessory ?? null,
+    styleId: props.styleId ?? DEFAULT_EYE_STYLE,
+    idleFamily: props.idleFamily ?? 'calm',
+    emphasis: props.emphasis ?? 1,
+    gazeX: clampGazeAxis(props.gaze?.x ?? 0),
+    gazeY: clampGazeAxis(props.gaze?.y ?? 0),
+  };
+}
+
+export function ExpressiveEyes(props: ExpressiveEyesProps) {
+  const { expression, gaze, size, gazeDurationMs, className } = props;
+  const view = resolved(props);
+  const rootRef = useEyesRig({
+    expression,
+    styleId: view.styleId,
+    family: view.idleFamily,
+    gaze,
+    gazeDurationMs,
+    blinking: view.blinking,
+    gesture: view.gesture,
+    emphasis: view.emphasis,
+  });
 
   return (
     <span
+      ref={rootRef}
       aria-hidden="true"
       data-expression={expression}
-      data-style={styleId}
-      data-family={idleFamily}
-      data-gesture={gesture ?? undefined}
-      className={cn('lia-eyes', `lia-eyes--${size}`, blinking && 'is-blinking', className)}
-      style={style}
+      data-style={view.styleId}
+      data-family={view.idleFamily}
+      data-gesture={view.gesture ?? undefined}
+      data-blinking={view.blinking ? 'true' : undefined}
+      data-gaze-x={view.gazeX}
+      data-gaze-y={view.gazeY}
+      data-gaze-ms={gazeDurationMs}
+      className={cn('lia-eyes', `lia-eyes--${size}`, className)}
     >
-      <EyesEmote emote={emote} leaving={emoteLeaving} />
+      <EyesEmote emote={view.emote} leaving={view.emoteLeaving} />
+      {view.accessory ? <span className="lia-accessory" data-accessory={view.accessory} /> : null}
       <span className="lia-eyes-gaze">
-        <span className="lia-eye lia-eye--left">
-          <span className="lia-eye-blink">
-            <span className="lia-eye-shape" />
-          </span>
-        </span>
-        <span className="lia-eye lia-eye--right">
-          <span className="lia-eye-blink">
-            <span className="lia-eye-shape" />
-          </span>
-        </span>
+        <Eye side="left" />
+        <Eye side="right" />
+      </span>
+      {/* The mouth is a sibling of the pair, not a child: it follows the HEAD
+          (mass, tilt, shiver) but never the gaze — eyes move inside a face, a
+          mouth does not. */}
+      <span className="lia-mouth">
+        <span className="lia-mouth-shape" />
       </span>
     </span>
   );

@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 import { EYE_STYLE_IDS, DEFAULT_EYE_STYLE, isValidEyeStyle } from '@/components/eyes/eye-styles';
+import { STYLE_GEOMETRY } from '@/components/eyes/rig/poses';
 import enTranslations from '../../../../locales/en/translation.json';
 import frTranslations from '../../../../locales/fr/translation.json';
 
@@ -34,6 +35,16 @@ describe('eye-style registry', () => {
     expect(isValidEyeStyle(undefined)).toBe(false);
   });
 
+  it('every style ships its pose geometry (the rig half of the contract)', () => {
+    // Adding a style now costs FOUR things, not three: an id, a scoped CSS
+    // block (what is drawn), an entry in the rig's style geometry (what is
+    // moved) and six locale entries. This closes the half the CSS check
+    // cannot see.
+    for (const id of EYE_STYLE_IDS) {
+      expect(STYLE_GEOMETRY[id], `missing rig geometry for style '${id}'`).toBeDefined();
+    }
+  });
+
   it('every non-default style ships its scoped CSS recipe block', () => {
     const eyesCss = readEyesCss();
     for (const id of EYE_STYLE_IDS) {
@@ -42,14 +53,15 @@ describe('eye-style registry', () => {
     }
   });
 
-  it('generic expression recipes never declare radii — silhouettes are per-style', () => {
+  it('the stylesheet declares no silhouette radius at all any more', () => {
     // A radius declared by an un-scoped `[data-expression=...] .lia-eye` rule
     // out-inherits the silhouette every style sets on the root (the nearest
     // custom-property definition wins), silently turning every style into the
     // default one. Shipped exactly that way on 2026-08-21: in production the
     // psyche-driven idle (tender/bored/focused...) rendered ALL six styles as
-    // Cozmo rectangles. Expression radii must live in `[data-style=...]`
-    // scoped blocks — the default style's included.
+    // Cozmo rectangles. Radii are rig channels now, so the door is closed on
+    // both sides: this check keeps the CSS one shut, and its twin in
+    // `rig/__tests__/poses.test.ts` keeps the pose tables from re-opening it.
     const eyesCss = readEyesCss();
     const offenders: string[] = [];
     for (const block of eyesCss.split('}')) {

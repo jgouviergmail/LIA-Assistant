@@ -68,6 +68,7 @@ from src.core.constants import (
     DEFAULT_TOOL_TIMEOUT_SECONDS,
     EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
     EXECUTION_TRACE_PERSIST_MAX_STEPS_DEFAULT,
+    EXPRESSIVITY_ENABLED_DEFAULT,
     EXTRACTION_MAX_DELETES_PER_RUN_DEFAULT,
     FALLBACK_MODELS_DEFAULT,
     FOR_EACH_APPROVAL_THRESHOLD,
@@ -367,6 +368,20 @@ class AgentsSettings(BaseSettings):
         default=SSE_HEARTBEAT_INTERVAL_DEFAULT,
         gt=0,
         description="SSE heartbeat interval in seconds (prevents timeout)",
+    )
+
+    # ========================================================================
+    # Per-turn expressivity annotation (ADR-253)
+    # ========================================================================
+    expressivity_enabled: bool = Field(
+        default=EXPRESSIVITY_ENABLED_DEFAULT,
+        description=(
+            "Let the answering model declare the REGISTER of each answer in band "
+            "(<lia_tone .../>), for the chat avatar to play. Off: the tag is never "
+            "requested, never parsed, and the frontend falls back to reading the "
+            "delivered text. Costs no extra LLM call — the tag travels with the "
+            "response generation."
+        ),
     )
 
     # ========================================================================

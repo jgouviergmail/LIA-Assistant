@@ -107,6 +107,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'self_diagnostics', icon: Stethoscope },
   { id: 'computed_answers', icon: Calculator },
   { id: 'measured_palette', icon: Palette },
+  { id: 'declared_register', icon: Smile },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

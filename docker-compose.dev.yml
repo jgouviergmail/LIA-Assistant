@@ -356,7 +356,12 @@ services:
     container_name: lia-alertmanager-dev
     security_opt:
       - no-new-privileges:true
-    entrypoint: /docker-entrypoint.sh
+    # Run BY the shell, never executed: this script arrives through a bind
+    # mount, so its mode is the HOST's — a bit that has to survive a Windows
+    # checkout (NTFS has none) and then rsync/scp. It did not, on 2026-08-31:
+    # production refused the container with `permission denied` although the
+    # file is 100755 in git. `sh <script>` needs only read permission.
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'

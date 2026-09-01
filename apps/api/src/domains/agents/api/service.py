@@ -38,6 +38,7 @@ from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
 from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
 from src.domains.agents.dependencies import ToolDependencies
+from src.domains.agents.expressivity.turn import attach_tone_to_done
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
 )
@@ -1642,6 +1643,8 @@ class AgentService(
                                 run_id=run_id,
                                 error=str(psyche_err),
                             )
+
+                    attach_tone_to_done(done_metadata, run_id)
 
                     yield ChatStreamChunk(
                         type="done",

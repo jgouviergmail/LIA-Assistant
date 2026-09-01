@@ -409,9 +409,12 @@ You can answer, rephrase, or drop it: nothing is sent until you decide.
 
 They are LIA's **expressive eyes** — a small companion widget that mirrors what
 the assistant is doing and feeling. They watch the input while you type, squint
-while LIA thinks, scan side to side while it searches, and react to the tone of
-each answer; left alone they blink, glance around, doze off, and occasionally
-pull a prank.
+while LIA thinks, scan side to side while it searches, and play the **register**
+of each answer — LIA states whether what she has just written is warm, assured,
+factual, apologetic, curious or concerned, and the face plays it, mouth
+included. Twelve distinct expressions, only two of which smile: a technical
+answer keeps a focused face. Left alone they blink, glance around, doze off, and
+occasionally pull a prank.
 
 **Make them yours:** drag them anywhere (arrow keys work too, and they never
 drift from where you put them), tap them on mobile to reveal the size and hide

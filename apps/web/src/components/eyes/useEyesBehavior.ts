@@ -38,6 +38,7 @@ import {
   WINK_DURATION_MS,
   WONDER_PERFORMANCE,
   deriveExpression,
+  accessoryForExpression,
   emoteForExpression,
   gazeHoldMs,
   resolveIdleFamily,
@@ -55,6 +56,8 @@ import {
   shouldBlinkBeforeGaze,
   shouldChainGlance,
   wakePerformanceFor,
+  ACCESSORY_DURATION_MS,
+  type EyeAccessory,
   type ExpressionFrame,
   type EyeExpression,
   type Gaze,
@@ -62,6 +65,7 @@ import {
   type IdleMoodFamily,
   type PerformanceStep,
 } from '@/components/eyes/expression-engine';
+import { accentGesture, accentSparkles, type ToneAccent } from '@/components/eyes/tone';
 import type { MoodLabel } from '@/types/psyche';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
@@ -122,6 +126,11 @@ export interface EyesBehavior {
   idleGaze: IdleGazeMove | null;
   /** Floating emote above the eyes, or null. */
   emote: EmoteState | null;
+  /** Rare one-shot cartoon accessory (a tear, a bead of sweat, a spark). */
+  accessory: EyeAccessory | null;
+  /** How forcefully the last answer was written, while its reaction is
+   * held; 1 the rest of the time. Scales the pose, never picks it. */
+  emphasis: number;
   /** One-shot wink (no-op under reduced motion). */
   wink: () => void;
 }
@@ -206,6 +215,88 @@ function applyEmoteTransition(
   }
 }
 
+/**
+ * Roll for the accessory an arriving expression brings with it.
+ *
+ * Module-level for the same reason as the emote transition: `evaluate` is
+ * timer-driven, not render-driven, and keeping the body out of it is what
+ * holds the hook under the complexity ratchet. Reduced motion declines the
+ * roll outright — an accessory is pure flourish, and a flourish is the first
+ * thing that preference asks to be spared.
+ */
+/** How long an accent beat plays before the face lets it go. */
+const ACCENT_BEAT_MS = 900;
+
+/**
+ * Play the one-shot beat an answer's register earned (ADR-253).
+ *
+ * Kept module-level next to `applyAccessory`, for the same two reasons: it
+ * holds the hook under the complexity ratchet, and reduced motion declines it
+ * outright — an accent is punctuation on an expression, and the expression
+ * says the same thing without it.
+ *
+ * A movement accent rides the EXISTING idle-gesture vocabulary rather than a
+ * new animation: the accent names what the beat MEANS, and the rig already
+ * owns a tested movement for each meaning. `sparkle` is the exception that
+ * proves it — it is an accessory, not a movement, so it goes to the accessory
+ * channel and never to this one.
+ */
+function applyAccentBeat(
+  accent: ToneAccent,
+  beatTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+  setAccentGesture: (value: IdleGesture | null) => void
+): void {
+  if (beatTimerRef.current) {
+    clearTimeout(beatTimerRef.current);
+    beatTimerRef.current = null;
+  }
+  // `sparkle` is deliberately absent: it is an accessory, not a movement, and
+  // `applyAccessory` owns it. One beat, one mechanism.
+  const gesture = prefersReducedMotion() ? null : accentGesture(accent);
+  setAccentGesture(gesture);
+  if (!gesture) return;
+  beatTimerRef.current = setTimeout(() => {
+    beatTimerRef.current = null;
+    setAccentGesture(null);
+  }, ACCENT_BEAT_MS);
+}
+
+function showAccessory(
+  next: EyeAccessory | null,
+  timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+  setAccessory: (value: EyeAccessory | null) => void
+): void {
+  if (timerRef.current) {
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }
+  setAccessory(next);
+  if (!next) return;
+  timerRef.current = setTimeout(() => {
+    timerRef.current = null;
+    setAccessory(null);
+  }, ACCESSORY_DURATION_MS[next]);
+}
+
+function applyAccessory(
+  expression: EyeExpression,
+  accent: ToneAccent,
+  timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+  setAccessory: (value: EyeAccessory | null) => void
+): void {
+  if (prefersReducedMotion()) {
+    showAccessory(null, timerRef, setAccessory);
+    return;
+  }
+  // The accent WINS over the roll. It is an explicit statement about the answer
+  // that just landed, where the roll is a rare flourish the expression may or
+  // may not earn — and resolving both here is what keeps one accessory to one
+  // owner. Written as two writers, the arrival's roll silently overwrote the
+  // accent a few milliseconds after it was set.
+  const earned = accentSparkles(accent) ? 'sparkle' : null;
+  showAccessory(earned ?? accessoryForExpression(expression, Math.random), timerRef, setAccessory);
+}
+
 export function useEyesBehavior({
   chatStatus,
   streamPhase,
@@ -224,6 +315,17 @@ export function useEyesBehavior({
   // Floating emote: current glyph mirrored in a ref (evaluate runs outside
   // render) so leave transitions schedule exactly one exit timer.
   const [emote, setEmote] = useState<EmoteState | null>(null);
+  const [accessory, setAccessory] = useState<EyeAccessory | null>(null);
+  const [emphasis, setEmphasis] = useState(1);
+  // The one-shot beat the last answer earned. Held apart from the idle
+  // gesture because the two have different owners and different lifetimes:
+  // an idle gesture is cleared the moment a directed expression arrives,
+  // which is exactly when an accent is supposed to be playing.
+  const [accentBeat, setAccentBeat] = useState<IdleGesture | null>(null);
+  const accentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastReactionAtRef = useRef<number | null>(null);
+  const pendingAccentRef = useRef<ToneAccent>('none');
+  const accessoryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emoteGlyphRef = useRef<string | null>(null);
   const emoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const frameRef = useRef(frame);
@@ -360,6 +462,15 @@ export function useEyesBehavior({
           emoteTimerRef,
           setEmote
         );
+        if (changed) {
+          applyAccessory(
+            next.expression,
+            pendingAccentRef.current,
+            accessoryTimerRef,
+            setAccessory
+          );
+          pendingAccentRef.current = 'none';
+        }
         // Leaving the wandering family cancels the idle life immediately — a
         // directed expression must never carry a stale wander target or
         // gesture. 'speaking' keeps its reading-gaze loop but never plays
@@ -412,6 +523,26 @@ export function useEyesBehavior({
     const nextFamily = resolveIdleFamily(mood, next.expression);
     familyRef.current = nextFamily;
     setFamily(prev => (prev === nextFamily ? prev : nextFamily));
+    // How forcefully the last answer was written. It rides alongside the mood
+    // family — same shape, same guard against re-rendering on an unchanged
+    // value — and scales the pose without ever choosing it.
+    const nextEmphasis = signals.liveEmphasis(now);
+    setEmphasis(prev => (prev === nextEmphasis ? prev : nextEmphasis));
+    // The accent fires ONCE per REACTION — keyed on the reaction's own
+    // timestamp, not on the accent value. Keyed on the value, two consecutive
+    // answers that both earned a wink inside the same hold window would play
+    // it once: the second edge never happens because the value never changed.
+    const reactionAt = signals.reaction?.at ?? null;
+    if (reactionAt !== lastReactionAtRef.current) {
+      lastReactionAtRef.current = reactionAt;
+      const accent = signals.liveAccent(now);
+      // The movement plays now; the accessory is PARKED for the frame that is
+      // about to land, because that is where the accessory has its single
+      // owner. Playing it here instead put two writers a few milliseconds
+      // apart, and the arrival's roll won.
+      pendingAccentRef.current = accent;
+      if (accent !== 'none') applyAccentBeat(accent, accentTimerRef, setAccentBeat);
+    }
     trackSleepClock(next.expression, now, sleepSinceRef);
     // Narrative beats on signal EDGES, idle-stage only (an interactive state
     // owns the face): a cross-family mood shift plays its rise/fall beat; a
@@ -695,7 +826,7 @@ export function useEyesBehavior({
   useEffect(() => {
     // Timer handles (not DOM nodes): reading them at cleanup time is the
     // point — the array indirection keeps exhaustive-deps quiet about it.
-    const timerRefs = [winkTimerRef, emoteTimerRef];
+    const timerRefs = [winkTimerRef, emoteTimerRef, accessoryTimerRef];
     return () => {
       timerRefs.forEach(ref => {
         if (ref.current) clearTimeout(ref.current);
@@ -708,9 +839,13 @@ export function useEyesBehavior({
     frame: winking ? { expression: 'wink', gaze: null } : (performedFrame ?? frame),
     blinking,
     family,
-    gesture,
+    // An accent outranks the idle gesture: it belongs to the answer that just
+    // landed, and the idle life is what happens when nothing has.
+    gesture: accentBeat ?? gesture,
     idleGaze,
     emote,
+    accessory,
+    emphasis,
     wink,
   };
 }

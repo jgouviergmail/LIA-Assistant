@@ -4419,6 +4419,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_38_2": {
+          "title": "v1.38.2 — 🙂 A face that answers the tone, not the habit",
+          "date": "September 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>🙂 LIA's face answers the TONE of her reply</b> — after every message the avatar wore roughly the same pleased expression, including after an error or a long technical explanation. LIA now states the register of what she has just written — warm, assured, factual, apologetic, curious, concerned… — and the face plays it. Twelve distinct expressions instead of one, and only two of them smile: a technical answer keeps a focused face.",
+            "i2": "<b>👄 An expressive mouth</b> — the avatar now has a mouth that carries the expression: it opens, deepens, leans to one side and follows the face. It arrives at the corners first, the way a real smile does, instead of appearing all at once.",
+            "i3": "<b>🛠️ Deployment fix</b> — on some installations a monitoring container refused to start after an update, with a permission error on its start-up script. Fixed, and an automatic check now stops the case from coming back."
+          }
+        },
         "v1_38_1": {
           "title": "v1.38.1 — 🎨 Settings you can find at a glance",
           "date": "August 2026",
@@ -6698,7 +6708,7 @@
           },
           "q25": {
             "question": "What are the little animated eyes on the chat page?",
-            "answer": "They are LIA's <strong>expressive eyes</strong> — a small companion widget that mirrors what the assistant is doing and feeling. They watch the input while you type, squint while LIA thinks, scan side to side while it searches, and react to the tone of each answer; left alone they blink, glance around, doze off, and occasionally pull a prank.<br><br><strong>Make them yours:</strong> drag them anywhere (arrow keys work too, and they never drift from where you put them), tap them on mobile to reveal the size and hide buttons, or dismiss them to a small restore dot. Six visual styles are available in <strong>Settings › Personalization › Eyes style</strong>, with live previews. Under reduced-motion system settings the eyes stay still."
+            "answer": "They are LIA's <strong>expressive eyes</strong> — a small companion widget that mirrors what the assistant is doing and feeling. They watch the input while you type, squint while LIA thinks, scan side to side while it searches, and play the <strong>register</strong> of each answer — LIA states whether what she has just written is warm, assured, factual, apologetic, curious or concerned, and the face plays it, mouth included. Twelve distinct expressions, only two of which smile: a technical answer keeps a focused face. Left alone they blink, glance around, doze off, and occasionally pull a prank.<br><br><strong>Make them yours:</strong> drag them anywhere (arrow keys work too, and they never drift from where you put them), tap them on mobile to reveal the size and hide buttons, or dismiss them to a small restore dot. Six visual styles are available in <strong>Settings › Personalization › Eyes style</strong>, with live previews. Under reduced-motion system settings the eyes stay still."
           }
         }
       },
@@ -7897,8 +7907,8 @@
         "desc": "Drag a file onto the window: LIA takes it, cleanly."
       },
       "expressive_eyes": {
-        "title": "Eyes that follow the conversation",
-        "desc": "A little animated gaze in the chat: it watches, thinks, searches — and lights up with the answer."
+        "title": "A face that answers the tone",
+        "desc": "Twelve expressions, mouth included: LIA states the register of what she just wrote, and the face plays it. Only two of them smile."
       },
       "followup_chips": {
         "title": "The next step, one click away",
@@ -10343,7 +10353,8 @@
       "native_apps": "Native apps",
       "self_diagnostics": "Self-diagnostics",
       "computed_answers": "Computed answers",
-      "measured_palette": "A measured palette"
+      "measured_palette": "A measured palette",
+        "declared_register": "The declared register"
     }
   },
   "psyche": {

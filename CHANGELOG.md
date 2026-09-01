@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.38.2] - 2026-09-01
+
+**Le visage souriait à tout, et la mesure dit pourquoi.** Après chaque réponse — une erreur, une explication technique, une liste de tâches — l'avatar affichait la même expression réjouie. Quatorze tours de production consécutifs, lus en base : l'émotion dominante de la psyché était `enthusiasm` sur **treize d'entre eux**, dans un mouchoir de **0,02**. Ce n'est pas un défaut de la psyché, c'est sa nature : **une psyché est un trait**, elle bouge lentement et c'est voulu. Le défaut était de lui demander de répondre d'un événement ponctuel, car un `argmax` sur un vecteur quasi constant est une constante.
+
+**Le repli censé couvrir ce cas n'avait rien à dire non plus** : sur ces mêmes quatorze réponses, **neuf** ne contenaient ni « ! », ni emoji, ni bloc de code. Et le multiplicateur d'emphase qui en découlait mesurait de **0,94 à 1,21** — ±13 % sur deux groupes de canaux, sous une expression qui ne changeait jamais. Invisible par construction.
+
+**Le modèle qui écrit la réponse déclare désormais lui-même son registre**, dans un vocabulaire qui appartient à l'animation et à rien d'autre : douze registres, douze visages réellement distincts. Une réponse technique ne sourit plus. Le marqueur voyage **en bande**, sur la même génération — aucun appel LLM supplémentaire — et il est filtré du flux avant qu'un seul caractère n'atteigne l'écran. Le motif n'est pas inventé : c'est exactement celui de l'auto-évaluation de la psyché, en production depuis des mois.
+
+**La psyché garde ce qu'elle fait bien** : la famille d'humeur au repos — respiration, cadence de clignement, poids des gestes d'inactivité. Un trait colore un comportement de repos, jamais une réaction.
+
+**Et la bouche cesse d'être un demi-cercle.** Sous deux yeux pleins et lumineux, un filet est un dessin au trait déguisé en écran de robot : la bouche devient une **forme pleine** dont la silhouette se déforme. Trois écarts au compas, mesurés dans un navigateur sur un vrai sourire — le dessus n'est jamais plat, les deux coins bas sont **différents** et penchent avec la bouche, et la forme s'élargit en se courbant.
+
+### Added
+
+- **Une annotation d'expressivité par tour** (ADR-253) : `<lia_tone register= intensity= accent=/>`, douze registres et six accents, déclarés par le modèle de réponse et livrés sur l'événement SSE `done`. Coupable par `EXPRESSIVITY_ENABLED` — coupée, le marqueur n'est jamais demandé, jamais analysé, et le prompt ne coûte rien.
+- **Douze visages distincts** au lieu d'un seul : `factual` rend un visage neutre, `assured` un visage concentré, `apologetic` un visage désolé. Deux registres seulement sourient.
+- **Un repli qui ne renvoie jamais rien.** Il lit la FORME de la réponse — longueur, blocs de code, densité de ponctuation, emoji — jamais les mots, si bien que les six locales se comportent à l'identique. Il parle **le même vocabulaire** que le marqueur déclaré : une seule table de registres, une seule courbe d'amplitude.
+- **Un accent ponctuel** sur le registre : un clin d'œil, un hochement, une inclinaison, un soupir, une étincelle. Chacun tire sur un geste **déjà écrit et déjà testé** — l'accent nomme ce que le battement veut dire, le rig sait déjà le jouer.
+- **Un décalage de départ par CANAL** (`CHANNEL_LEAD_MS`) : les coins de la bouche partent avant sa courbe, parce qu'un vrai sourire commence aux coins. Le décalage par groupe ne pouvait pas l'exprimer — les trois canaux vivent dans le même groupe.
+
+### Changed
+
+- **La bouche est une forme pleine, pas un trait.** Un seul élément porte tout le vocabulaire, là où trois se tenaient en phase à la main : la hauteur croît avec la courbe et l'ouverture, le bord supérieur s'aplatit quand la courbe se creuse, et un retournement suffit pour une moue. `mouthArc` est publié **sans unité**, parce que la feuille de style en a besoin comme hauteur *et* comme ratio de rayon, et que CSS ne divise pas une longueur par une longueur.
+- **L'amplitude jouée va de 0,82 à 1,70**, contre 0,94 à 1,21 auparavant — et le signal qui la pilote varie enfin. Le **registre plafonne** ce que l'intensité peut acheter : une réponse `factual` déclarée au maximum reste un visage neutre livré avec conviction.
+- La règle de placement « avant le rappel final » est **factorisée** dans le chargeur de prompts. Elle était écrite deux fois, à l'identique, et une troisième l'aurait été.
+- Le balayage des marqueurs en bande du flux SSE est **une seule fonction** pour les deux marqueurs, au lieu de deux gardes et deux sorties anticipées copiées l'une sur l'autre.
+
+### Removed
+
+- **La voie parallèle de réaction** : `deriveReaction`, `contentHeuristicExpression`, `responseEmphasis` et la table émotion→expression. Elles avaient leur propre idée du visage à afficher ; il n'y en a plus qu'une. Le type `ReactionSource` n'a plus de porte pour la psyché, ce qui en fait une garantie de compilation plutôt qu'une convention.
+
+### Fixed
+
+- **Une moue poussait vers le haut, dans le visage.** Retourner la forme autour de son bord haut envoie le dessin au-dessus de la ligne : mesuré au navigateur, toute bouche retournée mordait sur les yeux de **3,2 à 7,7 px** aux trois tailles, quand les autres dégageaient 5,5 à 13,8. Après correctif : **4,3 à 13,8 px**, positif partout.
+- **Une étincelle restait collée au visage.** L'accessoire posé par un accent ne programmait pas son effacement, et l'atterrissage de l'expression suivante l'écrasait quelques millisecondes plus tard. Deux propriétaires pour un même état : il n'y en a plus qu'un, et une seule décision.
+- **Un accent identique deux réponses de suite ne jouait qu'une fois.** Le front était calé sur la *valeur* de l'accent, qui ne changeait pas ; il l'est désormais sur la réaction elle-même.
+- **Un marqueur cité dans une réponse décidait du visage.** LIA se documente elle-même et peut citer le marqueur ; la **dernière** occurrence fait foi, puisque l'instruction dit qu'il vient après la réponse. Toutes restent retirées du texte : montrer du balisage à un lecteur est la pire des deux pannes.
+- **Un conteneur refusait son point d'entrée en production** : le script d'Alertmanager est monté depuis l'hôte, qui ne porte pas le bit d'exécution. La commande passe désormais par l'interpréteur, et une garde d'hygiène refuse tout nouveau montage qui reposerait sur ce bit.
+
+### Tests
+
+- **47 tests backend** sur l'annotation : chaque étape partielle du marqueur, un registre inventé, une intensité hors bornes, un marqueur tronqué, la dernière occurrence contre une citée, l'expiration du registre par tour.
+- **15 tests sur le balayage du flux** — un chemin qui n'en avait **aucun** avant cette version : chaque préfixe partiel des deux marqueurs, les deux dans le même jeton, et la prose laissée intacte.
+- **Une garde de parité entre les deux moitiés du contrat** : le prompt propose exactement ce que le code accepte, et la copie TypeScript du vocabulaire suit la copie Python. Un registre ajouté d'un seul côté serait un visage qui n'arrive jamais, sans symptôme.
+- 6 662 tests frontend verts ; couverture 77,37 / 72,53 / 74,34 / 78,00. Backend 21 584 collectés : **28 246 au total**, arrondi à la baisse à 28 000 sur la landing par contrat.
+- Ratchets tenus sans qu'aucun plafond soit relevé : la complexité et la taille ont été rendues par **extraction**, et `response_node.py` finit plus petit qu'avant le chantier.
+
+### Documentation
+
+- **ADR-253** — la décision, avec les deux mesures qui la fondent et celle qui a corrigé sa première version : le marqueur n'arrive qu'**un tour sur huit**, exactement comme celui de la psyché, sur les mêmes tours. Un visage qui ne réagit qu'un tour sur huit étant un visage cassé, le repli a cessé de pouvoir ne rien renvoyer.
+- **ADR-252** réaligné sur le dessin livré : la section qui décrivait des lèvres, une ouverture cerclée et une langue décrivait un code qui n'existe plus.
+
 ## [1.38.1] - 2026-08-30
 
 **Cinquante-trois réglages, trente-sept dessins.** La page des réglages rendait chaque section avec la même icône bleue sur la même pastille bleue, et seize d'entre elles empruntaient en plus le dessin d'une autre — `Plug` servait quatre fois. Le regard n'avait donc qu'une seule forme répétée pour s'orienter dans une liste de cinquante-trois entrées.

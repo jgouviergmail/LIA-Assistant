@@ -6,7 +6,7 @@
 
 **Versión**: 4.6
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.38.1
+**Aplicación**: LIA v1.38.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -49,6 +49,7 @@
 33. [Autodiagnóstico: un asistente que lee su propia telemetría](#33-autodiagnóstico-un-asistente-que-lee-su-propia-telemetría)
 34. [Calcular en vez de adivinar: un script efímero en el entorno aislado que ya existía](#34-calcular-en-vez-de-adivinar-un-script-efímero-en-el-entorno-aislado-que-ya-existía)
 35. [Medir un color antes de entregarlo: la paleta de los ajustes](#35-medir-un-color-antes-de-entregarlo-la-paleta-de-los-ajustes)
+36. [Un rasgo no es una reacción: el registro que declara la respuesta](#36-un-rasgo-no-es-una-reacción-el-registro-que-declara-la-respuesta)
 ---
 
 ## 1. Contexto y decisiones fundacionales
@@ -63,7 +64,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 490 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 250 ADRs, ~21.521 tests recogidos por pytest en 1.292 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 252 ADRs, ~21.584 tests recogidos por pytest en 1.296 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -81,10 +82,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 21.521 recopilados por pytest en 1.292 archivos de prueba + 6.368 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 21.584 recopilados por pytest en 1.296 archivos de prueba + 6.662 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 755, de las cuales 32 compartidas mediante conftest |
 | Documentos de documentación | 549 |
-| ADRs (Architecture Decision Records) | 250 |
+| ADRs (Architecture Decision Records) | 252 |
 | Métricas Prometheus | 486 definiciones |
 | Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1313,7 +1314,7 @@ La lección de ingeniería más valiosa vino de un defecto invisible: la primiti
 
 ## 24. Arquitectura de decisiones (ADR)
 
-250 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+252 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1419,7 +1420,7 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 250 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~21.521 tests en 1.292 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 252 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~21.584 tests en 1.296 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
@@ -1491,4 +1492,22 @@ La página de ajustes enumera cincuenta y tres secciones. Todas dibujaban el mis
 
 **Una sola regla para las dos listas.** La tarjeta de la vista general y la fila de la columna leen la misma función: no pueden divergir en una sección, y un llamante fuera de la tabla recae en el acento en lugar de en nada.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 250 ADRs y del changelog (v1.0 a v1.38.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+## 36. Un rasgo no es una reacción: el registro que declara la respuesta
+
+El rostro del compañero elegía su expresión de fin de turno a partir de la emoción dominante de la psique. La medición fue concluyente: en catorce turnos consecutivos, esa emoción fue la misma en trece de ellos, con una variación de 0,02.
+
+**No es un defecto de la psique, es su definición.** Una psique modela una vida interior: es un **rasgo**, se mueve despacio, y es exactamente lo que se le pide. El defecto era hacerla responder por un **acontecimiento puntual** — un argmax sobre un vector casi constante es una constante.
+
+**El único que conoce el registro de una respuesta es el modelo que la escribió.** Cualquier otra fuente solo lee su superficie. Por eso la respuesta declara su propio registro, en un vocabulario que pertenece a la animación y a nada más: doce registros, elegidos bajo una única restricción — *dos registros que el rostro interpretaría igual son un solo registro con dos nombres.* Por eso la lista no es más larga.
+
+**Dentro del flujo, porque se cruzan dos exigencias.** La señal debe venir del modelo que escribió la respuesta **y** llegar en el instante en que la respuesta llega — el rostro reacciona al completarse, y una pasada en segundo plano llega después de ese instante. Una marca colocada al final de la generación satisface ambas: ninguna llamada adicional al modelo, y llega con el último token. El patrón no se inventó para la ocasión: es el de la autoevaluación de la psique, probado en producción. Los fragmentos se filtran del flujo para que nada parpadee en pantalla, y la marca completa se retira del texto conservado.
+
+**La intensidad es una indicación de interpretación, no una confianza.** La representación la **exagera** en lugar de reproducirla: una caricatura que interpreta un 0,8 como 0,8 parece una videollamada. Y es el **registro el que limita** lo que la intensidad puede comprar — una respuesta factual declarada al máximo sigue siendo un rostro neutro entregado con convicción, nunca una celebración. La intensidad dice con cuánta fuerza pasó el registro; nunca dice cuál era.
+
+**Lo que se aplica debe publicarse.** Un registro que la instrucción ofrece y el código rechaza produce un turno sin rostro, en silencio; un registro que el código acepta y la instrucción calla es un rostro que nunca ocurrirá. Una prueba mantiene juntas ambas listas, y la copia del navegador se mide contra la del servidor.
+
+**La marca no llega en todos los turnos, y el respaldo lo tiene en cuenta.** Primera medición en condiciones reales: la marca de tono y la de la psique se emitieron exactamente en los mismos dos turnos de dieciséis — una tasa que es una propiedad del modelo de respuesta, no de la funcionalidad. Un rostro que reacciona uno de cada ocho turnos es un rostro roto; el respaldo ya no puede no devolver nada: lee la **forma** de la respuesta — longitud, bloques de código, densidad de puntuación, emoji, nunca palabras, de modo que los seis idiomas se comportan igual — y habla **el mismo vocabulario** que la marca. Una tabla de registros, una curva de amplitud, un solo camino.
+
+**Y la psique conserva aquello en lo que es buena**: la familia de humor en reposo — ritmo de respiración, cadencia de parpadeo, peso de los gestos de inactividad. Un rasgo debe teñir un comportamiento en reposo, nunca una reacción.
+
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 252 ADRs y del changelog (v1.0 a v1.38.2). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
