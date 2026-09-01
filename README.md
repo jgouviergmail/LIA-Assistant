@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.38.3</strong> — <strong>The volume was never the problem, the concentration was</strong>. In one production hour, with one to three active users, <strong>11 of 24 embedding calls failed</strong> — every one a 429 on the provider's per-minute quota, and every one silently costing a turn its RAG context, its journal context, its memory extraction or its message indexing. Answers kept flowing; the assistant quietly got less intelligent. A steady four calls a minute passed without a single error, so the cause was not load — it was arithmetic. An interval trigger counts from scheduler start, so periods of 5, 15, 30 and 60 minutes align forever: <strong>six background jobs fired inside the same second, every hour</strong>, each running an agent, each agent embedding. Three mechanisms now answer it, with three distinct roles: jitter treats the cause, a short-window shaper is the insurance as users grow, and a retry mops up the residue. Platform Health could not see any of this, because nothing measured the OUTCOME of an embedding — only what hit the provider, which is the wrong denominator the moment you retry. It measures outcomes now. And its diagnoses stopped saying "insufficient evidence": they are written in the reading administrator's own language, and they quote the threshold the value actually crossed. — 1 September 2026.
+  <strong>Version 1.38.4</strong> — <strong>A connected server announced forty tools and quietly delivered ten</strong>. Asked to list the accounts of a personal-finance MCP server, the assistant answered that it could not — while routing to that very server with a confidence of 1.0. <strong>30 of its 40 tools were never built</strong>, 270 times in 72 hours, behind a warning nobody queries. The cause fits in one line of JSON: a parameter declared <code>"type": ["boolean", "null"]</code>, legal since draft-04 and the dominant way to spell "optional", used as a dictionary key in four places. Fixing the first would have moved the crash one line down, into the same <code>try</code> — two readings of one declaration always end up disagreeing, so there is now one. Chasing conformance found worse than the crash: the fallback answered a whole tool with no schema at all the moment a single property used <code>$ref</code> or <code>anyOf</code>, which publishes it to the model as an opaque bag — listed, and uncallable. And a confirmation was missing where it mattered: with one setting shared by every tool of a server, switching it off for a server you merely query also switched it off for the few that delete something — none of which carry a verb the name heuristic recognises. A tool the server itself declares destructive now always asks. — 2 September 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **253** ADRs                                                           |
-| **237** versions shipped  | **6 languages**, parity enforced in CI  | **492** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **254** ADRs                                                           |
+| **238** versions shipped  | **6 languages**, parity enforced in CI  | **493** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -200,7 +200,7 @@ The result is measured, not proclaimed:
 
 - **20+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control (with progressive screenshot streaming), Smart Home (Philips Hue), Context, Query + dynamic MCP agents
 - **ReAct Execution Mode** ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md)): Alternative to the pipeline — the LLM iteratively reasons about tool outputs and decides next steps autonomously. User-toggleable preference, 4-node LangGraph architecture with native HITL support, timeout enforcement, cross-domain initiative via prompt engineering. Supports all tools including MCP and Skills
-- **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), **Iterative Mode (ReAct)** for complex servers — a dedicated agent reads docs then calls tools correctly
+- **MCP (Model Context Protocol)**: aligned on the protocol's current revision (2026-07-28) on both halves — how a server is spoken to and how its tool declarations are read. Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), **Iterative Mode (ReAct)** for complex servers — a dedicated agent reads docs then calls tools correctly
 - **Agent Initiative Phase**: Post-execution cross-domain enrichment — the assistant proactively verifies related information (e.g., weather shows rain → checks calendar for outdoor events). Prompt-driven, read-only, fully configurable
 - **Skills (agentskills.io) with Rich Outputs**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Rich Skill Outputs** (v1.16.8): skills can return interactive HTML frames (iframe srcDoc or external URL) and/or images in addition to text, via a simple JSON contract (`SkillScriptOutput`). Automatic theme & locale sync (theme switch propagates live to frames via `postMessage`), iframe auto-resize, CSP-sandboxed client-side interactivity (`addEventListener`, `crypto.getRandomValues`), bundled `segno` for QR codes. Seven built-in rich skills: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller`. **Planner skill guard**: multi-domain deterministic skills are protected from false-positive early clarification requests via domain overlap detection (`_has_potential_skill_match`). **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis and archetype selection (the dialogue keeps its context across turns), then validates and **installs the finished skill directly into My Skills**, announced by name and immediately usable. Every import path (chat-generated or manual upload) goes through one hardened pipeline: strict name validation, zip-expansion caps, name-conflict rejection, atomic install with automatic rollback
 - **Agent Plugins (agent-plugins.org)** ([ADR-225](docs/architecture/ADR-225-Standard-Agent-Plugins-v1.md)): LIA is a conformant client of the open Agent Plugins v1.0.0 standard (TSC: AWS, Cursor, Microsoft, OpenAI, Vercel) — portable plugin packages bundling agentskills.io skills and streamable-http MCP servers install in one step (zip upload or SSRF-hardened https URL) and behave exactly like their manually-created counterparts afterwards. Every install returns an exhaustive per-component report (installed / updated / skipped with a translated reason / removed — never a silent partial success); updates are re-imports that preserve configured OAuth credentials; uninstall removes the plugin and all its components as a group, and that group removal is the only way plugin components leave (individual deletion is refused server-side and guarded in the UI). Documented conformance deviations: stdio servers are never launched (multi-user server), endpoints are HTTPS-only
@@ -330,7 +330,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 492 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 493 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -369,6 +369,9 @@ ExecutionStep(
 ### MCP (Model Context Protocol)
 
 - **Dual-era protocol client** ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md)): speaks the stateless 2026-07-28 revision AND falls back automatically to the legacy handshake — old and new-generation servers both plug in, with actionable diagnostics when neither is possible
+- **Tool declarations read to the letter of the same revision** ([ADR-255](docs/architecture/ADR-255-MCP-Tool-Declaration-Conformance.md)): the spec admits *every* JSON Schema 2020-12 keyword in a tool's `inputSchema`, and LIA reads them — union types, `anyOf`/`oneOf`/`allOf`, `$ref` into `$defs`, `const`, `enum` inference — through a single authority shared by the tool adapter and the planner catalogue, with a parity test holding the two readings together. Every function there is total: a declaration LIA cannot use degrades the property, never the tool, because a lost tool is a capability the user no longer has without being told. What a server actually enforces (closed sets, bounds, sizes) is published to the planner in the same constraint vocabulary native tools use
+- **Behaviour annotations tighten, never relax**: the spec requires a client to treat `readOnlyHint` / `destructiveHint` as untrusted, so a declared mutation is believed while a read-only claim never is — and a tool the server declares destructive asks for confirmation even on a server whose confirmation is switched off
+- **A dropped tool is visible**: `mcp_tool_registration_failures_total` with two panels, because a tool that fails to load leaves nothing else behind
 - **Per-user external servers**: Each user connects their own MCP servers (third-party tools)
 - **Flexible authentication**: None, API Key, Bearer Token, OAuth 2.1 (DCR + PKCE S256, `iss` validation per RFC 9207, issuer-bound credentials with automatic re-registration)
 - **Enhanced security**: HTTPS-only, SSRF prevention (DNS resolution + IP blocklist), encrypted credentials (Fernet)
@@ -970,7 +973,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-242 ADR files (ADR-001 through ADR-243 — ADR-008 has no separate file) documenting major architectural decisions:
+254 ADR files (ADR-001 through ADR-255 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

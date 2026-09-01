@@ -253,7 +253,7 @@ async def _run_mcp_react_task(
 
     # Prometheus: MCP ReAct invocations + iteration distribution (dashboard 10)
     with suppress(Exception):
-        from src.infrastructure.observability.metrics_agents import (
+        from src.infrastructure.observability.metrics_mcp import (
             mcp_react_invocations_total,
             mcp_react_iterations_histogram,
         )

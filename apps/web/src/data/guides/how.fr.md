@@ -6,7 +6,7 @@
 
 **Version** : 4.6
 **Date** : 2026-08-23
-**Application** : LIA v1.38.3
+**Application** : LIA v1.38.4
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -64,8 +64,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 492 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 253 ADRs, ~21 584 tests collectés par pytest sur 1 296 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 493 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 254 ADRs, ~22 010 tests collectés par pytest sur 1 304 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -83,10 +83,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 21 584 collectés par pytest sur 1 296 fichiers de test + 6 662 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | 22 010 collectés par pytest sur 1 304 fichiers de test + 6 682 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 253 |
+| ADRs (Architecture Decision Records) | 254 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -753,6 +753,8 @@ LIA peut passer un appel sortant à la place de l'utilisateur, mener une convers
 
 Le `MCPClientManager` gère le lifecycle des connexions (exit stacks), la découverte d'outils (`session.list_tools()`), et la génération automatique de descriptions de domaine par LLM. Le `ToolAdapter` normalise les outils MCP vers le format LangChain `@tool`, avec parsing structuré des réponses JSON en items individuels.
 
+LIA suit la révision courante du protocole — **2026-07-28** — sur les deux moitiés de ce qu'un serveur expose : la façon dont on lui parle, et ce qu'il déclare. Lire une déclaration est un problème à part entière, et il n'a qu'une seule implémentation (ADR-255). La spécification définit le schéma d'entrée d'un outil comme du JSON Schema 2020-12 et y admet *tout* mot-clé : un paramètre optionnel peut s'écrire `"type": ["string", "null"]` aussi bien qu'en `anyOf`, une structure imbriquée se déclarer par un `$ref` vers `$defs`, un ensemble fermé par `enum` ou par `const`. Deux consommateurs lisent cette même déclaration — l'adaptateur, qui en fait la signature offerte au modèle, et le catalogue, qui en fait une entrée de plan — et deux lectures d'une même chose finissent toujours par diverger. `json_schema.py` est donc l'autorité unique, et un test de parité compare ce que chacun en tire. Toutes ses fonctions sont totales : elles répondent pour n'importe quelle déclaration qu'un serveur peut envoyer, parce qu'y lever une exception coûte un outil, et qu'un outil perdu est une capacité que l'utilisateur n'a plus sans en être averti. Ce qui reste indécidable — un `not`, une référence introuvable — est typé permissivement plutôt que jeté, et ce que le serveur applique vraiment (ensembles fermés, bornes, tailles) est publié au planificateur dans le vocabulaire de contraintes que les outils natifs utilisent depuis toujours.
+
 Depuis la v1.30.6, le client est **dual-era** (SDK MCP v2, ADR-224) : il parle la révision sans état 2026-07-28 du protocole et retombe automatiquement sur l'ancien handshake `initialize` pour les serveurs antérieurs — chaque serveur déjà configuré continue de fonctionner à l'identique pendant que les serveurs de nouvelle génération deviennent accessibles. LIA s'identifie dans le handshake (`clientInfo`), et un serveur qui rejette toutes les révisions parlées par LIA produit un diagnostic actionnable au lieu d'une erreur de transport brute enfouie dans des `ExceptionGroup` imbriqués.
 
 La même ouverture s'étend désormais du protocole de communication au **format de paquet**. LIA est un client conforme du standard ouvert Agent Plugins v1.0.0 (agent-plugins.org) : un plugin est un simple répertoire — un manifeste `plugin.json` à schéma fermé, des skills agentskills.io sous `skills/`, des serveurs MCP déclarés dans `mcp.json` — et le même paquet s'installe tel quel dans ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code et LIA. La conception s'appuie entièrement sur des couches qui existaient déjà : la détection route une archive de plugin vers un pipeline de transit qui réutilise le durcissement de l'importeur de skills (extraction bornée, gardes anti-traversée, installation atomique par skill avec retour arrière), les entrées de `mcp.json` se projettent sur les serveurs MCP par utilisateur, et les quotas sont pré-vérifiés globalement avant la première écriture — une installation n'est jamais laissée à moitié faite. Deux principes gouvernent le cycle de vie. D'abord, la résilience par composant avec une honnêteté totale : un composant qui ne peut pas être installé — un serveur stdio que LIA ne lance volontairement jamais, une collision de nom, un skill invalide — est *ignoré et dit*, avec une raison traduite dans un rapport exhaustif par composant ; rien n'est jamais prétendu installé. Ensuite, la provenance comme invariant : chaque composant porte le plugin qui l'a apporté, les collisions de noms ne se résolvent qu'au sein d'une même provenance (un plugin ne peut jamais capturer un skill créé à la main, ni l'inverse), la mise à jour est un réimport qui préserve les identifiants configurés, et le retrait ne passe que par la désinstallation groupée — un plugin ne peut jamais finir amputé en silence.
@@ -763,6 +765,8 @@ La même ouverture s'étend désormais du protocole de communication au **format
 HTTPS obligatoire, prévention SSRF (résolution DNS + blocklist IP), chiffrement Fernet des credentials, OAuth 2.1 (DCR + PKCE S256), rate limiting Redis par serveur/outil, API guard 403 sur endpoints proxy pour serveurs désactivés (ADR-061 Layer 3).
 
 Le flux OAuth applique les exigences d'autorisation 2026-07-28 : le paramètre `iss` (RFC 9207) est validé contre l'issuer enregistré avant l'échange du code d'autorisation, les identifiants client sont liés au serveur d'autorisation émetteur (un changement détecté les écarte et ré-enregistre au lieu d'envoyer des secrets au mauvais interlocuteur), et l'enregistrement dynamique déclare son `application_type`. Chaque règle porte une tolérance explicite pour les enregistrements existants, et refuser l'écran de consentement ramène l'utilisateur à ses réglages avec un message d'information dédié au lieu d'un 422 brut.
+
+Les annotations de comportement d'un outil (`readOnlyHint`, `destructiveHint`) sont lues dans **une seule direction**. La spécification est ici normative : un client doit les considérer comme non fiables tant qu'elles ne viennent pas d'un serveur de confiance. Une mutation déclarée est donc crue — au pire, un serveur menteur s'achète une confirmation superflue — tandis qu'une prétention de lecture seule ne l'est jamais, parce qu'une catégorie déclarée l'emporte sur l'heuristique de nom et retirerait l'outil du filet anti-mutation et de la détection de portée HITL. En mode itératif, où tous les outils d'un serveur partagent un seul réglage de confirmation, un outil que le serveur déclare lui-même destructeur en demande une dans tous les cas.
 
 ### 14.3. MCP Iterative Mode (ReAct)
 
@@ -905,7 +909,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 492 métriques custom (RED pattern) |
+| Prometheus | 493 métriques custom (RED pattern) |
 | Grafana | 26 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -913,7 +917,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 492 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 493 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1321,7 +1325,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-253 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+254 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1467,7 +1471,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 253 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~21 584 tests sur 1 296 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 254 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~22 010 tests sur 1 304 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1569,4 +1573,4 @@ Le visage du compagnon choisissait son expression de fin de tour dans l'émotion
 
 **Et ce qui n'est pas mesuré ne se voit pas.** Le compteur d'appels au fournisseur devient le mauvais dénominateur dès qu'on réessaie : un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. « Santé de la plateforme » compte donc désormais les **issues** — une ligne par opération logique, réessais repliés — et un second compteur dit ce que le lisseur a fait de chaque tentative, parce que « budget trop petit » et « Redis tombé » appellent des actions opposées.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 253 ADRs, et du changelog (v1.0 à v1.38.3). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 254 ADRs, et du changelog (v1.0 à v1.38.4). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -46,9 +46,7 @@ function hook(over: Partial<AdminMcpHook> = {}) {
 }
 
 function renderSection() {
-  return renderWithProviders(
-    <AdminMCPServersSettings lng="en" />
-  );
+  return renderWithProviders(<AdminMCPServersSettings lng="en" />);
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -75,5 +73,45 @@ describe('AdminMCPServersSettings', () => {
     const { user } = renderSection();
     await user.click(screen.getByRole('switch', { name: 'settings.admin_mcp.toggle_server' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('AdminMCPServersSettings — tool names', () => {
+  it('shows the declared title, keeping the identifier beside it', async () => {
+    // Parity with the user's MCP screen: the two lists show the same thing and
+    // must name it the same way, or one screen teaches a vocabulary the other
+    // contradicts.
+    useAdminMCPServers.mockReturnValue(
+      hook({
+        servers: [
+          server({
+            tools: [
+              {
+                name: 'accounts__list_financial_accounts',
+                description: 'List accounts',
+                title: 'Financial accounts',
+              },
+            ],
+          }),
+        ],
+      })
+    );
+    const { user } = renderSection();
+    await user.click(screen.getByRole('button', { name: 'settings.admin_mcp.tools_list' }));
+
+    expect(await screen.findByText('Financial accounts')).toBeInTheDocument();
+    expect(screen.getByText('accounts__list_financial_accounts')).toBeInTheDocument();
+  });
+
+  it('falls back to the identifier when the server declares no title', async () => {
+    useAdminMCPServers.mockReturnValue(
+      hook({
+        servers: [server({ tools: [{ name: 'get_weather', description: 'Weather' }] })],
+      })
+    );
+    const { user } = renderSection();
+    await user.click(screen.getByRole('button', { name: 'settings.admin_mcp.tools_list' }));
+
+    expect(await screen.findByText('get_weather')).toBeInTheDocument();
   });
 });

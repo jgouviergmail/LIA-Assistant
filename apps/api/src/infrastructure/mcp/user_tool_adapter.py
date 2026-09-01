@@ -35,7 +35,7 @@ from src.domains.agents.data_registry.models import (
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.mcp.tool_adapter import build_args_schema
 from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
-from src.infrastructure.observability.metrics_agents import (
+from src.infrastructure.observability.metrics_mcp import (
     mcp_connection_errors_total,
     mcp_tool_duration_seconds,
     mcp_tool_invocations_total,
@@ -136,6 +136,9 @@ class UserMCPToolAdapter(BaseTool):
     args_schema: type[BaseModel] | None = None
     timeout_seconds: int = 30
     app_resource_uri: str | None = None
+    #: Server-declared behaviour hints. UNTRUSTED per the MCP spec: read only
+    #: where they TIGHTEN a decision (see ``declares_destructive_tool``).
+    annotations: dict[str, Any] | None = None
 
     @classmethod
     def from_discovered_tool(
@@ -148,6 +151,7 @@ class UserMCPToolAdapter(BaseTool):
         input_schema: dict[str, Any],
         timeout_seconds: int = 30,
         app_resource_uri: str | None = None,
+        annotations: dict[str, Any] | None = None,
     ) -> UserMCPToolAdapter:
         """
         Create a UserMCPToolAdapter from discovered tool data.
@@ -170,6 +174,7 @@ class UserMCPToolAdapter(BaseTool):
             args_schema=args_model,
             timeout_seconds=timeout_seconds,
             app_resource_uri=app_resource_uri,
+            annotations=annotations,
         )
 
     @property

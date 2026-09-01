@@ -73,7 +73,10 @@ async def list_admin_servers(
         domain_slug = slugify_mcp_server_name(server_key)
         description = admin_domains.get(domain_slug)
 
-        tool_infos = [AdminMCPToolInfo(name=t.tool_name, description=t.description) for t in tools]
+        tool_infos = [
+            AdminMCPToolInfo(name=t.tool_name, description=t.description, title=t.title)
+            for t in tools
+        ]
 
         result.append(
             AdminMCPServerResponse(

@@ -20,6 +20,12 @@ export interface MCPDiscoveredTool {
   tool_name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  /**
+   * Display name the server declares. The MCP spec fixes the precedence
+   * (`title`, then `annotations.title`, then `name`), so the backend sends the
+   * first two and a null here means "fall back to tool_name".
+   */
+  title?: string | null;
 }
 
 /**

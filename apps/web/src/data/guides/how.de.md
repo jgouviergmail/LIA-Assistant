@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Datum**: 2026-08-23
-**Application**: LIA v1.38.3
+**Application**: LIA v1.38.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -64,8 +64,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 492 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 253 ADRs, ~21.584 von pytest gesammelte Tests in 1.296 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 493 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 254 ADRs, ~22.010 von pytest gesammelte Tests in 1.304 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -83,10 +83,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 21.584 von pytest über 1.296 Testdateien gesammelt + 6.662 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 22.010 von pytest über 1.304 Testdateien gesammelt + 6.682 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 253 |
+| ADRs (Architecture Decision Records) | 254 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -754,6 +754,8 @@ LIA kann im Namen des Nutzers einen ausgehenden Anruf tätigen, ein zielorientie
 
 Der `MCPClientManager` verwaltet den Lifecycle der Verbindungen (Exit Stacks), die Tool-Erkennung (`session.list_tools()`) und die automatische LLM-gestützte Generierung von Domänenbeschreibungen. Der `ToolAdapter` normalisiert MCP-Tools auf das LangChain-`@tool`-Format mit strukturiertem Parsing der JSON-Antworten in einzelne Items.
 
+LIA folgt der aktuellen Protokollrevision — **2026-07-28** — in beiden Hälften dessen, was ein Server offenlegt: wie man mit ihm spricht und was er deklariert. Eine Deklaration zu lesen ist ein eigenständiges Problem, und es hat genau eine Implementierung (ADR-255). Die Spezifikation definiert das Eingabeschema eines Werkzeugs als JSON Schema 2020-12 und lässt darin *jedes* Schlüsselwort zu: ein optionaler Parameter kann als `"type": ["string", "null"]` ebenso geschrieben werden wie als `anyOf`, eine verschachtelte Struktur über einen `$ref` nach `$defs` deklariert werden, eine geschlossene Menge über `enum` oder `const`. Zwei Verbraucher lesen dieselbe Deklaration — der Adapter, der daraus die dem Modell angebotene Signatur macht, und der Katalog, der daraus einen Planungseintrag macht — und zwei Lesarten einer Sache geraten am Ende immer auseinander. `json_schema.py` ist daher die einzige Instanz, und ein Paritätstest vergleicht, was jeder daraus ableitet. Jede Funktion dort ist total: sie antwortet auf jede Deklaration, die ein Server senden kann, denn eine Ausnahme kostet dort ein Werkzeug, und ein verlorenes Werkzeug ist eine Fähigkeit, die der Nutzerin fehlt, ohne dass es ihr jemand sagt. Was unentscheidbar bleibt — ein `not`, eine unauffindbare Referenz — wird großzügig typisiert statt verworfen, und was der Server tatsächlich durchsetzt (geschlossene Mengen, Grenzen, Größen) wird dem Planer in genau dem Constraint-Vokabular veröffentlicht, das native Werkzeuge seit jeher verwenden.
+
 Seit v1.30.6 ist der Client **dual-era** (MCP SDK v2, ADR-224): Er spricht die zustandslose Protokollrevision 2026-07-28 und fällt für ältere Server automatisch auf den bisherigen `initialize`-Handshake zurück — jeder bereits konfigurierte Server arbeitet unverändert weiter, während Server der neuen Generation erreichbar werden. LIA identifiziert sich im Handshake (`clientInfo`), und ein Server, der jede von LIA gesprochene Revision ablehnt, erzeugt eine handlungsleitende Diagnose statt eines rohen Transportfehlers in verschachtelten `ExceptionGroup`s.
 
 Dieselbe Offenheit erstreckt sich nun vom Übertragungsprotokoll auf das **Paketformat**. LIA ist ein konformer Client des offenen Standards Agent Plugins v1.0.0 (agent-plugins.org): Ein Plugin ist ein schlichtes Verzeichnis — ein `plugin.json`-Manifest mit geschlossenem Schema, agentskills.io-Skills unter `skills/`, MCP-Server in `mcp.json` — und dasselbe Paket installiert sich unverändert in ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code und LIA. Das Design stützt sich vollständig auf bereits vorhandene Schichten: Die Erkennung leitet ein Plugin-Archiv in eine Staging-Pipeline, die die Härtung des Skill-Importers wiederverwendet (begrenzte Extraktion, Zip-Slip-Schutz, atomare Installation pro Skill mit Rollback), `mcp.json`-Einträge werden auf Benutzer-MCP-Server abgebildet, und Quoten werden global vor dem ersten Schreibvorgang geprüft — eine Installation bleibt nie halbfertig liegen. Zwei Prinzipien bestimmen den Lebenszyklus. Erstens Resilienz pro Komponente mit völliger Ehrlichkeit: Eine Komponente, die nicht installiert werden kann — ein stdio-Server, den LIA bewusst nie startet, eine Namenskollision, ein ungültiger Skill — wird *übersprungen und gesagt*, mit übersetztem Grund in einem vollständigen Bericht pro Komponente; nichts wird je als installiert vorgetäuscht. Zweitens Herkunft als Invariante: Jede Komponente trägt das Plugin, das sie mitbrachte, Namenskollisionen werden nur innerhalb derselben Herkunft aufgelöst (ein Plugin kann nie einen von Hand erstellten Skill übernehmen, und umgekehrt), Updates sind Re-Importe, die konfigurierte Zugangsdaten bewahren, und Entfernen geschieht nur als Gruppen-Deinstallation — ein Plugin kann nie stillschweigend amputiert enden.
@@ -764,6 +766,8 @@ Dieselbe Offenheit erstreckt sich nun vom Übertragungsprotokoll auf das **Paket
 Obligatorisches HTTPS, SSRF-Prävention (DNS-Auflösung + IP-Blocklist), Fernet-Verschlüsselung der Credentials, OAuth 2.1 (DCR + PKCE S256), Redis Rate Limiting pro Server/Tool, API Guard 403 auf Proxy-Endpunkte für deaktivierte Server (ADR-061 Layer 3).
 
 Der OAuth-Fluss wendet die Autorisierungsanforderungen von 2026-07-28 an: Der `iss`-Parameter (RFC 9207) wird vor dem Einlösen des Autorisierungscodes gegen den aufgezeichneten Issuer validiert, Client-Credentials sind an den ausstellenden Autorisierungsserver gebunden (eine erkannte Änderung verwirft sie und registriert neu, statt Geheimnisse an die falsche Stelle zu senden), und die Dynamic Client Registration deklariert ihren `application_type`. Jede Regel trägt eine explizite Toleranz für bestehende Registrierungen, und das Ablehnen des Zustimmungsbildschirms führt den Benutzer mit einer eigenen Informationsmeldung zu seinen Einstellungen zurück statt zu einem nackten 422.
+
+Die Verhaltensannotationen eines Werkzeugs (`readOnlyHint`, `destructiveHint`) werden **nur in eine Richtung** gelesen. Die Spezifikation ist hier normativ: Ein Client muss sie als nicht vertrauenswürdig behandeln, solange sie nicht von einem vertrauenswürdigen Server stammen. Einer deklarierten Mutation wird daher geglaubt — schlimmstenfalls erkauft sich ein lügender Server eine überflüssige Bestätigung —, einer Nur-Lesen-Behauptung hingegen nie, denn eine deklarierte Kategorie sticht die Namensheuristik und würde das Werkzeug aus dem Sicherheitsnetz gegen ungültige Mutationen und aus der HITL-Bereichserkennung herausnehmen. Im iterativen Modus, wo alle Werkzeuge eines Servers eine einzige Bestätigungseinstellung teilen, fragt ein Werkzeug, das der Server selbst als zerstörend deklariert, in jedem Fall nach.
 
 ### 14.3. MCP Iterative Mode (ReAct)
 
@@ -906,7 +910,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 492 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 493 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -914,7 +918,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 492 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 493 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1315,7 +1319,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-253 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+254 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1421,7 +1425,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 253 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~21.584 Tests in 1.296 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 254 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~22.010 Tests in 1.304 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1523,4 +1527,4 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 
 **Und was nicht gemessen wird, sieht man nicht.** Der Zähler der Anbieteraufrufe wird zum falschen Nenner, sobald wiederholt wird: Ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. „Plattformzustand“ zählt daher nun **Ergebnisse** — eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet — und ein zweiter Zähler sagt, was die Glättung mit jedem Versuch tat, denn „Budget zu klein“ und „Redis ausgefallen“ verlangen entgegengesetzte Maßnahmen.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 253 ADRs und des Changelogs (v1.0 bis v1.38.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 254 ADRs und des Changelogs (v1.0 bis v1.38.4). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

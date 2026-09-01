@@ -488,3 +488,269 @@ class TestUserMCPSessionContextManager:
                 raise ValueError("test error")
 
         mock_cleanup.assert_called_once_with(mock_token)
+
+
+class TestToolRegistrationFailuresAreVisible:
+    """The incident, at the level the user experienced it.
+
+    A server declaring ``"type": ["boolean", "null"]`` — legal JSON Schema, and
+    what Era Context publishes for every optional parameter — used to raise
+    ``TypeError`` inside the per-tool guard. The tool was dropped, the model
+    never saw it, and the user was told the assistant could not list their bank
+    accounts. Nothing counted it.
+    """
+
+    @staticmethod
+    def _server(*, iterative: bool):
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = "Era banque"
+        server.url = "https://mcp.era.example"
+        server.timeout_seconds = 60
+        server.hitl_required = None
+        server.domain_description = "Personal finance"
+        server.tool_embeddings_cache = None
+        server.iterative_mode = iterative
+        return server
+
+    #: The exact declaration Era Context publishes for this tool.
+    ERA_TOOL = {
+        "name": "accounts__list_financial_accounts",
+        "description": "List all linked bank accounts and balances",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "include_hidden": {
+                    "default": False,
+                    "description": "Also show hidden accounts.",
+                    "type": ["boolean", "null"],
+                }
+            },
+        },
+    }
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    async def test_a_union_typed_tool_reaches_the_react_agent(
+        self, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        mock_settings.mcp_react_enabled = True
+
+        server = self._server(iterative=True)
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+
+        entry = MagicMock()
+        entry.tools = [self.ERA_TOOL]
+        entry.reference_content = None
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+
+        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        try:
+            ctx = user_mcp_tools_ctx.get()
+            assert ctx is not None
+            name = f"mcp_user_{str(server.id)[:8]}_accounts__list_financial_accounts"
+            assert name in ctx.tool_instances, "the tool the incident dropped"
+            adapter = ctx.tool_instances[name]
+            field = adapter.args_schema.model_json_schema()["properties"]["include_hidden"]
+            assert field["anyOf"] == [{"type": "boolean"}, {"type": "null"}]
+        finally:
+            cleanup_user_mcp_tools(token)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    @patch("src.infrastructure.mcp.user_context.UserMCPToolAdapter.from_discovered_tool")
+    @patch("src.infrastructure.mcp.registration.mcp_tool_registration_failures_total")
+    async def test_an_iterative_drop_is_counted(
+        self,
+        mock_counter,
+        mock_factory,
+        mock_build_auth,
+        mock_get_pool,
+        mock_repo_cls,
+        mock_settings,
+    ) -> None:
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        mock_settings.mcp_react_enabled = True
+        mock_factory.side_effect = TypeError("unhashable type: 'list'")
+
+        server = self._server(iterative=True)
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+
+        entry = MagicMock()
+        entry.tools = [self.ERA_TOOL]
+        entry.reference_content = None
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+
+        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        try:
+            mock_counter.labels.assert_called_once_with(
+                scope="user_iterative", error_type="TypeError"
+            )
+            mock_counter.labels.return_value.inc.assert_called_once()
+        finally:
+            cleanup_user_mcp_tools(token)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    @patch("src.infrastructure.mcp.user_context.UserMCPToolAdapter.from_discovered_tool")
+    @patch("src.infrastructure.mcp.registration.mcp_tool_registration_failures_total")
+    async def test_a_standard_drop_is_counted_under_its_own_scope(
+        self,
+        mock_counter,
+        mock_factory,
+        mock_build_auth,
+        mock_get_pool,
+        mock_repo_cls,
+        mock_settings,
+    ) -> None:
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        mock_settings.mcp_react_enabled = False
+        mock_factory.side_effect = TypeError("unhashable type: 'list'")
+
+        server = self._server(iterative=False)
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+
+        entry = MagicMock()
+        entry.tools = [self.ERA_TOOL]
+        entry.reference_content = None
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+
+        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        try:
+            mock_counter.labels.assert_called_once_with(
+                scope="user_standard", error_type="TypeError"
+            )
+        finally:
+            cleanup_user_mcp_tools(token)
+
+
+class TestToolMetadataReachesTheAdapter:
+    """Discovery reads ``title`` and ``annotations``; they must survive the pool
+    dict, the adapter and the manifest, or the whole lot does nothing.
+    """
+
+    @staticmethod
+    def _server(*, iterative: bool):
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = "Era banque"
+        server.url = "https://mcp.era.example"
+        server.timeout_seconds = 60
+        server.hitl_required = False
+        server.domain_description = "Personal finance"
+        server.tool_embeddings_cache = None
+        server.iterative_mode = iterative
+        return server
+
+    TOOLS = [
+        {
+            "name": "knowledge__forget",
+            "description": "Forget a stored fact",
+            "input_schema": {"type": "object", "properties": {}},
+            "title": "Forget a fact",
+            "annotations": {"read_only_hint": False, "destructive_hint": True},
+        },
+        {
+            "name": "accounts__list_financial_accounts",
+            "description": "List accounts",
+            "input_schema": {"type": "object", "properties": {}},
+        },
+    ]
+
+    async def _setup(self, mock_get_pool, mock_repo_cls, mock_settings, *, iterative: bool):
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = False
+        mock_settings.mcp_react_enabled = iterative
+
+        server = self._server(iterative=iterative)
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+
+        entry = MagicMock()
+        entry.tools = self.TOOLS
+        entry.reference_content = None
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        return server, await setup_user_mcp_tools(uuid4(), AsyncMock())
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    async def test_the_iterative_adapter_carries_the_hints(
+        self, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        mock_build_auth.return_value = MagicMock()
+        server, token = await self._setup(
+            mock_get_pool, mock_repo_cls, mock_settings, iterative=True
+        )
+        try:
+            ctx = user_mcp_tools_ctx.get()
+            prefix = f"mcp_user_{str(server.id)[:8]}"
+            destructive = ctx.tool_instances[f"{prefix}_knowledge__forget"]
+            plain = ctx.tool_instances[f"{prefix}_accounts__list_financial_accounts"]
+            assert destructive.annotations == {
+                "read_only_hint": False,
+                "destructive_hint": True,
+            }
+            assert plain.annotations is None
+        finally:
+            cleanup_user_mcp_tools(token)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    async def test_the_pipeline_manifest_carries_the_declared_category(
+        self, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        mock_build_auth.return_value = MagicMock()
+        _server, token = await self._setup(
+            mock_get_pool, mock_repo_cls, mock_settings, iterative=False
+        )
+        try:
+            ctx = user_mcp_tools_ctx.get()
+            by_name = {m.name: m for m in ctx.tool_manifests}
+            forget = next(m for n, m in by_name.items() if n.endswith("knowledge__forget"))
+            listing = next(m for n, m in by_name.items() if n.endswith("list_financial_accounts"))
+            assert forget.tool_category == "delete"
+            assert listing.tool_category is None
+        finally:
+            cleanup_user_mcp_tools(token)

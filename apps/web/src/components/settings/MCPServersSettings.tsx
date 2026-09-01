@@ -55,9 +55,12 @@ import {
   type UserMCPServerUpdate,
   type UserMCPAuthType,
   type TestConnectionResponse,
+  type MCPDiscoveredTool,
 } from '@/hooks/useUserMCPServers';
 import { toast } from 'sonner';
 import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
+
+import { ToolDisplayName } from './ToolDisplayName';
 
 interface MCPServersSettingsProps {
   lng: Language;
@@ -137,6 +140,48 @@ function getAuthTypeLabel(authType: UserMCPAuthType, t: (key: string) => string)
     default:
       return authType;
   }
+}
+
+/**
+ * The tools a server reported, as the connection test returned them.
+ *
+ * The same list is shown in the row's inline result and in the edit dialog. The
+ * two copies had already drifted — one clamped the description, the other let
+ * it run — which is what a duplicated render always ends up doing.
+ *
+ * A raw MCP tool name is a machine identifier: a column of
+ * `accounts__list_financial_accounts` tells the reader nothing about what the
+ * server can do. The spec publishes a display name for exactly this, so it
+ * leads. The identifier stays beside it, subordinate, because that is the
+ * string that turns up in logs and in the tool the model actually calls.
+ *
+ * `break-words` is load-bearing: a long snake_case name has no natural break
+ * opportunity and would push the dialog sideways on a narrow screen.
+ */
+function DiscoveredToolList({
+  tools,
+  label,
+  maxHeightClass,
+}: {
+  tools: MCPDiscoveredTool[];
+  label: string;
+  maxHeightClass: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className={`space-y-1 overflow-y-auto ${maxHeightClass}`}>
+        {tools.map(tool => (
+          <div key={tool.tool_name} className="text-xs p-2 rounded bg-muted/50 break-words">
+            <ToolDisplayName title={tool.title} name={tool.tool_name} />
+            {tool.description && (
+              <p className="text-muted-foreground mt-0.5 line-clamp-2">{tool.description}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
@@ -686,23 +731,13 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
 
               {/* Discovered tools */}
               {testResult?.success && testResult.tools.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {t('settings.mcp.discovered_tools', { count: testResult.tools.length })}
-                  </p>
-                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                    {testResult.tools.map(tool => (
-                      <div key={tool.tool_name} className="text-xs p-2 rounded bg-muted/50">
-                        <span className="font-medium">{tool.tool_name}</span>
-                        {tool.description && (
-                          <p className="text-muted-foreground mt-0.5 line-clamp-2">
-                            {tool.description}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <DiscoveredToolList
+                  tools={testResult.tools}
+                  label={t('settings.mcp.discovered_tools', {
+                    count: testResult.tools.length,
+                  })}
+                  maxHeightClass="max-h-[200px]"
+                />
               )}
             </div>
           )}
@@ -962,21 +997,13 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
 
             {/* Discovered tools with names and descriptions */}
             {listTestResult?.success && listTestResult.tools.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {t('settings.mcp.discovered_tools', { count: listTestResult.tools.length })}
-                </p>
-                <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                  {listTestResult.tools.map(tool => (
-                    <div key={tool.tool_name} className="text-xs p-2 rounded bg-muted/50">
-                      <span className="font-medium">{tool.tool_name}</span>
-                      {tool.description && (
-                        <p className="text-muted-foreground mt-0.5">{tool.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <DiscoveredToolList
+                tools={listTestResult.tools}
+                label={t('settings.mcp.discovered_tools', {
+                  count: listTestResult.tools.length,
+                })}
+                maxHeightClass="max-h-[300px]"
+              />
             )}
           </div>
           <DialogFooter>

@@ -46,23 +46,14 @@ async def init_mcp(registry: AgentRegistry | None) -> MCPClientManager | None:
     if getattr(settings, "mcp_enabled", False) and registry is not None:
         try:
             from src.infrastructure.mcp.client_manager import initialize_mcp_client_manager
-            from src.infrastructure.mcp.registration import register_mcp_tools
-            from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
+            from src.infrastructure.mcp.registration import build_mcp_adapters, register_mcp_tools
 
             mcp_manager = await initialize_mcp_client_manager()
             if mcp_manager and mcp_manager.discovered_tools:
-                # Create adapters for each discovered tool
-                adapters: dict[str, MCPToolAdapter] = {}
-                for server_name, tools in mcp_manager.discovered_tools.items():
-                    for tool in tools:
-                        adapter = MCPToolAdapter.from_mcp_tool(
-                            server_name=server_name,
-                            tool_name=tool.tool_name,
-                            description=tool.description,
-                            input_schema=tool.input_schema,
-                            app_resource_uri=tool.app_resource_uri,
-                        )
-                        adapters[adapter.name] = adapter
+                # Adapter creation guards per tool: one unadaptable declaration
+                # must not cost every admin MCP capability (parity with the
+                # per-user paths).
+                adapters = build_mcp_adapters(mcp_manager.discovered_tools)
 
                 # Register in AgentRegistry + tool_registry
                 tool_count = register_mcp_tools(

@@ -46,6 +46,8 @@ from src.infrastructure.mcp.utils import (
     MCPModernOnlyServerError,
     build_client_info,
     extract_app_meta,
+    extract_tool_annotations,
+    extract_tool_title,
     is_modern_only_rejection,
     unwrap_exception_group,
 )
@@ -449,6 +451,8 @@ class UserMCPClientPool:
                             "name": tool.name,
                             "description": tool.description or "",
                             "input_schema": tool.input_schema or {},
+                            "title": extract_tool_title(tool),
+                            "annotations": extract_tool_annotations(tool),
                             "app_resource_uri": app_resource_uri,
                             "app_visibility": app_visibility,
                         }

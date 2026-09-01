@@ -228,6 +228,14 @@ class MCPDiscoveredToolResponse(BaseModel):
     tool_name: str
     description: str
     input_schema: dict[str, Any] = Field(default_factory=dict)
+    title: str | None = Field(
+        default=None,
+        description=(
+            "Human-readable display name declared by the server. The MCP spec "
+            "fixes the precedence: title, then annotations.title, then name -- "
+            "so a client with None here falls back to tool_name."
+        ),
+    )
 
 
 class UserMCPServerResponse(BaseModel):
@@ -317,6 +325,14 @@ class AdminMCPToolInfo(BaseModel):
 
     name: str
     description: str | None = None
+    title: str | None = Field(
+        default=None,
+        description=(
+            "Human-readable display name declared by the server, resolved through "
+            "the spec precedence (title, then annotations.title). None means the "
+            "client falls back to name."
+        ),
+    )
 
 
 class AdminMCPServerResponse(BaseModel):

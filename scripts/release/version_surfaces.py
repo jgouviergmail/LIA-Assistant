@@ -490,6 +490,21 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "changelog_releases",
         "README.md key-figures table (release count)",
     ),
+    # The ADR section opens on the same two numbers in PROSE, which no table
+    # pattern reaches: it read "242 ADR files (ADR-001 through ADR-243)" against
+    # a real 254 / ADR-255. A count in a sentence is still a count.
+    CountSurface(
+        "README.md",
+        re.compile(rf"^{_COUNT} ADR files \(ADR-001 through", re.MULTILINE),
+        "adr_files",
+        "README.md ADR section (file count)",
+    ),
+    CountSurface(
+        "README.md",
+        re.compile(rf"ADR files \(ADR-001 through ADR-{_COUNT} "),
+        "adr_latest",
+        "README.md ADR section (latest ADR number)",
+    ),
     # Anchored on the TABLE CELL (`| N ...`), not on the words alone: the same
     # guides legitimately say "23 Prometheus metrics files" (a file count) and
     # "11 Prometheus metrics in metrics_journals.py" (a per-module count). A

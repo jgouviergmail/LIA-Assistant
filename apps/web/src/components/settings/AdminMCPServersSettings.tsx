@@ -1,12 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  ChevronDown,
-  ChevronUp,
-  Plug,
-  ServerCog,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, Plug, ServerCog } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -15,6 +10,8 @@ import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useAdminMCPServers, type AdminMCPServer } from '@/hooks/useAdminMCPServers';
 import { toast } from 'sonner';
+
+import { ToolDisplayName } from './ToolDisplayName';
 
 interface AdminMCPServersSettingsProps {
   lng: Language;
@@ -131,7 +128,9 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
                     <div className="mt-2 space-y-1.5">
                       {server.tools.map(tool => (
                         <div key={tool.name} className="rounded border bg-muted/50 px-3 py-2">
-                          <p className="text-sm font-medium">{tool.name}</p>
+                          <p className="text-sm break-words">
+                            <ToolDisplayName title={tool.title} name={tool.name} />
+                          </p>
                           {tool.description && (
                             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                               {tool.description}

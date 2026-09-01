@@ -19,6 +19,7 @@ vi.mock('sonner', () => ({ toast }));
 
 import { MCPServersSettings } from '../MCPServersSettings';
 import type {
+  MCPDiscoveredTool,
   UserMCPServer,
   useUserMCPServers as useUserMCPServersFn,
 } from '@/hooks/useUserMCPServers';
@@ -76,9 +77,7 @@ function hook(over: Partial<McpHook> = {}) {
 }
 
 function render() {
-  return renderWithProviders(
-    <MCPServersSettings lng="en" />
-  );
+  return renderWithProviders(<MCPServersSettings lng="en" />);
 }
 
 const TOGGLE = 'settings.mcp.toggle_server';
@@ -206,5 +205,70 @@ describe('MCPServersSettings — plugin-owned server lock (ADR-225 arbitrage F)'
     render();
 
     expect(screen.getByText('settings.plugins.via_plugin')).toBeInTheDocument();
+  });
+});
+
+describe('MCPServersSettings — discovered tools', () => {
+  function toolTest(tools: MCPDiscoveredTool[]) {
+    const testConnection = vi
+      .fn()
+      .mockResolvedValue({ success: true, tool_count: tools.length, tools });
+    useUserMCPServers.mockReturnValue(hook({ servers: [server()], testConnection }));
+    return testConnection;
+  }
+
+  it('shows the human title the server declares', async () => {
+    // Raw MCP tool names are machine identifiers: a list of
+    // "accounts__list_financial_accounts" tells the user nothing about what the
+    // server can do. The spec publishes a display name for exactly this.
+    toolTest([
+      {
+        tool_name: 'accounts__list_financial_accounts',
+        description: 'List all linked bank accounts',
+        input_schema: {},
+        title: 'Financial accounts',
+      },
+    ]);
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: TEST }));
+
+    expect(await screen.findByText('Financial accounts')).toBeInTheDocument();
+  });
+
+  it('keeps the technical name visible beside the title', async () => {
+    // The identifier still matters — it is what appears in logs and rules — so
+    // the title adds a name rather than hiding one.
+    toolTest([
+      {
+        tool_name: 'accounts__list_financial_accounts',
+        description: 'List all linked bank accounts',
+        input_schema: {},
+        title: 'Financial accounts',
+      },
+    ]);
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: TEST }));
+
+    expect(await screen.findByText('accounts__list_financial_accounts')).toBeInTheDocument();
+  });
+
+  it('falls back to the technical name when the server declares none', async () => {
+    toolTest([{ tool_name: 'search_threads', description: 'Search', input_schema: {} }]);
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: TEST }));
+
+    expect(await screen.findByText('search_threads')).toBeInTheDocument();
+  });
+
+  it('shows each tool description', async () => {
+    toolTest([
+      { tool_name: 'a', description: 'Alpha does things', input_schema: {} },
+      { tool_name: 'b', description: 'Beta does others', input_schema: {} },
+    ]);
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: TEST }));
+
+    expect(await screen.findByText('Alpha does things')).toBeInTheDocument();
+    expect(screen.getByText('Beta does others')).toBeInTheDocument();
   });
 });

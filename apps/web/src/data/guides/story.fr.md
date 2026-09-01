@@ -4,7 +4,7 @@
 
 **Version** : 1.7
 **Date** : 2026-08-23
-**Application** : LIA v1.38.3
+**Application** : LIA v1.38.4
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 44 domaines fonctionnels | **580 000** |
 | Tests automatisés, exécutés à chaque commit et livraison | **27 600+** |
-| Décisions d'architecture documentées (ADR) | **253** |
-| Versions livrées à rythme régulier | **237** |
+| Décisions d'architecture documentées (ADR) | **254** |
+| Versions livrées à rythme régulier | **238** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 253 documentées :
+Trois décisions structurantes, parmi les 254 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -112,6 +112,8 @@ Le cycle 1.30.11 a produit la leçon la plus inattendue : concevoir un export pe
 Le cycle 1.31.0 a déplacé l’exigence de preuve sur un terrain neuf : l’esthétique. Donner un regard à l’assistant — deux yeux cartoon qui observent pendant la frappe, se plissent pendant la réflexion, balaient pendant la recherche et réagissent au ton de chaque réponse — était d’abord un chantier d’animation, où la moitié de la réussite se joue dans la fluidité. La discipline n’a pas changé pour autant : tout le comportement tient dans un moteur pur alimenté par des signaux que l’application émettait déjà — machine d’états du chat, étapes d’exécution diffusées, moteur émotionnel — sans un appel de modèle ni un point d’accès de plus, chaque expression pilotée par des tables de décision testées avec horloges et hasard injectés. Et quand le panel d’utilisateurs n’a pas tranché sur le style, l’arbitrage a été rendu comme tous les autres : sur pièces, une planche interactive de styles prévisualisés en vrai. Le gagnant est devenu le défaut, les autres un choix de réglage — et en ajouter un nouveau est une entrée de registre, pas un chantier.
 
 La même exigence a accompagné l'arrivée des applications natives : plutôt que de supposer ce qu'une WebView sait faire, un banc dédié pilote la **vraie application** sur émulateur, scène par scène, du premier écran jusqu'à l'oubli d'un serveur mal saisi. Avant son premier passage au vert, il avait déjà attrapé trois défauts réels — dont un écran hors-ligne qui ne se chargeait jamais dans le seul état où il compte — que la compilation, la CI et toutes les gardes statiques avaient bénis.
+
+Et la leçon la plus récente est arrivée quand tout était déjà vert. Un serveur d'outils externe ajouté, une question simple restée sans réponse : trente des quarante outils qu'il publiait n'étaient jamais construits, sans que rien d'autre qu'un avertissement ne le dise. La cause a été trouvée vite ; ce qui a demandé de la méthode, c'est de refuser de s'arrêter là. Corriger le premier des quatre endroits fautifs n'aurait rien changé — le défaut se serait simplement déplacé d'une ligne. Puis, toutes les suites au vert, une relecture à froid a trouvé quatre défauts de plus, dont un fonctionnel et invisible aux tests, parce que les tests encodaient la même erreur. Cette relecture a aussi *annulé* une correction : une règle de charte que l'on croyait enfreinte, et que cent huit fichiers contredisaient. Passer les tests n'est pas la fin d'une revue ; c'en est la condition d'entrée.
 
 ## 7. Convictions
 

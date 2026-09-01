@@ -109,6 +109,7 @@ def _server_to_response(
                 tool_name=t.get("name", t.get("tool_name", "")),
                 description=t.get("description", ""),
                 input_schema=t.get("input_schema", {}),
+                title=t.get("title"),
             )
             for t in tool_list
         ]
@@ -316,6 +317,7 @@ async def test_connection(
             tool_name=t.get("name", t.get("tool_name", "")),
             description=t.get("description", ""),
             input_schema=t.get("input_schema", {}),
+            title=t.get("title"),
         )
         for t in result["tools"]
     ]

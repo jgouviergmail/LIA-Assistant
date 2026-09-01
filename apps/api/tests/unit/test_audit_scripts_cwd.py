@@ -30,7 +30,7 @@ SCRIPTS: dict[str, str] = {
 }
 
 
-def _run(script: str, cwd: Path) -> str:
+def _run(script: str, signature: str, cwd: Path) -> str:
     # These scripts are GATES: 0 = clean, 1 = threshold exceeded (measure_cc
     # reports 346 functions over CC 15 and exits 1 with complete output). Any
     # OTHER code means the INTERPRETER died (measured on Windows under the
@@ -39,6 +39,14 @@ def _run(script: str, cwd: Path) -> str:
     # not a script behavior). One bounded retry absorbs that crash class
     # WITHOUT masking an F023 regression: a wrong-output or "not found" run
     # still fails, only a dead interpreter earns a second attempt.
+    #
+    # The return code alone is not enough to recognise that death. Measured
+    # 2026-09-02 under those same eight workers: a run came back with a GATE
+    # code and an EMPTY stdout, so the loop broke on the first attempt and the
+    # caller's assertion failed on a blank string — a runner problem reported
+    # as an audit regression. A healthy run ALWAYS prints its signature, so the
+    # retry waits for the evidence the script actually ran, not merely for a
+    # plausible exit code. Two signature-less attempts still fail, loudly.
     result = None
     for _attempt in range(2):
         result = subprocess.run(
@@ -47,7 +55,7 @@ def _run(script: str, cwd: Path) -> str:
             capture_output=True,
             text=True,
         )
-        if result.returncode in (0, 1):
+        if result.returncode in (0, 1) and signature in result.stdout:
             break
     assert result is not None
     assert (
@@ -66,9 +74,9 @@ def test_default_run_is_cwd_independent(script: str, signature: str, tmp_path: P
     """Default (no-arg) run yields the same metrics from three different CWDs."""
     api_dir = REPO_ROOT / "apps" / "api"
     outputs = {
-        "repo_root": _run(script, REPO_ROOT),
-        "apps_api": _run(script, api_dir),
-        "temp_dir": _run(script, tmp_path),
+        "repo_root": _run(script, signature, REPO_ROOT),
+        "apps_api": _run(script, signature, api_dir),
+        "temp_dir": _run(script, signature, tmp_path),
     }
 
     for where, out in outputs.items():

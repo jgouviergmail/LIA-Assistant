@@ -1397,6 +1397,95 @@
       }
      },
      "description": "MCP server connection errors. Empty panel = zero events in the window (healthy)."
+    },
+    {
+     "id": 52,
+     "type": "timeseries",
+     "title": "Tools Dropped at Registration",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "$datasource"
+     },
+     "gridPos": {
+      "h": 8,
+      "w": 12,
+      "x": 0,
+      "y": 85
+     },
+     "targets": [
+      {
+       "expr": "sum by (scope, error_type) (rate(mcp_tool_registration_failures_total[$__rate_interval])) or vector(0)",
+       "legendFormat": "{{scope}} - {{error_type}}",
+       "refId": "A"
+      }
+     ],
+     "fieldConfig": {
+      "defaults": {
+       "unit": "ops",
+       "noValue": "0",
+       "custom": {
+        "fillOpacity": 10
+       }
+      },
+      "overrides": []
+     },
+     "options": {
+      "tooltip": {
+       "mode": "multi"
+      },
+      "legend": {
+       "displayMode": "list",
+       "placement": "bottom"
+      }
+     },
+     "description": "MCP tools dropped while building their adapter. A drop removes a capability with nothing user-visible to say why: the assistant simply answers that it cannot do the thing. Any non-zero value is a real regression -- read `mcp_tool_registration_failed` in Loki for the server and tool names. A flat 0 line is the healthy state (the `or vector(0)` fallback: a labelled counter that never fired exposes NO series, which would render as 'No data')."
+    },
+    {
+     "id": 53,
+     "type": "stat",
+     "title": "Tools Dropped (24h)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "$datasource"
+     },
+     "gridPos": {
+      "h": 8,
+      "w": 12,
+      "x": 12,
+      "y": 85
+     },
+     "targets": [
+      {
+       "expr": "sum(increase(mcp_tool_registration_failures_total[24h])) or vector(0)",
+       "legendFormat": "dropped",
+       "refId": "A"
+      }
+     ],
+     "fieldConfig": {
+      "defaults": {
+       "unit": "short",
+       "noValue": "0",
+       "thresholds": {
+        "mode": "absolute",
+        "steps": [
+         {
+          "color": "green",
+          "value": null
+         },
+         {
+          "color": "red",
+          "value": 1
+         }
+        ]
+       }
+      },
+      "overrides": []
+     },
+     "options": {
+      "colorMode": "background",
+      "graphMode": "none"
+     },
+     "description": "MCP tools dropped while building their adapter. A drop removes a capability with nothing user-visible to say why: the assistant simply answers that it cannot do the thing. Any non-zero value is a real regression -- read `mcp_tool_registration_failed` in Loki for the server and tool names. A flat 0 line is the healthy state (the `or vector(0)` fallback: a labelled counter that never fired exposes NO series, which would render as 'No data')."
     }
    ]
   },

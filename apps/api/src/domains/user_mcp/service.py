@@ -58,10 +58,6 @@ class UserMCPServerService:
         """List all MCP servers for a user."""
         return await self.repository.get_all_for_user(user_id)
 
-    async def list_enabled_active(self, user_id: UUID) -> list[UserMCPServer]:
-        """List enabled + active MCP servers for a user (chat hot path)."""
-        return await self.repository.get_enabled_active_for_user(user_id)
-
     async def create_server(
         self,
         user_id: UUID,
@@ -657,16 +653,6 @@ class UserMCPServerService:
         """Cache OAuth authorization server metadata for future flows."""
         await self.repository.update(server, {"oauth_metadata": metadata})
 
-    async def update_discovered_tools(
-        self,
-        server_id: UUID,
-        user_id: UUID,
-        tools_cache: list[dict],
-    ) -> None:
-        """Update the discovered tools cache for a server."""
-        server = await self.get_with_ownership_check(server_id, user_id)
-        await self.repository.update(server, {"discovered_tools_cache": tools_cache})
-
     async def update_tool_embeddings(
         self,
         server_id: UUID,
@@ -731,25 +717,6 @@ class UserMCPServerService:
                     server_id=str(server_id),
                     reason="oauth_token_refresh_failed",
                 )
-
-    async def update_connection_status(
-        self,
-        server_id: UUID,
-        user_id: UUID,
-        new_status: str,
-        error: str | None = None,
-    ) -> None:
-        """Update server connection status and error message."""
-        from src.core.time_utils import now_utc
-
-        server = await self.get_with_ownership_check(server_id, user_id)
-        update_data: dict = {"status": new_status}
-        if new_status == UserMCPServerStatus.ACTIVE.value:
-            update_data["last_connected_at"] = now_utc()
-            update_data["last_error"] = None
-        elif error:
-            update_data["last_error"] = error
-        await self.repository.update(server, update_data)
 
     def get_decrypted_credentials(self, server: UserMCPServer) -> dict | None:
         """Decrypt and return server credentials. Returns None on failure.

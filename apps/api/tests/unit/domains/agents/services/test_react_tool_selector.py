@@ -261,3 +261,77 @@ class TestReactToolSelectorCapPriority:
             request_tool_manifests_ctx.reset(man_token)
 
         assert [t.name for t in wrapped] == [manifests[0].name, manifests[1].name]
+
+
+class TestDestructiveHintForcesConfirmation:
+    """In iterative mode every tool of a server shares ONE HITL flag.
+
+    ``_expand_iterative_user_mcp`` returns ``server_hitl`` for all of them, so a
+    user who turned confirmation off for a mostly read-only server — a
+    reasonable thing to do for a finance server one mostly queries — would have
+    ``knowledge__forget``, ``billing__cancel_subscription`` and
+    ``connections__disconnect_institution`` execute with no confirmation at all.
+
+    A tool the server itself declares destructive gets one regardless. This is
+    tightening only: the spec requires annotations to be treated as untrusted,
+    and the worst a lying server buys is a confirmation nobody needed.
+    """
+
+    @staticmethod
+    def _adapter(tool_name: str, annotations: dict | None) -> UserMCPToolAdapter:
+        return UserMCPToolAdapter.from_discovered_tool(
+            server_id=_SERVER_ID,
+            user_id=UUID(int=1),
+            server_name="era",
+            tool_name=tool_name,
+            description=f"User MCP tool {tool_name}",
+            input_schema={"type": "object", "properties": {}},
+            annotations=annotations,
+        )
+
+    def _select(self, adapters: list[UserMCPToolAdapter], *, server_hitl: bool) -> dict[str, bool]:
+        task_manifest = _manifest(_TASK_TOOL_NAME, hitl=server_hitl)
+        ctx = UserMCPToolsContext()
+        ctx.tool_instances[_TASK_TOOL_NAME] = SimpleNamespace(name=_TASK_TOOL_NAME)
+        for adapter in adapters:
+            ctx.tool_instances[adapter.name] = adapter
+        ctx.tool_manifests = [task_manifest]
+
+        man_token = request_tool_manifests_ctx.set([task_manifest])
+        ctx_token = user_mcp_tools_ctx.set(ctx)
+        try:
+            _wrapped, hitl_map = ReactToolSelector().select(intelligence=None)
+        finally:
+            user_mcp_tools_ctx.reset(ctx_token)
+            request_tool_manifests_ctx.reset(man_token)
+        return hitl_map
+
+    def test_a_declared_destructive_tool_is_confirmed_even_when_the_server_is_not(self):
+        forget = self._adapter("knowledge__forget", {"destructive_hint": True})
+        listing = self._adapter("accounts__list_financial_accounts", None)
+
+        hitl_map = self._select([forget, listing], server_hitl=False)
+
+        assert hitl_map[forget.name] is True, "a destructive tool must be confirmed"
+        assert hitl_map[listing.name] is False, "its siblings keep the server setting"
+
+    def test_a_not_read_only_hint_alone_does_not_force_confirmation(self):
+        """Only a DESTRUCTIVE declaration forces it; an additive update would
+        otherwise put a prompt in front of every ordinary write."""
+        remember = self._adapter(
+            "knowledge__remember", {"read_only_hint": False, "destructive_hint": False}
+        )
+        assert self._select([remember], server_hitl=False)[remember.name] is False
+
+    def test_a_read_only_claim_never_removes_a_confirmation(self):
+        """The untrusted direction: a server cannot talk its way out of HITL."""
+        tool = self._adapter("accounts__manage_account", {"read_only_hint": True})
+        assert self._select([tool], server_hitl=True)[tool.name] is True
+
+    def test_a_server_with_confirmation_on_is_unchanged(self):
+        tool = self._adapter("knowledge__forget", {"destructive_hint": True})
+        assert self._select([tool], server_hitl=True)[tool.name] is True
+
+    def test_a_tool_without_hints_follows_the_server(self):
+        tool = self._adapter("accounts__list_financial_accounts", None)
+        assert self._select([tool], server_hitl=False)[tool.name] is False

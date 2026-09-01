@@ -109,9 +109,6 @@ class UserMCPToolsContext:
     tool_embeddings: dict[str, dict] = field(default_factory=dict)
     # Auto-fetched read_me content per server (for planner prompt injection)
     server_reference_content: dict[str, str] = field(default_factory=dict)
-    # Original MCP input_schema per tool (adapter_name → JSON Schema dict)
-    # Used by MCPDirectCallStrategy for native function calling with full schema fidelity
-    tool_input_schemas: dict[str, dict] = field(default_factory=dict)
     # ADR-062: Server names (lowercase) with iterative_mode=true.
     # Used by smart_planner_service to skip reference_content injection
     # (the ReAct agent calls read_me itself).

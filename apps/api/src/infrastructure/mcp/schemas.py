@@ -120,6 +120,17 @@ class MCPDiscoveredTool(BaseModel):
         default_factory=dict,
         description="JSON Schema for tool input parameters",
     )
+    title: str | None = Field(
+        default=None,
+        description="Human-readable display name (Tool.title, else Tool.annotations.title)",
+    )
+    annotations: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Server-declared behaviour hints (readOnlyHint, destructiveHint, ...). "
+            "UNTRUSTED per the MCP spec: read only where they tighten a decision."
+        ),
+    )
     app_resource_uri: str | None = Field(
         default=None,
         description="MCP Apps UI resource URI (ui://...) from Tool.meta.ui.resourceUri",

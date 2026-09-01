@@ -262,3 +262,81 @@ def build_mcp_app_output(
             ],
         },
     )
+
+
+#: The tool annotation vocabulary the spec defines, as (wire key, internal key).
+#: Anything else a server sends is dropped: only what is named here travels into
+#: a manifest, so an unknown hint cannot quietly acquire meaning later.
+_TOOL_ANNOTATION_KEYS: tuple[tuple[str, str], ...] = (
+    ("title", "title"),
+    ("readOnlyHint", "read_only_hint"),
+    ("destructiveHint", "destructive_hint"),
+    ("idempotentHint", "idempotent_hint"),
+    ("openWorldHint", "open_world_hint"),
+)
+
+
+def extract_tool_annotations(tool: Any) -> dict[str, Any] | None:
+    """Extract a tool's behaviour hints, normalised to a plain dict.
+
+    ``Tool.annotations`` reaches us either as an SDK model (snake_case
+    attributes) or, from a cache or a hand-built payload, as the wire form
+    (camelCase keys). It then crosses a Pydantic schema, the per-user pool cache
+    and the manifest builder, none of which would carry an SDK model — hence the
+    normalisation here rather than at each reader.
+
+    Values are type-checked, and not out of caution: ``getattr("junk", "title")``
+    returns the ``str.title`` METHOD, so a malformed annotations value would
+    otherwise put a bound method into a manifest.
+
+    Args:
+        tool: MCP SDK ``Tool`` object from ``list_tools()``, or anything shaped
+            like one.
+
+    Returns:
+        The declared hints keyed by internal name, or None when the server
+        declared none.
+    """
+    raw = getattr(tool, "annotations", None)
+    if raw is None:
+        return None
+
+    hints: dict[str, Any] = {}
+    for wire_key, key in _TOOL_ANNOTATION_KEYS:
+        if isinstance(raw, dict):
+            value = raw.get(wire_key, raw.get(key))
+        else:
+            value = getattr(raw, key, None)
+        if value is None:
+            continue
+        if key == "title":
+            if isinstance(value, str) and value.strip():
+                hints[key] = value.strip()
+        elif isinstance(value, bool):
+            hints[key] = value
+    return hints or None
+
+
+def extract_tool_title(tool: Any) -> str | None:
+    """Extract a tool's human-readable display name.
+
+    The spec fixes the order: "Display name precedence order is: ``title``,
+    ``annotations.title``, then ``name``". The ``name`` fallback belongs to the
+    display layer — a caller with no title still has one — so this answers for
+    the first two only.
+
+    A blank title is refused: an empty display name is worse than the tool name
+    it would replace.
+
+    Args:
+        tool: MCP SDK ``Tool`` object from ``list_tools()``, or anything shaped
+            like one.
+
+    Returns:
+        The declared display name, or None when the server named neither.
+    """
+    declared = getattr(tool, "title", None)
+    if isinstance(declared, str) and declared.strip():
+        return declared.strip()
+    fallback = (extract_tool_annotations(tool) or {}).get("title")
+    return fallback if isinstance(fallback, str) else None

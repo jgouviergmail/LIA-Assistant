@@ -40,6 +40,7 @@ from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 from src.domains.agents.registry.catalogue import manifests_for_mode
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
+from src.infrastructure.mcp.registration import declares_destructive_tool
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -253,4 +254,14 @@ class ReactToolSelector:
 
         permissions = getattr(manifest, "permissions", None)
         server_hitl = bool(permissions and permissions.hitl_required)
-        return [(name, instance, server_hitl) for name, instance in individual]
+        # The server setting is per SERVER; a destructive tool is a per TOOL
+        # fact. Without this, turning confirmation off for a mostly read-only
+        # server also turns it off for the few tools that delete something.
+        return [
+            (
+                name,
+                instance,
+                server_hitl or declares_destructive_tool(getattr(instance, "annotations", None)),
+            )
+            for name, instance in individual
+        ]

@@ -668,54 +668,6 @@ context_resolution_turn_type_distribution_total = Counter(
 )
 
 
-# ============================================================================
-# MCP (Model Context Protocol) METRICS — evolution F2
-# ============================================================================
-# Instrumented in: infrastructure/mcp/tool_adapter.py (MCPToolAdapter._arun)
-# Reference: docs/technical/MCP_INTEGRATION.md
-
-mcp_tool_invocations_total = Counter(
-    "mcp_tool_invocations_total",
-    "Total MCP tool invocations",
-    ["server_name", "tool_name", "status"],  # status: success/error
-)
-
-mcp_tool_duration_seconds = Histogram(
-    "mcp_tool_duration_seconds",
-    "MCP tool execution duration",
-    ["server_name", "tool_name"],
-    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
-)
-
-mcp_server_health = Gauge(
-    "mcp_server_health",
-    "MCP server connection status (1=healthy, 0=down)",
-    ["server_name"],
-    # livemin: across workers, a server is "healthy" only if EVERY live worker can
-    # reach it — any worker that fails drives it to 0, surfacing partial outages.
-    multiprocess_mode="livemin",
-)
-
-mcp_connection_errors_total = Counter(
-    "mcp_connection_errors_total",
-    "MCP server connection errors",
-    ["server_name", "error_type"],
-)
-
-# ADR-062: MCP ReAct Sub-Agent metrics
-mcp_react_invocations_total = Counter(
-    "mcp_react_invocations_total",
-    "MCP ReAct sub-agent invocations",
-    ["server_name", "status"],  # status: success/error
-)
-
-mcp_react_iterations_histogram = Histogram(
-    "mcp_react_iterations_histogram",
-    "Number of ReAct iterations per MCP task",
-    ["server_name"],
-    buckets=[1, 2, 3, 5, 8, 10, 15],
-)
-
 # ADR-062: Initiative Phase metrics
 initiative_evaluations_total = Counter(
     "initiative_evaluations_total",

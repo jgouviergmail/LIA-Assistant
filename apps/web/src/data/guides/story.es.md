@@ -4,7 +4,7 @@
 
 **Versión**: 1.7
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.38.3
+**Aplicación**: LIA v1.38.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 44 dominios funcionales | **580.000** |
 | Tests automatizados, ejecutados en cada commit y entrega | **27.600+** |
-| Decisiones de arquitectura documentadas (ADR) | **253** |
-| Versiones entregadas a ritmo regular | **237** |
+| Decisiones de arquitectura documentadas (ADR) | **254** |
+| Versiones entregadas a ritmo regular | **238** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 253 documentadas:
+Tres decisiones estructurantes, entre las 254 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -112,6 +112,8 @@ El ciclo 1.30.11 produjo la lección más inesperada: diseñar una exportación 
 El ciclo 1.31.0 desplazó la exigencia de prueba a un terreno nuevo: la estética. Dar una mirada al asistente — dos ojos de dibujo animado que observan mientras escribes, se entornan mientras piensa, barren mientras busca y reaccionan al tono de cada respuesta — fue primero un proyecto de animación, donde la mitad del éxito se juega en la fluidez. La disciplina no cambió por ello: todo el comportamiento cabe en un motor puro alimentado por señales que la aplicación ya emitía — la máquina de estados del chat, los pasos de ejecución transmitidos, el motor emocional — sin una llamada de modelo ni un punto de acceso más, cada expresión gobernada por tablas de decisión probadas con relojes y azar inyectados. Y cuando el panel de usuarios no zanjó el estilo, el arbitraje se dictó como todos los demás: sobre pruebas, un tablero interactivo de estilos previsualizados de verdad. El ganador se convirtió en el predeterminado, los demás en una opción de ajustes — y añadir uno nuevo es una entrada de registro, no un proyecto.
 
 La misma exigencia acompañó la llegada de las apps nativas: en lugar de suponer lo que una WebView sabe hacer, un banco dedicado conduce la **aplicación real** en un emulador, escena por escena, desde la primera pantalla hasta olvidar un servidor mal escrito. Antes de su primer pase en verde ya había atrapado tres defectos reales — incluida una pantalla sin conexión que nunca cargaba en el único estado donde importa — que la compilación, la CI y todas las guardas estáticas habían bendecido.
+
+Y la lección más reciente llegó cuando todo estaba ya en verde. Se añadió un servidor de herramientas externo y una pregunta sencilla quedó sin respuesta: treinta de las cuarenta herramientas que publicaba nunca se construían, sin nada más que una advertencia que lo dijera. La causa se encontró rápido; lo que exigió método fue negarse a parar ahí. Arreglar el primero de los cuatro puntos defectuosos no habría cambiado nada — el defecto se habría limitado a bajar una línea. Después, con todas las suites en verde, una relectura en frío encontró cuatro defectos más, uno de ellos funcional e invisible para las pruebas, porque las pruebas codificaban el mismo error. Esa relectura también *canceló* una corrección: una regla de estilo que se creía incumplida y que ciento ocho archivos contradecían. Pasar las pruebas no es el final de una revisión; es la condición para empezarla.
 
 ## 7. Convicciones
 

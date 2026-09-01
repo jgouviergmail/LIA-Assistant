@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.38.4] - 2026-09-02
+
+**Un serveur MCP ajouté, une question simple, et l'assistante qui ne sait pas répondre.** « Liste mes comptes bancaires et leur solde », sur un serveur de finances qui expose exactement cet outil. Le routage était pourtant juste : la sélection sémantique élisait le bon serveur avec un score de 1,0. Ce qui manquait, c'était l'outil — **30 des 40 outils du serveur n'ont jamais été construits**, 270 fois en 72 heures, et pour toute trace un `warning` que personne ne lit.
+
+**La cause tient dans une ligne de JSON.** Le serveur déclare ses paramètres optionnels ainsi : `"type": ["boolean", "null"]`. C'est légal depuis draft-04 et c'est la façon dominante d'écrire « optionnel » dans la nature. Une liste n'est pas hachable, et quatre points du code s'en servaient comme clé de dictionnaire. **Corriger le premier n'aurait rien changé** : en mode pipeline le crash se serait déplacé de la construction de l'adaptateur à celle du manifeste, dans le même `try`, une ligne plus bas. Deux lectures d'une même déclaration finissent toujours par diverger.
+
+**En cherchant la conformité, on a trouvé pire que le crash.** La spécification MCP admet *tout* mot-clé JSON Schema 2020-12 dans la déclaration d'un outil. Or le repli renvoyait « pas de schéma » dès qu'une **seule** propriété utilisait `$ref`, `anyOf` ou `allOf` — et ce repli, mesuré, publie l'outil au modèle sous la forme d'un `kwargs` opaque : ni noms de champs, ni descriptions, ni paramètres obligatoires. L'outil est listé et **inappelable**. Un serveur généré depuis Pydantic ou zod tombait donc entier.
+
+**Et une confirmation manquait là où elle comptait le plus.** En mode itératif, tous les outils d'un serveur partagent un seul réglage de confirmation. Désactiver celle d'un serveur qu'on ne fait que consulter la désactivait aussi pour ses rares outils destructeurs — or aucun de `forget`, `cancel_subscription` ou `disconnect_institution` ne porte l'un des neuf verbes que l'heuristique de nom sait reconnaître. Tous étaient classés en lecture seule.
+
+### Added
+
+- **Une autorité unique sur ce que dit une déclaration** (ADR-255) : `infrastructure/mcp/json_schema.py`, lu par l'adaptateur d'outil **et** par le catalogue du planificateur, avec un test de parité qui compare les deux pour sept formes de déclaration. Toute fonction y est totale — elle ne lève jamais, parce que lever coûte un outil, et qu'un outil perdu est une capacité que l'utilisateur n'a plus sans en être averti.
+- **La réduction complète de JSON Schema 2020-12** : déréférencement des `$ref` vers `$defs` et `definitions`, réduction d'`anyOf`/`oneOf`/`allOf`/`const`, inférence de type depuis un `enum`, garde de cycle et profondeur bornée. Un serveur généré montre désormais ses objets imbriqués avec leurs champs obligatoires, ses tableaux avec le type de leurs éléments, ses enums avec leur ensemble fermé.
+- **Les contraintes déclarées rejoignent le vocabulaire existant** (doctrine ADR-184) : un `enum`, un minimum, un maximum ou une longueur déclarés par un serveur MCP héritent du rendu au planificateur, de la validation de plan et du clampage numérique que les outils natifs avaient depuis toujours — sans deuxième mécanisme. Coût mesuré : environ 175 caractères de catalogue pour un outil à sept paramètres.
+- **`mcp_tool_registration_failures_total`**, avec deux panneaux dans le tableau de bord MCP. Un outil abandonné disparaissait sans compteur : aucun panneau ne pouvait le montrer, aucune alerte ne pouvait sonner. Les labels sont bornés par construction — le nom du serveur et celui de l'outil voyagent dans le journal, qui n'a pas de budget de séries.
+- **Le nom lisible des outils**, quand le serveur en publie un : les écrans MCP affichent « Financial accounts » au lieu de `accounts__list_financial_accounts`, l'identifiant technique restant visible à côté puisque c'est lui qu'on retrouve dans les journaux et les règles.
+- **Une confirmation forcée sur un outil déclaré destructeur**, même quand le serveur qui l'expose est réglé sans confirmation.
+
+### Changed
+
+- **Les annotations d'un serveur ne peuvent que resserrer une décision, jamais la relâcher.** La spécification est normative : un client **doit** considérer ces annotations comme non fiables. Une mutation déclarée est donc crue — au pire, un serveur menteur s'achète une confirmation de trop. Une prétention de lecture seule ne l'est pas, parce qu'une catégorie déclarée l'emporte sur l'heuristique de nom et retirerait l'outil du filet anti-mutation sur la parole d'un tiers.
+- **Le chemin MCP administrateur protège désormais par outil**, à parité avec les chemins par utilisateur : un outil que le code ne sait pas adapter coûte son propre outil, plus l'ensemble des capacités MCP administrateur au démarrage.
+- **Les trois événements de journal qui disaient la même chose** — un par chemin d'inscription — sont devenus `mcp_tool_registration_failed`, le chemin étant un champ. Une seule requête retrouve tous les outils abandonnés.
+- **Les métriques MCP vivent dans `metrics_mcp.py`**, où sont les autres modules par domaine. Elles étaient logées dans le module des agents, qui atteignait son plafond de taille : la réponse est d'extraire un module cohésif, jamais de relever le plafond.
+- **Les deux blocs de liste d'outils dupliqués** dans les réglages sont réunis, et la règle d'affichage — le titre mène, l'identifiant suit — vit dans un composant partagé par l'écran utilisateur et l'écran administrateur. Les deux copies avaient déjà divergé : l'une tronquait la description, l'autre non.
+
+### Removed
+
+- **`RuntimeContext.tool_input_schemas`** : écrit à chaque inscription d'outil, lu nulle part. Le consommateur annoncé par son commentaire, `MCPDirectCallStrategy`, n'a jamais existé.
+- **Trois méthodes de service MCP sans aucun appelant** — `list_enabled_active`, `update_discovered_tools`, `update_connection_status` — vérifiées une par une sur l'ensemble du dépôt, code et tests compris.
+
+### Fixed
+
+- **Un type union faisait disparaître l'outil**, silencieusement, sur les quatre points qui le traitaient comme une clé de dictionnaire. La matrice de 43 cas dirigée par la spécification passe de 16 plantages à zéro.
+- **Un `enum` a deux lecteurs qui n'attendent pas la même chose**, et les confondre déclenchait un re-planning injustifié. Le validateur de plan teste l'appartenance à l'ensemble : le sien garde donc le membre `null`, puisqu'il décrit ce que le serveur accepte. La déclaration envoyée au modèle le retire, la nullabilité y voyageant dans le type du champ. Défaut trouvé en revue, après que toutes les suites soient passées au vert.
+- **Un motif `pattern` venu d'un serveur tiers n'atteint plus le validateur de plan**, qui le compilerait sur un chemin asynchrone : un motif que Python ne sait pas compiler, ou un backtracker catastrophique qu'aucun `except` n'interrompt, y gèlerait la boucle d'événements et tous les flux en cours. Il reste publié aux fournisseurs de modèles, qui se contentent de le lire.
+- **La compaction d'un schéma refuse un `enum` ou un `required` qui ne sont pas des listes** : un serveur envoyant autre chose le poussait tel quel dans le prompt du planificateur, comme s'il s'agissait d'un ensemble fermé.
+- **Un paramètre requis que le serveur déclare nullable le reste** : refuser une valeur que le serveur accepte rendrait ce client plus strict que le contrat qu'il implémente.
+- **Une déclaration de propriété malformée ne coûte plus l'outil entier**, pas plus qu'un nom de champ que Pydantic refuse : la propriété dégrade, ses voisines survivent.
+
+### Tests
+
+- **+286 tests backend et +12 frontend** sur la chaîne MCP : la matrice de 43 formes de déclaration dirigée par la spécification, sept serveurs MCP réels rejoués de bout en bout, les extracteurs de métadonnées confrontés au **vrai modèle du SDK** et non à des doublures, la parité entre les deux consommateurs, et un oracle passant par le vrai validateur de plan pour l'enum nullable.
+- **Un garde sur un couplage invisible** : publier une contrainte enveloppe le type dans `Annotated`, ce que la coercition d'arguments du planificateur ne doit pas remarquer. Pydantic dépouille aujourd'hui cette enveloppe ; rien ne le disait, et le jour où cela changerait, un objet JSON écrit dans un paramètre texte cesserait silencieusement d'être réparé.
+
 ## [1.38.3] - 2026-09-01
 
 **Le volume n'a jamais été le problème, la concentration l'était.** En une heure de production, avec un à trois utilisateurs actifs, **11 appels d'embedding sur 24 ont échoué** — tous des `429 RESOURCE_EXHAUSTED` sur le quota par minute du fournisseur. Aucun tour de chat impliqué : rien que des tâches de fond. Et un rythme régulier de **quatre appels par minute passait sans une seule erreur**. La cause n'était donc pas la charge, elle était arithmétique : un déclencheur d'intervalle compte depuis le démarrage du planificateur, si bien que des périodes de 5, 15, 30 et 60 minutes s'alignent pour toujours. **Six tâches de fond partaient dans la même seconde, toutes les heures**, chacune faisant tourner un agent, chaque agent vectorisant.

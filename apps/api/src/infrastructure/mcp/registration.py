@@ -26,14 +26,31 @@ from src.core.constants import (
     MCP_REFERENCE_TOOL_NAME,
 )
 from src.domains.agents.constants import AGENT_MCP
+from src.infrastructure.mcp.json_schema import (
+    DEFAULT_TYPE,
+    as_property_spec,
+    compact_schema,
+    constraints_of,
+    description_of,
+    properties_of,
+    required_of,
+    resolve_property,
+)
 from src.infrastructure.mcp.schemas import MCPDiscoveredTool, MCPServerConfig
 from src.infrastructure.mcp.security import resolve_hitl_requirement
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
 from src.infrastructure.mcp.utils import is_app_only
+from src.infrastructure.observability.metrics_mcp import (
+    mcp_tool_registration_failures_total,
+)
 
 if TYPE_CHECKING:
     from src.domains.agents.registry.agent_registry import AgentRegistry
-    from src.domains.agents.registry.catalogue import ParameterSchema, ToolManifest
+    from src.domains.agents.registry.catalogue import (
+        ParameterSchema,
+        ToolCategory,
+        ToolManifest,
+    )
     from src.infrastructure.mcp.schemas import MCPServerConfig
 
 logger = structlog.get_logger(__name__)
@@ -90,6 +107,97 @@ def _register_iterative_task_tool(task_tool_name: str) -> None:
             task_tool_name=task_tool_name,
             msg="mcp_react_tools module not available (MCP_REACT_ENABLED=false?)",
         )
+
+
+def record_tool_registration_failure(
+    *,
+    scope: str,
+    server: str,
+    tool_name: str,
+    exc: BaseException,
+    user_id: str | None = None,
+) -> None:
+    """Report an MCP tool that could not be registered — the only trace it leaves.
+
+    Registration runs per tool and swallows per tool, by design: one unusable
+    declaration must not cost its siblings. The price is silence — the tool is
+    simply absent from the catalogue, the model never sees it, and the user is
+    told the assistant cannot do the thing. Production ran 72 h in that state
+    (2026-09-01), losing 30 of one server's 40 tools on every single turn, with
+    only a warning nobody queries to show for it.
+
+    Every registration path reports here so one panel and one log query cover
+    all of them.
+
+    Args:
+        scope: Which registration path dropped the tool — ``"admin"``,
+            ``"user_standard"`` or ``"user_iterative"``. A bounded vocabulary,
+            hence a metric label.
+        server: Identifies the server in the LOG only — a per-server metric
+            label would add one series per user per server. Pass the configured
+            name for admin servers and the id for user servers: a user-chosen
+            server name is user content and does not belong at WARNING.
+        tool_name: The dropped tool. Log only, same reason.
+        exc: The exception that prevented the build. Its class names the
+            ``error_type`` label and its own traceback is logged — reading the
+            ambient ``sys.exc_info()`` instead would attach whichever exception
+            happened to be in flight.
+        user_id: Owner of a per-user server, so support can tell WHICH user
+            lost the capability. Ids are allowed at this level; contents are not.
+    """
+    error_type = type(exc).__name__
+    mcp_tool_registration_failures_total.labels(scope=scope, error_type=error_type).inc()
+    logger.warning(
+        "mcp_tool_registration_failed",
+        scope=scope,
+        server=server,
+        tool_name=tool_name,
+        error_type=error_type,
+        user_id=user_id,
+        exc_info=exc,
+    )
+
+
+def build_mcp_adapters(
+    discovered_tools: dict[str, list[MCPDiscoveredTool]],
+) -> dict[str, MCPToolAdapter]:
+    """Build one adapter per discovered admin MCP tool, skipping the unbuildable.
+
+    Parity with the per-user registration paths, which have caught per tool
+    since F2.1. The admin loop used to live inline in ``init_mcp``, inside that
+    step's single try/except, so ONE tool this codebase could not adapt aborted
+    ``register_mcp_tools`` entirely: every admin MCP capability disappeared and
+    a single ``mcp_initialization_failed`` line was the only trace. A tool lost
+    is a capability the user no longer has — it must cost its own tool and
+    nothing else.
+
+    Args:
+        discovered_tools: Dict of server_name → tools that server reported.
+
+    Returns:
+        Dict of adapter name → adapter for every tool that could be built.
+    """
+    adapters: dict[str, MCPToolAdapter] = {}
+    for server_name, tools in discovered_tools.items():
+        for tool in tools:
+            try:
+                adapter = MCPToolAdapter.from_mcp_tool(
+                    server_name=server_name,
+                    tool_name=tool.tool_name,
+                    description=tool.description,
+                    input_schema=tool.input_schema,
+                    app_resource_uri=tool.app_resource_uri,
+                )
+            except Exception as exc:
+                record_tool_registration_failure(
+                    scope="admin",
+                    server=server_name,
+                    tool_name=tool.tool_name,
+                    exc=exc,
+                )
+                continue
+            adapters[adapter.name] = adapter
+    return adapters
 
 
 def register_mcp_tools(
@@ -294,6 +402,73 @@ def _register_tool_in_central_registry(adapter: MCPToolAdapter) -> None:
 _MCP_DESCRIPTION_MAX_KEYWORDS = 10
 
 
+def declared_tool_category(annotations: Any) -> ToolCategory | None:
+    """Derive a catalogue category from a server behaviour hint — tightening only.
+
+    The MCP specification is normative here:
+
+        "For trust & safety and security, clients MUST consider tool
+         annotations to be untrusted unless they come from trusted servers."
+
+    So the asymmetry below is a requirement, not caution. A declared MUTATION is
+    acted upon: the worst a lying server buys itself is one confirmation too
+    many. A declared ``readOnlyHint: true`` is NOT, because a declared category
+    WINS over the name heuristic in ``_declared_mutation_flag`` — believing it
+    would remove the tool from the invalid-mutation safety net, from HITL scope
+    detection and from the read-only requirement of the initiative phase, on the
+    word of a third party.
+
+    Returning None is therefore the safe answer, not a failure: it leaves
+    ``MUTATION_TOOL_PATTERNS`` in charge exactly as before.
+
+    What this buys, measured on one real server: none of ``cancel_subscription``,
+    ``upgrade``, ``disconnect_institution`` or ``forget`` carries one of the nine
+    mutation verbs, so every one of them is classified read-only by the name
+    heuristic today.
+
+    Args:
+        annotations: Normalised hints from :func:`extract_tool_annotations`, of
+            any shape.
+
+    Returns:
+        ``"delete"`` for a declared destructive tool, ``"update"`` for one
+        declared as performing only additive updates, or None when the
+        declaration says nothing this codebase may safely act on.
+    """
+    if not isinstance(annotations, dict):
+        return None
+    destructive = annotations.get("destructive_hint")
+    read_only = annotations.get("read_only_hint")
+    if destructive is True:
+        return "delete"
+    if read_only is False:
+        # Spec: destructiveHint defaults to TRUE, and "If false, the tool
+        # performs only additive updates" — both are mutations either way.
+        return "update" if destructive is False else "delete"
+    return None
+
+
+def declares_destructive_tool(annotations: Any) -> bool:
+    """Whether a server declares THIS tool destructive.
+
+    Read where a per-tool decision has to be made from a per-SERVER setting. In
+    iterative (ReAct) mode every tool of a server shares one HITL flag, so a
+    user who turned confirmation off for a mostly read-only server would have
+    its few destructive tools run unconfirmed too.
+
+    Only a destructive declaration is acted upon, not a mere "not read-only":
+    an additive update would otherwise put a prompt in front of every ordinary
+    write. Tightening only, as :func:`declared_tool_category` explains.
+
+    Args:
+        annotations: Normalised hints from :func:`extract_tool_annotations`.
+
+    Returns:
+        True when the server declared the tool destructive.
+    """
+    return declared_tool_category(annotations) == "delete"
+
+
 def build_mcp_tool_manifest(
     adapter_name: str,
     agent_name: str,
@@ -302,6 +477,7 @@ def build_mcp_tool_manifest(
     input_schema: dict[str, Any],
     semantic_keywords: list[str],
     hitl_required: bool,
+    annotations: dict[str, Any] | None = None,
 ) -> ToolManifest:
     """Build a ToolManifest for an MCP tool (shared by admin and user MCP).
 
@@ -313,6 +489,9 @@ def build_mcp_tool_manifest(
         input_schema: JSON Schema for the tool's input
         semantic_keywords: Keywords for semantic matching
         hitl_required: Whether HITL approval is required
+        annotations: Server-declared behaviour hints, read through
+            :func:`declared_tool_category` — which believes a declared
+            mutation and never a declared read-only claim.
 
     Returns:
         ToolManifest instance
@@ -326,8 +505,9 @@ def build_mcp_tool_manifest(
     )
 
     parameters = json_schema_to_parameters(
-        properties=input_schema.get("properties", {}),
-        required=input_schema.get("required", []),
+        properties=properties_of(input_schema),
+        required=sorted(required_of(input_schema)),
+        root=input_schema,
     )
 
     return ToolManifest(
@@ -364,7 +544,9 @@ def build_mcp_tool_manifest(
             i18n_key="mcp_tool",
             category="tool",
         ),
-        tool_category=None,  # Inferred from tool name (handles read/write MCP tools)
+        # A server-declared MUTATION is believed; everything else stays None so
+        # the name heuristic keeps deciding, exactly as before.
+        tool_category=declared_tool_category(annotations),
     )
 
 
@@ -541,8 +723,15 @@ def _mcp_tool_to_manifest(
     """Convert an MCPDiscoveredTool to a ToolManifest (admin MCP).
 
     Args:
+        discovered: The tool as the server reported it, including the behaviour
+            hints the manifest derives its category from.
+        adapter_name: Prefixed tool name registered in the tool registry.
+        hitl_required: Resolved HITL requirement for the owning server.
         agent_name: Per-server agent name for domain extraction.
             Defaults to AGENT_MCP for backward compatibility.
+
+    Returns:
+        The ToolManifest the planner catalogue exposes for this tool.
     """
     description = discovered.description
     input_schema = discovered.input_schema
@@ -561,12 +750,14 @@ def _mcp_tool_to_manifest(
         input_schema=input_schema,
         semantic_keywords=semantic_keywords,
         hitl_required=hitl_required,
+        annotations=discovered.annotations,
     )
 
 
 def json_schema_to_parameters(
     properties: dict[str, Any],
     required: list[str],
+    root: dict[str, Any] | None = None,
 ) -> list[Any]:
     """Convert JSON Schema properties to ParameterSchema list.
 
@@ -574,39 +765,52 @@ def json_schema_to_parameters(
     ``schema`` field so the LLM can see the internal structure (items, nested
     properties, enums, etc.) — critical for MCP tools with structured inputs.
 
+    Declarations are read through :func:`resolve_property`, the SAME reduction
+    the LangChain adapter uses. Two readings of one declaration is exactly how
+    the planner catalogue and the tool signature came to disagree about the
+    same parameter.
+
     Args:
         properties: JSON Schema properties dict
         required: List of required field names
+        root: The whole ``inputSchema``, so a property declared with ``$ref``
+            can be resolved against its ``$defs``. Optional: a caller that has
+            only the properties still gets everything else.
 
     Returns:
         List of ParameterSchema instances
     """
-    from src.domains.agents.registry.catalogue import ParameterSchema
+    from src.domains.agents.registry.catalogue import ParameterConstraint, ParameterSchema
 
     parameters: list[ParameterSchema] = []
 
-    type_map = {
-        "string": "string",
-        "integer": "integer",
-        "number": "number",
-        "boolean": "boolean",
-        "array": "array",
-        "object": "object",
-    }
-
-    for name, spec in properties.items():
-        param_type = type_map.get(spec.get("type", "string"), "string")
+    for name, raw_spec in properties.items():
+        spec = as_property_spec(raw_spec)
+        resolved = resolve_property(spec, root if root is not None else {})
+        # An undecidable declaration still names a parameter the planner may
+        # need to fill; "string" is the manifest's own historical fallback.
+        param_type = resolved.name or DEFAULT_TYPE
         # Preserve full schema for complex types so the LLM can see
-        # internal structure (items, nested properties, enums).
+        # internal structure (items, nested properties, enums). The EFFECTIVE
+        # spec is compacted, so a $ref'd or anyOf-wrapped object shows its real
+        # properties instead of the wrapper.
         param_schema: dict[str, Any] | None = None
         if param_type in ("array", "object"):
-            param_schema = _compact_json_schema(spec)
+            param_schema = compact_schema(resolved.spec)
         parameters.append(
             ParameterSchema(
                 name=name,
                 type=param_type,
                 required=name in required,
-                description=spec.get("description", ""),
+                description=description_of(spec) or description_of(resolved.spec),
+                # ADR-184: a bound the planner cannot see is a trap. These map
+                # onto the catalogue's own vocabulary, so an MCP parameter gets
+                # the same rendering, validation and numeric clamping a native
+                # one has always had.
+                constraints=[
+                    ParameterConstraint(kind=kind, value=value)
+                    for kind, value in constraints_of(resolved.spec).items()
+                ],
                 schema=param_schema,
             )
         )
@@ -614,69 +818,8 @@ def json_schema_to_parameters(
     return parameters
 
 
-def _compact_json_schema(spec: dict[str, Any], depth: int = 0) -> dict[str, Any] | None:
-    """Compact a JSON Schema for LLM prompt injection.
-
-    Recursively strips verbose fields (title, $schema, additionalProperties,
-    default) while preserving structural information the LLM needs to generate
-    correct parameters: type, items, properties, required, enum, format.
-
-    Limits recursion to 5 levels — deep enough for complex MCP schemas
-    (e.g., Excalidraw elements: array → object → properties → object → properties)
-    while still bounding worst-case expansion. MCP App usage is occasional,
-    so the extra tokens are an acceptable trade-off for correct parameter generation.
-
-    Args:
-        spec: Raw JSON Schema for one parameter.
-        depth: Current recursion depth (stops at 5).
-
-    Returns:
-        Compacted schema dict, or None if spec is trivial.
-    """
-    if depth > 5 or not isinstance(spec, dict):
-        return None
-
-    result: dict[str, Any] = {}
-    param_type = spec.get("type")
-    if param_type:
-        result["type"] = param_type
-
-    # Enums are critical for the LLM (e.g., element type: rectangle, ellipse, ...)
-    if "enum" in spec:
-        result["enum"] = spec["enum"]
-    if "format" in spec:
-        result["format"] = spec["format"]
-
-    # Array items
-    if param_type == "array" and "items" in spec:
-        items_compact = _compact_json_schema(spec["items"], depth + 1)
-        if items_compact:
-            result["items"] = items_compact
-
-    # Object properties
-    if param_type == "object" and "properties" in spec:
-        compact_props: dict[str, Any] = {}
-        for prop_name, prop_spec in spec["properties"].items():
-            prop_compact = _compact_json_schema(prop_spec, depth + 1)
-            if prop_compact:
-                compact_props[prop_name] = prop_compact
-            else:
-                compact_props[prop_name] = {"type": prop_spec.get("type", "string")}
-        if compact_props:
-            result["properties"] = compact_props
-        if "required" in spec:
-            result["required"] = spec["required"]
-
-    # anyOf / oneOf (union types)
-    for key in ("anyOf", "oneOf"):
-        if key in spec:
-            compacted = [_compact_json_schema(s, depth + 1) for s in spec[key]]
-            compacted = [c for c in compacted if c]
-            if compacted:
-                result[key] = compacted
-
-    return result if result else None
-
-
-# Backward-compatible alias for imports using the old private name
+# Backward-compatible aliases for imports using the old private names. The
+# compaction moved to json_schema so the planner manifest and the tool
+# signature share ONE description of a nested object.
 _json_schema_to_parameters = json_schema_to_parameters
+_compact_json_schema = compact_schema

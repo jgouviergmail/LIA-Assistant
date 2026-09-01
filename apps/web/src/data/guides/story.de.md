@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.38.3
+**Anwendung**: LIA v1.38.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 44 Fachdomänen | **580.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **27.600+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **253** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **237** |
+| Dokumentierte Architekturentscheidungen (ADR) | **254** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **238** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 253 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 254 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -112,6 +112,8 @@ Zyklus 1.30.11 brachte die unerwartetste Lektion: Einen Export zu entwerfen kann
 Der Zyklus 1.31.0 verlagerte die Beweispflicht auf neues Terrain: die Ästhetik. Dem Assistenten einen Blick zu geben — zwei Cartoon-Augen, die beim Tippen zusehen, beim Nachdenken blinzeln, bei der Suche schweifen und auf den Ton jeder Antwort reagieren — war zuerst ein Animationsprojekt, bei dem die halbe Miete in der Flüssigkeit liegt. Die Disziplin änderte sich deswegen nicht: Das gesamte Verhalten steckt in einer reinen Engine, gespeist von Signalen, die die Anwendung bereits aussendete — die Zustandsmaschine des Chats, die gestreamten Ausführungsschritte, die Emotions-Engine — ohne einen zusätzlichen Modellaufruf und ohne neuen Endpunkt, jede Expression gesteuert von Entscheidungstabellen, getestet mit injizierten Uhren und injiziertem Zufall. Und als das Nutzerpanel sich auf keinen Stil einigen konnte, wurde die Entscheidung wie jede andere gefällt: auf Belegen, mit einem interaktiven Board real vorgeführter Stile. Der Gewinner wurde der Standard, die anderen eine Einstellung — und einen neuen hinzuzufügen ist ein Registereintrag, kein Projekt.
 
 Derselbe Anspruch begleitete die Ankunft der nativen Apps: Statt anzunehmen, was eine WebView kann, fährt ein eigener Prüfstand die **echte Anwendung** im Emulator, Szene für Szene, vom ersten Bildschirm bis zum Vergessen eines falsch eingegebenen Servers. Vor seinem ersten grünen Lauf hatte er bereits drei echte Fehler gefangen — darunter einen Offline-Bildschirm, der im einzig relevanten Zustand nie lud — die Kompilierung, CI und alle statischen Wachen abgesegnet hatten.
+
+Und die jüngste Lektion kam, als bereits alles grün war. Ein externer Werkzeugserver wurde hinzugefügt, eine schlichte Frage blieb unbeantwortet: Dreißig der vierzig Werkzeuge, die er veröffentlichte, wurden nie gebaut — und nichts außer einer Warnung sagte es. Die Ursache war schnell gefunden; Methode verlangte, nicht dort stehen zu bleiben. Die erste der vier fehlerhaften Stellen zu reparieren hätte nichts geändert — der Defekt wäre nur eine Zeile tiefer gerutscht. Als dann alle Suiten liefen, fand eine Durchsicht mit kühlem Kopf vier weitere Defekte, einen davon funktional und für die Tests unsichtbar, weil die Tests denselben Irrtum kodierten. Dieselbe Durchsicht *verwarf* auch eine Korrektur: eine Hausregel, die man verletzt glaubte und der hundertacht Dateien widersprachen. Grüne Tests sind nicht das Ende einer Prüfung; sie sind die Voraussetzung, um damit zu beginnen.
 
 ## 7. Überzeugungen
 

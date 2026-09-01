@@ -19,15 +19,23 @@ from __future__ import annotations
 
 import time
 from collections.abc import Awaitable, Callable
-from typing import Annotated, Any
+from typing import Any
 
 import structlog
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field, WithJsonSchema, create_model
+from pydantic import BaseModel, Field, create_model
 
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.infrastructure.mcp.json_schema import (
+    annotation_for,
+    as_property_spec,
+    description_of,
+    properties_of,
+    required_of,
+    resolve_property,
+)
 from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
-from src.infrastructure.observability.metrics_agents import (
+from src.infrastructure.observability.metrics_mcp import (
     mcp_connection_errors_total,
     mcp_tool_duration_seconds,
     mcp_tool_invocations_total,
@@ -35,104 +43,77 @@ from src.infrastructure.observability.metrics_agents import (
 
 logger = structlog.get_logger(__name__)
 
-# JSON Schema type → Python type mapping for create_model()
-_JSON_SCHEMA_TYPE_MAP: dict[str, type] = {
-    "string": str,
-    "integer": int,
-    "number": float,
-    "boolean": bool,
-    "array": list,
-    "object": dict,
-}
-
-
-def _sanitize_array_items(field_spec: dict[str, Any]) -> dict[str, Any]:
-    """Return a safe, always-typed ``items`` schema for an array property.
-
-    Gemini's function-declaration converter maps an absent/empty ``items``
-    to an untyped proto that the API rejects with 400 INVALID_ARGUMENT
-    ("parameters.properties[x].items: missing field") — and ONE such tool
-    poisons the entire bind (every ReAct iteration on a Gemini model failed
-    in prod, 2026-08-14). Preserve the server-declared item type when it is
-    simple (type/enum/description; nested arrays recursively), and degrade
-    anything unreliable ($ref, allOf, non-dict) to string items rather than
-    dropping the whole tool schema.
-    """
-    items = field_spec.get("items")
-    if isinstance(items, dict) and items.get("type") in _JSON_SCHEMA_TYPE_MAP:
-        sanitized: dict[str, Any] = {"type": items["type"]}
-        if isinstance(items.get("enum"), list):
-            sanitized["enum"] = items["enum"]
-        if isinstance(items.get("description"), str):
-            sanitized["description"] = items["description"]
-        if items["type"] == "array":
-            sanitized["items"] = _sanitize_array_items(items)
-        return sanitized
-    return {"type": "string"}
-
-
-def _array_python_type(field_spec: dict[str, Any]) -> Any:
-    """Schema-only items annotation: validation stays a permissive ``list``.
-
-    ``WithJsonSchema`` replaces the emitted field schema without touching
-    validation, so servers keep receiving exactly what they received before —
-    only the declaration shown to providers gains its mandatory ``items``.
-    """
-    return Annotated[
-        list,
-        WithJsonSchema({"type": "array", "items": _sanitize_array_items(field_spec)}),
-    ]
-
 
 def build_args_schema(
     input_schema: dict[str, Any],
 ) -> type[BaseModel] | None:
     """Build a Pydantic model from MCP tool JSON Schema.
 
-    Converts JSON Schema properties to Pydantic fields for LangChain
-    argument validation. Falls back to None for complex schemas ($ref,
-    allOf, anyOf, const) where conversion is unreliable.
+    Converts JSON Schema properties to Pydantic fields for LangChain argument
+    validation. Every declaration a server can send is interpreted through
+    :mod:`src.infrastructure.mcp.json_schema`, so this never raises on a
+    hostile payload — a tool lost to a ``TypeError`` is a capability the user
+    silently no longer has.
+
+    Composition keywords are read, not refused: the MCP spec admits every JSON
+    Schema 2020-12 keyword here, and answering one ``$ref`` with no schema at
+    all published the tool to the model as a single opaque ``kwargs`` object —
+    no field names, no descriptions, no required list, hence uncallable. A
+    property whose type stays undecidable keeps its name and description and is
+    validated permissively; the MCP server remains the authority on its own
+    contract.
 
     Args:
         input_schema: JSON Schema dict from MCP list_tools()
 
     Returns:
-        Pydantic model class or None if schema is too complex
+        Pydantic model class, or None when the schema declares no usable
+        property at all.
     """
-    properties = input_schema.get("properties", {})
+    properties = properties_of(input_schema)
     if not properties:
         return None
 
-    required_fields = set(input_schema.get("required", []))
+    required_fields = required_of(input_schema)
     field_definitions: dict[str, Any] = {}
 
-    for field_name, field_spec in properties.items():
-        # Skip complex schemas that can't be reliably converted
-        if any(key in field_spec for key in ("$ref", "allOf", "anyOf", "oneOf", "const")):
-            logger.debug(
-                "mcp_schema_complex_field_skipped",
-                field_name=field_name,
-                complex_keys=[k for k in field_spec if k in ("$ref", "allOf", "anyOf", "oneOf")],
-            )
-            return None  # Fall back to no schema for entire tool
+    for field_name, raw_spec in properties.items():
+        if field_name.startswith("_"):
+            # Pydantic refuses a leading-underscore field name. Skipping the
+            # parameter costs one argument; letting create_model raise costs
+            # the whole tool.
+            logger.debug("mcp_schema_underscore_field_skipped", field_name=field_name)
+            continue
 
-        field_type_str = field_spec.get("type", "string")
-        python_type: Any = _JSON_SCHEMA_TYPE_MAP.get(field_type_str, str)
-        if field_type_str == "array":
-            python_type = _array_python_type(field_spec)
-        description = field_spec.get("description", "")
+        field_spec = as_property_spec(raw_spec)
+        resolved = resolve_property(field_spec, input_schema)
+        if resolved.name is None:
+            python_type: Any = Any
+        else:
+            python_type = annotation_for(resolved.name, resolved.spec)
+
+        # A $ref'd property carries its description at the reference site; the
+        # target carries it when the reference site does not.
+        description = description_of(field_spec) or description_of(resolved.spec)
 
         if field_name in required_fields:
+            # A required parameter the server declared nullable stays nullable:
+            # rejecting a value the server accepts would make us stricter than
+            # the contract we implement.
+            annotation = python_type | None if resolved.nullable else python_type
             field_definitions[field_name] = (
-                python_type,
+                annotation,
                 Field(description=description),
             )
         else:
-            default = field_spec.get("default")
+            default = field_spec.get("default", resolved.spec.get("default"))
             field_definitions[field_name] = (
                 python_type | None,
                 Field(default=default, description=description),
             )
+
+    if not field_definitions:
+        return None
 
     try:
         return create_model("MCPToolInput", **field_definitions)

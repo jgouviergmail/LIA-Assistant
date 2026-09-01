@@ -18,6 +18,8 @@ import { useApiMutation } from '@/hooks/useApiMutation';
 export interface AdminMCPToolInfo {
   name: string;
   description: string | null;
+  /** Display name the server declares; null means fall back to `name`. */
+  title?: string | null;
 }
 
 export interface AdminMCPServer {

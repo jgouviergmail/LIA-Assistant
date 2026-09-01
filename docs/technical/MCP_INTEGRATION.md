@@ -214,6 +214,39 @@ MCP tools require user approval by default (`MCP_HITL_REQUIRED=true`).
 }
 ```
 
+### Tool annotations: tightening only
+
+Servers may publish behaviour hints per tool (`readOnlyHint`, `destructiveHint`,
+`idempotentHint`, `openWorldHint`). The specification is normative about what a
+client may do with them:
+
+> For trust & safety and security, clients **MUST** consider tool annotations to
+> be untrusted unless they come from trusted servers.
+
+LIA therefore reads them in one direction only. A declared **mutation** is
+believed — the worst a lying server buys itself is one confirmation too many. A
+declared `readOnlyHint: true` is **not**, because a declared category wins over
+the name heuristic in `plan_predicates._declared_mutation_flag`: believing it
+would remove the tool from the invalid-mutation safety net, from HITL scope
+detection, and from the read-only requirement of the initiative phase.
+
+Two decisions follow from that single rule:
+
+- `declared_tool_category` (`infrastructure/mcp/registration.py`) maps a
+  declared mutation onto the catalogue's own vocabulary — `delete` when
+  destructive, `update` when the server says the updates are only additive — and
+  returns `None` for everything else, which leaves `MUTATION_TOOL_PATTERNS` in
+  charge exactly as before.
+- `declares_destructive_tool` forces HITL on an individual tool in **iterative
+  (ReAct) mode**, where `_expand_iterative_user_mcp` otherwise hands every tool
+  of a server the one per-server flag. Without it, a user who turned
+  confirmation off for a mostly read-only server had its few destructive tools
+  run unconfirmed too.
+
+The name heuristic alone misses a great deal: on one real finance server, none of
+`cancel_subscription`, `upgrade`, `disconnect_institution` or `forget` carries
+any of the nine mutation verbs, so all four were classified read-only.
+
 ### SSRF Prevention (HTTP Transport)
 
 For `streamable_http` servers:
@@ -242,6 +275,21 @@ Per-server sliding window rate limiting prevents abuse:
 | `mcp_tool_duration_seconds` | Histogram | server_name, tool_name | Execution duration |
 | `mcp_server_health` | Gauge | server_name | Connection status (1/0) |
 | `mcp_connection_errors_total` | Counter | server_name, error_type | Connection errors |
+| `mcp_tool_registration_failures_total` | Counter | scope, error_type | Tools dropped while building their adapter |
+
+They live in `src/infrastructure/observability/metrics_mcp.py`.
+
+`mcp_tool_registration_failures_total` is the one metric here that must read
+zero. Registration runs per tool and swallows per tool by design, so a tool this
+codebase cannot adapt simply vanishes: the model never sees it and the user is
+told the assistant cannot do the thing. Production ran 72 h in that state
+(2026-09-01), losing 30 of one server's 40 tools on every turn, with only a
+warning nobody queries to show for it. Its labels stay bounded on purpose —
+`scope` is `admin` / `user_standard` / `user_iterative`, `error_type` an
+exception class; the server and tool names travel in the
+`mcp_tool_registration_failed` log event instead, which has no cardinality
+budget. Panels: *Tools Dropped at Registration* and *Tools Dropped (24h)* in
+dashboard `10-oauth-connectors-mcp`.
 
 ### Log Events
 
@@ -251,7 +299,13 @@ Per-server sliding window rate limiting prevents abuse:
 | `mcp_server_connected` | INFO | Server connected with tool list |
 | `mcp_server_connection_failed` | ERROR | All retry attempts exhausted |
 | `mcp_tool_discovery_failed` | ERROR | list_tools() failed |
+| `mcp_tool_registration_failed` | WARNING | One tool dropped — carries `scope`, `server`, `tool_name`, `user_id` |
 | `mcp_connections_closed` | INFO | Shutdown complete |
+
+`mcp_tool_registration_failed` replaces the three per-path events that said the
+same thing (`mcp_tool_build_failed`, `user_mcp_tool_build_failed`,
+`user_mcp_iterative_tool_build_failed`): the path is now the `scope` field, so
+one query finds every dropped tool.
 
 ---
 

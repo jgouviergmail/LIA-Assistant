@@ -54,9 +54,11 @@ from src.infrastructure.mcp.security import validate_server_config
 from src.infrastructure.mcp.utils import (
     build_client_info,
     extract_app_meta,
+    extract_tool_annotations,
+    extract_tool_title,
     unwrap_exception_group,
 )
-from src.infrastructure.observability.metrics_agents import mcp_server_health
+from src.infrastructure.observability.metrics_mcp import mcp_server_health
 
 logger = structlog.get_logger(__name__)
 
@@ -282,6 +284,8 @@ class MCPClientManager:
                     tool_name=tool.name,
                     description=tool.description or "",
                     input_schema=tool.input_schema or {},
+                    title=extract_tool_title(tool),
+                    annotations=extract_tool_annotations(tool),
                     app_resource_uri=app_resource_uri,
                     app_visibility=app_visibility,
                 )

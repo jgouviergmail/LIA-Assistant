@@ -497,7 +497,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - **HITL (Human-in-the-Loop)**: 6 approval levels (plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review). Classified in `src/domains/agents/services/hitl_classifier.py`. Note: the plan-approval level is currently auto-approved (`approval_gate_node` is a pass-through — tool-level HITL supersedes it); do not build on plan-level interrupts without re-wiring the gate.
 - **Smart Services**: QueryAnalyzerService, SmartPlannerService, SmartCatalogueService use LRU caching and pattern learning to reduce LLM token usage.
 - **SSE Streaming**: Responses stream to the frontend via Server-Sent Events.
-- **Observability**: 492 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
+- **Observability**: 493 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
 - **LLM Factory**: `src/infrastructure/llm/factory.py` provides multi-provider LLM instantiation (OpenAI, Anthropic, Google, DeepSeek, Ollama). Provider adapters in `src/infrastructure/llm/providers/`.
 
 ## Good Practices
@@ -664,7 +664,7 @@ Run it after any Capacitor upgrade or any CSP change.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (253 ADR files, ADR-254 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (254 ADR files, ADR-255 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

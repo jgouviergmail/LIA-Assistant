@@ -37,6 +37,7 @@ from src.core.constants import (
 from src.core.context import UserMCPToolsContext, user_mcp_tools_ctx
 from src.domains.agents.registry.domain_taxonomy import deduplicate_mcp_slugs
 from src.infrastructure.mcp.auth import build_auth_for_server
+from src.infrastructure.mcp.registration import record_tool_registration_failure
 from src.infrastructure.mcp.user_pool import PoolEntry, get_user_mcp_pool
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.mcp.utils import is_app_only
@@ -180,6 +181,7 @@ async def setup_user_mcp_tools(
                         input_schema=tool_data.get("input_schema", {}),
                         timeout_seconds=server.timeout_seconds,
                         app_resource_uri=tool_data.get("app_resource_uri"),
+                        annotations=tool_data.get("annotations"),
                     )
 
                     manifest = _build_user_tool_manifest(
@@ -190,12 +192,11 @@ async def setup_user_mcp_tools(
                         server_name=server.name,
                         server_domain=ctx.server_domains.get(server.name, "mcp_unnamed"),
                         hitl_required=hitl_required,
+                        annotations=tool_data.get("annotations"),
                     )
 
                     ctx.tool_manifests.append(manifest)
                     ctx.tool_instances[adapter.name] = adapter
-                    # Store original input_schema for native function calling
-                    ctx.tool_input_schemas[adapter.name] = tool_data.get("input_schema", {})
 
                     # Re-key pre-computed embeddings: raw MCP name → adapter name
                     # DB stores by raw name ("hub_search"), but select_tools() uses
@@ -205,13 +206,13 @@ async def setup_user_mcp_tools(
                     if raw_tool_name in embeddings_cache:
                         ctx.tool_embeddings[adapter.name] = embeddings_cache[raw_tool_name]
 
-                except Exception:
-                    logger.warning(
-                        "user_mcp_tool_build_failed",
+                except Exception as exc:
+                    record_tool_registration_failure(
+                        scope="user_standard",
+                        server=str(server.id),
+                        tool_name=str(tool_data.get("name", "unknown")),
+                        exc=exc,
                         user_id=str(user_id),
-                        server_id=str(server.id),
-                        tool_name=tool_data.get("name", "unknown"),
-                        exc_info=True,
                     )
 
         except Exception:
@@ -329,6 +330,7 @@ def _register_user_iterative_server(
                 input_schema=tool_data.get("input_schema", {}),
                 timeout_seconds=server.timeout_seconds,
                 app_resource_uri=tool_data.get("app_resource_uri"),
+                annotations=tool_data.get("annotations"),
             )
             ctx.tool_instances[adapter.name] = adapter
 
@@ -337,13 +339,13 @@ def _register_user_iterative_server(
             if raw_tool_name in embeddings_cache:
                 ctx.tool_embeddings[adapter.name] = embeddings_cache[raw_tool_name]
 
-        except Exception:
-            logger.warning(
-                "user_mcp_iterative_tool_build_failed",
+        except Exception as exc:
+            record_tool_registration_failure(
+                scope="user_iterative",
+                server=str(server.id),
+                tool_name=str(tool_data.get("name", "unknown")),
+                exc=exc,
                 user_id=str(user_id),
-                server_id=str(server.id),
-                tool_name=tool_data.get("name", "unknown"),
-                exc_info=True,
             )
 
     # 2. Create per-server task tool instance (named copy of the generic tool)
@@ -459,6 +461,7 @@ def _build_user_tool_manifest(
     server_name: str,
     server_domain: str,
     hitl_required: bool,
+    annotations: dict | None = None,
 ) -> ToolManifest:
     """Build a ToolManifest for a user MCP tool.
 
@@ -467,6 +470,8 @@ def _build_user_tool_manifest(
 
     Args:
         server_domain: Per-server domain slug (e.g., "mcp_huggingface_hub").
+        annotations: Server-declared behaviour hints, believed only where
+            they tighten a decision (see ``declared_tool_category``).
     """
     from src.infrastructure.mcp.registration import (
         build_mcp_tool_manifest,
@@ -489,4 +494,5 @@ def _build_user_tool_manifest(
         input_schema=input_schema,
         semantic_keywords=semantic_keywords,
         hitl_required=hitl_required,
+        annotations=annotations,
     )

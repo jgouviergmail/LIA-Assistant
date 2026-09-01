@@ -239,3 +239,17 @@ If a server requires a revision LIA does not speak, the connection test shows a 
 • The authorization server's identity is verified before your authorization code is used
 • Stored client credentials are never sent to a different authorization server than the one that issued them — LIA re-registers automatically instead
 • Declining the consent screen brings you back to your settings with an informational message — declining is a choice, not an error
+
+**🧩 Reading what a server declares:**
+Since v1.38.4 the alignment reaches the second half of the protocol. LIA reads tool declarations across the full latitude the 2026-07-28 revision allows: optional types, nested structures, internal references and closed sets. A server describing its parameters with the standard's more advanced forms is now read in full, where some of those forms used to make its tools disappear without a word.
+
+## Why do some MCP tools have a readable name, and why do some ask for confirmation?
+
+**🏷️ The displayed name:**
+The protocol lets a server publish a **readable name** alongside a tool's technical identifier. When it does, that is what appears in the discovered-tools list — *Financial accounts* rather than `accounts__list_financial_accounts`. The technical identifier stays beside it: that is the one found again in logs and in rules.
+
+**🛡️ The confirmation:**
+A server can also declare that a tool is **destructive**. LIA believes that declaration — but in one direction only:
+• A tool announced as destructive asks for confirmation **even if** confirmation is switched off for that server
+• A server claiming to be harmless never earns a free pass
+• This is what the specification recommends: a third-party server's annotations may strengthen a protection, never lift one

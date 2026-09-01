@@ -4,7 +4,7 @@
 
 **Versione**: 1.7
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.38.3
+**Applicazione**: LIA v1.38.4
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 44 domini funzionali | **580.000** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **27.600+** |
-| Decisioni di architettura documentate (ADR) | **253** |
-| Versioni rilasciate a ritmo regolare | **237** |
+| Decisioni di architettura documentate (ADR) | **254** |
+| Versioni rilasciate a ritmo regolare | **238** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 253 documentate:
+Tre decisioni strutturanti, tra le 254 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -112,6 +112,8 @@ Il ciclo 1.30.11 ha prodotto la lezione più inattesa: progettare un'esportazion
 Il ciclo 1.31.0 ha spostato l’esigenza di prova su un terreno nuovo: l’estetica. Dare uno sguardo all’assistente — due occhi cartoon che osservano mentre scrivi, si socchiudono mentre riflette, spazzano mentre cerca e reagiscono al tono di ogni risposta — è stato prima di tutto un cantiere di animazione, dove metà del successo si gioca nella fluidità. La disciplina non è cambiata per questo: tutto il comportamento sta in un motore puro alimentato da segnali che l’applicazione emetteva già — la macchina a stati della chat, i passi di esecuzione trasmessi, il motore emotivo — senza una chiamata di modello né un endpoint in più, ogni espressione governata da tabelle di decisione testate con orologi e casualità iniettati. E quando il panel di utenti non ha deciso sullo stile, l’arbitrato è stato reso come tutti gli altri: sulle prove, una tavola interattiva di stili visualizzati per davvero. Il vincitore è diventato il predefinito, gli altri una scelta nelle impostazioni — e aggiungerne uno nuovo è una voce di registro, non un cantiere.
 
 La stessa esigenza ha accompagnato l'arrivo delle app native: invece di presumere cosa sappia fare una WebView, un banco dedicato guida la **vera applicazione** su un emulatore, scena per scena, dal primo schermo all'oblio di un server digitato male. Prima del suo primo passaggio in verde aveva già catturato tre difetti reali — inclusa una schermata offline che non si caricava mai nell'unico stato in cui conta — che compilazione, CI e ogni guardia statica avevano benedetto.
+
+E la lezione più recente è arrivata quando tutto era già verde. È stato aggiunto un server di strumenti esterno e una domanda semplice è rimasta senza risposta: trenta dei quaranta strumenti che pubblicava non venivano mai costruiti, senza altro che un avviso a dirlo. La causa è stata trovata in fretta; ciò che ha richiesto metodo è stato rifiutare di fermarsi lì. Correggere il primo dei quattro punti difettosi non avrebbe cambiato nulla — il difetto si sarebbe semplicemente spostato di una riga. Poi, con tutte le suite in verde, una rilettura a freddo ha trovato altri quattro difetti, uno dei quali funzionale e invisibile ai test, perché i test codificavano lo stesso errore. Quella rilettura ha anche *annullato* una correzione: una regola di stile che si credeva infranta e che centotto file smentivano. Superare i test non è la fine di una revisione; è la condizione per iniziarla.
 
 ## 7. Convinzioni
 

@@ -3737,6 +3737,8 @@ async with TrackingContext(user_id, run_id) as tracker:
 - Credentials Fernet-encrypted, jamais exposées en API
 - Tool discovery avec cache embeddings OpenAI pour le routing sémantique
 - `UserMCPToolAdapter` : wrapper BaseTool avec structured JSON parsing en N RegistryItems
+- `json_schema.py` (ADR-255) : autorité unique sur ce qu'une déclaration d'outil dit — lue par l'adaptateur ET par le catalogue du planificateur, avec un test de parité. Réduit tout mot-clé JSON Schema 2020-12 que la spec MCP admet (`$ref`/`$defs`, `anyOf`/`oneOf`/`allOf`, `const`, types union), publie les contraintes déclarées dans le vocabulaire `ParameterConstraint` existant, et ne lève jamais : une déclaration inutilisable dégrade la propriété, jamais l'outil
+- Annotations de comportement (`readOnlyHint`, `destructiveHint`) lues dans un seul sens — elles peuvent resserrer une décision HITL, jamais la relâcher (la spec impose de les traiter comme non fiables)
 - `UserMCPClientPool` : connections éphémères (fresh HTTP par tool call)
 - SSRF prevention, rate limiting per-server, HITL configurable per-server
 
