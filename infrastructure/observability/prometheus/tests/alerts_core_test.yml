@@ -498,11 +498,17 @@ tests:
   # extrapolates over a left-open range, and a coarse sampling makes the first
   # point fall out of the window and the arithmetic disagree with a rule that
   # is perfectly correct.
+  #
+  # Two constraints set the timeline, and `for: 10m` is what makes them bite.
+  # The condition has to hold from t=30m through t=40m, so the three give-ups
+  # must land in the INTERSECTION of every 30-minute window across that span —
+  # (10m, 30m] — and the series must stay alive PAST the evaluation, or the
+  # metric goes stale and the rule evaluates against nothing at all.
   - interval: 30s
     input_series:
-      # Three failed operations inside the window (61 samples = 30m at 30s).
+      # Flat until 10m30s, three give-ups by 21m, alive to 42m30s.
       - series: 'embedding_call_outcomes_total{model="gemini-embedding-001",outcome="failed"}'
-        values: '0+0x20 1+0x20 3+0x21'
+        values: '0+0x21 1+0x9 2+0x9 3+0x43'
     alert_rule_test:
       - eval_time: 40m
         alertname: EmbeddingOperationsFailing
@@ -519,10 +525,15 @@ tests:
   # ===== EmbeddingOperationsFailing: a lone give-up is not an incident =====
   # One exhausted retry is a provider blip the next call recovers from. Paging
   # on it would make the alert the noise it was written to replace.
+  #
+  # SAME timeline as the firing case above, differing by the number of failures
+  # and nothing else — that is the whole point of the pair. Its first version
+  # ended the series at 31m and evaluated at 40m, so it asserted "no alert"
+  # against NO DATA: green, and proving nothing.
   - interval: 30s
     input_series:
       - series: 'embedding_call_outcomes_total{model="gemini-embedding-001",outcome="failed"}'
-        values: '0+0x40 1+0x21'
+        values: '0+0x21 1+0x61'
     alert_rule_test:
       - eval_time: 40m
         alertname: EmbeddingOperationsFailing

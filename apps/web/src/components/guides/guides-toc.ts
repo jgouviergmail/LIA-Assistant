@@ -40,6 +40,7 @@ import {
   Target,
   UserCheck,
   Users,
+  Waves,
   Zap,
   CalendarClock,
   Stethoscope,
@@ -108,6 +109,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'computed_answers', icon: Calculator },
   { id: 'measured_palette', icon: Palette },
   { id: 'declared_register', icon: Smile },
+  { id: 'shock_absorbers', icon: Waves },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [
