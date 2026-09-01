@@ -172,7 +172,18 @@ class TestRatioQueriesAreTotal:
     alarm that teaches administrators to ignore it.
     """
 
-    RATIO_KEYS = ("api_error_rate", "llm_failure_rate")
+    #: DERIVED, never hand-listed: a ratio query added tomorrow is covered the
+    #: day it is added. The hand-written tuple this replaces named two of the
+    #: three ratio queries, and the third arrived with the same defect.
+    RATIO_KEYS = tuple(
+        query_id
+        for query_id, query in QUERY_CATALOGUE.items()
+        if "clamp_min(" in query.promql_template
+    )
+
+    def test_the_derived_list_is_not_empty(self) -> None:
+        """A derivation that silently matches nothing tests nothing."""
+        assert len(self.RATIO_KEYS) >= 3
 
     @pytest.mark.parametrize("query_id", RATIO_KEYS)
     def test_numerator_falls_back_to_zero(self, query_id: str) -> None:
@@ -180,6 +191,16 @@ class TestRatioQueriesAreTotal:
         assert "or vector(0)" in promql, f"{query_id}: an absent numerator must read 0, not nothing"
 
     @pytest.mark.parametrize("query_id", RATIO_KEYS)
-    def test_denominator_is_still_clamped(self, query_id: str) -> None:
-        """Zero traffic must not divide by zero either."""
-        assert "clamp_min(" in render_query(query_id, window_minutes=15)
+    def test_the_denominator_falls_back_to_zero_too(self, query_id: str) -> None:
+        """BOTH sides, not just the one the 2026-08-28 incident exposed.
+
+        An empty vector on either side empties the division. The denominator's
+        hole opens exactly where an idle self-hosted instance lives: nothing has
+        been embedded yet, so `embedding_call_outcomes_total` has no series, and
+        the panel would report "unknown" — degrading a healthy platform — for a
+        failure rate that is plainly zero.
+        """
+        promql = render_query(query_id, window_minutes=15)
+        denominator = promql.split("/", 1)[1]
+        assert "or vector(0)" in denominator, f"{query_id}: an absent denominator must read 0"
+        assert "clamp_min(" in denominator, f"{query_id}: zero traffic must not divide by zero"

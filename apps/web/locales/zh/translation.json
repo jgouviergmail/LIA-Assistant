@@ -2323,6 +2323,7 @@
         "probableCause": "可能原因",
         "recommendedActions": "建议操作",
         "noDiagnosisYet": "暂无诊断——下一个自检周期将生成诊断（在预算允许的情况下）。",
+        "otherLanguage": "暂无您所用语言的版本，显示已生成的版本。",
         "status": {
           "ok": "正常",
           "degraded": "降级",
@@ -2338,6 +2339,7 @@
         "checks": {
           "api_error_rate": "HTTP 5xx 比率",
           "api_latency_p95": "HTTP p95 延迟",
+          "embedding_failure_rate": "向量化失败率",
           "llm_failure_rate": "LLM 失败率",
           "disk_usage": "磁盘使用率",
           "memory_usage": "内存使用率",
@@ -3508,7 +3510,7 @@
         "admin-public-demo-link": "演示, 公开链接, 展示, 分享",
         "debug-settings": "调试, 诊断, 日志, 面板, 令牌跟踪",
         "eyes-style": "眼睛, 头像, 动画, 样式, 目光, 伙伴, cozmo",
-        "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络"
+        "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络 向量 嵌入 配额 记忆 语言"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -4204,7 +4206,7 @@
         },
         "resilience": {
           "title": "🛡️ 性能与 Token 优化",
-          "description": "文本压缩把每个实体削掉约 97 %，消息窗口再省 93 %。熔断器保护外部 API，多级 Redis 缓存吸收重复请求，OAuth 令牌在过期前后台刷新，限流则是分布式的并带指数退避重试。"
+          "description": "文本压缩按实体节省约 97 %，消息窗口再省 93 %。断路器守护外部 API，多级 Redis 缓存吸收重复请求，OAuth 令牌在过期前后台续期，限流为分布式并配指数退避重试。后台任务改为错峰启动而非同时涌出——共享公约数的周期会永远对齐；对向量服务的调用会短暂等待名额而不是被直接拒绝，且这种等待总是超时放行。"
         },
         "voice": {
           "title": "🎙️ 完整语音模式",
@@ -4392,7 +4394,7 @@
         },
         "selfDiagnostics": {
           "title": "🩺 自我诊断与事件记忆",
-          "description": "LIA 通过永不让请求失败的客户端读取自身遥测：任何故障都会变成一个带类型的「不可用」结果。周期性的自检把黄金信号和直接探针评估成带精确数值的健康快照；告警与严重判定按问题收敛成同一个事件，再由一个有预算上限、以运维手册为依据的模型给出诊断。管理员可以看到平台健康面板、收到通知，并使用只读的聊天工具——而且已知故障会塑造回答：降级的能力在规划阶段就被绕开，失败的步骤用带类型的错误码解释，绝不是原始日志。"
+          "description": "LIA 通过永不让请求失败的客户端读取自身遥测：任何故障都会成为一个「不可用」的类型化结果。周期性自检评估核心信号并直接探测依赖，记录精确数值；告警与关键判定汇聚为同一问题的唯一事件，由受预算约束的模型诊断——它会拿到实际被越过的阈值，并以每位管理员各自的语言书写。管理员可查看健康面板、通知与只读聊天工具；已知故障还会塑造回答：受损能力在规划阶段即被绕开，失败步骤依据类型化错误码解释，绝不暴露原始日志。"
         },
         "ephemeralScripts": {
           "title": "🧮 算出来的答案，而不是猜出来的",
@@ -4405,6 +4407,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_38_3": {
+          "title": "v1.38.3 — 🧠 悄然流失的记忆",
+          "date": "2026 年 9 月",
+          "count": "4",
+          "items": {
+            "i1": "<b>🧠 LIA 不再悄悄丢失刚学到的内容</b> —— 在一小时的真实使用中，将对话存入记忆、为消息建立索引或获取文档上下文的操作，近半数被服务商拒绝，而且毫无提示：回答照常送达，只是掌握的信息略少。后台任务现在错开时间启动，而不再同时涌出；必要时排队等待，遇到临时故障会重试。",
+            "i2": "<b>📊 「平台健康」终于盯住了这一点</b> —— 此前没有任何指标衡量这些操作是否真正成功，只统计尝试次数，而一旦引入重试，这个数字就失去意义。现已新增专门的指标与告警，并附有指引，告诉管理员该动用两个调节手段中的哪一个。",
+            "i3": "<b>🌍 事件诊断使用您的语言</b> —— 事件分析及其建议措施此前一律以英文撰写，而同一页面上的其他内容都已翻译。现在会按每位查看者的语言书写。",
+            "i4": "<b>🔍 诊断终于言之有物</b> —— 过去几乎每次都回答「证据不足，无法确定确切原因」。这一判断是准确的：交给分析的只有数值，没有它越过的阈值，而孤立的数值无从判断。现在还会附上单位、结论以及两级告警阈值。"
+          }
+        },
         "v1_38_2": {
           "title": "v1.38.2 — 🙂 回应语气而非习惯的表情",
           "date": "2026 年 9 月",
@@ -10047,9 +10060,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "473个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
+        "title": "492个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：473指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 473个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 492个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -10099,7 +10112,7 @@
       "embedding-calibration": {
         "title": "嵌入向量校准：8个阈值调优以实现语义精度",
         "excerpt": "LIA 在迁移到 Gemini embedding-001 后重新校准了8个相似度阈值，使用真实测试数据集和 F1 指标。",
-        "body": "<h2>为什么要重新校准？</h2><p>每个嵌入模型对语义的编码方式不同。当 LIA 迁移到 <strong>Gemini embedding-001</strong> 时，需要系统性的重新校准。</p><h2>8个阈值，5个子系统</h2><p>LIA 在5个子系统中使用相似度搜索：</p><ul><li><strong>记忆</strong> — 搜索（0.65）和相关性清理（0.72）</li><li><strong>日志</strong> — 上下文（0.63）和去重（0.87）</li><li><strong>兴趣</strong> — 去重（0.89）和内容匹配（0.90）</li><li><strong>RAG 空间</strong> — 文档检索（0.55）</li><li><strong>查询引擎</strong> — 查询相似度（0.93）</li></ul><h2>校准方法</h2><p>每个阈值都使用<strong>真实测试数据集</strong>进行校准，计算 <strong>Precision</strong>、<strong>Recall</strong> 和 <strong>F1-score</strong> 指标。</p><h2>具体结果</h2><p>改善显著：</p><ul><li>记忆：F1 = 0.519，平均每次查询1.8个结果</li><li>日志上下文：F1 = 0.638</li><li>日志去重：F1 = 0.889，Precision = 1.0</li><li>兴趣去重：Precision = 1.0</li></ul><h2>阈值应按其错误的代价来选择</h2><p>2026 年 7 月，兴趣去重阈值在 <strong>16 组真实生产样本</strong>上被重新测量 — 一边是观察到的重复项，另一边是合理并存的不同主题。两个候选值在<strong>错误数量上打成平手</strong>：0.83 与 0.89。因此计数毫无意义；真正区分它们的是错误的<em>性质</em>。在 0.83 时，两个错误是<strong>错误合并</strong> — <em>android</em> 在 0.857 处被 <em>ios</em> 吸收，两段城市历史在 0.890 处合并 — 这会不可逆地摧毁一个独立的兴趣。在 0.89 时，两个错误是<strong>漏合并</strong>：一个可见且可纠正的重复项。阈值保持在 0.89，其推理如今写在常量里，而不是留在某个人的记忆中。</p><p>第二个教训：两个群体是<strong>重叠</strong>的。没有任何阈值能完美分开它们，因为标签相似度存在固有上限。承认这一点，才让真正的修复在别处被找到 — 在于去重被允许看到什么。</p><h2>成本影响</h2><p>更好校准的阈值意味着<strong>更少浪费的 token</strong>。校准减少了噪声，同时提升响应质量和成本效率。</p><h2>轻量级向量</h2><p>所有嵌入使用 <strong>384维</strong>向量，在语义精度和存储/搜索性能之间取得最佳平衡。</p>"
+        "body": "<h2>为什么要重新校准？</h2><p>每个嵌入模型对语义的编码方式不同。当 LIA 迁移到 <strong>Gemini embedding-001</strong> 时，需要系统性的重新校准。</p><h2>8个阈值，5个子系统</h2><p>LIA 在5个子系统中使用相似度搜索：</p><ul><li><strong>记忆</strong> — 搜索（0.65）和相关性清理（0.72）</li><li><strong>日志</strong> — 上下文（0.63）和去重（0.87）</li><li><strong>兴趣</strong> — 去重（0.89）和内容匹配（0.90）</li><li><strong>RAG 空间</strong> — 文档检索（0.55）</li><li><strong>查询引擎</strong> — 查询相似度（0.93）</li></ul><h2>校准方法</h2><p>每个阈值都使用<strong>真实测试数据集</strong>进行校准，计算 <strong>Precision</strong>、<strong>Recall</strong> 和 <strong>F1-score</strong> 指标。</p><h2>具体结果</h2><p>改善显著：</p><ul><li>记忆：F1 = 0.519，平均每次查询1.8个结果</li><li>日志上下文：F1 = 0.638</li><li>日志去重：F1 = 0.889，Precision = 1.0</li><li>兴趣去重：Precision = 1.0</li></ul><h2>阈值应按其错误的代价来选择</h2><p>2026 年 7 月，兴趣去重阈值在 <strong>16 组真实生产样本</strong>上被重新测量 — 一边是观察到的重复项，另一边是合理并存的不同主题。两个候选值在<strong>错误数量上打成平手</strong>：0.83 与 0.89。因此计数毫无意义；真正区分它们的是错误的<em>性质</em>。在 0.83 时，两个错误是<strong>错误合并</strong> — <em>android</em> 在 0.857 处被 <em>ios</em> 吸收，两段城市历史在 0.890 处合并 — 这会不可逆地摧毁一个独立的兴趣。在 0.89 时，两个错误是<strong>漏合并</strong>：一个可见且可纠正的重复项。阈值保持在 0.89，其推理如今写在常量里，而不是留在某个人的记忆中。</p><p>第二个教训：两个群体是<strong>重叠</strong>的。没有任何阈值能完美分开它们，因为标签相似度存在固有上限。承认这一点，才让真正的修复在别处被找到 — 在于去重被允许看到什么。</p><h2>成本影响</h2><p>更好校准的阈值意味着<strong>更少浪费的 token</strong>。校准减少了噪声，同时提升响应质量和成本效率。</p><h2>轻量级向量</h2><p>所有嵌入使用 <strong>384维</strong>向量，在语义精度和存储/搜索性能之间取得最佳平衡。</p><h2>校准得当的向量，仍然得先抵达</h2><p>阈值决定一个向量意味着什么，却完全不涉及它是否真的被生成。在一小时的生产运行中，24 次向量化调用有 11 次被服务商拒绝——全都撞上按分钟计的配额，每一次都悄悄让某一轮对话失去记忆、日志上下文或索引。原因不是流量：稳定的每分钟四次调用毫无差错。原因在于间隔存在公约数的周期任务会永远对齐，于是其中六个落在同一秒启动。错峰启动应对这一点，短窗口限流覆盖规模增长，而有上限的重试——且总是超时放行，因为我们自己的调节绝不能成为回答失去记忆的理由——收拾余下的部分。</p>"
       },
       "llm-config-governance": {
         "title": "LLM 治理：通过单一仪表板管理 24 个 AI 模型",
@@ -10269,7 +10282,7 @@
       "self_diagnostics": "自我诊断",
       "computed_answers": "算出来的答案",
       "measured_palette": "经过测量的调色板",
-        "declared_register": "声明的语气"
+      "declared_register": "声明的语气"
     }
   },
   "healthMetrics": {

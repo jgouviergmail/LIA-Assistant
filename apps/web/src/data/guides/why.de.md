@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.38.2
+**Anwendung**: LIA v1.38.3
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -413,6 +413,8 @@ Es gibt etwas Heimtückischeres als eine Garde, die man nie zum Scheitern gebrac
 Noch tückischer als ein Wächter, der das falsche Signal beobachtet: ein Fehler, der nur jedes zweite Mal auftritt. Dieselbe Anfrage schlug fehl und ging dreißig Minuten später durch, ohne dass sich eine einzige Zeile geändert hätte — genug, um „war wohl vorübergehend" zu schließen und den Fall abzuhaken. Die Ursache lag in einem unsichtbaren Detail: Werkzeuge werden anhand einer englischen Umformulierung ausgewählt, die ein Modell erzeugt und bei jeder Runde neu schreibt. Ein anderes Verb, ein Lesewerkzeug fällt weg, und der Assistent muss auf eine Nachricht antworten, die er nicht lesen kann. Die Versuchung war, an diesem Zufall zu drehen — ein Stichwort mehr, eine Schwelle verschoben. Wir haben eine Garantie vorgezogen, die ihn gar nicht ansieht: Vor dem Planen prüft das System, dass alles Verlangte tatsächlich erreichbar ist. Wenn eine Antwort von einem Würfelwurf abhängt, besteht die Korrektur selten darin, den Würfel zu verbessern.
 
 Eine angezeigte Zahl ist eine Behauptung: Sie ist exakt, oder sie existiert nicht. Das Dashboard zeigte lange „0 erfolgreiche Aktionen“ — nicht weil nichts gelang, sondern weil die interne Klassifizierung mit einem Wort verglich, das niemand aussandte. Und die Token-Abrechnung stimmte — aber aus Höflichkeit des Anbieters, nicht per Vertrag: Nichts forderte sie an, nichts testete sie, nichts überwachte sie. Beide Reparaturen haben dieselbe Form: Das Vokabular wird beidseitig durch einen Vertragstest verriegelt, die Zählungsanforderung wird pro Anbieter deklariert und beim Start geprüft, und ein bezahlter Aufruf, der ohne Zählung endet, löst einen Alarm aus. Exaktheit ist kein Zustand — sie ist eine Wache.
+
+Es gibt Schlimmeres als einen lauten Fehler: einen, der nur die Qualität mindert. Eine Stunde lang, bei ein bis drei Nutzern, wurde fast die Hälfte der Vorgänge, die LIA ihr Gedächtnis geben — das eben Gelernte ablegen, eine Nachricht indizieren, ein Dokument finden — vom Anbieter abgewiesen. Nichts fiel aus: Die Antworten kamen wie gewohnt, nur schlechter informiert. Und die Ursache war nicht die Last, denn gleichmäßige vier Aufrufe pro Minute liefen fehlerfrei durch: Es war Arithmetik. Periodische Aufgaben von 5, 15, 30 und 60 Minuten zählen alle ab demselben Moment und richten sich damit für immer aus — sechs von ihnen starteten in derselben Sekunde, jede Stunde. Die Lehre lautet nicht „ein Wiederholversuch genügt“, sondern dass das Mittel die Ursache treffen muss: Versetzte Starts behandeln die Kollision, eine Glättung schützt das Wachstum, ein Wiederholversuch kehrt den Rest zusammen. Drei Mechanismen, drei Rollen — und genau diese Unterscheidung verhindert den Glauben, repariert zu haben, wo man nur gedämpft hat.
 
 ### 8.2. Ein professioneller Observability-Stack
 

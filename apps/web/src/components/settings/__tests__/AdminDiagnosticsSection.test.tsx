@@ -105,6 +105,7 @@ function wire(
     overviewLoading?: boolean;
     incidentRows?: DiagnosticsIncident[];
     total?: number;
+    detailData?: { diagnosis: Record<string, unknown> | null } | undefined;
   } = {}
 ): { refetchOverview: ReturnType<typeof vi.fn> } {
   // `'overviewData' in options`, not a destructuring default: an EXPLICIT
@@ -127,7 +128,7 @@ function wire(
     setData: vi.fn(),
   });
   detailHook.mockReturnValue({
-    data: undefined,
+    data: options.detailData,
     loading: false,
     error: null,
     refetch: vi.fn(),
@@ -253,5 +254,67 @@ describe('the unit comes from the API, never from the check id', () => {
     render(<AdminDiagnosticsSection lng="en" />);
 
     expect(await screen.findByText('—')).toBeInTheDocument();
+  });
+});
+
+describe('the language a diagnosis was written in', () => {
+  // The diagnosis is generated at WRITE time, in the languages the admins read
+  // — there is no reader to ask when a scheduler tick produces it. When this
+  // reader's language was not among them (a profile changed since, or an
+  // incident older than the feature), the text is shown rather than hidden,
+  // and the panel says so instead of passing it off as the answer.
+  const diagnosisIn = (language: string) => ({
+    diagnosis: {
+      diagnosis: 'Redis container stopped',
+      probable_cause: 'OOM kill',
+      recommended_actions: ['docker restart redis'],
+      language,
+    },
+  });
+
+  it('says nothing when the diagnosis is in the reader language', async () => {
+    wire({ detailData: diagnosisIn('en') });
+    render(<AdminDiagnosticsSection lng="en" />);
+    await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
+
+    expect(screen.getByText('Redis container stopped')).toBeInTheDocument();
+    expect(
+      screen.queryByText('settings.admin.diagnostics.otherLanguage')
+    ).not.toBeInTheDocument();
+  });
+
+  it('flags a diagnosis written in another language, and still shows it', async () => {
+    wire({ detailData: diagnosisIn('de') });
+    render(<AdminDiagnosticsSection lng="fr" />);
+    await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
+
+    expect(screen.getByText('settings.admin.diagnostics.otherLanguage')).toBeInTheDocument();
+    // Hiding it would trade a translation gap for a hidden incident.
+    expect(screen.getByText('Redis container stopped')).toBeInTheDocument();
+  });
+
+  it('does not flag Chinese, whose two canonical spellings differ by layer', async () => {
+    wire({ detailData: diagnosisIn('zh-CN') });
+    render(<AdminDiagnosticsSection lng="zh" />);
+    await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
+
+    expect(
+      screen.queryByText('settings.admin.diagnostics.otherLanguage')
+    ).not.toBeInTheDocument();
+  });
+
+  it('says nothing for a row written before the language stamp existed', async () => {
+    wire({
+      detailData: {
+        diagnosis: { diagnosis: 'Legacy text', probable_cause: 'c', recommended_actions: [] },
+      },
+    });
+    render(<AdminDiagnosticsSection lng="fr" />);
+    await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
+
+    expect(screen.getByText('Legacy text')).toBeInTheDocument();
+    expect(
+      screen.queryByText('settings.admin.diagnostics.otherLanguage')
+    ).not.toBeInTheDocument();
   });
 });

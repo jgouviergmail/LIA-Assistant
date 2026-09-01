@@ -69,6 +69,12 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     class _Repo:
         def __init__(self, db: Any) -> None: ...
 
+        async def distinct_admin_languages(self) -> list[str]:
+            # Declared rather than left to the AttributeError fallback: a test
+            # that reaches its subject through an exception path proves the
+            # fallback, not the nominal one.
+            return ["en"]
+
         async def store_diagnosis(self, incident_id: Any, payload: dict[str, Any]) -> None:
             state["stored"].append(payload)
 

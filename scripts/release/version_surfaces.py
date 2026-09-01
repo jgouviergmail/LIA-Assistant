@@ -537,6 +537,131 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "how.zh.md metric count (transparency row + Prometheus row)",
         expected=2,
     ),
+    # The same guides restate the total once more, in PROSE, and that sentence
+    # drifted for four releases (490 against a real 492) while every guarded
+    # table cell stayed green: a guard that watches a table cannot see a
+    # paragraph. Anchored on the words that follow the number so it cannot
+    # collide with the table rows above.
+    CountSurface(
+        f"{GUIDES_DIR}/how.en.md",
+        re.compile(rf"{_COUNT} defined; the"),
+        "prometheus_metrics",
+        "how.en.md metric count (coverage sentence)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.fr.md",
+        re.compile(rf"{_COUNT} définies ; les"),
+        "prometheus_metrics",
+        "how.fr.md metric count (coverage sentence)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.de.md",
+        re.compile(rf"{_COUNT} definiert; die"),
+        "prometheus_metrics",
+        "how.de.md metric count (coverage sentence)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.es.md",
+        re.compile(rf"{_COUNT} definidas; las"),
+        "prometheus_metrics",
+        "how.es.md metric count (coverage sentence)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.it.md",
+        re.compile(rf"{_COUNT} definite; le"),
+        "prometheus_metrics",
+        "how.it.md metric count (coverage sentence)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.zh.md",
+        re.compile(rf"{_COUNT} 项；其中"),
+        "prometheus_metrics",
+        "how.zh.md metric count (coverage sentence)",
+    ),
+    # And the blog article, which no guard had ever looked inside: it said
+    # 473 against a real 492, in its TITLE — the most visible sentence of
+    # the page — and again in its body. Each surface is anchored on the
+    # words that follow it in its own sentence, because the bare phrase
+    # also matches an unrelated "5 métriques Prometheus" in the same file:
+    # the same collision the guide surfaces above already guard against.
+    CountSurface(
+        "apps/web/locales/en/translation.json",
+        re.compile(rf"{_COUNT} Prometheus Metrics, 26"),
+        "prometheus_metrics",
+        "blog observability article title (en)",
+    ),
+    CountSurface(
+        "apps/web/locales/en/translation.json",
+        re.compile(rf"{_COUNT} Prometheus metrics covering"),
+        "prometheus_metrics",
+        "blog observability article body (en)",
+    ),
+    CountSurface(
+        "apps/web/locales/fr/translation.json",
+        re.compile(rf"{_COUNT} métriques Prometheus, 26"),
+        "prometheus_metrics",
+        "blog observability article title (fr)",
+    ),
+    CountSurface(
+        "apps/web/locales/fr/translation.json",
+        re.compile(rf"{_COUNT} métriques Prometheus couvrant"),
+        "prometheus_metrics",
+        "blog observability article body (fr)",
+    ),
+    CountSurface(
+        "apps/web/locales/de/translation.json",
+        re.compile(rf"{_COUNT} Prometheus-Metriken, 26"),
+        "prometheus_metrics",
+        "blog observability article title (de)",
+    ),
+    CountSurface(
+        "apps/web/locales/de/translation.json",
+        re.compile(rf"{_COUNT} Prometheus-Metriken für"),
+        "prometheus_metrics",
+        "blog observability article body (de)",
+    ),
+    CountSurface(
+        "apps/web/locales/es/translation.json",
+        re.compile(rf"{_COUNT} métricas Prometheus, 26"),
+        "prometheus_metrics",
+        "blog observability article title (es)",
+    ),
+    CountSurface(
+        "apps/web/locales/es/translation.json",
+        re.compile(rf"{_COUNT} métricas Prometheus que cubren"),
+        "prometheus_metrics",
+        "blog observability article body (es)",
+    ),
+    CountSurface(
+        "apps/web/locales/it/translation.json",
+        re.compile(rf"{_COUNT} metriche Prometheus, 26"),
+        "prometheus_metrics",
+        "blog observability article title (it)",
+    ),
+    CountSurface(
+        "apps/web/locales/it/translation.json",
+        re.compile(rf"{_COUNT} metriche Prometheus che coprono"),
+        "prometheus_metrics",
+        "blog observability article body (it)",
+    ),
+    CountSurface(
+        "apps/web/locales/zh/translation.json",
+        re.compile(rf"{_COUNT}个Prometheus指标、26"),
+        "prometheus_metrics",
+        "blog observability article title (zh)",
+    ),
+    CountSurface(
+        "apps/web/locales/zh/translation.json",
+        re.compile(rf"{_COUNT}个Prometheus指标，覆盖"),
+        "prometheus_metrics",
+        "blog observability article body (zh)",
+    ),
+    CountSurface(
+        "docs/knowledge/34_self_diagnostics.md",
+        re.compile(rf"{_COUNT} metrics are defined and"),
+        "prometheus_metrics",
+        "self-diagnostics knowledge mirror (coverage sentence)",
+    ),
 )
 
 

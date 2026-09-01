@@ -28,17 +28,47 @@ from typing import Any, TypeVar
 from langchain_core.embeddings import Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+from src.core.config import settings
 from src.core.constants import CJK_SCRIPT_RANGES
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+from src.infrastructure.llm.embedding_errors import is_transient_embedding_error
 from src.infrastructure.llm.tracked_embeddings import (
     embedding_api_calls_total,
     embedding_api_latency_seconds,
+    embedding_call_outcomes_total,
     embedding_cost_total,
+    embedding_shaper_outcomes_total,
     embedding_tokens_consumed_total,
 )
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.rate_limiting.slot_waiter import wait_for_slot
+from src.infrastructure.utils.retry import retry_async
 
 logger = get_logger(__name__)
+
+
+class _TransientEmbeddingError(Exception):
+    """Marker used to tell :func:`retry_async` which failures to retry.
+
+    The retry helper selects on exception TYPE, while the provider expresses
+    itself as a status code buried in a wrapped exception, so the verdict of
+    :func:`is_transient_embedding_error` needs a type to travel in.
+
+    It is a marker, never a replacement: the original exception is chained with
+    ``from``, so a caller with its own retry policy still reaches the provider's
+    status code by walking ``__cause__``.
+    """
+
+
+def _shaper_key(model_name: str) -> str:
+    """Shaper key for a model.
+
+    The provider quota is enforced per BASE MODEL across the whole project, so
+    the budget is global. Keyed per user, every user would get their own and
+    the shaper would shape nothing.
+    """
+    return f"ratelimit:embeddings:{model_name}"
+
 
 T = TypeVar("T")
 
@@ -138,6 +168,11 @@ class GeminiRetrievalEmbeddings(Embeddings):
     # =========================================================================
     # Sync interface
     # =========================================================================
+    # Deliberately NOT shaped and NOT retried, unlike its async twin. No caller
+    # in this repository uses it — the house rule is `aembed_*`, never `embed_*`
+    # — and the shaper is an `await`. It exists to satisfy the LangChain
+    # `Embeddings` contract. Wiring resilience into a path nobody calls would be
+    # code with no way to fail visibly.
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Embed documents with task_type=RETRIEVAL_DOCUMENT.
@@ -192,7 +227,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
             List of embedding vectors.
         """
         return await self._async_tracked_call(
-            self._client.aembed_documents(
+            lambda: self._client.aembed_documents(
                 texts,
                 task_type="RETRIEVAL_DOCUMENT",
                 output_dimensionality=self.output_dimensionality,
@@ -212,7 +247,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
             Embedding vector.
         """
         return await self._async_tracked_call(
-            self._client.aembed_query(
+            lambda: self._client.aembed_query(
                 text,
                 task_type="RETRIEVAL_QUERY",
                 output_dimensionality=self.output_dimensionality,
@@ -260,45 +295,108 @@ class GeminiRetrievalEmbeddings(Embeddings):
             logger.error("gemini_embedding_failed", model=self.model_name, error=str(e))
             raise
 
-    async def _async_tracked_call(
+    async def _attempt(
         self,
-        coro: Awaitable[T],
-        texts: list[str],
+        factory: Callable[[], Awaitable[T]],
+        token_count: int,
         operation: str,
     ) -> T:
-        """Execute async embedding call with Prometheus tracking and DB persistence.
+        """One provider call, tracked and billed. Raises so the retry can act.
 
-        Args:
-            coro: Awaitable that performs the embedding API call.
-            texts: Input texts (for token estimation).
-            operation: Operation type ("embed_documents" or "embed_query").
-
-        Returns:
-            Embedding result from coro.
+        A transient failure is re-raised as :class:`_TransientEmbeddingError`
+        chaining the original, because the retry helper selects on exception
+        TYPE while the provider's verdict is a status code inside a wrapper.
         """
-        token_count = _estimate_tokens(texts)
+        # Each ATTEMPT asks, not each operation: a retry is another call on a
+        # provider that just refused one, and letting retries bypass the shaper
+        # would add load exactly where it is already saturated.
+        outcome = await wait_for_slot(
+            _shaper_key(self.model_name),
+            settings.embedding_rate_limit_max_calls,
+            settings.embedding_rate_limit_window_seconds,
+            timeout_seconds=settings.embedding_rate_limit_wait_seconds,
+        )
+        # Counted, never acted on: whatever the shaper answered, the call goes
+        # through. The counter is what tells an operator the budget has become
+        # too small for the number of users — the one question this setting
+        # cannot answer on its own.
+        embedding_shaper_outcomes_total.labels(model=self.model_name, outcome=outcome.value).inc()
+
+        # Timed AFTER the wait: `embedding_api_latency_seconds` answers "how slow
+        # is the provider", and folding our own queueing into it would make the
+        # shaper look like provider latency the day it starts working.
         start = time.time()
         try:
-            result = await coro
-            latency = time.time() - start
-            cost_usd = self._emit_metrics(token_count, latency, operation, "success")
-
-            # Persist to DB for user billing
-            from src.infrastructure.llm.embedding_context import persist_embedding_tokens
-
-            await persist_embedding_tokens(
-                model_name=self.model_name,
-                token_count=token_count,
-                cost_usd=cost_usd,
-                operation=operation,
-                duration_ms=latency * 1000,
-            )
-
-            return result
+            result = await factory()
         except Exception as e:
             embedding_api_calls_total.labels(model=self.model_name, status="error").inc()
             logger.error("gemini_embedding_failed", model=self.model_name, error=str(e))
+            if is_transient_embedding_error(e):
+                raise _TransientEmbeddingError(str(e)) from e
             raise
+
+        latency = time.time() - start
+        cost_usd = self._emit_metrics(token_count, latency, operation, "success")
+
+        # Persist to DB for user billing
+        from src.infrastructure.llm.embedding_context import persist_embedding_tokens
+
+        await persist_embedding_tokens(
+            model_name=self.model_name,
+            token_count=token_count,
+            cost_usd=cost_usd,
+            operation=operation,
+            duration_ms=latency * 1000,
+        )
+        return result
+
+    async def _async_tracked_call(
+        self,
+        factory: Callable[[], Awaitable[T]],
+        texts: list[str],
+        operation: str,
+    ) -> T:
+        """Shape, call, retry — the single funnel every async embedding takes.
+
+        Takes a FACTORY rather than an awaitable, and that is the change that
+        made the rest possible: a coroutine can be awaited exactly once, so a
+        seam holding ``client.aembed_query(...)`` cannot retry it — the second
+        await raises instead of calling again.
+
+        Order matters. Every attempt asks the shaper first — a retry is another
+        call on a provider that just refused one — and the retry wraps the whole
+        thing so what the shaper did not prevent is still recovered. Neither may
+        block the caller forever: the wait is bounded and expires OPEN, and only
+        transient failures are retried.
+
+        Args:
+            factory: Builds a fresh awaitable for the provider call.
+            texts: Input texts (for token estimation).
+            operation: "embed_documents" or "embed_query".
+
+        Returns:
+            The embedding result.
+
+        Raises:
+            MaxRetriesExceededError: Every attempt hit a transient failure.
+            Exception: A non-transient provider error, unchanged.
+        """
+        token_count = _estimate_tokens(texts)
+
+        try:
+            result = await retry_async(
+                lambda: self._attempt(factory, token_count, operation),
+                max_retries=settings.embedding_retry_max_attempts,
+                backoff_factor=settings.embedding_retry_backoff_factor,
+                retryable_exceptions=(_TransientEmbeddingError,),
+                operation_name=f"embedding_{operation}",
+            )
+        except Exception:
+            embedding_call_outcomes_total.labels(model=self.model_name, outcome="failed").inc()
+            raise
+
+        embedding_call_outcomes_total.labels(model=self.model_name, outcome="succeeded").inc()
+        return result
 
     def _persist_cost_sync(
         self,

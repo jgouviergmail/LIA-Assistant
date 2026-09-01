@@ -126,6 +126,20 @@ PROM_CHECKS: tuple[PromCheck, ...] = (
         unit="percent",
     ),
     PromCheck(
+        # Embeddings are not the completion API. `llm_failure_rate` above reads
+        # `llm_api_*`, so for half an hour on 2026-09-01 a provider refusing
+        # 46 % of embedding calls left this page green — the memory never
+        # written and the RAG context never injected were invisible here.
+        check_id="embedding_failure_rate",
+        title="Embedding failure rate",
+        query_id="embedding_failure_rate",
+        params={"window_minutes": 30},
+        warn_setting="diagnostics_check_embedding_failure_rate_warn",
+        crit_setting="diagnostics_check_embedding_failure_rate_crit",
+        alertname="EmbeddingOperationsFailing",
+        unit="percent",
+    ),
+    PromCheck(
         check_id="disk_usage",
         title="Host disk usage",
         query_id="disk_usage_percent",
@@ -177,6 +191,47 @@ ALL_CHECKS: tuple[PromCheck | InProcessCheck, ...] = (*PROM_CHECKS, *IN_PROCESS_
 
 #: Unit by check id, derived from the registries — never restated by hand.
 _UNITS_BY_CHECK_ID: dict[str, str] = {check.check_id: check.unit for check in ALL_CHECKS}
+
+#: Threshold pair per Prometheus check, resolved from settings at call time so
+#: an operator's override is honoured without a restart.
+_PROM_CHECK_BY_ID: dict[str, PromCheck] = {check.check_id: check for check in PROM_CHECKS}
+
+
+def evidence_for(result: CheckResult) -> dict[str, object]:
+    """The evidence pack a diagnostician can actually reason from.
+
+    It used to be three fields — a check id, a number and a short detail — and
+    every diagnosis came back "insufficient evidence to determine the exact
+    cause". The model was not being evasive: **a value with no threshold beside
+    it cannot be judged**. 46 is an incident for one check and unremarkable for
+    another, and nothing in the pack said which.
+
+    Everything added here is already in hand when a check finishes, so the
+    enrichment costs no query and cannot fail. What a log excerpt would add is
+    deliberately NOT fetched: that is the diagnostics agent's job (ADR-247), on
+    an operator's request, and a scheduler tick must not start depending on
+    Loki being up to produce a diagnosis.
+
+    Args:
+        result: The check outcome that opened or touched an incident.
+
+    Returns:
+        A JSON-serialisable evidence mapping.
+    """
+    evidence: dict[str, object] = {
+        "check_id": result.check_id,
+        "value": result.value,
+        "detail": result.detail,
+        "status": result.status.value,
+        "unit": _UNITS_BY_CHECK_ID.get(result.check_id, ""),
+    }
+    from src.core.config import settings
+
+    check = _PROM_CHECK_BY_ID.get(result.check_id)
+    if check is not None:
+        evidence["warn"] = getattr(settings, check.warn_setting, None)
+        evidence["crit"] = getattr(settings, check.crit_setting, None)
+    return evidence
 
 
 def _assert_prom_queries_and_thresholds(

@@ -26,6 +26,7 @@ from src.domains.diagnostics.models import (
     HealthSnapshot,
     Incident,
 )
+from src.domains.users.models import User
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -300,6 +301,22 @@ class DiagnosticsRepository(BaseRepository[HealthSnapshot]):
         await self.db.execute(
             update(Incident).where(Incident.id == incident_id).values(notified_at=datetime.now(UTC))
         )
+
+    async def distinct_admin_languages(self) -> list[str]:
+        """Languages the administrators of this instance read.
+
+        Used to decide which languages a diagnosis is written in, because the
+        scheduler tick that writes it has no reader to ask.
+
+        Returns:
+            Distinct non-empty language codes of active superusers.
+        """
+        result = await self.db.execute(
+            select(User.language)
+            .where(User.is_superuser.is_(True), User.is_active.is_(True))
+            .distinct()
+        )
+        return [row[0] for row in result.all() if row[0]]
 
     async def store_diagnosis(self, incident_id: UUID, diagnosis: dict[str, object]) -> None:
         """Attach the diagnosis produced by the budgeted LLM step.

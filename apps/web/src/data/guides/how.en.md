@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Date**: 2026-08-23
-**Application**: LIA v1.38.2
+**Application**: LIA v1.38.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -50,6 +50,7 @@
 34. [Computing instead of guessing: an ephemeral script in the sandbox that already existed](#34-computing-instead-of-guessing-an-ephemeral-script-in-the-sandbox-that-already-existed)
 35. [Measuring a colour before shipping it: the settings palette](#35-measuring-a-colour-before-shipping-it-the-settings-palette)
 36. [A trait is not a reaction: the register the answer declares](#36-a-trait-is-not-a-reaction-the-register-the-answer-declares)
+37. [Three mechanisms for one convergence: shaping a burst a ceiling cannot see](#37-three-mechanisms-for-one-convergence-shaping-a-burst-a-ceiling-cannot-see)
 ---
 
 ## 1. Context and founding choices
@@ -63,8 +64,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 490 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 252 ADRs, ~21,584 pytest-collected tests across 1,296 files, native observability, 6-level HITL |
+| Full transparency | 492 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 253 ADRs, ~21,584 pytest-collected tests across 1,296 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -85,7 +86,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 21,584 collected by pytest across 1,296 test files + 6,662 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 252 |
+| ADRs (Architecture Decision Records) | 253 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -905,7 +906,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 490 custom metrics (RED pattern) |
+| Prometheus | 492 custom metrics (RED pattern) |
 | Grafana | 26 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -913,7 +914,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 490 defined, 433 wired; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 492 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1310,7 +1311,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-252 ADRs in MADR format document the major architectural decisions. Some representative examples:
+253 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1449,7 +1450,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 252 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~21,584 tests across 1,296 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 253 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~21,584 tests across 1,296 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1539,4 +1540,16 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 
 **And the psyche keeps what it is good at**: the idle mood family — breathing pace, blink cadence, the weight of idle gestures. A trait should colour a resting behaviour, never a reaction.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 252 ADRs, and the changelog (v1.0 to v1.38.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+## 37. Three mechanisms for one convergence: shaping a burst a ceiling cannot see
+
+**An interval trigger counts from scheduler start, so periods that share a divisor align forever.** That is arithmetic, not load: jobs of 5, 15, 30 and 60 minutes end up firing inside the same second and stay there for the life of the process. Measured in production: six jobs in one second every hour, each running an agent, each agent embedding — 11 failures out of 24 calls, while a steady four a minute passed without a single error.
+
+**Three mechanisms, three roles, and telling them apart is the design.** **Jitter** treats the cause: 15 % of the period, a 5-second floor, always strictly under the period so two runs can neither overlap nor invert. The **shaper** would have changed nothing about this incident — six calls cross no per-minute ceiling — it is the insurance as usage grows, hence a deliberately **short** window: a per-minute ceiling cannot see a burst. The **retry** mops up the residue.
+
+**None of the three is a gate.** The shaper composes the existing rate limiter rather than adding a second one — one sliding window, one Lua script, one set of metrics — and it expires **open**: the wait is bounded, and a caller that waited its share proceeds anyway. Our own throttle must never be the reason an answer loses its memory. With Redis unreachable the answer is "no slot", immediately, and the call goes out.
+
+**A retry needs a factory, not an awaitable.** A coroutine is awaitable exactly once: a seam holding `client.aembed_query(...)` cannot re-run it — the second await raises instead of calling. And classification is **structural** — the status code read by walking the cause chain, never the message text, which a vendor rewording would silently invalidate. Corollary: a layer that exhausts its retry must **chain its cause**, or the layer above reads a mute wrapper and calls permanent what was not.
+
+**And what is not measured cannot be seen.** The provider-call counter becomes the wrong denominator the moment you retry: a recovered failure inflates the error rate while nothing was lost. Platform Health therefore counts **outcomes** — one row per logical operation, retries collapsed — and a second counter says what the shaper did with each attempt, because "budget too small" and "Redis down" call for opposite actions.
+
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 253 ADRs, and the changelog (v1.0 to v1.38.3). All metrics, versions, and patterns cited are verifiable in the codebase.*

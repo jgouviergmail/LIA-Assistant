@@ -71,6 +71,7 @@ from .catalogue import (
     ToolManifestAlreadyRegistered,
     ToolManifestNotFound,
 )
+from .domain_exemptions import is_platform_domain
 from .domain_taxonomy import DOMAIN_REGISTRY, is_mcp_domain
 
 logger = get_logger(__name__)
@@ -1313,7 +1314,11 @@ class AgentRegistry:
                 domain = self._extract_domain_from_agent_name(agent_name)
 
                 # Validate against DOMAIN_REGISTRY (skip warning for dynamic MCP domains)
-                if domain not in DOMAIN_REGISTRY and not is_mcp_domain(domain):
+                if (
+                    domain not in DOMAIN_REGISTRY
+                    and not is_mcp_domain(domain)
+                    and not is_platform_domain(domain)
+                ):
                     logger.warning(
                         "domain_index_agent_unknown_domain",
                         agent=agent_name,

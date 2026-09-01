@@ -4,7 +4,7 @@
 
 **Version**: 5.1
 **Date**: 2026-08-23
-**Application**: LIA v1.38.2
+**Application**: LIA v1.38.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -413,6 +413,8 @@ There is something more insidious than a guard nobody ever made fail: a guard th
 Trickier still than a guard aimed at the wrong signal: a defect that only shows up half the time. The same request failed, then went through thirty minutes later with not one line changed — just enough to conclude "it was transient" and close the case. The cause sat in an invisible detail: tools are chosen against an English rewording produced by a model, regenerated on every turn. A different verb, a reading tool drops out, and the assistant ends up having to reply to a message it cannot read. The temptation was to tune that randomness — one more keyword, a threshold nudged. We preferred a guarantee that never looks at it: before planning, the system checks that everything it requires is actually within reach. When an answer depends on a dice roll, fixing it rarely means improving the dice.
 
 A displayed count is a claim: it is exact, or it does not exist. The dashboard long showed “0 successful actions” — not because nothing succeeded, but because the internal classification compared against a word nobody emitted. And token accounting was right — but by the provider's politeness, not by contract: nothing requested it, nothing tested it, nothing watched it. Both repairs share one shape: the vocabulary is locked on both sides by a contract test, the accounting request is declared per provider and verified at startup, and a paid call completing without a count fires an alert. Exactness is not a state — it is a watch.
+
+There is worse than a loud failure: one that degrades nothing but quality. For an hour, with one to three users, nearly half of the operations that give LIA its memory — storing what it just learned, indexing a message, retrieving a document — were refused by the provider. Nothing fell over: answers arrived as usual, merely less well informed. And the cause was not load, since a steady four calls a minute passed without a single error: it was arithmetic. Periodic jobs of 5, 15, 30 and 60 minutes all count from the same instant, so they align forever — six of them fired inside the same second, every hour. The lesson is not "add a retry": it is that the remedy must address the cause. Staggering the starts treats the collision, shaping protects growth, and a retry mops up the rest. Three mechanisms, three roles — saying it that way is what stops you believing you have repaired something when you have only cushioned it.
 
 ### 8.2. A professional observability stack
 

@@ -73,6 +73,47 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
+#: Share of a job's period used as its random spread.
+#:
+#: Small enough that a job stays recognisably "every five minutes", wide enough
+#: that two jobs sharing a period stop landing on the same second.
+_JITTER_RATIO = 0.15
+
+#: Floor, in seconds. A percentage of a short period rounds to zero, which would
+#: leave the FASTEST jobs perfectly aligned — precisely the ones that collide
+#: most often.
+_JITTER_FLOOR_SECONDS = 5
+
+
+def jitter_seconds_for(*, hours: float = 0, minutes: float = 0, seconds: float = 0) -> int:
+    """Random spread to give an interval job of this period.
+
+    Interval triggers all start counting at scheduler start, so periods that
+    share a divisor align forever. Measured in production on 2026-09-01: the
+    periods were 5, 5, 15, 30, 30 and 60 minutes, and six jobs fired inside the
+    same second every hour — each one running an agent, each agent issuing
+    several embeddings, against a provider quota that tolerates the volume but
+    not the concentration.
+
+    Args:
+        hours: Period in hours.
+        minutes: Period in minutes; added to ``hours``.
+        seconds: Period in seconds; added to the rest.
+
+    Returns:
+        Seconds of jitter, always strictly under the period so two consecutive
+        runs can neither overlap nor invert. Zero for a non-positive period —
+        startup must not fail on arithmetic, and a bad interval is already the
+        settings layer's job to report.
+    """
+    period = hours * 3600 + minutes * 60 + seconds
+    if period <= 0:
+        return 0
+    spread = max(_JITTER_FLOOR_SECONDS, int(period * _JITTER_RATIO))
+    # Never reach the period itself: at equality a run could land on the next.
+    return min(spread, max(1, int(period) - 1))
+
+
 async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
     """Register all background jobs and start the scheduler behind leader election.
 
@@ -182,6 +223,9 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 run_subject_clustering_stale,
                 trigger="interval",
                 minutes=settings.interest_subject_recluster_interval_minutes,
+                jitter=jitter_seconds_for(
+                    minutes=settings.interest_subject_recluster_interval_minutes
+                ),
                 id=SCHEDULER_JOB_INTEREST_SUBJECT_STALE,
                 name="Cluster interests with missing subject labels",
                 replace_existing=True,
@@ -212,6 +256,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 process_pending_reminders,
                 trigger="interval",
                 minutes=1,
+                jitter=jitter_seconds_for(minutes=1),
                 id=SCHEDULER_JOB_REMINDER_NOTIFICATION,
                 name="Process pending reminder notifications",
                 replace_existing=True,
@@ -222,6 +267,11 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
 
         # Schedule scheduled action executor (every 60s)
         # Checks for due scheduled actions and executes them through the agent pipeline
+        # NO jitter, deliberately (ADR-254): this tick is what makes a user's
+        # scheduled action happen at the time they asked for, and spreading it
+        # would spend a user-visible promise to smooth a provider's load. It is
+        # the one interval job exempt from the jitter guard, which carries the
+        # same reason in writing.
         scheduler.add_job(
             process_scheduled_actions,
             trigger="interval",
@@ -241,6 +291,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 process_account_exports,
                 trigger="interval",
                 seconds=ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS,
+                jitter=jitter_seconds_for(seconds=ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS),
                 id=SCHEDULER_JOB_ACCOUNT_EXPORT,
                 name="Build account export archives + retention sweep",
                 replace_existing=True,
@@ -266,6 +317,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 run_product_rollup,
                 trigger="interval",
                 minutes=settings.product_rollup_interval_minutes,
+                jitter=jitter_seconds_for(minutes=settings.product_rollup_interval_minutes),
                 next_run_time=datetime.now(UTC)
                 + timedelta(minutes=PRODUCT_ROLLUP_INITIAL_DELAY_MINUTES),
                 id=SCHEDULER_JOB_PRODUCT_ROLLUP,
@@ -294,6 +346,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 run_diagnostics_self_check,
                 trigger="interval",
                 seconds=settings.diagnostics_self_check_interval_seconds,
+                jitter=jitter_seconds_for(seconds=settings.diagnostics_self_check_interval_seconds),
                 next_run_time=datetime.now(UTC) + timedelta(minutes=2),
                 id=SCHEDULER_JOB_ID_DIAGNOSTICS_SELF_CHECK,
                 name="Self-diagnostics health check tick",
@@ -321,6 +374,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 sweep_pending_deliveries,
                 trigger="interval",
                 seconds=settings.peers_delivery_sweep_seconds,
+                jitter=jitter_seconds_for(seconds=settings.peers_delivery_sweep_seconds),
                 id=SCHEDULER_JOB_PEERS_DELIVERY_SWEEP,
                 name="Peers relayed-message delivery sweep",
                 replace_existing=True,
@@ -348,6 +402,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
             process_interest_notifications,
             trigger="interval",
             minutes=settings.interest_notification_interval_minutes,
+            jitter=jitter_seconds_for(minutes=settings.interest_notification_interval_minutes),
             id=SCHEDULER_JOB_INTEREST_NOTIFICATION,
             name="Proactive interest notifications",
             replace_existing=True,
@@ -382,6 +437,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
             refresh_expiring_tokens,
             trigger="interval",
             minutes=settings.oauth_proactive_refresh_interval_minutes,
+            jitter=jitter_seconds_for(minutes=settings.oauth_proactive_refresh_interval_minutes),
             id=SCHEDULER_JOB_TOKEN_REFRESH,
             name="Proactive OAuth token refresh",
             replace_existing=True,
@@ -402,6 +458,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 check_oauth_health_all_users,
                 trigger="interval",
                 minutes=settings.oauth_health_check_interval_minutes,
+                jitter=jitter_seconds_for(minutes=settings.oauth_health_check_interval_minutes),
                 id=SCHEDULER_JOB_OAUTH_HEALTH,
                 name="OAuth health check notifications",
                 replace_existing=True,
@@ -428,6 +485,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 _evict_user_mcp_idle,
                 trigger="interval",
                 seconds=eviction_interval,
+                jitter=jitter_seconds_for(seconds=eviction_interval),
                 id=SCHEDULER_JOB_USER_MCP_EVICTION,
                 name="User MCP pool idle eviction",
                 replace_existing=True,
@@ -450,6 +508,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 process_heartbeat_notifications,
                 trigger="interval",
                 minutes=settings.heartbeat_notification_interval_minutes,
+                jitter=jitter_seconds_for(minutes=settings.heartbeat_notification_interval_minutes),
                 id=SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
                 name="Proactive heartbeat notifications",
                 replace_existing=True,
@@ -472,6 +531,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 process_journal_consolidation,
                 trigger="interval",
                 hours=settings.journal_consolidation_interval_hours,
+                jitter=jitter_seconds_for(hours=settings.journal_consolidation_interval_hours),
                 id=SCHEDULER_JOB_JOURNAL_CONSOLIDATION,
                 name="Journal consolidation",
                 replace_existing=True,
@@ -500,6 +560,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 telephony_stale_call_reaper,
                 trigger="interval",
                 minutes=settings.telephony_stale_reaper_interval_minutes,
+                jitter=jitter_seconds_for(minutes=settings.telephony_stale_reaper_interval_minutes),
                 id=SCHEDULER_JOB_TELEPHONY_STALE_REAPER,
                 name="Telephony stale-call recovery",
                 replace_existing=True,
@@ -510,6 +571,9 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 telephony_notification_reaper,
                 trigger="interval",
                 minutes=settings.telephony_notification_reaper_interval_minutes,
+                jitter=jitter_seconds_for(
+                    minutes=settings.telephony_notification_reaper_interval_minutes
+                ),
                 id=SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER,
                 name="Telephony return-notification recovery",
                 replace_existing=True,
@@ -520,6 +584,9 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 telephony_return_reaper,
                 trigger="interval",
                 minutes=settings.telephony_return_reaper_interval_minutes,
+                jitter=jitter_seconds_for(
+                    minutes=settings.telephony_return_reaper_interval_minutes
+                ),
                 id=SCHEDULER_JOB_TELEPHONY_RETURN_REAPER,
                 name="Telephony pre-synthesis return recovery",
                 replace_existing=True,
@@ -554,6 +621,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 rag_job_reaper,
                 trigger="interval",
                 seconds=settings.rag_job_reaper_interval_seconds,
+                jitter=jitter_seconds_for(seconds=settings.rag_job_reaper_interval_seconds),
                 id=SCHEDULER_JOB_RAG_JOB_REAPER,
                 name="RAG durable-job recovery",
                 replace_existing=True,
@@ -597,6 +665,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 cleanup_expired_attachments,
                 trigger="interval",
                 hours=6,
+                jitter=jitter_seconds_for(hours=6),
                 id=SCHEDULER_JOB_ATTACHMENT_CLEANUP,
                 name="Cleanup expired attachments",
                 replace_existing=True,
@@ -696,6 +765,7 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 sync_push_channels,
                 trigger="interval",
                 minutes=settings.push_sync_interval_minutes,
+                jitter=jitter_seconds_for(minutes=settings.push_sync_interval_minutes),
                 # next_run_time pins the FIRST sweep shortly after boot. An
                 # interval-only job would open no channel for a full interval
                 # (6 h by default) — the flag would read "on" while push is

@@ -30,6 +30,8 @@ from src.core.constants import (
     DIAGNOSTICS_CHECK_API_LATENCY_P95_WARN_DEFAULT,
     DIAGNOSTICS_CHECK_DISK_USAGE_CRIT_DEFAULT,
     DIAGNOSTICS_CHECK_DISK_USAGE_WARN_DEFAULT,
+    DIAGNOSTICS_CHECK_EMBEDDING_FAILURE_RATE_CRIT_DEFAULT,
+    DIAGNOSTICS_CHECK_EMBEDDING_FAILURE_RATE_WARN_DEFAULT,
     DIAGNOSTICS_CHECK_LLM_FAILURE_RATE_CRIT_DEFAULT,
     DIAGNOSTICS_CHECK_LLM_FAILURE_RATE_WARN_DEFAULT,
     DIAGNOSTICS_CHECK_MEMORY_USAGE_CRIT_DEFAULT,
@@ -235,6 +237,23 @@ class DiagnosticsSettings(BaseSettings):
         default=DIAGNOSTICS_CHECK_API_LATENCY_P95_CRIT_DEFAULT,
         ge=0.0,
         description="API p95 latency (seconds) above which the latency check is critical.",
+    )
+    diagnostics_check_embedding_failure_rate_warn: float = Field(
+        default=DIAGNOSTICS_CHECK_EMBEDDING_FAILURE_RATE_WARN_DEFAULT,
+        ge=0.0,
+        le=100.0,
+        description=(
+            "Embedding failure rate (%) above which the embedding check "
+            "degrades. Lower than the completion threshold on purpose: an "
+            "embedding failure is invisible to the user, the answer ships "
+            "without its memory."
+        ),
+    )
+    diagnostics_check_embedding_failure_rate_crit: float = Field(
+        default=DIAGNOSTICS_CHECK_EMBEDDING_FAILURE_RATE_CRIT_DEFAULT,
+        ge=0.0,
+        le=100.0,
+        description="Embedding failure rate (%) above which the check is critical.",
     )
     diagnostics_check_llm_failure_rate_warn: float = Field(
         default=DIAGNOSTICS_CHECK_LLM_FAILURE_RATE_WARN_DEFAULT,

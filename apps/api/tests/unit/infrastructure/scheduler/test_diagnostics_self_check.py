@@ -78,6 +78,19 @@ def wired_job(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     async def fake_get_redis() -> Any:
         return state["redis"]
 
+    async def fake_diagnose(incidents: Any, *, db: Any, system_prompt: str) -> int:
+        state["diagnosed"] = list(incidents)
+        state["diagnosis_prompt"] = system_prompt
+        return len(incidents)
+
+    # The pump is doubled, and that is the point rather than a convenience.
+    # Left real it built its own `DiagnosticsRepository` over this test's
+    # AsyncMock session, queried it, and had the failure swallowed by the job's
+    # own `except Exception` — so the test passed while asserting nothing about
+    # the pump, and leaked an un-awaited coroutine for the F028 guard to find.
+    # Doubled, the JOB's contract becomes assertable: it hands the pending
+    # incidents over with an unresolved `{language}`.
+    monkeypatch.setattr(job_module, "diagnose_incidents", fake_diagnose)
     monkeypatch.setattr(job_module, "run_self_check", fake_run_self_check)
     monkeypatch.setattr(job_module, "get_db_context", fake_db_context)
     monkeypatch.setattr(job_module, "get_redis_cache", fake_get_redis)
@@ -108,6 +121,14 @@ class TestSelfCheckJob:
         wired_job["redis"].set.assert_awaited_once()
         _, kwargs = wired_job["redis"].set.await_args
         assert kwargs.get("ex") is not None
+
+        # The pump received the pending incidents, with `{language}` still
+        # unresolved: the job resolves `{max_actions}` and leaves the language
+        # to the batch, which writes one variant per administrator language.
+        assert wired_job["diagnosed"] == ["pending-incident"]
+        prompt = wired_job["diagnosis_prompt"]
+        assert "{language}" in prompt
+        assert "{max_actions}" not in prompt
 
     async def test_critical_result_opens_incident_and_notifies(
         self, wired_job: dict[str, Any], monkeypatch: pytest.MonkeyPatch

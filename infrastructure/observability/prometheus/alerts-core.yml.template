@@ -250,6 +250,34 @@ groups:
           description: "{{ $value | humanize }} indexation failures for space '{{ $labels.space_name }}' in the last 6 hours. The previous corpus is still served, so answers are stale rather than absent — check the embedding provider quota first (docs/knowledge/*.md changes will not reach users until this clears)."
           runbook: "docs/runbooks/alerts/SystemKnowledgeIndexationFailing.md"
 
+      # An embedding that never lands is a memory never written and a message
+      # never indexed — a loss the user is never told about, because every
+      # caller degrades to a warning and answers anyway.
+      #
+      # Measured 2026-09-01: 11 failures out of 24 calls (46 %) went unnoticed
+      # for half an hour. The metric was on two dashboards; nobody was looking
+      # at them, which is the difference between visibility and an alert.
+      #
+      # Read on OUTCOMES, not on provider calls: with retries enabled one
+      # recovered failure is two attempts, and alerting on attempts would fire
+      # on incidents that repaired themselves. `or vector(0)` keeps the panel
+      # green rather than "No data" while the counter has never fired.
+      - alert: EmbeddingOperationsFailing
+        expr: |
+          (
+            sum(increase(embedding_call_outcomes_total{outcome="failed"}[30m]))
+            or vector(0)
+          ) >= 3
+        for: 10m
+        labels:
+          severity: warning
+          component: llm
+          tier: core
+        annotations:
+          summary: "Embeddings are failing after their retries"
+          description: "{{ $value | humanize }} embedding operations gave up in the last 30 minutes. Each one silently costs a turn its RAG context, its journal context, its memory extraction or its message indexing — answers keep flowing, degraded. Check the provider quota first, then whether the scheduler is bursting."
+          runbook: "docs/runbooks/alerts/EmbeddingOperationsFailing.md"
+
   # ===== BACKUP & PUBLIC PATH — blackbox probes =====
   - name: core_backup_tunnel
     interval: 60s

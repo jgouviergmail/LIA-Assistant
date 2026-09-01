@@ -77,6 +77,17 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured at v1.38.3: backend 21,020 (`pytest tests/unit tests/agents
+ *   --collect-only --no-cov`) + frontend 6,670 (`vitest list`) = 27,690
+ *   -> 27,000, CORRECTING v1.38.2 DOWNWARD. That release raised this to
+ *   28,000 without adding an entry here, on a backend count of 21,584 that the
+ *   command above does not produce: 21,584 sits between this method (21,020)
+ *   and a collect over the whole `tests/` tree (21,724, which includes the
+ *   integration and e2e suites the other releases never counted). Two methods
+ *   for one public number is one number nobody can check, so the declared
+ *   command wins and the figure comes back to the truth it can prove. A count
+ *   shown to a visitor is exact or it does not exist — and it is allowed to go
+ *   down when the previous one was wrong.
  *   Re-measured at v1.38.1: backend 20,816 (`pytest tests/unit tests/agents
  *   --collect-only --no-cov`) + frontend 6,409 (`vitest list`) = 27,225
  *   -> 27,000 (unchanged: the settings-tone suites and the /more card did not
@@ -258,11 +269,11 @@ export const LANDING_STATS = {
   tools: 107,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 490,
+  metrics: 492,
   uiLanguages: 6,
-  tests: 28000,
-  adrs: 252,
-  releases: 236,
+  tests: 27000,
+  adrs: 253,
+  releases: 237,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

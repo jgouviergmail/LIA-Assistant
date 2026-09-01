@@ -198,7 +198,7 @@ Services containers : PostgreSQL (`pgvector/pgvector:pg16`) + Redis (`redis:7-al
 | Suite agents | `task test:backend:agents` |
 | Gate de couverture par markers (F006) | `task test:markers` |
 
-Le seuil de couverture est **67 %** (`--cov-fail-under`), et il a **une seule
+Le seuil de couverture est **68 %** (`--cov-fail-under`), et il a **une seule
 source de verite** : `apps/api/pyproject.toml`, dont le `Taskfile.yml` reprend
 la valeur pour la commande que la CI appelle. Deux gardes la tiennent, chacune
 sur son versant :

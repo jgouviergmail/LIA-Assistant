@@ -54,6 +54,32 @@ embedding_tokens_consumed_total = Counter(
     ["model", "operation"],
 )
 
+#: One row per logical embedding OPERATION, whatever it cost in attempts.
+#:
+#: ``embedding_api_calls_total`` counts what hit the provider, retries included,
+#: which is the truth about the provider — and exactly the wrong denominator for
+#: an alert: with retries enabled, one recovered failure inflates the error rate
+#: while nothing was actually lost. This counter answers the other question, the
+#: one an operator acts on: did the caller get its vector?
+embedding_call_outcomes_total = Counter(
+    "embedding_call_outcomes_total",
+    "Embedding operations by final outcome (retries collapsed into one row)",
+    ["model", "outcome"],
+)
+
+#: What the shaper actually did, per attempt (ADR-254).
+#:
+#: The two failure outcomes call for OPPOSITE actions and must not be one line
+#: on a chart: `expired` means the shaper is holding and the budget — or the
+#: provider quota behind it — needs raising as the number of users grows;
+#: `unavailable` means Redis is down and nothing is being shaped at all. This
+#: is the signal that tells an operator the day 3 users became 30.
+embedding_shaper_outcomes_total = Counter(
+    "embedding_shaper_outcomes_total",
+    "Embedding rate-shaper outcomes per attempt (acquired/disabled/expired/unavailable)",
+    ["model", "outcome"],
+)
+
 embedding_api_calls_total = Counter(
     "embedding_api_calls_total",
     "Total embedding API calls",

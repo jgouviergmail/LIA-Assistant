@@ -97,3 +97,44 @@ class TestSyncIncidents:
         )
         assert repo.opened[0]["evidence"]["value"] == 1.0
         assert repo.opened[0]["evidence"]["check_id"] == "redis"
+
+
+@pytest.mark.unit
+class TestEvidenceReachesTheIncident:
+    """The enriched pack must reach the STORED incident, not just exist.
+
+    `evidence_for` is only worth anything if the diagnostician reads it, and the
+    diagnostician reads `incident.evidence`. A unit test on the enricher alone
+    would still pass if the sync kept writing the old three fields.
+    """
+
+    async def test_stored_evidence_carries_the_thresholds_and_unit(self) -> None:
+        repo = _FakeRepo()
+        await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("embedding_failure_rate", CheckStatus.CRITICAL)],
+        )
+        evidence = repo.opened[0]["evidence"]
+        # The three original fields are still there — nothing regressed.
+        assert evidence["check_id"] == "embedding_failure_rate"
+        assert evidence["value"] == 1.0
+        assert "detail" in evidence
+        # ...and the value can now be JUDGED: a number, its unit, its verdict
+        # and the two levels it was compared against.
+        assert evidence["status"] == CheckStatus.CRITICAL.value
+        assert evidence["unit"] == "percent"
+        assert isinstance(evidence["warn"], int | float)
+        assert isinstance(evidence["crit"], int | float)
+        assert evidence["warn"] < evidence["crit"]
+
+    async def test_in_process_check_keeps_a_pack_without_invented_thresholds(self) -> None:
+        """An in-process check has no settings pair: absent beats fabricated."""
+        repo = _FakeRepo()
+        await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("database", CheckStatus.CRITICAL)],
+        )
+        evidence = repo.opened[0]["evidence"]
+        assert evidence["check_id"] == "database"
+        assert evidence["status"] == CheckStatus.CRITICAL.value
+        assert "warn" not in evidence and "crit" not in evidence

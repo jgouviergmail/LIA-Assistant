@@ -4323,7 +4323,11 @@ RAG_SPACES_SYSTEM_INDEX_EMBED_RETRY_BUDGET_SECONDS_DEFAULT = 45.0
 # HTTP statuses worth a retry: quota exhaustion, request timeout, and the 5xx
 # family. Classified on the status code carried by the SDK exception, never by
 # matching text in its message.
-RAG_SPACES_SYSTEM_INDEX_EMBED_RETRYABLE_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+#: HTTP status codes worth another embedding attempt. Named for the concern,
+#: not for its first caller: since ADR-254 the embedding client retries on
+#: this set too, and a constant named after one subsystem invites a second
+#: copy the day a second subsystem needs it.
+EMBEDDING_RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 # Base of the exponential backoff between attempts. Not an env var on purpose:
 # the two settings above already bound the behaviour end to end, and a third
 # knob would only let an operator build a combination neither of them allows.
@@ -4883,6 +4887,41 @@ REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE: int = 4096
 
 # System-level feature default
 # ---------------------------------------------------------------------------
+# Embedding resilience (ADR-254)
+# ---------------------------------------------------------------------------
+# The provider enforces a quota per BASE MODEL, so the shaper key is the model
+# and never the user: keyed per user, every user would get their own budget and
+# nothing would be shaped.
+#
+# The window is SHORT on purpose. Measured on 2026-09-01, a steady 4 calls per
+# minute passed without a single error while two bursts of the same size, fired
+# inside one second by simultaneous schedulers, produced 11 failures. What has
+# to be capped is instantaneous concurrency, and a one-minute window cannot see
+# it: six calls in one second sit far below any per-minute ceiling.
+EMBEDDING_RATE_LIMIT_MAX_CALLS_DEFAULT: int = 8
+EMBEDDING_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 10
+#: The budgets below are ONE profile for every caller, and they are tight on
+#: purpose. `user_message_embedding` shares its singleton with the memory
+#: domain, so the same instance serves a user's turn and a background batch:
+#: there is no instance to give a patient budget to, and a per-call flag would
+#: be forgotten on some site and silently cost a user seconds.
+#:
+#: Worst case added to a FAILING embedding: 1.8 s — every attempt waits for
+#: its own slot (2 x 0.4 s, because a retry is another call on a saturated
+#: provider) plus 1 s before the single retry. On the interactive path that is the difference
+#: between an answer that keeps its memory and one that quietly lost it — and
+#: with the scheduler jitter removing the burst at its source, the residual is
+#: rare. Being more patient is an operator decision, not a default.
+EMBEDDING_RATE_LIMIT_WAIT_SECONDS_DEFAULT: float = 0.4
+EMBEDDING_RETRY_MAX_ATTEMPTS_DEFAULT: int = 2
+EMBEDDING_RETRY_BACKOFF_FACTOR_DEFAULT: float = 1.0
+
+#: Ceiling the defaults must respect, guarded by test: the seam is on a chat
+#: turn's critical path, and a resilience budget that grows past this stops
+#: protecting the answer and starts delaying it.
+EMBEDDING_WORST_CASE_ADDED_SECONDS: float = 2.0
+
+# ---------------------------------------------------------------------------
 # Per-turn expressivity annotation (ADR-253)
 # ---------------------------------------------------------------------------
 # The avatar's OWN tone signal, declared in band by the answering model. On by
@@ -5414,6 +5453,13 @@ DIAGNOSTICS_CHECK_API_ERROR_RATE_WARN_DEFAULT = 5.0
 DIAGNOSTICS_CHECK_API_ERROR_RATE_CRIT_DEFAULT = 20.0
 DIAGNOSTICS_CHECK_API_LATENCY_P95_WARN_DEFAULT = 3.0  # seconds
 DIAGNOSTICS_CHECK_API_LATENCY_P95_CRIT_DEFAULT = 10.0  # seconds
+# Embeddings degrade in SILENCE — a failed one costs a turn its RAG context,
+# its journal context, its memory extraction or its message indexing, and the
+# answer still ships. Warn earlier than the completion API, where a failure is
+# visible to the user immediately.
+DIAGNOSTICS_CHECK_EMBEDDING_FAILURE_RATE_WARN_DEFAULT: float = 5.0
+DIAGNOSTICS_CHECK_EMBEDDING_FAILURE_RATE_CRIT_DEFAULT: float = 20.0
+
 DIAGNOSTICS_CHECK_LLM_FAILURE_RATE_WARN_DEFAULT = 10.0
 DIAGNOSTICS_CHECK_LLM_FAILURE_RATE_CRIT_DEFAULT = 50.0
 DIAGNOSTICS_CHECK_DISK_USAGE_WARN_DEFAULT = 80.0
@@ -5427,7 +5473,7 @@ DIAGNOSTICS_CHECK_SCHEDULER_TICK_STALE_SECONDS_DEFAULT = 900
 # third-party disclosure decided by a constant (same doctrine as PUSH_RELAY_URL).
 DIAGNOSTICS_EGRESS_PROBE_TIMEOUT_SECONDS_DEFAULT = 5.0
 
-DIAGNOSTICS_AGENT_NAME: str = "diagnostics_agent"
+DIAGNOSTICS_AGENT_NAME: str = "devops_diagnostics_agent"
 SCHEDULER_JOB_ID_DIAGNOSTICS_SELF_CHECK = "diagnostics_self_check"
 
 REDIS_KEY_DIAGNOSTICS_ADVISOR_CACHE = "diagnostics:advisor:v1"

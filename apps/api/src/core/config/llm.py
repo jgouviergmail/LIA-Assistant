@@ -55,6 +55,11 @@ from src.core.constants import (
     EMAILS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
     EMAILS_AGENT_LLM_TEMPERATURE_DEFAULT,
     EMAILS_AGENT_LLM_TOP_P_DEFAULT,
+    EMBEDDING_RATE_LIMIT_MAX_CALLS_DEFAULT,
+    EMBEDDING_RATE_LIMIT_WAIT_SECONDS_DEFAULT,
+    EMBEDDING_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    EMBEDDING_RETRY_BACKOFF_FACTOR_DEFAULT,
+    EMBEDDING_RETRY_MAX_ATTEMPTS_DEFAULT,
     INTEREST_CONTENT_LLM_FREQUENCY_PENALTY_DEFAULT,
     INTEREST_CONTENT_LLM_MAX_TOKENS_DEFAULT,
     INTEREST_CONTENT_LLM_MODEL_DEFAULT,
@@ -281,6 +286,59 @@ def get_model_context_window(model_name: str) -> int:
 
 class LLMSettings(BaseSettings):
     """LLM provider and configuration settings."""
+
+    # ========================================================================
+    # EMBEDDING RESILIENCE (ADR-254)
+    # ========================================================================
+
+    embedding_rate_limit_max_calls: int = Field(
+        default=EMBEDDING_RATE_LIMIT_MAX_CALLS_DEFAULT,
+        ge=0,
+        description=(
+            "Embedding calls allowed per window, across the whole deployment. "
+            "Zero disables the shaper entirely (and costs no Redis round-trip). "
+            "The provider quota is per BASE MODEL, so this budget is global, "
+            "never per user — raise it together with the provider quota as the "
+            "number of users grows."
+        ),
+    )
+
+    embedding_rate_limit_window_seconds: int = Field(
+        default=EMBEDDING_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+        gt=0,
+        description=(
+            "Width of the embedding shaper window. Deliberately SHORT: what "
+            "breaks is instantaneous concurrency, and a one-minute window "
+            "cannot see six calls fired inside one second."
+        ),
+    )
+
+    embedding_rate_limit_wait_seconds: float = Field(
+        default=EMBEDDING_RATE_LIMIT_WAIT_SECONDS_DEFAULT,
+        ge=0,
+        description=(
+            "How long an embedding may wait for a shaper slot before going "
+            "ahead anyway. Bounded on purpose: an interactive turn embeds its "
+            "own question, and our own throttle must never be the reason an "
+            "answer loses its memory."
+        ),
+    )
+
+    embedding_retry_max_attempts: int = Field(
+        default=EMBEDDING_RETRY_MAX_ATTEMPTS_DEFAULT,
+        ge=1,
+        description=(
+            "Total attempts for one embedding operation, first included. "
+            "1 disables retry. Only transient provider failures are retried "
+            "(429/500/503/timeouts); a 400 or a bad key fails on the first."
+        ),
+    )
+
+    embedding_retry_backoff_factor: float = Field(
+        default=EMBEDDING_RETRY_BACKOFF_FACTOR_DEFAULT,
+        gt=0,
+        description="Wait between embedding attempts is backoff_factor ** attempt seconds.",
+    )
 
     # ========================================================================
     # CROSS-TYPE GUARDRAILS

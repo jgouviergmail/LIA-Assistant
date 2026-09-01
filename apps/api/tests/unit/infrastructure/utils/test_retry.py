@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from src.core.exceptions import MaxRetriesExceededError
-from src.infrastructure.utils.retry import retry_with_backoff
+from src.infrastructure.utils.retry import retry_async, retry_with_backoff
 
 
 class TestRetryWithBackoffAsync:
@@ -452,3 +452,174 @@ class TestRetryWithBackoffLogging:
             mock_logger.error.assert_called_once()
             call_kwargs = mock_logger.error.call_args
             assert "max_retries_exceeded" in str(call_kwargs)
+
+
+# ===========================================================================
+# retry_async — the functional core (ADR-254)
+# ===========================================================================
+
+
+class TestRetryAsyncFunctionalCore:
+    """The same retry policy, callable on a FACTORY rather than a decoration.
+
+    The decorator cannot serve a caller that must build a fresh awaitable per
+    attempt: a coroutine is awaitable exactly once, so re-awaiting the same
+    object raises instead of retrying. That is not a detail — it is why the
+    embedding path could not retry at all before this existed.
+    """
+
+    async def test_returns_the_first_successful_result(self):
+        calls = []
+
+        async def factory():
+            calls.append(1)
+            return "ok"
+
+        assert await retry_async(factory, max_retries=3, backoff_factor=0) == "ok"
+        assert len(calls) == 1
+
+    async def test_calls_the_factory_AGAIN_on_each_attempt(self):
+        """The point of a factory: attempt N+1 gets a FRESH awaitable."""
+        seen = []
+
+        async def factory():
+            seen.append(len(seen))
+            if len(seen) < 3:
+                raise ValueError("transient")
+            return "recovered"
+
+        assert await retry_async(factory, max_retries=3, backoff_factor=0) == "recovered"
+        assert seen == [0, 1, 2]
+
+    async def test_raises_MaxRetriesExceeded_carrying_the_last_error(self):
+        original = ValueError("still failing")
+
+        async def factory():
+            raise original
+
+        with pytest.raises(MaxRetriesExceededError) as excinfo:
+            await retry_async(factory, max_retries=2, backoff_factor=0)
+        assert excinfo.value.last_error is original
+
+    async def test_does_not_retry_an_exception_outside_the_allowed_set(self):
+        calls = []
+
+        async def factory():
+            calls.append(1)
+            raise TypeError("not retryable")
+
+        with pytest.raises(TypeError):
+            await retry_async(
+                factory, max_retries=3, backoff_factor=0, retryable_exceptions=(ValueError,)
+            )
+        assert len(calls) == 1
+
+    async def test_waits_between_attempts_with_exponential_backoff(self):
+        waits: list[float] = []
+
+        async def factory():
+            raise ValueError("boom")
+
+        async def fake_sleep(seconds):
+            waits.append(seconds)
+
+        with patch("asyncio.sleep", fake_sleep):
+            with pytest.raises(MaxRetriesExceededError):
+                await retry_async(factory, max_retries=3, backoff_factor=2.0)
+        assert waits == [1.0, 2.0]
+
+    async def test_a_single_attempt_never_sleeps(self):
+        """max_retries=1 means "try once": sleeping after the only attempt
+        would add latency to a failure nobody is going to retry."""
+        waits: list[float] = []
+
+        async def factory():
+            raise ValueError("boom")
+
+        async def fake_sleep(seconds):
+            waits.append(seconds)
+
+        with patch("asyncio.sleep", fake_sleep):
+            with pytest.raises(MaxRetriesExceededError):
+                await retry_async(factory, max_retries=1, backoff_factor=2.0)
+        assert waits == []
+
+    async def test_the_decorator_and_the_core_share_ONE_implementation(self):
+        """Two copies of a backoff policy drift; the decorator must delegate."""
+        seen = []
+
+        @retry_with_backoff(max_retries=3, backoff_factor=0)
+        async def decorated():
+            seen.append(len(seen))
+            if len(seen) < 2:
+                raise ValueError("transient")
+            return "ok"
+
+        assert await decorated() == "ok"
+        assert len(seen) == 2
+
+
+@pytest.mark.unit
+class TestTheCauseSurvivesExhaustion:
+    """An exhausted retry must not erase WHY it failed.
+
+    The system indexer runs its own patient, deadline-bounded retry on top of
+    the embedding client's fast one, and classifies by walking ``__cause__``
+    for the provider's status code. `MaxRetriesExceededError` keeps the last
+    error as an attribute only, and the raise sits outside the `except` — so
+    without an explicit `from`, the chain stopped at the wrapper and a 429 that
+    had exhausted the inner retry was read as permanent.
+    """
+
+    async def test_the_last_error_is_the_cause_of_the_wrapper(self) -> None:
+        class _Boom(Exception):
+            pass
+
+        original = _Boom("429 quota exceeded")
+
+        async def always_fails() -> None:
+            raise original
+
+        with pytest.raises(MaxRetriesExceededError) as excinfo:
+            await retry_async(
+                always_fails,
+                max_retries=2,
+                backoff_factor=0.0,
+                retryable_exceptions=(_Boom,),
+                operation_name="probe",
+            )
+        assert excinfo.value.__cause__ is original
+        assert excinfo.value.last_error is original
+
+    async def test_a_status_code_is_still_reachable_through_two_retry_layers(
+        self,
+    ) -> None:
+        """The end-to-end shape: provider error → embedding marker → wrapper."""
+        from src.infrastructure.llm.embedding_errors import embedding_retry_reason
+
+        class _ProviderError(Exception):
+            def __init__(self) -> None:
+                super().__init__("resource exhausted")
+                self.code = 429
+
+        provider = _ProviderError()
+
+        class _Marker(Exception):
+            pass
+
+        async def fails_like_the_embedding_client() -> None:
+            try:
+                raise provider
+            except _ProviderError as exc:
+                raise _Marker(str(exc)) from exc
+
+        with pytest.raises(MaxRetriesExceededError) as excinfo:
+            await retry_async(
+                fails_like_the_embedding_client,
+                max_retries=2,
+                backoff_factor=0.0,
+                retryable_exceptions=(_Marker,),
+                operation_name="embedding_embed_documents",
+            )
+        # Structural, not textual: the outer retry reads the code, not the words.
+        assert embedding_retry_reason(excinfo.value) == "http_429"

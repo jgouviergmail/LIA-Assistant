@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from src.core.config import settings
+from src.core.constants import DIAGNOSTICS_AGENT_NAME
 
 from .catalogue import AgentManifest
 
@@ -440,7 +441,7 @@ DEVOPS_AGENT_MANIFEST = AgentManifest(
 )
 
 DIAGNOSTICS_AGENT_MANIFEST = AgentManifest(
-    name="diagnostics_agent",
+    name=DIAGNOSTICS_AGENT_NAME,
     description=(
         "Platform self-diagnostics agent (administrators only). Reads LIA's own "
         "telemetry: current health snapshot and firing alerts, curated platform "

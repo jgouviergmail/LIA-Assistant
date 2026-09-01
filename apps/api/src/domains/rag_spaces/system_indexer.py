@@ -28,7 +28,6 @@ from src.core.constants import (
     RAG_SPACES_SYSTEM_FAQ_DESCRIPTION_DEFAULT,
     RAG_SPACES_SYSTEM_FAQ_NAME_DEFAULT,
     RAG_SPACES_SYSTEM_INDEX_EMBED_RETRY_BASE_SECONDS,
-    RAG_SPACES_SYSTEM_INDEX_EMBED_RETRYABLE_STATUS,
 )
 from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces.embedding import get_rag_embeddings
@@ -42,6 +41,9 @@ from src.domains.rag_spaces.service import RAGSpaceService
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
     set_embedding_context,
+)
+from src.infrastructure.llm.embedding_errors import (
+    embedding_retry_reason as _retry_reason,
 )
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import (
@@ -67,37 +69,6 @@ class _CorpusVerdict(NamedTuple):
     is_current: bool
     stored_chunks: int | None
     stored_documents: int | None
-
-
-def _retry_reason(exc: BaseException) -> str | None:
-    """Why an embedding failure is worth another attempt, or None.
-
-    Classified on the ``code`` attribute the Gemini SDK sets on its API errors
-    (``google.genai.errors.APIError.code``), walking ``__cause__`` because
-    langchain re-raises every failure wrapped in ``GoogleGenerativeAIError``.
-    Structural on purpose: matching text inside an exception message is how a
-    provider's wording change silently turns a retry into a hard failure.
-
-    Transport-level timeouts and connection resets are also retryable — on the
-    production host (a Raspberry Pi on WiFi) they are ordinary events.
-
-    Args:
-        exc: Exception raised by the embedding call.
-
-    Returns:
-        A short reason label for logging, or None when the failure is permanent.
-    """
-    seen: set[int] = set()
-    current: BaseException | None = exc
-    while current is not None and id(current) not in seen:
-        seen.add(id(current))
-        code = getattr(current, "code", None)
-        if isinstance(code, int) and code in RAG_SPACES_SYSTEM_INDEX_EMBED_RETRYABLE_STATUS:
-            return f"http_{code}"
-        if isinstance(current, TimeoutError | ConnectionError):
-            return type(current).__name__
-        current = current.__cause__
-    return None
 
 
 class SystemSpaceIndexer:
@@ -589,6 +560,16 @@ class SystemSpaceIndexer:
         "never retry" strategy — so without this loop a single 429 aborts the
         whole indexation. The original exception is re-raised rather than wrapped:
         its status code is the diagnosis.
+
+        Since ADR-254 this is the OUTER of two layers, and they have different
+        jobs. The embedding client retries fast (a second or so) to absorb a
+        blip inside one call; this loop is the patient one, backing off
+        exponentially against a shared deadline so a long indexation survives a
+        provider that is busy for minutes. Attempts therefore multiply, bounded
+        by ``deadline`` — the resource that actually matters here is wall-clock,
+        not a call count. What must NOT be lost across the two is the reason:
+        the inner retry chains its cause, so ``_retry_reason`` still reads the
+        provider's status code through the wrapper rather than the words in it.
 
         Args:
             embeddings: Embedding client.

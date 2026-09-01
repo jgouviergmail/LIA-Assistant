@@ -19,6 +19,7 @@ from src.core.dependencies import get_db
 from src.core.exceptions import raise_not_found_or_unauthorized
 from src.core.security.authorization import require_superuser
 from src.core.session_dependencies import get_current_active_session
+from src.domains.diagnostics.diagnosis import diagnosis_for_language
 from src.domains.diagnostics.repository import DiagnosticsRepository
 from src.domains.diagnostics.schemas import (
     IncidentDetailOut,
@@ -118,7 +119,9 @@ async def get_incident(
         resolved_at=incident.resolved_at,
         has_diagnosis=incident.diagnosis is not None,
         evidence=incident.evidence or {},
-        diagnosis=incident.diagnosis,
+        # Resolved for THIS reader: the tick wrote one variant per admin
+        # language, and an admin must not have to read someone else's.
+        diagnosis=diagnosis_for_language(incident.diagnosis, current_user.language),
         action_log=incident.action_log or [],
     )
 

@@ -19,7 +19,7 @@ from uuid import UUID
 
 import structlog
 
-from src.domains.diagnostics.checks import CheckResult, CheckStatus
+from src.domains.diagnostics.checks import CheckResult, CheckStatus, evidence_for
 from src.domains.diagnostics.models import INCIDENT_SOURCE_SELF_CHECK
 
 if TYPE_CHECKING:
@@ -63,11 +63,7 @@ async def sync_incidents_from_results(
                 severity="critical",
                 title=f"Self-check critical: {result.check_id}",
                 alertname=result.alertname,
-                evidence={
-                    "check_id": result.check_id,
-                    "value": result.value,
-                    "detail": result.detail,
-                },
+                evidence=evidence_for(result),
             )
             if created:
                 outcome.opened_ids.append(incident_id)

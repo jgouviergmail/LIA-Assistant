@@ -491,3 +491,39 @@ tests:
       - eval_time: 6h
         alertname: SystemKnowledgeIndexationFailing
         exp_alerts: []
+
+  # ===== EmbeddingOperationsFailing: retries exhausted, repeatedly =====
+  # Three give-ups in thirty minutes fire. Sampled at 30s — the production
+  # scrape interval — for the same reason as the RAG case above: `increase()`
+  # extrapolates over a left-open range, and a coarse sampling makes the first
+  # point fall out of the window and the arithmetic disagree with a rule that
+  # is perfectly correct.
+  - interval: 30s
+    input_series:
+      # Three failed operations inside the window (61 samples = 30m at 30s).
+      - series: 'embedding_call_outcomes_total{model="gemini-embedding-001",outcome="failed"}'
+        values: '0+0x20 1+0x20 3+0x21'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: EmbeddingOperationsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: llm
+              tier: core
+            exp_annotations:
+              summary: "Embeddings are failing after their retries"
+              description: "3 embedding operations gave up in the last 30 minutes. Each one silently costs a turn its RAG context, its journal context, its memory extraction or its message indexing — answers keep flowing, degraded. Check the provider quota first, then whether the scheduler is bursting."
+              runbook: "docs/runbooks/alerts/EmbeddingOperationsFailing.md"
+
+  # ===== EmbeddingOperationsFailing: a lone give-up is not an incident =====
+  # One exhausted retry is a provider blip the next call recovers from. Paging
+  # on it would make the alert the noise it was written to replace.
+  - interval: 30s
+    input_series:
+      - series: 'embedding_call_outcomes_total{model="gemini-embedding-001",outcome="failed"}'
+        values: '0+0x40 1+0x21'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: EmbeddingOperationsFailing
+        exp_alerts: []

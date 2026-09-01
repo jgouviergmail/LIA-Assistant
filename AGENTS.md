@@ -380,7 +380,7 @@ The HOW / WHY guides (`apps/web/src/data/guides/{how,why}.{lang}.md`) and any fu
 - **Ruff rules**: E (pycodestyle errors), W (warnings), F (pyflakes), I (isort), B (bugbear), C4 (comprehensions), UP (pyupgrade). E501 ignored (handled by Black).
 - **TypeScript**: ESLint + Prettier.
 - **Commits**: Conventional Commits (`feat(agents):`, `fix(auth):`, etc.)
-- **Tests**: pytest with `asyncio_mode = "auto"`. Coverage threshold: 67% (ratchet: never lowered — raise the floor after coverage-improving work to lock the gains, keeping ≥2 pts margin vs measured; see GUIDE_TESTING.md). Markers: `e2e`, `integration`, `slow`, `benchmark`, `multiprocess`.
+- **Tests**: pytest with `asyncio_mode = "auto"`. Coverage threshold: 68% (ratchet: never lowered — raise the floor after coverage-improving work to lock the gains, keeping ≥2 pts margin vs measured; see GUIDE_TESTING.md). Markers: `e2e`, `integration`, `slow`, `benchmark`, `multiprocess`.
 - **Logging**: structlog (structured JSON). Use `structlog.get_logger(__name__)`, never `print()`.
 - **i18n**: 6 languages (en, fr, de, es, it, zh). Frontend uses react-i18next with locale files in `apps/web/locales/{lang}/translation.json`. **The pre-commit hook enforces strict key parity** vs `en/translation.json` — every key present in `en` MUST exist in the 5 other locales (the hook diffs `en` keys against each language and aborts the commit on any missing/extra). When using i18next pluralization (`_one` / `_other` suffixes), zh has no plural form per CLDR — duplicate the value to `_one` anyway so parity passes.
 
@@ -446,6 +446,8 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - No synchronous network or CPU-heavy call on an async path (it freezes the whole event loop, SSE included): use native async clients (`aembed_documents`, never `embed_documents` — good example: `domains/journals/service.py`) or `asyncio.to_thread` for Pillow/Firebase/disk I/O (good example: `domains/skills/executor.py`).
 - Singletons and module-level tool instances must **not** store per-request state on `self` (runtime, user language, metrics, contexts): under concurrency it leaks between users. Pass values as parameters, use a `ContextVar`, or instantiate per call — see the `_LANGUAGE_RESULT_KEY` pattern in `agents/tools/base.py` and per-call instantiation in `labels_tools.py`.
 - All datetimes are timezone-aware UTC (`datetime.now(UTC)`; `utcnow()`, naive `now()` and `date.today()` are forbidden). The user's display timezone comes from their preferences / `DEFAULT_USER_DISPLAY_TIMEZONE` — never a hardcoded `"Europe/Paris"` literal or default. Enforced in CI by the AST guard `apps/api/tests/unit/test_no_hardcoded_timezone_guard.py`.
+- **Periodic jobs that share a divisor align forever.** An `IntervalTrigger` counts from scheduler start, so periods of 5, 15 and 60 minutes fire on the same second every hour — for the life of the process. Every interval job carries `jitter=jitter_seconds_for(...)` or an entry in `JITTER_EXEMPT` with the reason it must stay exact (measured 2026-09-01: six jobs in one second, each running an agent, each agent embedding — 11 provider failures out of 24 calls while a steady 4/minute passed without one). Enforced by `apps/api/tests/unit/infrastructure/startup/test_scheduler_jitter.py`. The corollary belongs to the callee: **an external call needs a shock absorber sized for the burst, not for the volume** — the shaper's window is short because a per-minute ceiling cannot see six calls in one second (ADR-254), it composes the existing `RedisRateLimiter` rather than adding a second one, and it **expires open** on both timeout and Redis failure. Our own throttle must never be the reason a request fails.
+- **A retry needs a FACTORY, not an awaitable.** A coroutine is awaitable exactly once: a seam holding `client.acall(...)` cannot retry it — the second `await` raises instead of calling again. `retry_async` (`infrastructure/utils/retry.py`) is the functional core and `retry_with_backoff` delegates to it, so the backoff policy has one implementation. And **classify retryability structurally**: read the status code through `__cause__` (langchain re-raises every provider failure wrapped), never the message — a vendor rewording silently turns a retry into a hard failure. When a code exists it is final; the message is a fallback for when the chain carries none (`apps/api/src/infrastructure/llm/embedding_errors.py`, one classifier for every embedding caller).
 
 ### Persistence
 
@@ -501,7 +503,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - **HITL (Human-in-the-Loop)**: 6 approval levels (plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review). Classified in `src/domains/agents/services/hitl_classifier.py`. Note: the plan-approval level is currently auto-approved (`approval_gate_node` is a pass-through — tool-level HITL supersedes it); do not build on plan-level interrupts without re-wiring the gate.
 - **Smart Services**: QueryAnalyzerService, SmartPlannerService, SmartCatalogueService use LRU caching and pattern learning to reduce LLM token usage.
 - **SSE Streaming**: Responses stream to the frontend via Server-Sent Events.
-- **Observability**: 490 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
+- **Observability**: 492 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
 - **LLM Factory**: `src/infrastructure/llm/factory.py` provides multi-provider LLM instantiation (OpenAI, Anthropic, Google, DeepSeek, Ollama). Provider adapters in `src/infrastructure/llm/providers/`.
 
 ## Good Practices
@@ -668,7 +670,7 @@ Run it after any Capacitor upgrade or any CSP change.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (252 ADR files, ADR-253 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (253 ADR files, ADR-254 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

@@ -93,8 +93,10 @@ async def run_diagnostics_self_check() -> None:
                 if pending:
                     from src.domains.agents.prompts.prompt_loader import load_prompt
 
-                    system_prompt = str(load_prompt("diagnostician_prompt")).format(
-                        max_actions=settings.diagnostics_diagnosis_max_actions
+                    # `{language}` is left UNRESOLVED on purpose: the batch
+                    # writes one variant per admin language and fills it there.
+                    system_prompt = str(load_prompt("diagnostician_prompt")).replace(
+                        "{max_actions}", str(settings.diagnostics_diagnosis_max_actions)
                     )
                     diagnosed = await diagnose_incidents(
                         pending, db=db, system_prompt=system_prompt

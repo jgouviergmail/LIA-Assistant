@@ -4,7 +4,7 @@
 
 **Versione**: 5.1
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.38.2
+**Applicazione**: LIA v1.38.3
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -413,6 +413,8 @@ C'è qualcosa di più insidioso di una guardia che non si è mai fatta fallire: 
 Ancora più insidioso di una guardia puntata sul segnale sbagliato: un difetto che si manifesta solo una volta su due. La stessa richiesta falliva, poi passava trenta minuti dopo senza che una sola riga fosse cambiata — quanto basta per concludere «era passeggero» e chiudere il caso. La causa stava in un dettaglio invisibile: gli strumenti vengono scelti su una riformulazione inglese prodotta da un modello, rigenerata a ogni turno. Un verbo diverso, uno strumento di lettura che sparisce, e l'assistente si ritrova a dover rispondere a un messaggio che non può leggere. La tentazione era regolare quel caso — una parola chiave in più, una soglia spostata. Abbiamo preferito una garanzia che non lo guarda affatto: prima di pianificare, il sistema verifica che tutto ciò che richiede sia davvero a portata. Quando una risposta dipende da un sorteggio, correggerla raramente significa migliorare il sorteggio.
 
 Una cifra mostrata è un'affermazione: è esatta, o non esiste. Il cruscotto ha mostrato a lungo «0 azioni riuscite» — non perché nulla andasse a buon fine, ma perché la classificazione interna confrontava con una parola che nessuno emetteva. E il conteggio dei token era giusto — ma per cortesia del fornitore, non per contratto: niente lo richiedeva, niente lo testava, niente lo sorvegliava. Le due riparazioni hanno la stessa forma: il vocabolario è bloccato da entrambi i lati da un test di contratto, la richiesta di conteggio è dichiarata per fornitore e verificata all'avvio, e una chiamata a pagamento che termina senza conteggio fa scattare un allarme. L'esattezza non è uno stato — è una sorveglianza.
+
+C'è di peggio di un guasto rumoroso: uno che degrada soltanto la qualità. Per un'ora, con uno o tre utenti, quasi metà delle operazioni che danno memoria a LIA — salvare ciò che ha appena imparato, indicizzare un messaggio, ritrovare un documento — veniva rifiutata dal fornitore. Nulla cadeva: le risposte arrivavano normali, solo meno informate. E la causa non era il carico, dato che un ritmo costante di quattro chiamate al minuto passava senza un solo errore: era aritmetica. Le attività periodiche da 5, 15, 30 e 60 minuti contano tutte dallo stesso istante, quindi si allineano per sempre — sei di esse partivano nello stesso secondo, ogni ora. La lezione non è «aggiungere un ritentativo», ma che il rimedio deve colpire la causa: sfalsare le partenze tratta la collisione, una regolazione protegge la crescita, un ritentativo raccoglie il resto. Tre meccanismi, tre ruoli — ed è questa distinzione che impedisce di credere di aver riparato quando si è solo attutito.
 
 ### 8.2. Uno stack di osservabilità professionale
 

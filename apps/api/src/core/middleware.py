@@ -528,11 +528,15 @@ class LoggingMiddleware:
             geo = geoip_resolver.resolve(client_host) if client_host else None
 
             if geo:
+                # Country and city only. The coordinates used to ride here too,
+                # on every request-scoped log line: measured 2026-09-01, 1099
+                # lines carried them and 1054 were at INFO, which this
+                # repository forbids for location data. Nothing consumed them —
+                # the country metric, both geo dashboard panels and the world
+                # map all read country/city — so they were payload, not signal.
                 structlog.contextvars.bind_contextvars(
                     geo_country=geo.country,
                     geo_city=geo.city or "",
-                    geo_lat=geo.latitude,
-                    geo_lon=geo.longitude,
                 )
             elif client_host:
                 structlog.contextvars.bind_contextvars(geo_country=GEOIP_COUNTRY_LOCAL)

@@ -2242,6 +2242,76 @@
             }
           },
           "description": "Total cost of embedding operations."
+        },
+        {
+          "id": 131,
+          "type": "timeseries",
+          "title": "Embedding Outcomes (retries collapsed)",
+          "description": "One row per logical embedding operation, whatever it cost in attempts. This is what the EmbeddingOperationsFailing alert reads: a failure here means a caller went without its vector, not merely that a retry happened.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 133
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (model, outcome) (rate(embedding_call_outcomes_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{model}} — {{outcome}}"
+            }
+          ]
+        },
+        {
+          "id": 132,
+          "type": "timeseries",
+          "title": "Embedding Shaper Outcomes",
+          "description": "What the rate shaper did per attempt. A rising \"expired\" means the shaper is holding and EMBEDDING_RATE_LIMIT_MAX_CALLS — with the provider quota behind it — needs raising for the current number of users. A rising \"unavailable\" means Redis is down and nothing is being shaped at all.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 133
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (outcome) (rate(embedding_shaper_outcomes_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{outcome}}"
+            }
+          ]
         }
       ]
     },

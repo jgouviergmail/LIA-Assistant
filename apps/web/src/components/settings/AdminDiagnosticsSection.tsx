@@ -20,6 +20,7 @@ import {
   type DiagnosticsOverview,
 } from '@/hooks/useDiagnostics';
 import { useTranslation } from '@/i18n/client';
+import { sameLanguage } from '@/lib/language-match';
 import { healthTone, incidentTone } from '@/lib/status-tone';
 
 import type { BaseSettingsProps } from '@/types/settings';
@@ -73,7 +74,15 @@ function CheckRow({ check, t }: { check: DiagnosticsCheck; t: TFunction }) {
   );
 }
 
-function IncidentRow({ incident, t }: { incident: DiagnosticsIncident; t: TFunction }) {
+function IncidentRow({
+  incident,
+  t,
+  lng,
+}: {
+  incident: DiagnosticsIncident;
+  t: TFunction;
+  lng: string;
+}) {
   const [open, setOpen] = useState(false);
   const detail = useDiagnosticsIncidentDetail(open ? incident.id : null);
   const openedAt = new Date(incident.opened_at);
@@ -102,6 +111,15 @@ function IncidentRow({ incident, t }: { incident: DiagnosticsIncident; t: TFunct
           <Skeleton className="h-16 w-full rounded-md" />
         ) : detail.data?.diagnosis ? (
           <div className="space-y-2 text-sm">
+            {/* The diagnosis is generated in the languages the admins read, at
+                write time. When this reader's language was not among them — a
+                profile changed since, or an incident older than the feature —
+                the text is still shown rather than hidden, and says so. */}
+            {sameLanguage(detail.data.diagnosis.language, lng) ? null : (
+              <p className="text-xs text-muted-foreground italic">
+                {t('settings.admin.diagnostics.otherLanguage')}
+              </p>
+            )}
             <p>{detail.data.diagnosis.diagnosis}</p>
             <p className="text-xs text-muted-foreground">
               {t('settings.admin.diagnostics.probableCause')}:{' '}
@@ -250,9 +268,11 @@ function AlertsList({ overview, t }: { overview: DiagnosticsOverview | undefined
 function IncidentsList({
   list,
   t,
+  lng,
 }: {
   list: DiagnosticsIncidentList | undefined;
   t: TFunction;
+  lng: string;
 }) {
   return (
     <div className="space-y-2">
@@ -263,7 +283,7 @@ function IncidentsList({
       {list?.items?.length ? (
         <div className="space-y-2">
           {list.items.map(incident => (
-            <IncidentRow key={incident.id} incident={incident} t={t} />
+            <IncidentRow key={incident.id} incident={incident} t={t} lng={lng} />
           ))}
         </div>
       ) : (
@@ -313,7 +333,7 @@ export default function AdminDiagnosticsSection({ lng }: BaseSettingsProps) {
       <ChecksGrid checks={overview.data?.checks} t={t} />
       <DegradationsList degradations={overview.data?.degradations} t={t} />
       <AlertsList overview={overview.data} t={t} />
-      <IncidentsList list={incidents.data} t={t} />
+      <IncidentsList list={incidents.data} t={t} lng={lng} />
     </div>
   );
 

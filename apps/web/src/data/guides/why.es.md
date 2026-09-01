@@ -4,7 +4,7 @@
 
 **Versión**: 5.1
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.38.2
+**Aplicación**: LIA v1.38.3
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -413,6 +413,8 @@ Hay algo más insidioso que una guarda que nunca se ha hecho fallar: una guarda 
 Aún más retorcido que un guardián que vigila la señal equivocada: un defecto que solo aparece una vez de cada dos. La misma petición fallaba y pasaba treinta minutos después sin que hubiera cambiado una sola línea — lo justo para concluir «fue pasajero» y cerrar el caso. La causa estaba en un detalle invisible: las herramientas se eligen contra una reformulación inglesa producida por un modelo, regenerada en cada turno. Un verbo distinto, una herramienta de lectura que desaparece, y el asistente acaba teniendo que responder a un mensaje que no puede leer. La tentación era ajustar ese azar — una palabra clave más, un umbral desplazado. Preferimos una garantía que no lo mira: antes de planificar, el sistema comprueba que todo lo que exige está realmente a su alcance. Cuando una respuesta depende de un sorteo, corregirla rara vez consiste en mejorar el sorteo.
 
 Una cifra mostrada es una afirmación: es exacta, o no existe. El panel mostró durante mucho tiempo «0 acciones exitosas» — no porque nada terminara bien, sino porque la clasificación interna comparaba con una palabra que nadie emitía. Y el recuento de tokens era correcto — pero por cortesía del proveedor, no por contrato: nada lo solicitaba, nada lo probaba, nada lo vigilaba. Ambas reparaciones comparten la misma forma: el vocabulario queda bloqueado por ambos lados con un test de contrato, la solicitud de recuento se declara por proveedor y se verifica al arranque, y una llamada de pago que termina sin recuento dispara una alerta. La exactitud no es un estado — es una vigilancia.
+
+Hay algo peor que un fallo ruidoso: uno que solo degrada la calidad. Durante una hora, con uno a tres usuarios, casi la mitad de las operaciones que dan memoria a LIA — guardar lo que acaba de aprender, indexar un mensaje, recuperar un documento — eran rechazadas por el proveedor. Nada se caía: las respuestas llegaban con normalidad, solo peor informadas. Y la causa no era la carga, pues un ritmo constante de cuatro llamadas por minuto pasaba sin un solo error: era aritmética. Las tareas periódicas de 5, 15, 30 y 60 minutos cuentan todas desde el mismo instante, así que se alinean para siempre — seis de ellas arrancaban en el mismo segundo, cada hora. La lección no es «añadir un reintento», sino que el remedio debe apuntar a la causa: escalonar los arranques trata la colisión, un suavizado protege el crecimiento y un reintento recoge el resto. Tres mecanismos, tres papeles — y decirlo así es lo que evita creer que se ha reparado cuando solo se ha amortiguado.
 
 ### 8.2. Una stack de observabilidad profesional
 

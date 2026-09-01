@@ -74,6 +74,8 @@ export interface DiagnosticsIncidentDetail extends DiagnosticsIncident {
     diagnosis?: string;
     probable_cause?: string;
     recommended_actions?: string[];
+    /** Language the text above was written in (backend canonical, e.g. `zh-CN`). */
+    language?: string;
     model?: string;
     cost_usd?: number;
     diagnosed_at?: string;

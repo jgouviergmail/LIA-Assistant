@@ -7,6 +7,7 @@ rejection. Mirrors the devops module layout.
 """
 
 from src.core.constants import (
+    DIAGNOSTICS_AGENT_NAME,
     DIAGNOSTICS_LOKI_MAX_LINES,
     DIAGNOSTICS_LOKI_MAX_RANGE_HOURS,
 )
@@ -48,7 +49,7 @@ def _cost(latency_ms: int) -> CostProfile:
 
 platform_health_catalogue_manifest = ToolManifest(
     name="platform_health_tool",
-    agent="diagnostics_agent",
+    agent=DIAGNOSTICS_AGENT_NAME,
     description=(
         "**Tool: platform_health_tool** - Current platform health (administrators only).\n"
         "Returns the latest self-check snapshot (per-check verdicts with exact values), "
@@ -80,7 +81,7 @@ platform_health_catalogue_manifest = ToolManifest(
 
 platform_metrics_catalogue_manifest = ToolManifest(
     name="platform_metrics_tool",
-    agent="diagnostics_agent",
+    agent=DIAGNOSTICS_AGENT_NAME,
     description=(
         "**Tool: platform_metrics_tool** - Run ONE curated platform metric query "
         "(administrators only).\n"
@@ -128,7 +129,7 @@ platform_metrics_catalogue_manifest = ToolManifest(
 
 platform_logs_catalogue_manifest = ToolManifest(
     name="platform_logs_tool",
-    agent="diagnostics_agent",
+    agent=DIAGNOSTICS_AGENT_NAME,
     description=(
         "**Tool: platform_logs_tool** - Read bounded platform logs from Loki "
         "(administrators only).\n"
@@ -207,7 +208,7 @@ platform_logs_catalogue_manifest = ToolManifest(
 
 platform_incidents_catalogue_manifest = ToolManifest(
     name="platform_incidents_tool",
-    agent="diagnostics_agent",
+    agent=DIAGNOSTICS_AGENT_NAME,
     description=(
         "**Tool: platform_incidents_tool** - List platform incidents or show one with its "
         "stored diagnosis (administrators only). Totals are exact."

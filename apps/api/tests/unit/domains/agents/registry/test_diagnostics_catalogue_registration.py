@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.constants import DIAGNOSTICS_AGENT_NAME
 from src.domains.agents.registry.agent_registry import AgentRegistry
 from src.domains.agents.registry.catalogue_loader import initialize_catalogue
 
@@ -36,14 +37,14 @@ class TestFlagGating:
         registry = _build(monkeypatch, enabled=False)
         agents = {m.name for m in registry.list_agent_manifests()}
         tools = {m.name for m in registry.list_tool_manifests()}
-        assert "diagnostics_agent" not in agents
+        assert DIAGNOSTICS_AGENT_NAME not in agents
         assert not (_TOOL_NAMES & tools)
 
     def test_flag_on_registers_agent_and_four_tools(self, monkeypatch: pytest.MonkeyPatch) -> None:
         registry = _build(monkeypatch, enabled=True)
         agents = {m.name for m in registry.list_agent_manifests()}
         tools = {m.name for m in registry.list_tool_manifests()}
-        assert "diagnostics_agent" in agents
+        assert DIAGNOSTICS_AGENT_NAME in agents
         assert _TOOL_NAMES <= tools
 
     def test_enforced_bounds_are_published(self, monkeypatch: pytest.MonkeyPatch) -> None:

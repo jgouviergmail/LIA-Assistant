@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.38.3] - 2026-09-01
+
+**Le volume n'a jamais été le problème, la concentration l'était.** En une heure de production, avec un à trois utilisateurs actifs, **11 appels d'embedding sur 24 ont échoué** — tous des `429 RESOURCE_EXHAUSTED` sur le quota par minute du fournisseur. Aucun tour de chat impliqué : rien que des tâches de fond. Et un rythme régulier de **quatre appels par minute passait sans une seule erreur**. La cause n'était donc pas la charge, elle était arithmétique : un déclencheur d'intervalle compte depuis le démarrage du planificateur, si bien que des périodes de 5, 15, 30 et 60 minutes s'alignent pour toujours. **Six tâches de fond partaient dans la même seconde, toutes les heures**, chacune faisant tourner un agent, chaque agent vectorisant.
+
+**Ce qui se perdait ne se voyait pas.** Cinq sous-systèmes dégradaient en silence — le RAG, le journal, l'extraction de mémoire, l'indexation du message et le scoring d'outils du routeur. Les deux du milieu sont des pertes définitives : rien ne les rejoue. Les réponses continuaient d'arriver, normales ; l'assistante devenait discrètement moins intelligente.
+
+**Trois mécanismes répondent, avec trois rôles distincts** — et le dire ainsi est le fond de l'affaire. Le **jitter** traite la cause : six tâches ne repartent plus ensemble. Le **lisseur** est l'assurance à l'échelle, pas le correctif de cet incident — six appels ne franchissent aucun plafond par minute, d'où une fenêtre volontairement **courte** (8 appels / 10 s), parce qu'un plafond par minute ne peut pas voir une rafale. Le **réessai** ramasse le résidu. Aucun des trois ne bloque : le lisseur expire ouvert, l'attente est bornée, et notre propre régulation ne doit jamais être la raison pour laquelle une réponse perd sa mémoire.
+
+**Et « Santé de la plateforme » ne pouvait rien en voir**, parce que rien ne mesurait le *résultat* d'un embedding — seulement ce qui touchait le fournisseur, ce qui devient le mauvais dénominateur dès qu'on réessaie : un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu.
+
+**Enfin, le diagnostic a cessé de dire « preuves insuffisantes ».** Le modèle n'était pas évasif, il était exact : on lui remettait un identifiant, un nombre et un détail court. **Un nombre sans son seuil ne peut pas être jugé** — 46 est un incident pour un check et anodin pour un autre, et rien ne disait lequel. Le dossier porte désormais l'unité, le verdict et les deux seuils. Et il est écrit **dans la langue de l'administrateur qui le lit**.
+
+### Added
+
+- **Un jitter sur chaque tâche d'intervalle** (ADR-254) : 15 % de la période, plancher à 5 s, toujours strictement sous la période. **18 tâches sur 19** en portent un ; la dix-neuvième — l'exécuteur d'actions planifiées — en est exemptée par écrit, parce qu'elle est ce qui fait arriver une action à l'heure demandée par l'utilisateur, et qu'on ne dépense pas une promesse visible pour lisser la charge d'un fournisseur.
+- **Un lisseur de créneaux distribué** (`slot_waiter`) qui **compose** le `RedisRateLimiter` existant au lieu d'en ajouter un second : une seule fenêtre glissante, un seul script Lua, un seul jeu de métriques Redis. Il rend un verdict **typé** — `acquired`, `disabled`, `expired`, `unavailable` — parce que « lisseur saturé » et « Redis injoignable » appellent des actions opposées et qu'un booléen les confondrait. Mesuré dans le conteneur : 0,8 ms par acquisition, 0,0 ms pour obtenir le limiteur.
+- **Un réessai sur les embeddings**, le seul chemin d'appel du dépôt qui n'en avait pas — le LLM, les outils, la compaction et les connecteurs en avaient tous un.
+- **`embedding_call_outcomes_total`** : une ligne par opération logique, réessais repliés. C'est la question sur laquelle un exploitant agit — l'appelant a-t-il eu son vecteur ? — et l'alerte `EmbeddingOperationsFailing` la lit, avec son runbook.
+- **`embedding_shaper_outcomes_total`** : le signal du jour où trois utilisateurs en deviennent trente. Un `expired` qui monte dit que le budget est devenu trop petit ; un `unavailable` dit que Redis est tombé et que plus rien n'est lissé.
+- **Un check `embedding_failure_rate`** dans « Santé de la plateforme », dont le seuil d'avertissement est **plus bas** que celui des complétions : un embedding manqué est invisible pour l'utilisateur, la réponse part sans sa mémoire.
+- **Un diagnostic par langue d'administrateur**, généré à l'écriture. Une tique de planificateur n'a pas de lecteur à qui demander sa langue ; l'écrire dans les langues que les administrateurs lisent est le seul moyen d'honorer « la langue de l'admin qui affiche » sans un appel LLM à chaque affichage. Avec un administrateur — le cas normal d'une instance auto-hébergée — cela fait exactement un appel.
+
+### Changed
+
+- **`retry_with_backoff` a désormais un cœur fonctionnel**, `retry_async`, auquel le décorateur délègue : une politique de backoff, un seul endroit. Il prend une **fabrique**, pas un awaitable, et c'est ce qui rend le reste possible — une coroutine ne s'attend qu'une fois, si bien qu'un point de couture tenant `client.aembed_query(...)` ne peut pas le réessayer.
+- **Chaque tentative consulte le lisseur**, pas chaque opération : un réessai est un appel de plus sur un fournisseur qui vient d'en refuser un.
+- **Le dossier de preuves d'un incident** porte l'unité, le verdict et les deux seuils franchis. Tout est déjà en main quand un check finit : l'enrichissement ne coûte aucune requête et ne peut pas échouer. Ce qu'il ne va délibérément **pas** chercher, c'est un extrait de journaux — c'est le travail de l'agent de diagnostic, à la demande, et une tique ne doit pas se mettre à dépendre de Loki.
+- **Les trois requêtes de taux d'échec** passent par une construction unique au lieu d'être réécrites trois fois.
+- **Le classificateur d'erreurs d'embedding est partagé** entre le réindexeur RAG et le client : deux classificateurs sur un même fournisseur, c'en est un qui dérive, et la dérive est silencieuse.
+
+### Removed
+
+- **`geo_lat` / `geo_lon` du contexte de chaque requête** : 1 099 lignes en une heure, dont 1 054 en INFO, ce que ce dépôt interdit pour une donnée de localisation. Nuance mesurée avant de conclure : deux couples distincts pour deux villes, donc de la géo-IP au niveau ville et non un relevé d'appareil. Et **zéro consommateur** — le compteur par pays, les deux panneaux du tableau géographique et jusqu'à la carte du monde lisent le pays et la ville.
+
+### Fixed
+
+- **Une cause non chaînée rendait aveugle le réessai appelant.** `MaxRetriesExceededError` gardait la dernière erreur en attribut seulement, et la levée sortait du `except` : la chaîne `__cause__` s'arrêtait là. L'indexeur système, qui a son propre réessai et classe en remontant cette chaîne pour lire le code de statut, redevenait donc **aveugle au 429** qu'il avait justement appris à rattraper — il ne s'en sortait plus que par chance textuelle.
+- **`"500"` était une sous-chaîne** : un échec **permanent** disant « dépasse 1500 jetons » était classé transitoire et réessayé jusqu'à épuisement du budget — un échec dur transformé en échec lent. Les codes sont désormais bornés sur des frontières de mot et **dérivés** de la constante, où ils avaient déjà divergé : 408 y figurait, absent du repli textuel.
+- **Le dénominateur des taux n'avait pas son `or vector(0)`.** Le numérateur l'avait depuis l'incident du 28 août ; le dénominateur portait le même trou, et il s'ouvre exactement là où vit une instance auto-hébergée au repos : rien n'a encore été vectorisé, donc aucune série, donc `unknown`, donc **une plateforme saine affichée dégradée**.
+- **Le plafond de coût quotidien du diagnostic** ne fermait qu'une fois par incident, alors qu'un incident coûte désormais un appel par langue. Il ferme maintenant **avant chaque appel**, ce que le module disait déjà faire.
+- **Le lisseur pouvait devenir sa propre charge** : un intervalle de sondage nul faisait tourner la boucle à vide contre Redis. Plancher posé.
+- **Les locales brutes n'étaient pas normalisées** : deux administrateurs écrivant `fr` et `fr-FR` auraient payé deux fois la même génération, et un lecteur `zh` n'aurait jamais trouvé un diagnostic écrit en `zh-CN`.
+- **Un agent au domaine non déclaré était invisible à sa garde.** `test_agent_names_follow_convention` parcourt le registre vers l'extérieur : par construction, il ne peut pas voir un agent dont le domaine n'y figure pas. La garde part désormais des agents.
+- **Le compteur public de tests annonçait 28 000 à tort.** La version précédente l'a relevé sans documenter de re-mesure, sur un chiffre que la commande déclarée ne produit pas. Deux méthodes pour un nombre public, c'est un nombre que personne ne peut vérifier : la commande déclarée l'emporte et la valeur revient à 27 000. Un compteur montré à un visiteur est exact, ou il n'existe pas — et il a le droit de baisser quand le précédent était faux.
+
+### Tests
+
+- **Le lisseur contre le vrai Redis du conteneur**, pas un double : 8 créneaux accordés, les deux suivants retenus puis laissés passer, et le chemin « désactivé » qui ne touche pas Redis du tout.
+- **Une garde de jitter** qui refuse toute tâche d'intervalle sans jitter ni exemption écrite, et qui vérifie qu'une exemption déclarée est réellement exercée — une exemption non exercée est un commentaire déguisé en règle.
+- **La composition des deux couches de réessai** : une erreur fournisseur, le marqueur du client, l'enveloppe d'épuisement — et le code de statut encore lisible au bout.
+- **Le faux positif de sous-chaîne**, prouvé par les trois formulations qui le déclenchaient.
+- **Les deux côtés de la normalisation de langue**, y compris les deux codes canoniques du chinois qui diffèrent selon la couche.
+- Plancher de couverture backend relevé de **67 % à 68 %** sur une mesure de 70,43 %, en gardant la marge de 2 points que la doctrine exige.
+
+### Documentation
+
+- **ADR-254** — la décision, ses mesures, et ce que la relecture a corrigé après coup.
+- Un **runbook** pour la nouvelle alerte, qui commence par faire lire au lecteur le compteur du lisseur : il dit lequel des deux leviers actionner, et lequel ne servirait à rien.
+
 ## [1.38.2] - 2026-09-01
 
 **Le visage souriait à tout, et la mesure dit pourquoi.** Après chaque réponse — une erreur, une explication technique, une liste de tâches — l'avatar affichait la même expression réjouie. Quatorze tours de production consécutifs, lus en base : l'émotion dominante de la psyché était `enthusiasm` sur **treize d'entre eux**, dans un mouchoir de **0,02**. Ce n'est pas un défaut de la psyché, c'est sa nature : **une psyché est un trait**, elle bouge lentement et c'est voulu. Le défaut était de lui demander de répondre d'un événement ponctuel, car un `argmax` sur un vecteur quasi constant est une constante.

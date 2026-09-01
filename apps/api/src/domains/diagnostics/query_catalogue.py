@@ -51,6 +51,33 @@ _PLACEHOLDER_RE = re.compile(r"\{([a-z_]+)\}")
 _METRIC_TOKEN_RE = re.compile(r"\b([a-z][a-zA-Z0-9]*(?:_[a-zA-Z0-9]+)+)\b")
 
 
+def _failure_rate_promql(*, failures: str, total: str) -> str:
+    """Percentage of ``failures`` among ``total``, over the query window.
+
+    One construction for every failure-rate check, because the shape has a trap
+    on BOTH sides and the three hand-written copies only ever guarded one.
+
+    A counter that never fired exposes no series, and in PromQL an empty vector
+    on either side of a division empties the result. The check then reads
+    "no data", which is `unknown`, which caps the whole snapshot at `degraded`
+    — measured in production on 2026-08-28 for the numerator. The denominator
+    has the same hole, and it opens where an idle self-hosted instance lives:
+    nothing has been embedded yet, so nothing can be said about the failure
+    rate of embedding. Zero of zero is 0 %, not ignorance.
+
+    Args:
+        failures: PromQL selector for the failing events.
+        total: PromQL selector for all events.
+
+    Returns:
+        A PromQL expression yielding a percentage, always a single series.
+    """
+    return (
+        f"100 * (sum(rate({failures}[{{window_minutes}}m])) or vector(0))"
+        f" / clamp_min(sum(rate({total}[{{window_minutes}}m])) or vector(0), 1e-9)"
+    )
+
+
 @dataclass(frozen=True)
 class QueryParam:
     """A bounded numeric parameter of a named query (published to callers)."""
@@ -82,15 +109,9 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
         NamedQuery(
             query_id="api_error_rate",
             title="HTTP 5xx rate",
-            promql_template=(
-                # `or vector(0)`: on a healthy instance NO 5xx series exists,
-                # and an empty numerator makes the whole division empty — the
-                # check then reads "no data" and caps the snapshot at
-                # `degraded` forever (measured in prod, 2026-08-28). Zero
-                # errors must read as zero, not as ignorance.
-                '100 * (sum(rate(http_requests_total{status=~"5.."}[{window_minutes}m]))'
-                " or vector(0))"
-                " / clamp_min(sum(rate(http_requests_total[{window_minutes}m])), 1e-9)"
+            promql_template=_failure_rate_promql(
+                failures='http_requests_total{status=~"5.."}',
+                total="http_requests_total",
             ),
             params=(_WINDOW,),
             unit="percent",
@@ -121,15 +142,29 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
         NamedQuery(
             query_id="llm_failure_rate",
             title="LLM API failure rate",
-            promql_template=(
-                # Same reason as api_error_rate: no failed call means no
-                # series, which is a 0 % failure rate, not an unknown one.
-                "100 * (sum(rate(llm_api_errors_total[{window_minutes}m])) or vector(0))"
-                " / clamp_min(sum(rate(llm_api_calls_total[{window_minutes}m])), 1e-9)"
+            promql_template=_failure_rate_promql(
+                failures="llm_api_errors_total",
+                total="llm_api_calls_total",
             ),
             params=(_WINDOW,),
             unit="percent",
             lia_metrics=("llm_api_errors_total", "llm_api_calls_total"),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="embedding_failure_rate",
+            title="Embedding failure rate",
+            # OUTCOMES, not provider calls. With ADR-254's retries a single
+            # recovered failure is several attempts, so a rate built on attempts
+            # would open an incident for something that repaired itself before
+            # anyone looked.
+            promql_template=_failure_rate_promql(
+                failures='embedding_call_outcomes_total{outcome="failed"}',
+                total="embedding_call_outcomes_total",
+            ),
+            params=(_WINDOW,),
+            unit="percent",
+            lia_metrics=("embedding_call_outcomes_total",),
             external_metrics=(),
         ),
         NamedQuery(

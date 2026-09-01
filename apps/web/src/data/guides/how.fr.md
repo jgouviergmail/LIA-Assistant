@@ -6,7 +6,7 @@
 
 **Version** : 4.6
 **Date** : 2026-08-23
-**Application** : LIA v1.38.2
+**Application** : LIA v1.38.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -50,6 +50,7 @@
 34. [Calculer au lieu de deviner : un script éphémère dans le bac à sable qui existait déjà](#34-calculer-au-lieu-de-deviner-un-script-éphémère-dans-le-bac-à-sable-qui-existait-déjà)
 35. [Mesurer une couleur avant de la livrer : la palette des réglages](#35-mesurer-une-couleur-avant-de-la-livrer-la-palette-des-réglages)
 36. [Un trait n'est pas une réaction : le registre déclaré par la réponse](#36-un-trait-nest-pas-une-réaction--le-registre-déclaré-par-la-réponse)
+37. [Trois mécanismes pour une convergence : lisser une rafale qu'un plafond ne voit pas](#37-trois-mécanismes-pour-une-convergence--lisser-une-rafale-quun-plafond-ne-voit-pas)
 ---
 
 ## 1. Contexte et choix fondateurs
@@ -63,8 +64,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 490 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 252 ADRs, ~21 584 tests collectés par pytest sur 1 296 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 492 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 253 ADRs, ~21 584 tests collectés par pytest sur 1 296 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -85,7 +86,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | 21 584 collectés par pytest sur 1 296 fichiers de test + 6 662 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 252 |
+| ADRs (Architecture Decision Records) | 253 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -904,7 +905,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 490 métriques custom (RED pattern) |
+| Prometheus | 492 métriques custom (RED pattern) |
 | Grafana | 26 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -912,7 +913,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 490 définies, 433 câblées ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 492 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1320,7 +1321,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-252 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+253 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1466,7 +1467,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 252 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~21 584 tests sur 1 296 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 253 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~21 584 tests sur 1 296 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1556,4 +1557,16 @@ Le visage du compagnon choisissait son expression de fin de tour dans l'émotion
 
 **Et la psyché garde ce qu'elle fait bien** : la famille d'humeur au repos — respiration, cadence de clignement, poids des gestes d'inactivité. Un trait doit colorer un comportement de repos, jamais une réaction.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 252 ADRs, et du changelog (v1.0 à v1.38.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+## 37. Trois mécanismes pour une convergence : lisser une rafale qu'un plafond ne voit pas
+
+**Un déclencheur d'intervalle compte depuis le démarrage, donc des périodes qui partagent un diviseur s'alignent pour toujours.** C'est de l'arithmétique, pas de la charge : des tâches de 5, 15, 30 et 60 minutes finissent par partir dans la même seconde, et y restent pour la vie du processus. Mesuré en production : six tâches dans la même seconde chaque heure, chacune faisant tourner un agent, chaque agent vectorisant — 11 échecs sur 24 appels, quand un rythme régulier de quatre par minute passait sans une seule erreur.
+
+**Trois mécanismes, trois rôles, et les distinguer est le fond de la conception.** Le **jitter** traite la cause : 15 % de la période, plancher de 5 s, toujours strictement sous la période pour que deux exécutions ne puissent ni se chevaucher ni s'inverser. Le **lisseur** n'aurait rien changé à cet incident — six appels ne franchissent aucun plafond par minute — il est l'assurance à l'échelle, d'où une fenêtre volontairement **courte** : un plafond par minute ne peut pas voir une rafale. Le **réessai** ramasse le résidu.
+
+**Aucun des trois n'est une porte.** Le lisseur compose le limiteur de débit existant plutôt que d'en ajouter un second — une fenêtre glissante, un script Lua, un jeu de métriques — et il expire **ouvert** : l'attente est bornée, et un appelant qui a patienté sa part passe quand même. Notre propre régulation ne doit jamais être la raison pour laquelle une réponse perd sa mémoire. Redis injoignable, la réponse est « pas de créneau », immédiatement, et l'appel part.
+
+**Un réessai exige une fabrique, pas un awaitable.** Une coroutine ne s'attend qu'une fois : un point de couture qui tient `client.aembed_query(...)` ne peut pas la relancer, la seconde attente lève au lieu d'appeler. Et la classification est **structurelle** — le code de statut lu en remontant la chaîne des causes, jamais le texte du message, qu'une reformulation du fournisseur suffirait à rendre faux. Corollaire : une couche qui épuise son réessai doit **chaîner sa cause**, sinon la couche au-dessus lit une enveloppe muette et déclare définitif ce qui ne l'était pas.
+
+**Et ce qui n'est pas mesuré ne se voit pas.** Le compteur d'appels au fournisseur devient le mauvais dénominateur dès qu'on réessaie : un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. « Santé de la plateforme » compte donc désormais les **issues** — une ligne par opération logique, réessais repliés — et un second compteur dit ce que le lisseur a fait de chaque tentative, parce que « budget trop petit » et « Redis tombé » appellent des actions opposées.
+
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 253 ADRs, et du changelog (v1.0 à v1.38.3). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

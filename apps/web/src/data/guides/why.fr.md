@@ -4,7 +4,7 @@
 
 **Version** : 5.1
 **Date** : 2026-08-23
-**Application** : LIA v1.38.2
+**Application** : LIA v1.38.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -413,6 +413,8 @@ Il y a plus insidieux qu'une garde qu'on n'a jamais fait échouer : une garde qu
 Plus retors encore qu'une garde mal orientée : un défaut qui ne se produit qu'une fois sur deux. La même demande échouait, puis passait trente minutes plus tard sans qu'une seule ligne n'ait changé — de quoi conclure « c'était passager » et refermer le dossier. La cause tenait à un détail invisible : le choix des outils se fait sur une reformulation anglaise produite par un modèle, régénérée à chaque tour. Un verbe différent, un outil de lecture qui disparaît, et l'assistant se retrouve à devoir répondre à un message sans pouvoir le lire. La tentation était d'ajuster ce hasard — un mot-clé de plus, un seuil déplacé. On a préféré une garantie qui ne le regarde pas : avant de planifier, le système vérifie que tout ce qu'il exige est réellement à sa portée. Quand une réponse dépend d'un tirage, la corriger consiste rarement à améliorer le tirage.
 
 Un compte affiché est une affirmation : il est exact, ou il n'existe pas. Le tableau de bord a longtemps affiché « 0 action réussie » — non parce que rien n'aboutissait, mais parce que le classement interne comparait à un mot que personne n'émettait. Et le comptage des jetons, lui, était juste — mais par politesse du fournisseur, pas par contrat : rien ne le demandait, rien ne le testait, rien ne le surveillait. Les deux réparations ont la même forme : le vocabulaire est verrouillé des deux côtés par un test de contrat, la demande de comptage est déclarée par fournisseur et vérifiée au démarrage, et un appel payant qui se termine sans décompte déclenche une alerte. L'exactitude n'est pas un état — c'est une surveillance.
+
+Il existe pire qu'un échec bruyant : un échec qui ne dégrade que la qualité. Pendant une heure, avec un à trois utilisateurs, près de la moitié des opérations qui donnent à LIA sa mémoire — enregistrer ce qu'elle vient d'apprendre, indexer un message, retrouver un document — étaient refusées par le fournisseur. Rien ne tombait : les réponses arrivaient normales, simplement moins bien informées. Et la cause n'était pas la charge, puisqu'un rythme régulier de quatre appels par minute passait sans une seule erreur : c'était de l'arithmétique. Des tâches périodiques de 5, 15, 30 et 60 minutes comptent toutes depuis le même instant, donc elles s'alignent pour toujours — six d'entre elles partaient dans la même seconde, chaque heure. La leçon n'est pas « ajouter un réessai », c'est que le remède doit viser la cause : décaler les départs traite la collision, un lissage protège la montée en charge, un réessai ramasse le reste. Trois mécanismes, trois rôles — et le dire ainsi évite de croire qu'on a réparé quand on n'a qu'amorti.
 
 ### 8.2. Une stack d'observabilité professionnelle
 

@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.38.2</strong> — <strong>A face that answers the tone, not the habit</strong>. After every reply the chat avatar wore roughly the same pleased expression — including after an error or a three-screen technical explanation. The measurement said why: the face was picking its expression from the psyche's dominant emotion, and a psyche is a TRAIT — over fourteen consecutive production turns it named the same emotion on thirteen of them, drifting by 0.02. An argmax over a near-constant vector is a constant. The model that writes the answer now declares its own REGISTER instead, in a vocabulary that belongs to the animation and to nothing else: twelve registers, twelve genuinely distinct faces, only two of which smile. It travels in band on the same generation, so it costs no extra model call, and it is stripped from the stream before a single character reaches the screen. The mouth became a solid shape rather than a hairline at the same time, and it now arrives at the corners the way a real smile does. — 1 September 2026.
+  <strong>Version 1.38.3</strong> — <strong>The volume was never the problem, the concentration was</strong>. In one production hour, with one to three active users, <strong>11 of 24 embedding calls failed</strong> — every one a 429 on the provider's per-minute quota, and every one silently costing a turn its RAG context, its journal context, its memory extraction or its message indexing. Answers kept flowing; the assistant quietly got less intelligent. A steady four calls a minute passed without a single error, so the cause was not load — it was arithmetic. An interval trigger counts from scheduler start, so periods of 5, 15, 30 and 60 minutes align forever: <strong>six background jobs fired inside the same second, every hour</strong>, each running an agent, each agent embedding. Three mechanisms now answer it, with three distinct roles: jitter treats the cause, a short-window shaper is the insurance as users grow, and a retry mops up the residue. Platform Health could not see any of this, because nothing measured the OUTCOME of an embedding — only what hit the provider, which is the wrong denominator the moment you retry. It measures outcomes now. And its diagnoses stopped saying "insufficient evidence": they are written in the reading administrator's own language, and they quote the threshold the value actually crossed. — 1 September 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **252** ADRs                                                           |
-| **236** versions shipped  | **6 languages**, parity enforced in CI  | **490** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **253** ADRs                                                           |
+| **237** versions shipped  | **6 languages**, parity enforced in CI  | **492** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -330,7 +330,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 490 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 492 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -1006,7 +1006,7 @@ pytest --cov=src --cov-report=html -v
 | ----------------------- | --------------------------------------------------------------------------------------------- |
 | Total backend tests     | 20,468 collected (`pytest tests/unit tests/agents --collect-only`, 2026-08-27)                |
 | Frontend tests (vitest) | 6,327 across 496 files (+ hermetic Playwright E2E specs incl. axe/dark/zoom)                   |
-| Coverage floor          | 67% backend enforced, 70.04% measured (shrink-only ratchet) · frontend thresholds per glob     |
+| Coverage floor          | 68% backend enforced, 70.04% measured (shrink-only ratchet) · frontend thresholds per glob     |
 | CI Workflows            | 3 (CI, Security, Release)                                                                     |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
@@ -1023,7 +1023,7 @@ Pre-commit (local)              GitHub Actions CI
 ===================             ==================
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy             Fast unit tests + coverage (67%)
+Ruff + Black + MyPy             Fast unit tests + coverage (68%)
 Fast unit tests                 Integration tests (PostgreSQL + Redis)
 Critical pattern detection      Agents suite
 i18n keys sync                  Code Hygiene (i18n, Alembic, lockfiles, patterns)
@@ -1047,7 +1047,7 @@ ESLint + TypeScript check       ────────────────
 | **Branch protection**         | PR required (external contributors), 7 status checks, force push forbidden                                                                                                                                                          |
 | **Dependabot**                | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped                                                                                                                                                                  |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more)                                                                                                                                                                                 |
-| **Coverage threshold**        | 67% enforced in CI, 70.04% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
+| **Coverage threshold**        | 68% enforced in CI, 70.04% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
 | **Documentation gate**        | Every version and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; links, code paths and unreachable documents too       |
 
 ### Workflows
