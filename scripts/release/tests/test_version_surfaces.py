@@ -245,6 +245,55 @@ def _fake_counts(
             "11 Prometheus metrics in one module — neither follows the total.\n",
         )
 
+    # The same guides restate the total once more, in PROSE — the sentence that
+    # drifted for four releases (490 against a real 492) while every guarded
+    # table cell above stayed green. A guard that watches a table is blind to a
+    # paragraph, so the sentence has its own surface and its own fixture line.
+    for locale, sentence in (
+        ("en", "%d defined; the 57 that reach nothing are listed explicitly."),
+        ("fr", "%d définies ; les 57 qui n'atteignent rien sont listées."),
+        ("de", "%d definiert; die 57, die nichts erreichen, stehen ausdrücklich."),
+        ("es", "%d definidas; las 57 que no llegan a nada figuran explícitamente."),
+        ("it", "%d definite; le 57 che non raggiungono nulla sono elencate."),
+        ("zh", "%d 项；其中 57 项没有到达任何面板。"),
+    ):
+        _append(f"how.{locale}.md", f"\n{sentence % metrics}\n")
+
+    # The knowledge mirror carries the same sentence in English prose.
+    _write(
+        root / "docs" / "knowledge" / "34_self_diagnostics.md",
+        "# Self-Diagnostics\n\n"
+        f"At the time of writing, {metrics} metrics are defined and 57 of them "
+        "reach nothing — and that list can only get shorter.\n",
+    )
+
+    # And the blog article, in the six locales, TWICE each: the title and the
+    # body. Anchored on what FOLLOWS the number, because the bare phrase also
+    # matches an unrelated "5 métriques Prometheus" elsewhere in the same
+    # bundle — the decoy below exercises exactly that.
+    for locale, title, body_text in (
+        ("en", "%d Prometheus Metrics, 26 Grafana Dashboards",
+         "%d Prometheus metrics covering HTTP, agents, tokens"),
+        ("fr", "%d métriques Prometheus, 26 dashboards Grafana",
+         "%d métriques Prometheus couvrant HTTP, agents, tokens"),
+        ("de", "%d Prometheus-Metriken, 26 Grafana-Dashboards",
+         "%d Prometheus-Metriken für HTTP, Agenten, Token"),
+        ("es", "%d métricas Prometheus, 26 dashboards Grafana",
+         "%d métricas Prometheus que cubren HTTP, agentes, tokens"),
+        ("it", "%d metriche Prometheus, 26 dashboard Grafana",
+         "%d metriche Prometheus che coprono HTTP, agenti, token"),
+        ("zh", "%d个Prometheus指标、26个Grafana仪表板",
+         "%d个Prometheus指标，覆盖HTTP、智能体、Token"),
+    ):
+        _write(
+            root / "apps" / "web" / "locales" / locale / "translation.json",
+            '{\n  "blog": {\n    "articles": {\n      "observability": {\n'
+            f'        "title": "{title % metrics}",\n'
+            f'        "body": "<p>{body_text % metrics}</p>",\n'
+            '        "decoy": "5 métriques Prometheus ailleurs, sans rapport"\n'
+            "      }\n    }\n  }\n}\n",
+        )
+
     # zh writes those two counters in its own shapes, plus a third sentence
     # saying "篇 MADR" — one word away from the "篇 ADR" pattern, which is
     # exactly how that digit drifted while its five siblings were corrected.
@@ -448,6 +497,7 @@ class TestDerivedCounts:
             "how.zh.md codebase-metrics table (ADR count)": 1,
             "how.zh.md MADR sentence (ADR count)": 1,
             "how.zh.md metric count (transparency row + Prometheus row)": 2,
+            "how.zh.md metric count (coverage sentence)": 1,
         }
         # Two sources read the same file, so the ADR assertion has to name the
         # source it means — otherwise adding a surface would silently weaken it.
