@@ -459,6 +459,10 @@ class MessagesState(TypedDict):
     # be used: an interrupted node never returns, so a HITL approval that takes
     # longer than the timeout would end the turn on the very next routing.
     react_elapsed_seconds: float
+    # ADR-256: cumulative time spent INSIDE tools this turn. Separate from the
+    # reasoning seconds above: a delegating tool opens its own LLM loop, and
+    # summing the two would let one delegation exhaust the reasoning budget.
+    react_tool_seconds: float
     # ADR-170: HMAC digest → count of identical tool requests within the turn.
     # Only the digest is stored: never the tool name, never the arguments.
     react_call_digests: dict[str, int]
@@ -652,6 +656,7 @@ def create_initial_state(
         react_start_time=None,
         react_system_blocks=[],
         react_elapsed_seconds=0.0,
+        react_tool_seconds=0.0,
         react_call_digests={},
     )
 

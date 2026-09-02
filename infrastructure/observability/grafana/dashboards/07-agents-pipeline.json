@@ -1431,6 +1431,54 @@
             }
           },
           "description": "Total context resolution attempts by turn type."
+        },
+        {
+          "id": 4207,
+          "type": "timeseries",
+          "title": "History Repairs (poisoned checkpoints)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 85
+          },
+          "targets": [
+            {
+              "expr": "sum by (shape, action) (increase(langgraph_history_repairs_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{shape}} / {{action}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Checkpointed messages repaired because they carried an unanswered tool call (one increment = one message, not one dead call). shape=call_block is the Responses API / Anthropic form that lives inside message content; a steady rate means turns keep ending with work in flight (budget too tight), a spike after a deploy means a history shape changed under us. Zero is the healthy value."
         }
       ]
     },

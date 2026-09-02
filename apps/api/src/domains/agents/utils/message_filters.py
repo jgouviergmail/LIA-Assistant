@@ -8,6 +8,7 @@ All functions preserve immutability - input lists are never modified.
 """
 
 import re
+from typing import Any
 
 from langchain_core.messages import (
     AIMessage,
@@ -25,6 +26,7 @@ from src.core.constants import (
 )
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_langgraph import langgraph_history_repairs_total
 
 logger = get_logger(__name__)
 
@@ -368,6 +370,51 @@ def remove_orphan_tool_messages(messages: list[BaseMessage]) -> list[BaseMessage
     return validated
 
 
+def _repaired_carrier(msg: AIMessage, answered_ids: set[str]) -> AIMessage | None:
+    """The pairing verdict for ONE AIMessage: keep it, mend it, or drop it.
+
+    Args:
+        msg: A candidate carrier from the history.
+        answered_ids: ``tool_call_id`` values that a ``ToolMessage`` answers.
+
+    Returns:
+        The message unchanged, a mended copy without its orphan call blocks,
+        or ``None`` when nothing valid remains and the carrier must go.
+    """
+    if msg.tool_calls:
+        call_ids = {tc["id"] for tc in msg.tool_calls if isinstance(tc, dict) and "id" in tc}
+        missing = call_ids - answered_ids
+        if missing:
+            langgraph_history_repairs_total.labels(shape="tool_calls", action="removal").inc()
+            logger.warning(
+                "unanswered_tool_calls_carrier_removed",
+                missing_tool_call_ids=sorted(missing),
+            )
+            return None
+
+    # Direction 2 again, one layer down: under responses/v1 and Anthropic the
+    # call ALSO exists as a CONTENT BLOCK, serialized independently of
+    # ``tool_calls``. A message whose tool_calls are clean can still carry an
+    # orphan — that is how a repaired-once history kept poisoning providers.
+    content, dangling_blocks = _purge_dangling_call_blocks(msg.content, answered_ids)
+    if not dangling_blocks:
+        return msg
+
+    if not coerce_content_to_text(content).strip() and not msg.tool_calls:
+        # Nothing readable and nothing left to answer: history, not a message.
+        langgraph_history_repairs_total.labels(shape="call_block", action="removal").inc()
+        logger.warning("unanswered_call_blocks_carrier_removed", dangling_blocks=dangling_blocks)
+        return None
+
+    langgraph_history_repairs_total.labels(shape="call_block", action="replacement").inc()
+    logger.warning("unanswered_call_blocks_purged", dangling_blocks=dangling_blocks)
+    # Answered ``tool_calls`` are carried over explicitly; ``additional_kwargs``
+    # is NOT, for the same measured reason as the turn-start repair — the
+    # provider's raw calls live there too and the Responses API re-serializes
+    # them, which would put back exactly what this branch just removed.
+    return AIMessage(content=content, id=msg.id, tool_calls=msg.tool_calls)
+
+
 def enforce_tool_message_pairing(messages: list[BaseMessage]) -> list[BaseMessage]:
     """Enforce the provider tool-pairing contract in BOTH directions.
 
@@ -375,14 +422,23 @@ def enforce_tool_message_pairing(messages: list[BaseMessage]) -> list[BaseMessag
 
     1. a ToolMessage has no preceding AIMessage carrying its ``tool_call_id``
        (orphan tool result), or
-    2. an AIMessage declares ``tool_calls`` whose results are missing
-       (unanswered tool call).
+    2. an AIMessage declares an unanswered call — either in ``tool_calls`` or
+       as a CALL BLOCK inside list-shaped ``content``.
 
     :func:`remove_orphan_tool_messages` only covers direction 1; this helper
     first drops AIMessages with unanswered tool_calls (direction 2 — their
     already-answered ToolMessages become orphans by construction), then
     removes every orphan ToolMessage. Dropping only orphan ToolMessages can
     never un-answer a remaining carrier, so one pass of each is stable.
+
+    Direction 2 has a second shape, and missing it kept a production
+    conversation broken for good (2026-09-02): under
+    ``output_version="responses/v1"`` and on Anthropic, the call ALSO lives as
+    a typed block inside ``content`` and is serialized independently of
+    ``tool_calls``. A message whose ``tool_calls`` are clean can therefore
+    still carry an orphan. Such blocks are purged from the message rather than
+    dropping it — the text around them is legitimate history — and the message
+    goes only when nothing readable and no answerable call remains.
 
     Args:
         messages: Message list potentially violating the pairing contract
@@ -403,16 +459,14 @@ def enforce_tool_message_pairing(messages: list[BaseMessage]) -> list[BaseMessag
     without_unanswered_carriers: list[BaseMessage] = []
     dropped_carriers = 0
     for msg in messages:
-        if isinstance(msg, AIMessage) and msg.tool_calls:
-            call_ids = {tc["id"] for tc in msg.tool_calls if isinstance(tc, dict) and "id" in tc}
-            if not call_ids.issubset(answered_ids):
-                dropped_carriers += 1
-                logger.warning(
-                    "unanswered_tool_calls_carrier_removed",
-                    missing_tool_call_ids=sorted(call_ids - answered_ids),
-                )
-                continue
-        without_unanswered_carriers.append(msg)
+        if not isinstance(msg, AIMessage):
+            without_unanswered_carriers.append(msg)
+            continue
+        repaired = _repaired_carrier(msg, answered_ids)
+        if repaired is None:
+            dropped_carriers += 1
+            continue
+        without_unanswered_carriers.append(repaired)
 
     validated = remove_orphan_tool_messages(without_unanswered_carriers)
 
@@ -655,6 +709,135 @@ __all__ = [
 ]
 
 
+# ``AIMessage.content`` is either plain text or a list of typed blocks; the
+# alias keeps the helpers below honest under MyPy strict without widening to
+# ``Any`` at the call site.
+MessageContent = str | list[str | dict[Any, Any]]
+
+# Provider call blocks, as they appear INSIDE list-shaped ``AIMessage.content``.
+# OpenAI's Responses API (``output_version="responses/v1"``) emits
+# ``function_call`` / ``custom_tool_call``; Anthropic emits ``tool_use``. These
+# blocks are serialized to the provider INDEPENDENTLY of ``message.tool_calls``
+# (measured against langchain-openai 1.5.2 and langchain-anthropic), which is
+# why stripping ``tool_calls`` alone cannot repair a poisoned history.
+_CALL_BLOCK_TYPES = frozenset({"function_call", "custom_tool_call", "tool_use"})
+
+
+def _call_block_id(block: str | dict[Any, Any]) -> str | None:
+    """Return the call id a content block refers to, when it is a call block.
+
+    Args:
+        block: One entry of a list-shaped ``AIMessage.content``.
+
+    Returns:
+        The block's ``call_id`` (Responses API) or ``id`` (Anthropic), or
+        ``None`` when the block is not a call block or carries no identifier.
+        A call block WITHOUT an identifier deliberately returns ``None``: it
+        cannot be matched against an answer, and guessing would corrupt
+        history silently.
+    """
+    if not isinstance(block, dict) or block.get("type") not in _CALL_BLOCK_TYPES:
+        return None
+    # A Responses block carries BOTH: ``call_id`` names the CALL, ``id`` names
+    # the item (``fc_…``). Anthropic's ``tool_use`` has only ``id``, and there
+    # it IS the call. So the KEY decides, not truthiness — falling through on a
+    # falsy ``call_id`` would hand back an item id that matches no answer and
+    # purge a block we merely failed to identify.
+    call_id = block.get("call_id") if "call_id" in block else block.get("id")
+    return call_id if isinstance(call_id, str) and call_id else None
+
+
+def _is_dangling_call_block(block: str | dict[Any, Any], answered_ids: set[str]) -> bool:
+    """Whether a content block is a call whose result never came back.
+
+    Args:
+        block: One entry of a list-shaped ``AIMessage.content``.
+        answered_ids: ``tool_call_id`` values that a ``ToolMessage`` answers.
+
+    Returns:
+        ``True`` only for an identified call block with no answer. Everything
+        else — text, reasoning, an answered call, an unidentifiable one — is
+        not dangling and must survive untouched.
+    """
+    call_id = _call_block_id(block)
+    return call_id is not None and call_id not in answered_ids
+
+
+def _purge_dangling_call_blocks(
+    content: MessageContent, answered_ids: set[str]
+) -> tuple[MessageContent, int]:
+    """Drop unanswered call blocks from a list-shaped content, keeping the rest.
+
+    Text, reasoning and every other block are preserved in order: the defect
+    being repaired is an unanswered CALL, not the message around it.
+
+    Args:
+        content: An ``AIMessage.content`` — a ``str`` (returned untouched, the
+            historical shape) or a list of typed blocks.
+        answered_ids: ``tool_call_id`` values that a ``ToolMessage`` answers.
+
+    Returns:
+        ``(content, dropped)`` — the content to keep and how many call blocks
+        were dropped. ``dropped == 0`` returns the input object unchanged, so
+        callers can use the count to detect "nothing to repair".
+    """
+    if not isinstance(content, list):
+        return content, 0
+    kept = [block for block in content if not _is_dangling_call_block(block, answered_ids)]
+    dropped = len(content) - len(kept)
+    return (kept, dropped) if dropped else (content, 0)
+
+
+def _dangling_repair_operation(
+    msg: AIMessage, answered_ids: set[str]
+) -> BaseMessage | RemoveMessage | None:
+    """The reducer operation that mends ONE message, or ``None`` if it is fine.
+
+    Args:
+        msg: A candidate message from the checkpointed history.
+        answered_ids: ``tool_call_id`` values that a ``ToolMessage`` answers.
+
+    Returns:
+        A same-id replacement, a ``RemoveMessage``, or ``None`` when the
+        message is healthy or cannot be repaired safely.
+    """
+    answered_calls = [tc for tc in msg.tool_calls if tc.get("id") in answered_ids]
+    dangling_calls = len(msg.tool_calls) - len(answered_calls)
+    content, dangling_blocks = _purge_dangling_call_blocks(msg.content, answered_ids)
+    if not dangling_calls and not dangling_blocks:
+        return None  # healthy: every call answered, no orphan block left over
+    if msg.id is None:
+        # Reducer repair is id-based; without an id we cannot replace or
+        # remove safely — never silently corrupt, let it surface.
+        logger.warning("dangling_tool_calls_message_without_id_skipped")
+        return None
+
+    # ``str(content)`` would be the repr of a block list — always truthy, so
+    # the removal branch below was unreachable for list-shaped content. The
+    # shared coercion answers the real question: is there text left?
+    has_content = bool(coerce_content_to_text(content).strip())
+    action = "replacement" if (answered_calls or has_content) else "removal"
+    if dangling_calls:
+        langgraph_history_repairs_total.labels(shape="tool_calls", action=action).inc()
+    if dangling_blocks:
+        langgraph_history_repairs_total.labels(shape="call_block", action=action).inc()
+    logger.warning(
+        "stale_dangling_tool_calls_sanitized",
+        message_id=msg.id,
+        dangling_count=dangling_calls,
+        dangling_blocks=dangling_blocks,
+        repaired_as=action,
+    )
+    if action == "removal":
+        return RemoveMessage(id=msg.id)
+    # Keep the text and the answered calls; strip the dangling ones.
+    # ``additional_kwargs`` and response metadata are DELIBERATELY not carried
+    # over: providers' raw tool_calls live there too, and the Responses API
+    # re-serializes them (measured), which would re-poison the payload this
+    # repair exists to fix.
+    return AIMessage(content=content, id=msg.id, tool_calls=answered_calls)
+
+
 def sanitize_stale_dangling_tool_calls(
     messages: list[BaseMessage],
 ) -> list[BaseMessage | RemoveMessage]:
@@ -663,9 +846,21 @@ def sanitize_stale_dangling_tool_calls(
     A cancelled (or hard-killed) run can leave an ``AIMessage`` with
     UNANSWERED ``tool_calls`` in the checkpoint (proven by the 2026-07
     de-risking POC-3: cancellation between the model call and the tool
-    execution). On the next turn that dangling message poisons strict
-    providers: *"messages with 'tool_calls' must be followed by tool
-    messages responding to each 'tool_call_id'"*.
+    execution). A ReAct budget exit does the same, deliberately: the loop
+    stops after the model asked for a tool that will never run. On the next
+    turn that dangling message poisons strict providers: *"messages with
+    'tool_calls' must be followed by tool messages responding to each
+    'tool_call_id'"*.
+
+    The call has TWO shapes and both must go. Under
+    ``output_version="responses/v1"`` (and on Anthropic, as ``tool_use``) it is
+    also a typed block inside list-shaped ``content``, serialized to the
+    provider independently of ``tool_calls``. Stripping ``tool_calls`` while
+    copying ``content`` verbatim left the block behind AND emptied
+    ``tool_calls``, so every later pass skipped the message as healthy: the
+    conversation stayed poisoned for good. Measured in production on
+    2026-09-02 — one budget exit, eight provider calls dead on
+    *"No tool output found for function call …"*, the same call id each time.
 
     This is the symmetric counterpart of :func:`remove_orphan_tool_messages`
     and returns REDUCER OPERATIONS (same-id replacements / RemoveMessage),
@@ -705,27 +900,10 @@ def sanitize_stale_dangling_tool_calls(
 
     operations: list[BaseMessage | RemoveMessage] = []
     for msg in messages:
-        if not isinstance(msg, AIMessage) or not msg.tool_calls:
+        if not isinstance(msg, AIMessage):
             continue
-        if msg.id is None:
-            # Reducer repair is id-based; without an id we cannot replace or
-            # remove safely — never silently corrupt, let it surface.
-            logger.warning("dangling_tool_calls_message_without_id_skipped")
-            continue
-        answered_calls = [tc for tc in msg.tool_calls if tc.get("id") in answered_ids]
-        if len(answered_calls) == len(msg.tool_calls):
-            continue  # healthy: every call answered
-        has_content = bool(str(msg.content).strip()) if msg.content else False
-        if answered_calls or has_content:
-            # Keep the text and the answered calls; strip the dangling ones.
-            operations.append(AIMessage(content=msg.content, id=msg.id, tool_calls=answered_calls))
-        else:
-            operations.append(RemoveMessage(id=msg.id))
-        logger.warning(
-            "stale_dangling_tool_calls_sanitized",
-            message_id=msg.id,
-            dangling_count=len(msg.tool_calls) - len(answered_calls),
-            repaired_as="replacement" if (answered_calls or has_content) else "removal",
-        )
+        operation = _dangling_repair_operation(msg, answered_ids)
+        if operation is not None:
+            operations.append(operation)
 
     return operations

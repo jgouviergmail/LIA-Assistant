@@ -29,6 +29,9 @@ from src.domains.agents.utils.message_filters import (
     sanitize_stale_dangling_tool_calls,
     split_messages_by_turn,
 )
+from src.infrastructure.observability.metrics_langgraph import (
+    langgraph_history_repairs_total,
+)
 
 # ============================================================================
 # Test fixtures
@@ -1771,3 +1774,389 @@ class TestSanitizeStaleDanglingToolCalls:
             AIMessage(content="", tool_calls=[{"name": "x", "args": {}, "id": "call_dead"}])
         ]
         assert sanitize_stale_dangling_tool_calls(messages) == []
+
+
+# =============================================================================
+# Dangling CALL BLOCKS inside list-shaped content
+# =============================================================================
+# Measured in production 2026-09-02 (requests e8b3c9d8 / e226d2e7): a ReAct
+# budget exit left one unanswered tool call, and eight provider calls died on
+#     400 - No tool output found for function call call_mrs6tSUvvllk1CVKJk1MtM7a
+# The ADR-117 repair above had ALREADY run on that message. Under
+# ``output_version="responses/v1"`` (and Anthropic's ``tool_use``), the call
+# does not live in ``tool_calls`` alone - it is a typed block INSIDE
+# ``content``, and langchain serializes those blocks to the provider
+# independently of ``tool_calls``. Stripping ``tool_calls`` while copying
+# ``content`` verbatim therefore kept the poison AND made the message
+# invisible to every later pass (``if not msg.tool_calls: continue``), so the
+# conversation stayed broken forever. Six filtering/pairing helpers were
+# measured blind to it; OpenAI-Responses and Anthropic reject such a history
+# and Gemini raises outright, while OpenAI Chat Completions is unaffected.
+
+
+def _call_block(call_id: str, *, kind: str = "function_call", name: str = "t") -> dict:
+    """Build a provider call block the way responses/v1 and Anthropic emit them."""
+    if kind == "tool_use":
+        return {"type": "tool_use", "name": name, "input": {}, "id": call_id}
+    return {"type": kind, "name": name, "arguments": "{}", "call_id": call_id}
+
+
+class TestSanitizeDanglingCallBlocks:
+    def test_orphan_block_is_purged_even_when_tool_calls_already_empty(self):
+        """The durable production state: a message repaired ONCE keeps its
+        orphan block, and must still be repairable."""
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[{"type": "text", "text": "Je regarde."}, _call_block("call_dead")],
+                id="a1",
+                tool_calls=[],
+            ),
+            HumanMessage(content="q2", id="h2"),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert len(ops) == 1
+        assert isinstance(ops[0], AIMessage)
+        assert ops[0].content == [{"type": "text", "text": "Je regarde."}]
+
+    def test_answered_call_block_is_never_touched(self):
+        """No false positive: a block whose ToolMessage exists stays."""
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[{"type": "text", "text": "ok"}, _call_block("call_ok")],
+                id="a1",
+                tool_calls=[{"name": "t", "args": {}, "id": "call_ok"}],
+            ),
+            ToolMessage(content="result", tool_call_id="call_ok", id="t1"),
+        ]
+
+        assert sanitize_stale_dangling_tool_calls(messages) == []
+
+    def test_mixed_blocks_purge_only_the_orphan(self):
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[
+                    {"type": "text", "text": "ok"},
+                    _call_block("call_ok"),
+                    _call_block("call_dead"),
+                ],
+                id="a1",
+                tool_calls=[
+                    {"name": "t", "args": {}, "id": "call_ok"},
+                    {"name": "t", "args": {}, "id": "call_dead"},
+                ],
+            ),
+            ToolMessage(content="result", tool_call_id="call_ok", id="t1"),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert len(ops) == 1
+        kept = [b.get("call_id") or b.get("id") for b in ops[0].content if isinstance(b, dict)]
+        assert "call_dead" not in kept
+        assert "call_ok" in kept
+        assert [tc["id"] for tc in ops[0].tool_calls] == ["call_ok"]
+
+    def test_anthropic_tool_use_block_is_purged_too(self):
+        """The defect is not provider-specific: Anthropic emits ``tool_use``."""
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[
+                    {"type": "text", "text": "ok"},
+                    _call_block("call_dead", kind="tool_use"),
+                ],
+                id="a1",
+                tool_calls=[],
+            ),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert len(ops) == 1
+        assert ops[0].content == [{"type": "text", "text": "ok"}]
+
+    def test_reasoning_block_survives_the_purge(self):
+        """Collateral-damage check: only call blocks go."""
+        reasoning = {"type": "reasoning", "id": "rs_1", "summary": []}
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[reasoning, {"type": "text", "text": "ok"}, _call_block("call_dead")],
+                id="a1",
+                tool_calls=[],
+            ),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert reasoning in ops[0].content
+
+    def test_content_reduced_to_nothing_is_removed_not_emptied(self):
+        """An AIMessage left with no text and no calls is noise, not history."""
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(content=[_call_block("call_dead")], id="a1", tool_calls=[]),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert len(ops) == 1
+        assert isinstance(ops[0], RemoveMessage)
+        assert ops[0].id == "a1"
+
+    def test_call_block_without_identifier_is_left_untouched(self):
+        """Never corrupt silently: no id means no verdict."""
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[{"type": "function_call", "name": "t", "arguments": "{}"}],
+                id="a1",
+                tool_calls=[],
+            ),
+        ]
+
+        assert sanitize_stale_dangling_tool_calls(messages) == []
+
+    def test_repair_is_idempotent(self):
+        """A second pass must find nothing - the 2026-09-02 defect was that the
+        first pass silenced the detector while leaving the poison in place."""
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[{"type": "text", "text": "ok"}, _call_block("call_dead")],
+                id="a1",
+                tool_calls=[{"name": "t", "args": {}, "id": "call_dead"}],
+            ),
+        ]
+
+        first = sanitize_stale_dangling_tool_calls(messages)
+        repaired = [first[0] if getattr(m, "id", None) == "a1" else m for m in messages]
+
+        assert sanitize_stale_dangling_tool_calls(repaired) == []
+
+    def test_replacement_never_carries_additional_kwargs(self):
+        """Second poison vector, measured: raw calls left in
+        ``additional_kwargs`` are re-serialized by the Responses API path."""
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[{"type": "text", "text": "ok"}, _call_block("call_dead")],
+                id="a1",
+                tool_calls=[],
+                additional_kwargs={"tool_calls": [{"id": "call_dead"}]},
+            ),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert ops[0].additional_kwargs == {}
+
+    def test_a_broken_call_id_never_falls_back_to_the_item_id(self):
+        """Responses blocks carry BOTH ``call_id`` (the call) and ``id`` (the
+        ITEM). Falling through on a falsy ``call_id`` would hand back ``fc_…``,
+        which matches no answer — and would purge a block we simply failed to
+        identify. When the key is there it is the authority; unusable means
+        untouched, never guessed.
+        """
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content=[
+                    {
+                        "type": "function_call",
+                        "name": "t",
+                        "arguments": "{}",
+                        "call_id": None,
+                        "id": "fc_1",
+                    }
+                ],
+                id="a1",
+                tool_calls=[],
+            ),
+        ]
+
+        assert sanitize_stale_dangling_tool_calls(messages) == []
+
+    def test_string_content_behaviour_is_unchanged(self):
+        """The historical path must not move: text stays, dangling calls go."""
+        messages = [
+            HumanMessage(content="q", id="h1"),
+            AIMessage(
+                content="plain text",
+                id="a1",
+                tool_calls=[{"name": "t", "args": {}, "id": "call_dead"}],
+            ),
+        ]
+
+        ops = sanitize_stale_dangling_tool_calls(messages)
+
+        assert isinstance(ops[0], AIMessage)
+        assert ops[0].content == "plain text"
+        assert ops[0].tool_calls == []
+
+
+class TestEnforcePairingSeesCallBlocks:
+    """The pairing helper feeds sub-agent LLM calls (message_history middleware).
+
+    Its docstring promises the contract in BOTH directions; measured on
+    2026-09-02 it was blind to call blocks carried inside list-shaped content,
+    so a poisoned history walked straight through it to the provider.
+    """
+
+    def test_orphan_block_is_purged_from_a_message_it_keeps(self):
+        messages = [
+            HumanMessage(content="q"),
+            AIMessage(
+                content=[{"type": "text", "text": "ok"}, _call_block("call_dead")],
+                tool_calls=[],
+            ),
+        ]
+
+        out = enforce_tool_message_pairing(messages)
+
+        assert len(out) == 2
+        assert out[1].content == [{"type": "text", "text": "ok"}]
+
+    def test_answered_block_survives(self):
+        messages = [
+            HumanMessage(content="q"),
+            AIMessage(
+                content=[{"type": "text", "text": "ok"}, _call_block("call_ok")],
+                tool_calls=[{"name": "t", "args": {}, "id": "call_ok"}],
+            ),
+            ToolMessage(content="result", tool_call_id="call_ok"),
+        ]
+
+        assert enforce_tool_message_pairing(messages) == messages
+
+    def test_message_left_with_nothing_is_dropped(self):
+        messages = [
+            HumanMessage(content="q"),
+            AIMessage(content=[_call_block("call_dead")], tool_calls=[]),
+        ]
+
+        out = enforce_tool_message_pairing(messages)
+
+        assert len(out) == 1
+        assert isinstance(out[0], HumanMessage)
+
+    def test_string_content_path_is_unchanged(self):
+        """The historical carrier-drop behaviour must not move."""
+        messages = [
+            HumanMessage(content="q"),
+            AIMessage(content="text", tool_calls=[{"name": "t", "args": {}, "id": "call_dead"}]),
+        ]
+
+        out = enforce_tool_message_pairing(messages)
+
+        assert len(out) == 1
+        assert isinstance(out[0], HumanMessage)
+
+
+class TestHistoryRepairMetric:
+    """A repair nobody counts is a repair nobody notices.
+
+    The 2026-09-02 incident ran for hours behind a ``logger.warning`` that no
+    panel reads. The counter answers the operational question the logs could
+    not: how often does a checkpointed history reach a provider broken, and in
+    which of the two shapes.
+    """
+
+    @staticmethod
+    def _count(shape: str, action: str) -> float:
+        return langgraph_history_repairs_total.labels(shape=shape, action=action)._value.get()
+
+    def test_dangling_tool_calls_replacement_is_counted(self):
+        before = self._count("tool_calls", "replacement")
+
+        sanitize_stale_dangling_tool_calls(
+            [
+                HumanMessage(content="q", id="h1"),
+                AIMessage(
+                    content="text",
+                    id="a1",
+                    tool_calls=[{"name": "t", "args": {}, "id": "call_dead"}],
+                ),
+            ]
+        )
+
+        assert self._count("tool_calls", "replacement") == before + 1
+
+    def test_dangling_call_block_is_counted_under_its_own_shape(self):
+        before_block = self._count("call_block", "replacement")
+        before_calls = self._count("tool_calls", "replacement")
+
+        sanitize_stale_dangling_tool_calls(
+            [
+                HumanMessage(content="q", id="h1"),
+                AIMessage(
+                    content=[{"type": "text", "text": "ok"}, _call_block("call_dead")],
+                    id="a1",
+                    tool_calls=[],
+                ),
+            ]
+        )
+
+        assert self._count("call_block", "replacement") == before_block + 1
+        assert self._count("tool_calls", "replacement") == before_calls
+
+    def test_removal_is_counted_as_removal(self):
+        before = self._count("call_block", "removal")
+
+        sanitize_stale_dangling_tool_calls(
+            [
+                HumanMessage(content="q", id="h1"),
+                AIMessage(content=[_call_block("call_dead")], id="a1", tool_calls=[]),
+            ]
+        )
+
+        assert self._count("call_block", "removal") == before + 1
+
+    def test_healthy_history_counts_nothing(self):
+        before = sum(
+            self._count(shape, action)
+            for shape in ("tool_calls", "call_block")
+            for action in ("replacement", "removal")
+        )
+
+        sanitize_stale_dangling_tool_calls(
+            [
+                HumanMessage(content="q", id="h1"),
+                AIMessage(
+                    content=[{"type": "text", "text": "ok"}, _call_block("call_ok")],
+                    id="a1",
+                    tool_calls=[{"name": "t", "args": {}, "id": "call_ok"}],
+                ),
+                ToolMessage(content="result", tool_call_id="call_ok", id="t1"),
+            ]
+        )
+
+        after = sum(
+            self._count(shape, action)
+            for shape in ("tool_calls", "call_block")
+            for action in ("replacement", "removal")
+        )
+        assert after == before
+
+    def test_pairing_helper_counts_its_own_repairs(self):
+        before_purge = self._count("call_block", "replacement")
+        before_drop = self._count("tool_calls", "removal")
+
+        enforce_tool_message_pairing(
+            [
+                HumanMessage(content="q"),
+                AIMessage(
+                    content=[{"type": "text", "text": "ok"}, _call_block("call_dead")],
+                    tool_calls=[],
+                ),
+                AIMessage(content="x", tool_calls=[{"name": "t", "args": {}, "id": "call_gone"}]),
+            ]
+        )
+
+        assert self._count("call_block", "replacement") == before_purge + 1
+        assert self._count("tool_calls", "removal") == before_drop + 1

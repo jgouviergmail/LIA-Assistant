@@ -19,7 +19,7 @@ from structlog.testing import capture_logs
 from src.infrastructure.mcp.oauth_flow import (
     MCPAuthServerMetadata,
     MCPOAuthFlowHandler,
-    _safe_oauth_error_code,
+    safe_oauth_error_code,
 )
 from tests.support.structlog_capture import fresh_module_logger
 
@@ -552,22 +552,22 @@ class TestOAuthErrorCodeAllowlist:
             400,
             json={"error": "invalid_grant", "error_description": "code expired"},
         )
-        assert _safe_oauth_error_code(resp) == "invalid_grant"
+        assert safe_oauth_error_code(resp) == "invalid_grant"
 
     def test_unknown_error_code_is_dropped(self):
         """A provider-invented code is NOT surfaced (it is free text)."""
         resp = httpx.Response(400, json={"error": "our_internal_db_said_no_42"})
-        assert _safe_oauth_error_code(resp) is None
+        assert safe_oauth_error_code(resp) is None
 
     def test_non_json_body_yields_no_code(self):
         """An HTML/opaque body yields no code rather than raising."""
         resp = httpx.Response(500, content=b"<html>boom</html>")
-        assert _safe_oauth_error_code(resp) is None
+        assert safe_oauth_error_code(resp) is None
 
     def test_json_array_body_yields_no_code(self):
         """A JSON body that is not an object is handled defensively."""
         resp = httpx.Response(400, json=["invalid_grant"])
-        assert _safe_oauth_error_code(resp) is None
+        assert safe_oauth_error_code(resp) is None
 
 
 class TestIssuerRecordingAndValidation:

@@ -427,6 +427,7 @@ class UserMCPServerService:
                 generated_desc = await self._llm_generate_description(
                     tool_list=entry.tools,
                     server_name=server.name,
+                    account_scoped=server.auth_type != UserMCPAuthType.NONE.value,
                 )
                 update_data["domain_description"] = generated_desc
 
@@ -532,6 +533,7 @@ class UserMCPServerService:
         generated_desc = await self._llm_generate_description(
             tool_list=tool_list,
             server_name=server.name,
+            account_scoped=server.auth_type != UserMCPAuthType.NONE.value,
         )
 
         # Persist (overwrite any existing description)
@@ -557,6 +559,7 @@ class UserMCPServerService:
         self,
         tool_list: list[dict],
         server_name: str,
+        account_scoped: bool = False,
     ) -> str:
         """Generate an intelligent domain description using an LLM.
 
@@ -570,6 +573,11 @@ class UserMCPServerService:
         Args:
             tool_list: Discovered tools (list of dicts with "name" / "description").
             server_name: Human-readable server name.
+            account_scoped: True when the server's credential is the user's
+                own (``auth_type != none``). Fed only tool names, the
+                generator once described an authenticated GitHub server as
+                "public GitHub repositories" — and every routing surface
+                repeated it (2026-09-02).
 
         Returns:
             Generated domain description string.
@@ -593,8 +601,17 @@ class UserMCPServerService:
                     tool_lines.append(f"- {name}")
             tools_text = "\n".join(tool_lines)
 
+            auth_line = (
+                "Authentication: calls are authenticated with the user's own account "
+                "credentials - capabilities operate on the user's own data, never "
+                "describe this server as public-only."
+                if account_scoped
+                else "Authentication: none - the server serves public or anonymous data."
+            )
             system_prompt = load_prompt("mcp_description_prompt")
-            user_prompt = f"Server name: {server_name}\n\nAvailable tools:\n{tools_text}"
+            user_prompt = (
+                f"Server name: {server_name}\n{auth_line}\n\nAvailable tools:\n{tools_text}"
+            )
 
             from src.infrastructure.llm.invoke_helpers import (
                 enrich_config_with_node_metadata,

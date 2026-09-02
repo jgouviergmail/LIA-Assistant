@@ -39,6 +39,28 @@ from src.domains.agents.data_registry.models import (
 from src.domains.agents.tools.output import UnifiedToolOutput
 
 
+class MCPAuthRequiredError(RuntimeError):
+    """A user MCP server refuses service until the user re-authenticates it.
+
+    Raised as a FAST refusal when the stored status already says
+    ``auth_required``: every call to that server is doomed until the user
+    reconnects it, so hammering the token endpoint again (six 400s in one
+    turn, measured 2026-09-02) only hides the remedy. The message is
+    deliberately self-contained — it is the only signal the reasoning model
+    gets, and the model is what relays the remedy to the user.
+    """
+
+    def __init__(self, server_name: str) -> None:
+        self.server_name = server_name
+        super().__init__(
+            f"MCP server '{server_name}' requires re-authentication: its "
+            "OAuth session is no longer valid. Do not retry this tool and do "
+            "not call this server's other tools this turn - they will fail "
+            "the same way. Tell the user to reconnect the server in "
+            "Settings > MCP servers."
+        )
+
+
 class MCPModernOnlyServerError(RuntimeError):
     """The MCP server rejected every protocol revision this client speaks.
 

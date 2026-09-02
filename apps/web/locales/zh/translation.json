@@ -4246,7 +4246,7 @@
         },
         "mcp": {
           "title": "🔌 MCP（模型上下文协议）",
-          "description": "完整的 MCP 支持，并在协议当前修订版 2026-07-28 的两个层面上保持对齐：如何与服务器对话（两代协议，自动回退），以及如何读取它的工具声明——覆盖该标准所允许的全部范围。支持实例级服务器与按用户的服务器、四种认证方式（无认证、API 密钥、Bearer 令牌、绑定签发方的 OAuth 2.1）、自动发现工具并显示其可读名称，以及自动生成的领域描述，让路由器知道每台服务器各司何职。"
+          "description": "完整的 MCP 支持，并在协议当前修订版 2026-07-28 的两个层面上保持对齐：如何与服务器对话（两代协议，自动回退），以及如何读取它的工具声明——覆盖该标准所允许的全部范围。支持实例级服务器与按用户的服务器、四种认证方式（无认证、API 密钥、Bearer 令牌、绑定签发方的 OAuth 2.1）、自动发现工具并显示其可读名称，以及自动生成的领域描述，让路由器知道每台服务器各司何职。用用户本人账号连接的服务器会在模型读取其能力的每个位置声明这一点：“我的”解析到该账号，无需询问用户名。"
         },
         "mcpApps": {
           "title": "📱 交互式MCP Apps",
@@ -4334,7 +4334,7 @@
         },
         "reactMode": {
           "title": "⚡ ReAct执行模式",
-          "description": "流水线之外的另一种模式：助手一步步推理——调用工具、读结果、再决定下一步——由四个专用节点实现，原生支持审批。流水线仍是默认模式，token 消耗少 4 到 8 倍；切换入口在聊天头部。每一轮都从干净的数据登记表开始，并要求代理去取确切数值，而不是凭记忆给个近似值。两道护栏框住循环：截止时间按计算时间计量，所以等你审批不再吃掉预算；同一个工具以完全相同的参数被反复调用会先被拒绝，再结束这一轮。"
+          "description": "流水线之外的另一种模式：助手一步步推理——调用工具、读结果、再决定下一步——由四个专用节点实现，原生支持审批。流水线仍是默认模式，token 消耗少 4 到 8 倍；切换入口在聊天头部。每一轮都从干净的数据登记表开始，并要求代理去取确切数值，而不是凭记忆给个近似值。三道护栏框住循环：截止时间按计算时间计量，所以等你审批不再吃掉预算；同一个工具以完全相同的参数被反复调用会先被拒绝，再结束这一轮。工具内耗费的时间另有独立预算，与推理分开计量——单次长时间委派不再会耗尽整轮。"
         },
         "proactiveInitiative": {
           "title": "🎯 主动倡议",
@@ -4407,6 +4407,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_38_5": {
+          "title": "v1.38.5 — 🔑 你的服务器知道它代表你",
+          "date": "2026年9月",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔑 “我的”终于指向你</b> — 用你自己的账号连接的服务器（GitHub、银行等）现在会在助理读取其能力的每个地方声明这一点。“列出我的仓库”不再以“你的用户名是什么？”收场：你已连接的账号就是答案。",
+            "i2": "<b>🔄 连接保持连接</b> — 一个令牌刷新缺陷会在每第二次续期时悄悄损坏服务器凭据，迫使你反复重新连接。已从根源修复。当服务器确实需要重新连接时，助理会点名说明并引导你前往设置，而不是声称该能力不存在。",
+            "i3": "<b>⏱️ 自主回合的诚实时间预算</b> — 思考时间与工具工作时间现在分开计量，各有上限：一次长时间的委派不再会耗尽整个回合。管理员可在调试面板中看到两条预算进度条。",
+            "i4": "<b>🧰 你的服务器数据真正进入回答</b> — 由已连接服务器的子代理获取的结果有时被概括为“找到 N 项”而没有具体内容。真实数据行现在会返回到回答中，并标记为外部内容。"
+          }
+        },
         "v1_38_4": {
           "title": "v1.38.4 — 🔌 从未现身的工具",
           "date": "2026 年 9 月",
@@ -7370,7 +7381,7 @@
           },
           "q6": {
             "question": "LIA 如何在对话中使用 MCP 工具？",
-            "answer": "MCP 工具在相关时由 LIA <strong>自动</strong>使用：<br><br><strong>🧠 智能选择：</strong><br>• LIA 分析你的问题并识别相关工具<br>• <strong>服务器描述</strong>帮助 LIA 选择正确的 MCP 服务器<br>• MCP 工具与原生工具（Google、天气等）一起被选择<br><br><strong>📊 结果展示：</strong><br>• MCP 结果以<strong>可视化卡片</strong>形式显示在对话中<br>• 每张卡片显示来源服务器和工具名称<br>• 内容可以是文本或格式化的 JSON<br><br><strong>💡 提示：</strong><br>• 编写良好的<strong>服务器描述</strong>来引导 LIA<br>• 测试连接以确保工具被正确发现<br>• 你可以通过开关<strong>启用/禁用</strong>服务器而无需删除它"
+            "answer": "MCP 工具在相关时由 LIA <strong>自动</strong>使用：<br><br><strong>🧠 智能选择：</strong><br>• LIA 分析你的问题并识别相关工具<br>• <strong>服务器描述</strong>帮助 LIA 选择正确的 MCP 服务器<br>• MCP 工具与原生工具（Google、天气等）一起被选择<br><br><strong>📊 结果展示：</strong><br>• MCP 结果以<strong>可视化卡片</strong>形式显示在对话中<br>• 每张卡片显示来源服务器和工具名称<br>• 内容可以是文本或格式化的 JSON<br><br><strong>💡 提示：</strong><br>• 编写良好的<strong>服务器描述</strong>来引导 LIA<br>• 测试连接以确保工具被正确发现<br>• 你可以通过开关<strong>启用/禁用</strong>服务器而无需删除它<br>• 用你的账号连接的服务器（OAuth、个人令牌）会告知 LIA：“我的仓库”“我的账户”解析到该账号，无需提供用户名"
           },
           "q7": {
             "question": "什么是 OAuth 权限范围，为什么它们很重要？",
@@ -7378,7 +7389,7 @@
           },
           "q8": {
             "question": "自动描述生成是如何工作的？",
-            "answer": "LIA 可以为你的 MCP 服务器<strong>自动生成</strong>域描述：<br><br><strong>🤖 自动生成：</strong><br>• 在<strong>连接测试</strong>期间，如果没有设置描述，LLM 会分析发现的工具<br>• 它会生成一个智能描述，帮助 LIA 理解<strong>何时</strong>使用此服务器<br>• 描述针对查询路由进行了优化（根据问题选择正确的服务器）<br><br><strong>✨ 手动重新生成：</strong><br>• 在编辑模式下，点击描述字段旁边的<strong>生成描述</strong>按钮（闪光图标）<br>• 这会用新的工具分析覆盖现有描述<br>• 需要先测试连接（以发现工具）<br><br><strong>💡 提示：</strong><br>• 你可以随时编写<strong>手动</strong>描述，连接测试不会覆盖它<br>• 自动生成是一个良好的起点，你可以随后进行调整"
+            "answer": "LIA 可以为你的 MCP 服务器<strong>自动生成</strong>域描述：<br><br><strong>🤖 自动生成：</strong><br>• 在<strong>连接测试</strong>期间，如果没有设置描述，LLM 会分析发现的工具<br>• 它会生成一个智能描述，帮助 LIA 理解<strong>何时</strong>使用此服务器<br>• 描述针对查询路由进行了优化（根据问题选择正确的服务器）<br><br><strong>✨ 手动重新生成：</strong><br>• 在编辑模式下，点击描述字段旁边的<strong>生成描述</strong>按钮（闪光图标）<br>• 这会用新的工具分析覆盖现有描述<br>• 需要先测试连接（以发现工具）<br><br><strong>💡 提示：</strong><br>• 你可以随时编写<strong>手动</strong>描述，连接测试不会覆盖它<br>• 自动生成是一个良好的起点，你可以随后进行调整<br>• 描述生成知道服务器是否以你的账号认证：此时它描述的是针对你数据的能力，绝不会写成仅“公开”访问"
           },
           "q9": {
             "question": "如何生成Excalidraw图表和示意图？",
@@ -10075,9 +10086,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "493个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
+        "title": "497个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：473指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 493个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 497个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",

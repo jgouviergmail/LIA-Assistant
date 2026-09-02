@@ -18,6 +18,10 @@ from src.core.context import (
 )
 from src.domains.agents.services.react_tool_selector import ReactToolSelector
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
+from src.infrastructure.observability.metrics_react import (
+    react_tool_selector_capped_total,
+    react_tools_resolved,
+)
 
 _SERVER_ID = UUID("770baa3e-1111-2222-3333-444455556666")
 _SERVER_PREFIX = str(_SERVER_ID)[:8]
@@ -88,20 +92,32 @@ class TestReactToolSelectorUserMCP:
 
 
 class TestReactIterativeExpansion:
-    """In ReAct, iterative user MCP servers expose individual tools (option B).
+    """In ReAct, iterative user MCP servers expose individual tools AND the
+    task tool.
 
-    Exception: MCP App servers (tools with app_resource_uri) keep the opaque
-    task tool, because they need the dedicated MCP-app prompt + model.
+    The expansion used to REPLACE the task tool ("option B"), which removed
+    the only delegation affordance. Measured 2026-09-02 on GitHub
+    (`.../mcp/x/repos/readonly`, public-repo tools only): asked for "my
+    repos", the ReAct model — seeing only per-repo tools that all demand an
+    owner — rationally asked the user for their username, while the pipeline,
+    which keeps the task tool, delegated to the sub-agent and answered fine.
+    Individual tools give the model descriptions to match on; the task tool
+    gives it a sub-agent to delegate identity- or multi-step asks to. Both.
+
+    Exception: MCP App servers (tools with app_resource_uri) keep ONLY the
+    opaque task tool, because they need the dedicated MCP-app prompt + model.
     """
 
-    def test_iterative_data_server_expanded_to_individual_tools(self) -> None:
-        """A non-App iterative server: task tool is replaced by its individual tools."""
+    def test_iterative_data_server_binds_individual_tools_and_task_tool(self) -> None:
+        """A non-App iterative server: individual tools AND the task tool."""
         ind1 = _make_user_adapter("get_indicator")
         ind2 = _make_user_adapter("get_signal_summary")
         task_manifest = _manifest(_TASK_TOOL_NAME, hitl=False)
 
         ctx = UserMCPToolsContext()
-        ctx.tool_instances[_TASK_TOOL_NAME] = SimpleNamespace(name=_TASK_TOOL_NAME)
+        ctx.tool_instances[_TASK_TOOL_NAME] = SimpleNamespace(
+            name=_TASK_TOOL_NAME, description="Era banque: personal finance.", args_schema=None
+        )
         ctx.tool_instances[ind1.name] = ind1
         ctx.tool_instances[ind2.name] = ind2
         ctx.tool_manifests = [task_manifest]
@@ -117,7 +133,7 @@ class TestReactIterativeExpansion:
         names = {t.name for t in wrapped}
         assert ind1.name in names
         assert ind2.name in names
-        assert _TASK_TOOL_NAME not in names  # opaque task tool replaced
+        assert _TASK_TOOL_NAME in names  # the delegation affordance survives
 
     def test_iterative_app_server_keeps_task_tool(self) -> None:
         """An MCP App iterative server keeps the task tool, individual tools hidden."""
@@ -292,7 +308,9 @@ class TestDestructiveHintForcesConfirmation:
     def _select(self, adapters: list[UserMCPToolAdapter], *, server_hitl: bool) -> dict[str, bool]:
         task_manifest = _manifest(_TASK_TOOL_NAME, hitl=server_hitl)
         ctx = UserMCPToolsContext()
-        ctx.tool_instances[_TASK_TOOL_NAME] = SimpleNamespace(name=_TASK_TOOL_NAME)
+        ctx.tool_instances[_TASK_TOOL_NAME] = SimpleNamespace(
+            name=_TASK_TOOL_NAME, description="task tool", args_schema=None
+        )
         for adapter in adapters:
             ctx.tool_instances[adapter.name] = adapter
         ctx.tool_manifests = [task_manifest]
@@ -335,3 +353,63 @@ class TestDestructiveHintForcesConfirmation:
     def test_a_tool_without_hints_follows_the_server(self):
         tool = self._adapter("accounts__list_financial_accounts", None)
         assert self._select([tool], server_hitl=False)[tool.name] is False
+
+
+class TestReactToolSelectorCapObservability:
+    """ADR-256 B: what the cap drops must be a series, not only a log line.
+
+    Up to 896 tools can resolve against a cap of 100 (96 native + 20 MCP servers
+    x 40 tools). A ``logger.warning`` says it happened once; it never says how
+    often, nor how close to the cap a healthy turn runs.
+    """
+
+    @staticmethod
+    def _capped_value() -> float:
+        return react_tool_selector_capped_total._value.get()
+
+    @staticmethod
+    def _resolved_count() -> float:
+        return react_tools_resolved._sum.get()
+
+    def _select_n(self, n: int, *, cap: int) -> int:
+        adapters = [_make_user_adapter(f"tool_{i}") for i in range(n)]
+        ctx = UserMCPToolsContext()
+        manifests = []
+        for adapter in adapters:
+            ctx.tool_instances[adapter.name] = adapter
+            manifests.append(_manifest(adapter.name, hitl=False))
+        ctx.tool_manifests = manifests
+
+        original_cap = settings.react_agent_max_tools
+        settings.react_agent_max_tools = cap
+        man_token = request_tool_manifests_ctx.set(manifests)
+        ctx_token = user_mcp_tools_ctx.set(ctx)
+        try:
+            wrapped, _ = ReactToolSelector().select(intelligence=None)
+        finally:
+            user_mcp_tools_ctx.reset(ctx_token)
+            request_tool_manifests_ctx.reset(man_token)
+            settings.react_agent_max_tools = original_cap
+        return len(wrapped)
+
+    def test_the_cap_biting_increments_a_counter(self) -> None:
+        before = self._capped_value()
+        kept = self._select_n(3, cap=2)
+        assert kept == 2, "the cap must still truncate"
+        assert self._capped_value() == before + 1
+
+    def test_a_turn_under_the_cap_does_not_increment_it(self) -> None:
+        before = self._capped_value()
+        kept = self._select_n(2, cap=5)
+        assert kept == 2
+        assert self._capped_value() == before
+
+    def test_the_resolved_count_is_observed_even_when_the_cap_does_not_bite(self) -> None:
+        """The distribution BEFORE the cap bites is what says the cap is too low.
+
+        A counter of cap events only fires once the damage is done; the histogram
+        shows a deployment creeping towards its ceiling.
+        """
+        before = self._resolved_count()
+        self._select_n(2, cap=5)
+        assert self._resolved_count() == before + 2

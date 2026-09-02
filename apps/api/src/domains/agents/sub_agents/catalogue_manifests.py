@@ -70,6 +70,9 @@ _DESCRIPTION = (
 
 delegate_to_sub_agent_catalogue_manifest = ToolManifest(
     name="delegate_to_sub_agent_tool",
+    # ADR-256: the sub-agent runs a READ-ONLY tool subset by contract (ADR-083),
+    # so the delegation itself mutates nothing.
+    tool_category="readonly",
     agent="sub_agent_agent",
     description=_DESCRIPTION,
     semantic_keywords=[

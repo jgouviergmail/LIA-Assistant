@@ -149,11 +149,38 @@ Executes tools from the last AIMessage:
 - Idempotence: on re-execution after interrupt resume, already-resolved tool calls are skipped
 - **No-progress guard** (ADR-170): after the idempotence skip, each executed call is digested and counted
 - ToolRuntime injection via `_build_tool_runtime()` (same pattern as pipeline)
+- **Per-tool timeout** (ADR-256): every call is wrapped in the `compute_step_timeout` policy —
+  the same per-family bounds the pipeline applies, read from a second caller rather than a
+  second copy. An overrun becomes a recoverable `ToolMessage`, never an exception that kills
+  the node and discards the results that did come back
+- Accumulates the time spent inside tools into `react_tool_seconds` (ADR-256)
 - Registry items accumulated across iterations via `current_turn_registry` merge
 
-### Compute budget and no-progress guard (ADR-170)
+### The two time budgets (ADR-170, ADR-256)
 
-`react_agent_timeout_seconds` (default 120 s) is compared against **compute time**, not wall
+A turn has **two** time budgets, counted apart, and one predicate reads both.
+
+| Key | What it counts | Setting | Charged by |
+|-----|----------------|---------|------------|
+| `react_elapsed_seconds` | The model's own REASONING | `react_agent_timeout_seconds` | `react_call_model` |
+| `react_tool_seconds` | Time spent INSIDE tools | `react_tool_budget_seconds` | `react_execute_tools` |
+
+They are separate because a delegating tool opens its own LLM loop behind a single `tool_call`:
+20 iterations for a sub-agent (ADR-083), 50 for an iterative MCP task or a browser run. Before
+ADR-256 that work charged **nothing anywhere** — `react_elapsed_seconds` was written by one node
+out of four, and it is the node that only thinks — so a turn whose model reasoned 10 s while its
+tools ran for three hours returned `react_exit_reason() is None`. Measured upper bound for one
+turn, on the real constants: **~30 h**.
+
+Summing the two was measured and rejected: one delegation at its pipeline bound (300 s) equals
+100 % of the reasoning budget, so turns that complete today would start being cut. The reasoning
+threshold is therefore unchanged, and `react_exit_reason` gained a third answer, `tool_budget`,
+named apart — reporting delegated time as `compute_budget` would tell the user the model thought
+too long when in fact a sub-agent did.
+
+Both exclude the wall clock a user spends on a HITL approval, for the structural reason below.
+
+`react_agent_timeout_seconds` is compared against **compute time**, not wall
 clock. The reason is structural: `interrupt()` raises, so the node never returns, no state
 update is persisted and no timestamp is refreshed; the resume re-enters the interrupted node,
 and the router — where the reset lived — does not replay. Verified on a real LangGraph graph:

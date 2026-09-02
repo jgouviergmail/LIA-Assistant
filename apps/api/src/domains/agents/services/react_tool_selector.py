@@ -41,6 +41,10 @@ from src.domains.agents.registry.catalogue import manifests_for_mode
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
 from src.infrastructure.mcp.registration import declares_destructive_tool
+from src.infrastructure.observability.metrics_react import (
+    react_tool_selector_capped_total,
+    react_tools_resolved,
+)
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -100,6 +104,14 @@ class ReactToolSelector:
             # expose the individual tools directly so the model can recognise and
             # pick them by description — EXCEPT MCP App servers, which keep the
             # task tool (they need the dedicated MCP-app prompt + model).
+            #
+            # The task tool is bound AS WELL, never replaced: it is the only
+            # delegation affordance for identity- or multi-step asks the
+            # individual tools cannot express (measured 2026-09-02 on GitHub's
+            # public-repos toolset: "list MY repos" has no individual tool, so
+            # a model shown only per-repo tools rationally asked the user for
+            # their username — while the pipeline, which keeps the task tool,
+            # delegated to the sub-agent and answered).
             expanded = self._expand_iterative_user_mcp(manifest)
             if expanded is not None:
                 for ind_name, ind_tool, ind_hitl in expanded:
@@ -108,6 +120,15 @@ class ReactToolSelector:
                     )
                     priority_flags.append(is_priority)
                     hitl_map[ind_name] = ind_hitl
+                task_instance = resolve_tool_instance(tool_name)
+                if task_instance is not None:
+                    permissions = getattr(manifest, "permissions", None)
+                    task_hitl = bool(permissions and permissions.hitl_required)
+                    wrapped_tools.append(
+                        ReactToolWrapper(original_tool=task_instance, hitl_required=task_hitl)
+                    )
+                    priority_flags.append(is_priority)
+                    hitl_map[tool_name] = task_hitl
                 continue
 
             # Resolve across the global registry AND the per-request user MCP
@@ -138,7 +159,12 @@ class ReactToolSelector:
         # (and reported) on what is actually bound.
         max_tools = settings.react_agent_max_tools
         resolved_count = len(wrapped_tools)
+        # ADR-256: observed on EVERY turn, not only when the cap bites. A counter
+        # of cap events fires once capabilities are already lost; this
+        # distribution is what shows a deployment creeping towards its ceiling.
+        react_tools_resolved.observe(resolved_count)
         if resolved_count > max_tools:
+            react_tool_selector_capped_total.inc()
             # Stable partition: tools of the detected domains' agents first, so
             # the truncation sacrifices generic tools instead of the very tools
             # the query needs. Order is untouched when the count fits the cap.

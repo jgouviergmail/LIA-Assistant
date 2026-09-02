@@ -48,6 +48,6 @@
     "domains/psyche/engine.py": 874,
     "domains/psyche/service.py": 913,
     "domains/users/service.py": 676,
-    "infrastructure/observability/metrics_agents.py": 815
+    "infrastructure/observability/metrics_agents.py": 798
   }
 }

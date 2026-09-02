@@ -10,7 +10,11 @@ from prometheus_client import Counter, Histogram
 
 react_agent_duration_seconds = Histogram(
     "react_agent_duration_seconds",
-    "ReAct agent total execution duration",
+    "ReAct agent REASONING duration: the seconds charged by react_call_model, "
+    "which is what the compute budget bounds. It excludes tool execution time "
+    "(see agent_tool_duration_seconds) and, by ADR-170's design, the wall clock "
+    "a user spends on a HITL approval. Reading it as the turn's total is how a "
+    "delegated sub-agent loop came to be invisible in the dashboards (ADR-256)",
     buckets=[1, 2, 5, 10, 30, 60, 120],
 )
 
@@ -58,4 +62,34 @@ react_tool_executions_before_interrupt_total = Counter(
     "restructuring: the blast radius is bounded by the single tool allowed to "
     "interrupt here (delegate_to_sub_agent_tool)",
     ["tool_name"],
+)
+
+react_tool_selector_capped_total = Counter(
+    "react_tool_selector_capped_total",
+    "Turns where the resolved tool count exceeded react_agent_max_tools and "
+    "tools had to be dropped. Up to 896 tools can resolve against a cap of 100 "
+    "(96 native plus 20 MCP servers of 40 tools), and the selector keeps the "
+    "detected domains' tools first — but a non-zero rate means this deployment "
+    "is losing capabilities the model can no longer see (ADR-256)",
+)
+
+react_tools_resolved = Histogram(
+    "react_tools_resolved",
+    "Tools resolved for a ReAct turn BEFORE the max_tools cap is applied. The "
+    "cap counter only fires once capabilities are already lost; this "
+    "distribution is what shows a deployment creeping towards its ceiling",
+    buckets=[10, 25, 50, 75, 90, 100, 150, 250, 500],
+)
+
+react_unknown_tool_calls_total = Counter(
+    "react_unknown_tool_calls_total",
+    "Tool calls the loop could not resolve to a bound tool. `not_selected` "
+    "means the tool exists in the catalogue but was not bound to this turn — "
+    "the cap or the per-request filtering dropped it, so the cap is too low. "
+    "`unknown` means no tool of that name exists at all: the model invented it, "
+    "so the catalogue is presented badly. The two need opposite fixes, which is "
+    "why one counter would have been useless. The tool NAME is deliberately not "
+    "a label — it comes from a model, so its cardinality is unbounded; it "
+    "travels in the log event instead (ADR-256)",
+    ["reason"],  # not_selected | unknown
 )

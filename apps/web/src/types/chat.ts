@@ -1174,7 +1174,9 @@ export interface EphemeralScript {
 export interface ReactExecutionMetrics {
   iterations: number;
   max_iterations: number; // Published enforced bound (settings)
-  elapsed_seconds: number;
+  elapsed_seconds: number; // REASONING only — tools are counted apart (ADR-256)
+  tool_seconds?: number; // Time spent inside tools (absent before ADR-256)
+  tool_budget_seconds?: number; // Published enforced bound for the above
   tool_names: string[]; // Tools available to the loop
   executed_tool_calls: number; // Distinct tool calls actually executed
   scripts?: EphemeralScript[]; // Sandboxed scripts this turn (ADR-249)

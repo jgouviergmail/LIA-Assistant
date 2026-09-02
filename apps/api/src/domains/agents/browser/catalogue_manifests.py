@@ -30,6 +30,9 @@ from src.domains.agents.registry.catalogue import (
 
 browser_task_catalogue_manifest = ToolManifest(
     name="browser_task_tool",
+    # ADR-256: the description says it clicks elements and FILLS FORMS on
+    # third-party sites. Ambiguity resolves to the guarded side.
+    tool_category="update",
     agent="browser_agent",
     description=(
         "Execute a complete browsing task autonomously: navigate to a website, "

@@ -107,6 +107,13 @@ def build_react_execution(debug_metrics: dict[str, Any], state: dict[str, Any] |
             "iterations": iterations,
             "max_iterations": get_settings().react_agent_max_iterations,
             "elapsed_seconds": float(state.get("react_elapsed_seconds") or 0.0),
+            # ADR-256: the delegated half of the turn, and the bound that
+            # governs it. Published next to the value it constrains (ADR-184) —
+            # an enforced limit the reader cannot see is a trap, and "elapsed"
+            # alone used to read as the turn's total while excluding every
+            # second spent inside a tool.
+            "tool_seconds": float(state.get("react_tool_seconds") or 0.0),
+            "tool_budget_seconds": get_settings().react_tool_budget_seconds,
             "tool_names": list(state.get("react_tool_names") or []),
             "executed_tool_calls": len(state.get("react_call_digests") or {}),
             # ADR-249 — the code the model wrote, admin surface only (owner

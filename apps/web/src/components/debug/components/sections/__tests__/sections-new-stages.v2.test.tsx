@@ -96,6 +96,65 @@ describe('ReactExecutionSection', () => {
     );
     expect(screen.getByText(/ceiling/i)).toBeInTheDocument();
   });
+
+  // ADR-256: "Elapsed" counted the model's reasoning alone, so a delegated
+  // sub-agent loop — 20 nested LLM iterations behind one tool call — read as
+  // zero in this panel.
+  it('separates reasoning time from delegated tool time', () => {
+    open(
+      ['react_execution'],
+      <ReactExecutionSection
+        data={{
+          iterations: 3,
+          max_iterations: 10,
+          elapsed_seconds: 12.5,
+          tool_seconds: 240,
+          tool_budget_seconds: 900,
+          tool_names: [],
+          executed_tool_calls: 2,
+        }}
+      />
+    );
+    expect(screen.getByText(/^Reasoning:/)).toBeInTheDocument();
+    expect(screen.getByText('12.5s')).toBeInTheDocument();
+    expect(screen.getByText(/^Tools:/)).toBeInTheDocument();
+    expect(screen.getByText('240.0s / 900s')).toBeInTheDocument();
+  });
+
+  it('warns when the tool budget is spent', () => {
+    open(
+      ['react_execution'],
+      <ReactExecutionSection
+        data={{
+          iterations: 3,
+          max_iterations: 10,
+          elapsed_seconds: 5,
+          tool_seconds: 900,
+          tool_budget_seconds: 900,
+          tool_names: [],
+          executed_tool_calls: 4,
+        }}
+      />
+    );
+    expect(screen.getByText(/tool budget/i)).toBeInTheDocument();
+  });
+
+  it('renders a pre-ADR-256 payload without inventing a zero', () => {
+    open(
+      ['react_execution'],
+      <ReactExecutionSection
+        data={{
+          iterations: 2,
+          max_iterations: 10,
+          elapsed_seconds: 4,
+          tool_names: [],
+          executed_tool_calls: 1,
+        }}
+      />
+    );
+    expect(screen.getByText(/^Reasoning:/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Tools:/)).not.toBeInTheDocument();
+  });
 });
 
 describe('ImageGenerationSection', () => {

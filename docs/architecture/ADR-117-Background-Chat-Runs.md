@@ -16,7 +16,9 @@ untouched), partial kept and badged `interrupted`, tokens stay billed
 `sanitize_stale_dangling_tool_calls` repairs unanswered `AIMessage`
 tool_calls AT TURN START in router_node (never in the reducer, where they
 are a legitimate mid-run state; HITL resumptions bypass the router via
-`Command(resume)`). Full details:
+`Command(resume)`). Amended 2026-09-02: the repair also purges unanswered
+CALL BLOCKS from list-shaped content — see the POC-3 note below, the
+original filter left them behind and the conversation stayed bricked. Full details:
 [BACKGROUND_RUNS.md](../technical/BACKGROUND_RUNS.md).
 **Author**: Claude Code (Fable 5)
 **Related**: `apps/api/src/infrastructure/streaming/run_stream_broker.py`, `apps/api/src/domains/agents/api/background_runner.py`, [BACKGROUND_RUNS.md](../technical/BACKGROUND_RUNS.md), [ADR-092 (HITL replay-safe)](ADR_INDEX.md), [ADR-063 (cross-worker Redis pub/sub)](ADR_INDEX.md)
@@ -68,10 +70,20 @@ redis-py 8.0.1 / Redis 7.4 / LangGraph 1.2.4, Python 3.12.13):
   write (state stays at the previous checkpoint); cancelling between
   `call_model` and `execute_tools` leaves a dangling
   `AIMessage(tool_calls)` in the checkpoint; a NEW turn on the same thread
-  restarts cleanly from START (the conversation is never bricked) but the
-  dangling message stays in history and poisons the sequence for strict
-  providers (unique tool_call ids proven unanswered). The sanitation filter
-  is Lot 3 scope (cancel feature).
+  restarts cleanly from START but the dangling message stays in history and
+  poisons the sequence for strict providers (unique tool_call ids proven
+  unanswered). The sanitation filter is Lot 3 scope (cancel feature).
+- **Amendment (2026-09-02) — "the conversation is never bricked" was false.**
+  A ReAct budget exit produces the same dangling state as a cancellation, and
+  the Lot 3 filter repaired only half of it: under
+  `output_version="responses/v1"` and on Anthropic the call ALSO exists as a
+  typed block inside `content`, serialized independently of `tool_calls`.
+  Stripping `tool_calls` while copying `content` verbatim left the block AND
+  emptied `tool_calls`, so every later pass skipped the message as healthy —
+  the conversation was bricked for good. Measured in production: one budget
+  exit, eight provider calls dead on *"No tool output found for function call
+  …"*, the same call id each time. Both shapes are now purged, and
+  `langgraph_history_repairs_total` counts what used to be invisible.
 - **POC-4 (worker recycling)**: with `--limit-max-requests` (prod: 10000)
   and NO shutdown drain, an in-flight producer was killed after 1/30 chunks
   when its worker recycled. With a lifespan drain

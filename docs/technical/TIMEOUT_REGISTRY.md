@@ -110,7 +110,8 @@ inversions are tracked in section *Known conflicts* below.
 | `SUBAGENT_TOOL_TIMEOUT_SECONDS` | `subagent_tool_timeout_seconds` | 180.0 s | 30.0–600.0 | `parallel_executor.py:1607` | Sub-agent step floor |
 | `SUBAGENT_TOOL_MAX_TIMEOUT_SECONDS` | `subagent_tool_max_timeout_seconds` | 300.0 s | 60.0–900.0 | `parallel_executor.py:1635` | Sub-agent step ceiling |
 | `MCP_TOOL_TIMEOUT_SECONDS` | `mcp_tool_timeout_seconds` | 120 s | 5–120 | mcp client | Per MCP tool call |
-| `REACT_AGENT_TIMEOUT_SECONDS` | `react_agent_timeout_seconds` | 120 s | 10–600 | `routing.py:724` | ReAct loop hard wall-clock guard |
+| `REACT_AGENT_TIMEOUT_SECONDS` | `react_agent_timeout_seconds` | 120 s | 10–600 | `utils/react_budget.py` | ReAct loop REASONING budget (compute time charged by `react_call_model`, never wall clock — ADR-170) |
+| `REACT_TOOL_BUDGET_SECONDS` | `react_tool_budget_seconds` | 900 s | 30–3600 | `utils/react_budget.py` | ReAct time spent INSIDE tools. Counted apart from the reasoning budget: a delegating tool opens its own LLM loop, and one delegation at its pipeline bound would consume the whole reasoning budget (ADR-256) |
 
 ## 6. Graph / Node level
 

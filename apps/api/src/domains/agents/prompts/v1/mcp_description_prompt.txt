@@ -6,6 +6,10 @@ The description will be used by an AI assistant to decide WHEN to route user que
 3. Key capabilities in concrete terms
 
 Rules:
+- Respect the "Authentication" line of the input: when calls are authenticated
+  with the user's own account, describe capabilities as operating on the user's
+  own data (their repositories, their accounts, their files) - never as
+  public-only access. Without authentication, do not imply personal data access.
 - Write 2-3 sentences, 150-400 characters total
 - Be specific and actionable (not generic)
 - Focus on user-facing capabilities, not internal tool names

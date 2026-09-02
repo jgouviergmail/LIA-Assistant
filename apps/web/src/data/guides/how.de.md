@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Datum**: 2026-08-23
-**Application**: LIA v1.38.4
+**Application**: LIA v1.38.5
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -64,8 +64,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 493 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 254 ADRs, ~22.010 von pytest gesammelte Tests in 1.304 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 497 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 255 ADRs, ~22.199 von pytest gesammelte Tests in 1.311 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -83,10 +83,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 22.010 von pytest über 1.304 Testdateien gesammelt + 6.682 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 22.199 von pytest über 1.311 Testdateien gesammelt + 6.693 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 254 |
+| ADRs (Architecture Decision Records) | 255 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -335,6 +335,8 @@ Router → react_setup → react_call_model ↔ react_execute_tools → react_fi
 | **Ideal für** | Strukturierte Multi-Domain-Anfragen | Explorative Recherche, mehrdeutige Fragen |
 
 Der Pipeline-Modus ist eine echte Ingenieursleistung: SmartPlanner, Semantic Validator, Bayesianischer Pattern-Cache und paralleler Executor liefern zusammen die gleiche funktionale Leistung wie ReAct bei einem Bruchteil der Token-Kosten. Der Kompromiss liegt bei der Anpassungsfähigkeit — wenn die optimale Tool-Reihenfolge nicht vorab vorhersagbar ist, glänzt ReActs iteratives Reasoning.
+
+Die Ausgaben eines Zuges gehorchen einem Erhaltungssatz (ADR-256): Denkzeit und Werkzeugzeit sind zwei benannte Budgets, niemals eines — eine Delegation (Unteragent, iterative MCP-Aufgabe, Browser-Lauf) öffnet hinter einem einzigen Tool-Aufruf ihre eigene LLM-Schleife und würde an ihrer Pipeline-Grenze allein 100 % des Denkbudgets ausmachen. Jeder Tool-Aufruf trägt eine individuelle Grenze aus denselben Timeout-Familien wie der Pipeline-Modus, so gewählt, dass sie nie strenger ist als die Grenze, die die darunterliegende Schicht bereits anwendet; ein vom Tool selbst ausgelöster Timeout wird dem Tool zugeschrieben, nicht unserem eigenen Schnitt. Die Stoppbedingung bleibt ein einziges Prädikat mit zwei Lesern: Der Router wendet es zum Entscheiden an, der Finalize-Knoten zum Erklären.
 
 Beide Modi teilen sich dasselbe Tool-Register, HITL-System, den Response-Knoten und die Observability-Infrastruktur. Benutzer wechseln über einen Schalter im Chat-Header zwischen den Modi.
 
@@ -773,6 +775,8 @@ Die Verhaltensannotationen eines Werkzeugs (`readOnlyHint`, `destructiveHint`) w
 
 MCP-Server mit `iterative_mode: true` verwenden einen dedizierten ReAct-Agenten (Observe/Think/Act-Schleife) anstelle des statischen Planners. Der Agent liest zunächst die Serverdokumentation, versteht das erwartete Format und ruft dann die Tools mit den richtigen Parametern auf. Besonders effektiv für Server mit komplexer API (z. B. Excalidraw). Pro Server in der Admin- oder Benutzerkonfiguration aktivierbar. Angetrieben vom generischen `ReactSubAgentRunner` (geteilt mit dem Browser Agent).
 
+Zwei Fakten reisen mit jedem Server als Daten, nie als Prompt-Prosa. Ein Benutzerserver, dessen Zugangsdaten die eigenen des Benutzers sind (OAuth, persönlicher Bearer oder API-Schlüssel), veröffentlicht seinen Kontobezug überall dort, wo das Modell seine Fähigkeiten liest — Beschreibung des Delegations-Tools, Planner-Manifest, Kontext des Unteragenten und generierte Domänenbeschreibung —, sodass „meine Repositories“ auf das verbundene Konto aufgelöst wird statt in einer Rückfrage zu enden; ein Server ohne Authentifizierung veröffentlicht nichts, denn das Gegenteil zu behaupten wäre eine erfundene Fähigkeit. Und der Unteragent gibt seine Daten zurück, nicht eine Anzahl: Seine Ausgabe trägt denselben Vertrag aus Nachricht plus begrenztem Datenblock wie jedes ReAct-Tool, Inhalte Dritter werden als extern markiert.
+
 ---
 
 ## 15. Sprachsystem (STT/TTS)
@@ -910,7 +914,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 493 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 497 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -918,7 +922,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 493 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 497 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1319,7 +1323,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-254 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+255 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1425,7 +1429,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 254 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~22.010 Tests in 1.304 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 255 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~22.199 Tests in 1.311 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1527,4 +1531,4 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 
 **Und was nicht gemessen wird, sieht man nicht.** Der Zähler der Anbieteraufrufe wird zum falschen Nenner, sobald wiederholt wird: Ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. „Plattformzustand“ zählt daher nun **Ergebnisse** — eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet — und ein zweiter Zähler sagt, was die Glättung mit jedem Versuch tat, denn „Budget zu klein“ und „Redis ausgefallen“ verlangen entgegengesetzte Maßnahmen.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 254 ADRs und des Changelogs (v1.0 bis v1.38.4). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 255 ADRs und des Changelogs (v1.0 bis v1.38.5). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

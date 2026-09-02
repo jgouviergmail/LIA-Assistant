@@ -222,6 +222,20 @@ Delivered 2026-07-09 (same ADR, same flag).
   legitimate mid-run state. HITL resumptions resume the interrupted node
   via `Command(resume)` and never re-enter the router: pending approvals
   are unaffected.
+- **A dangling call has TWO shapes, and a ReAct budget exit produces them
+  too** (2026-09-02). Besides `message.tool_calls`, the call exists as a
+  typed block inside list-shaped `content` — `function_call` under
+  `output_version="responses/v1"`, `tool_use` on Anthropic — and langchain
+  serializes those blocks to the provider *independently* of `tool_calls`.
+  Repairing one shape and not the other kept the poison AND silenced the
+  detector (`if not msg.tool_calls: continue`), so the conversation never
+  recovered: OpenAI answered `400 No tool output found for function call …`,
+  Anthropic rejects the same history, Gemini raises outright, and OpenAI Chat
+  Completions is the only path unaffected. Both shapes are purged now, in
+  `sanitize_stale_dangling_tool_calls` and in `enforce_tool_message_pairing`
+  (which feeds sub-agent calls through the message-history middleware).
+  `langgraph_history_repairs_total{shape,action}` counts every repair —
+  panel *History Repairs* in dashboard 07.
 
 ## Hard-kill hardening (2026-07 audit)
 

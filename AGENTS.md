@@ -281,7 +281,7 @@ User Message → Router Node → (react mode → ReAct Setup → ReAct Call Mode
 
 Both modes converge on the same Response Node and stream via SSE. The `react_agent` LLM type in `LLM_TYPES_REGISTRY` is dedicated to the ReAct loop.
 
-**Three ReAct invariants (ADR-248), each paid for by a production defect:**
+**Four ReAct invariants (ADR-248), each paid for by a production defect:**
 
 1. **A message that still carries `tool_calls` is never an answer.** On a budget
    exit those calls will never run, and the text is the model narrating what it
@@ -298,6 +298,23 @@ Both modes converge on the same Response Node and stream via SSE. The `react_age
    psychological profile through `build_psychological_profile` — the same
    builder, settings and gates as the pipeline. A behavioural rule that only
    reaches the response node can reword a promise, never turn it into an action.
+4. **A turn that stops mid-flight closes its own books.** Invariant 1 makes the
+   ANSWER honest; it leaves the STATE broken. The `AIMessage` keeps `tool_calls`
+   nobody will answer, LangGraph persists that, and every later turn on the
+   thread is rejected by the provider — the conversation is bricked, not merely
+   cut short (measured 2026-09-02: one budget exit, eight requests dead on
+   *"No tool output found for function call …"*, the same call id each time).
+   `react_finalize_node` therefore emits one explicit `ToolMessage` per
+   abandoned call (`status="error"`, saying it never ran and what to do next),
+   so the history is valid BY CONSTRUCTION. Two corollaries: a call with no
+   `id` is skipped rather than paired by guesswork (`AIMessage` validates
+   `tool_calls` at construction only, so `id: None` survives a checkpoint
+   round-trip), and the turn-start repair stays the safety net for what no node
+   can close — a hard kill. **That repair must purge BOTH shapes of a call**:
+   `tool_calls` AND the typed block inside list-shaped `content`
+   (`function_call` under `responses/v1`, `tool_use` on Anthropic), which
+   langchain serializes independently. Purging one and not the other kept the
+   poison and silenced the detector.
    Context blocks live in `nodes/react_context.py`, one best-effort builder each.
 
 **Ephemeral Python (ADR-249, ReAct only).** The agent may write a short script
@@ -503,7 +520,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - **HITL (Human-in-the-Loop)**: 6 approval levels (plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review). Classified in `src/domains/agents/services/hitl_classifier.py`. Note: the plan-approval level is currently auto-approved (`approval_gate_node` is a pass-through — tool-level HITL supersedes it); do not build on plan-level interrupts without re-wiring the gate.
 - **Smart Services**: QueryAnalyzerService, SmartPlannerService, SmartCatalogueService use LRU caching and pattern learning to reduce LLM token usage.
 - **SSE Streaming**: Responses stream to the frontend via Server-Sent Events.
-- **Observability**: 493 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
+- **Observability**: 497 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
 - **LLM Factory**: `src/infrastructure/llm/factory.py` provides multi-provider LLM instantiation (OpenAI, Anthropic, Google, DeepSeek, Ollama). Provider adapters in `src/infrastructure/llm/providers/`.
 
 ## Good Practices
@@ -670,7 +687,7 @@ Run it after any Capacitor upgrade or any CSP change.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
-- ADR index (254 ADR files, ADR-255 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (255 ADR files, ADR-256 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

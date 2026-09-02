@@ -63,6 +63,35 @@ The stop condition itself becomes ONE predicate, `react_exit_reason`, read by
 the router (to decide) and by the finalize node (to explain). Two copies would
 let the loop stop for a reason the answer never mentions.
 
+#### Amendment (2026-09-02) — the answer was made honest, the STATE was left broken
+
+Publishing an empty `final_message` fixes what the user reads. It does nothing
+to the checkpoint: the `AIMessage` keeps `tool_calls` nobody will ever answer,
+LangGraph persists it, and the provider then rejects the WHOLE history on every
+later turn of that thread. Measured in production: one budget exit, eight
+requests dead on `400 No tool output found for function call …`, the same call
+id each time. The conversation was not merely cut short — it was bricked, and
+only a repair could unbrick it.
+
+`react_finalize_node` now closes its own books: one explicit `ToolMessage` per
+abandoned call, flagged `status="error"`, saying it never ran and what to do
+next (English technical scaffolding, like every other guard — the model
+reformulates). The history is valid BY CONSTRUCTION, and the model is told what
+it lost instead of silently re-deriving it next turn.
+
+Two corollaries, both measured:
+
+- a call carrying no `id` is skipped rather than paired by guesswork —
+  `AIMessage` validates `tool_calls` at CONSTRUCTION only, so `id: None`
+  survives a checkpoint round-trip and a post-construction append bypasses the
+  check entirely;
+- the turn-start repair (ADR-117 Lot 3) stays the safety net for what no node
+  can close — a hard kill — and it had to learn that **a call has two shapes**:
+  `tool_calls` AND the typed block inside list-shaped `content`
+  (`function_call` under `responses/v1`, `tool_use` on Anthropic), serialized to
+  the provider independently. Repairing one and not the other kept the poison
+  AND silenced the detector, which is why the incident lasted.
+
 ### 2. The budget is earned with results, not granted by shape
 
 ADR-238's adaptive value becomes the **initial** allowance. Each time the loop

@@ -95,6 +95,31 @@ langgraph_state_updates_total = Counter(
     # Useful for debugging state pollution
 )
 
+langgraph_history_repairs_total = Counter(
+    "langgraph_history_repairs_total",
+    "Checkpointed messages repaired because they carried an unanswered tool call",
+    ["shape", "action"],
+)
+"""Repairs applied to a poisoned conversation history, counted per MESSAGE.
+
+One increment is one message made valid again, not one dead call: a message
+carrying three unanswered calls is one repair. Counting calls would let a
+single pathological turn dwarf the rate that matters — how often a history
+reaches a provider broken.
+
+``shape`` says WHERE the unanswered call was found — ``tool_calls`` (the
+parsed list) or ``call_block`` (a typed block inside list-shaped content, the
+Responses API / Anthropic form). ``action`` says what it cost: ``replacement``
+kept the message minus the dead call, ``removal`` dropped a message that had
+nothing left to say.
+
+A steady ``call_block`` rate means turns keep ending with work in flight —
+a budget too tight, not a bug. A spike after a deploy means a history shape
+changed under us: on 2026-09-02 that exact condition ran unseen for hours
+because the only trace was a log line no panel reads.
+"""
+
+
 langgraph_state_size_bytes = Histogram(
     "langgraph_state_size_bytes",
     "State payload size after node execution",

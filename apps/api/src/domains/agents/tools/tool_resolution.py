@@ -19,8 +19,12 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
+import structlog
+
 from src.core.context import strip_hallucinated_mcp_suffix, user_mcp_tools_ctx
 from src.domains.agents.tools.tool_registry import get_tool
+
+logger = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -28,11 +32,19 @@ if TYPE_CHECKING:
     from src.domains.agents.registry.catalogue import ToolManifest
 
 __all__ = [
+    "UNRESOLVED_TOOL_REASONS",
+    "classify_unresolved_tool_call",
     "resolve_tool_instance",
     "resolve_tool_instance_named",
     "resolve_tool_manifest",
     "resolve_tool_manifest_named",
 ]
+
+#: The only two verdicts :func:`classify_unresolved_tool_call` can return, and
+#: therefore the whole label set of ``react_unknown_tool_calls_total``. Bounded
+#: by construction: the tool NAME never becomes a label, because it comes from a
+#: model and its cardinality is unbounded (ADR-256).
+UNRESOLVED_TOOL_REASONS: tuple[str, ...] = ("not_selected", "unknown")
 
 
 def resolve_tool_instance_named(name: str) -> tuple[BaseTool | None, str]:
@@ -157,3 +169,45 @@ def resolve_tool_manifest(name: str) -> ToolManifest | None:
         The resolved ``ToolManifest``, or ``None`` if not found.
     """
     return resolve_tool_manifest_named(name)[0]
+
+
+def classify_unresolved_tool_call(name: object) -> str:
+    """Say WHY a tool call found no bound tool, in terms that imply a fix.
+
+    Two situations reach the same dead end and need opposite corrections:
+
+    - ``not_selected`` — the tool exists (global registry or the per-request
+      user MCP ContextVar) but was not bound to this turn. The ``max_tools`` cap
+      or the per-request filtering dropped it, so the cap is too low for this
+      deployment. Up to 896 tools can resolve against a cap of 100.
+    - ``unknown`` — nothing of that name exists anywhere. The model invented it,
+      which says the catalogue is presented badly rather than trimmed too hard.
+
+    Reuses :func:`resolve_tool_instance` rather than re-implementing a lookup:
+    the hallucinated-suffix stripping and the ContextVar fallback must give the
+    same answer here as they do when the tool IS bound, or a tool the loop can
+    actually run would be reported as invented.
+
+    **Total by construction.** The name comes from a MODEL, and ``AIMessage``
+    validates ``tool_calls`` at construction only — a ``None`` field survives a
+    checkpoint round-trip, and a post-construction append bypasses the check
+    entirely (both measured 2026-09-02). The branch that calls this used to
+    write ``Tool 'None' not found.`` and move on; raising here would turn one
+    malformed call into a dead turn, which is the opposite of what making the
+    path observable was for. A name that is not a string was invented, so it
+    reports ``unknown`` — never ``not_selected``, which would send an operator
+    hunting for a tool-cap problem that does not exist.
+
+    Args:
+        name: Tool name as emitted by the model's tool call. Any value.
+
+    Returns:
+        One of :data:`UNRESOLVED_TOOL_REASONS`.
+    """
+    if not isinstance(name, str) or not name.strip():
+        return "unknown"
+    try:
+        return "not_selected" if resolve_tool_instance(name) is not None else "unknown"
+    except Exception:  # noqa: BLE001 - a classifier on a hot error path is total
+        logger.debug("classify_unresolved_tool_call_failed", tool_name=name[:120])
+        return "unknown"

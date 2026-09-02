@@ -15,6 +15,7 @@ State contract:
     - LLM and tools are recreated in each node (~1-2ms, standard LIA pattern)
 """
 
+import asyncio
 import time
 from typing import Any
 
@@ -38,6 +39,10 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
 )
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes import react_context
+from src.domains.agents.nodes.react_history import (
+    window_messages_for_react as _window_messages_for_react,
+)
+from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.connector_error_notice import (
     emit_connector_notice_for_exception,
@@ -45,13 +50,31 @@ from src.domains.agents.services.connector_error_notice import (
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.react_tool_selector import ReactToolSelector
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
-from src.domains.agents.tools.tool_resolution import resolve_tool_instance
+from src.domains.agents.tools.tool_resolution import (
+    classify_unresolved_tool_call,
+    resolve_tool_instance,
+)
 from src.domains.agents.utils.loop_guard import (
     compute_call_digest,
     register_call,
     repeated_call_message,
 )
-from src.domains.agents.utils.react_budget import effective_react_budget
+from src.domains.agents.utils.react_budget import (
+    TIMEOUT_ATTRIBUTION_MARGIN,
+    abandoned_call_message,
+    effective_react_budget,
+    react_exit_reason,
+    tool_timeout_message,
+)
+from src.domains.agents.utils.react_budget import (
+    loop_compute_seconds as _loop_compute_seconds,
+)
+from src.domains.agents.utils.react_budget import (
+    loop_tool_seconds as _loop_tool_seconds,
+)
+from src.domains.agents.utils.react_budget import (
+    uncharged_wall_seconds as _uncharged_wall_seconds,
+)
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.decorators import track_metrics
@@ -67,146 +90,15 @@ from src.infrastructure.observability.metrics_react import (
     react_agent_tools_called_total,
     react_repeated_calls_total,
     react_tool_executions_before_interrupt_total,
+    react_unknown_tool_calls_total,
 )
 from src.infrastructure.observability.tracing import trace_node
 
 logger = structlog.get_logger(__name__)
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _neutralize_widget_sentinels(history: list[BaseMessage]) -> list[BaseMessage]:
-    """Replace host-owned widget sentinels in prior answers with a short marker.
-
-    ``response_node`` writes the enriched answer — sentinel included — back into
-    ``state["messages"]``, and this window serves that history RAW to the ReAct
-    model (the response path neutralizes HTML, this one never did). The model
-    learned the markup by imitation and started emitting its own, which produced
-    duplicate widgets and, worse, sentinels pointing at a registry id from an
-    earlier turn. Removing the example removes the incentive — and reclaims the
-    tokens the markup was costing on every turn.
-
-    Args:
-        history: Windowed prior-turn messages (the current turn is untouched —
-            the ReAct loop needs its own reasoning chain verbatim).
-
-    Returns:
-        A new list; messages without a sentinel are passed through by identity.
-    """
-    from src.core.constants import CONTEXT_WIDGET_DISPLAYED_PLACEHOLDER
-    from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
-    from src.infrastructure.llm.message_text import coerce_content_to_text
-    from src.infrastructure.observability.metrics_registry import (
-        widget_sentinels_stripped_total,
-    )
-
-    out: list[BaseMessage] = []
-    stripped = 0
-    for msg in history:
-        if not isinstance(msg, AIMessage):
-            out.append(msg)
-            continue
-        text = coerce_content_to_text(getattr(msg, "content", ""))
-        cleaned, count = strip_widget_sentinels(
-            text, replacement=CONTEXT_WIDGET_DISPLAYED_PLACEHOLDER
-        )
-        if not count:
-            out.append(msg)
-            continue
-        stripped += count
-        # Copy, never rebuild: a fresh ``AIMessage(content=..., id=...)`` would
-        # silently drop ``tool_calls``/``additional_kwargs``. An AIMessage that
-        # carried BOTH tool_calls and a sentinel would then leave its
-        # ToolMessages orphaned, and the provider rejects the whole request
-        # ("messages with role 'tool' must be a response to a preceding message
-        # with 'tool_calls'") — or worse, `enforce_tool_message_pairing` drops
-        # the carrier and its results silently. `model_copy` changes the content
-        # and nothing else.
-        out.append(msg.model_copy(update={"content": cleaned}))
-
-    if stripped:
-        widget_sentinels_stripped_total.labels(source="react_history").inc(stripped)
-        logger.debug("react_history_widget_sentinels_neutralized", count=stripped)
-    return out
-
-
-def _window_messages_for_react(
-    messages: list[BaseMessage],
-) -> list[BaseMessage]:
-    """Window messages for the ReAct LLM call to control token usage.
-
-    Reuses get_windowed_messages() from message_windowing.py for the history
-    of previous turns, and preserves the current ReAct loop integrally.
-
-    Strategy:
-    1. Split messages at the last HumanMessage (= current turn boundary)
-    2. Window the history (previous turns) via get_windowed_messages()
-       → keeps SystemMessages + last N conversational turns (no ToolMessages)
-    3. Drop every history SystemMessage that is not a compaction summary
-    4. Append ALL current turn messages (HumanMessage + ReAct loop: AIMessage
-       with tool_calls + ToolMessages) — the agent needs its full reasoning chain
-
-    Step 3 exists for checkpoints written before ADR-169, when the turn's system
-    blocks were appended to ``messages``. The windowing hoists every past copy to
-    the front, so an old thread would still carry N stale copies of the ReAct
-    prompt. Only the compaction summary is a SystemMessage the history genuinely
-    needs — it IS the conversation's compressed memory. Everything else the model
-    must see this turn is recomposed from ``react_system_blocks``.
-
-    Args:
-        messages: Full state messages (accumulated across turns + ReAct loop).
-
-    Returns:
-        Windowed message list.
-    """
-    from langchain_core.messages import HumanMessage as HM
-    from langchain_core.messages import SystemMessage as SM
-
-    from src.core.constants import COMPACTION_SUMMARY_MARKER
-    from src.domains.agents.utils.message_windowing import get_windowed_messages
-
-    # Find the last HumanMessage — everything after it is the current ReAct loop
-    last_human_idx = -1
-    for i in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[i], HM):
-            last_human_idx = i
-            break
-
-    if last_human_idx == -1:
-        return messages
-
-    # Split: history (before last HumanMessage) and current turn (from HumanMessage onward)
-    history = messages[:last_human_idx]
-    current_turn = messages[last_human_idx:]
-
-    # Window the history using existing infrastructure
-    windowed_history = get_windowed_messages(
-        history, window_size=settings.react_agent_history_window_turns
-    )
-
-    # Legacy-checkpoint hygiene (see docstring): keep only the compaction
-    # summary among history SystemMessages.
-    windowed_history = [
-        message
-        for message in windowed_history
-        if not isinstance(message, SM) or str(message.content).startswith(COMPACTION_SUMMARY_MARKER)
-    ]
-
-    windowed = _neutralize_widget_sentinels(windowed_history) + current_turn
-
-    if len(windowed) < len(messages):
-        logger.debug(
-            "react_messages_windowed",
-            original_count=len(messages),
-            windowed_count=len(windowed),
-            history_kept=len(windowed_history),
-            current_turn_msgs=len(current_turn),
-        )
-
-    return windowed
 
 
 def _rebuild_wrapped_tools(
@@ -300,102 +192,6 @@ def _is_productive_result(raw_result: Any) -> bool:
     return bool(raw_result)
 
 
-def react_iteration_budget(state: MessagesState) -> int:
-    """Iterations this turn may spend (ADR-238 adaptive value, else the ceiling).
-
-    Args:
-        state: Current graph state.
-
-    Returns:
-        The effective budget.
-    """
-    # Late import: the routing tests patch ``src.core.config.settings``, and a
-    # module-level binding would ignore the patch (same convention as the router).
-    from src.core.config import settings as _settings
-
-    ceiling = int(_settings.react_agent_max_iterations)
-    budget = int(state.get("react_max_iterations_effective") or ceiling)
-    if not getattr(_settings, "react_progress_extension_enabled", False):
-        return min(budget, ceiling)
-
-    # ADR-248: the loop buys more iterations with results, not with promises.
-    # Reaching the allowance having spent it PRODUCTIVELY earns another block;
-    # a loop that stopped producing stops being extended and ends here.
-    step = int(_settings.react_iterations_progress_extension)
-    productive = int(state.get("react_productive_iterations", 0) or 0)
-    while budget <= productive and budget < ceiling:
-        budget += step
-    return min(budget, ceiling)
-
-
-def react_exit_reason(state: MessagesState) -> str | None:
-    """Why the loop must stop now — ONE predicate, two readers.
-
-    The router applies it to decide, ``react_finalize_node`` applies it to
-    EXPLAIN. A second copy of this arithmetic would let the loop stop for a
-    reason the answer never mentions, which is how a cut-short investigation
-    came to be served as a finished one (2026-08-28).
-
-    Args:
-        state: Current graph state.
-
-    Returns:
-        ``"max_iterations"``, ``"compute_budget"``, or None to keep going.
-    """
-    if int(state.get("react_iteration", 0)) >= react_iteration_budget(state):
-        return "max_iterations"
-    from src.core.config import settings as _settings
-
-    compute_elapsed = float(state.get("react_elapsed_seconds") or 0.0)
-    if compute_elapsed > 0.0 and compute_elapsed > _settings.react_agent_timeout_seconds:
-        return "compute_budget"
-    return None
-
-
-def _loop_compute_seconds(state: MessagesState) -> float:
-    """Return the loop's own compute time for this turn.
-
-    The wall clock cannot be used for latency either: ``interrupt()`` raises, so
-    a node that waits on a HITL approval never returns and never charges
-    anything, while ``time.time()`` keeps running. Reporting the difference as
-    ReAct latency turns a user's thinking time into a performance regression on
-    the dashboards (ADR-170).
-
-    Args:
-        state: Current graph state.
-
-    Returns:
-        Seconds of compute charged by the loop's nodes.
-    """
-    return float(state.get("react_elapsed_seconds") or 0.0)
-
-
-def _uncharged_wall_seconds(state: MessagesState, compute_s: float) -> float | None:
-    """Return the wall time this turn did NOT charge to any node.
-
-    ``wall - compute``. Two things live in there, and the name deliberately
-    claims neither: the HITL approval wait when the turn was interrupted, and
-    the graph's own overhead (checkpoint writes, node scheduling, routing)
-    otherwise. A turn with no interrupt at all still reports ~0.5 s — measured
-    in the dev container — so calling this field "hitl_wait" would have made an
-    operator read graph overhead as user hesitation.
-
-    It is the quantity the loop budget used to be charged for (ADR-170);
-    surfacing it turns the old defect into a signal.
-
-    Args:
-        state: Current graph state.
-        compute_s: Compute seconds already computed for this turn.
-
-    Returns:
-        Rounded seconds, or None when the turn carries no start stamp.
-    """
-    start_time = state.get("react_start_time")
-    if start_time is None:
-        return None
-    return round(max(0.0, (time.time() - start_time) - compute_s), 2)
-
-
 def _record_react_metrics(iteration: int, duration_s: float, status: str) -> None:
     """Record ReAct loop completion metrics.
 
@@ -405,9 +201,14 @@ def _record_react_metrics(iteration: int, duration_s: float, status: str) -> Non
     flow). Without this, draft-terminated ReAct turns would be invisible in the
     ReAct dashboards.
 
+    ``duration_s`` is the REASONING duration, not the turn's total: tool time is
+    already carried per tool by ``agent_tool_duration_seconds``. Folding it in
+    here would break a historical series to fix a sentence — the metric's help
+    text and the dashboard descriptions say what it measures instead (ADR-256).
+
     Args:
         iteration: Number of ReAct iterations performed during the turn.
-        duration_s: Total ReAct loop duration in seconds.
+        duration_s: ReAct reasoning duration in seconds.
         status: Outcome label for ``react_agent_executions_total``
             ("success", "empty" or "draft").
     """
@@ -520,6 +321,7 @@ async def react_setup_node(
         await react_context.build_journal_directives_block(state, config),
         react_context.build_skills_catalog_block(config),
         await react_context.build_degradations_block(),
+        await react_context.build_mcp_auth_notices_block(),
     ]
     system_blocks.extend(block for block in context_blocks if block)
     has_memory_block = bool(context_blocks[0])
@@ -766,6 +568,9 @@ async def react_execute_tools_node(
     new_messages: list[ToolMessage] = []
     collected_registry: dict[str, Any] = {}
     productive_calls = 0
+    # ADR-256: the delegated half of the turn. Accumulated here and
+    # returned to state, because the ContextVars do not survive the node.
+    tool_seconds_spent = 0.0
 
     # ADR-249: load this invocation's script budget and data from STATE.
     from src.domains.agents.tools.python_sandbox_tools import runs_spent, seed_turn
@@ -932,6 +737,19 @@ async def react_execute_tools_node(
         # then process result through wrapper for string conversion + registry collection.
         wrapper = tool_by_name.get(tc_name)
         if wrapper is None:
+            # ADR-256: this branch used to be silent. `not_selected` means the
+            # cap or the per-request filtering dropped a real tool; `unknown`
+            # means the model invented the name. Opposite fixes, so they are
+            # counted apart — and the NAME stays out of the label set, since it
+            # comes from a model and its cardinality is unbounded.
+            reason = classify_unresolved_tool_call(tc_name)
+            react_unknown_tool_calls_total.labels(reason=reason).inc()
+            logger.warning(
+                "react_tool_call_unresolved",
+                tool_name=tc_name,
+                reason=reason,
+                bound_tools=len(tool_by_name),
+            )
             new_messages.append(
                 ToolMessage(
                     content=f"Tool '{tc_name}' not found.",
@@ -941,13 +759,21 @@ async def react_execute_tools_node(
             )
             continue
 
+        # ADR-256: the pipeline bounds every tool family through this exact
+        # policy; ReAct bounded none, so the same delegating tool ran capped at
+        # 300 s in one mode and unbounded in the other. One policy, two callers.
+        tool_timeout = compute_step_timeout(tc_name, None)
+        tool_started = time.perf_counter()
         try:
             # Inject ToolRuntime into args (required by ConnectorTools).
             # LangChain's InjectedToolArg is normally injected by ToolNode,
             # but we call tools directly — so we must build ToolRuntime manually.
             # Pattern: parallel_executor._build_tool_runtime()
             injected_args = _build_tool_runtime(wrapper._original_tool, tc_args, config, store)
-            raw_result = await wrapper._original_tool.coroutine(**injected_args)
+            raw_result = await asyncio.wait_for(
+                wrapper._original_tool.coroutine(**injected_args),
+                timeout=tool_timeout,
+            )
             # Process through wrapper for string conversion + registry collection
             content = wrapper._process_result(raw_result)
             productive_calls += _is_productive_result(raw_result)
@@ -957,6 +783,25 @@ async def react_execute_tools_node(
             draft_info = _extract_draft_info(raw_result, tc_name)
             if draft_info is not None:
                 pending_drafts.append(draft_info)
+        except TimeoutError:
+            # Recoverable, like the pipeline's failed StepResult: the model is
+            # told what happened and can choose another route. Killing the node
+            # would discard the tool results that DID come back this iteration.
+            # The wording lives with its two siblings in ``react_budget`` and
+            # decides for itself WHICH timeout fired — see that function.
+            elapsed = time.perf_counter() - tool_started
+            content = tool_timeout_message(tc_name, bound_s=tool_timeout, elapsed_s=elapsed)
+            logger.warning(
+                "react_execute_tools_timeout",
+                tool_name=tc_name,
+                timeout_seconds=tool_timeout,
+                elapsed_seconds=round(elapsed, 1),
+                enforced_by=(
+                    "react_budget"
+                    if elapsed >= tool_timeout * TIMEOUT_ATTRIBUTION_MARGIN
+                    else "tool"
+                ),
+            )
         except Exception as exc:
             content = f"Error executing {tc_name}: {exc!s}"
             logger.warning(
@@ -970,6 +815,10 @@ async def react_execute_tools_node(
             # this covers direct-coroutine tools). Best-effort, deduped
             # frontend-side.
             emit_connector_notice_for_exception(exc, tool_name=tc_name)
+
+        # Charged whatever the outcome: a call that failed or timed out still
+        # spent the time. Placed outside the try so no branch can forget it.
+        tool_seconds_spent += time.perf_counter() - tool_started
 
         new_messages.append(
             ToolMessage(
@@ -992,6 +841,12 @@ async def react_execute_tools_node(
     )
 
     result: dict[str, Any] = {"messages": new_messages, "react_call_digests": call_digests}
+    if tool_seconds_spent:
+        # Cumulative across the turn's iterations: the budget bounds the
+        # WHOLE turn, not one node execution.
+        result["react_tool_seconds"] = (
+            float(state.get("react_tool_seconds") or 0.0) + tool_seconds_spent
+        )
 
     # ADR-249: what the sandbox ran (admin debug panel only) and what it spent,
     # both returned to STATE — the ContextVars do not survive the next node.
@@ -1062,6 +917,51 @@ async def react_execute_tools_node(
 # ---------------------------------------------------------------------------
 
 
+def _abandoned_tool_outputs(
+    messages: list[BaseMessage],
+    last_message: BaseMessage | None,
+    reason: str,
+) -> list[ToolMessage]:
+    """Build one explicit result per tool call the loop will never run.
+
+    Args:
+        messages: The turn's history, read to find calls a ``ToolMessage``
+            already answers — two results for one ``tool_call_id`` would be
+            the very malformation this function exists to prevent.
+        last_message: The turn's last message — the carrier of the pending calls.
+        reason: The already-resolved stop condition, shared verbatim with
+            ``react_agent_result.truncation``.
+
+    Returns:
+        One ``ToolMessage`` per IDENTIFIED pending call, flagged ``error`` (the
+        call did not succeed; the model must not read it as data). A call with
+        no id is skipped rather than paired by guesswork — inventing a
+        ``tool_call_id`` would corrupt the history this function exists to keep
+        valid. The turn-start repair removes those.
+
+        That skip is reachable, not decoration: ``AIMessage`` validates
+        ``tool_calls`` at CONSTRUCTION only, so ``id: None`` survives a
+        checkpoint round-trip and a post-construction append bypasses the
+        check entirely (both measured 2026-09-02).
+    """
+    answered = {
+        m.tool_call_id
+        for m in messages
+        if isinstance(m, ToolMessage) and getattr(m, "tool_call_id", None)
+    }
+    body = abandoned_call_message(reason)
+    return [
+        ToolMessage(
+            content=body,
+            tool_call_id=str(call["id"]),
+            name=call.get("name"),
+            status="error",
+        )
+        for call in getattr(last_message, "tool_calls", None) or []
+        if isinstance(call, dict) and call.get("id") and call["id"] not in answered
+    ]
+
+
 @trace_node("react_finalize")
 @track_metrics(node_name="react_finalize", duration_metric=agent_node_duration_seconds)
 async def react_finalize_node(
@@ -1098,27 +998,47 @@ async def react_finalize_node(
     pending_tool_calls = bool(getattr(last_message, "tool_calls", None))
     exit_reason = react_exit_reason(state) if pending_tool_calls else None
     truncation: dict[str, Any] | None = None
+    abandoned: list[ToolMessage] = []
     if pending_tool_calls:
+        # Resolved ONCE: the banner the user reads and the result the model is
+        # given must name the same stop condition (ADR-248).
+        reason = exit_reason or "pending_tool_calls"
         truncation = {
-            "reason": exit_reason or "pending_tool_calls",
+            "reason": reason,
             "iterations": iteration,
         }
         final_content = ""
+        # The loop closes its own books. Those calls will never run, and an
+        # AIMessage whose tool_calls stay unanswered poisons the checkpoint:
+        # the provider rejects the WHOLE history on every later turn of the
+        # thread (measured 2026-09-02). Answering them makes the history valid
+        # by construction and tells the model what it lost, instead of letting
+        # it silently re-derive the same work next turn. The turn-start repair
+        # stays the safety net for what no node can close — a hard kill.
+        abandoned = _abandoned_tool_outputs(state["messages"], last_message, reason)
 
     # Prometheus metrics (shared helper — also used by the draft handoff path).
     # COMPUTE time, not wall clock: a turn that waited on a HITL approval would
     # otherwise report the user's thinking time as ReAct latency and skew the
     # dashboards (ADR-170).
     compute_s = _loop_compute_seconds(state)
+    tool_s = _loop_tool_seconds(state)
     _record_react_metrics(iteration, compute_s, "success" if final_content else "empty")
 
     logger.info(
         "react_finalize_complete",
         total_iterations=iteration,
         has_final_content=bool(final_content),
+        # Which capabilities the turn asked for and never got: the signal that
+        # says whether the budget is calibrated, not merely that it was hit.
+        abandoned_calls=[m.name for m in abandoned] or None,
         compute_seconds=round(compute_s, 2),
-        # wall - compute: HITL wait on an interrupted turn, graph overhead otherwise.
-        uncharged_wall_seconds=_uncharged_wall_seconds(state, compute_s),
+        # ADR-256: the delegated half, previously charged to nothing at all.
+        tool_seconds=round(tool_s, 2),
+        # wall - (compute + tools): HITL wait on an interrupted turn, graph
+        # overhead otherwise. The router logs the same quantity from the same
+        # helper — two copies of this arithmetic would drift (ADR-170).
+        uncharged_wall_seconds=_uncharged_wall_seconds(state, compute_s + tool_s),
     )
 
     react_result: dict[str, Any] = {
@@ -1128,4 +1048,7 @@ async def react_finalize_node(
     }
     if truncation is not None:
         react_result["truncation"] = truncation
-    return {"react_agent_result": react_result}
+    update: dict[str, Any] = {"react_agent_result": react_result}
+    if abandoned:
+        update["messages"] = abandoned
+    return update

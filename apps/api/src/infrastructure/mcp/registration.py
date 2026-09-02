@@ -73,16 +73,21 @@ def get_admin_mcp_domains() -> dict[str, str]:
     return dict(_admin_mcp_domains)
 
 
-def _register_iterative_task_tool(task_tool_name: str) -> None:
+def _register_iterative_task_tool(task_tool_name: str, server_name: str, description: str) -> None:
     """Register the generic mcp_server_task_tool under a per-server name.
 
     Each iterative MCP server needs its own entry in ToolRegistry so the
     parallel_executor can find the tool by the per-server manifest name
     (e.g., ``mcp_excalidraw_task``). The actual tool function is the same
-    ``mcp_server_task_tool`` — only the registered name differs.
+    ``mcp_server_task_tool`` — the registered name AND the model-facing
+    description differ: ``bind_tools`` serializes the instance, so a
+    name-only copy leaves a ReAct model with no idea what the server does
+    (2026-09-02 incident, user-MCP variant).
 
     Args:
         task_tool_name: Per-server tool name (e.g., "mcp_excalidraw_task").
+        server_name: Human-readable server name for the description.
+        description: The server's domain description.
     """
     from src.domains.agents.tools.tool_registry import get_tool, register_external_tool
 
@@ -91,11 +96,19 @@ def _register_iterative_task_tool(task_tool_name: str) -> None:
         return
 
     try:
-        from src.domains.agents.tools.mcp_react_tools import mcp_server_task_tool
+        from src.domains.agents.tools.mcp_react_tools import (
+            iterative_task_tool_description,
+            mcp_server_task_tool,
+        )
 
         # Create a named copy of the tool with the per-server name.
         # BaseTool.name is a Pydantic field — model_copy creates a shallow copy.
-        named_tool = mcp_server_task_tool.model_copy(update={"name": task_tool_name})
+        named_tool = mcp_server_task_tool.model_copy(
+            update={
+                "name": task_tool_name,
+                "description": iterative_task_tool_description(server_name, description),
+            }
+        )
         register_external_tool(named_tool)
         logger.info(
             "mcp_iterative_task_tool_registered",
@@ -282,7 +295,7 @@ def register_mcp_tools(
 
             # Register the generic mcp_server_task_tool under this per-server
             # name so parallel_executor can find it.
-            _register_iterative_task_tool(task_tool_name)
+            _register_iterative_task_tool(task_tool_name, server_name, description)
 
             task_manifest = _build_mcp_react_manifest(
                 react_tool_name=task_tool_name,

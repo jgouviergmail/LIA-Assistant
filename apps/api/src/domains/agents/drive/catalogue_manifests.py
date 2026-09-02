@@ -209,6 +209,8 @@ get_files_catalogue_manifest = ToolManifest(
 
 read_spreadsheet_catalogue_manifest = ToolManifest(
     name="read_spreadsheet_tool",
+    # ADR-256: reads.
+    tool_category="readonly",
     agent="file_agent",
     description=(
         "**Tool: read_spreadsheet_tool** - Read the CELL VALUES of a Google "
@@ -273,6 +275,8 @@ read_spreadsheet_catalogue_manifest = ToolManifest(
 
 read_document_catalogue_manifest = ToolManifest(
     name="read_document_tool",
+    # ADR-256: reads.
+    tool_category="readonly",
     agent="file_agent",
     description=(
         "**Tool: read_document_tool** - Read a Google Doc's CONTENT as "
@@ -317,6 +321,9 @@ read_document_catalogue_manifest = ToolManifest(
 
 write_spreadsheet_catalogue_manifest = ToolManifest(
     name="write_spreadsheet_tool",
+    # ADR-256: WRITES cells. The name carries none of the nine mutation verbs,
+    # so it was classified read-only and sat outside the unconverged-plan net.
+    tool_category="update",
     agent="file_agent",
     description=(
         "**Tool: write_spreadsheet_tool** - WRITE into a Google Sheets "
@@ -390,6 +397,8 @@ write_spreadsheet_catalogue_manifest = ToolManifest(
 
 append_document_text_catalogue_manifest = ToolManifest(
     name="append_document_text_tool",
+    # ADR-256: APPENDS to a document — a mutation whose name says 'append'.
+    tool_category="update",
     agent="file_agent",
     description=(
         "**Tool: append_document_text_tool** - APPEND text at the end of a "

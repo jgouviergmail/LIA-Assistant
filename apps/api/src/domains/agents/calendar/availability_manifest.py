@@ -21,6 +21,8 @@ from src.domains.agents.registry.catalogue import (
 
 find_availability_catalogue_manifest = ToolManifest(
     name="find_availability_tool",
+    # ADR-256: computes free slots, writes nothing.
+    tool_category="readonly",
     agent="event_agent",
     description=(
         "**Tool: find_availability_tool** - Find FREE calendar slots in a time "

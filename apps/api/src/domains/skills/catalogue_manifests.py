@@ -14,6 +14,9 @@ from src.domains.agents.registry.catalogue import (
 
 activate_skill_catalogue_manifest = ToolManifest(
     name="activate_skill_tool",
+    # ADR-256: loads instructions into the turn. It mutates no user data, but
+    # the read-only initiative phase must never activate a skill on its own.
+    tool_category="system",
     agent="query_agent",
     description=(
         "**Tool: activate_skill_tool** - Load a skill's full instructions.\n"
@@ -66,6 +69,8 @@ activate_skill_catalogue_manifest = ToolManifest(
 
 read_skill_resource_catalogue_manifest = ToolManifest(
     name="read_skill_resource",
+    # ADR-256: reads a bundled resource.
+    tool_category="readonly",
     agent="query_agent",
     description=(
         "**Tool: read_skill_resource** - Read a bundled resource from a skill.\n"

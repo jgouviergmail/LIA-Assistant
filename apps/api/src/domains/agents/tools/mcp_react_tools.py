@@ -35,6 +35,10 @@ from src.core.config import settings
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_runner import ReactSubAgentRunner
+from src.domains.agents.tools.react_tool_wrapper import (
+    extract_data_for_llm,
+    mark_untrusted_data,
+)
 from src.domains.agents.tools.tool_registry import get_all_tools
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
@@ -131,8 +135,19 @@ class _MCPReActWrapper(BaseTool):
         if hasattr(result, "registry_updates") and result.registry_updates:
             self._accumulated_registry.update(result.registry_updates)
 
-        # Return string for ReAct LLM
+        # Return string for ReAct LLM. The MCP adapters keep `message` to a
+        # count summary and put the rows in structured_data/registry for the
+        # pipeline's registry-aware response node — a message-only return
+        # left the sub-agent unable to restitute ANY detail (measured
+        # 2026-09-02: "les transactions ont ete identifiees, mais leurs
+        # details ne me sont pas restitues", or a fabricated table). Same
+        # contract as ReactToolWrapper: message + Data block, third-party
+        # payloads wrapped as external content.
         if hasattr(result, "message"):
+            data_for_llm = extract_data_for_llm(result)
+            if data_for_llm:
+                wrapped = mark_untrusted_data(result, data_for_llm)
+                return f"{result.message}\n\nData:\n{wrapped}"
             return result.message
         return str(result)
 
@@ -220,6 +235,7 @@ async def _run_mcp_react_task(
     thread_prefix: str,
     runtime: ToolRuntime[LiaRuntimeContext, Any] | None,
     extra_structured_data: dict[str, Any] | None = None,
+    account_scoped: bool = False,
 ) -> UnifiedToolOutput:
     """Run a ReAct agent on a set of MCP tools.
 
@@ -234,22 +250,53 @@ async def _run_mcp_react_task(
         thread_prefix: Unique prefix for the ReAct thread.
         runtime: Parent ToolRuntime for callback propagation.
         extra_structured_data: Additional fields for structured_data output.
+        account_scoped: True when the server's credential is the user's own —
+            fills the prompt's ``{auth_context}`` variable with
+            :func:`account_scope_note`. Kept empty otherwise: the fact is
+            derived from ``auth_type``, never asserted (2026-09-02).
 
     Returns:
         UnifiedToolOutput with ReAct result and accumulated registry items.
     """
     # MCP App servers (with interactive widgets) use a dedicated, more capable LLM
     llm_type = "mcp_app_react_agent" if _has_mcp_app_tools(server_tools) else "mcp_react_agent"
+    prompt_vars = {
+        "server_name": server_name,
+        "auth_context": account_scope_note(server_name) if account_scoped else "",
+    }
     runner = ReactSubAgentRunner(llm_type, "mcp_react_agent_prompt")
     react_result = await runner.run(
         task=task,
         tools=server_tools,
-        prompt_vars={"server_name": server_name},
+        prompt_vars=prompt_vars,
         parent_runtime=runtime,
         thread_prefix=thread_prefix,
         recursion_limit=settings.mcp_react_max_iterations,
         display_name=f"MCP Iterative: {server_name}",
     )
+
+    if react_result.iteration_count == 0 and server_tools:
+        # The sub-agent exists solely to operate this server's tools, so a
+        # completion with ZERO tool calls almost certainly speculated instead
+        # of acting (measured 2026-09-02 on GitHub: 3 runs out of 4 answered
+        # "I need your username" without ever trying search_repositories).
+        # The pipeline's step retry hid exactly this while ReAct surfaced the
+        # first answer — one deterministic retry gives both modes the same
+        # robustness. Single retry only: a second speculative answer stands,
+        # the model must not buy iterations with refusals (ADR-248 doctrine).
+        logger.info(
+            "mcp_react_zero_iteration_retry",
+            server_name=server_name,
+        )
+        react_result = await runner.run(
+            task=task,
+            tools=server_tools,
+            prompt_vars=prompt_vars,
+            parent_runtime=runtime,
+            thread_prefix=thread_prefix,
+            recursion_limit=settings.mcp_react_max_iterations,
+            display_name=f"MCP Iterative: {server_name}",
+        )
 
     # Prometheus: MCP ReAct invocations + iteration distribution (dashboard 10)
     with suppress(Exception):
@@ -277,6 +324,103 @@ async def _run_mcp_react_task(
         message=react_result.final_message,
         registry_updates=react_result.accumulated_registry,
         structured_data=structured_data,
+    )
+
+
+def account_scope_note(server_name: str) -> str:
+    """The sentence published when a server's calls carry the USER'S OWN identity.
+
+    Derived from ``auth_type`` by the caller, never asserted in a prompt: the
+    sub-agent prompt used to hardcode "already authenticated on the user's
+    behalf", which was false for every ``auth_type='none'`` server. Its absence
+    was measured too (2026-09-02, GitHub): with no identity tool in the toolset
+    and no signal that "my" needs no identifier, the model asked the user for
+    their username, or hallucinated one from context (``user:jeyswork``).
+
+    Args:
+        server_name: Human-readable server name.
+
+    Returns:
+        The account-scope sentence for that server.
+    """
+    return (
+        f"Calls to '{server_name}' are authenticated as the user's own "
+        "account: requests about the user's data ('my', 'mine') refer to "
+        "that account and need no username or identifier."
+    )
+
+
+def _account_scoped_for_prefix(server_id_prefix: str) -> bool:
+    """Whether the per-request context marks this server as account-scoped.
+
+    Reads ``UserMCPToolsContext.account_scoped_prefixes``, populated at
+    registration time where ``auth_type`` is in hand. Defaults to False when
+    the context is absent — publishing no affordance is safe, inventing one
+    is not.
+
+    Args:
+        server_id_prefix: First 8 chars of the server UUID.
+
+    Returns:
+        True when the server's credential is the user's own.
+    """
+    from src.core.context import user_mcp_tools_ctx
+
+    user_ctx = user_mcp_tools_ctx.get()
+    if not user_ctx:
+        return False
+    return server_id_prefix in user_ctx.account_scoped_prefixes
+
+
+def iterative_task_tool_description(
+    server_name: str,
+    server_description: str,
+    server_id_prefix: str | None = None,
+    *,
+    account_scoped: bool = False,
+) -> str:
+    """Model-facing description for a per-server iterative task tool.
+
+    ``bind_tools`` serializes the INSTANCE — the rich per-server description in
+    the catalogue manifest only ever reaches the planner and the selector.
+    Before this helper, a per-server task tool was a ``model_copy`` of the
+    generic tool with only the NAME changed, so the reasoning model saw
+    ``mcp_user_<hex>_task`` described as "Execute a multi-step task on a user
+    MCP server", could not connect "my last expenses" to the user's BANK, and
+    honestly answered "I have no access" (2026-09-02, ReAct only — the
+    pipeline's orchestrator executes plan steps without reading instance
+    descriptions).
+
+    The description leads with the DOMAIN (what the model matches the user's
+    request against), then the delegation mechanics, then the exact parameter
+    constants so the model never has to guess a hex prefix.
+
+    Args:
+        server_name: Human-readable server name (e.g. ``"Era banque"``).
+        server_description: The server's domain description; pass the server
+            name again when none is curated.
+        server_id_prefix: For USER servers, the exact ``server_id_prefix``
+            value the tool call must carry. Admin task tools have no such
+            parameter — omit it.
+        account_scoped: True when the server's credential is the USER'S OWN
+            (user servers with ``auth_type != none``) — appends
+            :func:`account_scope_note`. Admin servers stay False: their
+            credential is the platform's, not the user's.
+
+    Returns:
+        The instance description to set via ``model_copy(update=...)``.
+    """
+    call_hint = (
+        f"Call it with server_id_prefix='{server_id_prefix}' and " f"server_name='{server_name}'."
+        if server_id_prefix
+        else f"Call it with server_name='{server_name}'."
+    )
+    scope_note = f" {account_scope_note(server_name)}" if account_scoped else ""
+    return (
+        f"{server_description} "
+        f"This tool delegates to the '{server_name}' MCP server: describe the "
+        "task in natural language in `task`; a sub-agent holding that "
+        f"server's tools executes it and returns the result. {call_hint}{scope_note}"
     )
 
 
@@ -383,4 +527,5 @@ async def mcp_user_server_task_tool(
         thread_prefix=f"mcp_user_react_{server_id_prefix}",
         runtime=runtime,
         extra_structured_data={"server_id_prefix": server_id_prefix},
+        account_scoped=_account_scoped_for_prefix(server_id_prefix),
     )

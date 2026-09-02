@@ -118,6 +118,7 @@ MCP tools are used **automatically** by LIA when relevant:
 • Write a good **server description** to guide LIA
 • Test the connection to ensure tools are properly discovered
 • You can **enable/disable** a server via the toggle without deleting it
+• A server connected with your own account (OAuth, personal token) tells LIA so: "my repos", "my accounts" resolve to that account, with no username to provide
 
 ## What are OAuth scopes and why are they important?
 OAuth scopes define the **permissions** requested during authorization:
@@ -156,6 +157,7 @@ LIA can **auto-generate** a domain description for your MCP servers:
 **💡 Tips:**
 • You can always write a **manual** description that won't be overwritten by the connection test
 • Auto-generation is a good starting point that you can refine afterwards
+• Generation knows whether the server is authenticated with your account: it then describes capabilities over your data, never a "public-only" access
 
 ## What is iterative mode and when should I enable it?
 Iterative mode changes how LIA interacts with an MCP server:

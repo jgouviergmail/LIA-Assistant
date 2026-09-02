@@ -7,17 +7,21 @@ use user MCP tools, whose instances live only in the per-request
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from uuid import UUID
 
 import pytest
 
 from src.core.constants import MCP_USER_TOOL_NAME_PREFIX
 from src.core.context import UserMCPToolsContext, user_mcp_tools_ctx
 from src.domains.agents.tools.tool_resolution import (
+    UNRESOLVED_TOOL_REASONS,
+    classify_unresolved_tool_call,
     resolve_tool_instance,
     resolve_tool_instance_named,
     resolve_tool_manifest,
     resolve_tool_manifest_named,
 )
+from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 
 
 def _register_dummy_global_tool(name: str) -> object:
@@ -217,3 +221,69 @@ class TestDisplayMetadataUsesResolver:
             assert get_tool_display_metadata(name) is display
         finally:
             user_mcp_tools_ctx.reset(token)
+
+
+class TestClassifyUnresolvedToolCall:
+    """ADR-256: `not_selected` and `unknown` need opposite fixes.
+
+    A tool the catalogue knows but this turn did not bind means the cap (or the
+    per-request filtering) is dropping capabilities — 896 tools can resolve
+    against a cap of 100. A name nothing answers to means the model invented it,
+    which says the catalogue is presented badly. Collapsing both into one
+    counter would have made the metric unactionable.
+    """
+
+    def test_a_tool_the_registry_knows_is_not_selected(self) -> None:
+        name = "dummy_classify_known_tool"
+        _register_dummy_global_tool(name)
+
+        assert classify_unresolved_tool_call(name) == "not_selected"
+
+    def test_a_name_nothing_answers_to_is_unknown(self) -> None:
+        assert classify_unresolved_tool_call("totally_invented_tool_xyz") == "unknown"
+
+    def test_a_user_mcp_tool_is_not_selected(self) -> None:
+        """User MCP instances live only in the ContextVar; they still exist."""
+        adapter = UserMCPToolAdapter.from_discovered_tool(
+            server_id=UUID("770baa3e-1111-2222-3333-444455556666"),
+            user_id=UUID(int=1),
+            server_name="atars",
+            tool_name="get_indicator",
+            description="User MCP tool",
+            input_schema={"type": "object", "properties": {}},
+        )
+        ctx = UserMCPToolsContext()
+        ctx.tool_instances[adapter.name] = adapter
+
+        token = user_mcp_tools_ctx.set(ctx)
+        try:
+            assert classify_unresolved_tool_call(adapter.name) == "not_selected"
+        finally:
+            user_mcp_tools_ctx.reset(token)
+
+    def test_the_verdicts_are_exactly_the_metric_label_values(self) -> None:
+        """The label set is bounded by construction, and this pins it."""
+        assert set(UNRESOLVED_TOOL_REASONS) == {"not_selected", "unknown"}
+
+
+class TestClassifyIsTotal:
+    """The name comes from a MODEL, so this function must never raise.
+
+    ``AIMessage`` validates ``tool_calls`` at CONSTRUCTION only: a ``None``
+    field survives a checkpoint round-trip, and a post-construction append
+    bypasses the check entirely (both measured 2026-09-02). Before ADR-256 the
+    unresolved branch simply wrote ``Tool 'None' not found.`` and moved on; a
+    classifier that raised there would turn one malformed call into a dead
+    turn — a regression introduced by the very code meant to make the path
+    observable.
+    """
+
+    @pytest.mark.parametrize("value", [None, "", "   ", 0, 123, [], {}, object()])
+    def test_a_degenerate_name_is_classified_not_raised(self, value: object) -> None:
+        assert classify_unresolved_tool_call(value) in UNRESOLVED_TOOL_REASONS  # type: ignore[arg-type]
+
+    @pytest.mark.parametrize("value", [None, "", 0, []])
+    def test_a_degenerate_name_is_never_reported_as_a_real_tool(self, value: object) -> None:
+        """`not_selected` would send an operator hunting for a cap problem that
+        does not exist; a name that is not a name was invented, full stop."""
+        assert classify_unresolved_tool_call(value) == "unknown"  # type: ignore[arg-type]

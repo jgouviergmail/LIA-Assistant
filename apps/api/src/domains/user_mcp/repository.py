@@ -55,6 +55,28 @@ class UserMCPServerRepository(BaseRepository[UserMCPServer]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_auth_required_for_user(
+        self,
+        user_id: UUID,
+    ) -> list[UserMCPServer]:
+        """
+        Get enabled MCP servers awaiting re-authentication for a user.
+
+        These servers are invisible to tool registration (which only loads
+        ``active`` rows), so this is how the agent context learns that a
+        capability is one reconnection away rather than nonexistent
+        (2026-09-02 incident: the model asserted "no access" instead).
+        """
+        stmt = (
+            select(UserMCPServer)
+            .where(UserMCPServer.user_id == user_id)
+            .where(UserMCPServer.is_enabled.is_(True))
+            .where(UserMCPServer.status == UserMCPServerStatus.AUTH_REQUIRED.value)
+            .order_by(UserMCPServer.name.asc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def count_for_user(self, user_id: UUID) -> int:
         """Count MCP servers for a user (for limit enforcement)."""
         from sqlalchemy import func

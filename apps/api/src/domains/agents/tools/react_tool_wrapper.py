@@ -25,6 +25,107 @@ from pydantic import PrivateAttr
 logger = structlog.get_logger(__name__)
 
 
+def mark_untrusted_data(result: Any, data_for_llm: str) -> str:
+    """Wrap the Data block when it carries third-party free text.
+
+    Scope is the registry-payload path: when a tool sets ``structured_data``
+    explicitly it takes priority in :func:`extract_data_for_llm`, and that
+    shape is authored by the tool itself (server name, iteration count…),
+    not by a third party. The raw third-party payloads only ever reach the
+    model through ``registry_updates``, which carries a typed provenance.
+
+    Unlike the pipeline surface, this block is a JSON dump with no
+    per-item lines to prefix, so the whole block is wrapped with the
+    canonical ``<external_content>`` markers already used by the browser and
+    web-fetch tools.
+
+    Args:
+        result: The tool output being serialised.
+        data_for_llm: The JSON data block extracted from it.
+
+    Returns:
+        The block, wrapped and annotated when untrusted; unchanged otherwise.
+    """
+    registry_updates = getattr(result, "registry_updates", None) or {}
+    if not registry_updates:
+        return data_for_llm
+
+    from src.domains.agents.data_registry.trust import is_external
+
+    external_types = {
+        str(getattr(item_type, "value", item_type))
+        for item in registry_updates.values()
+        if (item_type := getattr(item, "type", None)) is not None and is_external(item_type)
+    }
+    if not external_types:
+        return data_for_llm
+
+    from src.domains.agents.utils.content_wrapper import (
+        injection_notice,
+        wrap_external_content,
+    )
+
+    notice = injection_notice(
+        data_for_llm, item_type=",".join(sorted(external_types)), surface="react"
+    )
+    return wrap_external_content(
+        f"{data_for_llm}{notice}",
+        source_url=",".join(sorted(external_types)),
+        source_type="registry_payload",
+    )
+
+
+def extract_data_for_llm(result: Any) -> str:
+    """Extract structured data from tool output for LLM reasoning.
+
+    Priority:
+    1. structured_data (explicit, e.g., from UnifiedToolOutput.data_success)
+    2. registry_updates payloads (fallback — extract payloads from RegistryItems)
+    3. Empty string (message-only, no extra data)
+
+    Args:
+        result: Tool output with structured_data and/or registry_updates.
+
+    Returns:
+        JSON string of data, or empty string if no data available.
+    """
+    import json
+
+    data: dict[str, Any] | None = None
+
+    # Priority 1: explicit structured_data
+    structured = getattr(result, "structured_data", None)
+    if structured and isinstance(structured, dict) and structured:
+        data = structured
+
+    # Priority 2: extract payloads from registry_updates. getattr, not a
+    # bare attribute: the MCP sub-agent wrapper also feeds message-only
+    # outputs through here.
+    if data is None and getattr(result, "registry_updates", None):
+        grouped: dict[str, list[Any]] = {}
+        for item in result.registry_updates.values():
+            payload = getattr(item, "payload", None) or (
+                item.get("payload") if isinstance(item, dict) else None
+            )
+            if payload:
+                item_type = getattr(item, "type", None)
+                type_key = item_type.value.lower() + "s" if hasattr(item_type, "value") else "items"
+                grouped.setdefault(type_key, []).append(payload)
+        if grouped:
+            data = grouped
+
+    if not data:
+        return ""
+
+    try:
+        data_str = json.dumps(data, ensure_ascii=False, default=str)
+        if len(data_str) > 8000:
+            data_str = data_str[:8000] + "... (truncated)"
+        return data_str
+    except TypeError, ValueError:
+        return ""
+
+
 class ReactToolWrapper(BaseTool):
     """Wraps a BaseTool for ReAct execution: collects registry items.
 
@@ -139,104 +240,15 @@ class ReactToolWrapper(BaseTool):
 
     @staticmethod
     def _mark_untrusted(result: Any, data_for_llm: str) -> str:
-        """Wrap the Data block when it carries third-party free text.
-
-        Scope is the registry-payload path: when a tool sets ``structured_data``
-        explicitly it takes priority in :meth:`_extract_data_for_llm`, and that
-        shape is authored by the tool itself (server name, iteration count…),
-        not by a third party. The raw third-party payloads only ever reach the
-        model through ``registry_updates``, which carries a typed provenance.
-
-        Unlike the pipeline surface, this block is a JSON dump with no
-        per-item lines to prefix, so the whole block is wrapped with the
-        canonical ``<external_content>`` markers already used by the browser and
-        web-fetch tools.
-
-        Args:
-            result: The tool output being serialised.
-            data_for_llm: The JSON data block extracted from it.
-
-        Returns:
-            The block, wrapped and annotated when untrusted; unchanged otherwise.
-        """
-        registry_updates = getattr(result, "registry_updates", None) or {}
-        if not registry_updates:
-            return data_for_llm
-
-        from src.domains.agents.data_registry.trust import is_external
-
-        external_types = {
-            str(getattr(item_type, "value", item_type))
-            for item in registry_updates.values()
-            if (item_type := getattr(item, "type", None)) is not None and is_external(item_type)
-        }
-        if not external_types:
-            return data_for_llm
-
-        from src.domains.agents.utils.content_wrapper import (
-            injection_notice,
-            wrap_external_content,
-        )
-
-        notice = injection_notice(
-            data_for_llm, item_type=",".join(sorted(external_types)), surface="react"
-        )
-        return wrap_external_content(
-            f"{data_for_llm}{notice}",
-            source_url=",".join(sorted(external_types)),
-            source_type="registry_payload",
-        )
+        """Delegate to :func:`mark_untrusted_data` (shared with the MCP
+        sub-agent wrapper)."""
+        return mark_untrusted_data(result, data_for_llm)
 
     @staticmethod
     def _extract_data_for_llm(result: Any) -> str:
-        """Extract structured data from tool output for LLM reasoning.
-
-        Priority:
-        1. structured_data (explicit, e.g., from UnifiedToolOutput.data_success)
-        2. registry_updates payloads (fallback — extract payloads from RegistryItems)
-        3. Empty string (message-only, no extra data)
-
-        Args:
-            result: Tool output with structured_data and/or registry_updates.
-
-        Returns:
-            JSON string of data, or empty string if no data available.
-        """
-        import json
-
-        data: dict[str, Any] | None = None
-
-        # Priority 1: explicit structured_data
-        structured = getattr(result, "structured_data", None)
-        if structured and isinstance(structured, dict) and structured:
-            data = structured
-
-        # Priority 2: extract payloads from registry_updates
-        if data is None and result.registry_updates:
-            grouped: dict[str, list[Any]] = {}
-            for item in result.registry_updates.values():
-                payload = getattr(item, "payload", None) or (
-                    item.get("payload") if isinstance(item, dict) else None
-                )
-                if payload:
-                    item_type = getattr(item, "type", None)
-                    type_key = (
-                        item_type.value.lower() + "s" if hasattr(item_type, "value") else "items"
-                    )
-                    grouped.setdefault(type_key, []).append(payload)
-            if grouped:
-                data = grouped
-
-        if not data:
-            return ""
-
-        try:
-            data_str = json.dumps(data, ensure_ascii=False, default=str)
-            if len(data_str) > 8000:
-                data_str = data_str[:8000] + "... (truncated)"
-            return data_str
-        except TypeError, ValueError:
-            return ""
+        """Delegate to :func:`extract_data_for_llm` (shared with the MCP
+        sub-agent wrapper)."""
+        return extract_data_for_llm(result)
 
     def _run(self, **kwargs: Any) -> str:
         """Synchronous execution not supported."""

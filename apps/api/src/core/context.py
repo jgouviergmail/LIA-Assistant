@@ -113,6 +113,11 @@ class UserMCPToolsContext:
     # Used by smart_planner_service to skip reference_content injection
     # (the ReAct agent calls read_me itself).
     iterative_servers: set[str] = field(default_factory=set)
+    # server_id prefixes (first 8 hex chars) of servers whose credential is the
+    # USER'S OWN (auth_type != none): their calls are account-scoped, and the
+    # sub-agent prompt's {auth_context} variable says so (2026-09-02 — the fact
+    # was hardcoded in the prompt and therefore false for every no-auth server).
+    account_scoped_prefixes: set[str] = field(default_factory=set)
 
     def resolve_tool_name(self, name: str) -> str | None:
         """Resolve a tool name with fuzzy matching for LLM-hallucinated suffixes.

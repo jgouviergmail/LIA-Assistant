@@ -300,3 +300,47 @@ async def build_degradations_block() -> str | None:
     )
 
     return format_degradations_block(await get_active_degradations()) or None
+
+
+async def build_mcp_auth_notices_block() -> str | None:
+    """User MCP servers awaiting re-authentication (2026-09-02 incident).
+
+    A server marked ``auth_required`` is filtered out of tool registration
+    (``get_enabled_active_for_user`` only loads ``active`` rows), so without
+    this block the model cannot distinguish "this capability does not exist"
+    from "this capability is one reconnection away" — and it asserted the
+    former to the user. Best-effort: never raises, zero tokens when every
+    server is connected.
+
+    Returns:
+        The notice block naming the disconnected servers and the remedy, or
+        None when everything is connected (or the lookup fails).
+    """
+    if not getattr(settings, "mcp_user_enabled", False):
+        return None
+    try:
+        user_id = runtime_user_id_str() or ""
+        if not user_id:
+            return None
+        from uuid import UUID
+
+        # Port on the MCP infrastructure — the agents domain must not import
+        # the user_mcp domain directly (F009: no new domain cycle).
+        from src.infrastructure.mcp.auth import list_auth_required_server_names
+
+        server_names = await list_auth_required_server_names(UUID(user_id))
+        if not server_names:
+            return None
+        names = ", ".join(f"'{name}'" for name in server_names)
+        return (
+            "<MCPServersNeedingReconnection>\n"
+            "These user-connected MCP servers are temporarily unavailable "
+            f"because their authentication expired: {names}. Their tools are "
+            "NOT attached this turn. If the user asks for something these "
+            "servers provide, do not say the capability does not exist - "
+            "tell them to reconnect the server in Settings > MCP servers.\n"
+            "</MCPServersNeedingReconnection>"
+        )
+    except Exception as exc:
+        logger.warning("react_mcp_auth_notices_block_failed", error=str(exc))
+        return None

@@ -12,7 +12,9 @@ from __future__ import annotations
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from src.core.constants import CONTEXT_WIDGET_DISPLAYED_PLACEHOLDER
-from src.domains.agents.nodes.react_nodes import _neutralize_widget_sentinels
+from src.domains.agents.nodes.react_history import (
+    neutralize_widget_sentinels as _neutralize_widget_sentinels,
+)
 
 _SENTINEL = (
     '<div class="lia-skill-app" data-registry-id="skill_app_545e26">'

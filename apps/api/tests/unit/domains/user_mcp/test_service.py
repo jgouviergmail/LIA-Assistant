@@ -653,3 +653,49 @@ class TestUpdateToolEmbeddings:
         service.repository.update.assert_called_once_with(
             sample_server, {"tool_embeddings_cache": embeddings}
         )
+
+
+class TestDescriptionGenerationKnowsAuthentication:
+    """The description generator must know whether calls carry the user's
+    own credential (2026-09-02): fed only tool names, it described an
+    authenticated GitHub server as "public GitHub repositories", and the
+    model rationally asked the user for a username instead of reading "my"
+    as the connected account.
+    """
+
+    def _llm(self):
+        llm = AsyncMock()
+        llm.ainvoke = AsyncMock(return_value=MagicMock(content="A fine description."))
+        return llm
+
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.llm.get_llm")
+    async def test_account_scoped_server_declares_it_to_the_generator(
+        self, mock_get_llm, service
+    ) -> None:
+        llm = self._llm()
+        mock_get_llm.return_value = llm
+
+        await service._llm_generate_description(
+            tool_list=[{"name": "search_repositories", "description": "Search repos"}],
+            server_name="Github",
+            account_scoped=True,
+        )
+
+        human = llm.ainvoke.call_args[0][0][1].content
+        assert "user's own account" in human
+
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.llm.get_llm")
+    async def test_anonymous_server_declares_no_authentication(self, mock_get_llm, service) -> None:
+        llm = self._llm()
+        mock_get_llm.return_value = llm
+
+        await service._llm_generate_description(
+            tool_list=[{"name": "get_price", "description": "Get price"}],
+            server_name="Coingecko",
+            account_scoped=False,
+        )
+
+        human = llm.ainvoke.call_args[0][0][1].content
+        assert "own account" not in human

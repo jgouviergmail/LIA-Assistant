@@ -27,7 +27,9 @@ from langchain_anthropic.chat_models import _format_messages
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from src.core.constants import COMPACTION_SUMMARY_MARKER
-from src.domains.agents.nodes.react_nodes import _window_messages_for_react
+from src.domains.agents.nodes.react_history import (
+    window_messages_for_react as _window_messages_for_react,
+)
 
 pytestmark = [pytest.mark.unit]
 

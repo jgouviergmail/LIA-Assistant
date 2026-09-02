@@ -117,6 +117,23 @@ async def init_agent_registry(
             logger.error("capability_directive_registry_incomplete", error=str(exc), exc_info=True)
             raise RuntimeError(f"Capability directive registry incomplete: {exc}") from exc
 
+        # Validate tool safety categories (ADR-085 pattern, ADR-256): a native
+        # manifest with neither a declared tool_category nor a naming convention
+        # would fall back to "readonly", which decides both whether the tool
+        # counts as a mutation and whether the read-only initiative phase may
+        # run it. Four writing tools had been sitting on that default. Checked
+        # here for the same reason as the block above — the manifests only
+        # become checkable once the catalogue is loaded.
+        try:
+            from src.domains.agents.registry.catalogue import (
+                assert_tool_category_completeness,
+            )
+
+            assert_tool_category_completeness(registry.list_tool_manifests())
+        except AssertionError as exc:
+            logger.error("tool_category_registry_incomplete", error=str(exc), exc_info=True)
+            raise RuntimeError(f"Tool category registry incomplete: {exc}") from exc
+
         # Register all available agents
         # NAMING: domain=entity(singular), agent=domain+"_agent"
         # OAuth agents (Google)

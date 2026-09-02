@@ -329,6 +329,72 @@ class TestSetupUserMCPTools:
     @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
     @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
     @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    async def test_iterative_task_tool_instance_speaks_the_domain(
+        self, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        """The BOUND instance's description must carry the server's domain and
+        the exact parameter constants.
+
+        The manifest's rich description only ever reaches the planner and the
+        selector — ``bind_tools`` serializes the INSTANCE. Before this, the
+        model saw ``mcp_user_<hex>_task`` described as "Execute a multi-step
+        task on a user MCP server" for the user's BANK, could not connect
+        "my last expenses" to it, and honestly answered "I have no access"
+        (2026-09-02, ReAct-only — the pipeline never reads the instance).
+        """
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        mock_settings.mcp_react_enabled = True
+
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = "Era banque"
+        server.url = "https://mcp.era.app"
+        server.timeout_seconds = 60
+        server.hitl_required = None
+        server.domain_description = "Personal finance: accounts, balances, transactions"
+        server.tool_embeddings_cache = None
+        server.iterative_mode = True
+
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+
+        entry = MagicMock()
+        entry.tools = [
+            {"name": "list_accounts", "description": "List accounts", "input_schema": {}},
+        ]
+        entry.reference_content = None
+
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+
+        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        try:
+            assert token is not None
+            ctx = user_mcp_tools_ctx.get()
+            assert ctx is not None
+
+            server_prefix = str(server.id)[:8]
+            instance = ctx.tool_instances[f"mcp_user_{server_prefix}_task"]
+
+            description = instance.description
+            # The domain, so the model can MATCH the user's request to it.
+            assert "Personal finance: accounts, balances, transactions" in description
+            assert "Era banque" in description
+            # The exact constants, so the model can CALL it without guessing.
+            assert server_prefix in description
+        finally:
+            cleanup_user_mcp_tools(token)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
     @patch("src.infrastructure.mcp.user_context._build_user_tool_manifest")
     async def test_iterative_mode_disabled_when_react_disabled(
         self, mock_manifest, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
@@ -752,5 +818,107 @@ class TestToolMetadataReachesTheAdapter:
             listing = next(m for n, m in by_name.items() if n.endswith("list_financial_accounts"))
             assert forget.tool_category == "delete"
             assert listing.tool_category is None
+        finally:
+            cleanup_user_mcp_tools(token)
+
+
+class TestAccountScopePublication:
+    """``auth_type`` becomes a published affordance, per server (2026-09-02).
+
+    A server whose credential is the USER'S OWN (oauth2, bearer, api_key)
+    serves account-scoped data, and the model must read that fact where it
+    reads the server's capabilities — the task tool instance, the planner
+    manifest, and the sub-agent's ``{auth_context}`` variable (fed through
+    ``account_scoped_prefixes``). A ``none`` server must publish NOTHING:
+    claiming authentication there is an invented capability.
+    """
+
+    def _server(self, auth_type: str) -> MagicMock:
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = "Github"
+        server.url = "https://api.githubcopilot.com/mcp/x/repos/readonly"
+        server.timeout_seconds = 30
+        server.hitl_required = None
+        server.domain_description = "Repository search and inspection."
+        server.tool_embeddings_cache = None
+        server.iterative_mode = True
+        server.auth_type = auth_type
+        server.extra_headers = None
+        return server
+
+    async def _context_for(
+        self, auth_type: str, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ):
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        mock_settings.mcp_react_enabled = True
+
+        server = self._server(auth_type)
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+
+        entry = MagicMock()
+        entry.tools = [
+            {"name": "search_repositories", "description": "Search repos", "input_schema": {}},
+        ]
+        entry.reference_content = None
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+
+        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        assert token is not None
+        return server, token
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    async def test_oauth_server_publishes_account_scope(
+        self, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        server, token = await self._context_for(
+            "oauth2", mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+        )
+        try:
+            ctx = user_mcp_tools_ctx.get()
+            prefix = str(server.id)[:8]
+            assert prefix in ctx.account_scoped_prefixes
+
+            instance = ctx.tool_instances[f"mcp_user_{prefix}_task"]
+            assert "user's own account" in instance.description
+
+            manifest = next(m for m in ctx.tool_manifests if m.name.endswith("_task"))
+            assert "user's own account" in manifest.description
+        finally:
+            cleanup_user_mcp_tools(token)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    async def test_none_server_publishes_nothing(
+        self, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        server, token = await self._context_for(
+            "none", mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+        )
+        try:
+            ctx = user_mcp_tools_ctx.get()
+            prefix = str(server.id)[:8]
+            assert prefix not in ctx.account_scoped_prefixes
+
+            instance = ctx.tool_instances[f"mcp_user_{prefix}_task"]
+            assert "own account" not in instance.description
+
+            manifest = next(m for m in ctx.tool_manifests if m.name.endswith("_task"))
+            assert "own account" not in manifest.description
         finally:
             cleanup_user_mcp_tools(token)

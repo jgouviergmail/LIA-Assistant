@@ -267,6 +267,7 @@ from src.core.constants import (
     REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
     REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT,
     REACT_REPEATED_CALL_TERMINAL_THRESHOLD_DEFAULT,
+    REACT_TOOL_BUDGET_SECONDS_DEFAULT,
     RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT,
@@ -505,7 +506,22 @@ class AgentsSettings(BaseSettings):
         default=REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
         ge=10,
         le=600,
-        description="Hard timeout for entire ReAct execution (seconds).",
+        description=(
+            "Budget (seconds) for the ReAct loop's own REASONING — the time "
+            "charged by react_call_model. Tool execution is bounded separately "
+            "by react_tool_budget_seconds (ADR-256)."
+        ),
+    )
+    react_tool_budget_seconds: int = Field(
+        default=REACT_TOOL_BUDGET_SECONDS_DEFAULT,
+        ge=30,
+        le=3600,
+        description=(
+            "Budget (seconds) a ReAct turn may spend INSIDE tools. Counted "
+            "apart from the reasoning budget because a delegating tool opens "
+            "its own LLM loop: one delegation at its pipeline bound would "
+            "consume the whole reasoning budget on its own (ADR-256)."
+        ),
     )
     react_repeated_call_block_threshold: int = Field(
         default=REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT,

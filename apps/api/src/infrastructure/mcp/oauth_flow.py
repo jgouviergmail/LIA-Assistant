@@ -106,7 +106,7 @@ def safe_oauth_error_code_value(code: str | None) -> str | None:
     return code if isinstance(code, str) and code in _OAUTH_ERROR_CODES else None
 
 
-def _safe_oauth_error_code(response: httpx.Response) -> str | None:
+def safe_oauth_error_code(response: httpx.Response) -> str | None:
     """Extract the OAuth ``error`` code from a response, if it is a known one.
 
     Args:
@@ -555,7 +555,7 @@ class MCPOAuthFlowHandler:
                 "mcp_oauth_token_exchange_http_error",
                 status_code=resp.status_code,
                 # SEC-030: never log the provider-controlled body.
-                oauth_error=_safe_oauth_error_code(resp),
+                oauth_error=safe_oauth_error_code(resp),
                 content_type=resp.headers.get("content-type", "")[:64],
                 body_bytes=len(resp.content),
             )

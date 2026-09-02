@@ -169,3 +169,181 @@ class TestTheAnswerIsToldToSayIt:
         monkeypatch.setattr(settings, "diagnostics_enabled", False, raising=False)
 
         assert await build_run_honesty_block({"messages": []}) == ""
+
+
+class TestTheAbandonedCallsAreAnswered:
+    """A third invariant, and it is about STATE, not about the answer.
+
+    The two above make the cut-short turn honest to the user. Neither cleans
+    the checkpoint: the ``AIMessage`` keeps ``tool_calls`` nobody will ever
+    answer, and LangGraph persists it. Measured in production on 2026-09-02 —
+    one budget exit, then every following turn on that thread died on
+    ``400 No tool output found for function call …`` with the same call id.
+    The conversation was bricked, and the turn-start repair could only mend it
+    after the fact.
+
+    So the loop closes its own books: each abandoned call gets an explicit
+    result saying it never ran and what to do next. The history is then valid
+    BY CONSTRUCTION, and the model is told what it lost instead of silently
+    re-deriving it next turn.
+    """
+
+    async def test_every_pending_call_gets_an_explicit_result(self) -> None:
+        last = AIMessage(
+            content=NARRATION,
+            tool_calls=[
+                {"name": "search_emails", "args": {}, "id": "call_1"},
+                {"name": "list_events", "args": {}, "id": "call_2"},
+            ],
+        )
+
+        result = await react_nodes.react_finalize_node(_state(last, iteration=6, budget=6), {})
+
+        emitted = result.get("messages") or []
+        assert [m.tool_call_id for m in emitted] == ["call_1", "call_2"]
+        assert all(isinstance(m, ToolMessage) for m in emitted)
+
+    async def test_the_result_is_flagged_as_an_error_not_a_success(self) -> None:
+        """A call that never ran did not succeed; the model must not read it
+        as data."""
+        last = AIMessage(
+            content=NARRATION,
+            tool_calls=[{"name": "search_emails", "args": {}, "id": "call_1"}],
+        )
+
+        result = await react_nodes.react_finalize_node(_state(last, iteration=6, budget=6), {})
+
+        assert result["messages"][0].status == "error"
+
+    async def test_the_result_names_the_stop_reason_and_what_to_do(self) -> None:
+        """A bare refusal is what a stalled model retries verbatim
+        (loop_guard's documented lesson, applied here)."""
+        last = AIMessage(
+            content=NARRATION,
+            tool_calls=[{"name": "search_emails", "args": {}, "id": "call_1"}],
+        )
+
+        result = await react_nodes.react_finalize_node(_state(last, iteration=6, budget=6), {})
+
+        body = result["messages"][0].content
+        assert "max_iterations" in body
+        assert "not executed" in body.lower()
+
+    async def test_the_tool_name_travels_with_the_result(self) -> None:
+        last = AIMessage(
+            content=NARRATION,
+            tool_calls=[{"name": "search_emails", "args": {}, "id": "call_1"}],
+        )
+
+        result = await react_nodes.react_finalize_node(_state(last, iteration=6, budget=6), {})
+
+        assert result["messages"][0].name == "search_emails"
+
+    async def test_a_clean_run_emits_no_synthetic_result(self) -> None:
+        """No pending call, nothing to close: the state update stays untouched."""
+        result = await react_nodes.react_finalize_node(_state(AIMessage(ANSWER), iteration=2), {})
+
+        assert not result.get("messages")
+
+    async def test_a_call_without_an_id_cannot_be_answered_and_is_skipped(self) -> None:
+        """Never invent a pairing: an id-less call is left to the turn-start
+        repair, which removes it. The identified ones are still closed.
+
+        ``AIMessage(tool_calls=[...])`` refuses a call with no ``id`` key, but
+        ``id: None`` passes — and that is the shape a checkpoint round-trip can
+        produce, since validation runs at construction only (measured). The
+        guard is reachable, not defensive decoration.
+        """
+        last = AIMessage(
+            content=NARRATION,
+            tool_calls=[
+                {"name": "search_emails", "args": {}, "id": "call_1"},
+                {"name": "broken", "args": {}, "id": None},
+            ],
+        )
+
+        result = await react_nodes.react_finalize_node(_state(last, iteration=6, budget=6), {})
+
+        assert [m.tool_call_id for m in result["messages"]] == ["call_1"]
+
+    async def test_the_promise_invariant_still_holds(self) -> None:
+        """Closing the books must not resurrect the narration as an answer."""
+        last = AIMessage(
+            content=NARRATION,
+            tool_calls=[{"name": "search_emails", "args": {}, "id": "call_1"}],
+        )
+
+        result = await react_nodes.react_finalize_node(_state(last, iteration=6, budget=6), {})
+
+        assert result["react_agent_result"]["final_message"] == ""
+        assert result["react_agent_result"]["truncation"]["reason"] == "max_iterations"
+
+    async def test_the_history_it_leaves_is_provider_valid(self) -> None:
+        """The whole point: what reaches the next turn must not be rejected.
+
+        Replays the repaired history through the real Responses API serializer
+        — the one that answered 400 on the production incident.
+        """
+        from langchain_openai.chat_models.base import _construct_responses_api_input
+
+        last = AIMessage(
+            content=[
+                {"type": "text", "text": NARRATION},
+                {
+                    "type": "function_call",
+                    "name": "search_emails",
+                    "arguments": "{}",
+                    "call_id": "call_1",
+                },
+            ],
+            tool_calls=[{"name": "search_emails", "args": {}, "id": "call_1"}],
+        )
+        state = _state(last, iteration=6, budget=6)
+
+        result = await react_nodes.react_finalize_node(state, {})
+
+        history = state["messages"] + list(result["messages"])
+        payload = _construct_responses_api_input(history)
+        call_ids = {b.get("call_id") for b in payload if isinstance(b, dict)}
+        answered = {
+            b.get("call_id")
+            for b in payload
+            if isinstance(b, dict) and b.get("type") == "function_call_output"
+        }
+        assert "call_1" in call_ids
+        assert "call_1" in answered, "the abandoned call reaches the provider unanswered"
+
+    async def test_a_call_that_already_has_a_result_is_not_answered_twice(self) -> None:
+        """Never duplicate a tool_call_id: two results for one call is exactly
+        the malformed history this whole invariant exists to prevent."""
+        last = AIMessage(
+            content=NARRATION,
+            tool_calls=[
+                {"name": "search_emails", "args": {}, "id": "call_1"},
+                {"name": "list_events", "args": {}, "id": "call_2"},
+            ],
+        )
+        state = _state(last, iteration=6, budget=6)
+        state["messages"].insert(
+            -1, ToolMessage(content="already done", tool_call_id="call_1", name="search_emails")
+        )
+
+        result = await react_nodes.react_finalize_node(state, {})
+
+        assert [m.tool_call_id for m in result["messages"]] == ["call_2"]
+
+    async def test_the_reason_the_user_sees_is_the_reason_the_model_is_given(self) -> None:
+        """One stop condition, one wording (ADR-248). Two defaulting rules would
+        let the truncation banner and the tool result name different causes."""
+        last = AIMessage(
+            content=NARRATION,
+            tool_calls=[{"name": "search_emails", "args": {}, "id": "call_1"}],
+        )
+
+        # No ceiling reached: the reason falls back to the shared default.
+        result = await react_nodes.react_finalize_node(_state(last, iteration=2, budget=90), {})
+
+        reason = result["react_agent_result"]["truncation"]["reason"]
+        assert (
+            reason in result["messages"][0].content
+        ), "the model must be told the same stop condition the answer reports"

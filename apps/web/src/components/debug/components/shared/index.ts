@@ -16,6 +16,7 @@ export { ThresholdRow, type ThresholdRowProps, type ThresholdCheck } from './Thr
 export { InfoRow, type InfoRowProps, type ThresholdInfo } from './InfoRow';
 
 // Score visualization
+export { BudgetBar, type BudgetBarProps } from './BudgetBar';
 export { ScoreBar, type ScoreBarProps } from './ScoreBar';
 export { ScoreLegend, type ScoreLegendProps } from './ScoreLegend';
 export {

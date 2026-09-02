@@ -30,6 +30,8 @@ _unified_search_desc = (
 
 unified_web_search_catalogue_manifest = ToolManifest(
     name="unified_web_search_tool",
+    # ADR-256: external search, no user data.
+    tool_category="readonly",
     agent="web_search_agent",
     description=_unified_search_desc,
     # Broad keywords in ENGLISH ONLY (semantic pivot translates all queries to English)

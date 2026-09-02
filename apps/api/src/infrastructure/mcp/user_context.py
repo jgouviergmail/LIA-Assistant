@@ -311,9 +311,23 @@ def _register_user_iterative_server(
         hitl_required: Resolved HITL requirement.
         embeddings_cache: Pre-computed embeddings from DB.
     """
-    from src.domains.agents.tools.mcp_react_tools import mcp_user_server_task_tool
+    from src.domains.agents.tools.mcp_react_tools import (
+        account_scope_note,
+        iterative_task_tool_description,
+        mcp_user_server_task_tool,
+    )
+    from src.domains.user_mcp.models import UserMCPAuthType
 
     server_id_prefix = str(server.id)[:8]
+
+    # A user server's credential is the USER'S OWN (oauth2 grant, personal
+    # bearer/API key): its calls are account-scoped, and the model must read
+    # that where it reads the server's capabilities. Derived from auth_type —
+    # never asserted in a prompt, which would be false for 'none' servers
+    # (2026-09-02: "my repos" ended in a hallucinated username for lack of it).
+    account_scoped = server.auth_type != UserMCPAuthType.NONE.value
+    if account_scoped:
+        ctx.account_scoped_prefixes.add(server_id_prefix)
 
     # 1. Register individual tools in ctx (ReAct agent needs them)
     for tool_data in entry.tools:
@@ -348,20 +362,38 @@ def _register_user_iterative_server(
                 user_id=str(user_id),
             )
 
-    # 2. Create per-server task tool instance (named copy of the generic tool)
+    # 2. Create per-server task tool instance (named copy of the generic tool).
+    # The description must speak the SERVER'S domain: bind_tools serializes
+    # the instance, not the manifest, so a name-only copy left the model
+    # staring at "Execute a multi-step task on a user MCP server" for the
+    # user's bank (2026-09-02 — ReAct refused what the pipeline could plan).
     task_tool_name = f"{MCP_USER_TOOL_NAME_PREFIX}_{server_id_prefix}{MCP_ITERATIVE_TASK_SUFFIX}"
     named_task_tool = mcp_user_server_task_tool.model_copy(
-        update={"name": task_tool_name},
+        update={
+            "name": task_tool_name,
+            "description": iterative_task_tool_description(
+                server.name,
+                server.domain_description or server.name,
+                server_id_prefix=server_id_prefix,
+                account_scoped=account_scoped,
+            ),
+        },
     )
     ctx.tool_instances[task_tool_name] = named_task_tool
 
-    # 3. Build task tool manifest (planner sees only this)
+    # 3. Build task tool manifest (planner sees only this). The manifest is
+    # the planner's whole knowledge of the server, so the account-scope fact
+    # travels here too — a routing surface that says "public" while the
+    # instance says "your account" is two authorities on one question.
+    manifest_description = server.domain_description or server.name
+    if account_scoped:
+        manifest_description = f"{manifest_description} {account_scope_note(server.name)}"
     task_manifest = _build_user_iterative_task_manifest(
         task_tool_name=task_tool_name,
         server_id_prefix=server_id_prefix,
         server_name=server.name,
         server_domain=ctx.server_domains.get(server.name, "mcp_unnamed"),
-        description=server.domain_description or server.name,
+        description=manifest_description,
         hitl_required=hitl_required,
     )
     ctx.tool_manifests.append(task_manifest)

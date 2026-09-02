@@ -232,6 +232,8 @@ The assistant **reasons step by step**: it calls a tool, analyzes the result, th
 
 **🛡️ Sensitive actions are confirmed in both modes** — creating, modifying, replying/forwarding or deleting (events, emails, contacts, tasks, files, labels) always shows a confirmation card and is only carried out **after you approve it** (you can also edit or cancel). This is the same protection in Pipeline and ReAct mode — ReAct never performs a mutation silently. Reminders are created instantly, without a confirmation step, in both modes.
 
+**⏱️ Honest time budgets** — a ReAct turn counts thinking time and tool-work time separately, each with its own bound, so a single long delegation (a sub-agent, an iterative MCP task, a browser run) can never consume the whole turn. The deadline is measured on compute time: waiting for your approval never eats into it, and a timeout caused by a slow external tool is attributed to that tool, not reported as the assistant cutting you short.
+
 ## How do I copy a message or code, and are math formulas rendered correctly?
 
 Since v1.16.9, the chat has several useful finishing touches:

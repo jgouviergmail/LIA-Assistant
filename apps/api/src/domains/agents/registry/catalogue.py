@@ -665,8 +665,37 @@ class AgentManifest:
 
 
 def infer_tool_category(tool_name: str) -> ToolCategory:
+    """Infer a tool category from its name, falling back to ``"readonly"``.
+
+    Public contract, unchanged: a THIRD-PARTY tool names itself however it
+    likes, and the safe default is the right answer there — ADR-255 keeps the
+    server's own annotations able to TIGHTEN this, never to loosen it.
+
+    For the NATIVE catalogue the fallback is a different matter: it invents an
+    intention rather than reading a convention, so
+    :func:`assert_tool_category_completeness` refuses to boot when a native
+    manifest would rely on it. See :func:`infer_tool_category_or_none` for the
+    distinction.
+
+    Args:
+        tool_name: Tool name to analyse.
+
+    Returns:
+        The inferred category, or ``"readonly"`` when no convention applies.
+    """
+    return infer_tool_category_or_none(tool_name) or "readonly"
+
+
+def infer_tool_category_or_none(tool_name: str) -> ToolCategory | None:
     """
     Infer tool category from tool name using naming conventions.
+
+    Returns ``None`` — rather than a safe-looking default — when no convention
+    applies. That is the whole point of this function: *guessing from a
+    convention is legitimate, inventing an intention is not* (ADR-184's
+    distinction, applied to tool safety in ADR-256). Measured on the native
+    catalogue before the guard existed: 17 manifests out of 96 landed on the
+    default, and four of them wrote data.
 
     Convention-based inference (2026-01 unified architecture):
     - get_* → search (unified data retrieval with full details)
@@ -764,8 +793,47 @@ def infer_tool_category(tool_name: str) -> ToolCategory:
     ):
         return "search"
 
-    # Default to readonly (safe)
-    return "readonly"
+    # No convention applies. Saying so is the contribution: the caller decides
+    # whether to fall back (third-party names) or to refuse (native manifests).
+    return None
+
+
+def assert_tool_category_completeness(manifests: Iterable[Any]) -> None:
+    """Assert every NATIVE manifest declares or implies a safety category.
+
+    Called from ``init_agent_registry`` right after ``initialize_catalogue`` —
+    not from ``run_failfast_validations``, which runs before any manifest is
+    registered and would therefore validate an empty registry and pass forever.
+    A unit test calls it over the loaded catalogue so CI catches it before boot
+    (ADR-085 pattern, same placement as ``assert_registry_completeness``).
+
+    Third-party MCP tools are exempt by construction: they are registered
+    dynamically, outside the catalogue this runs over, and ADR-255 already
+    governs what their own declaration may say.
+
+    Args:
+        manifests: Tool manifests currently registered in the catalogue.
+
+    Raises:
+        AssertionError: If any manifest has no ``tool_category`` and no naming
+            convention that implies one, listing the offending names.
+    """
+    undeclared = sorted(
+        str(getattr(m, "name", "<unnamed>"))
+        for m in manifests
+        if getattr(m, "tool_category", None) is None
+        and infer_tool_category_or_none(str(getattr(m, "name", ""))) is None
+    )
+    if undeclared:
+        names = ", ".join(undeclared)
+        raise AssertionError(
+            f"{len(undeclared)} tool manifest(s) declare no tool_category and follow "
+            f"no naming convention: {names}. The category decides whether the tool "
+            "counts as a mutation (semantic-validator safety net) and whether the "
+            "read-only initiative phase may run it — inferring 'readonly' there "
+            "invents an intention. Declare tool_category on the manifest; see "
+            "src/domains/agents/registry/catalogue.py."
+        )
 
 
 def get_tool_category(manifest: ToolManifest) -> ToolCategory:

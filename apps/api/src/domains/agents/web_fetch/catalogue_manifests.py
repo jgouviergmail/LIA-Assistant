@@ -27,6 +27,8 @@ _fetch_desc = (
 
 fetch_web_page_catalogue_manifest = ToolManifest(
     name="fetch_web_page_tool",
+    # ADR-256: fetches and reads a page.
+    tool_category="readonly",
     agent="web_fetch_agent",
     description=_fetch_desc,
     semantic_keywords=[

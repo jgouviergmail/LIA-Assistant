@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.38.4</strong> — <strong>A connected server announced forty tools and quietly delivered ten</strong>. Asked to list the accounts of a personal-finance MCP server, the assistant answered that it could not — while routing to that very server with a confidence of 1.0. <strong>30 of its 40 tools were never built</strong>, 270 times in 72 hours, behind a warning nobody queries. The cause fits in one line of JSON: a parameter declared <code>"type": ["boolean", "null"]</code>, legal since draft-04 and the dominant way to spell "optional", used as a dictionary key in four places. Fixing the first would have moved the crash one line down, into the same <code>try</code> — two readings of one declaration always end up disagreeing, so there is now one. Chasing conformance found worse than the crash: the fallback answered a whole tool with no schema at all the moment a single property used <code>$ref</code> or <code>anyOf</code>, which publishes it to the model as an opaque bag — listed, and uncallable. And a confirmation was missing where it mattered: with one setting shared by every tool of a server, switching it off for a server you merely query also switched it off for the few that delete something — none of which carry a verb the name heuristic recognises. A tool the server itself declares destructive now always asks. — 2 September 2026.
+  <strong>Version 1.38.5</strong> — <strong>A ReAct turn spent time nobody was counting, and a connected server could not say whose account it spoke for</strong>. The loop's budget measured reasoning alone — one node out of four — while a delegation (a sub-agent, an iterative MCP task, a browser run) opened its own LLM loop behind a single tool call and charged nothing to anyone: the theoretical ceiling of one turn was about thirty hours. ADR-256 restores conservation: tool time gets its own named budget, every tool call its own bound — never stricter than the bound the layer below already applies — and a timeout raised by the tool itself is no longer reported as our cut. The second story ends in a question no user should hear: "what is your GitHub username?" — asked about an OAuth server authenticated as that very user. Nothing published the fact; a first fix hardcoded "the server is already authenticated" into the prompt, which is false for every no-auth server. <strong>A fact that varies per server is data</strong>: derived from its auth type, it now travels with the server — into the delegation tool's description, the planner's manifest, the sub-agent's context and the generated domain description — and an unauthenticated server publishes nothing, because claiming otherwise would be an invented capability. Same honesty elsewhere: an OAuth refresh that rebuilt credentials without <code>client_id</code> (every second refresh died forever in <code>400 invalid_request</code>), a disconnected server that vanished from the model's world instead of being named with its remedy, an orphaned tool call surviving repair under its second serialized shape and poisoning every later turn. — 2 September 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **254** ADRs                                                           |
-| **238** versions shipped  | **6 languages**, parity enforced in CI  | **493** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **255** ADRs                                                           |
+| **239** versions shipped  | **6 languages**, parity enforced in CI  | **497** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -330,7 +330,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 493 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 497 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -973,7 +973,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-254 ADR files (ADR-001 through ADR-255 — ADR-008 has no separate file) documenting major architectural decisions:
+255 ADR files (ADR-001 through ADR-256 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

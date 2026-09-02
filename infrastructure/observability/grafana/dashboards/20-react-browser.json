@@ -383,7 +383,7 @@
     {
       "id": 13,
       "type": "timeseries",
-      "title": "Duration P95",
+      "title": "Reasoning Duration P95",
       "datasource": {
         "type": "prometheus",
         "uid": "$datasource"
@@ -429,7 +429,7 @@
           "placement": "bottom"
         }
       },
-      "description": "ReAct agent total execution duration. Shown: p95 percentile."
+      "description": "ReAct REASONING duration (react_call_model only). It excludes tool execution time — see 'Tool Time P95' below — and, by ADR-170's design, the wall clock a user spends on a HITL approval. Reading it as the turn's total is how a delegated sub-agent loop came to be invisible here (ADR-256)."
     },
     {
       "id": 20,
@@ -981,6 +981,174 @@
         }
       },
       "description": "Total browser errors. Empty panel = zero events in the window (healthy)."
+    },
+    {
+      "id": 50,
+      "type": "row",
+      "title": "ReAct — Budgets & Catalogue (ADR-256)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 53
+      },
+      "panels": []
+    },
+    {
+      "id": 51,
+      "type": "timeseries",
+      "title": "Tool Time P95",
+      "description": "Time spent INSIDE tools, the half the reasoning budget never counted. A delegating tool (sub-agent, iterative MCP task, browser run) opens its own LLM loop behind one tool_call; before ADR-256 that work charged nothing anywhere and no predicate could see it. Compare with 'Reasoning Duration P95' to read a turn's real cost.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(agent_tool_duration_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "p95 all tools",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, tool_name) (rate(agent_tool_duration_seconds_bucket{tool_name=~\"delegate_to_sub_agent.*|browser_task_tool|.*_task_tool\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{tool_name}}",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "type": "timeseries",
+      "title": "Tools Resolved vs Cap",
+      "description": "Tools resolved for a turn BEFORE react_agent_max_tools is applied. Up to 896 can resolve against a cap of 100 (96 native plus 20 MCP servers of 40 tools). The cap counter only fires once capabilities are already lost; this distribution is what shows a deployment creeping towards its ceiling.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(react_tools_resolved_bucket[$__rate_interval])))",
+          "legendFormat": "p95 resolved",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(react_tools_resolved_bucket[$__rate_interval])))",
+          "legendFormat": "p50 resolved",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "type": "timeseries",
+      "title": "Tool Cap Hits",
+      "description": "Turns where the cap bit and tools were dropped. Non-zero means this deployment is losing capabilities the model can no longer see. Zero is the healthy value, hence 'or vector(0)': a counter that never fired exposes no series and would render 'No data' where an operator expects a green 0.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(react_tool_selector_capped_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "cap hits/s",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "type": "timeseries",
+      "title": "Unresolved Tool Calls (by reason)",
+      "description": "Tool calls that found no bound tool. 'not_selected' = the tool exists but this turn did not bind it, so the cap is too low. 'unknown' = the model invented the name, so the catalogue is presented badly. Opposite fixes, which is why one counter would have been useless. The tool NAME is deliberately not a label (unbounded cardinality) — it travels in the react_tool_call_unresolved log event.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(react_unknown_tool_calls_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "{{reason}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
     }
   ]
 }

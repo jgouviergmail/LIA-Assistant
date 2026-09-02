@@ -424,6 +424,10 @@ export const ReactExecutionSchema = z.object({
   iterations: z.number().min(0),
   max_iterations: z.number().min(1),
   elapsed_seconds: z.number().min(0),
+  // ADR-256: optional because a debug payload persisted before it carries
+  // neither field — an older turn must still render, minus the tool row.
+  tool_seconds: z.number().min(0).optional(),
+  tool_budget_seconds: z.number().min(0).optional(),
   tool_names: z.array(z.string()),
   executed_tool_calls: z.number().min(0),
 });

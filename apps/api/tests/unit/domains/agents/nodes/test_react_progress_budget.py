@@ -20,7 +20,7 @@ from typing import Any
 
 import pytest
 
-from src.domains.agents.nodes.react_nodes import react_iteration_budget
+from src.domains.agents.utils.react_budget import react_iteration_budget
 
 pytestmark = [pytest.mark.unit]
 

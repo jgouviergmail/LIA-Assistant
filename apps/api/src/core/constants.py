@@ -5228,6 +5228,13 @@ PYTHON_SANDBOX_RATE_LIMIT_CALLS_DEFAULT: int = 20
 PYTHON_SANDBOX_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 300
 REACT_AGENT_MAX_ITERATIONS_DEFAULT: int = 90
 REACT_AGENT_TIMEOUT_SECONDS_DEFAULT: int = 300
+# ADR-256: the DELEGATED half of a turn — a sub-agent loop, an iterative MCP
+# task, a browser run — each of which opens its own LLM loop behind one
+# tool_call. Kept separate from the reasoning budget above and set generously on
+# purpose: three times the pipeline bound of the single longest tool family
+# (300 s), so no turn that completes today can be cut. It exists to bound the
+# unbounded, not to tighten what already works.
+REACT_TOOL_BUDGET_SECONDS_DEFAULT: int = 900
 
 # No-progress guard (ADR-170): repetition counts of the EXACT same tool call
 # (same name, same arguments) within one turn. 4 refuses the call and tells the

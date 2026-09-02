@@ -839,7 +839,10 @@ def route_from_react_call_model(
     # Safety limit 1: prevent infinite loops. ADR-238: the effective budget
     # is per-turn (domain-span adaptive) with the configured max as ceiling;
     # None = the historical fixed cap.
-    from src.domains.agents.nodes.react_nodes import react_exit_reason, react_iteration_budget
+    from src.domains.agents.utils.react_budget import (
+        react_exit_reason,
+        react_iteration_budget,
+    )
 
     iteration_budget = react_iteration_budget(state)
     exit_reason = react_exit_reason(state)
@@ -856,24 +859,33 @@ def route_from_react_call_model(
         ).inc()
         return NODE_REACT_FINALIZE
 
-    # Safety limit 2: compute budget (see docstring — never wall clock).
+    # Safety limit 2: the TIME budgets (see docstring — never wall clock).
     # Nothing charged yet means no model call has completed in this turn, so
     # there is no budget to enforce — same short-circuit the wall-clock version
     # had when react_start_time was unset.
+    #
+    # Written as "any reason other than the one handled above", not as a list of
+    # names: ADR-256 added `tool_budget` and an `elif exit_reason ==
+    # "compute_budget"` would have let it fall through to the continue branch —
+    # the predicate would have said stop and the loop would have kept going.
     compute_elapsed = float(state.get("react_elapsed_seconds") or 0.0)
-    if exit_reason == "compute_budget":
-        # wall − compute: dominated by the HITL approval wait when the turn was
+    tool_elapsed = float(state.get("react_tool_seconds") or 0.0)
+    if exit_reason is not None:
+        # wall − charged: dominated by the HITL approval wait when the turn was
         # interrupted, graph overhead otherwise. It used to be charged to the
         # loop budget; surfacing it turns the old defect into a signal. Shared
         # helper — react_finalize logs the same quantity, and two copies of this
         # arithmetic would drift.
-        from src.domains.agents.nodes.react_nodes import _uncharged_wall_seconds
+        from src.domains.agents.utils.react_budget import uncharged_wall_seconds
 
-        uncharged = _uncharged_wall_seconds(state, compute_elapsed)
+        uncharged = uncharged_wall_seconds(state, compute_elapsed + tool_elapsed)
         logger.warning(
-            "react_compute_budget_exhausted",
+            "react_time_budget_exhausted",
+            reason=exit_reason,
             compute_seconds=round(compute_elapsed, 1),
+            tool_seconds=round(tool_elapsed, 1),
             timeout_seconds=settings.react_agent_timeout_seconds,
+            tool_budget_seconds=settings.react_tool_budget_seconds,
             uncharged_wall_seconds=uncharged,
             iteration=iteration,
         )

@@ -35,6 +35,8 @@ from src.core.constants import (
     MCP_USER_DEFAULT_API_KEY_HEADER,
 )
 from src.core.security.utils import decrypt_data, encrypt_data
+from src.infrastructure.mcp.oauth_flow import safe_oauth_error_code
+from src.infrastructure.mcp.utils import MCPAuthRequiredError
 
 if TYPE_CHECKING:
     from src.domains.user_mcp.models import UserMCPServer
@@ -155,14 +157,20 @@ class MCPOAuth2Auth(httpx2.Auth):
                 return await self._get_creds_fn()
 
         try:
+            # Client identity: prefer the FRESH creds over the constructor
+            # snapshot — a cached auth object must not replay a stale (or
+            # missing) client_id after a re-registration updated the store.
+            client_id = creds.get("client_id") or self._client_id
+            client_secret = creds.get("client_secret") or self._client_secret
+
             data = {
                 "grant_type": "refresh_token",
                 "refresh_token": creds["refresh_token"],
             }
-            if self._client_id:
-                data["client_id"] = self._client_id
-            if self._client_secret:
-                data["client_secret"] = self._client_secret
+            if client_id:
+                data["client_id"] = client_id
+            if client_secret:
+                data["client_secret"] = client_secret
             if self._resource:
                 data["resource"] = self._resource
 
@@ -178,12 +186,23 @@ class MCPOAuth2Auth(httpx2.Auth):
                     "mcp_oauth_refresh_http_error",
                     server_id=str(self.server_id),
                     status=resp.status_code,
+                    # SEC-030: allowlisted RFC code only, never the raw body.
+                    # Its absence cost a full misdiagnosis on 2026-09-02 (a
+                    # 400 caused by our own missing client_id was read as a
+                    # server-side token expiry).
+                    oauth_error=safe_oauth_error_code(resp),
                 )
                 return None
 
             token_data = resp.json()
             expires_in = int(token_data.get("expires_in", 3600))
+            # Start from the STORED creds: the exchange only owns the token
+            # fields. Rebuilding the dict from the response alone used to drop
+            # client_id/client_secret/issuer, so every SECOND refresh posted
+            # without client_id and died on 400 invalid_request (measured on
+            # Era, 2026-09-02).
             return {
+                **creds,
                 "access_token": token_data["access_token"],
                 "refresh_token": token_data.get("refresh_token", creds["refresh_token"]),
                 "expires_at": int(time.time()) + expires_in,
@@ -202,6 +221,75 @@ class MCPOAuth2Auth(httpx2.Auth):
                 with suppress(Exception):
                     redis = await get_redis_session()
                     await redis.delete(lock_key)
+
+
+async def load_user_mcp_creds(server_id: UUID, display_name: str) -> dict[str, Any] | None:
+    """Fresh read of a user MCP server's stored OAuth credentials.
+
+    Called on EVERY outgoing request by :class:`MCPOAuth2Auth`, so the status
+    check below costs nothing extra — the row is already being read.
+
+    Raises:
+        MCPAuthRequiredError: When the stored status is ``auth_required``.
+            Every call to that server is doomed until the user reconnects it;
+            failing fast with the remedy replaces the 401 → refresh → 400
+            dance this path used to replay on each call (six token-endpoint
+            hits in one turn, measured 2026-09-02) and gives the model a
+            message it can act on. A UI re-auth sets the status back to
+            ``active``, which re-opens this path with no cache to invalidate.
+
+    Args:
+        server_id: The user MCP server row to read.
+        display_name: Human-readable server name, used in the raised remedy.
+
+    Returns:
+        The decrypted credentials, or ``None`` when the server is gone or the
+        stored blob is unreadable (the request then goes out unauthenticated,
+        preserving the historical behaviour for servers with optional auth).
+    """
+    from src.domains.user_mcp.models import UserMCPServerStatus
+    from src.domains.user_mcp.repository import UserMCPServerRepository
+    from src.infrastructure.database.session import get_db_context
+
+    async with get_db_context() as db:
+        repo = UserMCPServerRepository(db)
+        srv = await repo.get_by_id(server_id)
+        if srv is None:
+            return None
+        if srv.status == UserMCPServerStatus.AUTH_REQUIRED.value:
+            raise MCPAuthRequiredError(display_name)
+        if srv.credentials_encrypted:
+            try:
+                result: dict[str, Any] = json.loads(decrypt_data(srv.credentials_encrypted))
+                return result
+            except ValueError, json.JSONDecodeError:
+                return None
+    return None
+
+
+async def list_auth_required_server_names(user_id: UUID) -> list[str]:
+    """Names of the user's enabled MCP servers awaiting re-authentication.
+
+    The port through which agent context learns that a capability is one
+    reconnection away rather than nonexistent: tool registration only loads
+    ``active`` rows, so a disconnected server would otherwise vanish from the
+    model's world (2026-09-02 incident — the model asserted "no access").
+    Lives here, next to :func:`load_user_mcp_creds`, so the agents domain
+    never imports the user_mcp domain directly (F009: no domain cycle).
+
+    Args:
+        user_id: The user whose servers to inspect.
+
+    Returns:
+        Sorted display names of enabled servers in ``auth_required`` status.
+    """
+    from src.domains.user_mcp.repository import UserMCPServerRepository
+    from src.infrastructure.database.session import get_db_context
+
+    async with get_db_context() as db:
+        repo = UserMCPServerRepository(db)
+        servers = await repo.get_auth_required_for_user(user_id)
+        return [s.name for s in servers]
 
 
 def build_auth_for_server(server: UserMCPServer) -> httpx2.Auth:
@@ -261,22 +349,10 @@ def build_auth_for_server(server: UserMCPServer) -> httpx2.Auth:
     if server.auth_type == UserMCPAuthType.OAUTH2.value:
         # Build async callbacks for credential management
         server_id = server.id
+        display_name = server.name
 
         async def get_creds() -> dict[str, Any] | None:
-            from src.infrastructure.database.session import get_db_context
-
-            async with get_db_context() as db:
-                from src.domains.user_mcp.repository import UserMCPServerRepository
-
-                repo = UserMCPServerRepository(db)
-                srv = await repo.get_by_id(server_id)
-                if srv and srv.credentials_encrypted:
-                    try:
-                        result: dict[str, Any] = json.loads(decrypt_data(srv.credentials_encrypted))
-                        return result
-                    except ValueError, json.JSONDecodeError:
-                        return None
-            return None
+            return await load_user_mcp_creds(server_id, display_name)
 
         async def update_creds(new_creds: dict) -> None:
             from src.domains.user_mcp.service import UserMCPServerService

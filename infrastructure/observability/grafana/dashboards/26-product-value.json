@@ -914,7 +914,7 @@
           "title": "Pipeline vs ReAct p95 (1h)",
           "type": "timeseries",
           "datasource": "$datasource",
-          "description": "OUT-21 (Partiel): pipeline per-stage p95 vs ReAct total p95 — NOT the same unit of work (stage vs whole run); per-request-type normalization requires product_outcomes (Phase 2). Deep-dive: dashboards 15 & 20.",
+          "description": "OUT-21 (Partiel): pipeline per-stage p95 vs ReAct REASONING p95 — NOT the same unit of work. Two reasons, not one: stage vs whole run, AND the pipeline's figure includes its tool execution while react_agent_duration_seconds excludes it entirely (ADR-256). The comparison therefore flatters ReAct; read tool time from agent_tool_duration_seconds. Per-request-type normalization requires product_outcomes (Phase 2). Deep-dive: dashboards 15 & 20.",
           "gridPos": {
             "h": 8,
             "w": 6,

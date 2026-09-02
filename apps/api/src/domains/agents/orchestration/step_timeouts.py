@@ -31,7 +31,7 @@ rescued it.
 from __future__ import annotations
 
 from src.core.config import get_settings
-from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX
+from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX, MCP_TOOL_NAME_PREFIX
 
 # Tool-name groupings consumed by `compute_step_timeout`. Kept at module
 # scope (not inside the helper) so the timeout policy is greppable and the
@@ -87,6 +87,14 @@ def compute_step_timeout(
       dedicated floor / ceiling pair (`web_research_tool_timeout_seconds` /
       `max_web_research_tool_timeout_seconds`) — the Perplexity-backed
       synthesis exceeds the generic 30 s (prod 2026-08).
+    - Direct MCP calls (``mcp_*`` that are not a ``{server}_task`` tool,
+      ADR-256): `mcp_tool_timeout_seconds` as BOTH floor and ceiling. The MCP
+      layer already wraps every call in a wait_for of its own — that setting
+      for admin servers, and for a user server the `timeout_seconds` its owner
+      chose (5..120) — so the generic 30 s floor would have made this the
+      strictest voice in the chain and cut a call the layer below still
+      accepted. An explicit `step_requested_timeout` remains an intention and
+      is still honoured, exactly as it is for every non-high-latency family.
     - Everything else: `DEFAULT_TOOL_TIMEOUT_SECONDS` (30 s) floor,
       `MAX_TOOL_TIMEOUT_SECONDS` (120 s) ceiling.
 
@@ -119,6 +127,21 @@ def compute_step_timeout(
         and step_tool_name not in _HIGH_LATENCY_TOOL_NAMES
     )
 
+    # A DIRECT MCP call (ADR-256). The MCP layer already wraps every call in an
+    # asyncio.wait_for of its own — `mcp_tool_timeout_seconds` for admin
+    # servers, and for a user server the `timeout_seconds` its owner set
+    # (5..120). Leaving these tools on the generic 30 s floor would put a
+    # SECOND, stricter authority above a setting the user chose, and would cut
+    # a call the layer below was still willing to make. Ours therefore matches
+    # the MCP bound: the loop stops being unbounded without ever becoming the
+    # strictest voice in the chain.
+    is_direct_mcp_call = bool(
+        step_tool_name
+        and step_tool_name.startswith(f"{MCP_TOOL_NAME_PREFIX}_")
+        and not is_mcp_react_task
+        and step_tool_name not in _HIGH_LATENCY_TOOL_NAMES
+    )
+
     # Floor (effective default if planner left it unset, AND minimum for
     # high-latency tools — see docstring).
     if step_tool_name == _SUB_AGENT_TOOL_NAME:
@@ -135,6 +158,8 @@ def compute_step_timeout(
         effective_default = cfg.web_research_tool_timeout_seconds
     elif is_mcp_react_task:
         effective_default = float(cfg.mcp_react_step_timeout_seconds)
+    elif is_direct_mcp_call:
+        effective_default = float(cfg.mcp_tool_timeout_seconds)
     else:
         effective_default = cfg.default_tool_timeout_seconds
 
@@ -156,6 +181,8 @@ def compute_step_timeout(
         max_timeout = cfg.max_web_research_tool_timeout_seconds
     elif is_mcp_react_task:
         max_timeout = float(cfg.mcp_react_step_max_timeout_seconds)
+    elif is_direct_mcp_call:
+        max_timeout = float(cfg.mcp_tool_timeout_seconds)
     else:
         max_timeout = cfg.max_tool_timeout_seconds
 

@@ -82,6 +82,65 @@ class TestRouteFromReactCallModel:
         assert route_from_react_call_model(state) == NODE_REACT_FINALIZE
 
     @patch("src.core.config.settings")
+    def test_tool_budget_exhausted_routes_to_finalize(self, mock_settings: object) -> None:
+        """ADR-256: delegated time now ends the turn too.
+
+        It is charged by ``react_execute_tools`` and read HERE, one node later.
+        That extra model call is deliberate and matches the no-progress guard's
+        own comment: cutting the edge at execute_tools would skip
+        ``react_finalize``, whose result contract the response node reads — and
+        the call gives the model a chance to answer with what it already has
+        instead of being cut mid-thought.
+        """
+        mock_settings.react_agent_max_iterations = 15
+        mock_settings.react_agent_timeout_seconds = 120
+        mock_settings.react_tool_budget_seconds = 900
+        ai_msg = AIMessage(
+            content="",
+            tool_calls=[{"id": "tc_1", "name": "delegate_to_sub_agent_tool", "args": {}}],
+        )
+        state: dict = {
+            "messages": [ai_msg],
+            "react_iteration": 3,
+            "react_elapsed_seconds": 8.0,
+            "react_tool_seconds": 901.0,
+        }
+        assert route_from_react_call_model(state) == NODE_REACT_FINALIZE
+
+    @patch("src.core.config.settings")
+    def test_a_long_tool_run_within_budget_continues(self, mock_settings: object) -> None:
+        """Non-regression: one delegation at its pipeline bound (300 s) must not
+        cut a turn — summing tool time into the reasoning budget would have."""
+        mock_settings.react_agent_max_iterations = 15
+        mock_settings.react_agent_timeout_seconds = 120
+        mock_settings.react_tool_budget_seconds = 900
+        ai_msg = AIMessage(
+            content="",
+            tool_calls=[{"id": "tc_1", "name": "delegate_to_sub_agent_tool", "args": {}}],
+        )
+        state: dict = {
+            "messages": [ai_msg],
+            "react_iteration": 2,
+            "react_elapsed_seconds": 5.0,
+            "react_tool_seconds": 300.0,
+        }
+        assert route_from_react_call_model(state) == NODE_REACT_EXECUTE_TOOLS
+
+    @patch("src.core.config.settings")
+    def test_a_checkpoint_without_tool_seconds_continues(self, mock_settings: object) -> None:
+        """A turn resumed from a pre-ADR-256 checkpoint carries no tool seconds
+        and must never be cut by state it never had (ADR-170's own property)."""
+        mock_settings.react_agent_max_iterations = 15
+        mock_settings.react_agent_timeout_seconds = 120
+        mock_settings.react_tool_budget_seconds = 900
+        ai_msg = AIMessage(
+            content="",
+            tool_calls=[{"id": "tc_1", "name": "search_contacts", "args": {}}],
+        )
+        state: dict = {"messages": [ai_msg], "react_iteration": 1, "react_elapsed_seconds": 3.0}
+        assert route_from_react_call_model(state) == NODE_REACT_EXECUTE_TOOLS
+
+    @patch("src.core.config.settings")
     def test_within_compute_budget_continues(self, mock_settings: object) -> None:
         """Within budget → normal routing (continue if tool_calls)."""
         mock_settings.react_agent_max_iterations = 15

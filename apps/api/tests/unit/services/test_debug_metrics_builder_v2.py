@@ -193,6 +193,45 @@ def test_react_execution_section_from_state() -> None:
     assert react["executed_tool_calls"] == 2
 
 
+def test_react_execution_surfaces_the_delegated_half() -> None:
+    """ADR-256: the panel read `elapsed` as the turn's total while it counted
+    only the model's reasoning, so a delegated sub-agent loop showed as zero.
+    The bound travels with the value it constrains (ADR-184)."""
+    from src.core.config import get_settings
+
+    dm = _build_state(
+        {
+            "execution_mode": "react",
+            "react_iteration": 2,
+            "react_tool_names": [],
+            "react_elapsed_seconds": 8.0,
+            "react_tool_seconds": 245.5,
+            "react_call_digests": {},
+        }
+    )
+
+    react = dm["react_execution"]
+    assert react["elapsed_seconds"] == 8.0
+    assert react["tool_seconds"] == 245.5
+    assert react["tool_budget_seconds"] == get_settings().react_tool_budget_seconds
+
+
+def test_react_execution_reports_zero_tool_time_when_none_was_spent() -> None:
+    """A turn that called no tool is not the same as a turn we did not measure —
+    the key is always present so the panel can tell them apart."""
+    dm = _build_state(
+        {
+            "execution_mode": "react",
+            "react_iteration": 1,
+            "react_tool_names": [],
+            "react_elapsed_seconds": 3.0,
+            "react_call_digests": {},
+        }
+    )
+
+    assert dm["react_execution"]["tool_seconds"] == 0.0
+
+
 def test_react_execution_absent_in_pipeline_mode() -> None:
     assert "react_execution" not in _build_state({"execution_mode": "pipeline"})
 
