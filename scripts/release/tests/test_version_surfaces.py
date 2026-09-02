@@ -174,18 +174,24 @@ def _fake_counts(
         f"- **Observability**: {metrics} Prometheus metrics defined in "
         "`src/infrastructure/observability/`.\n",
     )
-    # The README quotes four derived counts: two in its key-figures table, the
-    # metric total in that same table, and the metric total again in its
-    # observability section. All four sat unguarded and all four had drifted —
-    # 242 ADRs, 224 releases, 483 then 425 metrics, against reals of 249, 234
-    # and 490.
+    # The README quotes six derived counts: two in its key-figures table, the
+    # metric total in that same table, the metric total again in its
+    # observability section, and BOTH numbers of the sentence opening its ADR
+    # section. All sat unguarded and all had drifted — 242 ADRs, 224 releases,
+    # 483 then 425 metrics against reals of 249, 234 and 490, and the ADR
+    # sentence still said "242 ADR files (ADR-001 through ADR-243)" when the
+    # repository held 254 and had reached ADR-255. A count in a sentence is
+    # still a count; the table pattern simply could not reach it.
     _write(
         root / "README.md",
         '<p align="center">\n  <strong>Version 1.31.2</strong> — <strong>A theme</strong>. '
         "Prose that must survive. — 22 August 2026.\n</p>\n\n"
         f"| **43** functional domains | **{adr_files}** ADRs |\n"
         f"| **{releases}** versions shipped | **{metrics}** Prometheus metrics |\n\n"
-        f"- **Prometheus**: {metrics} custom metrics (agents, LLM, infrastructure)\n",
+        f"- **Prometheus**: {metrics} custom metrics (agents, LLM, infrastructure)\n\n"
+        "### Architecture Decision Records (ADR)\n\n"
+        f"{adr_files} ADR files (ADR-001 through ADR-{adr_latest} — ADR-008 has no "
+        "separate file) documenting major architectural decisions:\n",
     )
     _write(
         root / "docs" / "INDEX.md",

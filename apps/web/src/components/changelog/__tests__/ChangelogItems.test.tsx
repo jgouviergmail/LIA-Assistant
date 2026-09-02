@@ -73,3 +73,24 @@ describe('ChangelogItems', () => {
     expect(list?.className).toContain('text-muted-foreground');
   });
 });
+
+describe('ChangelogItems — reflow at 320px', () => {
+  it('lets a long unbreakable token wrap instead of widening the row', () => {
+    // Measured in CI on 2026-09-02: a changelog body quoting
+    // `accounts__list_financial_accounts` pushed three elements past the right
+    // edge of the landing page at 320px, failing the WCAG reflow floor. The
+    // body is a flex child, and a flex child defaults to `min-width: auto` —
+    // it refuses to shrink below its longest unbreakable word. `min-w-0` lifts
+    // that floor and `break-words` breaks the word.
+    //
+    // jsdom measures no layout, so the oracle here is the class pair; the
+    // reflow itself stays pinned by e2e/smoke/landing-mobile-overflow.spec.ts.
+    // The rule lives in this one component, so all three surfaces inherit it.
+    render(<ChangelogItems version="v1_30_9" t={translator('1')} />);
+
+    const body = screen.getByRole('listitem').querySelector('span:not([aria-hidden])');
+    expect(body).not.toBeNull();
+    expect(body).toHaveClass('min-w-0');
+    expect(body).toHaveClass('break-words');
+  });
+});

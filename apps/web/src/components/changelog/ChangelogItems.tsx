@@ -17,8 +17,15 @@
  *
  * The item bodies are `dangerouslySetInnerHTML`, as they are on every changelog
  * surface: app-controlled editorial text compiled from the repo's own locale
- * files (`<b>`, `<br>` and nothing else), never user or model output — the
+ * files (`<b>`, `<br>`, `<code>`, `<em>`), never user or model output — the
  * frontend XSS boundary is unchanged.
+ *
+ * The body carries `min-w-0 break-words` because it is a FLEX child, and a flex
+ * child defaults to `min-width: auto`: it refuses to shrink below its longest
+ * unbreakable word. Measured in CI on 2026-09-02 — an entry quoting
+ * `accounts__list_financial_accounts` pushed three elements past the right edge
+ * of the landing page at 320px and failed the WCAG reflow floor. The rule lives
+ * here so all three surfaces inherit it, whatever a future release quotes.
  */
 
 import { changelogCountKey, changelogItemCount, changelogItemKeys } from '@/lib/changelog';
@@ -43,7 +50,7 @@ export function ChangelogItems({ version, t, className }: ChangelogItemsProps) {
           <span className="mt-0.5 text-primary" aria-hidden="true">
             •
           </span>
-          <span dangerouslySetInnerHTML={{ __html: t(itemKey) }} />
+          <span className="min-w-0 break-words" dangerouslySetInnerHTML={{ __html: t(itemKey) }} />
         </li>
       ))}
     </ul>

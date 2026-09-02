@@ -43,6 +43,7 @@
       "dompurify": "^3.4.13",
       "@grpc/grpc-js": "^1.9.16",
       "@babel/core": "^7.29.6",
+      "browserslist": "^4.28.7",
       "websocket-driver": "^0.7.5",
       "minimatch@9": "^9.0.7",
       "js-yaml": "^4.3.1",
