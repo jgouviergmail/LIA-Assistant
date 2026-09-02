@@ -16,6 +16,7 @@ State contract:
 """
 
 import asyncio
+import contextlib
 import time
 from typing import Any
 
@@ -37,7 +38,7 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
 )
-from src.domains.agents.models import MessagesState
+from src.domains.agents.models import MessagesState, count_messages_tokens_cached
 from src.domains.agents.nodes import react_context
 from src.domains.agents.nodes.react_history import (
     window_messages_for_react as _window_messages_for_react,
@@ -88,6 +89,8 @@ from src.infrastructure.observability.metrics_react import (
     react_agent_hitl_interrupts_total,
     react_agent_iterations,
     react_agent_tools_called_total,
+    react_context_window_utilization,
+    react_delivered_context_tokens,
     react_repeated_calls_total,
     react_tool_executions_before_interrupt_total,
     react_unknown_tool_calls_total,
@@ -385,6 +388,32 @@ async def react_setup_node(
 # ---------------------------------------------------------------------------
 
 
+def _observe_delivered_context(messages: list[BaseMessage]) -> None:
+    """Measure the prompt about to be delivered to the ReAct model (Lot D).
+
+    Uses the reducer's memoized per-message counter, so unchanged history
+    costs nothing to re-count; only the fresh system blocks (no message id)
+    are encoded each call. The window ratio reads the effective model through
+    the same DB-backed seam the compaction threshold uses (ADR-244).
+    """
+    # Observability is best-effort by contract: a tokenizer or catalogue
+    # hiccup must never break the loop, so the whole block swallows —
+    # the metric's absence IS the signal in that case.
+    with contextlib.suppress(Exception):
+        delivered = count_messages_tokens_cached(messages)
+        react_delivered_context_tokens.observe(delivered)
+
+        from src.core.llm_config_helper import (
+            get_effective_context_window,
+            get_llm_config_for_agent,
+        )
+
+        model = get_llm_config_for_agent(settings, "react_agent").model
+        window = get_effective_context_window(model)
+        if window > 0:
+            react_context_window_utilization.observe(delivered / window)
+
+
 @trace_node("react_call_model")
 @track_metrics(node_name="react_call_model", duration_metric=agent_node_duration_seconds)
 async def react_call_model_node(
@@ -435,6 +464,8 @@ async def react_call_model_node(
     messages: list[BaseMessage] = [
         SystemMessage(content=block) for block in system_blocks
     ] + windowed
+
+    _observe_delivered_context(messages)
 
     # Stream the model's reasoning live (thinking models) to the progress UI via
     # the custom channel, while returning the SAME aggregated AIMessage as

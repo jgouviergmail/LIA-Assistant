@@ -77,6 +77,14 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured at v1.38.6: backend 21,545 (`pytest tests/unit tests/agents
+ *   --collect-only --no-cov`) + frontend 6,698 (`vitest list`) = 28,243
+ *   -> 28,000 (unchanged in VALUE, now backed by a measurement: v1.38.4 had
+ *   raised it 27,000 -> 28,000 without an entry here, which is the very sin
+ *   the v1.38.3 note describes. The figure it set happens to be correct
+ *   today, and is now provable. NOTE: `vitest list` must run on the HOST —
+ *   inside lia-web-dev only apps/web is bind-mounted, and one suite reads a
+ *   backend source file, so the listing aborts with ENOENT and counts 0.)
  *   Re-measured at v1.38.3: backend 21,020 (`pytest tests/unit tests/agents
  *   --collect-only --no-cov`) + frontend 6,670 (`vitest list`) = 27,690
  *   -> 27,000, CORRECTING v1.38.2 DOWNWARD. That release raised this to
@@ -269,11 +277,11 @@ export const LANDING_STATS = {
   tools: 107,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 497,
+  metrics: 499,
   uiLanguages: 6,
   tests: 28000,
-  adrs: 255,
-  releases: 239,
+  adrs: 256,
+  releases: 240,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

@@ -53,7 +53,10 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
 
   if (!trace || trace.steps.length === 0) return null;
 
-  const stepCount = trace.steps.length;
+  // A shown count is a claim: state the TRUE total, omitted steps included
+  // (Lot C, 2026-09 — head+tail retention in capTraceSteps).
+  const omitted = trace.omittedSteps ?? 0;
+  const stepCount = trace.steps.length + omitted;
   const seconds =
     typeof trace.durationMs === 'number' ? (trace.durationMs / 1000).toFixed(1) : null;
   const groups = groupByCategory(trace.steps);
@@ -104,6 +107,15 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
               </ul>
             </div>
           ))}
+
+          {omitted > 0 && (
+            // Steps are grouped by category, so a positional "gap" marker
+            // would be meaningless — the omission is a property of the whole
+            // trace and is stated once, as a global note.
+            <p className="text-[10px] italic text-muted-foreground">
+              {t('chat.trace.omitted', { count: omitted })}
+            </p>
+          )}
 
           {trace.reasoning.trim() && (
             <div>

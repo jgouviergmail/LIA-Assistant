@@ -837,10 +837,15 @@ class ProviderAdapter:
             additional_kwargs["anthropic_api_key"] = _require_api_key("anthropic")
             provider_for_init = "anthropic"
 
-            # Anthropic prompt caching is GA (Generally Available) since late 2024.
-            # No beta header required — caching is automatic for prompts >= 1024 tokens.
-            # The cache_control kwarg can be passed at invoke time for fine-grained control.
-            # Ref: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+            # Anthropic prompt caching is GA — but it is NEVER automatic by
+            # default (verified against the provider doc, 2026-09-02): it
+            # requires explicit block-level cache_control breakpoints, or a
+            # ROOT-level cache_control field whose breakpoint auto-moves with
+            # the conversation. Both are applied by the factory.py payload
+            # patch (static system split + root field, Lot F); this adapter
+            # only selects the provider. Minimum cacheable length varies by
+            # model (512-4096 tokens).
+            # Ref: https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching
 
             # Reasoning: delegate to typed builder.
             # IMPORTANT FIX: previously this code wrote `additional_kwargs["effort"]`
@@ -889,7 +894,9 @@ class ProviderAdapter:
             logger.debug(
                 "anthropic_prompt_caching_enabled",
                 llm_type=kwargs.get("llm_type", "unknown"),
-                msg="Anthropic prompt caching enabled (GA, automatic for prompts >= 1024 tokens)",
+                msg="Anthropic prompt caching armed by the factory payload patch "
+                "(static-system breakpoint + root cache_control; min cacheable "
+                "length 512-4096 tokens by model)",
             )
 
         else:

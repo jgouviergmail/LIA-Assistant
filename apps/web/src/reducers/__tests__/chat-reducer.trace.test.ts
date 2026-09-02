@@ -13,7 +13,7 @@ import { chatReducer } from '@/reducers/chat-reducer';
 import { initialChatState, type ChatState } from '@/types/chat-state';
 import type { Message } from '@/types/chat';
 import type { ExecutionTrace, ExecutionTraceStep } from '@/types/execution-trace';
-import { MAX_TRACE_STEPS } from '@/types/execution-trace';
+import { MAX_TRACE_STEPS, TRACE_HEAD_KEEP } from '@/types/execution-trace';
 import { deepFreeze } from '@/__tests__/deep-freeze';
 
 function step(label: string): ExecutionTraceStep {
@@ -75,7 +75,11 @@ describe('chatReducer — TRACE_ATTACH', () => {
     expect(next.messages[0].executionTrace?.durationMs).toBe(9999);
   });
 
-  it('caps retained steps at MAX_TRACE_STEPS (keeps the tail)', () => {
+  it('caps retained steps at MAX_TRACE_STEPS keeping head AND tail, and counts the omission', () => {
+    // Lot C (2026-09): tail-only retention silently erased the turn's FIRST
+    // actions — the ones an injected instruction would have triggered. The cap
+    // now keeps the opening acts (head) plus the most recent ones (tail), and
+    // states the exact number omitted (a shown count is a claim: exact or absent).
     const state = frozenState([assistant('a-1')]);
     const many = Array.from({ length: MAX_TRACE_STEPS + 25 }, (_, i) => step(`s${i}`));
 
@@ -84,10 +88,30 @@ describe('chatReducer — TRACE_ATTACH', () => {
       payload: { messageId: 'a-1', trace: trace({ steps: many }) },
     });
 
-    const kept = next.messages[0].executionTrace!.steps;
-    expect(kept).toHaveLength(MAX_TRACE_STEPS);
+    const attached = next.messages[0].executionTrace!;
+    expect(attached.steps).toHaveLength(MAX_TRACE_STEPS);
+    // The head is retained: the very first steps stay visible.
+    expect(attached.steps[0].label).toBe('s0');
+    expect(attached.steps[TRACE_HEAD_KEEP - 1].label).toBe(`s${TRACE_HEAD_KEEP - 1}`);
     // The tail is retained (most informative for "what did it just do").
-    expect(kept[kept.length - 1].label).toBe(`s${MAX_TRACE_STEPS + 24}`);
+    expect(attached.steps[attached.steps.length - 1].label).toBe(`s${MAX_TRACE_STEPS + 24}`);
+    // The gap is stated exactly.
+    expect(attached.omittedSteps).toBe(25);
+  });
+
+  it('sets no omission count when the steps fit the cap', () => {
+    const state = frozenState([assistant('a-1')]);
+    const exact = Array.from({ length: MAX_TRACE_STEPS }, (_, i) => step(`s${i}`));
+
+    const next = chatReducer(state, {
+      type: 'TRACE_ATTACH',
+      payload: { messageId: 'a-1', trace: trace({ steps: exact }) },
+    });
+
+    const attached = next.messages[0].executionTrace!;
+    expect(attached.steps).toHaveLength(MAX_TRACE_STEPS);
+    expect(attached.steps[0].label).toBe('s0');
+    expect(attached.omittedSteps).toBeUndefined();
   });
 
   it('leaves other messages and slices untouched', () => {

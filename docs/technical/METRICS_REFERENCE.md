@@ -5,7 +5,7 @@
 > Version: 1.7
 > Date: 2026-07-17
 > Architecture: Prometheus + Grafana (25 dashboards, 595 panels)
-> Total métriques: **446 métriques instrumentées** (relevé code 2026-07-27) + recording rules Prometheus
+> Total métriques : compté par `scripts/audit/measure_metric_coverage.py` (analyse AST, source de vérité — ne pas recopier un nombre ici : la garde de couverture et la tuile publique en dérivent déjà). Relevé 2026-09-02 : **499** + recording rules Prometheus
 > Source de vérité : `src/infrastructure/observability/metrics_*.py` — ce catalogue détaille les familles principales (~120 métriques), voir « Couverture du catalogue »
 > Compliance: OpenTelemetry conventions, Google SRE best practices
 
@@ -123,7 +123,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 
 ## Couverture du catalogue
 
-> Relevé du 2026-07-27 : **446 métriques** définies dans le code, ~120 détaillées dans ce
+> Relevé du 2026-09-02 : **499 métriques** définies dans le code, ~120 détaillées dans ce
 > document. Les familles suivantes ne sont **pas encore détaillées ici** — leur source de
 > vérité est leur module de définition :
 
@@ -148,6 +148,7 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 | Registry/checkpoints (`registry_*`) | `metrics_registry.py` |
 | Sub-agents (`subagent_*`) | `metrics_subagent.py` |
 | Usage limits (`usage_limit_*`) | `metrics_usage_limits.py` |
+| ReAct (`react_*` — budgets, contexte délivré, plafond d'outils) | `metrics_react.py` |
 | Voice (`voice_*`, `stt_*`, `tts_*`, `websocket_*`) | `metrics_voice.py` |
 
 ---

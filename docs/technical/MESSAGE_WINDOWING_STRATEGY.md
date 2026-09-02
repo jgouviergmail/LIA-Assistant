@@ -76,6 +76,31 @@ Response (rich context):
 """
 ```
 
+### L'ancre du tour (ADR-257)
+
+Le bornage par le reducer garde les **derniers** `max_messages_history` messages
+(150 par défaut). Un tour ReAct ajoutant 2 messages par itération, un tour assez
+long évince **sa propre question** — mesuré à l'itération ⌈150 ÷ 2⌉ = 75, et
+invariant quelle que soit la longueur de l'historique antérieur (le passé est
+évincé en premier). En aval, `window_messages_for_react` cherche le **dernier**
+`HumanMessage` pour séparer l'historique de la boucle courante : sans lui, la
+fonction se court-circuite et retourne l'entrée telle quelle, hygiène des
+`SystemMessage` hérités comprise.
+
+`_ensure_turn_anchor` ré-épingle donc ce message sur les **deux** branches de
+troncature (plafond en tokens et plafond en nombre), juste après les
+`SystemMessage` de tête — position chronologiquement correcte, et compatible
+avec l'alternance user/assistant qu'Anthropic exige. La fonction est un no-op
+strict sous les seuils : en conversation normale, l'ancre est déjà dans la
+fenêtre conservée.
+
+Le couplage entre les deux réglages porte un nom plutôt que de rester une
+relation arithmétique tacite : `react_budget_exceeds_state_window(max_iterations,
+max_messages_history)` est vrai dès que `max_iterations >= ⌈cap ÷ 2⌉`. Il voyage
+avec l'avertissement `turn_anchor_repinned`, où il distingue la cause attendue
+(le budget d'itérations atteint le point d'éviction) d'une autre cause — des
+charges utiles surdimensionnées déclenchant le plafond en **tokens**.
+
 ### Principe clé
 
 ```mermaid

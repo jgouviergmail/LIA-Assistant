@@ -114,14 +114,31 @@ def _read(name: str) -> str:
     return (PROMPTS_V1 / f"{name}.txt").read_text(encoding="utf-8")
 
 
+def _all_versions(name: str) -> list[Path]:
+    """Every versioned copy of a prompt (v1, v2, ...).
+
+    Lot E (2026-09) introduced the first v2 prompt; a guard that scanned v1
+    only would leave every later version UNGUARDED — the exact hole this
+    module exists to close.
+    """
+    prompts_root = PROMPTS_V1.parent
+    return sorted(prompts_root.glob(f"v[0-9]*/{name}.txt"))
+
+
 @pytest.mark.parametrize("name", MARKER_REQUIRED)
 def test_marker_present(name: str) -> None:
-    """Every dynamic system prompt separates static prefix from dynamic tail."""
-    text = _read(name)
-    assert DYNAMIC_CONTEXT_MARKER in text, (
-        f"{name}.txt lost its '{DYNAMIC_CONTEXT_MARKER}' marker — without it the "
-        "static prefix is not cacheable (and Anthropic would skip cache_control)."
-    )
+    """Every dynamic system prompt separates static prefix from dynamic tail.
+
+    Checked in EVERY version directory carrying the prompt, not just v1."""
+    paths = _all_versions(name)
+    assert paths, f"{name}.txt not found in any version directory"
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        assert DYNAMIC_CONTEXT_MARKER in text, (
+            f"{path.parent.name}/{name}.txt lost its '{DYNAMIC_CONTEXT_MARKER}' marker — "
+            "without it the static prefix is not cacheable (and Anthropic would "
+            "skip cache_control)."
+        )
 
 
 @pytest.mark.parametrize("name", MARKER_REQUIRED)

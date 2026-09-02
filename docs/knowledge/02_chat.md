@@ -338,6 +338,8 @@ It is the same transparency as the cost shown on every message, extended to the 
 
 Since v1.25.12 this trace is **stored with the message**: you will find it after a reload and on your other devices (the live reasoning stream itself stays ephemeral).
 
+On a very long turn the panel keeps a bounded number of steps, and it now keeps **the first ones as well as the latest** — the opening actions used to disappear. The count shown is the real total, and the panel says exactly how many intermediate steps are hidden.
+
 ## How do I search my entire conversation history?
 Type in the **search field** of the chat header (or tap the 🔍 icon on mobile). The loaded messages filter instantly — accent-insensitive — with the matches **highlighted** in the bubbles and a result counter.
 

@@ -4,7 +4,7 @@
 
 **Version** : 1.7
 **Date** : 2026-08-23
-**Application** : LIA v1.38.5
+**Application** : LIA v1.38.6
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 44 domaines fonctionnels | **580 000** |
 | Tests automatisés, exécutés à chaque commit et livraison | **27 600+** |
-| Décisions d'architecture documentées (ADR) | **255** |
-| Versions livrées à rythme régulier | **239** |
+| Décisions d'architecture documentées (ADR) | **256** |
+| Versions livrées à rythme régulier | **240** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 255 documentées :
+Trois décisions structurantes, parmi les 256 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -114,6 +114,8 @@ Le cycle 1.31.0 a déplacé l’exigence de preuve sur un terrain neuf : l’est
 La même exigence a accompagné l'arrivée des applications natives : plutôt que de supposer ce qu'une WebView sait faire, un banc dédié pilote la **vraie application** sur émulateur, scène par scène, du premier écran jusqu'à l'oubli d'un serveur mal saisi. Avant son premier passage au vert, il avait déjà attrapé trois défauts réels — dont un écran hors-ligne qui ne se chargeait jamais dans le seul état où il compte — que la compilation, la CI et toutes les gardes statiques avaient bénis.
 
 Et la leçon la plus récente est arrivée quand tout était déjà vert. Un serveur d'outils externe ajouté, une question simple restée sans réponse : trente des quarante outils qu'il publiait n'étaient jamais construits, sans que rien d'autre qu'un avertissement ne le dise. La cause a été trouvée vite ; ce qui a demandé de la méthode, c'est de refuser de s'arrêter là. Corriger le premier des quatre endroits fautifs n'aurait rien changé — le défaut se serait simplement déplacé d'une ligne. Puis, toutes les suites au vert, une relecture à froid a trouvé quatre défauts de plus, dont un fonctionnel et invisible aux tests, parce que les tests encodaient la même erreur. Cette relecture a aussi *annulé* une correction : une règle de charte que l'on croyait enfreinte, et que cent huit fichiers contredisaient. Passer les tests n'est pas la fin d'une revue ; c'en est la condition d'entrée.
+
+Un épisode plus tardif a tourné la méthode vers l'extérieur. Plutôt que de relire le code avec les mêmes yeux, un lot de recherche publiée a été trié puis utilisé comme **grille de lecture** : non pour importer une technique, mais pour poser au système des questions qu'il ne se posait pas. Douze articles sur près de trois cents ont passé ce filtre, et chaque hypothèse qu'ils suggéraient devait être prouvée — exécutable, sur le code de production — avant qu'une seule ligne ne change. Cinq défauts ont survécu à la contre-vérification, tous de la même forme : deux sous-systèmes corrects chacun selon ses propres termes, composés en un comportement que ni l'un ni l'autre ne possédait. La discipline a coupé dans les deux sens, et c'est précisément l'intérêt : trois hypothèses du relecteur lui-même ont été démenties par les tests écrits pour les confirmer — une affirmation de coût que le cache du fournisseur absorbait déjà, une troncature crue non bornée qu'un réducteur bornait depuis toujours, et un défaut supposé s'aggraver avec la longueur de la conversation que la mesure a montré strictement constant. Une grille qui ne fait que confirmer n'est pas une grille.
 
 ## 7. Convictions
 

@@ -24,6 +24,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
 from src.core.constants import (
+    COMPACTION_EXTERNAL_PROVENANCE_BANNER,
     COMPACTION_SSE_STEP_TYPE,
     COMPACTION_SUMMARY_MARKER,
     COMPACTION_UI_ESTIMATE_CHARS_PER_TOKEN,
@@ -287,11 +288,20 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
 
     # Summary as SystemMessage — provides context without triggering router actions.
     # The router takes messages[-1] as the user query; a SystemMessage won't be picked up.
+    #
+    # Provenance inheritance (Lot B, 2026-09): when any compacted message
+    # carried third-party text, the summary inherits the taint via a banner.
+    # The banner sits AFTER the marker header — four readers recognise this
+    # message via ``startswith(COMPACTION_SUMMARY_MARKER)`` and a prefix change
+    # would silently drop the conversation's compressed memory.
+    provenance_banner = (
+        f"{COMPACTION_EXTERNAL_PROVENANCE_BANNER}\n\n" if result.contains_external_content else ""
+    )
     summary_system = SystemMessage(
         content=(
             f"{COMPACTION_SUMMARY_MARKER} — compaction #{compacted_count}. "
             f"{result.tokens_saved} tokens saved. "
-            f"Strategy: {result.strategy}.]\n\n{result.summary}"
+            f"Strategy: {result.strategy}.]\n\n{provenance_banner}{result.summary}"
         ),
     )
     new_messages.append(summary_system)

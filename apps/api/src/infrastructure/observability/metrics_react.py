@@ -42,6 +42,26 @@ react_agent_tools_called_total = Counter(
     ["tool_name"],
 )
 
+# Lot D (2026-09): the loop's iteration count and duration were measured; the
+# thing that actually grows — the prompt DELIVERED to the model at each
+# iteration — was not. Measured 2026-09-02 with the production windowing:
+# 2.3k tokens delivered at iteration 1, 112k at iteration 90 (quadratic
+# cumulative growth). These two histograms are the "delivered context" level
+# of the working-memory ladder; prefix caching amortises the COST but not the
+# window pressure nor the attention dilution they expose.
+react_delivered_context_tokens = Histogram(
+    "react_delivered_context_tokens",
+    "Prompt size (tokens) delivered to the model per ReAct iteration, " "system blocks included",
+    buckets=[1_000, 2_000, 5_000, 10_000, 20_000, 40_000, 80_000, 120_000, 200_000],
+)
+
+react_context_window_utilization = Histogram(
+    "react_context_window_utilization",
+    "Delivered ReAct prompt as a fraction of the effective model context "
+    "window (llm_models catalogue, ADR-244)",
+    buckets=[0.05, 0.10, 0.25, 0.50, 0.70, 0.85, 0.95, 1.0],
+)
+
 react_repeated_calls_total = Counter(
     "react_repeated_calls_total",
     "Identical ReAct tool calls (same name AND arguments) refused within a turn. "

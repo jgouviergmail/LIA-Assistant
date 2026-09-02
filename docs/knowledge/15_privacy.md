@@ -258,6 +258,9 @@ Every piece of data carries its **provenance**. The 24 data types LIA handles ar
 **🔎 The detection:**
 Seven families of trap are recognised across the app's six languages: fake system message, instruction hijack, identity switch, requests to send your data elsewhere, the name of a LIA tool slipped into foreign text, invisible characters, a directive hidden in an HTML comment.
 
+**🧠 And the memory keeps the label:**
+When a long conversation is summarised to save room, provenance used to be lost with the detail — a sender's request could resurface later as if it were an established fact. The summary now carries the label with it: what a third party wrote is reported in its own section, attributed to its source, and is never restated as one of your decisions or as something to do.
+
 **✋ What LIA does not do:**
 It **never** rewrites your content. An email stays exactly what its author wrote; only a note is added beside it. Cleaning the text would give the illusion of a guarantee that the next bypass would deny — and would alter a message you may have wanted to read as-is.
 

@@ -4,7 +4,7 @@
 
 **Version**: 1.7
 **Date**: 2026-08-23
-**Application**: LIA v1.38.5
+**Application**: LIA v1.38.6
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 44 functional domains | **580,000** |
 | Automated tests, run on every commit and release | **27,600+** |
-| Documented architecture decisions (ADR) | **255** |
-| Versions shipped at a steady pace | **239** |
+| Documented architecture decisions (ADR) | **256** |
+| Versions shipped at a steady pace | **240** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 255 documented:
+Three structural decisions, among the 256 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -114,6 +114,8 @@ The 1.31.0 cycle moved the proof requirement onto new ground: aesthetics. Giving
 The same standard accompanied the arrival of the native apps: rather than assuming what a WebView can do, a dedicated bench drives the **real application** on an emulator, scene by scene, from the first screen to forgetting a mistyped server. Before its first green run it had already caught three real defects — including an offline screen that never loaded in the only state where it matters — that compilation, CI and every static guard had blessed.
 
 And the most recent lesson arrived when everything was already green. An external tool server was added, a plain question went unanswered: thirty of the forty tools it published were never built, with nothing but a warning to say so. The cause was found quickly; what took method was refusing to stop there. Fixing the first of the four faulty places would have changed nothing — the defect would simply have moved one line down. Then, with every suite passing, a cold review found four more defects, one of them functional and invisible to the tests, because the tests encoded the same mistake. That review also *cancelled* a fix: a house rule believed broken, which a hundred and eight files contradicted. Passing the tests is not the end of a review; it is the condition for starting one.
+
+A later episode turned the method outward. Rather than re-reading the code with the same eyes, a batch of published research was triaged and used as a **reading grid**: not to import a technique, but to ask the system questions it was not asking itself. Twelve papers out of nearly three hundred survived that filter, and each hypothesis they suggested had to be proven — executable, against production code — before a single line changed. Five defects survived counter-verification, all of the same shape: two subsystems, each correct on its own terms, composing into a behaviour neither owned. The discipline cut both ways, and that is the point: three of the reviewer's own hypotheses were disproven by the very tests written to confirm them — a cost claim that provider caching already absorbed, a truncation believed unbounded that a reducer had bounded all along, and a defect thought to worsen with conversation length that measurement showed to be strictly constant. A grid that only ever confirms is not a grid.
 
 ## 7. Convictions
 

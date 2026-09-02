@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.38.5</strong> — <strong>A ReAct turn spent time nobody was counting, and a connected server could not say whose account it spoke for</strong>. The loop's budget measured reasoning alone — one node out of four — while a delegation (a sub-agent, an iterative MCP task, a browser run) opened its own LLM loop behind a single tool call and charged nothing to anyone: the theoretical ceiling of one turn was about thirty hours. ADR-256 restores conservation: tool time gets its own named budget, every tool call its own bound — never stricter than the bound the layer below already applies — and a timeout raised by the tool itself is no longer reported as our cut. The second story ends in a question no user should hear: "what is your GitHub username?" — asked about an OAuth server authenticated as that very user. Nothing published the fact; a first fix hardcoded "the server is already authenticated" into the prompt, which is false for every no-auth server. <strong>A fact that varies per server is data</strong>: derived from its auth type, it now travels with the server — into the delegation tool's description, the planner's manifest, the sub-agent's context and the generated domain description — and an unauthenticated server publishes nothing, because claiming otherwise would be an invented capability. Same honesty elsewhere: an OAuth refresh that rebuilt credentials without <code>client_id</code> (every second refresh died forever in <code>400 invalid_request</code>), a disconnected server that vanished from the model's world instead of being named with its remedy, an orphaned tool call surviving repair under its second serialized shape and poisoning every later turn. — 2 September 2026.
+  <strong>Version 1.38.6</strong> — <strong>Five seam defects, found by reading the research rather than the code</strong>. A literature review (299 arXiv papers triaged, 12 kept) was used as a reading grid — not to import a technique, but to ask the code questions it was not asking itself. Every hypothesis was proven executable against production code <em>before</em> anything changed, and five defects survived counter-verification. All share one shape: <strong>two subsystems, each correct under its own ADR, composing into a behaviour neither owns</strong>. The worst crossed a boundary. ADR-167 marks third-party text — an email body, an invitation description, a fetched page, an MCP result — on the two surfaces it enumerates; history compaction was a <strong>third</strong> surface it never enumerated, and it re-emitted that summarised text as a <code>SystemMessage</code>, the highest-authority channel, retained on every later turn precisely because it <em>is</em> the conversation's compressed memory. Measured end to end: a hostile email's demand resurfaced as an established fact, unmarked. A summary now inherits a provenance banner computed at write time, and third-party claims are reported attributed to their source, never restated as decisions. The second defect was the consequence of a correct fix: ADR-248 deliberately lengthened ReAct turns, so a turn producing two messages per iteration evicted <strong>its own question</strong> at iteration 75 — and finished its work with no stated goal. Also here: the execution trace keeps its opening acts and states its true length, the semantic validator is now told to look for what a plan <em>lacks</em>, delivered context is measured for the first time, and Anthropic prompt caching finally covers the growing history instead of the system block alone. — 2 September 2026.
 
 </p>
 
@@ -117,8 +117,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **255** ADRs                                                           |
-| **239** versions shipped  | **6 languages**, parity enforced in CI  | **497** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **256** ADRs                                                           |
+| **240** versions shipped  | **6 languages**, parity enforced in CI  | **499** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -330,7 +330,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 497 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 499 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -973,7 +973,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-255 ADR files (ADR-001 through ADR-256 — ADR-008 has no separate file) documenting major architectural decisions:
+256 ADR files (ADR-001 through ADR-257 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -1105,7 +1105,7 @@ ESLint + TypeScript check       ────────────────
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | GDPR             | PII filtering, data minimization                                                           |
 | OWASP Top 10     | XSS, SQL injection, CSRF protection                                                        |
-| Prompt Injection | External content wrapping (`<external_content>` safety markers)                            |
+| Prompt Injection | External content wrapping (`<external_content>` safety markers), trust classified by DATA TYPE rather than by producing tool, and provenance that survives history compaction — a summary built from third-party text inherits its provenance banner instead of promoting the claim to system authority |
 | OAuth 2.1        | Mandatory PKCE                                                                             |
 | Supply chain     | Hash-verified universal lockfiles, pip-audit on the full transitive tree, SBOM per release |
 | Untrusted code   | Skill scripts execute in a throwaway container: no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback |

@@ -3,11 +3,12 @@ Agents domain models.
 Defines LangGraph state with message truncation reducer compatible with PostgresCheckpointer.
 """
 
+import math
 import uuid
 from typing import Annotated, Any, cast
 
 import tiktoken
-from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.messages.utils import trim_messages
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
@@ -105,6 +106,14 @@ def add_messages_with_truncate(
         Orphan ToolMessages are logged with WARNING level for observability.
         RemoveMessage support added for LangGraph v1.0 compatibility.
     """
+    # NOTE (Lot A, 2026-09): both truncation branches below are followed by
+    # ``_ensure_turn_anchor`` — a single ReAct turn can outgrow the window on
+    # its own (2 messages per iteration; the count cap evicts the turn's
+    # HumanMessage at ceil(max_messages_history / 2) iterations, measured at
+    # exactly 75 with the default 150) and the windowing downstream splits the
+    # current turn at the LAST HumanMessage. Without the anchor the model
+    # finishes the turn with no stated goal.
+
     # Step 0: Use add_messages to properly handle RemoveMessage instances
     # This is the LangGraph v1.0 best practice for message management
     # Ignore type error: add_messages has a very broad input signature
@@ -166,12 +175,110 @@ def add_messages_with_truncate(
         )
 
         # Step 3: Validate OpenAI message sequence (remove orphan ToolMessages)
-        validated = remove_orphan_tool_messages(final)
+        validated = remove_orphan_tool_messages(_ensure_turn_anchor(all_messages, final))
         return validated
 
     # Step 3: Validate OpenAI message sequence (remove orphan ToolMessages)
-    validated = remove_orphan_tool_messages(list(trimmed))
+    validated = remove_orphan_tool_messages(_ensure_turn_anchor(all_messages, list(trimmed)))
     return validated
+
+
+def count_messages_tokens_cached(messages: list[BaseMessage]) -> int:
+    """Count tokens across messages through the reducer's per-message cache.
+
+    Public seam over ``_count_message_tokens`` so hot paths (the ReAct
+    delivered-context metric, Lot D) reuse the SAME memoization the truncation
+    reducer already maintains — an unchanged ToolMessage is never re-encoded.
+    Non-string content counts as 0, matching the reducer's behaviour.
+
+    Args:
+        messages: Messages to count.
+
+    Returns:
+        Total token count for the string contents.
+    """
+    if not messages:
+        return 0
+    encoding = tiktoken.get_encoding(settings.token_encoding_name)
+    return sum(_count_message_tokens(message, encoding) for message in messages)
+
+
+def _ensure_turn_anchor(
+    all_messages: list[BaseMessage], kept: list[BaseMessage]
+) -> list[BaseMessage]:
+    """Re-pin the turn's last ``HumanMessage`` when truncation evicted it.
+
+    The anchor is the LAST HumanMessage of the full (pre-truncation) list —
+    the question the current turn is answering. In a normal conversation it
+    always sits inside the kept tail, so this function returns ``kept``
+    unchanged; it only acts when a single turn produced enough messages to
+    push its own question out of the window (long ReAct loops).
+
+    Placement: right after the leading SystemMessages (compaction summary
+    included), i.e. before every kept loop message — chronologically correct,
+    since the anchor predates all of them.
+
+    Args:
+        all_messages: Full message list after ``add_messages``, before any trim.
+        kept: The messages the truncation decided to keep.
+
+    Returns:
+        ``kept`` unchanged, or a copy with the anchor re-inserted.
+    """
+    anchor: HumanMessage | None = None
+    for message in reversed(all_messages):
+        if isinstance(message, HumanMessage):
+            anchor = message
+            break
+    if anchor is None:
+        return kept
+
+    anchor_id = anchor.id
+    for message in kept:
+        if message is anchor or (anchor_id is not None and message.id == anchor_id):
+            return kept
+
+    insert_at = 0
+    while insert_at < len(kept) and isinstance(kept[insert_at], SystemMessage):
+        insert_at += 1
+
+    # WARNING on purpose: firing means a SINGLE turn outgrew the state window.
+    # ``budget_coupling_exposed`` names the expected cause (the iteration
+    # budget can reach the eviction point of the count cap); False here while
+    # the warning fires points at another cause — oversized payloads tripping
+    # the TOKEN trim. Early tool results of the turn were evicted; the
+    # question is preserved. Counts and ids only, no content.
+    logger.warning(
+        "turn_anchor_repinned",
+        total_messages=len(all_messages),
+        kept_messages=len(kept),
+        anchor_id=anchor_id,
+        budget_coupling_exposed=react_budget_exceeds_state_window(
+            settings.react_agent_max_iterations, settings.max_messages_history
+        ),
+    )
+    return [*kept[:insert_at], anchor, *kept[insert_at:]]
+
+
+def react_budget_exceeds_state_window(max_iterations: int, max_messages_history: int) -> bool:
+    """True when a single ReAct turn can outgrow the state's message window.
+
+    Each ReAct iteration appends 2 messages (AIMessage + ToolMessage); the
+    turn's HumanMessage is evicted by the count cap at iteration
+    ``ceil(max_messages_history / 2)`` — verified empirically at exactly 75
+    for the default 150. ``_ensure_turn_anchor`` makes the eviction harmless
+    for the QUESTION, but the turn's earliest tool results are still dropped;
+    this predicate names the coupling between the two settings so tests and
+    documentation state it once.
+
+    Args:
+        max_iterations: ``settings.react_agent_max_iterations``.
+        max_messages_history: ``settings.max_messages_history``.
+
+    Returns:
+        True when the configured budget can reach the eviction point.
+    """
+    return max_iterations >= math.ceil(max_messages_history / 2)
 
 
 class MessagesState(TypedDict):

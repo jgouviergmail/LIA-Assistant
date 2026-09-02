@@ -106,17 +106,27 @@ describe('executionTraceFromMetadata', () => {
     expect(executionTraceFromMetadata(tracePayload(steps, 'slow'), t)?.durationMs).toBeUndefined();
   });
 
-  it('caps hydrated steps to MAX_TRACE_STEPS keeping the tail', () => {
+  it('caps hydrated steps to MAX_TRACE_STEPS keeping head and tail, with the omission counted', () => {
     const steps = Array.from({ length: MAX_TRACE_STEPS + 5 }, () => ({
       emoji: '🔍',
       i18n_key: 'get_contacts',
       category: 'tool',
     }));
+    steps[0] = { emoji: '🧭', i18n_key: 'router_decision', category: 'system' };
     steps[steps.length - 1] = { emoji: '🧭', i18n_key: 'router_decision', category: 'system' };
 
     const hydrated = executionTraceFromMetadata(tracePayload(steps), t);
 
     expect(hydrated?.steps).toHaveLength(MAX_TRACE_STEPS);
+    // Head survives: the very first persisted step is still rendered.
+    expect(hydrated?.steps[0]?.label).toBe('Analyzing request');
+    // Tail survives too, and the gap is stated exactly.
     expect(hydrated?.steps.at(-1)?.label).toBe('Analyzing request');
+    expect(hydrated?.omittedSteps).toBe(5);
+  });
+
+  it('sets no omission count when hydrated steps fit the cap', () => {
+    const steps = [{ emoji: '🧭', i18n_key: 'router_decision', category: 'system' }];
+    expect(executionTraceFromMetadata(tracePayload(steps), t)?.omittedSteps).toBeUndefined();
   });
 });

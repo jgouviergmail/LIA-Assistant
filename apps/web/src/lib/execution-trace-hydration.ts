@@ -18,7 +18,7 @@ import type {
   ExecutionTraceStep,
   TraceStepCategory,
 } from '@/types/execution-trace';
-import { MAX_TRACE_STEPS } from '@/types/execution-trace';
+import { capTraceSteps } from '@/types/execution-trace';
 
 /** Metadata key written by the backend (`FIELD_EXECUTION_TRACE`). */
 const EXECUTION_TRACE_METADATA_KEY = 'execution_trace';
@@ -63,10 +63,12 @@ export function executionTraceFromMetadata(
   const trace = raw as Record<string, unknown>;
   if (!Array.isArray(trace.steps)) return undefined;
 
-  const steps = trace.steps
+  const hydratedSteps = trace.steps
     .map(step => hydrateStep(step, t))
-    .filter((step): step is ExecutionTraceStep => step !== null)
-    .slice(-MAX_TRACE_STEPS);
+    .filter((step): step is ExecutionTraceStep => step !== null);
+  // Head + tail retention with the omission counted (Lot C, 2026-09) —
+  // same helper as the live TRACE_ATTACH path, so both paths agree.
+  const { steps, omitted } = capTraceSteps(hydratedSteps);
   if (steps.length === 0) return undefined;
 
   const durationMs = trace.duration_ms;
@@ -76,5 +78,6 @@ export function executionTraceFromMetadata(
     // render without the 💭 block, by design.
     reasoning: '',
     ...(typeof durationMs === 'number' ? { durationMs } : {}),
+    ...(omitted > 0 ? { omittedSteps: omitted } : {}),
   };
 }

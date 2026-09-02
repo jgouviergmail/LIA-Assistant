@@ -68,6 +68,13 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-09-02 after the execution-trace
+        // head+tail retention lot (ADR-257 Lot C: capTraceSteps shared by the
+        // reducer and the hydration path, the omitted-steps count, and the
+        // disclosure stating the true total):
+        // statements 77.42 / branches 72.69 / functions 74.47 / lines 78.05.
+        // Unchanged 75/70/72/76 (floor(measured - 2) per axis — no axis
+        // crosses an integer step this time).
         // Global floor — re-measured 2026-08-31 (second pass) after the mouth
         // and the speech bubble (ADR-252: the signed mouth curve and its
         // derived arc, the speaking flap, the comic bubble and its geometric

@@ -37,8 +37,11 @@ from tenacity import (
 
 from src.core.config import settings
 from src.core.constants import (
+    COMPACTION_EXTERNAL_PROVENANCE_BANNER,
     COMPACTION_SUMMARY_MARKER,
     COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT,
+    EXTERNAL_CONTENT_CLOSE_TAG,
+    EXTERNAL_CONTENT_OPEN_TAG,
 )
 from src.core.llm_config_helper import get_effective_context_window, get_llm_config_for_agent
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -81,6 +84,15 @@ _IDENTIFIER_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# One ``<external_content ...> ... </external_content>`` span, as produced by
+# ``wrap_external_content`` (ADR-167). Escaped occurrences inside the content
+# are ``&lt;external_content`` and cannot match. No capture group on purpose:
+# ``findall`` must return the full spans.
+_EXTERNAL_SPAN_PATTERN = re.compile(
+    re.escape(EXTERNAL_CONTENT_OPEN_TAG) + r"[^>]*>.*?" + re.escape(EXTERNAL_CONTENT_CLOSE_TAG),
+    re.DOTALL,
+)
+
 
 CompactionStrategy = Literal[
     "single_chunk",
@@ -110,6 +122,13 @@ class CompactionResult:
     # to decide whether to remove the prior summaries from state. False on
     # truncation fallback so prior summaries are preserved (no regression vs v1).
     consolidated_previous_summaries: bool = False
+    # Lot B (2026-09): True when any compacted message carried third-party text
+    # (ADR-167 ``<external_content>`` wrapper), or when a consolidated prior
+    # summary already carried the provenance banner. The node uses this to make
+    # the new summary INHERIT the taint — without it, compaction launders
+    # attacker-authored claims into a clean SystemMessage. Computed on BOTH
+    # branches (LLM summary and truncation fallback).
+    contains_external_content: bool = False
 
 
 @dataclass
@@ -244,6 +263,60 @@ class CompactionService:
             content = msg.text
             identifiers.update(_IDENTIFIER_PATTERN.findall(content))
         return sorted(identifiers)
+
+    @staticmethod
+    def _carries_external_content(messages: list[BaseMessage]) -> bool:
+        """True when any message's text carries the ADR-167 external wrapper.
+
+        The wrapper travels INSIDE message content (``ReactToolWrapper`` and
+        the direct-return web tools both emit it), so a plain substring check
+        on the open tag is exact: escaped occurrences are ``&lt;`` and cannot
+        match.
+
+        Args:
+            messages: Messages about to be compacted or dropped.
+
+        Returns:
+            True when at least one message contains third-party text.
+        """
+        return any(EXTERNAL_CONTENT_OPEN_TAG in msg.text for msg in messages)
+
+    def _extract_identifiers_by_provenance(
+        self, messages: list[BaseMessage]
+    ) -> tuple[list[str], list[str]]:
+        """Split extracted identifiers by who authored the text they came from.
+
+        Identifiers found inside ``<external_content>`` spans were written by a
+        third party (an attacker can place an arbitrary URL or address in an
+        email body); presenting them as plain "key identifiers" of the
+        conversation would launder them. An identifier appearing in BOTH kinds
+        of text resolves to trusted — it was independently present in user/LIA
+        authored content.
+
+        Fail-closed corollary: an open tag with no matching close taints the
+        whole message (same doctrine as ``data_registry.trust.is_external``).
+
+        Args:
+            messages: Messages the fallback is about to drop.
+
+        Returns:
+            ``(trusted, external_only)`` — both sorted, disjoint.
+        """
+        trusted: set[str] = set()
+        external: set[str] = set()
+        for msg in messages:
+            content = msg.text
+            if EXTERNAL_CONTENT_OPEN_TAG not in content:
+                trusted.update(_IDENTIFIER_PATTERN.findall(content))
+                continue
+            spans = _EXTERNAL_SPAN_PATTERN.findall(content)
+            if not spans:
+                external.update(_IDENTIFIER_PATTERN.findall(content))
+                continue
+            for span in spans:
+                external.update(_IDENTIFIER_PATTERN.findall(span))
+            trusted.update(_IDENTIFIER_PATTERN.findall(_EXTERNAL_SPAN_PATTERN.sub("", content)))
+        return sorted(trusted), sorted(external - trusted)
 
     def _split_into_chunks(
         self,
@@ -485,6 +558,7 @@ class CompactionService:
 
         tokens_before = self._token_counter.count_messages_tokens(to_compact)
         identifiers = self._extract_identifiers(to_compact)
+        contains_external = self._carries_external_content(to_compact)
 
         llm = get_llm("compaction")
 
@@ -534,6 +608,13 @@ class CompactionService:
                 total_prompt_tokens += pt
                 total_completion_tokens += ct
                 consolidated_previous = bool(previous_summaries)
+                # A consolidated prior summary that already carried the
+                # provenance banner keeps propagating the taint: the SECOND
+                # compaction must not launder what the first one flagged.
+                if consolidated_previous and any(
+                    COMPACTION_EXTERNAL_PROVENANCE_BANNER in s for s in previous_summaries
+                ):
+                    contains_external = True
             else:
                 final_summary = summaries[0] if summaries else ""
 
@@ -586,6 +667,7 @@ class CompactionService:
             chunks_used=len(chunks),
             duration_seconds=duration,
             consolidated_previous_summaries=consolidated_previous,
+            contains_external_content=contains_external,
         )
 
     def _truncation_fallback(
@@ -603,13 +685,24 @@ class CompactionService:
         """
         non_system = [m for m in messages if not isinstance(m, SystemMessage)]
         to_drop = non_system[:-preserve_recent_n] if preserve_recent_n > 0 else non_system
-        identifiers = self._extract_identifiers(to_drop)
+        # Split by provenance: an identifier harvested from inside an
+        # ``<external_content>`` span (an email body, a fetched page) is
+        # attacker-writable and must not be presented as a plain key
+        # identifier of the conversation (Lot B, 2026-09).
+        trusted_ids, external_ids = self._extract_identifiers_by_provenance(to_drop)
+        identifiers = sorted({*trusted_ids, *external_ids})
+        contains_external = self._carries_external_content(to_drop)
         tokens_before = self._token_counter.count_messages_tokens(to_drop)
         notice = (
             f"[Older conversation truncated — {len(to_drop)} messages removed "
             f"because the automatic summary could not complete ({reason}). "
-            f"Key identifiers preserved: {', '.join(identifiers[:30])}]"
+            f"Key identifiers preserved: {', '.join(trusted_ids[:30])}]"
         )
+        if external_ids:
+            notice += (
+                "\n[Identifiers seen only inside third-party content — "
+                f"untrusted, verify before use: {', '.join(external_ids[:30])}]"
+            )
         tokens_after = self._token_counter.count_tokens(notice)
         compaction_executions_total.labels(strategy="truncation").inc()
         compaction_total_duration_seconds.observe(0.0)
@@ -623,4 +716,5 @@ class CompactionService:
             chunks_used=0,
             duration_seconds=0.0,
             consolidated_previous_summaries=False,
+            contains_external_content=contains_external,
         )

@@ -30,11 +30,51 @@ export interface ExecutionTrace {
   reasoning: string;
   /** Wall-clock duration from the done metadata, when available. */
   durationMs?: number;
+  /**
+   * Steps dropped by the retention cap, when any (Lot C, 2026-09). Carried so
+   * the disclosure can state the TRUE total — a shown count is a claim: exact
+   * or absent. Absent when every step fit `MAX_TRACE_STEPS`.
+   */
+  omittedSteps?: number;
 }
 
 /**
  * Hard cap on retained steps per trace: a FOR_EACH over hundreds of items
- * must never balloon the DOM/state. Older steps beyond the cap are dropped
- * (the tail is the most informative for "what did it just do").
+ * must never balloon the DOM/state.
  */
 export const MAX_TRACE_STEPS = 100;
+
+/**
+ * Opening steps preserved when the cap bites (Lot C, 2026-09). Tail-only
+ * retention silently erased the turn's FIRST actions — precisely the ones an
+ * injected instruction would have triggered early in a long loop. The tail
+ * keeps the larger share ("what did it just do" stays primary); the head
+ * keeps the turn's opening acts visible.
+ */
+export const TRACE_HEAD_KEEP = 20;
+
+/**
+ * Apply the retention cap, keeping head + tail and counting the omission.
+ *
+ * Single implementation shared by the live path (chat reducer `TRACE_ATTACH`)
+ * and the reload path (`execution-trace-hydration`), so a reloaded trace can
+ * never disagree with the live one on WHICH steps survived.
+ *
+ * @param steps - Steps in emission order.
+ * @returns The retained steps plus the exact number omitted (0 when none).
+ */
+export function capTraceSteps(steps: ExecutionTraceStep[]): {
+  steps: ExecutionTraceStep[];
+  omitted: number;
+} {
+  if (steps.length <= MAX_TRACE_STEPS) {
+    return { steps, omitted: 0 };
+  }
+  // Clamp so a future constant change can never make `slice(-0)` return the
+  // whole array (tail must keep at least one step).
+  const tailKeep = Math.max(1, MAX_TRACE_STEPS - TRACE_HEAD_KEEP);
+  return {
+    steps: [...steps.slice(0, TRACE_HEAD_KEEP), ...steps.slice(-tailKeep)],
+    omitted: steps.length - MAX_TRACE_STEPS,
+  };
+}

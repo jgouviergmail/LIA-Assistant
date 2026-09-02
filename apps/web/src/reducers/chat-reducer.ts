@@ -23,7 +23,7 @@
 
 import { ChatState, ChatAction, initialChatState } from '@/types/chat-state';
 import { initialHitlCardState } from '@/types/hitl';
-import { MAX_TRACE_STEPS } from '@/types/execution-trace';
+import { capTraceSteps } from '@/types/execution-trace';
 import { Message } from '@/types/chat';
 import { generateUUID } from '@/lib/utils';
 import { DEBUG_METRICS_HISTORY_KEY } from '@/lib/constants';
@@ -529,13 +529,18 @@ const ACTION_HANDLERS: ChatActionHandlers = {
     const index = state.messages.findIndex(m => m.id === messageId);
     if (index < 0) return state;
 
-    const cappedSteps =
-      trace.steps.length > MAX_TRACE_STEPS ? trace.steps.slice(-MAX_TRACE_STEPS) : trace.steps;
+    // Head + tail retention with the omission counted (Lot C, 2026-09) —
+    // shared with the hydration path so live and reloaded traces agree.
+    const { steps: cappedSteps, omitted } = capTraceSteps(trace.steps);
 
     const updatedMessages = [...state.messages];
     updatedMessages[index] = {
       ...updatedMessages[index],
-      executionTrace: { ...trace, steps: cappedSteps },
+      executionTrace: {
+        ...trace,
+        steps: cappedSteps,
+        ...(omitted > 0 ? { omittedSteps: omitted } : {}),
+      },
     };
     return { ...state, messages: updatedMessages };
   },

@@ -419,7 +419,7 @@ def get_llm(
     # the same ChatAnthropic instance internally.
     #
     # Cost: cache reads at 10% of input price, writes at 125% (amortized quickly).
-    from src.core.constants import DYNAMIC_CONTEXT_MARKER
+    from src.core.constants import ANTHROPIC_CACHE_MIN_TOKENS_TYPICAL, DYNAMIC_CONTEXT_MARKER
 
     if provider == "anthropic" and hasattr(llm, "_get_request_payload"):
         _original_get_request_payload = llm._get_request_payload
@@ -441,15 +441,21 @@ def get_llm(
                 if marker_pos > 0:
                     static_part = system[:marker_pos].rstrip()
                     dynamic_part = system[marker_pos:]
-                    # Estimate tokens (~3.5 chars/token for mixed content)
+                    # Estimate tokens (~3.5 chars/token for mixed content).
+                    # The minimum cacheable length VARIES BY MODEL (512 on
+                    # Opus 5, 1024 on Sonnet 5, 4096 on Opus 4.5/Haiku 4.5 —
+                    # provider doc, read 2026-09-02); 1024 is the common case,
+                    # so this debug stays a heads-up, never a per-model claim.
                     estimated_tokens = len(static_part) // 3
-                    if estimated_tokens < 4096:
+                    if estimated_tokens < ANTHROPIC_CACHE_MIN_TOKENS_TYPICAL:
                         logger.debug(
                             "anthropic_cache_prefix_small",
                             estimated_tokens=estimated_tokens,
                             chars=len(static_part),
-                            min_required=4096,
-                            msg="Static prefix likely below Opus 4096-token minimum — cache_control may be ignored",
+                            min_typical=ANTHROPIC_CACHE_MIN_TOKENS_TYPICAL,
+                            msg="Static prefix likely below the model's minimum "
+                            "cacheable length (512-4096 by model) — cache_control "
+                            "may be ignored",
                         )
                     payload["system"] = [
                         {"type": "text", "text": static_part, "cache_control": cache_ctrl},
@@ -470,6 +476,34 @@ def get_llm(
                     if isinstance(block, dict):
                         block["cache_control"] = cache_ctrl
                         break
+
+            # Lot F (2026-09): ROOT-level cache_control — the documented mode
+            # for multi-turn/agentic conversations. The breakpoint auto-moves
+            # to the last cacheable block as the history grows, so the ReAct
+            # loop's accumulated tool results are read from cache instead of
+            # re-billed at full price on every iteration (before this, ONLY
+            # the static system block was cached: measured 2026-09-02, zero
+            # message blocks marked). Withheld when four explicit block-level
+            # breakpoints already exist — automatic + 4 explicit is a
+            # documented API 400.
+            explicit_breakpoints = 0
+            marked_system = payload.get("system")
+            if isinstance(marked_system, list):
+                explicit_breakpoints += sum(
+                    1
+                    for block in marked_system
+                    if isinstance(block, dict) and "cache_control" in block
+                )
+            for message in payload.get("messages") or []:
+                content = message.get("content") if isinstance(message, dict) else None
+                if isinstance(content, list):
+                    explicit_breakpoints += sum(
+                        1
+                        for block in content
+                        if isinstance(block, dict) and "cache_control" in block
+                    )
+            if explicit_breakpoints < 4:
+                payload["cache_control"] = dict(cache_ctrl)
 
             return payload
 

@@ -6,7 +6,7 @@
 
 **Version**: 4.6
 **Datum**: 2026-08-23
-**Application**: LIA v1.38.5
+**Application**: LIA v1.38.6
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -64,8 +64,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 497 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 255 ADRs, ~22.199 von pytest gesammelte Tests in 1.311 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 499 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 256 ADRs, ~22.199 von pytest gesammelte Tests in 1.311 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -86,7 +86,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Tests | 22.199 von pytest über 1.311 Testdateien gesammelt + 6.693 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 255 |
+| ADRs (Architecture Decision Records) | 256 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -340,6 +340,8 @@ Die Ausgaben eines Zuges gehorchen einem Erhaltungssatz (ADR-256): Denkzeit und 
 
 Beide Modi teilen sich dasselbe Tool-Register, HITL-System, den Response-Knoten und die Observability-Infrastruktur. Benutzer wechseln über einen Schalter im Chat-Header zwischen den Modi.
 
+Ein Durchgang schuldet sich außerdem ein Arbeitsgedächtnis, das ihn überdauert. Der Zustand ist durch ein Nachrichtenfenster begrenzt, und ein ReAct-Durchgang fügt pro Iteration zwei Nachrichten hinzu — ein hinreichend langer Durchgang verdrängt somit **seine eigene Frage** aus diesem Fenster, woraufhin die Fensterung, die Historie und laufende Schleife trennt, überhaupt keinen Trennpunkt mehr findet. Der Reducer heftet die Frage des Durchgangs daher wieder an, wenn die Kürzung sie verdrängt hat, auf beiden Zweigen, und die Kopplung zwischen Iterationsbudget und Fenstergröße trägt einen Namen, statt als unausgesprochene arithmetische Beziehung zu existieren. Auch was ein Durchgang dem Modell tatsächlich liefert, wird gemessen — Prompt-Größe pro Iteration und ihr Anteil am Kontextfenster des Modells — denn eine Schleife, die ihre Iterationen und ihre Dauer maß, maß alles außer dem, was wächst.
+
 ### 5.4. Entkoppelte Ausführungen: Die Generierung überlebt die Verbindung (ADR-117)
 
 Klassisches SSE-Streaming hat einen strukturellen Makel: Die Generierung lebt *im* HTTP-Response-Generator. Tab schließen, wegnavigieren oder Netzwerkverlust tötet die Verbindung — und mit ihr den gesamten Konversationszug. LIA entkoppelt beides: Ein **entkoppelter Producer** (eine von der Anfrage unabhängige asyncio-Task) führt den Graphen aus und publiziert jeden Chunk in einen **Redis Stream pro Run**; der SSE-Endpunkt wird zum bloßen **Subscriber**, der diesen Stream weiterreicht.
@@ -411,12 +413,13 @@ Der `parallel_executor.py` organisiert die Schritte in Wellen (DAG):
 
 Vor der HITL-Genehmigung prüft ein dediziertes LLM (vom Planner getrennt, um Selbstvalidierungs-Bias zu vermeiden) den Plan anhand von 14 Problemtypen in vier Kategorien: **Kritisch** (halluzinierte Fähigkeit, Geistabhängigkeit, logischer Zyklus), **Semantisch** (Kardinalitäts-Mismatch, Scope-Overflow/-Underflow, falsche Parameter), **Sicherheit** (gefährliche Mehrdeutigkeit, implizite Annahme) und **FOR_EACH** (fehlende Kardinalität, ungültige Referenz). Short-Circuit für triviale Pläne (1 Schritt), optimistisches 1-s-Timeout.
 
-
 Ergänzend erkennt ein **selbstanreicherndes Anti-Halluzinations-Register** (`hallucinated_tools.json`) vom LLM erfundene Tools über persistente Regex-Muster. Jede neue Halluzination wird automatisch zum Register hinzugefügt. Halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.
 
 Ein Urteil klassifiziert, es verurteilt nicht — und eine **Diagnose ist keine Frage**. Wenn ein *schreibender* Plan seine automatischen Replans ausgeschöpft hat, verweigert der Validator die Ausführung und übergibt an eine HITL-Rückfrage: Falsche Daten zu schreiben kostet mehr, als zu fragen. Was der Nutzerin dann gestellt wird, ist eine Frage **in ihrer Sprache**, aus einer Tabelle von fünfzehn Einträgen, deren Vollständigkeit beim Start **in beide Richtungen** geprüft wird — ein Problem, das der Code auslösen kann, ohne dass eine Frage dafür geschrieben ist, verhindert den Start der Anwendung, und eine Frage, die kein Code auslösen kann, ebenso. Die interne Fehlerbeschreibung bleibt in der Ablaufspur, wo sie hingehört. Dasselbe Prinzip gilt für die Werte: Ein in einer früheren Runde angegebener Parameter wird **aus dem vorherigen Plan übernommen** statt neu erfunden, denn die Reparatur erkennt eine Dokumentationsadresse und überschreibt nie einen echten Wert — eine Meinungsänderung wird immer respektiert (ADR-195).
 
 Die Ehrlichkeit des Urteils reicht bis in die Ausführung. Jedes Werkzeug liefert ein typisiertes Urteil — Erfolg oder Ablehnung, mit Ursache — und der Plan-Executor reicht es **unverändert** weiter: Eine Ablehnung wird nie als erledigte Aktion dargestellt, ein fehlgeschlagener Schritt zählt nicht als „ausgeführt“ (die Schicht, die Blockaden benennt, behält damit ihre Wahrheit), und ein Fehlschlag wird nie als Gesprächskontext gespeichert. Ist die verletzte Beschränkung nicht reparierbar — der Inhalt des Nutzers überschreitet eine im Katalog veröffentlichte Grenze —, wird sie zur **ersten gestellten Frage**, mit den exakten Zahlen und in der Sprache des Nutzers, statt einer generischen Rückfrage. Und was eine Massenoperation bestätigt, ist die nach der Vorausführung **gemessene** Anzahl, nie eine theoretische Obergrenze.
+
+Ein Prüfer hat zudem einen blinden Fleck, gegen den man entwerfen muss: Ein Richter, den man um ein Urteil bittet, prüft zuverlässig, was ein Plan **enthält**, und übersieht, was ihm **fehlt**. Die Prüfung beginnt daher mit einem Abdeckungsdurchlauf — die Anforderungen aufzählen, die die Anfrage aufstellt, und dann prüfen, ob jede einen abdeckenden Schritt hat — bevor sich irgendein Urteil bildet. Zwei Schutzmechanismen verhindern ein Auslösen bei gesunden Plänen: Eine Anforderung, die durch die ANALYSE bereits abgerufener Daten erfüllt wird, gehört dem Response-LLM und ist konstruktionsbedingt abgedeckt; und eine Anforderung, die keine Fähigkeit bedienen kann, ist ebenso wenig ein fehlender Schritt. Ein als fehlend gemeldeter Schritt nimmt dieselbe stille Neuplanung wie jeder andere reparierbare Mangel.
 
 ### 6.5. Die Wahrheit einer Referenz (ADR-194)
 
@@ -488,6 +491,7 @@ Das Schließen des Katalogs klärt, was ein Plan **verketten** darf. Davor steht
 Gemessen: das Werkzeug für den 360°-Überblick zu einer Person lebt in der Domäne `contact`, während die Anweisung des Analysators jede Frage zu einem verbundenen Nutzer in die Domäne `peer` schickt. Bewertung **0,853** — die beste des gesamten Katalogs, gegenüber allgemeinen Werkzeugen bei 0,000 — und nie dem Planer vorgelegt. Wenn es funktionierte, dann weil das Modell von seiner Anweisung abgewichen war: ein stochastischer Ausweg, kein regulärer Pfad.
 
 Ein Manifest erklärt nun die **zusätzlichen** Domänen, aus denen es erreichbar ist, und eine **einzige Implementierung** beantwortet „ist dieses Werkzeug im Geltungsbereich?“ für beide Filterstrategien, die dieselbe Frage bisher jede für sich stellten. Jeder Wert wird bei der Registrierung gegen das Domänenregister geprüft: eine unbekannte Domäne verweigert den Start, statt das Werkzeug still unauffindbar zu machen. Sparsam zu deklarieren — jede zusätzliche Domäne erweitert die Auswahl für **alle** Anfragen dieser Domäne. Das ist nicht dasselbe wie zwei Domänen zu verknüpfen: Verknüpfen zieht ihre gesamten Werkzeugkästen ineinander, was bereits einen Produktionsvorfall verursacht hat. Hier bewegt sich ein Werkzeug, keine Domäne.
+
 ### 7.7. Der Katalog einer Domäne ist ein Angebot an Fähigkeiten
 
 Die Filterung nach Domäne hat eine Folge, die erst die Messung sichtbar machte: **Was der Katalog einer Domäne enthält, bestimmt, was der Planer wollen kann**. In der Produktion erzeugte die Frage nach dem letzten Anruf einen zweistufigen Plan — den Kontakt suchen und dann **dort anrufen, um es zu erfragen**. Nur eine fehlgeschlagene Referenz stoppte ihn.
@@ -501,7 +505,6 @@ Eine **deterministische** Regel vervollständigt das Ganze, vor jedem Modellaufr
 Beide Katalog-Obergrenzen (normal und Panikmodus) wurden zu Einstellungen, mit einer Prüfung beim Start: **die Rückfall-Obergrenze liegt nie unter der normalen**, sonst böte das Sicherheitsnetz weniger als der Weg, der gerade gescheitert ist.
 
 ---
-
 
 ## 8. Semantisches Routing und KI-gestützte Embeddings
 
@@ -593,6 +596,8 @@ Wenn die Token-Anzahl einen dynamischen Schwellenwert überschreitet (Verhältni
 **Betriebliche Resilienz**: Jeder LLM-Aufruf wird in ein `asyncio.wait_for` pro Chunk (Standard 35 s) und ein globales Budget von 120 s eingebettet. Bei vorübergehenden Fehlern wiederholt `tenacity.AsyncRetrying` bis zu 3-mal mit exponentiellem Backoff. Wenn die Zusammenfassung weiterhin nicht abgeschlossen werden kann, kürzt ein expliziter Fallback (`_truncation_fallback`) den älteren Verlauf sauber mit einer lesbaren `SystemMessage`, die Identifikatoren bewahrt — kein stiller Stub. Frühere `compaction #N`-Zusammenfassungen werden im Merge konsolidiert, statt Turn für Turn angehäuft.
 
 **SSE-Custom-Mode-Signal**: Der Knoten emittiert `compaction_start` / `compaction_done` über `langgraph.config.get_stream_writer()` durch einen `stream_mode="custom"` (LangGraph 1.x). Der Streaming-Service übersetzt diese Payloads in `ChatStreamChunk(type="execution_step")`. Im Frontend bleibt ein auf einer stabilen ID (`COMPACTION_TOAST_ID`) gemorphter sonner-Toast während der gesamten Komprimierung sichtbar, das Eingabefeld ist über `status="compacting"` gesperrt, und eine `ContextUsagePill` zeigt fortlaufend das Tokens/Schwellen-Verhältnis. Das gleichzeitige SSE-Keepalive (`iter_with_keepalive`) pulst alle 15 s `: heartbeat` während stiller Awaits, um Cloudflare-Idle-Cuts zu neutralisieren. Fünf Prometheus-Metriken (`compaction_chunk_timeouts_total`, `compaction_global_timeouts_total`, `compaction_total_duration_seconds`, `compaction_writer_unavailable_total`, `compaction_executions_total{strategy}`) speisen ein dediziertes Grafana-Dashboard.
+
+**Die Herkunft überlebt die Zusammenfassung.** Eine Zusammenfassung aus Nachrichten mit Drittanbietertext erbt ein Herkunftsbanner, und der Zusammenfassungs-Prompt meldet Behauptungen Dritter in einem eigenen Abschnitt, ihrer Quelle zugeordnet — siehe §19.6.
 
 ### 10.4. PostgreSQL-Checkpointing
 
@@ -762,7 +767,6 @@ Seit v1.30.6 ist der Client **dual-era** (MCP SDK v2, ADR-224): Er spricht die z
 
 Dieselbe Offenheit erstreckt sich nun vom Übertragungsprotokoll auf das **Paketformat**. LIA ist ein konformer Client des offenen Standards Agent Plugins v1.0.0 (agent-plugins.org): Ein Plugin ist ein schlichtes Verzeichnis — ein `plugin.json`-Manifest mit geschlossenem Schema, agentskills.io-Skills unter `skills/`, MCP-Server in `mcp.json` — und dasselbe Paket installiert sich unverändert in ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code und LIA. Das Design stützt sich vollständig auf bereits vorhandene Schichten: Die Erkennung leitet ein Plugin-Archiv in eine Staging-Pipeline, die die Härtung des Skill-Importers wiederverwendet (begrenzte Extraktion, Zip-Slip-Schutz, atomare Installation pro Skill mit Rollback), `mcp.json`-Einträge werden auf Benutzer-MCP-Server abgebildet, und Quoten werden global vor dem ersten Schreibvorgang geprüft — eine Installation bleibt nie halbfertig liegen. Zwei Prinzipien bestimmen den Lebenszyklus. Erstens Resilienz pro Komponente mit völliger Ehrlichkeit: Eine Komponente, die nicht installiert werden kann — ein stdio-Server, den LIA bewusst nie startet, eine Namenskollision, ein ungültiger Skill — wird *übersprungen und gesagt*, mit übersetztem Grund in einem vollständigen Bericht pro Komponente; nichts wird je als installiert vorgetäuscht. Zweitens Herkunft als Invariante: Jede Komponente trägt das Plugin, das sie mitbrachte, Namenskollisionen werden nur innerhalb derselben Herkunft aufgelöst (ein Plugin kann nie einen von Hand erstellten Skill übernehmen, und umgekehrt), Updates sind Re-Importe, die konfigurierte Zugangsdaten bewahren, und Entfernen geschieht nur als Gruppen-Deinstallation — ein Plugin kann nie stillschweigend amputiert enden.
 
-
 ### 14.2. MCP-Sicherheit
 
 Obligatorisches HTTPS, SSRF-Prävention (DNS-Auflösung + IP-Blocklist), Fernet-Verschlüsselung der Credentials, OAuth 2.1 (DCR + PKCE S256), Redis Rate Limiting pro Server/Tool, API Guard 403 auf Proxy-Endpunkte für deaktivierte Server (ADR-061 Layer 3).
@@ -906,6 +910,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 **Erkennen, niemals bereinigen.** Sieben Musterfamilien werden in den sechs Sprachen erkannt — Rollenübernahme, Anweisungsentführung, Persona-Wechsel, Exfiltration, ein in Fremdtext genanntes LIA-Werkzeug, unsichtbares Unicode, eine in einem HTML-Kommentar versteckte Direktive — und der Inhalt geht **unverändert** an das Modell, begleitet von einem Hinweis, der die Familie benennt. Bereinigen hieße, eine E-Mail umzuschreiben, die der Nutzer womöglich unverändert lesen will, im Tausch gegen eine Garantie, die die nächste Umgehung widerlegen würde. Die Erkennung ist auf die ersten 20 000 Zeichen begrenzt und **protokolliert den Text nie**: Er ist konstruktionsbedingt vom Angreifer kontrolliert und enthält regelmäßig die Daten des Nutzers.
 
+**Und eine Kennzeichnung, die das Zusammenfassen nicht überlebt, ist eine Kennzeichnung mit Verfallsdatum.** Die Kompaktierung liest das Gespräch und gibt es als `SystemMessage` wieder aus — den Kanal höchster Autorität, der in jedem späteren Durchgang erhalten bleibt, weil er das komprimierte Gedächtnis des Gesprächs *ist*. Ein Zusammenfasser, dem man aufträgt, Bezeichner, Entscheidungen und Ergebnisse zu bewahren, und dem man nichts über die Herkunft sagt, erhebt die Forderung eines Absenders getreulich zur feststehenden Tatsache. Die Markierung wandert daher mit: Eine Zusammenfassung, die aus Nachrichten mit Drittanbietertext entsteht, erbt ein Herkunftsbanner, das beim Schreiben berechnet und nicht aus dem abgeleitet wird, was das Modell zu wiederholen beliebte; und der Zusammenfassungs-Prompt meldet Behauptungen Dritter in einem eigenen Abschnitt, ihrer Quelle zugeordnet. Das Banner steht hinter der Markierung, an der vier Leser diese Nachricht erkennen — ein geänderter Präfix hätte das komprimierte Gedächtnis des Gesprächs still verschwinden lassen. Der deterministische Rückfall folgt derselben Regel: Bezeichner, die aus einem markierten Bereich stammen, werden als nicht vertrauenswürdig aufgeführt statt als Schlüsselbezeichner des Gesprächs, und eine nicht geschlossene Markierung färbt die gesamte Nachricht.
 ---
 
 ## 20. Observability und Monitoring
@@ -914,7 +919,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 497 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 499 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -922,7 +927,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 497 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 499 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -937,6 +942,7 @@ Die Debug-Metriken werden in `sessionStorage` persistiert (maximal 50 Einträge)
 ### 20.3. DevOps Claude CLI (nur Admin)
 
 Administratoren können über die LIA-Konversation direkt mit Claude Code CLI interagieren, um Serverprobleme in natürlicher Sprache zu diagnostizieren. Claude CLI ist im API-Docker-Container installiert und wird lokal via Subprocess ausgeführt, mit Docker-Socket-Zugriff auf alle Container. Berechtigungen sind pro Umgebung konfigurierbar und der Zugriff ist auf Superuser beschränkt.
+
 ### 20.4. Ein Label ist ein Stream-Multiplikator, kein Suchfeld
 
 Eine Aggregations-Pipeline lädt dazu ein, alles zum indizierten Label zu machen,
@@ -1323,7 +1329,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-255 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+256 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1429,7 +1435,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 255 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~22.199 Tests in 1.311 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 256 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~22.199 Tests in 1.311 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1437,13 +1443,11 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 Die Aktivitätsseite ist ein **reines Read-Model**: parallele Fetcher (eine Session pro Quelle — eine AsyncSession ist nicht nebenläufigkeitssicher) aggregieren sieben bestehende Audit-Tabellen, die Summen sind exakte `COUNT(*)` über das gesamte Fenster, Obergrenzen werden benannt (`truncated`), und eine ausgefallene Quelle wird aufgeführt statt still ergänzt — ehrliches Zählen (ADR-185) von Anfang bis Ende. Das Gedächtnis folgt einer **Supersessions-Spur** (ADR-235): Eine automatische Korrektur erzeugt einen Nachfolger und archiviert den alten Fakt (`superseded_by_id`), jede Lesung filtert die aktive Menge über ein zentrales Prädikat, und die Spur wird nach Ablauf der Aufbewahrung bereinigt; manuelle Änderungen behalten ihre Überschreib-Autorität. Gelernte Regeln sind eine **siebte Gedächtniskategorie**, die am Kopf des Prompts injiziert wird, unter denselben Schutzmechanismen (Anheften, Aufbewahrung, DSGVO). Die Sprachprosodie ist eine **begrenzte Modulation** (Totzone, harte Grenzen, Flag) der administrierten Einstellungen — nie ein Ersatz. Die Autonomie bleibt gedeckelt: Das ReAct-Iterationsbudget passt sich der Domänenspanne der Anfrage an, ohne je die konfigurierte Obergrenze zu überschreiten, und unbekannte Komplexität erhält die volle Obergrenze — gespart wird nur beim nachweislich Einfachen.
 
-
 ## 31. Ausdrucksstarke Augen: eine von Signalen gesteuerte Figur
 
 Das Augen-Widget des Chats (ADR-240) beruht auf einem einzigen Prinzip: **kein neues Signal, keine neuen Kosten**. Eine reine Engine — Entscheidungstabellen mit injiziertem RNG und injizierten Uhren — leitet einen von zwanzig Ausdrücken aus einer Prioritätskette ab (Fehler > HITL-Frage > Stimme > Interaktion > Reaktion des Zuges > Benachrichtigung > Tippen > Inaktivität > Stimmung × Uhrzeit), gespeist ausschließlich aus vorhandener Maschinerie: Chat-Zustandsmaschine, SSE-Ausführungsschritte (Nachdenken vs. Tool-Suche), HITL-Karte, Sprach-Zustandsmaschine und Psyche-Engine. Die Reaktion auf jede Antwort liest den emotionalen Selbstbericht, den das Modell seinem eigenen Zug bereits anhängt, mit einem streng sprachneutralen heuristischen Fallback (Interpunktion, Emojis, Struktur — chinesische Vollbreite eingeschlossen). Das Rendering ist deklarativ — ein Ausdrucksattribut, CSS-Variablen und ein Animationsblatt, in dem Augenlider **reine geometrische Morphs** sind (verankerte vertikale Kompression, Rotation pro Auge, Radienformung): nirgendwo Clipping, jeder Zwischenzustand bleibt eine glatte Kurve. Das Leben zwischen den Ereignissen — Blinzeln, Blicksakkaden, stimmungsgewichtete Gesten, Tagtraum-Miniszenen, seltener Slapstick — lebt in Schedulern mit eigenen Timern, pausiert bei verstecktem Tab oder minimiertem Widget und erstarrt unter `prefers-reduced-motion`. Die sechs wählbaren Looks teilen dieses eine Skelett: ein generisches Register, in dem ein neuer Blick eine id, ein gescoptes CSS-Blatt und sechs Locale-Einträge kostet — Vollständigkeit ist ein Test, keine Konvention.
 
 ---
-
 
 ## 32. Native Apps: eine Hülle, Ihr Server
 
@@ -1531,4 +1535,4 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 
 **Und was nicht gemessen wird, sieht man nicht.** Der Zähler der Anbieteraufrufe wird zum falschen Nenner, sobald wiederholt wird: Ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. „Plattformzustand“ zählt daher nun **Ergebnisse** — eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet — und ein zweiter Zähler sagt, was die Glättung mit jedem Versuch tat, denn „Budget zu klein“ und „Redis ausgefallen“ verlangen entgegengesetzte Maßnahmen.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 255 ADRs und des Changelogs (v1.0 bis v1.38.5). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 256 ADRs und des Changelogs (v1.0 bis v1.38.6). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

@@ -498,3 +498,91 @@ class TestCompactionNode:
         done_events = [c for c in captured if c.get("step_label") == "compaction_done"]
         assert len(done_events) == 1
         assert done_events[0]["metadata"]["strategy"] == "truncation"
+
+
+# ============================================================================
+# Lot B (2026-09) — Provenance banner placement in the summary SystemMessage
+# ============================================================================
+
+
+class TestProvenanceBanner:
+    """The summary inherits the external-content taint, AFTER the marker."""
+
+    @staticmethod
+    def _state_and_service(mock_svc_cls, mock_settings, *, tainted: bool):
+        from src.core.constants import COMPACTION_SUMMARY_MARKER  # noqa: F401
+
+        mock_settings.compaction_enabled = True
+        mock_settings.compaction_preserve_recent_messages = 2
+        mock_settings.compaction_include_previous_summaries = True
+
+        mock_svc = MagicMock()
+        mock_svc.should_compact.return_value = True
+        mock_svc.is_safe_to_compact.return_value = SafetyCheckResult(safe=True)
+        mock_svc.compact = AsyncMock(
+            return_value=CompactionResult(
+                summary="- summary body",
+                tokens_before=70000,
+                tokens_after=500,
+                tokens_saved=69500,
+                identifiers_preserved=[],
+                strategy="single_chunk",
+                contains_external_content=tainted,
+            )
+        )
+        mock_svc_cls.return_value = mock_svc
+
+        msgs = [
+            HumanMessage(content="m1", id="h1"),
+            AIMessage(content="r1", id="a1"),
+            HumanMessage(content="m2", id="h2"),
+            AIMessage(content="r2", id="a2"),
+        ]
+        return {
+            "messages": msgs,
+            "user_language": "fr",
+            "compaction_count": 0,
+            "pending_draft_critique": None,
+            "pending_entity_disambiguation": None,
+            "pending_disambiguations_queue": [],
+        }
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.nodes.compaction_node.settings")
+    @patch("src.domains.agents.nodes.compaction_node.CompactionService")
+    async def test_tainted_summary_carries_banner_after_marker(self, mock_svc_cls, mock_settings):
+        from src.core.constants import (
+            COMPACTION_EXTERNAL_PROVENANCE_BANNER,
+            COMPACTION_SUMMARY_MARKER,
+        )
+
+        state = self._state_and_service(mock_svc_cls, mock_settings, tainted=True)
+        result = await compaction_node(state, config={})
+
+        summary_msgs = [m for m in result["messages"] if isinstance(m, SystemMessage)]
+        assert len(summary_msgs) == 1
+        content = summary_msgs[0].content
+        # The marker MUST stay the prefix: two readers rely on startswith().
+        assert content.startswith(COMPACTION_SUMMARY_MARKER)
+        assert COMPACTION_EXTERNAL_PROVENANCE_BANNER in content
+        # Banner sits between header and body, never before the marker.
+        assert content.index(COMPACTION_EXTERNAL_PROVENANCE_BANNER) < content.index(
+            "- summary body"
+        )
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.nodes.compaction_node.settings")
+    @patch("src.domains.agents.nodes.compaction_node.CompactionService")
+    async def test_clean_summary_has_no_banner(self, mock_svc_cls, mock_settings):
+        from src.core.constants import (
+            COMPACTION_EXTERNAL_PROVENANCE_BANNER,
+            COMPACTION_SUMMARY_MARKER,
+        )
+
+        state = self._state_and_service(mock_svc_cls, mock_settings, tainted=False)
+        result = await compaction_node(state, config={})
+
+        summary_msgs = [m for m in result["messages"] if isinstance(m, SystemMessage)]
+        assert len(summary_msgs) == 1
+        assert summary_msgs[0].content.startswith(COMPACTION_SUMMARY_MARKER)
+        assert COMPACTION_EXTERNAL_PROVENANCE_BANNER not in summary_msgs[0].content

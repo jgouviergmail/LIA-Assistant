@@ -178,6 +178,14 @@ summary could not complete (global_timeout). Key identifiers preserved:
 email_hash_a8f3..., people/c123..., 08dfb351-..., ...]
 ```
 
+Since ADR-257 (Lot B), identifiers harvested from inside third-party content
+(`<external_content>` spans — email bodies, fetched pages) are listed on a
+separate line labelled untrusted instead of being presented as plain key
+identifiers, and any summary produced from third-party-carrying messages
+inherits a provenance banner (`COMPACTION_EXTERNAL_PROVENANCE_BANNER`) placed
+AFTER `COMPACTION_SUMMARY_MARKER` — the marker must stay the prefix, four
+readers recognise the summary via `startswith`.
+
 The frontend `toast.warning` (driven by `handleCompactionStep` on
 `strategy === "truncation"`) carries the localized equivalent of:
 

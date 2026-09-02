@@ -663,3 +663,74 @@ class TestSemanticValidationIntegration:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
+
+
+# ============================================================================
+# Lot E (2026-09) — a missing_step verdict replans SILENTLY, never blocks
+# ============================================================================
+
+
+class TestMissingStepRouting:
+    """The coverage pass (prompt v2) may now emit `missing_step` issues.
+
+    ADR-184 doctrine: a validation verdict is not a failure. A plan flagged
+    for a missing step goes back to the planner for silent auto-correction —
+    it never interrupts the user, and the replan loop stays bounded by
+    `planner_max_replans`.
+    """
+
+    @pytest.fixture
+    def mock_metrics(self):
+        with patch(
+            "src.domains.agents.nodes.routing.langgraph_conditional_edges_total"
+        ) as mock_edges:
+            mock_edges.labels = MagicMock(return_value=MagicMock(inc=MagicMock()))
+            with patch(
+                "src.domains.agents.nodes.routing.langgraph_node_transitions_total"
+            ) as mock_transitions:
+                mock_transitions.labels = MagicMock(return_value=MagicMock(inc=MagicMock()))
+                yield (mock_edges, mock_transitions)
+
+    def test_missing_step_routes_to_silent_replan(self, mock_metrics):
+        from src.domains.agents.nodes.routing import route_from_semantic_validator
+
+        state = {
+            STATE_KEY_SEMANTIC_VALIDATION: {
+                "requires_clarification": False,
+                "is_valid": False,
+                "issues": [
+                    {
+                        "issue_type": "missing_step",
+                        "description": "The reply-to-Paul demand has no covering step",
+                        "severity": "medium",
+                        "suggested_fix": "Add a step drafting the reply to Paul",
+                    }
+                ],
+            },
+            STATE_KEY_PLANNER_ITERATION: 1,
+            "needs_replan": False,
+        }
+
+        assert route_from_semantic_validator(state) == "planner"
+
+    def test_missing_step_at_max_iterations_proceeds_without_blocking(self, mock_metrics):
+        """Replans exhausted: the plan executes as-is (a verdict is not a failure)."""
+        from src.core.config import settings as _settings
+        from src.domains.agents.nodes.routing import route_from_semantic_validator
+
+        state = {
+            STATE_KEY_SEMANTIC_VALIDATION: {
+                "requires_clarification": False,
+                "is_valid": False,
+                "issues": [{"issue_type": "missing_step", "description": "d"}],
+            },
+            # Never hardcode a threshold: read it from settings (repo rule).
+            STATE_KEY_PLANNER_ITERATION: _settings.planner_max_replans + 1,
+            "needs_replan": False,
+        }
+
+        result = route_from_semantic_validator(state)
+        assert result in (
+            "approval_gate",
+            "task_orchestrator",
+        ), "an exhausted replan budget must execute the plan, not block the user"

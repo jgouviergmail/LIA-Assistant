@@ -80,6 +80,29 @@ describe('ExecutionTraceDisclosure', () => {
     expect(screen.getByText('I weighed the options.')).toBeInTheDocument();
   });
 
+  it('states the TRUE total in the summary when steps were omitted (Lot C)', () => {
+    render(<ExecutionTraceDisclosure trace={trace({ omittedSteps: 25 })} />);
+
+    // 2 kept steps + 25 omitted = 27: a shown count is exact, or it does not exist.
+    expect(screen.getByText(/chat\.trace\.summary:27/)).toBeInTheDocument();
+  });
+
+  it('reveals the omitted-steps line in the expanded panel (Lot C)', async () => {
+    render(<ExecutionTraceDisclosure trace={trace({ omittedSteps: 25 })} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'chat.trace.aria_toggle' }));
+
+    expect(screen.getByText(/chat\.trace\.omitted:25/)).toBeInTheDocument();
+  });
+
+  it('shows no omitted line when nothing was omitted (Lot C)', async () => {
+    render(<ExecutionTraceDisclosure trace={trace()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'chat.trace.aria_toggle' }));
+
+    expect(screen.queryByText(/chat\.trace\.omitted/)).not.toBeInTheDocument();
+  });
+
   it('omits the duration when the trace has none', () => {
     render(<ExecutionTraceDisclosure trace={trace({ durationMs: undefined })} />);
     expect(screen.queryByText(/chat\.trace\.duration/)).not.toBeInTheDocument();

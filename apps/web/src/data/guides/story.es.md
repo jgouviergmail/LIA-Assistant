@@ -4,7 +4,7 @@
 
 **Versión**: 1.7
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.38.5
+**Aplicación**: LIA v1.38.6
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 44 dominios funcionales | **580.000** |
 | Tests automatizados, ejecutados en cada commit y entrega | **27.600+** |
-| Decisiones de arquitectura documentadas (ADR) | **255** |
-| Versiones entregadas a ritmo regular | **239** |
+| Decisiones de arquitectura documentadas (ADR) | **256** |
+| Versiones entregadas a ritmo regular | **240** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 255 documentadas:
+Tres decisiones estructurantes, entre las 256 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -114,6 +114,8 @@ El ciclo 1.31.0 desplazó la exigencia de prueba a un terreno nuevo: la estétic
 La misma exigencia acompañó la llegada de las apps nativas: en lugar de suponer lo que una WebView sabe hacer, un banco dedicado conduce la **aplicación real** en un emulador, escena por escena, desde la primera pantalla hasta olvidar un servidor mal escrito. Antes de su primer pase en verde ya había atrapado tres defectos reales — incluida una pantalla sin conexión que nunca cargaba en el único estado donde importa — que la compilación, la CI y todas las guardas estáticas habían bendecido.
 
 Y la lección más reciente llegó cuando todo estaba ya en verde. Se añadió un servidor de herramientas externo y una pregunta sencilla quedó sin respuesta: treinta de las cuarenta herramientas que publicaba nunca se construían, sin nada más que una advertencia que lo dijera. La causa se encontró rápido; lo que exigió método fue negarse a parar ahí. Arreglar el primero de los cuatro puntos defectuosos no habría cambiado nada — el defecto se habría limitado a bajar una línea. Después, con todas las suites en verde, una relectura en frío encontró cuatro defectos más, uno de ellos funcional e invisible para las pruebas, porque las pruebas codificaban el mismo error. Esa relectura también *canceló* una corrección: una regla de estilo que se creía incumplida y que ciento ocho archivos contradecían. Pasar las pruebas no es el final de una revisión; es la condición para empezarla.
+
+Un episodio posterior giró el método hacia fuera. En lugar de releer el código con los mismos ojos, se cribó un conjunto de investigación publicada y se usó como **rejilla de lectura**: no para importar una técnica, sino para plantear al sistema preguntas que no se estaba haciendo. Doce artículos de cerca de trescientos superaron ese filtro, y cada hipótesis que sugerían debía demostrarse — de forma ejecutable, contra el código de producción — antes de cambiar una sola línea. Cinco defectos sobrevivieron a la contraverificación, todos con la misma forma: dos subsistemas correctos cada uno en sus propios términos, compuestos en un comportamiento que ninguno poseía. La disciplina cortó en ambos sentidos, y ahí está justamente su interés: tres hipótesis del propio revisor quedaron desmentidas por las pruebas escritas para confirmarlas — una afirmación de coste que la caché del proveedor ya absorbía, un truncado creído ilimitado que un reductor limitaba desde siempre, y un defecto que se suponía agravado por la longitud de la conversación y que la medición mostró estrictamente constante. Una rejilla que solo confirma no es una rejilla.
 
 ## 7. Convicciones
 
