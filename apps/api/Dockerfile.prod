@@ -77,6 +77,21 @@ RUN set -eu; \
         echo "${out}: ${size} bytes"; \
     done
 
+# Silero VAD (~644 KB): the Whisper engine decodes only the first 30 s of a
+# buffer (measured 2026-09-02); the service cuts longer audio on the silences
+# this model finds. A missing file degrades to fixed windows, so the size floor
+# below is what makes the degradation impossible to ship by accident.
+WORKDIR /models/silero-vad
+RUN set -eu; \
+    curl -fL --http1.1 --retry 8 --retry-all-errors --retry-max-time 600 \
+         -A "lia-build (+https://github.com/jgouviergmail/LIA-Assistant)" \
+         -o silero_vad.onnx \
+         https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx; \
+    size="$(wc -c < silero_vad.onnx)"; \
+    [ "${size}" -ge 500000 ] || { \
+        echo "ERROR: silero_vad.onnx is ${size} bytes, expected at least 500000" >&2; exit 1; }; \
+    echo "silero_vad.onnx: ${size} bytes"
+
 # =============================================================================
 # GeoIP database download stage - DB-IP Lite City (free, CC-BY-4.0)
 # =============================================================================
@@ -229,8 +244,9 @@ WORKDIR /app
 # Copy installed dependencies from builder (Python packages + Playwright Chromium binaries)
 COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
-# Copy STT model from model-downloader stage
+# Copy STT models from model-downloader stage (Whisper + Silero VAD)
 COPY --from=model-downloader --chown=appuser:appuser /models/whisper-small /models/whisper-small
+COPY --from=model-downloader --chown=appuser:appuser /models/silero-vad /models/silero-vad
 
 # Copy GeoIP database from geoip-downloader stage
 COPY --from=geoip-downloader --chown=appuser:appuser /data/geoip /data/geoip
@@ -258,7 +274,7 @@ RUN mkdir -p /app/docs/knowledge
 # happens once, at volume creation. `data/skills/users` is gitignored, so it is
 # absent from the build context and must be created explicitly.
 # Enforced by tests/unit/test_volume_mount_ownership_guard.py.
-RUN mkdir -p /app/data/attachments /app/data/skills/users /app/data/tool_cache \
+RUN mkdir -p /app/data/attachments /app/data/skills/users /app/data/tool_cache /app/data/meetings \
     && chown -R appuser:appuser /app/data
 
 # Install Claude Code CLI for DevOps remote server management

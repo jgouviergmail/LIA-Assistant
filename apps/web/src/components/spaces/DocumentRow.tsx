@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Coins, FileText, FileType2, HardDriveDownload, Trash2 } from 'lucide-react';
+import { ClipboardList, Coins, FileText, FileType2, HardDriveDownload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DocumentProcessingStatus } from './DocumentProcessingStatus';
@@ -36,6 +36,11 @@ export function DocumentRow({ document: doc, onDelete, deleting }: DocumentRowPr
           {doc.source_type === 'drive' && (
             <Badge variant="outline" size="sm" icon={<HardDriveDownload className="h-2.5 w-2.5" />}>
               {t('spaces.drive.source_type_drive')}
+            </Badge>
+          )}
+          {doc.source_type === 'meeting' && (
+            <Badge variant="outline" size="sm" icon={<ClipboardList className="h-2.5 w-2.5" />}>
+              {t('spaces.meetings.source_type_meeting')}
             </Badge>
           )}
         </div>

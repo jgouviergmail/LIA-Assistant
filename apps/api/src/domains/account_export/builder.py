@@ -64,6 +64,9 @@ _REDACTED_COLUMNS: dict[str, frozenset[str]] = {
 # marker instead of failing the whole export.
 _DECRYPTED_COLUMNS: dict[str, frozenset[str]] = {
     "phone_calls": frozenset({"callee_phone"}),
+    # ADR-258: the meeting transcript rests encrypted (third parties' speech)
+    # and leaves the archive readable — it is the user's own record.
+    "meetings": frozenset({"transcript_encrypted"}),
 }
 
 # Tables whose rows resolve through a parent (no owner column of their own).

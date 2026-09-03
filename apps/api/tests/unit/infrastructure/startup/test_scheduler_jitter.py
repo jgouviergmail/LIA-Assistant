@@ -23,7 +23,12 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-_SCHEDULERS = pathlib.Path("src/infrastructure/startup/schedulers.py")
+#: The startup step AND every extracted registrar it calls — a job registered
+#: in a module this tuple does not name would escape the guard.
+_SCHEDULERS = (
+    pathlib.Path("src/infrastructure/startup/schedulers.py"),
+    pathlib.Path("src/infrastructure/startup/scheduler_meetings.py"),
+)
 
 #: Jobs that must stay on an exact cadence, with the reason each one earns it.
 #:
@@ -39,9 +44,13 @@ JITTER_EXEMPT: dict[str, str] = {
 
 def _interval_job_calls() -> list[ast.Call]:
     """Every ``add_job(..., trigger="interval", ...)`` in the startup step."""
-    tree = ast.parse(open(_SCHEDULERS, encoding="utf-8").read())
+    nodes = [
+        node
+        for path in _SCHEDULERS
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+    ]
     calls: list[ast.Call] = []
-    for node in ast.walk(tree):
+    for node in nodes:
         if not isinstance(node, ast.Call):
             continue
         func = node.func

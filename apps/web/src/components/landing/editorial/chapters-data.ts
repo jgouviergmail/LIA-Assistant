@@ -58,6 +58,7 @@ import {
   Terminal,
   Users,
   Repeat,
+  ClipboardList,
 } from 'lucide-react';
 
 export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow' | 'connect';
@@ -93,6 +94,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
       'multi_agent',
       'computed_answers',
       'telephony',
+      'meetings',
       'browser_control',
       'smart_home',
       'image_generation',
@@ -220,6 +222,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'habits',
   'reminders_scheduling',
   'telephony',
+  'meetings',
   'skills',
   'health_metrics',
   // creation & media
@@ -272,6 +275,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   habits: Repeat,
   reminders_scheduling: CalendarClock,
   telephony: PhoneCall,
+  meetings: ClipboardList,
   skills: Blocks,
   health_metrics: Activity,
   excalidraw: PenTool,

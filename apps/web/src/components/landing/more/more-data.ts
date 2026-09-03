@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 49 cards in
+ * Single source of truth for the "/more" small-attentions page: 53 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (51 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (53 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -17,6 +17,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Contrast,
+  Disc,
   MessageSquareCheck,
   Eclipse,
   Eye,
@@ -121,6 +122,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'image_expiry',
       'attachment_limits',
       'fix_commitment',
+      'meeting_banner',
     ],
   },
   {
@@ -190,6 +192,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   slash_commands: SlashSquare,
   paste_screenshot: ClipboardPaste,
   drop_zone: FileUp,
+  meeting_banner: Disc,
   expressive_eyes: Eye,
   followup_chips: MessageSquarePlus,
   scroll_return: ArrowDownCircle,
@@ -250,6 +253,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   slash_commands: [],
   paste_screenshot: [],
   drop_zone: [],
+  meeting_banner: ['recording', 'interrupted', 'resume'],
   expressive_eyes: [],
   followup_chips: ['chip1', 'chip2'],
   scroll_return: [],

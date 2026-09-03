@@ -20,11 +20,14 @@ import { CompanionPresence } from '@/components/companion/CompanionPresence';
 import { BroadcastProvider } from '@/lib/broadcast';
 import { BroadcastModal } from '@/components/broadcast';
 import { MobileNavMenu } from '@/components/dashboard/MobileNavMenu';
-import { DASHBOARD_DESTINATIONS, destinationPath } from '@/lib/dashboard-nav';
+import { MeetingRecorderProvider } from '@/components/meetings/MeetingRecorderProvider';
+import { useAppConfig } from '@/hooks/useAppConfig';
+import { destinationPath, visibleDestinations } from '@/lib/dashboard-nav';
 import type { DashboardDestination } from '@/lib/dashboard-nav';
 import { useTranslation } from '@/i18n/client';
 import {
   Bell,
+  ClipboardList,
   LayoutDashboard,
   Users,
   MessageSquare,
@@ -44,6 +47,7 @@ const DESTINATION_ICONS: Record<DashboardDestination['segment'], typeof LayoutDa
   '': LayoutDashboard,
   chat: MessageSquare,
   relations: Users,
+  meetings: ClipboardList,
   notifications: Bell,
   settings: Settings,
   faq: HelpCircle,
@@ -59,6 +63,11 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   const { user, isLoading, logout } = useAuth();
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
+  // ADR-258: the recorder lives here so a recording survives navigation.
+  const { config: appConfig } = useAppConfig(Boolean(user));
+  // ADR-258: the meetings destination exists only where the instance offers
+  // the feature — the same list feeds the desktop nav and the mobile menu.
+  const destinations = visibleDestinations(appConfig?.features);
   // Keep the backend's last-known location fed wherever the user navigates
   // (opt-in and throttle enforced inside; inert for anonymous visitors).
   useLastKnownLocationSync();
@@ -176,6 +185,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                   translate={t}
                   isActiveRoute={isActiveRoute}
                   triggerLabel={t('common.menu')}
+                  destinations={destinations}
                 />
               </div>
               <Link
@@ -190,7 +200,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                   mobile menu maps, as dashboard-nav.ts always claimed. The
                   hand-maintained copy here was the drift this kills. */}
               <nav className="hidden min-w-0 lg:flex items-center gap-1">
-                {DASHBOARD_DESTINATIONS.map(({ segment, labelKey }) => {
+                {destinations.map(({ segment, labelKey }) => {
                   const Icon = DESTINATION_ICONS[segment];
                   return (
                     <Link
@@ -205,8 +215,11 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                           163 px wider than five in German (measured in the
                           app's font), and five already clipped between 768 and
                           1024 px — the reason this nav starts at `lg` at all.
-                          The label stays the accessible name, so nothing is
-                          lost for assistive technology or on hover. */}
+                          The SEVENTH (meetings, ADR-258) was paid for on the
+                          controls side: the language shows its flag alone and
+                          the personality title waits for `2xl`. The label stays
+                          the accessible name, so nothing is lost for assistive
+                          technology or on hover. */}
                       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                       <span className="hidden xl:inline">{t(labelKey)}</span>
                     </Link>
@@ -260,7 +273,14 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
         <ConnectorHealthAlert lng={lng} />
 
         {/* Main Content - Reduced top spacing, no bottom padding for full-page apps */}
-        <main className="w-full max-w-7xl mx-auto pt-4 pb-0 px-4 sm:px-6 lg:px-8">{children}</main>
+        <main className="w-full max-w-7xl mx-auto pt-4 pb-0 px-4 sm:px-6 lg:px-8">
+          <MeetingRecorderProvider
+            lng={lng}
+            enabled={appConfig?.features?.meetings_enabled ?? false}
+          >
+            {children}
+          </MeetingRecorderProvider>
+        </main>
 
         {/* Onboarding Tutorial */}
         {showOnboarding && (

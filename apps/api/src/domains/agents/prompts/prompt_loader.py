@@ -206,6 +206,10 @@ PromptName = Literal[
     "voice_comment_prompt",
     # Document generation — dedicated whole-document writer (ADR-226)
     "document_generation_prompt",
+    # Meeting minutes synthesis (ADR-258) — LOADED by meetings/prompts.py (path-based
+    # read of this store, no agents import — same cycle break as telephony/documents).
+    "meeting_synthesis_prompt",
+    "meeting_condense_prompt",
 ]
 
 

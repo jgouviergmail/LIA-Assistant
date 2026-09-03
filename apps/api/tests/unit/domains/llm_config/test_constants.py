@@ -42,8 +42,9 @@ class TestLLMDefaults:
         + telephony_synthesis (ADR-127) + telephony_agent (ADR-127 routing fix)
         + open_loop_extraction (ADR-139) + document_generation (ADR-226)
         + diagnostician (self-diagnostics spec 2026-08-27)
+        + meeting_synthesis (ADR-258)
         - router and context_resolver (ADR-244: no get_llm() caller anywhere)."""
-        assert len(LLM_DEFAULTS) == 57
+        assert len(LLM_DEFAULTS) == 58
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

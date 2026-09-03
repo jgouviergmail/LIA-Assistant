@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 5.1
+**Version**: 5.2
 **Date**: 2026-08-23
-**Application**: LIA v1.38.6
+**Application**: LIA v1.39.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -207,6 +207,14 @@ You can also just ask, without opening the page: "when did I last call Marie?", 
 
 What remains is what no system can guess. LIA groups what is written the same, accents and capitals aside; it cannot know that a number jotted down one day and a name are the same person, or that "Dad" is anyone in particular. That is a judgement, and it is yours: you say it once, from the card, and it is **reversible** — the merge is shown with its own undo, and nothing is rewritten in your sources. A display grouping never changes who a message is addressed to, either.
 
+
+### 3.13. A meeting recorded, minutes written up
+
+Press **+** in the chat and your phone or your computer becomes the meeting's recorder. A banner follows you on every page with the time and what has already reached your server; you keep talking with LIA meanwhile — spoken answers simply pause so the microphone never hears the assistant. When you stop, LIA transcribes everything and writes the minutes **in your structure**: the head is fixed (date, times, place, participants), the body is yours — summary, topics, decisions, actions with owner and deadline, risks, open questions, or whatever sections you define once in Settings and reset in one click.
+
+Real life is designed in, not apologised for. Audio leaves in small segments as you speak, so a locked phone, a lost connection or a reload costs seconds, never the meeting: on return you resume, finalize or discard. A long silence gets a question, a maximum duration finalizes by itself, and a gap in the recording is stated in the minutes — never filled in with a guess. An unnamed voice stays S2; a name appears only when the recording establishes it.
+
+The minutes reach you three ways — a card in the chat, a PDF, your own mailbox — and join a **Meetings** knowledge space created for you, so weeks later you can simply ask what was decided. What it cost is written next to it: the transcription and the minutes as two amounts and their total, counted like any other exchange. And the transcription engine is yours to choose: a remote one that separates the speakers, or the local one that costs nothing and leaves your server never.
 
 ---
 

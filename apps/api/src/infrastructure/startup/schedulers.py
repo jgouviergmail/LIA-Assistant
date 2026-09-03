@@ -66,52 +66,13 @@ from src.infrastructure.scheduler.reminder_notification import process_pending_r
 from src.infrastructure.scheduler.scheduled_action_executor import process_scheduled_actions
 from src.infrastructure.scheduler.token_refresh import refresh_expiring_tokens
 from src.infrastructure.scheduler.unverified_account_cleanup import cleanup_unverified_accounts
+from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
+from src.infrastructure.startup.scheduler_meetings import register_meetings_jobs
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 logger = structlog.get_logger(__name__)
-
-
-#: Share of a job's period used as its random spread.
-#:
-#: Small enough that a job stays recognisably "every five minutes", wide enough
-#: that two jobs sharing a period stop landing on the same second.
-_JITTER_RATIO = 0.15
-
-#: Floor, in seconds. A percentage of a short period rounds to zero, which would
-#: leave the FASTEST jobs perfectly aligned — precisely the ones that collide
-#: most often.
-_JITTER_FLOOR_SECONDS = 5
-
-
-def jitter_seconds_for(*, hours: float = 0, minutes: float = 0, seconds: float = 0) -> int:
-    """Random spread to give an interval job of this period.
-
-    Interval triggers all start counting at scheduler start, so periods that
-    share a divisor align forever. Measured in production on 2026-09-01: the
-    periods were 5, 5, 15, 30, 30 and 60 minutes, and six jobs fired inside the
-    same second every hour — each one running an agent, each agent issuing
-    several embeddings, against a provider quota that tolerates the volume but
-    not the concentration.
-
-    Args:
-        hours: Period in hours.
-        minutes: Period in minutes; added to ``hours``.
-        seconds: Period in seconds; added to the rest.
-
-    Returns:
-        Seconds of jitter, always strictly under the period so two consecutive
-        runs can neither overlap nor invert. Zero for a non-positive period —
-        startup must not fail on arithmetic, and a bad interval is already the
-        settings layer's job to report.
-    """
-    period = hours * 3600 + minutes * 60 + seconds
-    if period <= 0:
-        return 0
-    spread = max(_JITTER_FLOOR_SECONDS, int(period * _JITTER_RATIO))
-    # Never reach the period itself: at equality a run could land on the next.
-    return min(spread, max(1, int(period) - 1))
 
 
 async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
@@ -609,6 +570,11 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 stale_interval_minutes=settings.telephony_stale_reaper_interval_minutes,
                 notification_interval_minutes=settings.telephony_notification_reaper_interval_minutes,
             )
+
+        # Meetings (ADR-258): registration lives in scheduler_meetings.py (this
+        # file is frozen at its size cap); the flag and the ORDER stay here.
+        if getattr(settings, "meetings_enabled", False):
+            register_meetings_jobs(scheduler)
 
         # RAG durable-job recovery (audit F001): requeue upload/processing jobs a
         # crash stranded (stuck PROCESSING / orphaned PENDING). An immediate first

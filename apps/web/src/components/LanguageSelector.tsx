@@ -8,7 +8,6 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   DropdownMenu,
@@ -91,20 +90,20 @@ export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
         <Button
           variant="ghost"
           size="sm"
-          // `min-w-11` because below `xl` the label collapses to a single flag
-          // glyph: the height was already 44 px, the WIDTH fell to 39 and the
-          // target failed on a phone (measured 2026-08-01 at 390 px).
+          // `min-w-11` because the trigger is a single flag glyph: the height
+          // was already 44 px, the WIDTH fell to 39 and the target failed on a
+          // phone (measured 2026-08-01 at 390 px).
           className="gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2"
-          // Below `xl` only the flag renders (the header row cannot fit the
-          // language name next to the nav), and a flag emoji is not an
-          // accessible name — carry it explicitly, with the current value.
+          // The flag alone renders at EVERY width (owner arbitration 2026-09-03,
+          // when a seventh destination joined the nav: the language name was
+          // the label the row could spare — the popup names every language),
+          // and a flag emoji is not an accessible name — carry it explicitly,
+          // with the current value.
           aria-label={t('settings.language.selector_label', {
             name: languageNames[currentLocale].native,
           })}
         >
-          <Globe className="hidden xl:block h-4 w-4" />
-          <span className="hidden xl:inline">{languageNames[currentLocale].native}</span>
-          <span className="xl:hidden">{languageFlags[currentLocale]}</span>
+          <span aria-hidden="true">{languageFlags[currentLocale]}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

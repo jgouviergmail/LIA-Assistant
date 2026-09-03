@@ -639,6 +639,17 @@ VOICE_STT_NUM_THREADS=4
 VOICE_STT_LANGUAGE=              # Auto-detect si vide
 VOICE_STT_TASK=transcribe        # transcribe | translate
 VOICE_STT_MAX_DURATION_SECONDS=60
+# Audio long : le moteur Whisper de sherpa-onnx ne décode que les 30 premières
+# secondes d'un buffer et jette le reste (mesuré le 2026-09-02). Au-delà du
+# plafond « une passe », le service découpe l'audio en fenêtres alignées sur les
+# silences (Silero VAD) ; les deux plafonds restent sous 30 s. Modèle VAD absent
+# = fenêtres fixes (dégradé), jamais une troncature.
+VOICE_STT_SINGLE_PASS_MAX_SECONDS=25
+VOICE_STT_WINDOW_SECONDS=20
+VOICE_STT_VAD_MODEL_PATH=/models/silero-vad/silero_vad.onnx
+VOICE_STT_VAD_THRESHOLD=0.5
+VOICE_STT_VAD_MIN_SILENCE_SECONDS=0.4
+VOICE_STT_VAD_MIN_SPEECH_SECONDS=0.25
 
 # WebSocket
 VOICE_WS_TICKET_TTL_SECONDS=60

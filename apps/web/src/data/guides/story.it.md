@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 1.7
+**Versione**: 1.8
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.38.6
+**Applicazione**: LIA v1.39.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 44 domini funzionali | **580.000** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **27.600+** |
-| Decisioni di architettura documentate (ADR) | **256** |
-| Versioni rilasciate a ritmo regolare | **240** |
+| Decisioni di architettura documentate (ADR) | **257** |
+| Versioni rilasciate a ritmo regolare | **241** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 256 documentate:
+Tre decisioni strutturanti, tra le 257 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -116,6 +116,8 @@ La stessa esigenza ha accompagnato l'arrivo delle app native: invece di presumer
 E la lezione più recente è arrivata quando tutto era già verde. È stato aggiunto un server di strumenti esterno e una domanda semplice è rimasta senza risposta: trenta dei quaranta strumenti che pubblicava non venivano mai costruiti, senza altro che un avviso a dirlo. La causa è stata trovata in fretta; ciò che ha richiesto metodo è stato rifiutare di fermarsi lì. Correggere il primo dei quattro punti difettosi non avrebbe cambiato nulla — il difetto si sarebbe semplicemente spostato di una riga. Poi, con tutte le suite in verde, una rilettura a freddo ha trovato altri quattro difetti, uno dei quali funzionale e invisibile ai test, perché i test codificavano lo stesso errore. Quella rilettura ha anche *annullato* una correzione: una regola di stile che si credeva infranta e che centotto file smentivano. Superare i test non è la fine di una revisione; è la condizione per iniziarla.
 
 Un episodio successivo ha rivolto il metodo verso l'esterno. Invece di rileggere il codice con gli stessi occhi, un insieme di ricerca pubblicata è stato selezionato e usato come **griglia di lettura**: non per importare una tecnica, ma per porre al sistema domande che non si stava ponendo. Dodici articoli su quasi trecento hanno superato quel filtro, e ogni ipotesi che suggerivano doveva essere dimostrata — in modo eseguibile, sul codice di produzione — prima che cambiasse una sola riga. Cinque difetti sono sopravvissuti alla controverifica, tutti della stessa forma: due sottosistemi corretti ciascuno secondo i propri termini, composti in un comportamento che nessuno dei due possedeva. La disciplina ha tagliato in entrambe le direzioni, ed è proprio questo il punto: tre ipotesi dello stesso revisore sono state smentite dai test scritti per confermarle — un'affermazione sui costi che la cache del fornitore già assorbiva, un troncamento creduto illimitato che un riduttore limitava da sempre, e un difetto che si supponeva peggiorasse con la lunghezza della conversazione e che la misura ha mostrato rigorosamente costante. Una griglia che si limita a confermare non è una griglia.
+
+Il ciclo dei verbali di riunione ha chiuso il cerchio nell'altro senso: tutto era verde — ventimila test sul backend, quasi settemila sul frontend, ogni cricchetto teneva — e la funzionalità non era mai girata. È stata quindi condotta da un capo all'altro contro i container di sviluppo, attraverso il suo stesso contratto HTTP, cinque volte. Le prove hanno trovato quattro difetti che nessuna suite unitaria poteva vedere, perché ciascuno viveva dove due parti corrette si incontrano: una lettura che restituiva la riga com'era prima di un aggiornamento massivo, un guasto del fornitore che faceva fallire una riunione mentre il motore successivo aspettava un gradino più in basso, un prezzo pari a zero per un modello che semplicemente non aveva prezzo, e una riunione eliminata che lasciava il suo verbale nello spazio di conoscenza. Ciascuno è tornato con un test; nessuno sarebbe stato trovato leggendo. La lezione dei cicli precedenti ha tenuto nella sua forma più rigorosa — superare i test è la condizione per iniziare una revisione, e una revisione non è finita finché il sistema non è stato fatto girare.
 
 ## 7. Convinzioni
 

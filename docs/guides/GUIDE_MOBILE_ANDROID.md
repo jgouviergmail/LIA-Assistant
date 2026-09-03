@@ -60,7 +60,7 @@ headers** — the probe imports them from
 | Service Worker (offline shell, ADR-146) | **yes**, scope `/` |
 | Notifications / Push API | **absent** → push must be native |
 | `crossOriginIsolated` / `SharedArrayBuffer` | **absent**, even under COEP `require-corp` → **no wake word** |
-| `getUserMedia`, `MediaRecorder`, geolocation | **yes** |
+| `getUserMedia`, `MediaRecorder`, geolocation | **yes** — the API exists; an actual capture also needs `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS` in the manifest overlay (`apps/mobile/native/android/…/AndroidManifest.xml`), which Capacitor checks before granting the WebView's `AUDIO_CAPTURE` request. The bench only measures presence. |
 
 Two consequences worth stating plainly:
 

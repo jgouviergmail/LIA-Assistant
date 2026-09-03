@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 4.6
+**Versione**: 4.7
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.38.6
+**Applicazione**: LIA v1.39.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -51,6 +51,7 @@
 35. [Misurare un colore prima di consegnarlo: la tavolozza delle impostazioni](#35-misurare-un-colore-prima-di-consegnarlo-la-tavolozza-delle-impostazioni)
 36. [Un tratto non è una reazione: il registro dichiarato dalla risposta](#36-un-tratto-non-è-una-reazione-il-registro-dichiarato-dalla-risposta)
 37. [Tre meccanismi per una convergenza: smorzare una raffica che un tetto non vede](#37-tre-meccanismi-per-una-convergenza-smorzare-una-raffica-che-un-tetto-non-vede)
+38. [Verbali di riunione: la riga è il job, il modello è il contratto](#38-verbali-di-riunione-la-riga-è-il-job-il-modello-è-il-contratto)
 ---
 
 ## 1. Contesto e scelte fondanti
@@ -64,8 +65,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 499 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 256 ADRs, ~22.199 test raccolti da pytest in 1.311 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 506 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 257 ADRs, ~22.199 test raccolti da pytest in 1.311 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -86,7 +87,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Test | 22.199 raccolti da pytest su 1.311 file di test + 6.693 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 256 |
+| ADR (Architecture Decision Record) | 257 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -919,7 +920,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 499 metriche custom (RED pattern) |
+| Prometheus | 506 metriche custom (RED pattern) |
 | Grafana | 26 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -927,7 +928,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 | Alertmanager | Nucleo di 14 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) + webhook verso LIA: ogni avviso diventa un incidente nel prodotto (ADR-247) |
 | structlog | Logging strutturato con filtraggio PII |
 
-**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 499 definite; le 57 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
+**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 506 definite; le 57 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
 
 ### 20.2. Debug Panel integrato
 
@@ -1331,7 +1332,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-256 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+257 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1437,7 +1438,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 256 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~22.199 test in 1.311 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 257 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~22.199 test in 1.311 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1537,4 +1538,15 @@ Il volto del compagno sceglieva la propria espressione di fine turno dall'emozio
 
 **E ciò che non si misura non si vede.** Il contatore delle chiamate al fornitore diventa il denominatore sbagliato non appena si riprova: un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. «Stato della piattaforma» conta quindi gli **esiti** — una riga per operazione logica, ritentativi ripiegati — e un secondo contatore dice cosa ha fatto la regolazione di ogni tentativo, perché «budget troppo piccolo» e «Redis caduto» richiedono azioni opposte.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 256 ADRs e del changelog (da v1.0 a v1.38.6). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+## 38. Verbali di riunione: la riga è il job, il modello è il contratto
+
+**Una riunione sono ore di audio prodotte su un dispositivo che può addormentarsi, perdere la rete o essere chiuso per errore — la cattura è quindi progettata per il guasto, non per il caso nominale.** Il browser registra in brevi segmenti e carica ciascuno come richiesta a corpo grezzo appena esiste; un segmento è un file sul server, scritto con un nome temporaneo e rinominato atomicamente, così quattro worker dell'API possono ricevere fuori ordine senza mai intrecciare byte, un caricamento duplicato è una sovrascrittura innocua e rilevare una lacuna è elencare una cartella. Due sorgenti stanno dietro un'unica interfaccia: Opus tramite `MediaRecorder` dove il motore è affidabile, PCM grezzo a 16 kHz tramite l'AudioWorklet che l'input vocale usa già ovunque — l'unica via sui dispositivi Apple, il cui registratore produceva un contenitore che il backend rifiuta e si comportava male nelle app della schermata iniziale. Il formato è una funzione pura dell'ambiente, decisa una volta prima del primo byte. I caricamenti partono in ordine, ritentano con un arretramento che non rinuncia mai finché dura la registrazione e aspettano — non falliscono — mentre il browser è offline; uno stop dichiara il conteggio proprio della coda, e le sequenze che il server non ha mai ricevuto sono rifiutate per nome.
+
+**La riga della riunione è il job durevole.** Il suo stato porta tutto il ciclo di vita — registrazione, interrotta, fermata, in elaborazione, pronta o fallita — e ogni transizione è un singolo `UPDATE` condizionale. La rivendicazione dell'elaborazione prende un lease, i battiti lo rinnovano pubblicando la fase che la pagina mostra (normalizzazione, trascrizione, sintesi, indicizzazione), un battito perduto interrompe ogni effetto successivo, e i mietitori rilanciano gli orfani fermati e i lease scaduti entro un budget di tentativi limitato. I rifiuti che non sono guasti della pipeline — un limite d'uso, nessun motore disponibile — rilasciano il job senza consumare un tentativo. E poiché un aggiornamento massivo lascia obsoleta l'identity map di SQLAlchemy, ogni lettura che lo segue fa prima scadere la sessione: la prova a runtime ha misurato uno stop che rispondeva `status: recording` prima che quella regola esistesse.
+
+**I motori formano una catena, e la catena viene percorsa due volte.** Una prima del primo secondo, dalla sola cache delle chiavi dei fornitori: lo slot vocale dell'amministratore, poi ElevenLabs Scribe o OpenAI `gpt-4o-transcribe-diarize` — file intero, voci separate —, poi il Whisper locale. Il percorso locale decodificava una finestra di trenta secondi e restituiva in silenzio i primi trenta secondi di tutto ciò che durava di più; un comando vocale non incontrava mai il difetto, una riunione l'avrebbe incontrato sempre. L'audio lungo è ora tagliato da Silero VAD in finestre di parlato di al massimo venti secondi, ciascuna decodificata da sola, con finestre fisse quando il modello manca — mai troncamento. La catena viene ripercorsa all'elaborazione: un guasto permanente di un fornitore (chiave rifiutata, file troppo grande) passa al motore successivo entro la preferenza dell'utente; solo il silenzio, che dice qualcosa dell'audio, o un guasto transitorio, che appartiene al budget dei tentativi, ferma il percorso. L'istanza di sviluppo conservava un identificativo di chiave al posto di una chiave; senza il secondo percorso ogni riunione sarebbe fallita con una chiave OpenAI un gradino più in basso.
+
+**Il modello è il contratto, e al modello linguistico non si crede byte per byte.** Le sezioni dell'utente — chiave, etichetta, istruzione, tipo — sono rese in un'unica chiamata a output strutturato; quando la trascrizione supera la finestra del modello, viene prima condensata per parti, così un modello da 128k produce ancora verbali fedeli per tre ore di riunione. Il modello risponde in una forma permissiva, e un passo di riparazione la ripiega nel rapporto rigoroso: le sezioni saltate tornano vuote, quelle inventate sono scartate, un contenuto nella forma sbagliata per il suo tipo è convertito, i partecipanti sono limitati alle etichette che hanno davvero parlato. Il rapporto generato è immutabile; ciò che l'utente modifica è una copia, «ripristina» ricopia, «ricostruisci» riesegue la sintesi sulla trascrizione conservata con il modello corrente. Un unico serializzatore produce il Markdown che lo spazio di conoscenza «Riunioni» indicizza (trovato per ruolo, un documento per riunione riscritto sul posto ed eliminato con essa), il contenuto a sezioni che il renderer PDF trasforma in file e l'HTML che l'e-mail trasporta — così i tre non possono mai contraddirsi.
+
+**Ogni unità pagata è contabilizzata, e mostrata.** Una riunione spende audio presso il motore di trascrizione e token presso il modello di sintesi, passaggi di condensazione e ricostruzioni compresi; entrambi raggiungono i registri della piattaforma come ogni scambio — l'audio tramite le statistiche del riconoscimento remoto, i token sotto un `run_id` che il messaggio archiviato porta, così la cronologia si unisce al registro dei token esattamente come per ogni notifica proattiva. La riga conserva la spesa propria del verbale perché la pagina dichiari il totale esatto con la sua scomposizione, la scheda dichiara le due unità e la loro somma, e un modello senza tariffa amministrata restituisce `null`: un prezzo sconosciuto non è un prezzo gratuito. La stessa onestà attraversa il verbale stesso — una lacuna è dichiarata, mai colmata; un interlocutore senza nome resta S2; una proposta rimasta aperta non è una decisione.
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 257 ADRs e del changelog (da v1.0 a v1.39.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

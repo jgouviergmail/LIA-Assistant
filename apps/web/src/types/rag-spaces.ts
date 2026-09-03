@@ -15,7 +15,7 @@ export type RAGDocumentStatus = 'pending' | 'processing' | 'ready' | 'error' | '
 export type RAGDriveSyncStatus = 'idle' | 'syncing' | 'completed' | 'error';
 
 /** Document source type. */
-export type RAGDocumentSourceType = 'upload' | 'drive';
+export type RAGDocumentSourceType = 'upload' | 'drive' | 'meeting';
 
 /** Single RAG document within a space. */
 export interface RAGDocument {

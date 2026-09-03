@@ -533,6 +533,16 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=["structured_output"],
         power_tier=POWER_TIER_HIGH,
     ),
+    # Meeting minutes (ADR-258): one structured-output call over a whole
+    # transcript (an hour of speech is ~12-15k tokens) filling the user's template.
+    "meeting_synthesis": LLMTypeMetadata(
+        llm_type="meeting_synthesis",
+        display_name="Meeting Minutes Synthesis",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.meeting_synthesis",
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_HIGH,
+    ),
     # Voice STT (when user opts into the remote provider for the voice mode).
     # Token-based sampling caps don't apply (STT is audio-billed); the
     # admin form should hide them for kind=audio rows.
@@ -1139,6 +1149,19 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=16000,
         timeout_seconds=120.0,
+    ),
+    # Meeting minutes (ADR-258) — gpt-4.1 like document generation: a 1M-token
+    # window swallows a three-hour transcript, the pricing rows are active, and
+    # structured output is native. Low temperature: minutes report, never invent.
+    "meeting_synthesis": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1",
+        temperature=0.2,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=8000,
+        timeout_seconds=180.0,
     ),
     # Voice STT — ElevenLabs Scribe v2 by default ($0.22/hour). The sampling
     # parameters are not consumed by the STT API (no token sampling); they

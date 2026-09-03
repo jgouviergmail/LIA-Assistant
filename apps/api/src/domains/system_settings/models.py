@@ -70,6 +70,7 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_SKILLS_ENABLED = "capability_skills_enabled"
     CAPABILITY_MCP_ENABLED = "capability_mcp_enabled"
     CAPABILITY_TELEPHONY_ENABLED = "capability_telephony_enabled"
+    CAPABILITY_MEETINGS_ENABLED = "capability_meetings_enabled"
 
     # Whether the landing advertises the public demonstrator. Off by default:
     # a fresh instance never advertises a demonstrator it does not run. Read

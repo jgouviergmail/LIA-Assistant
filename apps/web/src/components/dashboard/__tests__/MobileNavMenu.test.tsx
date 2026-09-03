@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import { DASHBOARD_DESTINATIONS, destinationPath } from '@/lib/dashboard-nav';
+import { DASHBOARD_DESTINATIONS, destinationPath, visibleDestinations } from '@/lib/dashboard-nav';
 
 import { MobileNavMenu } from '../MobileNavMenu';
 
@@ -137,3 +137,38 @@ describe('DASHBOARD_DESTINATIONS — the contract', () => {
     }
   });
 });
+
+describe('MobileNavMenu — instance-gated destinations (ADR-258)', () => {
+  it('renders exactly the destinations the layout hands it', async () => {
+    const { user } = renderWithProviders(
+      <MobileNavMenu
+        buildHref={buildHref}
+        translate={translate}
+        isActiveRoute={() => false}
+        triggerLabel="Menu"
+        destinations={visibleDestinations({ meetings_enabled: false })}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.queryByRole('menuitem', { name: 'navigation.meetings' })).not.toBeInTheDocument();
+    expect(await screen.findAllByRole('menuitem')).toHaveLength(DASHBOARD_DESTINATIONS.length - 1);
+  });
+
+  it('offers the meetings page where the instance has the feature on', async () => {
+    const { user } = renderWithProviders(
+      <MobileNavMenu
+        buildHref={buildHref}
+        translate={translate}
+        isActiveRoute={() => false}
+        triggerLabel="Menu"
+        destinations={visibleDestinations({ meetings_enabled: true })}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(await screen.findByRole('menuitem', { name: 'navigation.meetings' })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/meetings'
+    );
+  });
+});
+

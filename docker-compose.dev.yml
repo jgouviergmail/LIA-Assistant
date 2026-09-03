@@ -177,6 +177,8 @@ services:
       - ssl_certs:/certs:ro  # Shared SSL certificates (kept for future use)
       # Persistent storage for file attachments (images, PDF)
       - attachments_data:/app/data/attachments
+      # Meeting recordings (segments while recording, normalized audio; ADR-258)
+      - meetings_data:/app/data/meetings
       # Skills directories (full bind-mount for dev — both system and user skills editable)
       - ./data/skills:/app/data/skills
       # DevOps Claude CLI: Docker socket for container management + auth + workspace
@@ -850,6 +852,7 @@ volumes:
   langfuse_clickhouse_logs:
   minio_data:
   attachments_data:  # Persistent storage for file attachments (images, PDF)
+  meetings_data:  # Meeting recordings (ADR-258): segments, normalized audio, kept audio
 
 networks:
   lia-network:

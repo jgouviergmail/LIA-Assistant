@@ -183,6 +183,8 @@ services:
       - ./apps/api/config:/app/config:ro
       # Persistent storage for file attachments (images, PDF)
       - attachments_data:/app/data/attachments
+      # Meeting recordings (segments while recording, normalized audio; ADR-258)
+      - meetings_data:/app/data/meetings
       # System knowledge files for FAQ RAG indexation (read-only)
       - ./docs/knowledge:/app/docs/knowledge:ro
       # Per-alert runbooks grounding the self-diagnostics LLM step (read-only,
@@ -733,6 +735,7 @@ volumes:
   tempo_data:  # Trace storage (7-day retention, auto-compacted)
   promtail_positions:
   attachments_data:  # Persistent storage for file attachments (images, PDF)
+  meetings_data:  # Meeting recordings (ADR-258): segments, normalized audio, kept audio
   skills_data:  # Persistent storage for user-imported skills
   tool_cache_data:  # Tool-embeddings disk cache (must survive --force-recreate)
   portainer_data:

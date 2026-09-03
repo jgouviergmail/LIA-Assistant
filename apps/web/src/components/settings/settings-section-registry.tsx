@@ -69,6 +69,7 @@ import { ScheduledActionsSettings } from './ScheduledActionsSettings';
 import { SecuritySettings } from './SecuritySettings';
 import { SkillsSettings } from './SkillsSettings';
 import TelephonyCallsSection from './TelephonyCallsSection';
+import { MeetingsSettings } from './MeetingsSettings';
 import { TimezoneSelector } from './TimezoneSelector';
 import UserConnectorsSection from './UserConnectorsSection';
 import { UserDebugSettings } from './UserDebugSettings';
@@ -153,6 +154,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   skills: { feature: 'skills', render: lng => <SkillsSettings lng={lng} /> },
   plugins: { feature: 'plugins', render: lng => <PluginsSettings lng={lng} /> },
   'rag-spaces': { feature: 'rag-spaces', render: lng => <SpacesSettingsSection lng={lng} /> },
+  meetings: { feature: 'meetings', render: lng => <MeetingsSettings lng={lng} /> },
   'user-consumption-export': {
     feature: 'user-consumption-export',
     render: lng => <ConsumptionExportSection lng={lng} mode="user" />,

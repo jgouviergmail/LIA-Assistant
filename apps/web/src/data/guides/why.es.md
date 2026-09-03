@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 5.1
+**Versión**: 5.2
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.38.6
+**Aplicación**: LIA v1.39.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -207,6 +207,14 @@ También puedes preguntarlo sin abrir la página: cuándo fue la última llamada
 
 Queda lo que ningún sistema puede adivinar. LIA agrupa lo que se escribe igual, salvando acentos y mayúsculas; no puede saber que un número anotado un día y un nombre son la misma persona, ni quién es exactamente «Papá». Eso es un juicio, y te corresponde: lo dices una vez, desde la ficha, y es **reversible** — la fusión se muestra con su propia opción de deshacer y no se reescribe nada en tus fuentes. Además, una agrupación de visualización nunca cambia a quién va dirigido un mensaje.
 
+
+### 3.13. Una reunión grabada, un acta redactada
+
+Pulsa **+** en el chat y tu teléfono o tu ordenador se convierte en la grabadora de la reunión. Un banner te acompaña en cada página con el tiempo y lo que ya ha llegado a tu servidor; mientras tanto sigues hablando con LIA — las respuestas habladas simplemente se pausan para que el micrófono nunca oiga al asistente. Cuando paras, LIA transcribe todo y redacta el acta **con tu estructura**: la cabecera es fija (fecha, horas, lugar, participantes), el cuerpo es tuyo — resumen, temas, decisiones, acciones con responsable y plazo, riesgos, preguntas abiertas, o las secciones que definas una vez en Ajustes y restablezcas con un clic.
+
+La vida real está prevista, no excusada. El audio sale en pequeños segmentos mientras hablas, de modo que un teléfono bloqueado, una conexión perdida o una recarga cuestan segundos, nunca la reunión: al volver reanudas, finalizas o descartas. Un largo silencio recibe una pregunta, una duración máxima finaliza por sí sola, y una laguna en la grabación se declara en el acta — nunca se rellena con una suposición. Una voz sin nombre sigue siendo S2; un nombre aparece solo cuando la grabación lo establece.
+
+El acta te llega por tres caminos — una tarjeta en el chat, un PDF, tu propio buzón — y se une a un espacio de conocimiento **Reuniones** creado para ti, para que semanas después puedas simplemente preguntar qué se decidió. Lo que costó está escrito al lado: la transcripción y el acta como dos importes y su total, contados como cualquier otro intercambio. Y el motor de transcripción lo eliges tú: uno remoto que separa a los interlocutores, o el local que no cuesta nada y nunca sale de tu servidor.
 
 ---
 

@@ -68,6 +68,16 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-09-03 after the meeting recording
+        // lot (ADR-258: the recorder state machine under fakes, the ordered
+        // uploader and its settled count, the two audio sources' pure parts,
+        // the banner, the provider's coarse context, the editors, the
+        // read-only view, the settings section and both pages — ~330 new
+        // tests):
+        // statements 77.39 / branches 72.78 / functions 74.40 / lines 78.14.
+        // Unchanged 75/70/72/76 (floor(measured - 2) per axis — no axis
+        // crosses an integer step; the margin fell under two points on three
+        // axes mid-lot and the detail page and view suites restored it).
         // Global floor — re-measured 2026-09-02 after the execution-trace
         // head+tail retention lot (ADR-257 Lot C: capTraceSteps shared by the
         // reducer and the hydration path, the omitted-steps count, and the

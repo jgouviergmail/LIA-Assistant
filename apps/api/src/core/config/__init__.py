@@ -54,6 +54,7 @@ from .llm import (
 )
 from .locks import LocksSettings
 from .mcp import MCPSettings
+from .meetings import MeetingsSettings
 from .mfa import MFASettings
 from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
@@ -135,6 +136,7 @@ class Settings(
     LocksSettings,
     BackgroundRunsSettings,
     TelephonySettings,
+    MeetingsSettings,
     MFASettings,
     AccountExportSettings,
     ProductSettings,
@@ -174,6 +176,7 @@ class Settings(
         22. LocksSettings (Distributed locks: OAuth refresh)
         23. MFASettings (Strong authentication: WebAuthn passkeys, TOTP)
         24. AccountExportSettings (GDPR full-account export jobs)
+        24b. MeetingsSettings (meeting recording & structured minutes, ADR-258)
         25. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
@@ -451,6 +454,7 @@ __all__ = [
     "LocksSettings",
     "MFASettings",
     "AccountExportSettings",
+    "MeetingsSettings",
     "PushRelaySettings",
     "PushSettings",
 ]

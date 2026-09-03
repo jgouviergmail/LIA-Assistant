@@ -168,6 +168,10 @@ INSERT INTO llm_models (
     ('elevenlabs', 'eleven_turbo_v2_5', 40000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('elevenlabs', 'scribe_v1', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
     ('elevenlabs', 'scribe_v2', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
+    -- OpenAI transcription models (ADR-258): the meetings fallback engine when no
+    -- ElevenLabs key exists. Audio-billed per minute; `-diarize` returns speakers.
+    ('openai', 'gpt-4o-transcribe-diarize', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
+    ('openai', 'gpt-4o-mini-transcribe', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
     ('edge', 'edge-tts', 1, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true)
 ON CONFLICT (model_name) DO NOTHING;
 
@@ -309,6 +313,8 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('qwen3.8-max', 1.650000, 0.206000, 4.951000, 'per_1m_tokens', '2026-08-03T16:34:15.770220+00:00', false),
     ('qwen3.8-max', 1.650000, 0.206000, 4.951000, 'per_1m_tokens', '2026-08-15T07:27:33.896260+00:00', true),
     ('qwen3-max', 0.359000, 0.240000, 1.434000, 'per_1m_tokens', '2026-04-03T20:03:46.404402+00:00', true),
+    ('gpt-4o-mini-transcribe', 0.003000, NULL, 0.000000, 'per_audio_minute', '2026-09-02T12:00:00+00:00', true),
+    ('gpt-4o-transcribe-diarize', 0.006000, NULL, 0.000000, 'per_audio_minute', '2026-09-02T12:00:00+00:00', true),
     ('scribe_v1', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:19:14.990416+00:00', false),
     ('scribe_v1', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:20:54.056007+00:00', true),
     ('scribe_v2', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:19:49.791524+00:00', false),

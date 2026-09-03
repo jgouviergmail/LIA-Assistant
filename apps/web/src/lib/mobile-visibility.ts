@@ -127,18 +127,12 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
     location: 'components/PersonalitySelector',
     kind: 'action',
     tier: 'substituted',
-    minWidth: 1280,
+    minWidth: 1536,
     substitute: 'The personality emoji, with an aria-label stating the current value.',
-    reason: 'The label cannot sit next to the nav below 1280 px; the control itself stays.',
-  },
-  {
-    id: 'header-language-label',
-    location: 'components/LanguageSelector',
-    kind: 'action',
-    tier: 'substituted',
-    minWidth: 1280,
-    substitute: 'The language flag, with an aria-label stating the current value.',
-    reason: 'The label cannot sit next to the nav below 1280 px; the control itself stays.',
+    reason:
+      'The label cannot sit next to seven nav labels below 1536 px (ADR-258 added the ' +
+      'meetings destination); the control itself stays. The language control gave up its ' +
+      'label at every width instead — the popup names the languages.',
   },
   {
     id: 'chat-reset-label',

@@ -38,6 +38,7 @@ const VARIANT_FOR_WIDTH: Record<number, string> = {
   880: 'mobile:',
   1024: 'lg:',
   1280: 'xl:',
+  1536: '2xl:',
 };
 
 /** Expand a `location` such as `dir/{A,B}Settings` into concrete file paths. */
@@ -68,7 +69,7 @@ describe('MOBILE_SURFACES — table integrity', () => {
   it('uses only the project breakpoints', () => {
     // 380 is the measured band where the header controls stop fitting (S10);
     // the rest are Tailwind's, plus the project's own `mobile` = 880.
-    const allowed = new Set([380, 640, 768, 880, 1024, 1280]);
+    const allowed = new Set([380, 640, 768, 880, 1024, 1280, 1536]);
     for (const surface of MOBILE_SURFACES) {
       if (surface.minWidth === null) continue;
       expect(
@@ -250,7 +251,8 @@ describe('Q3 — only observation may be dropped outright', () => {
 
 describe('surfacesHiddenBelow — what a given width loses', () => {
   it('lists nothing at the widest breakpoint', () => {
-    expect(surfacesHiddenBelow(1280).filter(s => s.minWidth !== null && s.minWidth > 1280)).toEqual(
+    // 2xl (1536 px) since ADR-258 moved the personality title there.
+    expect(surfacesHiddenBelow(1536).filter(s => s.minWidth !== null && s.minWidth > 1536)).toEqual(
       []
     );
   });

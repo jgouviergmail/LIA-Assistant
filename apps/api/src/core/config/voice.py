@@ -44,11 +44,18 @@ from src.core.constants import (
     VOICE_STT_MAX_DURATION_SECONDS_DEFAULT,
     VOICE_STT_MODEL_PATH_DEFAULT,
     VOICE_STT_NUM_THREADS_DEFAULT,
+    VOICE_STT_SINGLE_PASS_MAX_SECONDS_DEFAULT,
     VOICE_STT_TASK_DEFAULT,
+    VOICE_STT_VAD_MIN_SILENCE_SECONDS_DEFAULT,
+    VOICE_STT_VAD_MIN_SPEECH_SECONDS_DEFAULT,
+    VOICE_STT_VAD_MODEL_PATH_DEFAULT,
+    VOICE_STT_VAD_THRESHOLD_DEFAULT,
+    VOICE_STT_WINDOW_SECONDS_DEFAULT,
     VOICE_WS_IDLE_TIMEOUT_SECONDS_DEFAULT,
     VOICE_WS_RATE_LIMIT_MAX_CALLS_DEFAULT,
     VOICE_WS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     VOICE_WS_TICKET_TTL_SECONDS_DEFAULT,
+    WHISPER_ENGINE_MAX_SECONDS,
 )
 
 
@@ -278,6 +285,64 @@ class VoiceSettings(BaseSettings):
         le=300,
         description="Maximum audio duration per transcription request (seconds). "
         "Longer audio is rejected to prevent memory exhaustion.",
+    )
+
+    # ------------------------------------------------------------------------
+    # Long audio: the engine keeps only 30 s per decode (measured), so anything
+    # above the single-pass cap is cut into VAD-aligned windows. Both caps are
+    # bounded strictly under the engine limit — a value at or above it would
+    # silently reinstate the truncation these settings exist to remove.
+    # ------------------------------------------------------------------------
+
+    voice_stt_single_pass_max_seconds: int = Field(
+        default=VOICE_STT_SINGLE_PASS_MAX_SECONDS_DEFAULT,
+        ge=5,
+        le=WHISPER_ENGINE_MAX_SECONDS - 1,
+        description=(
+            "Audio up to this duration is decoded in ONE pass; longer audio is "
+            "cut into windows that end on silences. Must stay under the 30 s "
+            "the Whisper engine actually decodes."
+        ),
+    )
+
+    voice_stt_window_seconds: int = Field(
+        default=VOICE_STT_WINDOW_SECONDS_DEFAULT,
+        ge=5,
+        le=WHISPER_ENGINE_MAX_SECONDS - 1,
+        description=(
+            "Maximum length of one window when long audio is cut. 15-20 s kept "
+            "the most words on the calibration recording; shorter windows lose "
+            "context, longer ones approach the engine limit."
+        ),
+    )
+
+    voice_stt_vad_model_path: str = Field(
+        default=VOICE_STT_VAD_MODEL_PATH_DEFAULT,
+        description=(
+            "Silero VAD model (sherpa-onnx) used to cut long audio on silences. "
+            "A missing file degrades to fixed windows — never to truncation."
+        ),
+    )
+
+    voice_stt_vad_threshold: float = Field(
+        default=VOICE_STT_VAD_THRESHOLD_DEFAULT,
+        ge=0.05,
+        le=0.95,
+        description="Silero speech probability above which a frame counts as speech.",
+    )
+
+    voice_stt_vad_min_silence_seconds: float = Field(
+        default=VOICE_STT_VAD_MIN_SILENCE_SECONDS_DEFAULT,
+        ge=0.1,
+        le=5.0,
+        description="Silence length that closes a speech segment (window boundary candidate).",
+    )
+
+    voice_stt_vad_min_speech_seconds: float = Field(
+        default=VOICE_STT_VAD_MIN_SPEECH_SECONDS_DEFAULT,
+        ge=0.05,
+        le=5.0,
+        description="Speech bursts shorter than this are ignored by the VAD.",
     )
 
     # ========================================================================

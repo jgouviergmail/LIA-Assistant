@@ -175,6 +175,13 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
         lambda: _import("telephony.models", "PhoneCall"),
         capability=PlatformCapability.TELEPHONY,
     ),
+    # Meeting recordings & minutes (ADR-258): every recording the account made,
+    # whatever its outcome — the tally is what the reader has to look back on.
+    _CountedNode(
+        "meetings",
+        lambda: _import("meetings.models", "Meeting"),
+        capability=PlatformCapability.MEETINGS,
+    ),
     # Counted through the repository that owns the "accepted, either
     # direction" rule rather than by re-expressing it here.
     _CountedNode("peers", env_flag="peers_enabled", count_with=lambda uid: _count_peers(uid)),
@@ -207,6 +214,7 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.SKILLS: "skills",
     PlatformCapability.MCP: "mcp_servers",
     PlatformCapability.TELEPHONY: "telephony",
+    PlatformCapability.MEETINGS: "meetings",
 }
 
 #: Capabilities deliberately absent from the map, and why. The map's third

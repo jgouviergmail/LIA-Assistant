@@ -80,6 +80,7 @@ import {
   SlidersHorizontal,
   MapPin,
   Gauge,
+  ClipboardList,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -117,6 +118,7 @@ const sections = [
   'sub_agents',
   'rag_spaces',
   'voice_mode',
+  'meetings',
   'image_generation',
   'document_generation',
   'journals',
@@ -200,6 +202,7 @@ export const featureIcons = {
   ephemeralScripts: Calculator,
   platformCapabilities: SlidersHorizontal,
   tabularAdmin: FileSpreadsheet,
+  meetings: ClipboardList,
 };
 
 /**
@@ -273,6 +276,8 @@ export const featureKeys = [
   'nativeApps',
   'selfDiagnostics',
   'ephemeralScripts',
+  // Wired at v1.39.0 with ADR-258 — meeting recording and structured minutes.
+  'meetings',
   'platformCapabilities',
   'tabularAdmin',
 ];

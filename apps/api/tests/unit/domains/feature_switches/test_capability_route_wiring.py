@@ -40,6 +40,8 @@ def _router_for(capability: PlatformCapability) -> object:
         from src.domains.user_mcp.router import router
     elif capability is PlatformCapability.TELEPHONY:
         from src.domains.telephony.router import router
+    elif capability is PlatformCapability.MEETINGS:
+        from src.domains.meetings.router import router
     elif capability is PlatformCapability.STT:
         from src.domains.voice.router import router
     elif capability is PlatformCapability.IMAGE_GENERATION:

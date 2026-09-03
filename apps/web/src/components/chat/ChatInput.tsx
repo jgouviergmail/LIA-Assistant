@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
-import { Send, Mic, Paperclip, Square, ImageUp } from 'lucide-react';
+import { Send, Mic, Plus, Square, ImageUp, Disc, FilePlus2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -30,6 +30,16 @@ import AttachmentPreview from '@/components/chat/AttachmentPreview';
 import { SlashCommandMenu, useSlashMenu } from '@/components/chat/SlashCommandMenu';
 import type { SlashCommand } from '@/lib/slash-commands';
 import { MessageAttachmentMeta } from '@/types/chat';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  useMeetingRecorderContext,
+  type MeetingRecorderContextValue,
+} from '@/components/meetings/MeetingRecorderProvider';
 
 /** Attachment metadata passed alongside IDs for immediate local display. */
 export type SendAttachmentMeta = MessageAttachmentMeta;
@@ -61,6 +71,12 @@ export interface ChatInputProps {
   onMessageChange?: (message: string) => void;
   /** Whether attachments feature is enabled */
   attachmentsEnabled?: boolean;
+  /**
+   * ADR-258: the instance offers meeting recording. The paperclip then opens a
+   * menu (add a file / record a meeting) instead of the file picker directly;
+   * the recorder itself lives in the dashboard layout's provider.
+   */
+  meetingsEnabled?: boolean;
   /**
    * ADR-117 Lot 3: true while a response is streaming — with
    * onStopGeneration provided, the send button morphs into a stop button.
@@ -164,6 +180,8 @@ function isPttOffered(args: {
   isProcessing: boolean;
   voiceSupported: boolean;
   voiceModeEnabled: boolean;
+  /** ADR-258: the microphone is busy recording a meeting. */
+  meetingRecording: boolean;
   disabled: boolean;
   apiAvailable: boolean;
 }): boolean {
@@ -172,6 +190,7 @@ function isPttOffered(args: {
     !args.isProcessing &&
     args.voiceSupported &&
     !args.voiceModeEnabled &&
+    !args.meetingRecording &&
     !args.disabled &&
     args.apiAvailable
   );
@@ -327,6 +346,139 @@ function useSentHistoryNavigation(args: {
   );
 }
 
+/**
+ * The composer's « + » control (ADR-258, module-level — CC discipline): a menu
+ * when a recorder is offered (add a file / record or stop a meeting), the file
+ * picker directly otherwise, nothing when neither applies.
+ *
+ * A « + » rather than a paperclip because the button opens ACTIONS, of which a
+ * file is one. Square and narrow — 44 px wide on a phone, the comfortable
+ * touch minimum, 40 px once the row is wider than `mobile` — so the typing
+ * area keeps the width (owner arbitration 2026-09-03).
+ */
+const COMPOSER_ACTION_BUTTON = 'h-12 w-11 shrink-0 self-end p-0 mobile:w-10';
+
+function ComposerAttachmentsControl({
+  t,
+  recorder,
+  attachmentsEnabled,
+  disabled,
+  onPickFile,
+}: {
+  t: (key: string) => string;
+  recorder: MeetingRecorderContextValue | null;
+  attachmentsEnabled: boolean;
+  disabled: boolean;
+  onPickFile: () => void;
+}) {
+  if (recorder === null) {
+    if (!attachmentsEnabled) return null;
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            className={COMPOSER_ACTION_BUTTON}
+            disabled={disabled}
+            onClick={onPickFile}
+            aria-label={t('chat.attachments.add')}
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className={cn('relative', COMPOSER_ACTION_BUTTON)}
+              disabled={disabled}
+              aria-label={t('meetings.composer.menu_label')}
+            >
+              <Plus className="h-5 w-5" aria-hidden="true" />
+              {recorder.isCapturing && (
+                <span
+                  className="absolute right-1 top-1.5 h-2 w-2 animate-pulse rounded-full bg-destructive"
+                  aria-hidden="true"
+                  data-testid="composer-recording-dot"
+                />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{t('meetings.composer.menu_label')}</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="start" side="top">
+        {attachmentsEnabled && (
+          <DropdownMenuItem onSelect={onPickFile}>
+            <FilePlus2 className="mr-2 h-4 w-4" aria-hidden="true" />
+            {t('meetings.composer.add_file')}
+          </DropdownMenuItem>
+        )}
+        <RecordMenuItem t={t} recorder={recorder} />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Record or Stop, whichever the recorder's phase allows. */
+function RecordMenuItem({
+  t,
+  recorder,
+}: {
+  t: (key: string) => string;
+  recorder: MeetingRecorderContextValue;
+}) {
+  if (recorder.isCapturing) {
+    return (
+      <DropdownMenuItem onSelect={() => void recorder.stop()}>
+        <Square className="mr-2 h-4 w-4 text-destructive" aria-hidden="true" />
+        {t('meetings.composer.stop')}
+      </DropdownMenuItem>
+    );
+  }
+  return (
+    <DropdownMenuItem
+      disabled={recorder.isLive || recorder.phase === 'processing'}
+      onSelect={() => void recorder.start()}
+    >
+      <Disc className="mr-2 h-4 w-4 text-destructive" aria-hidden="true" />
+      {t('meetings.composer.record')}
+    </DropdownMenuItem>
+  );
+}
+
+/**
+ * ADR-258 (module-level hook — CC discipline): the recorder as the composer
+ * sees it. `null` outside the dashboard provider, on an unsupported browser or
+ * when the instance flag is off — the menu is then not offered. `pttBlocked`
+ * folds the two microphone owners (voice mode, meeting) into ONE predicate so
+ * the hold-to-talk guard keeps a single condition.
+ */
+function useComposerRecorder(
+  meetingsEnabled: boolean,
+  voiceModeEnabled: boolean
+): {
+  recorder: MeetingRecorderContextValue | null;
+  meetingRecording: boolean;
+  pttBlocked: boolean;
+} {
+  const context = useMeetingRecorderContext();
+  const recorder = meetingsEnabled && context !== null && context.isSupported ? context : null;
+  const meetingRecording = context?.isCapturing ?? false;
+  return { recorder, meetingRecording, pttBlocked: voiceModeEnabled || meetingRecording };
+}
+
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
   disabled = false,
@@ -335,6 +487,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   className,
   onMessageChange,
   attachmentsEnabled = false,
+  meetingsEnabled = false,
   isGenerating = false,
   onStopGeneration,
   initialMessage,
@@ -377,6 +530,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Check if voice mode (active listening) is enabled - disable push-to-talk when active
   const voiceModeEnabled = useVoiceModeStore(s => s.isEnabled);
+  // ADR-258: the recorder as the composer sees it (null → no menu).
+  const { recorder, meetingRecording, pttBlocked } = useComposerRecorder(
+    meetingsEnabled,
+    voiceModeEnabled
+  );
 
   // Auto-resize the textarea. The vertical scrollbar exists only once the
   // height cap freezes growth (UX P2) — below it, the box grows and any
@@ -690,7 +848,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Only activate push-to-talk when all conditions are met.
       // When conditions fail (text present, voice mode active, etc.), do nothing
       // and let native events flow through (form submit on mobile).
-      if (!message.trim() && voiceSupported && !disabled && apiAvailable && !voiceModeEnabled) {
+      if (!message.trim() && voiceSupported && !disabled && apiAvailable && !pttBlocked) {
         // Prevent default ONLY for push-to-talk (blocks text selection, context menu).
         // MUST NOT be called when there's text, or it suppresses synthetic click → breaks form submit on mobile.
         if ('touches' in e) {
@@ -703,7 +861,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         await startRecording();
       }
     },
-    [message, voiceSupported, disabled, apiAvailable, voiceModeEnabled, startRecording]
+    [message, voiceSupported, disabled, apiAvailable, pttBlocked, startRecording]
   );
 
   const handlePressEnd = useCallback(
@@ -750,6 +908,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     isProcessing,
     voiceSupported,
     voiceModeEnabled,
+    meetingRecording,
     disabled,
     apiAvailable,
   });
@@ -801,7 +960,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         {attachmentsEnabled && (
           <AttachmentPreview attachments={attachments} onRemove={removeFile} />
         )}
-        <form onSubmit={handleSubmit} className="flex gap-3">
+        {/* `gap-2` on a phone, `gap-3` from `mobile`: two gaps around a
+            square action button, the typing area takes the difference. */}
+        <form onSubmit={handleSubmit} className="flex gap-2 mobile:gap-3">
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -812,25 +973,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onChange={handleFileSelect}
             aria-label={t('chat.attachments.add')}
           />
-          {/* Paperclip button */}
-          {attachmentsEnabled && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="lg"
-                  className="h-12 self-end px-3"
-                  disabled={disabled || !apiAvailable || isUploading}
-                  onClick={() => fileInputRef.current?.click()}
-                  aria-label={t('chat.attachments.add')}
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
-            </Tooltip>
-          )}
+          {/* « + »: a menu when meeting recording is offered (ADR-258), the
+              file picker directly otherwise — extracted (CC discipline). */}
+          <ComposerAttachmentsControl
+            t={t}
+            recorder={recorder}
+            attachmentsEnabled={attachmentsEnabled}
+            disabled={disabled || !apiAvailable || isUploading}
+            onPickFile={() => fileInputRef.current?.click()}
+          />
           {/* Positional wrapper (UXR Lot 8): the slash menu floats above the
               textarea, which carries the combobox role itself (ARIA 1.2). */}
           <div className="relative flex-1">
@@ -893,7 +1044,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 size="lg"
                 disabled={isButtonDisabled || (showSendMode && !hasMessage)}
                 className={cn(
-                  'gap-2 h-12 self-end transition-all duration-200',
+                  // Icon-only at every width: `px-5` on a phone keeps a 56 px
+                  // hold-to-talk target and gives the field the rest.
+                  'gap-2 h-12 self-end px-5 transition-all duration-200 mobile:px-8',
                   'touch-manipulation select-none [-webkit-touch-callout:none]',
                   isRecording && 'bg-destructive hover:bg-destructive/90 animate-pulse'
                 )}

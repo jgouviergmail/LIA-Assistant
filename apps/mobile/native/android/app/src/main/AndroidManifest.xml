@@ -62,4 +62,14 @@
          what allows the shell to ASK; a refusal is a normal answer the setup
          path reports rather than a failure. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Microphone for the web page's getUserMedia (push-to-talk, meeting
+         recording). Capacitor's BridgeWebChromeClient grants a WebView
+         AUDIO_CAPTURE request only when BOTH permissions are declared and
+         granted at runtime; without them it calls request.deny() and the page
+         sees a permission error although the user was never asked. The probe
+         bench only checks that the API exists (page.html), which is why this
+         gap survived the first measurement. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>

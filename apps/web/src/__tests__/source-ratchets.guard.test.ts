@@ -89,6 +89,9 @@ const ALLOWED: Record<string, string> = {
   'hooks/useBriefingAudio.ts':
     'binary MP3 response (A2, ADR-237): apiClient methods parse JSON by contract; the session ' +
     'cookie rides along via credentials: include (BFF doctrine unchanged)',
+  'lib/meetings/segment-uploader.ts':
+    'raw-body PUT of one audio segment (ADR-258): apiClient JSON-encodes bodies and forces ' +
+    'application/json; the session cookie and the native-shell marker are kept by hand',
   'hooks/useAPIHealth.ts':
     'availability probe: a 401 here means "API unreachable", it must not eject the user to /login',
   'lib/product-telemetry.ts':

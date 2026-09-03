@@ -67,6 +67,14 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<!--
+		Without this key WKWebView never exposes getUserMedia: push-to-talk and
+		meeting recording are simply absent, with no error to read. The probe
+		scaffold declares its own copy (scripts/mobile-probe/scaffold.mjs), so the
+		bench measured a capability the published shell did not have.
+	-->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>LIA uses the microphone for voice input and for recording meetings you choose to transcribe.</string>
+	<!--
 		The way back from the system browser after a provider sign-in.
 
 		A custom scheme, not a Universal Link: Universal Links pin domains at

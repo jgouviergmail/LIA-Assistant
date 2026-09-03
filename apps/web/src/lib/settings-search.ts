@@ -385,6 +385,16 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'extensions_data',
     gate: { kind: 'always' },
   },
+  meetings: {
+    titleKey: 'settings.meetings.title',
+    descriptionKey: 'settings.meetings.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.meetings`,
+    group: 'extensions_data',
+    gate: {
+      kind: 'runtime',
+      reason: 'renders nothing when the instance flag meetings_enabled is off',
+    },
+  },
   'user-consumption-export': {
     titleKey: 'settings.user.export.title',
     descriptionKey: 'settings.user.export.description',

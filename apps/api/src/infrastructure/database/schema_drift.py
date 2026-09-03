@@ -75,6 +75,8 @@ RUNTIME_MANAGED_INDEXES = {
     # Partial UNIQUE indexes (WHERE predicate).
     "uq_rag_spaces_user_name",
     "uq_rag_spaces_system_name",
+    # ADR-258: the auto-created « Réunions » space is found by kind, unique per user.
+    "uq_rag_spaces_user_kind",
     # DESC-ordered expression indexes: reflected as an opaque UnaryExpression that
     # autogenerate cannot match to the model's ``postgresql_ops={... : "DESC"}``,
     # so they are compared out even though they are declared in the ORM.

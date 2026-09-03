@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 4.6
+**Version**: 4.7
 **Datum**: 2026-08-23
-**Application**: LIA v1.38.6
+**Application**: LIA v1.39.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -51,6 +51,7 @@
 35. [Eine Farbe messen, bevor man sie ausliefert: die Palette der Einstellungen](#35-eine-farbe-messen-bevor-man-sie-ausliefert-die-palette-der-einstellungen)
 36. [Ein Merkmal ist keine Reaktion: das von der Antwort deklarierte Register](#36-ein-merkmal-ist-keine-reaktion-das-von-der-antwort-deklarierte-register)
 37. [Drei Mechanismen für eine Konvergenz: eine Spitze glätten, die kein Limit sieht](#37-drei-mechanismen-für-eine-konvergenz-eine-spitze-glätten-die-kein-limit-sieht)
+38. [Besprechungsprotokolle: die Zeile ist der Job, die Vorlage der Vertrag](#38-besprechungsprotokolle-die-zeile-ist-der-job-die-vorlage-der-vertrag)
 ---
 
 ## 1. Kontext und grundlegende Entscheidungen
@@ -64,8 +65,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 499 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 256 ADRs, ~22.199 von pytest gesammelte Tests in 1.311 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 506 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 257 ADRs, ~22.199 von pytest gesammelte Tests in 1.311 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -86,7 +87,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Tests | 22.199 von pytest über 1.311 Testdateien gesammelt + 6.693 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 256 |
+| ADRs (Architecture Decision Records) | 257 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -919,7 +920,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 499 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 506 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -927,7 +928,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 499 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 506 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1329,7 +1330,7 @@ Die wertvollste Ingenieurslektion kam von einem unsichtbaren Defekt: Die Label-P
 
 ## 24. Architekturentscheidungen (ADR)
 
-256 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+257 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1435,7 +1436,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 256 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~22.199 Tests in 1.311 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 257 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~22.199 Tests in 1.311 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1535,4 +1536,15 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 
 **Und was nicht gemessen wird, sieht man nicht.** Der Zähler der Anbieteraufrufe wird zum falschen Nenner, sobald wiederholt wird: Ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. „Plattformzustand“ zählt daher nun **Ergebnisse** — eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet — und ein zweiter Zähler sagt, was die Glättung mit jedem Versuch tat, denn „Budget zu klein“ und „Redis ausgefallen“ verlangen entgegengesetzte Maßnahmen.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 256 ADRs und des Changelogs (v1.0 bis v1.38.6). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+## 38. Besprechungsprotokolle: die Zeile ist der Job, die Vorlage der Vertrag
+
+**Eine Besprechung sind Stunden Audio von einem Gerät, das einschlafen, sein Netz verlieren oder versehentlich geschlossen werden kann — die Aufnahme ist deshalb für den Fehlerfall entworfen, nicht für den Normalfall.** Der Browser nimmt in kurzen Segmenten auf und lädt jedes als Rohkörper-Anfrage hoch, sobald es existiert; ein Segment ist eine Datei auf dem Server, unter temporärem Namen geschrieben und atomar umbenannt, sodass vier API-Worker außer der Reihe empfangen können, ohne je Bytes zu verschränken, ein doppelter Upload ein harmloses Überschreiben ist und das Erkennen einer Lücke ein Verzeichnislisting. Zwei Quellen stehen hinter einer Schnittstelle: Opus über `MediaRecorder`, wo die Engine vertrauenswürdig ist, rohes 16-kHz-PCM über das AudioWorklet, das die Spracheingabe schon überall sonst nutzt — der einzige Weg auf Apple-Geräten, deren Recorder einen Container erzeugte, den das Backend ablehnt, und sich in Startbildschirm-Apps fehlverhielt. Das Format ist eine reine Funktion der Umgebung, einmal vor dem ersten Byte entschieden. Uploads gehen in Reihenfolge hinaus, wiederholen mit einem Backoff, der nie aufgibt, solange die Aufnahme läuft, und warten — statt zu scheitern —, während der Browser offline ist; ein Stopp meldet die eigene Zählung der Warteschlange, und Sequenzen, die der Server nie erhielt, werden namentlich abgelehnt.
+
+**Die Besprechungszeile ist der dauerhafte Job.** Ihr Status trägt den ganzen Lebenszyklus — Aufnahme, unterbrochen, gestoppt, in Verarbeitung, fertig oder gescheitert —, und jeder Übergang ist ein einziges bedingtes `UPDATE`. Der Verarbeitungsanspruch nimmt einen Lease, Heartbeats erneuern ihn und veröffentlichen dabei die Stufe, die die Seite zeigt (Normalisieren, Transkribieren, Synthetisieren, Indexieren), ein verlorener Heartbeat bricht jede spätere Wirkung ab, und Reaper treiben gestoppte Waisen und abgelaufene Leases innerhalb eines begrenzten Versuchsbudgets erneut an. Ablehnungen, die keine Pipeline-Fehler sind — ein Nutzungslimit, keine Engine verfügbar — geben den Job frei, ohne einen Versuch zu verbrauchen. Und weil ein Bulk-Update die Identity Map von SQLAlchemy veraltet lässt, lässt jede folgende Lesung zuerst die Session verfallen: Der Laufzeitnachweis hat einen Stopp gemessen, der `status: recording` antwortete, bevor diese Regel existierte.
+
+**Engines bilden eine Kette, und die Kette wird zweimal durchlaufen.** Einmal vor der ersten Sekunde, allein aus dem Cache der Anbieterschlüssel: der Sprach-Slot der Administration, dann ElevenLabs Scribe oder OpenAI `gpt-4o-transcribe-diarize` — ganze Datei, Sprecher getrennt —, dann das lokale Whisper. Der lokale Pfad dekodierte ein Fenster von dreißig Sekunden und gab von allem Längeren stillschweigend die ersten dreißig Sekunden zurück; ein Sprachbefehl traf den Defekt nie, eine Besprechung immer. Langes Audio wird jetzt von Silero VAD in Sprechfenster von höchstens zwanzig Sekunden geschnitten, jedes einzeln dekodiert, mit festen Fenstern, wenn das Modell fehlt — nie Abschneiden. Die Kette wird bei der Verarbeitung erneut durchlaufen: Ein dauerhafter Fehler eines Anbieters (abgelehnter Schlüssel, zu große Datei) übergibt an die nächste Engine innerhalb der Nutzerpräferenz; nur Stille, die etwas über das Audio sagt, oder ein vorübergehender Fehler, der zum Wiederholungsbudget gehört, stoppt den Lauf. Die Dev-Instanz hatte eine Schlüssel-ID gespeichert, wo ein Schlüssel gehört; ohne den zweiten Lauf wäre jede Besprechung gescheitert, mit einem OpenAI-Schlüssel eine Stufe tiefer.
+
+**Die Vorlage ist der Vertrag, und dem Modell wird nicht Byte für Byte vertraut.** Die Abschnitte des Nutzers — Schlüssel, Bezeichnung, Anweisung, Art — werden in einen einzigen Aufruf mit strukturierter Ausgabe gerendert; wenn das Transkript das Fenster des Modells überläuft, wird es zuerst Teil für Teil verdichtet, sodass ein 128k-Modell auch für eine dreistündige Besprechung treue Protokolle liefert. Das Modell antwortet in einer permissiven Form, und ein Reparaturschritt faltet sie in den strengen Bericht: übersprungene Abschnitte kommen leer zurück, erfundene werden verworfen, eine Nutzlast in der falschen Form für ihre Art wird konvertiert, Teilnehmende auf Sprecherkennungen beschränkt, die tatsächlich gesprochen haben. Der erzeugte Bericht ist unveränderlich; was der Nutzer bearbeitet, ist eine Kopie, „Wiederherstellen“ kopiert zurück, „Neu erstellen“ führt die Synthese auf dem gespeicherten Transkript mit der aktuellen Vorlage erneut aus. Ein einziger Serializer erzeugt das Markdown, das der Wissensraum „Meetings“ indexiert (über seine Rolle gefunden, ein Dokument pro Besprechung, an Ort und Stelle neu geschrieben und mit ihr gelöscht), den abschnittsweisen Inhalt, den der PDF-Renderer in eine Datei verwandelt, und das HTML, das die E-Mail trägt — die drei können sich also nie widersprechen.
+
+**Jede bezahlte Einheit wird verbucht und gezeigt.** Eine Besprechung verbraucht Audio bei der Transkriptions-Engine und Tokens beim Synthesemodell, Verdichtungsläufe und Neuaufbauten eingeschlossen; beides erreicht die Bücher der Plattform wie jeder Austausch — das Audio über die Statistik der entfernten Spracherkennung, die Tokens unter einer `run_id`, die die archivierte Chat-Nachricht trägt, sodass die Historie genau wie bei jeder proaktiven Benachrichtigung mit dem Token-Protokoll verknüpft wird. Die Zeile behält die eigene Ausgabe des Protokolls, damit die Seite die exakte Summe mit ihrer Aufschlüsselung nennt, die Karte nennt beide Einheiten und ihre Summe, und ein Modell ohne verwalteten Preis liefert `null`: Ein unbekannter Preis ist kein kostenloser. Dieselbe Ehrlichkeit durchzieht das Protokoll selbst — eine Lücke wird benannt, nie überbrückt; eine unbenannte Stimme bleibt S2; ein offen gebliebener Vorschlag ist keine Entscheidung.
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 257 ADRs und des Changelogs (v1.0 bis v1.39.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

@@ -139,7 +139,7 @@ Validate before storing: HTTPS only, reachable, answering LIA's health endpoint.
 
 | Key | Why |
 |---|---|
-| `NSMicrophoneUsageDescription` | **without it `getUserMedia` is simply absent** — this produced a false negative in the first measurement |
+| `NSMicrophoneUsageDescription` | **without it `getUserMedia` is simply absent** — this produced a false negative in the first measurement. Declared in the overlay `apps/mobile/native/ios/App/App/Info.plist` since 2026-09-02 (the probe scaffold had its own copy, the published shell had none) |
 | `NSCameraUsageDescription` | media capture |
 | `NSLocationWhenInUseUsageDescription` | geolocation |
 | `NSLocationAlwaysAndWhenInUseUsageDescription` | background geolocation *(planned, if that feature ships)* |

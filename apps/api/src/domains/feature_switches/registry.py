@@ -69,6 +69,7 @@ class PlatformCapability(str, Enum):
     SKILLS = "skills"
     MCP = "mcp"
     TELEPHONY = "telephony"
+    MEETINGS = "meetings"
 
 
 @dataclass(frozen=True)
@@ -181,6 +182,14 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         env_flag="telephony_enabled",
         setting_key=SystemSettingKey.CAPABILITY_TELEPHONY_ENABLED,
         agents=("telephony_agent",),
+        route_enforced=True,
+    ),
+    # Meeting recording & minutes (ADR-258). No agent of its own: the feature is
+    # a recording lifecycle plus a processing job, reached through its router.
+    PlatformCapability.MEETINGS: CapabilitySpec(
+        capability=PlatformCapability.MEETINGS,
+        env_flag="meetings_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_MEETINGS_ENABLED,
         route_enforced=True,
     ),
 }

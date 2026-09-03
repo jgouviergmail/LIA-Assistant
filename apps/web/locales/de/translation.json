@@ -1021,7 +1021,9 @@
       "new_routine_description": "Eine wiederkehrende Routine erstellen",
       "new_routine_intent": "Erstelle eine Routine, die ",
       "spaces_label": "Räume",
-      "spaces_description": "Meine Wissensräume öffnen"
+      "spaces_description": "Meine Wissensräume öffnen",
+      "meetings_label": "besprechungen",
+      "meetings_description": "Meine Besprechungen und ihre Protokolle öffnen"
     },
     "reset_confirm": {
       "title": "Diese Unterhaltung löschen?",
@@ -2135,6 +2137,7 @@
           "mcp_react_agent": "MCP iterativer Modus: liest die Server-Dokumentation, führt dann Tools schrittweise aus",
           "image_generation": "KI-Bildgenerierung aus Textbeschreibungen (gpt-image-1 usw.)",
           "document_generation": "Erstellt vollständige Dokumente (CSV, Excel, Word, PowerPoint, PDF…) als strukturierte Ausgabe für das Werkzeug generate_document",
+          "meeting_synthesis": "Sitzungsprotokolle: strukturierte Synthese einer aufgezeichneten Transkription",
           "psyche_summary": "Psyche Summary",
           "briefing": "Generiert die Begrüßung und Zusammenfassung des Home-Dashboards (Today)",
           "telephony_synthesis": "Nachbearbeitungs-Zusammenfassung für agentische Anrufe (Zusammenfassung + Vorschlag)",
@@ -3505,7 +3508,8 @@
         "admin-public-demo-link": "Demo, Demonstrator, öffentlicher Link, Showroom, teilen",
         "debug-settings": "Debug, Diagnose, Protokolle, Panel, Token-Verfolgung",
         "eyes-style": "Augen, Avatar, Animation, Stil, Blick, Begleiter, Cozmo",
-        "admin-diagnostics": "zustand diagnose vorfälle alarme überwachung selbstprüfung plattform status prometheus loki konnektivität ausgehend netzwerk embeddings vektoren kontingent gedächtnis sprache"
+        "admin-diagnostics": "zustand diagnose vorfälle alarme überwachung selbstprüfung plattform status prometheus loki konnektivität ausgehend netzwerk embeddings vektoren kontingent gedächtnis sprache",
+        "meetings": "Besprechung, Meeting, Aufnahme, Protokoll, Transkription, Bericht, Mikrofon, Notizen, Zusammenfassung, Aufgaben"
       }
     },
     "haptics": {
@@ -3566,6 +3570,10 @@
     "eyes_style": {
       "title": "Augen-Stil",
       "description": "Wähle das Aussehen der ausdrucksstarken Augen im Chat."
+    },
+    "meetings": {
+      "title": "Besprechungsprotokolle",
+      "description": "Nimm eine Besprechung aus dem Chat-Eingabefeld auf; LIA transkribiert sie und verfasst das Protokoll nach deinem Aufbau."
     }
   },
   "relations": {
@@ -3781,6 +3789,9 @@
       "already_linked": "Dieser Ordner ist bereits mit diesem Space verknüpft.",
       "sync_in_progress": "Synchronisierung läuft bereits.",
       "feature_disabled": "Die Drive-Synchronisierung ist derzeit deaktiviert."
+    },
+    "meetings": {
+      "source_type_meeting": "Besprechung"
     }
   },
   "navigation": {
@@ -3792,7 +3803,8 @@
     "profile": "Profil",
     "faq": "Hilfe",
     "relations": "Beziehungen",
-    "notifications": "Hinweise"
+    "notifications": "Hinweise",
+    "meetings": "Meetings"
   },
   "errors": {
     "generic": "Ein Fehler ist aufgetreten",
@@ -3838,7 +3850,11 @@
       "title": "Spaces-Fehler",
       "message": "Beim Laden der Wissensräume ist ein Fehler aufgetreten."
     },
-    "not_found_description": "Diese Seite existiert nicht oder wurde verschoben. Der Link ist möglicherweise veraltet."
+    "not_found_description": "Diese Seite existiert nicht oder wurde verschoben. Der Link ist möglicherweise veraltet.",
+    "meetings": {
+      "title": "Besprechungen nicht verfügbar",
+      "message": "Die Besprechungsseite konnte nicht geladen werden."
+    }
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",
@@ -4406,6 +4422,10 @@
         "ephemeralScripts": {
           "title": "🧮 Berechnete Antworten statt geratener",
           "description": "Frag nach der Gesamtdauer deiner Zwischenstopps, danach, welche Personen in zwei Listen vorkommen, oder was eine Zahlenreihe über Zeitzonen hinweg ergibt: Eine KI antwortet plausibel, und nichts in der Antwort sagt dir, dass sie falsch ist. Im autonomen Modus schreibt LIA nun ein paar Zeilen Python und führt sie in einer abgeschotteten Sandbox aus: kein Netzwerk, keine Datenbank, nichts über die bereits gesammelten Daten hinaus, jedes Mal ein Wegwerf-Container. Die Antwort wurde berechnet, nicht geschätzt. Es bleibt eine Ergänzung — die meisten Fragen brauchen es nicht — und Administratoren können jedes ausgeführte Skript samt Zweck und Ausgabe nachlesen."
+        },
+        "meetings": {
+          "title": "🎙️ Besprechungsprotokolle",
+          "description": "Ein Druck auf + im Eingabefeld, und ein Telefon oder Computer wird zum Aufnahmegerät: Der Ton geht in kleinen Segmenten hinaus, während du sprichst, sodass ein Absturz, ein Neuladen oder ein Verbindungsabbruch Sekunden kostet, nie die Besprechung. Beim Stopp setzt der Server die Aufnahme zusammen, durchläuft seine Engine-Kette — die Wahl der Administration, ElevenLabs oder OpenAI mit Sprechertrennung oder das lokale Whisper in Sprechfenstern, damit keine Länge zu lang ist — und übergibt das Transkript einem strukturierten Aufruf, der deine Vorlage füllt: Der Kopf ist fest, die Abschnitte sind deine. Was es gekostet hat, steht als zwei Beträge und eine Summe da, und das Protokoll landet in einem befragbaren Wissensraum. Eine Lücke wird benannt, nie gefüllt."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -4414,6 +4434,19 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_39_0": {
+          "title": "v1.39.0 — 🎙️ Besprechung aufnehmen, Protokoll erhalten",
+          "date": "September 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🎙️ Besprechungen aus dem Chat aufnehmen</b> — die Schaltfläche + neben dem Eingabefeld nimmt jetzt eine Besprechung mit deinem Telefon oder Computer als Mikrofon auf. Ein Banner begleitet dich auf jeder Seite mit Dauer und dem, was den Server erreicht hat; du chattest währenddessen weiter mit LIA, gesprochene Antworten pausieren, damit das Mikrofon den Assistenten nie hört.",
+            "i2": "<b>📝 Ein Protokoll in deiner Struktur</b> — Datum, Zeiten, Ort und Teilnehmende, dann die Abschnitte, die du unter Einstellungen › Meetings festgelegt hast: Zusammenfassung, Themen, Entscheidungen, Aufgaben mit Verantwortlichen und Frist, Risiken, offene Fragen … bearbeitbar, wiederherstellbar, mit deiner aktuellen Vorlage neu erstellbar. Als PDF herunterladen, ins Postfach senden oder LIA später fragen: Jede Besprechung landet in einem Wissensraum „Meetings“.",
+            "i3": "<b>🔁 Für das echte Leben gebaut</b> — ein Neuladen, ein gesperrtes Telefon oder ein Verbindungsabbruch kostet Sekunden, nie die Besprechung: Der Ton geht in kleinen Segmenten hinaus, wartet offline, und das Banner bietet Fortsetzen, Abschließen oder Verwerfen an. Nach langer Stille fragt LIA, ob du noch aufnimmst; eine Höchstdauer schließt von selbst ab; eine Lücke wird im Protokoll benannt, nie gefüllt.",
+            "i4": "<b>🔀 Eine Kette von Engines, keine Sackgasse</b> — die Sprach-Engine der Administration, dann ElevenLabs oder OpenAI mit Sprechertrennung, dann das lokale Whisper — das jetzt jede Länge transkribiert, in Sprechfenstern. Engine und Preis pro Stunde werden vor dem Start angezeigt, und ein Anbieter, der bei der Verarbeitung verweigert, übergibt an den nächsten, statt deine Besprechung scheitern zu lassen.",
+            "i5": "<b>💶 Was es gekostet hat, überall genannt</b> — Transkription und Protokoll als zwei Beträge und eine Summe, auf der Chat-Karte (wenn du Kosten anzeigst), auf der Besprechungsseite und in der Liste; im Verbrauch gezählt wie jeder andere Austausch. Ein Modell ohne konfigurierten Tarif heißt „kein Tarif“, nie null.",
+            "i6": "<b>🧭 Ein Eintrag Meetings in der Kopfzeile</b> zwischen Beziehungen und Benachrichtigungen, nur wo die Instanz die Funktion anbietet. Um Platz zu schaffen, zeigt der Sprachwechsler in jeder Breite nur seine Flagge und der Persönlichkeitstitel wartet auf sehr breite Bildschirme. Die Büroklammer des Eingabefelds wurde zu einem + — es öffnet Aktionen, darunter das Anhängen einer Datei — und gibt dem Schreibfeld auf Telefonen etwas Breite zurück."
+          }
+        },
         "v1_38_6": {
           "title": "v1.38.6 — 🛡️ Was eine E-Mail sagt, bleibt, was eine E-Mail sagt",
           "date": "September 2026",
@@ -7874,6 +7907,41 @@
             "answer": "<p>Aktiviere den Schalter <strong>Einstellungen → Gesundheitsdaten → Assistent</strong> (standardmäßig aus, <em>Opt-in</em>). Solange er aus ist, erreichen keine Gesundheitsdaten das LLM. Einmal aktiviert, kannst du:</p><ul><li><strong>Sachliche Fragen im Chat stellen</strong>: „Wie viele Schritte heute?\", „Meine Herzfrequenz diese Woche?\", „Schritte Tag für Tag über die letzten 7 Tage?\", „Laufe ich weniger als üblich?\", „Etwas Ungewöhnliches in meiner Gesundheit?\". LIA antwortet mit sachlichen Zahlen (Summen, Durchschnitte, Deltas gegenüber der Baseline) — niemals medizinische Diagnose.</li><li><strong>Proaktive Benachrichtigungen erhalten</strong>, die Gesundheit + Wetter + Kalender kombinieren („Sonnig heute und 4 Tage Inaktivität → kurzer Spaziergang?\").</li><li><strong>Deine Memories und internen Journale anreichern</strong> mit biometrischem Kontext zum Erfassungszeitpunkt (nur Deltas und Trends — niemals Rohwerte).</li></ul><p>Ein einziger Schalter steuert diese 4 Integrationen. Die rollierende 28-Tage-Baseline qualifiziert Vergleiche ehrlich („basierend auf nur N Tagen Daten\", solange die Historie unter 7 Tagen liegt).</p>"
           }
         }
+      },
+      "meetings": {
+        "title": "Besprechungsprotokolle",
+        "description": "Nimm eine Besprechung aus dem Chat auf, erhalte ein strukturiertes Protokoll in deinem Format und finde es in einem Wissensraum wieder.",
+        "count": "7",
+        "questions": {
+          "q1": {
+            "question": "Wie nehme ich eine Besprechung auf?",
+            "answer": "Öffne im Chat die Schaltfläche <strong>+</strong> neben dem Eingabefeld und wähle <strong>Besprechung aufnehmen</strong>. Dein Telefon oder dein Computer wird zum Mikrofon: LIA fragt einmal danach, dann zeigt ein Banner oben auf jeder Seite die Aufnahme, ihre Dauer und was deinen Server bereits erreicht hat. Du kannst währenddessen weiter mit LIA chatten — gesprochene Antworten und das Aktivierungswort pausieren einfach, damit das Mikrofon den Assistenten nie hört.<br><br>Wenn die Besprechung endet, drücke <strong>Beenden</strong> im Banner oder im selben Menü. LIA transkribiert die ganze Aufnahme, schreibt das Protokoll und veröffentlicht eine Karte im Chat mit Titel, Zusammenfassung und der Schaltfläche <strong>Protokoll öffnen</strong>. Jede Aufnahme lebt außerdem auf der Seite <strong>Meetings</strong> in der Kopfzeile, zwischen Beziehungen und Benachrichtigungen.<br><br><strong>💡 Gut zu wissen:</strong> Die Funktion existiert nur dort, wo die Administration sie aktiviert hat, und die Engine, die transkribieren wird — mit ihrem Preis pro Audiostunde — wird vor dem Start angezeigt."
+          },
+          "q2": {
+            "question": "Was enthält das Protokoll, und kann ich seine Struktur ändern?",
+            "answer": "Der Kopf des Protokolls ist fest: Datum, Beginn und Ende in deiner Zeitzone, Dauer, Ort, wenn bekannt, und die Teilnehmenden. Der Hauptteil folgt <strong>deiner Vorlage</strong>: einer geordneten Liste von Abschnitten, jeder mit Überschrift, einer Anweisung für den Assistenten und einem Format — ein Absatz, eine Aufzählung, ein Eintrag pro Thema oder Aufgaben mit Verantwortlichen und Frist.<br><br>Die eingebaute Vorlage liefert Zusammenfassung, besprochene Themen, Entscheidungen, Aufgaben, Risiken und offene Fragen. Ändere sie unter <strong>Einstellungen › Meetings</strong>: umbenennen, umsortieren, Abschnitte hinzufügen oder entfernen, und mit einem Klick zum Standard zurück. Bereits geschriebene Protokolle behalten die Struktur, mit der sie entstanden sind; <strong>Neu erstellen</strong> wendet deine aktuelle Vorlage aus dem gespeicherten Transkript auf eine vergangene Besprechung an.<br><br>Das Modell berichtet nur, was das Transkript belegt: ein offen gebliebener Vorschlag ist keine Entscheidung, ein Wunsch keine Aufgabe, und jedes relative Datum wird zu einem echten aufgelöst."
+          },
+          "q3": {
+            "question": "Welche Engine transkribiert, und was kostet das?",
+            "answer": "Deine Instanz durchläuft eine Kette: die von der Administration gewählte Sprach-Engine, dann ElevenLabs Scribe oder OpenAI, wenn ein Schlüssel vorliegt — beide trennen die Sprechenden —, dann das lokale Whisper, das nichts kostet und keinen Schlüssel braucht, aber keine Stimmen trennt und auf einem kleinen Server länger dauert. Verweigert ein Anbieter bei der Verarbeitung (widerrufener Schlüssel, zu große Datei), übernimmt die nächste Engine, statt deine Besprechung scheitern zu lassen.<br><br>Unter <strong>Einstellungen › Meetings</strong> legst du fest, ob LIA eine entfernte Engine nutzen darf, lokal bleiben muss oder selbst entscheidet; Engine und <strong>Preis pro Audiostunde</strong> werden vor der Aufnahme angezeigt.<br><br>Was eine Besprechung gekostet hat, steht überall, wo sie erscheint: auf der Chat-Karte (wenn du Kosten anzeigst), auf der Besprechungsseite und in der Liste — Transkription und Protokoll als zwei getrennte Beträge und ihre Summe. Der Betrag zählt in deinem Verbrauch genau wie jeder andere Austausch mit dem Assistenten. Hat ein Modell keinen konfigurierten Tarif, schreibt LIA <em>kein Tarif</em>, statt null anzuzeigen."
+          },
+          "q4": {
+            "question": "Was passiert, wenn mein Telefon sperrt, das Netz ausfällt oder ich vergesse zu beenden?",
+            "answer": "LIA hält den Bildschirm während der Aufnahme wach, denn jedes Telefon schaltet das Mikrofon stumm, sobald die App im Hintergrund ist — lass LIA im Vordergrund. Der Ton geht in kleinen Segmenten hinaus, während du sprichst; ein Absturz oder ein Neuladen verliert also höchstens die letzten Sekunden: bei der Rückkehr bietet das Banner an, <strong>fortzusetzen</strong> (die Aufnahme läuft weiter), das Vorhandene <strong>abzuschließen</strong> oder zu <strong>verwerfen</strong>.<br><br>Offline geht nichts verloren: Die Segmente warten auf die Verbindung und gehen in Reihenfolge hinaus, sobald sie zurück ist; das Banner warnt, wenn ein langes Stück Audio noch wartet.<br><br>Vergessen zu beenden? Nach längerer Stille fragt das Banner, ob du noch aufnimmst, und eine Höchstdauer schließt von selbst ab. Haben einige Sekunden den Server nie erreicht, sagt es das Protokoll — eine Lücke wird benannt, nie mit einer Vermutung gefüllt."
+          },
+          "q5": {
+            "question": "Wo liegt der Ton, wer kann ihn hören, und wie lange wird er behalten?",
+            "answer": "Alles bleibt auf <strong>deinem</strong> Server. Der Ton wird während der Aufnahme in Segmenten gespeichert, am Ende einmal zusammengesetzt und an die gewählte Transkriptions-Engine gesendet — sonst hört ihn niemand. Standardmäßig wird der Ton <strong>gelöscht, sobald das Protokoll existiert</strong>; unter Einstellungen › Meetings kannst du ihn eine Weile behalten (bis zur von der Administration gesetzten Obergrenze), danach wird er automatisch gelöscht.<br><br>Das Transkript ruht verschlüsselt in der Datenbank und kann auf der Besprechungsseite angezeigt oder separat gelöscht werden, das Protokoll bleibt. Das Löschen einer Besprechung entfernt Ton, Transkript, Protokoll und das im Wissensraum indexierte Dokument — nichts überlebt sie."
+          },
+          "q6": {
+            "question": "Kann ich das Protokoll bearbeiten, versenden und LIA später zu meinen Besprechungen fragen?",
+            "answer": "Ja. Auf der Besprechungsseite kannst du jedes Feld <strong>bearbeiten</strong> — Titel, Namen und Rollen der Teilnehmenden, jeden Abschnitt in seiner Form — und jederzeit die vom Modell geschriebene Version <strong>wiederherstellen</strong>. <strong>PDF</strong> lädt das Protokoll als Dokument herunter; <strong>E-Mail</strong> sendet es über dein verbundenes Postfach an deine eigene Adresse, und die Einstellungen können das für jede Besprechung automatisch tun.<br><br>Jedes Protokoll wird außerdem in einem Wissensraum namens <strong>Meetings</strong> indexiert, der beim ersten Mal für dich angelegt wird. Du kannst also einfach fragen: „Was haben wir zur Migration entschieden?“, „Welche Aufgaben sind diese Woche fällig?“ — der Assistent antwortet aus deinen eigenen Besprechungen, mit Quellenangabe."
+          },
+          "q7": {
+            "question": "Weiß LIA, wer was gesagt hat?",
+            "answer": "Wenn die Engine die Sprechenden trennt, erhält jede Stimme eine stabile Kennung — <strong>S1, S2 …</strong> — im ganzen Transkript und Protokoll. Ein <strong>Name</strong> erscheint nur, wenn die Aufnahme selbst ihn belegt: jemand stellt sich vor, wird beim Namen genannt, oder der Kalendertermin, der sich mit der Besprechung überschneidet, lässt keinen Zweifel. LIA erfindet nie einen Namen; eine unbenannte Stimme bleibt S2, und du kannst sie beim Bearbeiten des Protokolls selbst benennen.<br><br>Die lokale Engine transkribiert ohne Stimmtrennung: Das Protokoll liest sich dann wie ein einziger Bericht, mit den Teilnehmenden, die es belegen konnte."
+          }
+        }
       }
     },
     "contact": {
@@ -8129,6 +8197,10 @@
       "server_escape_hatch": {
         "title": "Eine falsch eingetippte Adresse ist keine Sackgasse",
         "desc": "Die nativen Apps bringen ihren eigenen Offline-Bildschirm mit: erneut versuchen oder den Server wechseln — ein Tippfehler beim ersten Start bedeutet nie eine Neuinstallation."
+      },
+      "meeting_banner": {
+        "title": "Die Aufnahme begleitet dich",
+        "desc": "Wechsle die Seite mitten in der Besprechung: Das Banner behält Zeit, Mikrofon und den Weg zurück — fortsetzen, abschließen oder verwerfen."
       }
     },
     "scenes": {
@@ -8223,6 +8295,11 @@
       },
       "pricing_workbook": {
         "preview": "Vorschau vor dem Schreiben"
+      },
+      "meeting_banner": {
+        "recording": "Aufnahme",
+        "interrupted": "Unterbrochen",
+        "resume": "Fortsetzen"
       }
     },
     "craft": {
@@ -9347,6 +9424,10 @@
       "environment": {
         "title": "Wetter, Luftqualität und Pollen",
         "description": "Eine Wetterfrage bringt auch den Luftqualitätsindex und saisonale Pollen mit, mit der Kategorie, die der Dienst selbst veröffentlicht — der Index deines Landes, sofern vorhanden. Auf der Chat-Karte, in der Vorhersage, auf deiner Startseite und im Detail eines Ortes."
+      },
+      "meetings": {
+        "title": "Besprechung aufnehmen, Protokoll erhalten",
+        "description": "Drücke + im Chat, und dein Telefon oder Computer nimmt die Besprechung auf — ein Banner begleitet dich auf jeder Seite, während du weiter mit LIA sprichst. Wenn du stoppst, transkribiert LIA alles und schreibt das Protokoll in deiner Struktur: Datum, Zeiten, Ort, wer da war, was besprochen, entschieden, zu tun ist und von wem, was riskant ist. Lies es im Chat, lade das PDF, sende es ins Postfach und frage LIA Wochen später danach. Nichts erfunden: Eine Lücke in der Aufnahme wird benannt, eine unbenannte Stimme bleibt unbenannt, und was es gekostet hat, steht daneben."
       }
     },
     "use_cases": {
@@ -10067,12 +10148,12 @@
       "voice-mode": {
         "title": "Sprachmodus: Sprich mit LIA wie mit einem persönlichen Assistenten",
         "excerpt": "LIAs Sprachdomäne kombiniert ein kostenloses lokales STT (Sherpa-onnx Whisper, Remote ElevenLabs Scribe optional für höhere Genauigkeit) und ein katalog-getriebenes TTS (Edge / OpenAI / ElevenLabs). Das Streaming auf Satzebene bringt den ersten Audio-Chunk in ~1 Sekunde. Die Kostenzuordnung pro Nachricht macht kostenpflichtige Sprachanrufe vollständig prüfbar.",
-        "body": "<h2>Drei Aktivierungsmodi</h2><p>LIA unterstützt drei Wege der Sprachinteraktion:</p><ul><li><strong>Aktivierungswort</strong> — sag „OK Guy\", um die freihändige Erkennung zu starten. Die Erkennung läuft vollständig im Browser über Sherpa-onnx WASM (nur englisches Modell). Kein Audio verlässt den Browser für die Aktivierungsworterkennung.</li><li><strong>Push-to-Talk</strong> — Mikrofon-Button gedrückt halten zum Sprechen. Für Mobilgeräte optimiert.</li><li><strong>Automatische Sprachende-Erkennung (VAD)</strong> — die Aufnahme stoppt automatisch nach ~0,75 s Stille.</li></ul><h2>Spracherkennung: lokal als Standard, Remote als Opt-in</h2><p>Jeder Benutzer wählt seinen STT-Modus in <strong>Einstellungen → Sprachmodus</strong>:</p><ul><li><strong>Lokal</strong> (Standard, kostenlos) — Sherpa-onnx Whisper auf dem LIA-Server in <strong>16 kHz mono</strong> mit INT8-Quantisierung. Unterstützt <strong>99+ Sprachen</strong>. Audio verlässt nie den LIA-Server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe für 0,22 $/h, nach Audiodauer abgerechnet. Höhere Genauigkeit bei gesprochener Sprache, besonders in lauten Umgebungen. Ein dezentes 🎤-Badge auf jeder Nutzer-Bubble zeigt Dauer und EUR-Kosten; die Kosten fließen in die übliche <strong>Kosten</strong>-Kachel des Dashboards und in deine Nutzungslimits — kein separates Kontingent.</li></ul><p>Zwei admin-seitige Sicherheitshebel schützen vor Kostenexplosionen bei aktiviertem Remote: ein globaler Kill-Switch (<code>ELEVENLABS_STT_ENABLED</code>) und ein Dauerlimit pro Clip (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, Standard 300 s), das vor jedem Provider-Aufruf geprüft wird.</p><h2>Katalog-getriebene Sprachsynthese</h2><p>Die Sprachsynthese wird nun aus einem einzigen Admin-Formular (Konfiguration LLM → Voice TTS) konfiguriert, mit drei vom ersten Tag an bereitgestellten Providern:</p><ul><li><strong>Edge TTS</strong> — Microsoft Neural-Stimmen, kostenlos, Standard. SSML rate / pitch / volume-Feinabstimmung.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> oder <code>tts-1-hd</code>, Premium-Stimmen (alloy, echo, fable, onyx, nova, shimmer). speed + response_format-Feinabstimmung.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. stability, similarity_boost, style, use_speaker_boost-Feinabstimmung. Live-Stimmen-Picker aus dem konfigurierten Konto (Custom- + Bibliotheksstimmen).</li></ul><p>Für kostenpflichtige Provider zeigt ein 🔊-Badge auf der Assistenten-Nachricht Zeichenzahl und EUR-Kosten; Edge bleibt kostenlos ohne Badge. Unterstützte Audioformate: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — pro Provider ausgewählt.</p><h2>Streaming auf Satzebene für Sub-Sekunden-Latenz</h2><p>Die Sprach-Pipeline löst die TTS-Synthese jetzt <strong>pro vollständigem Satz parallel</strong> aus, anstatt auf die vollständige LLM-Antwort zu warten. Der erste Satz beginnt in <strong>etwa einer Sekunde</strong> abgespielt zu werden, während der Assistent den Rest der Antwort noch verfasst. Persistentes HTTP-Keep-Alive auf ElevenLabs spart bei den Aufrufen #2…N weitere ~100–300 ms pro Satz. Geordnete Auslieferung wird durch eine gepufferte Warteschlange garantiert — fehlgeschlagene Slots werden übersprungen, ohne den Stream zu blockieren.</p><h2>Wo ein Satz endet</h2><p>„Satzweise“ zu zerlegen setzt voraus, zu wissen, wo ein Satz endet — und ein Punkt allein sagt das nicht. Ein Trennzeichen schließt einen Satz nur, wenn <strong>ein Leerzeichen folgt</strong>, oder am Ende der Eingabe: „es sind 3,5 Grad“ bleibt so am Stück, statt als „es sind drei.“ und dann, in einem separaten Audioclip, „fünf Grad“ gelesen zu werden. Dasselbe gilt für Preise, Versionsnummern und Webadressen. Auf dem progressiven Weg ist die Regel doppelt nötig: der Puffer wächst Token für Token, sodass <code>\"3.\"</code> ein völlig normaler Übergangszustand ist — darauf zu dispatchen heißt zu sprechen, bevor man zu Ende gelesen hat. Beide Zerleger der Pipeline sind durch eine gemeinsame Falltabelle und durch einen Test fixiert, der ihre Übereinstimmung verlangt.</p><h2>Sprachkommentare und Exporte</h2><p>LIA kann kurze <strong>Sprachkommentare</strong> (einen narrativen TTS-Beitrag) an seine Antworten anhängen. Audio wird über WebSocket mit einem Einmal-BFF-Ticket (60 s TTL) für die Sicherheit gestreamt. Zwei neue CSV-Exporte — <code>stt-usage</code> und <code>tts-usage</code> — listen jeden kostenpflichtigen Sprachanruf mit Konversation, Nachrichten-ID, Provider, Dauer / Zeichen und EUR-Kosten auf. Der bestehende <code>consumption-summary</code>-Export erhält ebenfalls STT- und TTS-Spalten, damit die Summen an einem Ort bleiben.</p>"
+        "body": "<h2>Drei Aktivierungsmodi</h2><p>LIA unterstützt drei Wege der Sprachinteraktion:</p><ul><li><strong>Aktivierungswort</strong> — sag „OK Guy\", um die freihändige Erkennung zu starten. Die Erkennung läuft vollständig im Browser über Sherpa-onnx WASM (nur englisches Modell). Kein Audio verlässt den Browser für die Aktivierungsworterkennung.</li><li><strong>Push-to-Talk</strong> — Mikrofon-Button gedrückt halten zum Sprechen. Für Mobilgeräte optimiert.</li><li><strong>Automatische Sprachende-Erkennung (VAD)</strong> — die Aufnahme stoppt automatisch nach ~0,75 s Stille.</li></ul><h2>Spracherkennung: lokal als Standard, Remote als Opt-in</h2><p>Jeder Benutzer wählt seinen STT-Modus in <strong>Einstellungen → Sprachmodus</strong>:</p><ul><li><strong>Lokal</strong> (Standard, kostenlos) — Sherpa-onnx Whisper auf dem LIA-Server in <strong>16 kHz mono</strong> mit INT8-Quantisierung. Unterstützt <strong>99+ Sprachen</strong>. Audio verlässt nie den LIA-Server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe für 0,22 $/h, nach Audiodauer abgerechnet. Höhere Genauigkeit bei gesprochener Sprache, besonders in lauten Umgebungen. Ein dezentes 🎤-Badge auf jeder Nutzer-Bubble zeigt Dauer und EUR-Kosten; die Kosten fließen in die übliche <strong>Kosten</strong>-Kachel des Dashboards und in deine Nutzungslimits — kein separates Kontingent.</li></ul><p>Zwei admin-seitige Sicherheitshebel schützen vor Kostenexplosionen bei aktiviertem Remote: ein globaler Kill-Switch (<code>ELEVENLABS_STT_ENABLED</code>) und ein Dauerlimit pro Clip (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, Standard 300 s), das vor jedem Provider-Aufruf geprüft wird.</p><h2>Katalog-getriebene Sprachsynthese</h2><p>Die Sprachsynthese wird nun aus einem einzigen Admin-Formular (Konfiguration LLM → Voice TTS) konfiguriert, mit drei vom ersten Tag an bereitgestellten Providern:</p><ul><li><strong>Edge TTS</strong> — Microsoft Neural-Stimmen, kostenlos, Standard. SSML rate / pitch / volume-Feinabstimmung.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> oder <code>tts-1-hd</code>, Premium-Stimmen (alloy, echo, fable, onyx, nova, shimmer). speed + response_format-Feinabstimmung.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. stability, similarity_boost, style, use_speaker_boost-Feinabstimmung. Live-Stimmen-Picker aus dem konfigurierten Konto (Custom- + Bibliotheksstimmen).</li></ul><p>Für kostenpflichtige Provider zeigt ein 🔊-Badge auf der Assistenten-Nachricht Zeichenzahl und EUR-Kosten; Edge bleibt kostenlos ohne Badge. Unterstützte Audioformate: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — pro Provider ausgewählt.</p><h2>Streaming auf Satzebene für Sub-Sekunden-Latenz</h2><p>Die Sprach-Pipeline löst die TTS-Synthese jetzt <strong>pro vollständigem Satz parallel</strong> aus, anstatt auf die vollständige LLM-Antwort zu warten. Der erste Satz beginnt in <strong>etwa einer Sekunde</strong> abgespielt zu werden, während der Assistent den Rest der Antwort noch verfasst. Persistentes HTTP-Keep-Alive auf ElevenLabs spart bei den Aufrufen #2…N weitere ~100–300 ms pro Satz. Geordnete Auslieferung wird durch eine gepufferte Warteschlange garantiert — fehlgeschlagene Slots werden übersprungen, ohne den Stream zu blockieren.</p><h2>Wo ein Satz endet</h2><p>„Satzweise“ zu zerlegen setzt voraus, zu wissen, wo ein Satz endet — und ein Punkt allein sagt das nicht. Ein Trennzeichen schließt einen Satz nur, wenn <strong>ein Leerzeichen folgt</strong>, oder am Ende der Eingabe: „es sind 3,5 Grad“ bleibt so am Stück, statt als „es sind drei.“ und dann, in einem separaten Audioclip, „fünf Grad“ gelesen zu werden. Dasselbe gilt für Preise, Versionsnummern und Webadressen. Auf dem progressiven Weg ist die Regel doppelt nötig: der Puffer wächst Token für Token, sodass <code>\"3.\"</code> ein völlig normaler Übergangszustand ist — darauf zu dispatchen heißt zu sprechen, bevor man zu Ende gelesen hat. Beide Zerleger der Pipeline sind durch eine gemeinsame Falltabelle und durch einen Test fixiert, der ihre Übereinstimmung verlangt.</p><h2>Sprachkommentare und Exporte</h2><p>LIA kann kurze <strong>Sprachkommentare</strong> (einen narrativen TTS-Beitrag) an seine Antworten anhängen. Audio wird über WebSocket mit einem Einmal-BFF-Ticket (60 s TTL) für die Sicherheit gestreamt. Zwei neue CSV-Exporte — <code>stt-usage</code> und <code>tts-usage</code> — listen jeden kostenpflichtigen Sprachanruf mit Konversation, Nachrichten-ID, Provider, Dauer / Zeichen und EUR-Kosten auf. Der bestehende <code>consumption-summary</code>-Export erhält ebenfalls STT- und TTS-Spalten, damit die Summen an einem Ort bleiben.</p><h2>Vom gesprochenen Befehl zur zweistündigen Besprechung</h2><p>Dasselbe Mikrofon nimmt jetzt eine ganze Besprechung auf. Das hat die Sprach-Engines stärker verändert als die Oberfläche: Das lokale Whisper dekodierte ein Fenster von dreißig Sekunden und gab von allem Längeren stillschweigend die ersten dreißig Sekunden zurück — ein Defekt, dem die Spracheingabe nie begegnet war, weil ein Befehl kurz ist. Langes Audio wird jetzt von einem Sprachaktivitätsdetektor in Sprechfenster geschnitten, jedes für sich dekodiert, sodass keine Aufnahme zu lang ist. Die entfernten Engines nehmen die ganze Datei in einer Anfrage und trennen die Sprechenden; die Kette führt von der Engine der Administration zu ElevenLabs, OpenAI und dem lokalen Modell, und ein Anbieter, der verweigert, übergibt an den nächsten. Das Protokoll ist ein einziger strukturierter Aufruf, der die Vorlage des Nutzers füllt, und jede bezahlte Einheit — Audio bei der Engine, Tokens beim Modell — steht auf der erzeugten Karte, der Besprechungsseite und der Liste.</p>"
       },
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Verwandle Dokumente in KI-Intelligenz",
         "excerpt": "Importiere PDFs, Word, Excel und mehr. LIA indexiert sie mit hybrider semantischer + BM25-Suche.",
-        "body": "<h2>15+ unterstützte Formate</h2><p>LIAs Knowledge Spaces akzeptieren über <strong>15 Dateiformate</strong> mit dedizierten Parsern:</p><ul><li><strong>PDF</strong> über PyMuPDF (schnelle und präzise Extraktion)</li><li><strong>Dokumente</strong> — DOCX, RTF, ODT</li><li><strong>Tabellen</strong> — XLSX, CSV, ODS</li><li><strong>Präsentationen</strong> — PPTX, ODP</li><li><strong>Web und Text</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Intelligentes Chunking</h2><p>Dokumente werden von einem <strong>RecursiveCharacterTextSplitter</strong> mit optimierten Parametern aufgeteilt: <strong>1000 Zeichen</strong> pro Chunk, <strong>200 Zeichen</strong> Überlappung (Overlap), um den Kontext zwischen Segmenten zu bewahren. Sicherheitslimit: maximal <strong>500 Chunks pro Dokument</strong>, maximale Größe <strong>20 MB pro Datei</strong>.</p><h2>Hybride Suche: Das Beste aus beiden Welten</h2><p>LIA kombiniert zwei Suchansätze:</p><ul><li><strong>Semantische Suche</strong> — Embeddings über pgvector. Findet Ergebnisse durch Bedeutungsähnlichkeit, selbst wenn die Wörter unterschiedlich sind.</li><li><strong>BM25-Suche</strong> — Schlüsselwort-Matching. Ideal für technische Begriffe, Eigennamen und Identifikatoren.</li></ul><p>Die beiden Signale wiegen nicht gleich schwer, und das ist Absicht. Über die Relevanz entscheidet <strong>allein die semantische Ähnlichkeit</strong>: Ein Auszug wird behalten, wenn er <strong>0.62</strong> erreicht — eine Schwelle, die über alle sechs Sprachen anhand echter Korpora neu kalibriert wurde. BM25 vergibt danach nur noch einen <strong>begrenzten Bonus (0.05)</strong> zum Entscheiden von Gleichständen: Er kann einen wörtlichen Treffer vor einen Fast-Gleichstand heben, aber niemals einen Auszug aufnehmen oder ausschließen. Beide Signale zu vergleichbaren Anteilen zu mischen — wie LIA es bis August 2026 tat — verwarf jede dritte richtige Antwort, sobald die Sprache der Frage von der der Dokumente abwich. Standardmäßig werden <strong>5 Auszüge</strong> pro Anfrage abgerufen (konfigurierbares Maximum: 20).</p><h2>Limits und Kontingente</h2><p>Jeder Benutzer verfügt über: maximal <strong>10 Spaces</strong>, <strong>50 Dokumente pro Space</strong>, <strong>20 MB pro Datei</strong>. Diese Limits garantieren optimale Suchleistung bei ausreichender Kapazität für die meisten Anwendungsfälle.</p><h2>Google-Drive-Synchronisation</h2><p>Du kannst einen <strong>Google-Drive-Ordner</strong> mit einem Knowledge Space verbinden. Dokumente werden automatisch synchronisiert und neu indexiert, wenn sie sich ändern. Die Synchronisation erkennt Hinzufügungen, Änderungen und Löschungen.</p><h2>Integrierte FAQ</h2><p>LIA verfügt über einen System-Knowledge-Space mit seiner eigenen Dokumentation (18 FAQ-Dateien). Dies ermöglicht es ihm, Fragen zu seinen eigenen Funktionen präzise zu beantworten.</p>"
+        "body": "<h2>15+ unterstützte Formate</h2><p>LIAs Knowledge Spaces akzeptieren über <strong>15 Dateiformate</strong> mit dedizierten Parsern:</p><ul><li><strong>PDF</strong> über PyMuPDF (schnelle und präzise Extraktion)</li><li><strong>Dokumente</strong> — DOCX, RTF, ODT</li><li><strong>Tabellen</strong> — XLSX, CSV, ODS</li><li><strong>Präsentationen</strong> — PPTX, ODP</li><li><strong>Web und Text</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Intelligentes Chunking</h2><p>Dokumente werden von einem <strong>RecursiveCharacterTextSplitter</strong> mit optimierten Parametern aufgeteilt: <strong>1000 Zeichen</strong> pro Chunk, <strong>200 Zeichen</strong> Überlappung (Overlap), um den Kontext zwischen Segmenten zu bewahren. Sicherheitslimit: maximal <strong>500 Chunks pro Dokument</strong>, maximale Größe <strong>20 MB pro Datei</strong>.</p><h2>Hybride Suche: Das Beste aus beiden Welten</h2><p>LIA kombiniert zwei Suchansätze:</p><ul><li><strong>Semantische Suche</strong> — Embeddings über pgvector. Findet Ergebnisse durch Bedeutungsähnlichkeit, selbst wenn die Wörter unterschiedlich sind.</li><li><strong>BM25-Suche</strong> — Schlüsselwort-Matching. Ideal für technische Begriffe, Eigennamen und Identifikatoren.</li></ul><p>Die beiden Signale wiegen nicht gleich schwer, und das ist Absicht. Über die Relevanz entscheidet <strong>allein die semantische Ähnlichkeit</strong>: Ein Auszug wird behalten, wenn er <strong>0.62</strong> erreicht — eine Schwelle, die über alle sechs Sprachen anhand echter Korpora neu kalibriert wurde. BM25 vergibt danach nur noch einen <strong>begrenzten Bonus (0.05)</strong> zum Entscheiden von Gleichständen: Er kann einen wörtlichen Treffer vor einen Fast-Gleichstand heben, aber niemals einen Auszug aufnehmen oder ausschließen. Beide Signale zu vergleichbaren Anteilen zu mischen — wie LIA es bis August 2026 tat — verwarf jede dritte richtige Antwort, sobald die Sprache der Frage von der der Dokumente abwich. Standardmäßig werden <strong>5 Auszüge</strong> pro Anfrage abgerufen (konfigurierbares Maximum: 20).</p><h2>Limits und Kontingente</h2><p>Jeder Benutzer verfügt über: maximal <strong>10 Spaces</strong>, <strong>50 Dokumente pro Space</strong>, <strong>20 MB pro Datei</strong>. Diese Limits garantieren optimale Suchleistung bei ausreichender Kapazität für die meisten Anwendungsfälle.</p><h2>Google-Drive-Synchronisation</h2><p>Du kannst einen <strong>Google-Drive-Ordner</strong> mit einem Knowledge Space verbinden. Dokumente werden automatisch synchronisiert und neu indexiert, wenn sie sich ändern. Die Synchronisation erkennt Hinzufügungen, Änderungen und Löschungen.</p><h2>Integrierte FAQ</h2><p>LIA verfügt über einen System-Knowledge-Space mit seiner eigenen Dokumentation (18 FAQ-Dateien). Dies ermöglicht es ihm, Fragen zu seinen eigenen Funktionen präzise zu beantworten.</p><h2>Ein Raum, der sich selbst füllt: Meetings</h2><p>Ein Raum wird für dich statt von dir angelegt. Wenn LIA das Protokoll einer aufgenommenen Besprechung schreibt, indexiert sie es in einen Raum „Meetings“ — gefunden über seine Rolle, nicht seinen Namen, du darfst ihn also umbenennen — als ein Dokument pro Besprechung, an Ort und Stelle neu geschrieben, sobald du das Protokoll bearbeitest, und entfernt an dem Tag, an dem du die Besprechung löschst. Der Raum ist von der Obergrenze pro Nutzer ausgenommen, und er ist es, der den Assistenten „Was haben wir zur Migration entschieden?“ aus deinen eigenen Besprechungen beantworten lässt, mit Quellenangabe.</p>"
       },
       "personal-journals": {
         "title": "Persönliche Tagebücher: Wenn dein KI-Assistent ein eigenes Gedächtnis entwickelt",
@@ -10105,9 +10186,9 @@
         "body": "<h2>Privacy by Design</h2><p>LIA ist von Anfang an mit Datenschutz als Grundprinzip konzipiert, nicht als nachträgliche Ergänzung.</p><h2>Symmetrische Fernet-Verschlüsselung</h2><p>Alle sensiblen Daten werden mit <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) über die Funktion <code>encrypt_data()</code> verschlüsselt. Dies umfasst OAuth-Token, Connector-Anmeldedaten, PII und MCP-Server-Anmeldedaten. OAuth-Anmeldedaten werden vor dem Schreiben in die Datenbank verschlüsselt und beim Abrufen on-the-fly entschlüsselt. Die Verschlüsselungsschlüssel werden getrennt von den Daten verwaltet.</p><h2>Minimierung der Datenerhebung</h2><p>LIA erhebt nur die für seinen Betrieb strikt notwendigen Daten:</p><ul><li>Profilinformationen (Name, E-Mail, Präferenzen)</li><li>Konversationsverlauf (verschlüsselt)</li><li>Verbindungs-Token zu Diensten (verschlüsselt)</li><li>Anonymisierte Nutzungsmetriken</li></ul><h2>Löschung und Kaskadierung</h2><p>Die Löschung eines Benutzerkontos löst eine <strong>vollständige Kaskadenlöschung</strong> aus: Connectoren, Konversationen, Einstellungen, Sitzungen, Erinnerungen und alle zugehörigen Daten werden unwiderruflich gelöscht. Keine verwaisten Daten verbleiben in der Datenbank.</p><h2>Sichere Sitzungen und Cookies</h2><p>Die Sitzungs-Cookies sind mit den Attributen <code>HttpOnly</code>, <code>Secure</code> (in Produktion) und <code>SameSite=lax</code> konfiguriert. Die Sitzungsdauer beträgt standardmäßig 7 Tage, erweiterbar auf 30 Tage mit der Option \"Angemeldet bleiben\". Einmal-Token werden nach der ersten Verwendung über eine Redis-Sperrliste ungültig gemacht.</p><h2>Schutz externer Inhalte</h2><p>Inhalte, die aus externen Quellen abgerufen werden (E-Mails, Webseiten, Dokumente), werden vor der Injektion in die Prompts als <code>UNTRUSTED</code> mit konfigurierbarem Wrapping markiert. Das Tool web_fetch ist auf 10 Aufrufe pro 60-Sekunden-Fenster pro Benutzer rate-limitiert, um Missbrauch zu verhindern.</p><h2>PII-Filterung in Logs</h2><p>Das Logging-System wendet die <strong>OWASP Logging Cheat Sheet</strong>-Empfehlungen an, um persönliche Daten automatisch aus den Anwendungslogs zu filtern. Keine sensiblen Daten erscheinen in den Logs.</p><h2>Datenportabilität (v1.9.1)</h2><p>LIA ermöglicht jedem Benutzer den <strong>Export seiner persönlichen Verbrauchsdaten</strong> als CSV über Einstellungen > Funktionen. Drei Exporttypen: LLM-Verbrauch (Tokens und Kosten pro Aufruf), Google-API-Verbrauch und aggregierte Zusammenfassung. Sicherheit: Die <code>user_id</code> wird serverseitig erzwungen — kein Parameter wird offengelegt (IDOR-Schutz).</p><h2>Backups mit bewiesener Wiederherstellung</h2><p>Daten zu schützen heißt auch, sicherzustellen, dass sie Zwischenfälle überstehen. Die Produktionsdatenbank wird jede Nacht automatisch gesichert — mit 7 Tagen, 4 Wochen und 6 Monaten Historie, in einem dedizierten Verzeichnis mit restriktiven Berechtigungen. Und weil ein Backup erst zählt, wenn die Wiederherstellung bewiesen ist, wird die Prozedur real getestet: Der letzte Dump wird in einem Wegwerf-Container wiederhergestellt und mit der Live-Datenbank verglichen (Schemarevision, Zeilenzahlen) — eine Übung, die mit dem Stack ausgeliefert wird.</p>"
       },
       "observability": {
-        "title": "499 Prometheus-Metriken, 26 Grafana-Dashboards und Langfuse-Tracing",
+        "title": "506 Prometheus-Metriken, 26 Grafana-Dashboards und Langfuse-Tracing",
         "excerpt": "LIA bietet Enterprise-Observability mit 473 Metriken, Grafana-Dashboards, LLM-Tracing via Langfuse und E-Mail-Alerting mit Runbooks.",
-        "body": "<h2>Die drei Säulen der Observability</h2><p>LIA implementiert die drei Säulen moderner Observability:</p><ul><li><strong>Metriken</strong> — 499 Prometheus-Metriken für HTTP, Agenten, Token, Kosten, OAuth und Performance</li><li><strong>Logs</strong> — Strukturiertes JSON-Logging via structlog, zentralisiert in Loki mit PII-Filterung</li><li><strong>Traces</strong> — Verteiltes Tracing via OpenTelemetry (Tempo) und LLM-Tracing via Langfuse</li></ul><h2>23 spezialisierte Metrik-Dateien</h2><p>Jede Domäne besitzt ihre eigene deklarative Metrik-Datei. Die 23 Module decken ab: HTTP, Agenten (SSE/Router/LLM/HITL/Planer), Datenbank, LangGraph, Langfuse, Voice, RAG Spaces, OAuth, Channels, Fehler, Sub-Agenten, Redis, Attachments, Browser, Compaction, Briefing, Business, Registry, Heartbeat, Gesundheitsmetriken, Journale, Telefonie und Nutzungslimits. Jede Datei definiert domänenspezifische Prometheus-Counter, Histogramme und Gauges.</p><h2>Definition der Prometheus-Metriken</h2><p>Jede Domäne definiert ihre Metriken deklarativ:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana-Dashboards</h2><p>LIA liefert 26 nummerierte Grafana-Dashboards von 01 bis 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony und briefing. Jedes Dashboard bietet filterbare Ansichten nach Benutzer, Zeitraum und Umgebung. Das 26. ist ein Produkt-Cockpit: validierte Ergebnisse (explizites 👍 oder eine unkorrigiert gebliebene Aktion), Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis — die exakte Zählung lebt in PostgreSQL, und Grafana liest sie über eine auf Aggregat-Views beschränkte Nur-Lese-Rolle.</p><h2>Ziel-KPIs aus dem Quellcode</h2><p>LIA überwacht präzise Indikatoren, die im Quellcode definiert sind: TTFT (Time To First Token) des Streamings, Router-Latenz zwischen 0,1 und 2 Sekunden, Tool-Ausführungsdauer der Agenten zwischen 0,1 und 10 Sekunden, Router-Konfidenz p50 &gt; 0,8, LLM-Kosten pro Anfrage &lt; 0,05€, HTTP-5xx-Fehlerrate &lt; 1%.</p><h2>E-Mail-Alerts mit Runbooks</h2><p>Die Überwachung endet nicht bei Dashboards: Ein Kern aus 14 vitalen Alerts — API, PostgreSQL oder Redis nicht erreichbar, Festplatte, Container-Speicher, 5xx-Fehlerrate, Streaming-Latenz, fehlgeschlagenes nächtliches Backup, nicht erreichbare öffentliche URL, bald ablaufendes TLS-Zertifikat, ausgefallene Ratenbegrenzung — wird kontinuierlich von Prometheus ausgewertet und per E-Mail über Alertmanager zugestellt. Jeder Alert verweist auf sein Runbook (Schritt-für-Schritt-Anleitung), die Schwellenwerte werden pro Umgebung in .env-Dateien gepflegt, und promtool-Unit-Tests garantieren, dass die in Benachrichtigungen angezeigten Schwellenwerte exakt den auslösenden Ausdrücken entsprechen. Eine Blackbox-Sonde testet sogar die gesamte Kette Ende-zu-Ende, vom Cloudflare-Edge bis zum Frontend — genau wie ein Nutzer.</p><h2>Langfuse: Dediziertes LLM-Tracing</h2><p>Die Langfuse-Integration verfügt über 8 dedizierte Metriken zur Verfolgung jedes LLM-Aufrufs: verbrauchte Token (Eingabe/Ausgabe/Cache), Antwortzeit, verwendetes Modell, geschätzte Kosten und Anfrage-Kontext. Dies ermöglicht die Identifizierung ineffizienter Prompts, den Vergleich von LLM-Modellen untereinander und die langfristige Optimierung des Token-Verbrauchs.</p><h2>DevOps Claude CLI: Diagnose in natürlicher Sprache (v1.13.0)</h2><p>Neueste Entwicklung des Observability-Stacks: Administratoren können Server jetzt direkt aus der LIA-Konversation diagnostizieren. Claude Code CLI — im API-Docker-Container installiert — inspiziert autonom Logs, prüft die Container-Gesundheit und analysiert die Ressourcennutzung. Persistente Sitzungen, konfigurierbare Berechtigungen pro Umgebung und Echtzeit-Streaming der Untersuchungsschritte via SSE.</p><h2>Und seit v1.34: der Assistent liest die eigene Telemetrie</h2><p>All das gab es für Menschen; der Assistent selbst las nichts davon. ADR-247 hat diese Schleife geschlossen: Eine periodische Selbstprüfung verdichtet die goldenen Signale plus direkte Sonden zu Zustands-Snapshots mit exakten Werten; Alarme und kritische Verdikte konvergieren zu einem Vorfall pro Ausfall, diagnostiziert von einem budgetgedeckelten, auf den Runbooks gegründeten LLM; Administratoren erhalten ein Plattformzustand-Panel, proaktive Benachrichtigungen und lesende Chat-Werkzeuge. Und ein bekannter Ausfall formt nun die Antworten — beeinträchtigte Fähigkeiten werden bei der Planung umfahren, fehlgeschlagene Schritte aus typisierten Fehlercodes erklärt, nie aus rohen Logs.</p><h2>Ergebnisse zählen, nicht Versuche</h2><p>Ein Zähler musste in v1.38.3 neu gedacht werden. Die Aufrufe zu zählen, die einen Anbieter erreichen, ist die Wahrheit über den Anbieter — und der falsche Nenner, sobald diese Aufrufe wiederholt werden, denn ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. Ein zweiter Zähler erfasst nun eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet, und beantwortet die einzige Frage, auf die ein Betreiber reagiert: Hat der Aufrufer sein Ergebnis bekommen? Ein dritter sagt, was die Ratenglättung mit jedem Versuch tat, denn „das Budget ist zu klein“ und „Redis ist ausgefallen“ sehen in einem Boolean gleich aus und verlangen entgegengesetzte Maßnahmen.</p><p>Die jüngste Lektion betrifft die Wahl dessen, was man misst. Die autonome Schleife zählte ihre Iterationen und ihre Dauer — und nichts für das, was tatsächlich wächst: den Prompt, der dem Modell bei jedem Schritt geliefert wird. Am Produktionscode gemessen sind das 2,3 k Tokens bei der ersten und 112 k bei der neunzigsten Iteration, weil jedes Werkzeugergebnis in dem Gespräch bleibt, das das Modell erneut liest. Zwei Histogramme erfassen nun die gelieferte Größe und ihren Anteil am Kontextfenster des Modells, gespeist vom selben memoisierten Zähler, den der Zustands-Reducer ohnehin pflegt — die Messung kostet auf dem heißen Pfad also nichts. Bewusst wurde keine Kompressionsstrategie mitgeliefert: Ein System, das auf eine nie beobachtete Größe reagiert, optimiert eine Vermutung.</p>"
+        "body": "<h2>Die drei Säulen der Observability</h2><p>LIA implementiert die drei Säulen moderner Observability:</p><ul><li><strong>Metriken</strong> — 506 Prometheus-Metriken für HTTP, Agenten, Token, Kosten, OAuth und Performance</li><li><strong>Logs</strong> — Strukturiertes JSON-Logging via structlog, zentralisiert in Loki mit PII-Filterung</li><li><strong>Traces</strong> — Verteiltes Tracing via OpenTelemetry (Tempo) und LLM-Tracing via Langfuse</li></ul><h2>23 spezialisierte Metrik-Dateien</h2><p>Jede Domäne besitzt ihre eigene deklarative Metrik-Datei. Die 23 Module decken ab: HTTP, Agenten (SSE/Router/LLM/HITL/Planer), Datenbank, LangGraph, Langfuse, Voice, RAG Spaces, OAuth, Channels, Fehler, Sub-Agenten, Redis, Attachments, Browser, Compaction, Briefing, Business, Registry, Heartbeat, Gesundheitsmetriken, Journale, Telefonie und Nutzungslimits. Jede Datei definiert domänenspezifische Prometheus-Counter, Histogramme und Gauges.</p><h2>Definition der Prometheus-Metriken</h2><p>Jede Domäne definiert ihre Metriken deklarativ:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana-Dashboards</h2><p>LIA liefert 26 nummerierte Grafana-Dashboards von 01 bis 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony und briefing. Jedes Dashboard bietet filterbare Ansichten nach Benutzer, Zeitraum und Umgebung. Das 26. ist ein Produkt-Cockpit: validierte Ergebnisse (explizites 👍 oder eine unkorrigiert gebliebene Aktion), Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis — die exakte Zählung lebt in PostgreSQL, und Grafana liest sie über eine auf Aggregat-Views beschränkte Nur-Lese-Rolle.</p><h2>Ziel-KPIs aus dem Quellcode</h2><p>LIA überwacht präzise Indikatoren, die im Quellcode definiert sind: TTFT (Time To First Token) des Streamings, Router-Latenz zwischen 0,1 und 2 Sekunden, Tool-Ausführungsdauer der Agenten zwischen 0,1 und 10 Sekunden, Router-Konfidenz p50 &gt; 0,8, LLM-Kosten pro Anfrage &lt; 0,05€, HTTP-5xx-Fehlerrate &lt; 1%.</p><h2>E-Mail-Alerts mit Runbooks</h2><p>Die Überwachung endet nicht bei Dashboards: Ein Kern aus 14 vitalen Alerts — API, PostgreSQL oder Redis nicht erreichbar, Festplatte, Container-Speicher, 5xx-Fehlerrate, Streaming-Latenz, fehlgeschlagenes nächtliches Backup, nicht erreichbare öffentliche URL, bald ablaufendes TLS-Zertifikat, ausgefallene Ratenbegrenzung — wird kontinuierlich von Prometheus ausgewertet und per E-Mail über Alertmanager zugestellt. Jeder Alert verweist auf sein Runbook (Schritt-für-Schritt-Anleitung), die Schwellenwerte werden pro Umgebung in .env-Dateien gepflegt, und promtool-Unit-Tests garantieren, dass die in Benachrichtigungen angezeigten Schwellenwerte exakt den auslösenden Ausdrücken entsprechen. Eine Blackbox-Sonde testet sogar die gesamte Kette Ende-zu-Ende, vom Cloudflare-Edge bis zum Frontend — genau wie ein Nutzer.</p><h2>Langfuse: Dediziertes LLM-Tracing</h2><p>Die Langfuse-Integration verfügt über 8 dedizierte Metriken zur Verfolgung jedes LLM-Aufrufs: verbrauchte Token (Eingabe/Ausgabe/Cache), Antwortzeit, verwendetes Modell, geschätzte Kosten und Anfrage-Kontext. Dies ermöglicht die Identifizierung ineffizienter Prompts, den Vergleich von LLM-Modellen untereinander und die langfristige Optimierung des Token-Verbrauchs.</p><h2>DevOps Claude CLI: Diagnose in natürlicher Sprache (v1.13.0)</h2><p>Neueste Entwicklung des Observability-Stacks: Administratoren können Server jetzt direkt aus der LIA-Konversation diagnostizieren. Claude Code CLI — im API-Docker-Container installiert — inspiziert autonom Logs, prüft die Container-Gesundheit und analysiert die Ressourcennutzung. Persistente Sitzungen, konfigurierbare Berechtigungen pro Umgebung und Echtzeit-Streaming der Untersuchungsschritte via SSE.</p><h2>Und seit v1.34: der Assistent liest die eigene Telemetrie</h2><p>All das gab es für Menschen; der Assistent selbst las nichts davon. ADR-247 hat diese Schleife geschlossen: Eine periodische Selbstprüfung verdichtet die goldenen Signale plus direkte Sonden zu Zustands-Snapshots mit exakten Werten; Alarme und kritische Verdikte konvergieren zu einem Vorfall pro Ausfall, diagnostiziert von einem budgetgedeckelten, auf den Runbooks gegründeten LLM; Administratoren erhalten ein Plattformzustand-Panel, proaktive Benachrichtigungen und lesende Chat-Werkzeuge. Und ein bekannter Ausfall formt nun die Antworten — beeinträchtigte Fähigkeiten werden bei der Planung umfahren, fehlgeschlagene Schritte aus typisierten Fehlercodes erklärt, nie aus rohen Logs.</p><h2>Ergebnisse zählen, nicht Versuche</h2><p>Ein Zähler musste in v1.38.3 neu gedacht werden. Die Aufrufe zu zählen, die einen Anbieter erreichen, ist die Wahrheit über den Anbieter — und der falsche Nenner, sobald diese Aufrufe wiederholt werden, denn ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. Ein zweiter Zähler erfasst nun eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet, und beantwortet die einzige Frage, auf die ein Betreiber reagiert: Hat der Aufrufer sein Ergebnis bekommen? Ein dritter sagt, was die Ratenglättung mit jedem Versuch tat, denn „das Budget ist zu klein“ und „Redis ist ausgefallen“ sehen in einem Boolean gleich aus und verlangen entgegengesetzte Maßnahmen.</p><p>Die jüngste Lektion betrifft die Wahl dessen, was man misst. Die autonome Schleife zählte ihre Iterationen und ihre Dauer — und nichts für das, was tatsächlich wächst: den Prompt, der dem Modell bei jedem Schritt geliefert wird. Am Produktionscode gemessen sind das 2,3 k Tokens bei der ersten und 112 k bei der neunzigsten Iteration, weil jedes Werkzeugergebnis in dem Gespräch bleibt, das das Modell erneut liest. Zwei Histogramme erfassen nun die gelieferte Größe und ihren Anteil am Kontextfenster des Modells, gespeist vom selben memoisierten Zähler, den der Zustands-Reducer ohnehin pflegt — die Messung kostet auf dem heißen Pfad also nichts. Bewusst wurde keine Kompressionsstrategie mitgeliefert: Ein System, das auf eine nie beobachtete Größe reagiert, optimiert eine Vermutung.</p>"
       },
       "prompt-engineering": {
         "title": "Versioniertes Prompt-System: 78 Prompts als Code verwaltet",
@@ -10328,7 +10409,8 @@
       "computed_answers": "Berechnete Antworten",
       "measured_palette": "Eine gemessene Palette",
       "declared_register": "Das deklarierte Register",
-      "shock_absorbers": "Drei Mechanismen, eine Konvergenz"
+      "shock_absorbers": "Drei Mechanismen, eine Konvergenz",
+      "meetings": "Meetings: die Zeile ist der Job"
     }
   },
   "healthMetrics": {
@@ -10840,7 +10922,8 @@
       "plugins": "Plugins",
       "habits": "Gewohnheiten",
       "mcp_servers": "MCP-Server",
-      "telephony": "Anrufe"
+      "telephony": "Anrufe",
+      "meetings": "Besprechungen"
     },
     "items": {
       "stt": "Spracheingabe (Transkription)",
@@ -10864,7 +10947,9 @@
       "mcp": "MCP-Server",
       "mcp_description": "Externe MCP-Server, die ein Nutzer verbindet. Ausschalten schließt deren Verwaltungsrouten.",
       "telephony": "Telefonanrufe",
-      "telephony_description": "Vom Agenten gesteuerte ausgehende Anrufe. Ausschalten schließt die Telefonie-Routen."
+      "telephony_description": "Vom Agenten gesteuerte ausgehende Anrufe. Ausschalten schließt die Telefonie-Routen.",
+      "meetings": "Besprechungsaufnahme",
+      "meetings_description": "Besprechungen aufnehmen und Protokolle erstellen. Ausgeschaltet werden die Besprechungsrouten geschlossen; sonst ändert sich nichts."
     }
   },
   "showroom": {
@@ -11343,6 +11428,240 @@
       "error": "Dieses Dokument konnte nicht geladen werden — es ist möglicherweise abgelaufen.",
       "not_renderable": "Dieses Format öffnet sich in seiner nativen Anwendung — laden Sie es herunter, um es anzusehen.",
       "download": "Herunterladen"
+    }
+  },
+  "meetings": {
+    "composer": {
+      "menu_label": "Anhänge und Besprechungsaufnahme",
+      "add_file": "Datei hinzufügen",
+      "record": "Besprechung aufnehmen",
+      "stop": "Aufnahme beenden"
+    },
+    "banner": {
+      "region_label": "Besprechungsaufnahme",
+      "starting": "Aufnahme wird gestartet…",
+      "recording": "Aufnahme",
+      "offline": "Offline – Segmente warten",
+      "interrupted": "Aufnahme unterbrochen",
+      "stopping": "Wird abgeschlossen…",
+      "processing": "Protokoll wird erstellt…",
+      "error": "Aufnahme beendet",
+      "elapsed_label": "Verstrichene Zeit",
+      "level_label": "Mikrofonpegel",
+      "uploaded_one": "{{count}} Segment gesendet",
+      "uploaded_other": "{{count}} Segmente gesendet",
+      "pending_one": "{{count}} ausstehend",
+      "pending_other": "{{count}} ausstehend",
+      "stop": "Beenden",
+      "resume": "Fortsetzen",
+      "finalize": "Abschließen",
+      "finalize_with_gaps": "Trotzdem abschließen",
+      "discard": "Verwerfen",
+      "dismiss": "Schließen",
+      "open_minutes": "Protokoll öffnen",
+      "keep_screen_on": "Bildschirm an und LIA im Vordergrund lassen: Im Hintergrund schaltet ein Telefon das Mikrofon stumm.",
+      "missing_segments_one": "{{count}} Segment hat den Server nie erreicht; das Protokoll vermerkt die Unterbrechung.",
+      "missing_segments_other": "{{count}} Segmente haben den Server nie erreicht; das Protokoll vermerkt die Unterbrechung.",
+      "silence_title": "Noch in der Besprechung?",
+      "silence_body": "Seit {{minutes}} Minuten kein Ton.",
+      "silence_continue": "Weiter",
+      "engine": {
+        "elevenlabs": "ElevenLabs Scribe",
+        "openai": "OpenAI",
+        "local": "Lokale Engine (auf dem Server)"
+      },
+      "offline_long": "Schon lange offline: Das Audio wartet auf diesem Gerät. Beende und schließe ab, sobald die Verbindung zurück ist."
+    },
+    "toasts": {
+      "ready_title": "Besprechungsprotokoll fertig",
+      "failed_title": "Das Protokoll konnte nicht erstellt werden"
+    },
+    "status": {
+      "recording": "Aufnahme",
+      "interrupted": "Unterbrochen",
+      "stopped": "In Warteschlange",
+      "processing": "In Verarbeitung",
+      "ready": "Fertig",
+      "failed": "Fehlgeschlagen"
+    },
+    "stage": {
+      "normalizing": "Audio wird vorbereitet",
+      "transcribing": "Transkription",
+      "synthesizing": "Protokoll wird verfasst",
+      "indexing": "Wird zum Wissensraum hinzugefügt"
+    },
+    "list": {
+      "title": "Besprechungen",
+      "subtitle": "Deine Aufnahmen und ihre Protokolle",
+      "empty_title": "Noch keine Besprechung",
+      "empty_description": "Starte eine Aufnahme über die Büroklammer im Chat-Eingabefeld; das Protokoll erscheint hier.",
+      "empty_action": "Chat öffnen",
+      "total_one": "{{count}} Besprechung",
+      "total_other": "{{count}} Besprechungen",
+      "untitled": "Besprechung ohne Titel",
+      "open": "{{title}} öffnen",
+      "participants_one": "{{count}} Teilnehmende",
+      "participants_other": "{{count}} Teilnehmende",
+      "actions_one": "{{count}} Aufgabe",
+      "actions_other": "{{count}} Aufgaben"
+    },
+    "detail": {
+      "back": "Zurück zu den Besprechungen",
+      "not_found": "Diese Besprechung existiert nicht oder wurde gelöscht.",
+      "date": "Datum",
+      "time": "Uhrzeit",
+      "duration": "Dauer",
+      "location": "Ort",
+      "engine": "Transkription",
+      "cost": "Kosten",
+      "progress_title": "Protokoll wird erstellt",
+      "processing_hint": "Bei einer langen Besprechung kann das einige Minuten dauern. Du wirst im Chat benachrichtigt, wenn das Protokoll fertig ist.",
+      "failed_title": "Das Protokoll konnte nicht erstellt werden",
+      "minutes_title": "Protokoll",
+      "edited_badge": "Bearbeitet",
+      "generated_badge": "Generiert",
+      "edit": "Bearbeiten",
+      "pdf": "PDF herunterladen",
+      "email": "Protokoll per E-Mail an mich senden",
+      "email_ok": "Das Protokoll wurde an deine E-Mail-Adresse gesendet.",
+      "email_sent": "Per E-Mail gesendet am {{when}}",
+      "regenerate": "Mit meiner Vorlage neu erstellen",
+      "reset": "Generierte Version wiederherstellen",
+      "delete_transcript": "Transkription löschen",
+      "delete": "Besprechung löschen",
+      "retry": "Verarbeitung erneut starten",
+      "saved": "Protokoll gespeichert",
+      "deleted": "Besprechung gelöscht",
+      "transcript_title": "Transkription",
+      "transcript_show": "Transkription anzeigen",
+      "transcript_hide": "Transkription ausblenden",
+      "transcript_deleted": "Die Transkription wurde gelöscht; das Protokoll bleibt erhalten.",
+      "index_indexed": "Verfügbar in deinem Wissensraum „Besprechungen“.",
+      "index_pending": "Wird zu deinem Wissensraum „Besprechungen“ hinzugefügt…",
+      "index_error": "Konnte nicht zum Wissensraum hinzugefügt werden.",
+      "index_disabled": "Wissensräume sind auf dieser Instanz deaktiviert.",
+      "gaps_notice_one": "Die Aufnahme wurde einmal unterbrochen; Inhalte können fehlen.",
+      "gaps_notice_other": "Die Aufnahme wurde {{count}} Mal unterbrochen; Inhalte können fehlen.",
+      "no_names_notice": "Die Sprechenden sind nummeriert: Namen konnten aus der Aufnahme nicht ermittelt werden. Du kannst sie beim Bearbeiten des Protokolls benennen.",
+      "participants_title": "Teilnehmende",
+      "participant_name": "Name",
+      "participant_role": "Rolle",
+      "title_label": "Titel",
+      "section_empty": "Für diesen Abschnitt wurde nichts festgehalten.",
+      "bullets_hint": "Ein Punkt pro Zeile.",
+      "add_item": "Eintrag hinzufügen",
+      "remove_item": "Entfernen",
+      "topic_title": "Thema",
+      "topic_summary": "Zusammenfassung",
+      "action_description": "Aufgabe",
+      "action_owner": "Verantwortlich",
+      "action_due": "Frist",
+      "confirm_delete_title": "Diese Besprechung löschen?",
+      "confirm_delete_description": "Protokoll, Transkription und aufbewahrtes Audio werden endgültig gelöscht.",
+      "confirm_delete_transcript_title": "Transkription löschen?",
+      "confirm_delete_transcript_description": "Das Protokoll bleibt; die Transkription ist nicht wiederherstellbar und das Protokoll kann nicht mehr neu erstellt werden.",
+      "confirm_regenerate_title": "Protokoll neu erstellen?",
+      "confirm_regenerate_description": "LIA verfasst aus der Transkription ein neues Protokoll mit deiner aktuellen Vorlage. Deine Änderungen an diesem Protokoll werden ersetzt.",
+      "confirm_reset_title": "Generierte Version wiederherstellen?",
+      "confirm_reset_description": "Deine Änderungen werden durch das von LIA generierte Protokoll ersetzt.",
+      "cost_breakdown": "{{total}} (Transkription {{stt}} · Protokoll {{minutes}})",
+      "cost_unknown": "kein Tarif"
+    },
+    "card": {
+      "title": "Besprechungsprotokoll fertig",
+      "open": "Protokoll öffnen",
+      "cost_line": "Transkription {{stt}} · Protokoll {{minutes}} · gesamt {{total}}"
+    },
+    "settings": {
+      "preferences_title": "Einstellungen",
+      "engine_label": "Transkriptions-Engine",
+      "engine_auto": "Automatisch (beste verfügbare)",
+      "engine_remote": "Nur externer Anbieter",
+      "engine_local": "Nur lokale Engine (kostenlos, langsamer)",
+      "engine_hint": "Externe Anbieter unterscheiden Sprechende und rechnen pro Audiostunde ab; die lokale Engine ist kostenlos, unterscheidet aber keine Sprechenden.",
+      "language_label": "Gesprochene Sprache",
+      "language_auto": "Automatisch erkennen",
+      "language_codes": {
+        "en": "Englisch",
+        "fr": "Französisch",
+        "de": "Deutsch",
+        "es": "Spanisch",
+        "it": "Italienisch",
+        "zh": "Chinesisch",
+        "pt": "Portugiesisch",
+        "nl": "Niederländisch"
+      },
+      "auto_email_label": "Protokoll per E-Mail an mich senden, sobald es fertig ist",
+      "auto_email_hint": "Gesendet über dein verbundenes E-Mail-Konto an deine eigene Adresse.",
+      "keep_audio_label": "Audio nach der Verarbeitung aufbewahren",
+      "keep_audio_none": "Direkt nach der Verarbeitung gelöscht",
+      "keep_audio_hours_one": "{{count}} Stunde",
+      "keep_audio_hours_other": "{{count}} Stunden",
+      "keep_audio_max_one": "bis zu {{count}} Stunde",
+      "keep_audio_max_other": "bis zu {{count}} Stunden",
+      "saved": "Einstellungen gespeichert",
+      "template_title": "Aufbau des Protokolls",
+      "template_description": "Die Abschnitte, die LIA ausfüllt, in dieser Reihenfolge. Passe sie an deine Bedürfnisse an; der Standardaufbau kann jederzeit wiederhergestellt werden.",
+      "template_name_label": "Name der Vorlage",
+      "template_builtin_badge": "Standard",
+      "reset_template": "Standard wiederherstellen",
+      "template_saved": "Vorlage gespeichert",
+      "template_reset": "Standardvorlage wiederhergestellt",
+      "new_section_label": "Neuer Abschnitt",
+      "section_position": "Abschnitt {{position}}",
+      "move_up": "„{{label}}“ nach oben",
+      "move_down": "„{{label}}“ nach unten",
+      "remove_section": "„{{label}}“ entfernen",
+      "section_label": "Überschrift",
+      "section_kind": "Format",
+      "section_instruction": "Was LIA in diesen Abschnitt schreiben soll",
+      "kind_paragraph": "Absatz",
+      "kind_bullets": "Aufzählung",
+      "kind_topics": "Themen mit Zusammenfassungen",
+      "kind_action_items": "Aufgaben mit Verantwortlichen und Frist",
+      "add_section": "Abschnitt hinzufügen",
+      "max_sections_one": "Höchstens {{count}} Abschnitt.",
+      "max_sections_other": "Höchstens {{count}} Abschnitte.",
+      "recent_title": "Letzte Besprechungen",
+      "no_meetings": "Noch keine Besprechung aufgenommen.",
+      "view_all_one": "Alle Besprechungen ({{count}})",
+      "view_all_other": "Alle Besprechungen ({{count}})"
+    },
+    "errors": {
+      "audio_normalize_failed": "Das Audio konnte nicht vorbereitet werden.",
+      "audio_unavailable": "Das Audio ist nicht mehr verfügbar.",
+      "capture_failed": "Das Mikrofon funktioniert nicht mehr.",
+      "duration_cap_reached": "Die maximale Aufnahmedauer ist erreicht: Das Protokoll wird aus dem Aufgenommenen erstellt.",
+      "email_connector_missing": "Kein E-Mail-Konto ist verbunden, um das Protokoll zu senden.",
+      "email_send_failed": "Dein E-Mail-Anbieter hat die Nachricht abgelehnt.",
+      "format_unavailable": "Diese Aufnahme wurde in einem Format begonnen, das dieser Browser nicht erzeugen kann: Sie kann hier nur abgeschlossen oder verworfen werden.",
+      "invalid_api_key": "Der Transkriptionsdienst hat den konfigurierten Schlüssel abgelehnt.",
+      "meeting_already_recording": "Eine Aufnahme läuft bereits.",
+      "meeting_in_progress": "Die Besprechung wird noch verarbeitet.",
+      "meeting_not_interrupted": "Diese Aufnahme ist nicht unterbrochen.",
+      "meeting_not_recording": "Diese Aufnahme ist bereits beendet.",
+      "meeting_not_retryable": "Diese Besprechung kann nicht erneut versucht werden.",
+      "microphone_denied": "Der Mikrofonzugriff wurde verweigert.",
+      "no_audio": "Es wurde nichts aufgenommen.",
+      "no_engine_available": "Auf dieser Instanz ist keine Transkriptions-Engine verfügbar.",
+      "no_speech": "In der Aufnahme wurde keine Sprache gefunden.",
+      "provider_rate_limited": "Der Transkriptionsdienst ist ausgelastet; es wird erneut versucht.",
+      "rate_limited": "Zu viele Aufnahmen wurden kürzlich gestartet; versuche es später erneut.",
+      "regeneration_in_progress": "Das Protokoll wird bereits neu erstellt.",
+      "report_not_ready": "Das Protokoll ist noch nicht fertig.",
+      "segment_empty": "Ein leeres Audiosegment wurde abgelehnt.",
+      "segment_malformed": "Ein fehlerhaftes Audiosegment wurde abgelehnt.",
+      "segment_too_large": "Ein Segment war zu groß für den Server.",
+      "segments_missing": "Einige Segmente haben den Server nie erreicht.",
+      "start_failed": "Die Aufnahme konnte nicht gestartet werden.",
+      "stop_failed": "Die Aufnahme konnte nicht abgeschlossen werden.",
+      "storage_unavailable": "Der Server konnte die Aufnahme nicht speichern (Speicher voll oder nicht verfügbar). Die Segmente bleiben erhalten und werden erneut gesendet.",
+      "synthesis_failed": "Das Protokoll konnte nicht verfasst werden.",
+      "transcript_unavailable": "Die Transkription ist nicht mehr verfügbar.",
+      "unexpected": "Bei der Verarbeitung ist ein Fehler aufgetreten.",
+      "unknown": "Unbekannter Fehler ({{code}})",
+      "usage_limit": "Dein Nutzungslimit ist erreicht.",
+      "user_missing": "Das Konto existiert nicht mehr."
     }
   }
 }

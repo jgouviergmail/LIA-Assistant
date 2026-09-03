@@ -93,6 +93,12 @@ class RAGSpaceRepository(BaseRepository[RAGSpace]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_kind_for_user(self, user_id: UUID, kind: str) -> RAGSpace | None:
+        """The space another domain manages by ROLE (``kind``), whatever its name (ADR-258)."""
+        stmt = select(RAGSpace).where(RAGSpace.user_id == user_id, RAGSpace.kind == kind)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     # ========================================================================
     # System Spaces
     # ========================================================================

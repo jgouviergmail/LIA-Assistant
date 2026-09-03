@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 5.1
+**Versione**: 5.2
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.38.6
+**Applicazione**: LIA v1.39.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -207,6 +207,14 @@ Puoi anche chiederlo senza aprire la pagina: quando è avvenuta l'ultima chiamat
 
 Resta ciò che nessun sistema può indovinare. LIA raggruppa ciò che si scrive allo stesso modo, a meno di accenti e maiuscole; non può sapere che un numero annotato un giorno e un nome sono la stessa persona, né chi sia esattamente «Papà». È un giudizio, e spetta a te: lo dici una volta, dalla scheda, ed è **reversibile** — l'unione compare con il proprio annullamento e nulla viene riscritto nelle tue fonti. Del resto, un raggruppamento di visualizzazione non cambia mai a chi è indirizzato un messaggio.
 
+
+### 3.13. Una riunione registrata, un verbale scritto
+
+Premi **+** nella chat e il tuo telefono o il tuo computer diventa il registratore della riunione. Un banner ti segue su ogni pagina con il tempo e ciò che ha già raggiunto il tuo server; nel frattempo continui a parlare con LIA — le risposte parlate si mettono semplicemente in pausa perché il microfono non senta mai l'assistente. Quando ti fermi, LIA trascrive tutto e scrive il verbale **nella tua struttura**: l'intestazione è fissa (data, orari, luogo, partecipanti), il corpo è tuo — riassunto, argomenti, decisioni, azioni con responsabile e scadenza, rischi, domande aperte, o le sezioni che definisci una volta nelle Impostazioni e ripristini con un clic.
+
+La vita reale è prevista, non scusata. L'audio parte in piccoli segmenti mentre parli, così un telefono bloccato, una connessione persa o un ricaricamento costano secondi, mai la riunione: al ritorno riprendi, finalizzi o elimini. Un lungo silenzio riceve una domanda, una durata massima finalizza da sola, e una lacuna nella registrazione è dichiarata nel verbale — mai colmata con una supposizione. Una voce senza nome resta S2; un nome compare solo quando la registrazione lo stabilisce.
+
+Il verbale ti arriva per tre vie — una scheda nella chat, un PDF, la tua casella — ed entra in uno spazio di conoscenza **Riunioni** creato per te, così settimane dopo puoi semplicemente chiedere cosa è stato deciso. Quanto è costato è scritto accanto: la trascrizione e il verbale come due importi e il loro totale, conteggiati come ogni altro scambio. E il motore di trascrizione lo scegli tu: uno remoto che separa le voci, o quello locale che non costa nulla e non lascia mai il tuo server.
 
 ---
 

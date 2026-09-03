@@ -220,6 +220,21 @@ TABLE_RULES: dict[str, TableRule] = {
     ),
     "rag_spaces": _PURGED_FULL,
     "attachments": _PURGED_FULL,
+    # Meeting recording & minutes (ADR-258). The transcript column is
+    # Fernet-encrypted at rest (third parties' speech) and decrypted at export
+    # time by the account-export builder so the archive stays readable.
+    "meetings": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Meeting records: header, minutes and encrypted transcript "
+        "(decrypted at export); audio files exported when kept.",
+    ),
+    "meeting_templates": _PURGED_FULL,
+    "meeting_preferences": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="Per-user meeting preferences (engine, language, retention, auto-email) — settings, not secrets.",
+    ),
     "user_usage_limits": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,

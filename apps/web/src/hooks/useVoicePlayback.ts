@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useMeetingIsCapturing } from '@/stores/meetingRecorderStore';
 import { AudioQueue, type AudioQueueState } from '@/lib/audio-queue';
 import { logger } from '@/lib/logger';
 import type { VoiceAudioChunk } from '@/types/chat';
@@ -40,6 +41,9 @@ export function useVoicePlayback() {
 
   // User's voice preference
   const isEnabled = user?.voice_enabled ?? false;
+  // ADR-258: while a meeting records, LIA stays silent — the microphone must
+  // never hear a spoken answer, and the transcript must never carry one.
+  const meetingCapturing = useMeetingIsCapturing();
 
   /**
    * Configure callbacks on an AudioQueue instance.
@@ -94,7 +98,7 @@ export function useVoicePlayback() {
    */
   const handleVoiceChunk = useCallback(
     async (chunk: VoiceAudioChunk) => {
-      if (!isEnabled || !audioQueueRef.current) {
+      if (!isEnabled || meetingCapturing || !audioQueueRef.current) {
         return;
       }
 
@@ -109,7 +113,7 @@ export function useVoicePlayback() {
         setError(err as Error);
       }
     },
-    [isEnabled]
+    [isEnabled, meetingCapturing]
   );
 
   /**

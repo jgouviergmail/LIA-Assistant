@@ -9,6 +9,9 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   Re-measured 2026-09-03 (v1.39.0) on the dev instance = 108 (`tool_count` in the
+ *   catalogue log at boot; `grep -rcE '^[A-Za-z_]+ = ToolManifest\(' src/domains/agents/`
+ *   agrees): the meetings read tool (ADR-258) joined the catalogue.
  *   Re-measured 2026-08-29 (v1.37.0) on the running production instance =
  *   107 (`len(registry._tool_manifests)` after `initialize_catalogue`), up
  *   from the 102 carried since v1.30.x. FOUR of the five are drift that
@@ -77,6 +80,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-09-03 (v1.39.0): backend 22 416 collected over `tests/`
+ *   (sum of the per-file counts of `pytest --collect-only -q`, 1 337 files) +
+ *   frontend 6 861 (vitest, 542 files) = 29 277 → 29200.
  *   Re-measured at v1.38.6: backend 21,545 (`pytest tests/unit tests/agents
  *   --collect-only --no-cov`) + frontend 6,698 (`vitest list`) = 28,243
  *   -> 28,000 (unchanged in VALUE, now backed by a measurement: v1.38.4 had
@@ -274,14 +280,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 107,
+  tools: 108,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 499,
+  metrics: 506,
   uiLanguages: 6,
-  tests: 28000,
-  adrs: 256,
-  releases: 240,
+  tests: 29200,
+  adrs: 257,
+  releases: 241,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

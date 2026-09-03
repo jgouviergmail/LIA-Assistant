@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 4.6
+**Version**: 4.7
 **Date**: 2026-08-23
-**Application**: LIA v1.38.6
+**Application**: LIA v1.39.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -51,6 +51,7 @@
 35. [Measuring a colour before shipping it: the settings palette](#35-measuring-a-colour-before-shipping-it-the-settings-palette)
 36. [A trait is not a reaction: the register the answer declares](#36-a-trait-is-not-a-reaction-the-register-the-answer-declares)
 37. [Three mechanisms for one convergence: shaping a burst a ceiling cannot see](#37-three-mechanisms-for-one-convergence-shaping-a-burst-a-ceiling-cannot-see)
+38. [Meeting minutes: the row is the job, the template is the contract](#38-meeting-minutes-the-row-is-the-job-the-template-is-the-contract)
 ---
 
 ## 1. Context and founding choices
@@ -64,8 +65,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 499 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 256 ADRs, ~22,199 pytest-collected tests across 1,311 files, native observability, 6-level HITL |
+| Full transparency | 506 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 257 ADRs, ~22,199 pytest-collected tests across 1,311 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -86,7 +87,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 22,199 collected by pytest across 1,311 test files + 6,693 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 256 |
+| ADRs (Architecture Decision Records) | 257 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -919,7 +920,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 499 custom metrics (RED pattern) |
+| Prometheus | 506 custom metrics (RED pattern) |
 | Grafana | 26 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -927,7 +928,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 499 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 506 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1325,7 +1326,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-256 ADRs in MADR format document the major architectural decisions. Some representative examples:
+257 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1464,7 +1465,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 256 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~22,199 tests across 1,311 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 257 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~22,199 tests across 1,311 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1564,4 +1565,15 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 
 **And what is not measured cannot be seen.** The provider-call counter becomes the wrong denominator the moment you retry: a recovered failure inflates the error rate while nothing was lost. Platform Health therefore counts **outcomes** — one row per logical operation, retries collapsed — and a second counter says what the shaper did with each attempt, because "budget too small" and "Redis down" call for opposite actions.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 256 ADRs, and the changelog (v1.0 to v1.38.6). All metrics, versions, and patterns cited are verifiable in the codebase.*
+## 38. Meeting minutes: the row is the job, the template is the contract
+
+**A meeting is hours of audio produced on a device that may sleep, lose its network or be closed by mistake — so capture is designed for the failure, not the nominal case.** The browser records in short segments and uploads each one as a raw-body request the moment it exists; a segment is a file on the server, written to a temporary name and renamed atomically, so four API workers can receive out of order without ever interleaving bytes, a duplicate upload is a harmless overwrite, and detecting a gap is a directory listing. Two sources sit behind one interface: Opus through `MediaRecorder` where the engine is trustworthy, raw 16 kHz PCM through the AudioWorklet the voice input already uses everywhere else — the only path on Apple devices, whose recorder produced a container the backend refuses and misbehaved in home-screen apps. The format is a pure function of the environment, decided once before the first byte. Uploads leave in order, retry with a backoff that never gives up while the recording lasts, and wait — not fail — while the browser is offline; a stop declares the uploader's own count, and sequences the server never received are refused by name.
+
+**The meeting row is the durable job.** Its status carries the whole lifecycle — recording, interrupted, stopped, processing, ready or failed — and every transition is one conditional `UPDATE`. The processing claim takes a lease, heartbeats renew it while publishing the stage the page shows (normalizing, transcribing, synthesizing, indexing), a lost heartbeat aborts every later effect, and reapers re-drive stopped orphans and expired leases within a bounded attempt budget. Refusals that are not pipeline failures — a usage limit, no engine available — release the job without consuming an attempt. And since a bulk update leaves SQLAlchemy's identity map stale, every read that follows one expires the session first: the runtime proof measured a stop that answered `status: recording` before that rule existed.
+
+**Engines form a chain, and the chain is walked twice.** Once before the first second, from the provider-key cache only: the administrator's speech slot, then ElevenLabs Scribe or OpenAI `gpt-4o-transcribe-diarize` — whole file, speakers separated — then the local Whisper engine. The local path used to decode one thirty-second window and silently return the first thirty seconds of anything longer; a voice command never met the defect, a meeting always would. Long audio is now cut by Silero VAD into speech windows of at most twenty seconds, each decoded on its own, with fixed windows when the model is absent — never truncation. The chain is walked again at processing time: a permanent fault of one provider (a refused key, a file it cannot take) hands over to the next engine within the user's preference; only silence, which says something about the audio, or a transient fault, which belongs to the retry budget, stops the walk. The dev instance had stored a key ID where a key belongs; without the second walk every meeting would have dead-lettered with an OpenAI key one step down.
+
+**The template is the contract, and the model is not trusted to honour it byte for byte.** The user's sections — key, label, instruction, kind — are rendered into one structured-output call; when the transcript overflows the model's window it is condensed part by part first, so a 128k model still produces faithful minutes for a three-hour meeting. The model answers a permissive shape, and a repair step folds it into the strict report: sections it skipped come back empty, sections it invented are dropped, a payload in the wrong shape for its kind is converted, participants are restricted to speaker labels that actually spoke. The generated report is immutable; what the user edits is a copy, « restore » copies back, « rebuild » re-runs the synthesis on the stored transcript with the current template. One serializer produces the Markdown the « Meetings » knowledge space indexes (found by role, one document per meeting rewritten in place and deleted with it), the sectioned content the PDF renderer turns into a file, and the HTML the email carries — so the three can never disagree.
+
+**Every paid unit is accounted, and shown.** A meeting spends audio at the transcription engine and tokens at the synthesis model, condense passes and rebuilds included; both reach the platform's books the way every exchange does — the audio through the remote-speech statistics, the tokens under a `run_id` the archived chat message carries, so history joins the token log exactly as for any proactive notification. The row keeps the minutes' own spend so the page states the exact total with its breakdown, the card states the two units and their sum, and a model without an administered price yields `null`: an unknown price is not a free one. The same honesty runs through the minutes themselves — a gap is stated, never bridged; an unnamed speaker stays S2; a proposal left open is not a decision.
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 257 ADRs, and the changelog (v1.0 to v1.39.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

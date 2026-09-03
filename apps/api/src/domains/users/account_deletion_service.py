@@ -166,6 +166,12 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # reference users with ondelete=CASCADE that never fires.
         by_user("open_loops"),
         by_user("phone_calls"),
+        # Meetings (ADR-258): recordings + minutes, the user's template and
+        # preferences. Same soft-delete trap — explicit purge, files removed
+        # by the meetings audio store through the deletion service.
+        by_user("meetings"),
+        by_user("meeting_templates"),
+        by_user("meeting_preferences"),
         # Habits (ADR-214): learned rhythm profile + discrete habits.
         by_user("user_habit_profiles"),
         by_user("user_habits"),

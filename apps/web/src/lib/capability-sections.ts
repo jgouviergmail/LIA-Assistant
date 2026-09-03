@@ -47,6 +47,7 @@ export const CAPABILITY_SECTION: Readonly<Record<string, SettingsSectionToken>> 
   skills: 'skills',
   plugins: 'plugins',
   mcp_servers: 'mcp-servers',
+  meetings: 'meetings',
 };
 
 /** The derived reverse: settings section → the capability it governs. */

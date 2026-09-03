@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 5.1
+**Version** : 5.2
 **Date** : 2026-08-23
-**Application** : LIA v1.38.6
+**Application** : LIA v1.39.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -207,6 +207,14 @@ Tu peux aussi le demander à voix haute, sans ouvrir la page : « de quand date 
 
 Reste ce qu'aucun système ne peut deviner. LIA regroupe ce qui s'écrit pareil, aux accents et aux majuscules près ; elle ne peut pas savoir qu'un numéro noté un jour et un nom sont la même personne, ni que « Papa » est quelqu'un en particulier. C'est un jugement, et il te revient : tu le dis une fois, depuis la fiche, et c'est **réversible** — la fusion s'affiche avec son annulation, rien n'est réécrit dans tes sources. Un regroupement d'affichage ne change d'ailleurs jamais à qui un message est adressé.
 
+
+### 3.13. Une réunion enregistrée, un compte rendu rédigé
+
+Appuie sur **+** dans le chat et ton téléphone ou ton ordinateur devient l'enregistreur de la réunion. Une bannière te suit sur chaque page avec le temps et ce qui a déjà atteint ton serveur ; tu continues à parler avec LIA pendant ce temps — les réponses parlées se mettent simplement en pause pour que le micro n'entende jamais l'assistant. Quand tu arrêtes, LIA transcrit tout et rédige le compte rendu **à ta structure** : l'en-tête est fixe (date, horaires, lieu, participants), le corps est à toi — résumé, sujets, décisions, actions avec responsable et échéance, risques, questions ouvertes, ou les sections que tu définis une fois dans les Réglages et remets au défaut d'un clic.
+
+La vraie vie est prévue, pas excusée. L'audio part en petits segments au fil de la parole, si bien qu'un téléphone verrouillé, une coupure ou un rechargement coûtent des secondes, jamais la réunion : au retour tu reprends, finalises ou abandonnes. Un long silence appelle une question, une durée maximale finalise d'elle-même, et une lacune de l'enregistrement est dite dans le compte rendu — jamais comblée par une supposition. Une voix non nommée reste S2 ; un nom n'apparaît que si l'enregistrement l'établit.
+
+Le compte rendu t'arrive par trois chemins — une carte dans le chat, un PDF, ta propre messagerie — et rejoint un espace de connaissances **Réunions** créé pour toi, pour qu'à des semaines de distance tu puisses simplement demander ce qui a été décidé. Ce que ça a coûté est écrit à côté : la transcription et le compte rendu en deux montants et leur total, comptés comme tout autre échange. Et le moteur de transcription est à ton choix : un distant qui sépare les voix, ou le local qui ne coûte rien et ne quitte jamais ton serveur.
 
 ---
 

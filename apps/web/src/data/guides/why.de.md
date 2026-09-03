@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 5.1
+**Version**: 5.2
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.38.6
+**Anwendung**: LIA v1.39.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -207,6 +207,14 @@ Du kannst auch einfach fragen, ohne die Seite zu öffnen: wann der letzte Anruf 
 
 Bleibt, was kein System erraten kann. LIA gruppiert, was gleich geschrieben wird, unabhängig von Akzenten und Großschreibung; sie kann nicht wissen, dass eine irgendwann notierte Nummer und ein Name dieselbe Person sind, oder wer genau „Papa“ ist. Das ist ein Urteil, und es liegt bei dir: Du sagst es einmal, auf der Karte, und es ist **umkehrbar** — die Zusammenführung erscheint samt Rückgängig-Schaltfläche, und in deinen Quellen wird nichts umgeschrieben. Eine Anzeige-Gruppierung ändert im Übrigen nie, an wen eine Nachricht gerichtet ist.
 
+
+### 3.13. Eine Besprechung aufgenommen, ein Protokoll geschrieben
+
+Drücke **+** im Chat, und dein Telefon oder Computer wird zum Aufnahmegerät der Besprechung. Ein Banner begleitet dich auf jeder Seite mit der Zeit und dem, was deinen Server schon erreicht hat; du sprichst währenddessen weiter mit LIA — gesprochene Antworten pausieren einfach, damit das Mikrofon den Assistenten nie hört. Wenn du stoppst, transkribiert LIA alles und schreibt das Protokoll **in deiner Struktur**: Der Kopf ist fest (Datum, Zeiten, Ort, Teilnehmende), der Hauptteil ist deiner — Zusammenfassung, Themen, Entscheidungen, Aufgaben mit Verantwortlichen und Frist, Risiken, offene Fragen oder welche Abschnitte du einmal in den Einstellungen festlegst und mit einem Klick zurücksetzt.
+
+Das echte Leben ist eingeplant, nicht entschuldigt. Der Ton geht in kleinen Segmenten hinaus, während du sprichst, sodass ein gesperrtes Telefon, ein Verbindungsabbruch oder ein Neuladen Sekunden kostet, nie die Besprechung: Bei der Rückkehr setzt du fort, schließt ab oder verwirfst. Lange Stille bringt eine Frage, eine Höchstdauer schließt von selbst ab, und eine Lücke in der Aufnahme wird im Protokoll benannt — nie mit einer Vermutung gefüllt. Eine unbenannte Stimme bleibt S2; ein Name erscheint nur, wenn die Aufnahme ihn belegt.
+
+Das Protokoll erreicht dich auf drei Wegen — als Karte im Chat, als PDF, in deinem eigenen Postfach — und landet in einem für dich angelegten Wissensraum **Meetings**, sodass du Wochen später einfach fragen kannst, was entschieden wurde. Was es gekostet hat, steht daneben: Transkription und Protokoll als zwei Beträge und ihre Summe, gezählt wie jeder andere Austausch. Und die Transkriptions-Engine wählst du: eine entfernte, die die Sprechenden trennt, oder die lokale, die nichts kostet und deinen Server nie verlässt.
 
 ---
 

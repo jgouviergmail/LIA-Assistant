@@ -28,6 +28,59 @@ class STTResult(BaseModel):
     )
 
 
+class TranscriptWord(BaseModel):
+    """One timed word of a file transcription (speaker known when diarized)."""
+
+    text: str = Field(..., description="Word text as transcribed.")
+    start: float = Field(..., ge=0.0, description="Start offset in seconds.")
+    end: float = Field(..., ge=0.0, description="End offset in seconds.")
+    speaker: str | None = Field(default=None, description="Provider speaker label, if diarized.")
+
+
+class STTFileResult(BaseModel):
+    """Outcome of a whole-file transcription (meetings, ADR-258)."""
+
+    text: str = Field(..., description="Full transcription text.")
+    words: list[TranscriptWord] = Field(
+        default_factory=list,
+        description="Timed words (empty when the provider returns text only).",
+    )
+    audio_duration_seconds: float = Field(..., ge=0.0, description="Authoritative duration.")
+    language_code: str | None = Field(default=None, description="Detected/declared language.")
+    diarized: bool = Field(default=False, description="Whether speaker labels are present.")
+
+
+@runtime_checkable
+class SttFileTranscriberProtocol(Protocol):
+    """A remote engine that transcribes ONE audio file (any length the provider accepts)."""
+
+    async def transcribe_file_async(
+        self,
+        path: str,
+        mime_type: str,
+        *,
+        diarize: bool,
+        language: str | None,
+        timeout_seconds: float,
+    ) -> STTFileResult:
+        """Transcribe the file at ``path``.
+
+        Args:
+            path: Local file path (normalized Opus container).
+            mime_type: Its MIME type.
+            diarize: Ask for speaker labels when the provider offers them.
+            language: ISO-639-1 hint, ``None`` = auto-detect.
+            timeout_seconds: Whole-call HTTP timeout.
+
+        Returns:
+            STTFileResult with text, timed words and the billed duration.
+
+        Raises:
+            STTProviderError: When the provider fails; ``code`` classifies it.
+        """
+        ...
+
+
 @runtime_checkable
 class SttServiceProtocol(Protocol):
     """Common interface for any STT backend used by the voice WebSocket."""

@@ -1840,6 +1840,20 @@ VOICE_STT_LANGUAGE_DEFAULT = ""
 # Default Whisper task (transcribe or translate)
 VOICE_STT_TASK_DEFAULT = "transcribe"
 
+# Long audio on the local engine. sherpa-onnx's Whisper decoder keeps only the
+# first 30 s of a buffer and drops the rest with a stderr log (measured
+# 2026-09-02: a 127.6 s recording yielded one of seven sentinel words). Any
+# buffer above the single-pass cap is cut into windows that end on silences
+# (Silero VAD) and never exceed the window cap; both caps stay under the
+# engine's hard limit. Tuned on the same measurement: windows of 15-20 s kept
+# 6 of 7 sentinels, 25 s windows 5, raw VAD scraps of 1-3 s only 4.
+WHISPER_ENGINE_MAX_SECONDS = 30
+VOICE_STT_SINGLE_PASS_MAX_SECONDS_DEFAULT = 25
+VOICE_STT_WINDOW_SECONDS_DEFAULT = 20
+VOICE_STT_VAD_THRESHOLD_DEFAULT = 0.5
+VOICE_STT_VAD_MIN_SILENCE_SECONDS_DEFAULT = 0.4
+VOICE_STT_VAD_MIN_SPEECH_SECONDS_DEFAULT = 0.25
+
 # ============================================================================
 # VOICE WEBSOCKET (Audio Streaming)
 # ============================================================================
@@ -2916,6 +2930,9 @@ VOICE_CONTEXT_MAX_CHARS_DEFAULT = 2000
 VOICE_PARALLEL_TIMEOUT_SECONDS_DEFAULT = 15.0
 VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT = 15
 VOICE_STT_MODEL_PATH_DEFAULT = "/models/whisper-small"
+# Silero VAD model (644 kB), baked into the image next to the Whisper model by
+# the same download stage; a missing file degrades long audio to fixed windows.
+VOICE_STT_VAD_MODEL_PATH_DEFAULT = "/models/silero-vad/silero_vad.onnx"
 
 # Approximate playback speed used to surface a ``duration_ms`` hint to the
 # frontend before the audio actually plays — purely informational (the
@@ -4217,6 +4234,16 @@ STT_EXECUTOR_THREAD_PREFIX = "stt"
 # and the active model lives in llm_config_overrides.voice_transcription.
 
 ELEVENLABS_PROVIDER_NAME = "elevenlabs"
+OPENAI_PROVIDER_NAME = "openai"
+
+# Remote STT providers the file-transcription path knows, in fallback order
+# (ADR-258): the admin `voice_transcription` slot names the PREFERRED remote
+# model; when its provider has no key, the next provider with a key is used.
+# OpenAI's diarizing model is the default there because minutes need speakers;
+# both prices are administered in llm_model_pricing (per_audio_minute).
+OPENAI_STT_DIARIZE_MODEL_DEFAULT = "gpt-4o-transcribe-diarize"
+OPENAI_STT_MODEL_DEFAULT = "gpt-4o-mini-transcribe"
+STT_PROVIDER_FALLBACK_ORDER: tuple[str, ...] = (ELEVENLABS_PROVIDER_NAME, OPENAI_PROVIDER_NAME)
 DEFAULT_ELEVENLABS_STT_MODEL = "scribe_v2"
 DEFAULT_ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
 # ElevenLabs Scribe rejects clips shorter than 100 ms; below the threshold the
@@ -5219,6 +5246,84 @@ DOCUMENT_GENERATION_MAX_SOURCE_CHARS_DEFAULT: int = 60000
 
 # LLM config key (LLM_TYPES_REGISTRY / LLMConfigOverrideCache lookup)
 DOCUMENT_GENERATION_LLM_TYPE: str = "document_generation"
+
+# ============================================================================
+# MEETINGS (meeting recording & structured minutes, ADR-258)
+# ============================================================================
+# Feature flag (deployment ceiling; the admin capability switch acts inside it).
+MEETINGS_ENABLED_DEFAULT: bool = True
+
+# Per-user storage root: segments/{seq}.bin while recording, audio.webm after
+# normalization, purged after processing unless the user keeps the audio.
+MEETINGS_STORAGE_PATH_DEFAULT: str = "/app/data/meetings"
+
+# Duration caps. The default is a comfortable meeting; the CEILING is a provider
+# fact: OpenAI transcriptions accept 25 MB per request, and at the 16 kbps Opus
+# floor the normalizer fits ~210 minutes in one file. Chunking beyond that would
+# lose speaker-label consistency across chunks, so the ceiling keeps the
+# single-file guarantee rather than pretending to support what it cannot.
+MEETINGS_MAX_DURATION_MINUTES_DEFAULT: int = 180
+MEETINGS_MAX_DURATION_MINUTES_CEILING: int = 210
+
+# Client segment cadence (frontend constant mirrors it) and the server-side
+# ceiling one segment may carry — anything longer is a client bug or an abuse.
+MEETINGS_SEGMENT_SECONDS_DEFAULT: int = 30
+MEETINGS_SEGMENT_MAX_SECONDS_DEFAULT: int = 60
+
+# A recording with no segment for this long is INTERRUPTED (client gone); the
+# next segment flips it back — a long outage is a gap, not a failure.
+MEETINGS_RECORDING_STALE_MINUTES_DEFAULT: int = 5
+# Client-side silence watchdog: ask "still in a meeting?" after this long.
+MEETINGS_SILENCE_PROMPT_MINUTES_DEFAULT: int = 10
+
+# Durable processing job (entity-as-job, ADR-129 pattern).
+MEETINGS_JOB_LEASE_TTL_SECONDS_DEFAULT: int = 900
+MEETINGS_JOB_HEARTBEAT_INTERVAL_SECONDS_DEFAULT: int = 60
+MEETINGS_JOB_MAX_ATTEMPTS_DEFAULT: int = 3
+MEETINGS_REAPER_INTERVAL_SECONDS_DEFAULT: int = 120
+MEETINGS_RETENTION_REAPER_INTERVAL_MINUTES_DEFAULT: int = 60
+
+# Audio retention the user may opt into, bounded by this admin ceiling (hours).
+MEETINGS_AUDIO_RETENTION_HOURS_MAX_DEFAULT: int = 168
+
+# Remote transcription of a whole meeting is minutes, not seconds.
+MEETINGS_STT_TIMEOUT_SECONDS_DEFAULT: float = 900.0
+# Local engine real-time factor shown to the user as an ETA; the admin
+# calibrates it on the host (a Raspberry Pi is far slower than a dev box).
+MEETINGS_LOCAL_RTF_ESTIMATE_DEFAULT: float = 1.5
+# Local engine: the recording is decoded back to PCM in blocks of this length so a
+# three-hour meeting never sits in memory at once (600 s = 19 MB of int16 PCM).
+MEETINGS_LOCAL_BLOCK_SECONDS: int = 600
+# Synthesis: transcript characters per token, a deliberately conservative
+# multilingual estimate (French runs ~3.5, Chinese ~1.5); used only to decide
+# whether the transcript must be condensed before the structured call.
+MEETINGS_CHARS_PER_TOKEN_ESTIMATE: int = 3
+# Tokens kept free of transcript in the synthesis window: system + template +
+# context (~2k) and the structured answer (max_tokens of the slot, 8k).
+MEETINGS_SYNTHESIS_RESERVE_TOKENS: int = 12000
+# Part size (in characters) handed to the condense pass when the transcript
+# overflows the window; each part must itself fit comfortably.
+MEETINGS_CONDENSE_PART_CHARS: int = 60000
+
+# Starts per user per window (sliding, Redis) — an anti-runaway bound, the
+# paid resources are covered by usage_limits.
+MEETINGS_RATE_LIMIT_STARTS_DEFAULT: int = 10
+MEETINGS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 3600
+
+# Normalization to Opus: 32 kbps is transparent for speech; the floor keeps a
+# 210-minute meeting under the remote 25 MB cap.
+MEETINGS_OPUS_BITRATE_MAX_KBPS: int = 32
+MEETINGS_OPUS_BITRATE_MIN_KBPS: int = 16
+MEETINGS_REMOTE_FILE_MAX_BYTES: int = 25 * 1024 * 1024
+
+# Identity anchors shared by several modules.
+MEETINGS_SPACE_KIND: str = "meetings"  # rag_spaces.kind of the auto-created space
+# ``Final`` so mypy keeps the literal type ``get_llm`` requires (no cast at the call site).
+MEETINGS_LLM_TYPE: Final = "meeting_synthesis"
+MEETINGS_PROACTIVE_TASK_TYPE: str = "meeting"
+MEETINGS_WORKER_ID_PREFIX: str = "meetings-worker"
+SCHEDULER_JOB_MEETINGS_REAPER: str = "meetings_job_reaper"
+SCHEDULER_JOB_MEETINGS_RETENTION: str = "meetings_audio_retention"
 
 # ============================================================================
 # DEVOPS (Claude CLI Remote Server Management)

@@ -57,6 +57,16 @@ class ProactiveMessages:
             "it": "Notifica proattiva",
             "zh-CN": "主动通知",
         },
+        # Meeting minutes ready (ADR-258) — the dispatcher receives an explicit
+        # title from core.i18n_meetings; this entry keeps the task type known here.
+        "meeting": {
+            "fr": "Compte rendu de réunion",
+            "en": "Meeting minutes",
+            "es": "Acta de la reunión",
+            "de": "Besprechungsprotokoll",
+            "it": "Verbale della riunione",
+            "zh-CN": "会议纪要",
+        },
         # Used by the scheduled-action executor, which kept its own inline
         # table keyed "zh" — reproducing here the exact bug this module was
         # created to fix (User.language is backend-canonical "zh-CN", so

@@ -41,8 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.38.6</strong> — <strong>Five seam defects, found by reading the research rather than the code</strong>. A literature review (299 arXiv papers triaged, 12 kept) was used as a reading grid — not to import a technique, but to ask the code questions it was not asking itself. Every hypothesis was proven executable against production code <em>before</em> anything changed, and five defects survived counter-verification. All share one shape: <strong>two subsystems, each correct under its own ADR, composing into a behaviour neither owns</strong>. The worst crossed a boundary. ADR-167 marks third-party text — an email body, an invitation description, a fetched page, an MCP result — on the two surfaces it enumerates; history compaction was a <strong>third</strong> surface it never enumerated, and it re-emitted that summarised text as a <code>SystemMessage</code>, the highest-authority channel, retained on every later turn precisely because it <em>is</em> the conversation's compressed memory. Measured end to end: a hostile email's demand resurfaced as an established fact, unmarked. A summary now inherits a provenance banner computed at write time, and third-party claims are reported attributed to their source, never restated as decisions. The second defect was the consequence of a correct fix: ADR-248 deliberately lengthened ReAct turns, so a turn producing two messages per iteration evicted <strong>its own question</strong> at iteration 75 — and finished its work with no stated goal. Also here: the execution trace keeps its opening acts and states its true length, the semantic validator is now told to look for what a plan <em>lacks</em>, delivered context is measured for the first time, and Anthropic prompt caching finally covers the growing history instead of the system block alone. — 2 September 2026.
-
+  <strong>Version 1.39.0</strong> — <strong>Record a meeting, get the minutes</strong>. One gesture — the composer's <strong>+</strong> button — turns a phone or a computer into a meeting recorder, and LIA hands back structured minutes in <em>your</em> format: date, times, place, participants, then the sections you defined — summary, topics, decisions, actions with owner and deadline, risks, open questions. Audio leaves in small segments as you speak, so a crash, a locked phone or a lost connection costs seconds, never the meeting; a banner follows you on every page while you keep chatting with LIA. At the stop, the server assembles the recording and walks a chain of engines — the administrator's, ElevenLabs or OpenAI with speaker separation, the local Whisper now able to transcribe any length in speech windows — and a provider that refuses hands over to the next instead of failing the meeting. One structured call fills the template; the minutes reach the chat as a card, a PDF, your mailbox, and a « Meetings » knowledge space you can question weeks later. What it cost is stated everywhere it appears — transcription and minutes as two amounts and a total, counted like any other exchange — and nothing is invented: a gap is stated, an unnamed speaker stays S2, an unpriced model reads <em>not priced</em>. The feature was driven end to end against the dev containers before shipping; the runtime proofs found four defects invisible to every unit suite, each fixed with its test. — 3 September 2026.
 </p>
 
 ---
@@ -117,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **45** functional domains | **570,000** lines of code (excl. tests) | **27,200+** automated tests | **256** ADRs                                                           |
-| **240** versions shipped  | **6 languages**, parity enforced in CI  | **499** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **29,200+** automated tests | **257** ADRs                                                           |
+| **241** versions shipped  | **6 languages**, parity enforced in CI  | **506** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -254,6 +253,16 @@ The result is measured, not proclaimed:
 - **Graceful degradation**: missing API key on a paid provider transparently falls back to Edge with a structured warning log.
 - **Persistent HTTP pool** on ElevenLabs: keep-alive across sentences saves ~100–300 ms TLS handshake per call.
 
+### Meeting Recording & Structured Minutes ([ADR-258](docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md))
+
+- **One gesture**: the composer's **+** button records a meeting with the phone or the computer as microphone; a banner follows the user on every dashboard page (duration, level, segments uploaded) while the chat stays usable — spoken answers and the wake word pause so the microphone never hears the assistant.
+- **Capture that survives real life**: audio leaves in short segments (Opus through `MediaRecorder`, raw PCM through the shared AudioWorklet on Apple devices), one atomic file per sequence under four API workers, ordered retrying uploads that wait offline instead of failing. A reload, a lost microphone or a locked phone comes back as `interrupted` with resume / finalize / discard; a silence watchdog asks « still recording? »; the maximum duration finalizes by itself; a gap is stated in the minutes, never filled in.
+- **The meeting row is the durable job**: atomic conditional transitions, lease + heartbeat publishing the stage (normalizing, transcribing, synthesizing, indexing), reapers for stale recordings, expired leases and orphans, bounded retry budget — and every read after a bulk update expires the session first.
+- **A chain of engines, walked again at processing time**: the admin `voice_transcription` slot, then ElevenLabs Scribe / OpenAI `gpt-4o-transcribe-diarize` (whole file, speaker separation), then the local Sherpa Whisper — now unbounded through Silero VAD speech windows ≤ 20 s, the same fix that closed the 30 s truncation of voice input. A permanent fault of one provider hands over to the next; only silence or a transient fault stops the walk.
+- **The template is the contract**: one structured-output call on the dedicated `meeting_synthesis` slot fills the user's sections (paragraph, bullets, topics, action items), condensing the transcript part by part when it overflows the model's window; `repair_report` folds the permissive answer into the strict report, participants restricted to speakers who actually spoke (`S1…Sn`, a name only when established). Edit, restore the generated version, rebuild with the current template.
+- **One serializer, three outputs**: Markdown for the « Meetings » knowledge space (found by role, one document per meeting rewritten in place and deleted with it), sectioned content for the PDF renderer, HTML for the email through the user's own connector.
+- **Every paid unit accounted and shown**: audio through the remote-STT statistics, tokens through `track_proactive_tokens` under the archived message's `run_id` (regenerations included); the row keeps the minutes' spend, the page states the exact total with its breakdown, the chat card both units and their sum; an unpriced model yields `null`, never zero.
+
 ### FOR_EACH Iteration Pattern
 
 ```python
@@ -330,7 +339,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 499 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 506 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -968,12 +977,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (20,565 backend tests across 1,202 files)  |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (20,549 backend unit tests across 1,199 files)  |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-256 ADR files (ADR-001 through ADR-257 — ADR-008 has no separate file) documenting major architectural decisions:
+257 ADR files (ADR-001 through ADR-258 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

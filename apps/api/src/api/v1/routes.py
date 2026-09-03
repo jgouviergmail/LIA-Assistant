@@ -194,6 +194,10 @@ if getattr(settings, "telephony_enabled", False):
     from src.domains.telephony.router import router as telephony_router
 
     api_router.include_router(telephony_router)
+if getattr(settings, "meetings_enabled", False):
+    from src.domains.meetings.router import router as meetings_router
+
+    api_router.include_router(meetings_router)  # Meeting recording & minutes (ADR-258)
 # Google push webhooks (lot H): mounted when either phase is on — the Pub/Sub
 # endpoint (phase 2) must exist even if phase 1 channels stay disabled.
 if getattr(settings, "push_channels_enabled", False) or getattr(
@@ -322,6 +326,9 @@ async def get_client_config() -> dict:
             # Activity timeline (Lot 1-A1): gates its entry links (gate-keeper
             # rule, ADR-061 — never offer a disabled subsystem).
             "activity_timeline_enabled": getattr(settings, "activity_timeline_enabled", False),
+            # Meeting recording (ADR-258): gates the composer action, the
+            # meetings pages and the settings section.
+            "meetings_enabled": getattr(settings, "meetings_enabled", False),
         },
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }

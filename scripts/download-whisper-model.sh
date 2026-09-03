@@ -125,6 +125,34 @@ for file in "${required_files[@]}"; do
     fi
 done
 
+# ------------------------------------------------------------------------------
+# Silero VAD (~644 KB). The Whisper engine in sherpa-onnx decodes only the first
+# 30 s of a buffer (measured 2026-09-02); the VAD lets the service cut longer
+# audio on silences instead of inside words. Missing model = fixed windows
+# (degraded), never a truncation — but ship it.
+# ------------------------------------------------------------------------------
+VAD_TARGET_DIR="${2:-$(dirname "$TARGET_DIR")/silero-vad}"
+VAD_URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
+VAD_MIN_SIZE=500000
+mkdir -p "$VAD_TARGET_DIR"
+vad_target="${VAD_TARGET_DIR}/silero_vad.onnx"
+echo ""
+echo "Downloading: silero_vad.onnx"
+if command -v wget &> /dev/null; then
+    wget -q --show-progress --tries=5 --waitretry=5 -O "$vad_target" "$VAD_URL"
+else
+    curl -fL --progress-bar --http1.1 --retry 5 --retry-all-errors \
+         --retry-delay 5 -o "$vad_target" "$VAD_URL"
+fi
+vad_size=$(stat -f%z "$vad_target" 2>/dev/null || stat -c%s "$vad_target" 2>/dev/null)
+if [ "$vad_size" -lt "$VAD_MIN_SIZE" ]; then
+    echo "ERROR: silero_vad.onnx is $vad_size bytes, expected at least $VAD_MIN_SIZE."
+    rm -f "$vad_target"
+    missing=$((missing + 1))
+else
+    echo "  Downloaded: silero_vad.onnx ($vad_size bytes)"
+fi
+
 echo ""
 if [ $missing -eq 0 ]; then
     echo "=============================================="
@@ -132,10 +160,12 @@ if [ $missing -eq 0 ]; then
     echo "=============================================="
     echo ""
     echo "Model path: $TARGET_DIR"
+    echo "VAD model:  $vad_target"
     echo "Languages supported: 99+ (FR, EN, DE, ES, IT, ZH, ...)"
     echo ""
     echo "Update your .env:"
     echo "  VOICE_STT_MODEL_PATH=$TARGET_DIR"
+    echo "  VOICE_STT_VAD_MODEL_PATH=$vad_target"
     echo ""
 else
     echo "=============================================="

@@ -1043,7 +1043,9 @@
       "new_routine_description": "Create a recurring routine",
       "new_routine_intent": "Create a routine that ",
       "spaces_label": "spaces",
-      "spaces_description": "Open my knowledge spaces"
+      "spaces_description": "Open my knowledge spaces",
+      "meetings_label": "meetings",
+      "meetings_description": "Open my meetings and their minutes"
     },
     "reset_confirm": {
       "title": "Delete this conversation?",
@@ -2317,6 +2319,7 @@
           "mcp_react_agent": "MCP iterative mode: reads server documentation, then executes tools step by step",
           "image_generation": "AI image generation from text descriptions (gpt-image-1, etc.)",
           "document_generation": "Writes complete documents (CSV, Excel, Word, PowerPoint, PDF…) as structured output for the generate_document tool",
+          "meeting_synthesis": "Meeting minutes: structured synthesis of a recorded meeting transcript",
           "psyche_summary": "Psyche Summary",
           "briefing": "Generates the home dashboard greeting and synthesis (Today)",
           "telephony_synthesis": "Post-call synthesis for agentic phone calls (summary + follow-up)",
@@ -3527,7 +3530,8 @@
         "admin-public-demo-link": "demo, demonstrator, public link, showroom, share",
         "debug-settings": "debug, diagnostics, logs, panel, token tracking",
         "eyes-style": "eyes, avatar, animation, style, gaze, companion, cozmo",
-        "admin-diagnostics": "health diagnostics incidents alerts monitoring self-check platform status prometheus loki connectivity egress outbound network embeddings vectors quota memory language"
+        "admin-diagnostics": "health diagnostics incidents alerts monitoring self-check platform status prometheus loki connectivity egress outbound network embeddings vectors quota memory language",
+        "meetings": "meeting, recording, minutes, transcription, report, microphone, notes, summary, actions"
       }
     },
     "haptics": {
@@ -3588,6 +3592,10 @@
     "eyes_style": {
       "title": "Eyes style",
       "description": "Choose the look of the chat's expressive eyes."
+    },
+    "meetings": {
+      "title": "Meeting minutes",
+      "description": "Record a meeting from the chat composer; LIA transcribes it and writes the minutes with your structure."
     }
   },
   "relations": {
@@ -3803,6 +3811,9 @@
       "already_linked": "This folder is already linked to this space.",
       "sync_in_progress": "Sync already in progress.",
       "feature_disabled": "Drive sync is currently disabled."
+    },
+    "meetings": {
+      "source_type_meeting": "Meeting"
     }
   },
   "navigation": {
@@ -3814,7 +3825,8 @@
     "profile": "Profile",
     "faq": "Help",
     "relations": "Relations",
-    "notifications": "Alerts"
+    "notifications": "Alerts",
+    "meetings": "Meetings"
   },
   "errors": {
     "generic": "An error occurred",
@@ -3860,7 +3872,11 @@
       "title": "Spaces Error",
       "message": "An error occurred while loading knowledge spaces."
     },
-    "not_found_description": "This page does not exist, or has moved. The link may be out of date."
+    "not_found_description": "This page does not exist, or has moved. The link may be out of date.",
+    "meetings": {
+      "title": "Meetings unavailable",
+      "message": "The meetings page could not be loaded."
+    }
   },
   "validation": {
     "required": "This field is required",
@@ -4415,6 +4431,10 @@
         "ephemeralScripts": {
           "title": "🧮 Computed answers, not guessed ones",
           "description": "Ask how long your layovers add up to, which people appear in two lists, or what a set of figures comes to across timezones, and an AI answers plausibly — with nothing in the reply to tell you it is wrong. In its autonomous mode LIA now writes a few lines of Python and runs them in a locked-down sandbox instead: no network, no database, nothing beyond the data the turn already collected, a throwaway container each time. The answer was computed, not estimated. It stays a complement — most questions never need it — and administrators can read every script that ran, with its purpose and its output."
+        },
+        "meetings": {
+          "title": "🎙️ Meeting minutes",
+          "description": "Press + in the composer and a phone or a computer becomes a meeting recorder: audio leaves in small segments as you speak, so a crash, a reload or a lost connection costs seconds, never the meeting. At the stop the server assembles the recording, walks its engine chain — the administrator's choice, ElevenLabs or OpenAI with speaker separation, or the local Whisper cut into speech windows so no length is too long — and hands the transcript to one structured call that fills your template: the head is fixed, the sections are yours. What it cost is stated as two amounts and a total, and the minutes join a knowledge space you can question. A gap is stated, never filled in."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -4423,6 +4443,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_39_0": {
+          "title": "v1.39.0 — 🎙️ Record a meeting, get the minutes",
+          "date": "September 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🎙️ Record a meeting from the chat</b> — the + button next to the message field now records a meeting with your phone or your computer as the microphone. A banner follows you on every page with the duration and what has reached the server; you keep chatting with LIA in the meantime, spoken answers paused so the microphone never hears the assistant.",
+            "i2": "<b>📝 Minutes in your own structure</b> — date, times, place and participants, then the sections you defined in Settings › Meetings: summary, topics, decisions, actions with owner and deadline, risks, open questions… editable, restorable, rebuildable with your current template. Download as PDF, send to your mailbox, or ask LIA later: every meeting joins a “Meetings” knowledge space.",
+            "i3": "<b>🔁 Built for real life</b> — a reload, a locked phone or a lost connection costs seconds, never the meeting: audio leaves in small segments, waits offline, and the banner offers resume, finalize or discard. After a long silence LIA asks whether you are still recording; a maximum duration finalizes by itself; a gap is stated in the minutes, never filled in.",
+            "i4": "<b>🔀 A chain of engines, no dead end</b> — the administrator's speech engine, then ElevenLabs or OpenAI with speaker separation, then the local Whisper — now able to transcribe any length, in speech windows. The engine and its price per hour are shown before you start, and a provider that refuses at processing time hands over to the next instead of failing your meeting.",
+            "i5": "<b>💶 What it cost, stated everywhere</b> — transcription and minutes as two amounts and a total, on the chat card (when you display costs), on the meeting page and in the list; counted in your consumption like any other exchange. A model without a configured price reads “not priced”, never zero.",
+            "i6": "<b>🧭 A Meetings entry in the header</b> between Relations and Alerts, only where the instance offers the feature. To make room, the language switch shows its flag alone at every width and the personality title waits for very wide screens. The composer's paperclip became a + — it opens actions, of which attaching a file is one — and gives the typing area back some width on phones."
+          }
+        },
         "v1_38_6": {
           "title": "v1.38.6 — 🛡️ What an email says stays what an email says",
           "date": "September 2026",
@@ -7883,6 +7916,41 @@
             "answer": "<p>Enable the <strong>Settings → Health data → Assistant</strong> toggle (off by default, <em>opt-in</em>). While off, no health data ever reaches the LLM. Once on, you can:</p><ul><li><strong>Ask factual questions in chat</strong>: “How many steps today?”, “My heart rate this week?”, “Steps day by day over the last 7 days?”, “Am I walking less than usual?”, “Anything unusual in my health lately?”. LIA answers with factual figures (totals, averages, deltas vs baseline) — never medical diagnosis.</li><li><strong>Receive proactive notifications</strong> that combine health + weather + calendar (“Sunny today and 4 days of inactivity → short walk?”).</li><li><strong>Enrich your memories and internal journals</strong> with biometric context at capture time (only deltas and trends — never raw values).</li></ul><p>A single switch governs these 4 integrations. The 28-day rolling baseline qualifies comparisons honestly (“based on only N days of data” while history is under 7 days).</p>"
           }
         }
+      },
+      "meetings": {
+        "title": "Meeting minutes",
+        "description": "Record a meeting from the chat, get structured minutes in your own format, find them again in a knowledge space.",
+        "count": "7",
+        "questions": {
+          "q1": {
+            "question": "How do I record a meeting?",
+            "answer": "In the chat, open the <strong>+</strong> button next to the message field and choose <strong>Record a meeting</strong>. Your phone or your computer becomes the microphone: LIA asks for it once, then a banner at the top of every page shows the recording, its duration and what has already reached your server. You can keep chatting with LIA in the meantime — spoken answers and the wake word are simply paused so the microphone never hears the assistant.<br><br>When the meeting ends, press <strong>Stop</strong> in the banner or in the same menu. LIA transcribes the whole recording, writes the minutes and posts a card in the chat with the title, the summary and an <strong>Open the minutes</strong> button. Every recording also lives on the <strong>Meetings</strong> page of the header, between Relations and Alerts.<br><br><strong>💡 Good to know:</strong> the feature exists only where the administrator has enabled it, and the engine that will transcribe — with its price per hour of audio — is shown before you start."
+          },
+          "q2": {
+            "question": "What do the minutes contain, and can I change their structure?",
+            "answer": "The head of the minutes is fixed: date, start and end time in your time zone, duration, place when it is known, and the participants. The body follows <strong>your template</strong>: an ordered list of sections, each with a heading, an instruction for the assistant and a format — a paragraph, a bullet list, one entry per topic, or action items with owner and deadline.<br><br>The built-in template gives a summary, the topics discussed, the decisions, the actions, the risks and the open questions. Change it in <strong>Settings › Meetings</strong>: rename, reorder, add or remove sections, and reset to the default in one click. The minutes already written keep the structure they were produced with; <strong>Rebuild</strong> applies your current template to a past meeting from its stored transcript.<br><br>The model reports only what the transcript supports: a proposal left open is not a decision, a wish is not an action, and every relative date is resolved to a real one."
+          },
+          "q3": {
+            "question": "Which engine transcribes, and what does it cost?",
+            "answer": "Your instance walks a chain: the speech engine chosen by your administrator, then ElevenLabs Scribe or OpenAI when a key exists — both separate the speakers — then the local Whisper engine, which costs nothing and needs no key but does not separate voices and takes longer on a small server. If a provider refuses at processing time (a revoked key, a file it cannot take), the next engine takes over instead of failing your meeting.<br><br>You choose in <strong>Settings › Meetings</strong> whether LIA may use a remote engine, must stay local, or decides by itself; the engine and its <strong>price per hour of audio</strong> are shown before recording.<br><br>What a meeting cost is stated everywhere it appears: on the chat card (when you display costs), on the meeting page and in the list — the transcription and the minutes as two separate amounts, and their total. The amount is counted in your consumption exactly like any other exchange with the assistant. When a model has no price configured, LIA says <em>not priced</em> rather than showing zero."
+          },
+          "q4": {
+            "question": "What happens if my phone locks, the network drops, or I forget to stop?",
+            "answer": "LIA keeps the screen awake while it records, because every phone mutes a microphone once the app is in the background — keep LIA in front. Audio leaves in small segments as you speak, so a crash or a reload loses at most the last few seconds: on return, the banner offers to <strong>resume</strong> (the recording continues), <strong>finalize</strong> what exists, or <strong>discard</strong>.<br><br>Offline, nothing is lost: the segments wait for the connection and leave in order once it is back; the banner warns when a long stretch of audio is still waiting.<br><br>Forgot to stop? After a long silence the banner asks whether you are still recording, and a maximum duration finalizes by itself. If some seconds never reached the server, the minutes say so — a gap is stated, never filled in with a guess."
+          },
+          "q5": {
+            "question": "Where is the audio, who can hear it, and how long is it kept?",
+            "answer": "Everything stays on <strong>your</strong> server. The audio is stored in segments while you record, assembled once at the end, and sent to the transcription engine you chose — nothing else hears it. By default the audio is <strong>deleted as soon as the minutes exist</strong>; in Settings › Meetings you may keep it for a while (up to the ceiling your administrator set), and it is purged automatically after that.<br><br>The transcript rests encrypted in the database and can be shown on the meeting page or deleted separately, keeping the minutes. Deleting a meeting removes its audio, its transcript, its minutes and the document that had been indexed in your knowledge space — nothing outlives it."
+          },
+          "q6": {
+            "question": "Can I edit the minutes, send them, and ask LIA about my meetings later?",
+            "answer": "Yes. On the meeting page you can <strong>edit</strong> every field — title, participant names and roles, each section in its own shape — and <strong>restore</strong> the version the model wrote at any time. <strong>PDF</strong> downloads the minutes as a document; <strong>Email</strong> sends them to your own address through your connected mailbox, and Settings can do that automatically for every meeting.<br><br>Every minutes are also indexed in a knowledge space named <strong>Meetings</strong>, created for you the first time. So you can simply ask: “what did we decide about the migration?”, “which actions are due this week?” — the assistant answers from your own meetings, sources cited."
+          },
+          "q7": {
+            "question": "Does LIA know who said what?",
+            "answer": "When the engine separates the speakers, each voice gets a stable label — <strong>S1, S2…</strong> — throughout the transcript and the minutes. A <strong>name</strong> appears only when the recording itself establishes it: someone introduces themselves, is addressed by name, or the calendar event overlapping the meeting leaves no doubt. LIA never invents a name; an unnamed speaker stays S2, and you can name them yourself when editing the minutes.<br><br>The local engine transcribes without separating voices: the minutes then read like a single account, with the participants it could establish."
+          }
+        }
       }
     },
     "contact": {
@@ -8138,6 +8206,10 @@
       "server_escape_hatch": {
         "title": "A mistyped server is not a dead end",
         "desc": "The native apps ship their own offline screen: retry, or switch servers — a typo at first launch never means reinstalling."
+      },
+      "meeting_banner": {
+        "title": "The recording follows you",
+        "desc": "Change page mid-meeting: the banner keeps the time, the microphone and the way back — resume, finalize or discard."
       }
     },
     "scenes": {
@@ -8232,6 +8304,11 @@
       },
       "pricing_workbook": {
         "preview": "Preview before writing"
+      },
+      "meeting_banner": {
+        "recording": "Recording",
+        "interrupted": "Interrupted",
+        "resume": "Resume"
       }
     },
     "craft": {
@@ -9427,6 +9504,10 @@
       "environment": {
         "title": "Weather, air quality and pollen",
         "description": "A weather question also brings the air-quality index and in-season pollen, with the category the service itself publishes — your country's index when one exists. On the chat card, the forecast, your home page and a place's details."
+      },
+      "meetings": {
+        "title": "Record a meeting, get the minutes",
+        "description": "Press + in the chat and your phone or computer records the meeting — a banner follows you on every page while you keep talking with LIA. When you stop, LIA transcribes everything and writes the minutes in your own structure: date, times, place, who was there, what was discussed, decided, to be done and by whom, what is at risk. Read them in the chat, download the PDF, send them to your mailbox, and ask LIA about them weeks later. Nothing invented: a gap in the recording is stated, an unnamed speaker stays unnamed, and what it cost is written next to it."
       }
     },
     "use_cases": {
@@ -10147,12 +10228,12 @@
       "voice-mode": {
         "title": "Voice Mode: Talk to LIA Like a Personal Assistant",
         "excerpt": "LIA's voice domain combines a free local STT (Sherpa-onnx Whisper, opt-in remote ElevenLabs Scribe for higher accuracy) and a catalogue-driven TTS (Edge / OpenAI / ElevenLabs). Sentence-level streaming brings the first audio chunk in ~1 second. Per-message cost attribution makes paid voice calls fully auditable.",
-        "body": "<h2>Three activation modes</h2><p>LIA supports three ways to interact by voice:</p><ul><li><strong>Wake word</strong> — say \"OK Guy\" to start listening hands-free. Detection runs entirely in the browser via Sherpa-onnx WASM (English-only model). No audio leaves the browser for wake-word detection.</li><li><strong>Push-to-talk</strong> — hold the microphone button to speak. Optimized for mobile.</li><li><strong>Automatic end-of-speech detection (VAD)</strong> — listening stops automatically after ~0.75 s of silence.</li></ul><h2>Speech-to-text: local default, remote opt-in</h2><p>Each user picks an STT mode in <strong>Settings → Voice mode</strong>:</p><ul><li><strong>Local</strong> (default, free) — Sherpa-onnx Whisper running on the LIA server in <strong>16 kHz mono</strong> with INT8 quantization. Supports <strong>99+ languages</strong>. Audio never leaves the LIA server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe at $0.22/h, billed by audio duration. Higher accuracy on conversational speech, especially in noisy environments. A discreet 🎤 badge on each user message bubble surfaces the duration and EUR cost; the cost flows into your usual <strong>Cost</strong> dashboard tile and your usage limits — no separate quota.</li></ul><p>Two admin-side safety levers protect against cost spikes when remote is enabled: a global kill switch (<code>ELEVENLABS_STT_ENABLED</code>) and a per-clip duration cap (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, default 300 s) verified before any provider call.</p><h2>Catalogue-driven text-to-speech</h2><p>Voice synthesis is now configured from a single admin form (Configuration LLM → Voice TTS), with three providers seeded from day one:</p><ul><li><strong>Edge TTS</strong> — Microsoft neural voices, free, default. SSML rate / pitch / volume tuning.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> or <code>tts-1-hd</code>, premium voices (alloy, echo, fable, onyx, nova, shimmer). Speed + response_format tuning.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Stability, similarity_boost, style and use_speaker_boost tuning. Live voice picker pulls custom and library voices from the configured account.</li></ul><p>For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Audio formats supported: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selected per provider.</p><h2>Sentence-level streaming for sub-second latency</h2><p>The voice pipeline now dispatches TTS synthesis <strong>per complete sentence in parallel</strong>, instead of waiting for the full LLM response. The first sentence starts playing in <strong>about one second</strong> while the assistant is still composing the rest of the answer. A persistent HTTP keep-alive on ElevenLabs saves another ~100–300 ms per sentence on calls #2…N. In-order delivery is enforced via a buffered queue — failed slots are skipped without stalling the stream.</p><h2>Where a sentence ends</h2><p>Splitting \"by sentence\" presupposes knowing where a sentence ends — and a period alone does not say. A delimiter closes a sentence only when <strong>a space follows it</strong>, or at the end of the input: \"it's 3.5 degrees\" therefore stays in one piece, instead of being read as \"it's three.\" and then, in a separate audio clip, \"point five degrees\". The same holds for prices, version numbers and web addresses. On the progressive path the rule is doubly necessary: the buffer grows token by token, so <code>\"3.\"</code> is a perfectly normal transient state — dispatching on it amounts to speaking before you have finished reading. Both splitters in the pipeline are pinned by a shared case table and by a test that requires them to agree.</p><h2>Voice comments and exports</h2><p>LIA can attach short <strong>voice comments</strong> (a TTS narrative aside) to its responses. Audio streams over WebSocket with a single-use BFF ticket (60-second TTL) for security. Two new CSV exports — <code>stt-usage</code> and <code>tts-usage</code> — list every paid voice call with its conversation, message ID, provider, duration / characters and EUR cost. The existing <code>consumption-summary</code> export gains STT and TTS columns so totals stay in one place.</p>"
+        "body": "<h2>Three activation modes</h2><p>LIA supports three ways to interact by voice:</p><ul><li><strong>Wake word</strong> — say \"OK Guy\" to start listening hands-free. Detection runs entirely in the browser via Sherpa-onnx WASM (English-only model). No audio leaves the browser for wake-word detection.</li><li><strong>Push-to-talk</strong> — hold the microphone button to speak. Optimized for mobile.</li><li><strong>Automatic end-of-speech detection (VAD)</strong> — listening stops automatically after ~0.75 s of silence.</li></ul><h2>Speech-to-text: local default, remote opt-in</h2><p>Each user picks an STT mode in <strong>Settings → Voice mode</strong>:</p><ul><li><strong>Local</strong> (default, free) — Sherpa-onnx Whisper running on the LIA server in <strong>16 kHz mono</strong> with INT8 quantization. Supports <strong>99+ languages</strong>. Audio never leaves the LIA server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe at $0.22/h, billed by audio duration. Higher accuracy on conversational speech, especially in noisy environments. A discreet 🎤 badge on each user message bubble surfaces the duration and EUR cost; the cost flows into your usual <strong>Cost</strong> dashboard tile and your usage limits — no separate quota.</li></ul><p>Two admin-side safety levers protect against cost spikes when remote is enabled: a global kill switch (<code>ELEVENLABS_STT_ENABLED</code>) and a per-clip duration cap (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, default 300 s) verified before any provider call.</p><h2>Catalogue-driven text-to-speech</h2><p>Voice synthesis is now configured from a single admin form (Configuration LLM → Voice TTS), with three providers seeded from day one:</p><ul><li><strong>Edge TTS</strong> — Microsoft neural voices, free, default. SSML rate / pitch / volume tuning.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> or <code>tts-1-hd</code>, premium voices (alloy, echo, fable, onyx, nova, shimmer). Speed + response_format tuning.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Stability, similarity_boost, style and use_speaker_boost tuning. Live voice picker pulls custom and library voices from the configured account.</li></ul><p>For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Audio formats supported: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selected per provider.</p><h2>Sentence-level streaming for sub-second latency</h2><p>The voice pipeline now dispatches TTS synthesis <strong>per complete sentence in parallel</strong>, instead of waiting for the full LLM response. The first sentence starts playing in <strong>about one second</strong> while the assistant is still composing the rest of the answer. A persistent HTTP keep-alive on ElevenLabs saves another ~100–300 ms per sentence on calls #2…N. In-order delivery is enforced via a buffered queue — failed slots are skipped without stalling the stream.</p><h2>Where a sentence ends</h2><p>Splitting \"by sentence\" presupposes knowing where a sentence ends — and a period alone does not say. A delimiter closes a sentence only when <strong>a space follows it</strong>, or at the end of the input: \"it's 3.5 degrees\" therefore stays in one piece, instead of being read as \"it's three.\" and then, in a separate audio clip, \"point five degrees\". The same holds for prices, version numbers and web addresses. On the progressive path the rule is doubly necessary: the buffer grows token by token, so <code>\"3.\"</code> is a perfectly normal transient state — dispatching on it amounts to speaking before you have finished reading. Both splitters in the pipeline are pinned by a shared case table and by a test that requires them to agree.</p><h2>Voice comments and exports</h2><p>LIA can attach short <strong>voice comments</strong> (a TTS narrative aside) to its responses. Audio streams over WebSocket with a single-use BFF ticket (60-second TTL) for security. Two new CSV exports — <code>stt-usage</code> and <code>tts-usage</code> — list every paid voice call with its conversation, message ID, provider, duration / characters and EUR cost. The existing <code>consumption-summary</code> export gains STT and TTS columns so totals stay in one place.</p><h2>From a spoken command to a two-hour meeting</h2><p>The same microphone now records a whole meeting. That changed the speech engines more than the interface: the local Whisper decoded one thirty-second window and silently returned the first thirty seconds of anything longer — a defect voice input never met, because a command is short. Long audio is now cut into speech windows by a voice-activity detector, each window decoded on its own, so no recording is too long. The remote engines take the whole file in one request and separate the speakers; the chain walks from the administrator's engine to ElevenLabs, OpenAI and the local model, and a provider that refuses hands over to the next. The minutes are one structured call that fills the user's template, and every paid unit — audio at the engine, tokens at the model — is stated on the resulting card, the meeting page and the list.</p>"
       },
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Turn Your Documents into AI Intelligence",
         "excerpt": "Import your PDFs, Word, Excel and other documents. LIA indexes them with hybrid semantic + BM25 search to answer your questions.",
-        "body": "<h2>15+ supported formats</h2><p>LIA's Knowledge Spaces accept over <strong>15 file formats</strong> with dedicated parsers:</p><ul><li><strong>PDF</strong> via PyMuPDF (fast and accurate extraction)</li><li><strong>Documents</strong> — DOCX, RTF, ODT</li><li><strong>Spreadsheets</strong> — XLSX, CSV, ODS</li><li><strong>Presentations</strong> — PPTX, ODP</li><li><strong>Web and text</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Intelligent chunking</h2><p>Documents are split by a <strong>RecursiveCharacterTextSplitter</strong> with optimized parameters: <strong>1000 characters</strong> per chunk, <strong>200 characters</strong> of overlap to preserve context between segments. Safety limit: <strong>500 chunks maximum per document</strong>, maximum size <strong>20 MB per file</strong>.</p><h2>Hybrid search: best of both worlds</h2><p>LIA combines two search approaches:</p><ul><li><strong>Semantic search</strong> — Embeddings via pgvector. Finds results by meaning similarity, even when words differ.</li><li><strong>BM25 search</strong> — Keyword matching. Ideal for technical terms, proper names, and identifiers.</li></ul><p>The two signals do not carry the same weight, and that is deliberate. Relevance is decided on <strong>semantic similarity alone</strong>: an excerpt is kept if it reaches <strong>0.62</strong>, a threshold recalibrated across the six languages on real corpora. BM25 then adds only a <strong>bounded bonus (0.05)</strong> used to break ties — it can lift a literal occurrence above a near-tie, never admit or evict an excerpt. Blending both signals in comparable shares, as LIA did until August 2026, discarded one correct answer in three as soon as the question's language drifted from the documents'. By default, <strong>5 excerpts</strong> are retrieved per query (configurable maximum: 20).</p><h2>Limits and quotas</h2><p>Each user has: <strong>10 spaces</strong> maximum, <strong>50 documents per space</strong>, <strong>20 MB per file</strong>. These limits ensure optimal search performance while offering sufficient capacity for most use cases.</p><h2>Google Drive sync</h2><p>You can connect a <strong>Google Drive folder</strong> to a Knowledge Space. Documents are automatically synced and re-indexed when they change. Synchronization detects additions, modifications, and deletions.</p><h2>Built-in FAQ</h2><p>LIA has a system Knowledge Space containing its own documentation (18 FAQ files). This allows it to answer questions about its own features with precision.</p>"
+        "body": "<h2>15+ supported formats</h2><p>LIA's Knowledge Spaces accept over <strong>15 file formats</strong> with dedicated parsers:</p><ul><li><strong>PDF</strong> via PyMuPDF (fast and accurate extraction)</li><li><strong>Documents</strong> — DOCX, RTF, ODT</li><li><strong>Spreadsheets</strong> — XLSX, CSV, ODS</li><li><strong>Presentations</strong> — PPTX, ODP</li><li><strong>Web and text</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Intelligent chunking</h2><p>Documents are split by a <strong>RecursiveCharacterTextSplitter</strong> with optimized parameters: <strong>1000 characters</strong> per chunk, <strong>200 characters</strong> of overlap to preserve context between segments. Safety limit: <strong>500 chunks maximum per document</strong>, maximum size <strong>20 MB per file</strong>.</p><h2>Hybrid search: best of both worlds</h2><p>LIA combines two search approaches:</p><ul><li><strong>Semantic search</strong> — Embeddings via pgvector. Finds results by meaning similarity, even when words differ.</li><li><strong>BM25 search</strong> — Keyword matching. Ideal for technical terms, proper names, and identifiers.</li></ul><p>The two signals do not carry the same weight, and that is deliberate. Relevance is decided on <strong>semantic similarity alone</strong>: an excerpt is kept if it reaches <strong>0.62</strong>, a threshold recalibrated across the six languages on real corpora. BM25 then adds only a <strong>bounded bonus (0.05)</strong> used to break ties — it can lift a literal occurrence above a near-tie, never admit or evict an excerpt. Blending both signals in comparable shares, as LIA did until August 2026, discarded one correct answer in three as soon as the question's language drifted from the documents'. By default, <strong>5 excerpts</strong> are retrieved per query (configurable maximum: 20).</p><h2>Limits and quotas</h2><p>Each user has: <strong>10 spaces</strong> maximum, <strong>50 documents per space</strong>, <strong>20 MB per file</strong>. These limits ensure optimal search performance while offering sufficient capacity for most use cases.</p><h2>Google Drive sync</h2><p>You can connect a <strong>Google Drive folder</strong> to a Knowledge Space. Documents are automatically synced and re-indexed when they change. Synchronization detects additions, modifications, and deletions.</p><h2>Built-in FAQ</h2><p>LIA has a system Knowledge Space containing its own documentation (18 FAQ files). This allows it to answer questions about its own features with precision.</p><h2>A space that fills itself: Meetings</h2><p>One space is created for you rather than by you. When LIA writes the minutes of a recorded meeting, it indexes them into a “Meetings” space — found by its role, not its name, so you may rename it — as one document per meeting, rewritten in place whenever you edit the minutes and removed the day you delete the meeting. The space is exempt from the per-user cap, and it is what lets the assistant answer “what did we decide about the migration?” from your own meetings, sources cited.</p>"
       },
       "personal-journals": {
         "title": "Personal Journals: When Your AI Assistant Develops Its Own Memory",
@@ -10185,9 +10266,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>PII filtering in logs</h2><p>The logging system applies <strong>OWASP Logging Cheat Sheet</strong> recommendations to automatically filter personal data from application logs. No sensitive data appears in logs.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>Protecting data also means making sure it survives incidents. The production database is backed up automatically every night, with 7 days, 4 weeks and 6 months of history kept, in a dedicated directory with restrictive permissions. And because a backup only counts once a restore has been proven, the procedure is tested for real: the latest dump is restored into a disposable container and compared against the live database (schema revision, row counts) — a drill that ships with the stack.</p>"
       },
       "observability": {
-        "title": "499 Prometheus Metrics, 26 Grafana Dashboards, and Langfuse Tracing",
+        "title": "506 Prometheus Metrics, 26 Grafana Dashboards, and Langfuse Tracing",
         "excerpt": "LIA offers enterprise-grade observability with 473 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 499 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana dashboards</h2><p>LIA provides 26 Grafana dashboards numbered 01 to 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, and briefing. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 506 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana dashboards</h2><p>LIA provides 26 Grafana dashboards numbered 01 to 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, and briefing. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 78 Prompts Managed as Code",
@@ -10408,7 +10489,8 @@
       "computed_answers": "Computed answers",
       "measured_palette": "A measured palette",
       "declared_register": "The declared register",
-      "shock_absorbers": "Three mechanisms, one convergence"
+      "shock_absorbers": "Three mechanisms, one convergence",
+      "meetings": "Meetings: the row is the job"
     }
   },
   "psyche": {
@@ -10841,7 +10923,8 @@
       "plugins": "Plugins",
       "habits": "Habits",
       "mcp_servers": "MCP servers",
-      "telephony": "Calls"
+      "telephony": "Calls",
+      "meetings": "Meetings"
     },
     "items": {
       "stt": "Voice input (speech-to-text)",
@@ -10865,7 +10948,9 @@
       "mcp": "MCP servers",
       "mcp_description": "External MCP servers a user connects. Turning it off closes their management routes.",
       "telephony": "Phone calls",
-      "telephony_description": "Agentic outbound calls. Turning it off closes the telephony routes."
+      "telephony_description": "Agentic outbound calls. Turning it off closes the telephony routes.",
+      "meetings": "Meeting recording",
+      "meetings_description": "Recording meetings and producing minutes. Turning it off closes the meetings routes; nothing else changes."
     }
   },
   "showroom": {
@@ -11344,6 +11429,240 @@
       "error": "This document could not be loaded — it may have expired.",
       "not_renderable": "This format opens in its native application — download it to view it.",
       "download": "Download"
+    }
+  },
+  "meetings": {
+    "composer": {
+      "menu_label": "Attachments and meeting recording",
+      "add_file": "Add a file",
+      "record": "Record a meeting",
+      "stop": "Stop the recording"
+    },
+    "banner": {
+      "region_label": "Meeting recording",
+      "starting": "Starting the recording…",
+      "recording": "Recording",
+      "offline": "Offline — segments waiting",
+      "interrupted": "Recording interrupted",
+      "stopping": "Finishing…",
+      "processing": "Preparing the minutes…",
+      "error": "Recording stopped",
+      "elapsed_label": "Elapsed time",
+      "level_label": "Microphone level",
+      "uploaded_one": "{{count}} segment sent",
+      "uploaded_other": "{{count}} segments sent",
+      "pending_one": "{{count}} pending",
+      "pending_other": "{{count}} pending",
+      "stop": "Stop",
+      "resume": "Resume",
+      "finalize": "Finalize",
+      "finalize_with_gaps": "Finalize anyway",
+      "discard": "Discard",
+      "dismiss": "Dismiss",
+      "open_minutes": "Open the minutes",
+      "keep_screen_on": "Keep the screen on and LIA in front: a phone in the background mutes the microphone.",
+      "missing_segments_one": "{{count}} segment never reached the server; the minutes will say the recording was interrupted.",
+      "missing_segments_other": "{{count}} segments never reached the server; the minutes will say the recording was interrupted.",
+      "silence_title": "Still recording?",
+      "silence_body": "No sound for {{minutes}} minutes.",
+      "silence_continue": "Continue",
+      "engine": {
+        "elevenlabs": "ElevenLabs Scribe",
+        "openai": "OpenAI",
+        "local": "Local engine (on the server)"
+      },
+      "offline_long": "Offline for a long while: the audio waits on this device. Stop and finalize as soon as the connection is back."
+    },
+    "toasts": {
+      "ready_title": "Meeting minutes ready",
+      "failed_title": "The minutes could not be produced"
+    },
+    "status": {
+      "recording": "Recording",
+      "interrupted": "Interrupted",
+      "stopped": "Queued",
+      "processing": "Processing",
+      "ready": "Ready",
+      "failed": "Failed"
+    },
+    "stage": {
+      "normalizing": "Preparing the audio",
+      "transcribing": "Transcribing",
+      "synthesizing": "Writing the minutes",
+      "indexing": "Adding to the knowledge space"
+    },
+    "list": {
+      "title": "Meetings",
+      "subtitle": "Your recordings and their minutes",
+      "empty_title": "No meeting yet",
+      "empty_description": "Start a recording from the paperclip in the chat composer; the minutes will appear here.",
+      "empty_action": "Open the chat",
+      "total_one": "{{count}} meeting",
+      "total_other": "{{count}} meetings",
+      "untitled": "Untitled meeting",
+      "open": "Open {{title}}",
+      "participants_one": "{{count}} participant",
+      "participants_other": "{{count}} participants",
+      "actions_one": "{{count}} action",
+      "actions_other": "{{count}} actions"
+    },
+    "detail": {
+      "back": "Back to meetings",
+      "not_found": "This meeting does not exist or was deleted.",
+      "date": "Date",
+      "time": "Time",
+      "duration": "Duration",
+      "location": "Location",
+      "engine": "Transcription",
+      "cost": "Cost",
+      "progress_title": "Preparing the minutes",
+      "processing_hint": "This can take a few minutes for a long meeting. You will be notified in the chat when the minutes are ready.",
+      "failed_title": "The minutes could not be produced",
+      "minutes_title": "Minutes",
+      "edited_badge": "Edited",
+      "generated_badge": "Generated",
+      "edit": "Edit",
+      "pdf": "Download PDF",
+      "email": "Email me the minutes",
+      "email_ok": "The minutes were sent to your email address.",
+      "email_sent": "Emailed on {{when}}",
+      "regenerate": "Rebuild with my template",
+      "reset": "Restore the generated version",
+      "delete_transcript": "Delete the transcript",
+      "delete": "Delete the meeting",
+      "retry": "Retry processing",
+      "saved": "Minutes saved",
+      "deleted": "Meeting deleted",
+      "transcript_title": "Transcript",
+      "transcript_show": "Show the transcript",
+      "transcript_hide": "Hide the transcript",
+      "transcript_deleted": "The transcript was deleted; the minutes are kept.",
+      "index_indexed": "Available in your « Meetings » knowledge space.",
+      "index_pending": "Being added to your « Meetings » knowledge space…",
+      "index_error": "Could not be added to the knowledge space.",
+      "index_disabled": "Knowledge spaces are disabled on this instance.",
+      "gaps_notice_one": "The recording was interrupted once; some content may be missing.",
+      "gaps_notice_other": "The recording was interrupted {{count}} times; some content may be missing.",
+      "no_names_notice": "Speakers are numbered: names could not be established from the recording. You can name them by editing the minutes.",
+      "participants_title": "Participants",
+      "participant_name": "Name",
+      "participant_role": "Role",
+      "title_label": "Title",
+      "section_empty": "Nothing was recorded for this section.",
+      "bullets_hint": "One item per line.",
+      "add_item": "Add an item",
+      "remove_item": "Remove",
+      "topic_title": "Topic",
+      "topic_summary": "Summary",
+      "action_description": "Action",
+      "action_owner": "Owner",
+      "action_due": "Due date",
+      "confirm_delete_title": "Delete this meeting?",
+      "confirm_delete_description": "The minutes, the transcript and any kept audio are deleted for good.",
+      "confirm_delete_transcript_title": "Delete the transcript?",
+      "confirm_delete_transcript_description": "The minutes stay; the transcript cannot be recovered and the minutes can no longer be rebuilt.",
+      "confirm_regenerate_title": "Rebuild the minutes?",
+      "confirm_regenerate_description": "LIA writes new minutes from the transcript with your current template. Your edits to these minutes are replaced.",
+      "confirm_reset_title": "Restore the generated version?",
+      "confirm_reset_description": "Your edits are replaced by the minutes LIA generated.",
+      "cost_breakdown": "{{total}} (transcription {{stt}} · minutes {{minutes}})",
+      "cost_unknown": "not priced"
+    },
+    "card": {
+      "title": "Meeting minutes ready",
+      "open": "Open the minutes",
+      "cost_line": "Transcription {{stt}} · minutes {{minutes}} · total {{total}}"
+    },
+    "settings": {
+      "preferences_title": "Preferences",
+      "engine_label": "Transcription engine",
+      "engine_auto": "Automatic (best available)",
+      "engine_remote": "Remote provider only",
+      "engine_local": "Local engine only (free, slower)",
+      "engine_hint": "Remote providers separate speakers and are billed by the audio hour; the local engine is free but does not separate speakers.",
+      "language_label": "Spoken language",
+      "language_auto": "Detect automatically",
+      "language_codes": {
+        "en": "English",
+        "fr": "French",
+        "de": "German",
+        "es": "Spanish",
+        "it": "Italian",
+        "zh": "Chinese",
+        "pt": "Portuguese",
+        "nl": "Dutch"
+      },
+      "auto_email_label": "Email me the minutes when they are ready",
+      "auto_email_hint": "Sent through your connected email account, to your own address.",
+      "keep_audio_label": "Keep the audio after processing",
+      "keep_audio_none": "Deleted right after processing",
+      "keep_audio_hours_one": "{{count}} hour",
+      "keep_audio_hours_other": "{{count}} hours",
+      "keep_audio_max_one": "up to {{count}} hour",
+      "keep_audio_max_other": "up to {{count}} hours",
+      "saved": "Preferences saved",
+      "template_title": "Minutes structure",
+      "template_description": "The sections LIA fills, in order. Adjust them to your needs; the default structure can be restored at any time.",
+      "template_name_label": "Template name",
+      "template_builtin_badge": "Default",
+      "reset_template": "Restore the default",
+      "template_saved": "Template saved",
+      "template_reset": "Default template restored",
+      "new_section_label": "New section",
+      "section_position": "Section {{position}}",
+      "move_up": "Move « {{label}} » up",
+      "move_down": "Move « {{label}} » down",
+      "remove_section": "Remove « {{label}} »",
+      "section_label": "Heading",
+      "section_kind": "Format",
+      "section_instruction": "What LIA must put in this section",
+      "kind_paragraph": "Paragraph",
+      "kind_bullets": "Bullet points",
+      "kind_topics": "Topics with summaries",
+      "kind_action_items": "Actions with owner and deadline",
+      "add_section": "Add a section",
+      "max_sections_one": "At most {{count}} section.",
+      "max_sections_other": "At most {{count}} sections.",
+      "recent_title": "Recent meetings",
+      "no_meetings": "No meeting recorded yet.",
+      "view_all_one": "All meetings ({{count}})",
+      "view_all_other": "All meetings ({{count}})"
+    },
+    "errors": {
+      "audio_normalize_failed": "The audio could not be prepared.",
+      "audio_unavailable": "The audio is no longer available.",
+      "capture_failed": "The microphone stopped working.",
+      "duration_cap_reached": "The maximum recording duration was reached: the minutes are built from what was captured.",
+      "email_connector_missing": "No email account is connected to send the minutes.",
+      "email_send_failed": "Your email provider refused the message.",
+      "format_unavailable": "This recording was started in a format this browser cannot produce: from here it can only be finalized or discarded.",
+      "invalid_api_key": "The transcription provider refused the configured key.",
+      "meeting_already_recording": "A recording is already in progress.",
+      "meeting_in_progress": "The meeting is still being processed.",
+      "meeting_not_interrupted": "This recording is not interrupted.",
+      "meeting_not_recording": "This recording has already ended.",
+      "meeting_not_retryable": "This meeting cannot be retried.",
+      "microphone_denied": "Microphone access was refused.",
+      "no_audio": "Nothing was recorded.",
+      "no_engine_available": "No transcription engine is available on this instance.",
+      "no_speech": "No speech was found in the recording.",
+      "provider_rate_limited": "The transcription provider is busy; it will be retried.",
+      "rate_limited": "Too many recordings were started recently; try again later.",
+      "regeneration_in_progress": "The minutes are already being rebuilt.",
+      "report_not_ready": "The minutes are not ready yet.",
+      "segment_empty": "An empty audio segment was refused.",
+      "segment_malformed": "A malformed audio segment was refused.",
+      "segment_too_large": "A segment was too large for the server.",
+      "segments_missing": "Some segments never reached the server.",
+      "start_failed": "The recording could not be started.",
+      "stop_failed": "The recording could not be finalized.",
+      "storage_unavailable": "The server could not store the audio (storage full or unavailable). The segments are kept and sent again.",
+      "synthesis_failed": "The minutes could not be written.",
+      "transcript_unavailable": "The transcript is no longer available.",
+      "unexpected": "Something went wrong while processing.",
+      "unknown": "Unknown error ({{code}})",
+      "usage_limit": "Your usage limit is reached.",
+      "user_missing": "The account no longer exists."
     }
   }
 }

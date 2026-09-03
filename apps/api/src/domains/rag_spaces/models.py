@@ -41,6 +41,10 @@ class RAGDocumentSourceType:
 
     UPLOAD = "upload"
     DRIVE = "drive"
+    # Minutes written by the meetings domain (ADR-258): the file is a Markdown
+    # rendering the domain owns; the space UI links to the meeting, not to a
+    # download, and deleting the row only unlinks the meeting (FK SET NULL).
+    MEETING = "meeting"
 
 
 class RAGDocumentStatus:
@@ -115,6 +119,18 @@ class RAGSpace(BaseModel):
         comment="System spaces are built-in (FAQ, etc.) and cannot be modified by users",
     )
 
+    kind: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        default=None,
+        comment=(
+            "Role of a space another domain manages by identity rather than by name "
+            "('meetings', ADR-258). NULL for every space the user created. The "
+            "user may still rename it; the owning domain finds it by kind. Unique "
+            "per (user_id, kind) — partial index managed in Alembic."
+        ),
+    )
+
     content_hash: Mapped[str | None] = mapped_column(
         String(64),
         nullable=True,
@@ -157,6 +173,7 @@ class RAGSpace(BaseModel):
         # Partial unique indexes are managed in Alembic migration (PostgreSQL-specific)
         # - uq_rag_spaces_user_name: UNIQUE(user_id, name) WHERE user_id IS NOT NULL
         # - uq_rag_spaces_system_name: UNIQUE(name) WHERE is_system = true
+        # - uq_rag_spaces_user_kind: UNIQUE(user_id, kind) WHERE kind IS NOT NULL (ADR-258)
     )
 
 

@@ -268,6 +268,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'rag-spaces',
     declaredIn: 'components/spaces/SpacesSettingsSection.tsx',
   },
+  // Meeting recording & minutes (ADR-258). Self-gated on the instance flag
+  // `features.meetings_enabled` (OpenLoopsSection precedent): a deep link
+  // may legitimately resolve to an absent section.
+  meetings: {
+    tab: 'features',
+    accordionValue: 'meetings',
+    declaredIn: 'components/settings/MeetingsSettings.tsx',
+  },
   // The component serves both the user and the admin export from one file and
   // therefore picks its accordion value at runtime (`mode`), which is why the
   // sibling test checks this one against a quoted literal instead of the

@@ -398,6 +398,40 @@ export const VOICE_MODE_IDLE_TIMEOUT_SECONDS = 300;
  */
 export const VOICE_MODE_ENABLED_KEY = 'voice_mode_enabled';
 
+// ============================================================================
+// MEETING RECORDING & MINUTES (ADR-258)
+// ============================================================================
+
+/**
+ * LocalStorage key of the recorder's persisted state (meeting id, format,
+ * next sequence) so a reload can offer Resume / Finalize / Discard. It names
+ * an account's meeting, hence its place in the SEC-035 purge registry.
+ */
+export const MEETING_RECORDER_STATE_KEY = 'lia_meeting_recorder';
+
+/**
+ * Segment upload retry delays (ms). The LAST value repeats for as long as the
+ * recording lasts: a flaky connection delays segments, it never drops them.
+ */
+export const MEETING_SEGMENT_RETRY_DELAYS_MS: readonly number[] = [1000, 2000, 4000, 8000, 16000];
+
+/** RMS level under which the silence watchdog counts a reading as silence. */
+export const MEETING_SILENCE_RMS_THRESHOLD = 0.01;
+
+/** How often the meeting page re-reads a processing meeting. */
+export const MEETING_STATUS_POLL_MS = 5000;
+
+/** Longest wait for the microphone + server handshake before giving up a start. */
+export const MEETING_RECORDING_SETUP_TIMEOUT_MS = 15000;
+
+/**
+ * Fallbacks when the server's `limits` are unknown (a meeting adopted from
+ * another device): mirror `MEETINGS_SEGMENT_SECONDS_DEFAULT` and
+ * `MEETINGS_SILENCE_PROMPT_MINUTES_DEFAULT` in `apps/api/src/core/constants.py`.
+ */
+export const MEETING_DEFAULT_SEGMENT_SECONDS = 30;
+export const MEETING_DEFAULT_SILENCE_PROMPT_MINUTES = 10;
+
 /**
  * LocalStorage key persisting the expressive-eyes widget display preferences
  * (visibility, size preset, position as viewport percentages).

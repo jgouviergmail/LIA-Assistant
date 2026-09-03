@@ -43,6 +43,7 @@ export const CAPABILITY_ORDER: readonly { key: string; ring: 'inner' | 'outer' }
   { key: 'peers', ring: 'outer' },
   { key: 'channels', ring: 'outer' },
   { key: 'telephony', ring: 'outer' },
+  { key: 'meetings', ring: 'outer' },
   { key: 'spaces', ring: 'outer' },
   { key: 'journals', ring: 'outer' },
   { key: 'skills', ring: 'outer' },
@@ -141,9 +142,7 @@ export function figureOutline(
 ): NodePosition[] {
   const lit = positions.filter(isLit);
   if (lit.length < 2) return [];
-  return [...lit].sort(
-    (a, b) => Math.atan2(a.y - 50, a.x - 50) - Math.atan2(b.y - 50, b.x - 50)
-  );
+  return [...lit].sort((a, b) => Math.atan2(a.y - 50, a.x - 50) - Math.atan2(b.y - 50, b.x - 50));
 }
 
 export interface BackdropStar {

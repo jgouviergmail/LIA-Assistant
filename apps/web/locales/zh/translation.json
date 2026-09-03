@@ -1029,7 +1029,9 @@
       "new_routine_description": "创建一个重复例程",
       "new_routine_intent": "创建一个例程，",
       "spaces_label": "空间",
-      "spaces_description": "打开我的知识空间"
+      "spaces_description": "打开我的知识空间",
+      "meetings_label": "会议",
+      "meetings_description": "打开我的会议及其纪要"
     },
     "reset_confirm": {
       "title": "删除此对话？",
@@ -2143,6 +2145,7 @@
           "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具",
           "image_generation": "从文本描述生成AI图像（gpt-image-1等）",
           "document_generation": "以结构化输出为 generate_document 工具撰写完整文档（CSV、Excel、Word、PowerPoint、PDF 等）",
+          "meeting_synthesis": "会议纪要：对录音转写文本进行结构化综合",
           "psyche_summary": "Psyche Summary",
           "briefing": "生成主页仪表盘的问候和概要 (Today)",
           "telephony_synthesis": "智能体通话的通话后小结（摘要 + 后续建议）",
@@ -3512,7 +3515,8 @@
         "admin-public-demo-link": "演示, 公开链接, 展示, 分享",
         "debug-settings": "调试, 诊断, 日志, 面板, 令牌跟踪",
         "eyes-style": "眼睛, 头像, 动画, 样式, 目光, 伙伴, cozmo",
-        "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络 向量 嵌入 配额 记忆 语言"
+        "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络 向量 嵌入 配额 记忆 语言",
+        "meetings": "会议, 录音, 纪要, 转写, 报告, 麦克风, 笔记, 摘要, 行动"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -3574,6 +3578,10 @@
     "eyes_style": {
       "title": "眼睛样式",
       "description": "选择聊天中表情眼睛的外观。"
+    },
+    "meetings": {
+      "title": "会议纪要",
+      "description": "在聊天输入框中录制会议，LIA 会转写并按你的结构撰写纪要。"
     }
   },
   "relations": {
@@ -3789,6 +3797,9 @@
       "already_linked": "此文件夹已关联到此空间。",
       "sync_in_progress": "同步已在进行中。",
       "feature_disabled": "Drive 同步功能已禁用。"
+    },
+    "meetings": {
+      "source_type_meeting": "会议"
     }
   },
   "navigation": {
@@ -3800,7 +3811,8 @@
     "profile": "个人资料",
     "faq": "帮助",
     "relations": "人际关系",
-    "notifications": "通知"
+    "notifications": "通知",
+    "meetings": "会议"
   },
   "errors": {
     "generic": "发生错误",
@@ -3846,7 +3858,11 @@
       "title": "空间错误",
       "message": "加载知识空间时发生错误。"
     },
-    "not_found_description": "此页面不存在，或已被移动。链接可能已失效。"
+    "not_found_description": "此页面不存在，或已被移动。链接可能已失效。",
+    "meetings": {
+      "title": "会议不可用",
+      "message": "无法加载会议页面。"
+    }
   },
   "validation": {
     "required": "此字段为必填项",
@@ -4401,6 +4417,10 @@
         "ephemeralScripts": {
           "title": "🧮 算出来的答案，而不是猜出来的",
           "description": "问问你的中转加起来有多久、哪些人同时出现在两份名单里、一组数字跨时区算下来是多少：AI 会给出看似合理的回答，而回答里没有任何东西告诉你它错了。在自主模式下，LIA 现在会改为写几行 Python 并在严格隔离的沙箱中运行：没有网络，没有数据库，除本轮已收集的数据外什么也接触不到，每次都是一次性容器。答案是算出来的，不是估出来的。它始终只是补充——大多数问题都用不上——管理员则可以查看每个执行过的脚本、它的目的和输出。"
+        },
+        "meetings": {
+          "title": "🎙️ 会议纪要",
+          "description": "在输入框旁按下 +，手机或电脑就成了会议录音机：音频在你说话的同时以小片段发出，因此崩溃、刷新或断网只会损失几秒，绝不会损失整场会议。停止时，服务器合并整段录音，依次尝试引擎链——管理员的选择、能区分发言人的 ElevenLabs 或 OpenAI，或按语音窗口切分、再长也不怕的本地 Whisper——然后把转写交给一次结构化调用来填充你的模板：头部固定，章节由你定义。花费会在卡片、页面和列表上以两个金额和一个合计写明，纪要还会进入一个可供提问的知识空间。不臆造任何内容：缺口会被指出，未知发言人保持为 S2。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -4409,6 +4429,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_39_0": {
+          "title": "v1.39.0 — 🎙️ 录制会议，收到纪要",
+          "date": "2026 年 9 月",
+          "count": "6",
+          "items": {
+            "i1": "<b>🎙️ 从聊天中录制会议</b> — 输入框旁的 + 按钮现在可以用你的手机或电脑作为麦克风录制会议。横幅会跟随你到每个页面，显示时长和已到达服务器的部分；期间你可以继续与 LIA 聊天，语音回答会暂停，以免麦克风听到助手。",
+            "i2": "<b>📝 按你的结构生成纪要</b> — 日期、时间、地点和参与者，然后是你在「设置 › 会议」中定义的章节：摘要、议题、决定、带负责人和期限的行动项、风险、未决问题……可编辑、可恢复、可用当前模板重新生成。下载为 PDF、发送到你的邮箱，或之后向 LIA 提问：每场会议都会进入「会议」知识空间。",
+            "i3": "<b>🔁 为真实生活而设计</b> — 刷新、手机锁屏或断网只会损失几秒，绝不会损失整场会议：音频以小片段发出，离线时等待，横幅提供继续、完成或放弃。长时间静默后 LIA 会询问你是否仍在录制；到达最长时长后自动完成；缺口会在纪要中如实说明，绝不填补。",
+            "i4": "<b>🔀 一条引擎链，没有死路</b> — 管理员的语音引擎，然后是能区分发言人的 ElevenLabs 或 OpenAI，最后是本地 Whisper——现在可以按语音窗口转写任意长度。引擎及其每小时价格在开始前显示；处理时拒绝的提供商会把接力交给下一个，而不是让你的会议失败。",
+            "i5": "<b>💶 花费处处可见</b> — 转写和纪要作为两个金额和一个合计，显示在聊天卡片（当你显示费用时）、会议页面和列表中；像任何其他交互一样计入你的用量。没有配置价格的模型显示为「未定价」，绝不是零。",
+            "i6": "<b>🧭 页眉新增「会议」入口</b>，位于「关系」和「提醒」之间，仅在实例启用该功能时出现。为了腾出空间，语言切换器在任何宽度下只显示国旗，人格名称只在超宽屏幕上显示。输入框的回形针变成了 +——它打开的是操作，附加文件只是其中之一——并在手机上把一些宽度还给输入区域。"
+          }
+        },
         "v1_38_6": {
           "title": "v1.38.6 — 🛡️ 邮件说的话，仍然只是邮件说的话",
           "date": "2026 年 9 月",
@@ -7869,6 +7902,41 @@
             "answer": "<p>开启 <strong>设置 → 健康数据 → 助手</strong> 开关（默认关闭，<em>选择加入</em>）。关闭时，任何健康数据都不会到达 LLM。一旦开启，你可以：</p><ul><li><strong>在聊天中提出事实性问题</strong>：「今天走了多少步？」、「我本周的心率？」、「最近 7 天每天的步数？」、「我比平时走得少吗？」、「我的健康最近有什么不寻常？」。LIA 以事实性数据回答（总计、平均值、相对基线的 delta）——绝不做医学诊断。</li><li><strong>接收主动通知</strong>：这些通知会结合健康 + 天气 + 日程（「今天晴朗且已连续 4 天不活动 → 出去散个步？」）。</li><li><strong>丰富你的记忆与内部日志</strong>：在捕获时附加生物特征上下文（只包含 delta 和趋势——绝不包含原始值）。</li></ul><p>一个开关同时管理这 4 项集成。28 天滚动基线会诚实限定比较（在历史不足 7 天时，会标注「仅基于 N 天数据」）。</p>"
           }
         }
+      },
+      "meetings": {
+        "title": "会议纪要",
+        "description": "在聊天里录制一场会议，按你自己的格式得到结构化的纪要，再在知识空间里找回它。",
+        "count": "7",
+        "questions": {
+          "q1": {
+            "question": "如何录制一场会议？",
+            "answer": "在聊天中，打开输入框旁边的 <strong>+</strong> 按钮，选择<strong>录制会议</strong>。你的手机或电脑就成了麦克风：LIA 只会询问一次，然后每个页面顶部的横幅会显示录音、时长以及已经到达你服务器的部分。期间你可以继续和 LIA 聊天——语音回答和唤醒词会暂停，以免麦克风听到助手自己的声音。<br><br>会议结束时，在横幅或同一个菜单里点击<strong>停止</strong>。LIA 会转写整段录音、撰写纪要，并在聊天中发布一张卡片，包含标题、摘要和<strong>打开纪要</strong>按钮。每一次录音也会出现在页眉的<strong>会议</strong>页面里，位于「关系」和「提醒」之间。<br><br><strong>💡 提示：</strong>该功能只在管理员启用的实例上存在，负责转写的引擎及其每小时音频价格会在开始前显示。"
+          },
+          "q2": {
+            "question": "纪要包含哪些内容？我能改变它的结构吗？",
+            "answer": "纪要的头部是固定的：日期、按你时区显示的开始与结束时间、时长、已知的地点，以及参与者。正文遵循<strong>你的模板</strong>：一组有序的章节，每一节都有标题、给助手的指令和一种格式——一段文字、一个要点列表、每个议题一条，或带负责人与期限的行动项。<br><br>内置模板提供摘要、讨论的议题、决定、行动项、风险和未决问题。可在<strong>设置 › 会议</strong>中修改：重命名、重新排序、增删章节，并可一键恢复默认。已生成的纪要保留生成时的结构；<strong>重新生成</strong>会用你当前的模板，基于保存的转写重写一场过去的会议。<br><br>模型只报告转写能够支持的内容：悬而未决的提议不是决定，愿望不是行动项，每个相对日期都会被解析成真实日期。"
+          },
+          "q3": {
+            "question": "由哪个引擎转写？费用是多少？",
+            "answer": "你的实例会依次尝试一条链：管理员选定的语音引擎；然后在有密钥时使用 ElevenLabs Scribe 或 OpenAI——两者都能区分发言人；最后是本地 Whisper，免费且无需密钥，但不区分声音，在小型服务器上耗时更长。如果某个提供商在处理时拒绝（密钥被撤销、文件过大），下一个引擎会接手，而不是让你的会议失败。<br><br>在<strong>设置 › 会议</strong>中，你可以决定 LIA 是否可以使用远程引擎、必须保持本地，或由它自行决定；引擎及其<strong>每小时音频价格</strong>在录制前显示。<br><br>一场会议的花费会在它出现的每个地方标明：聊天卡片（当你显示费用时）、会议页面和列表——转写和纪要作为两个单独的金额，再加上合计。这笔金额会像与助手的任何其他交互一样计入你的用量。当某个模型没有配置价格时，LIA 会写<em>未定价</em>，而不是显示零。"
+          },
+          "q4": {
+            "question": "如果手机锁屏、网络断开或我忘了停止，会怎样？",
+            "answer": "录制期间 LIA 会保持屏幕唤醒，因为任何手机在应用退到后台后都会静音麦克风——请让 LIA 留在前台。音频在你说话的同时以小片段发出，因此崩溃或刷新最多只会丢失最后几秒：回来时，横幅会提供<strong>继续</strong>（录音接着进行）、<strong>完成</strong>已有的部分，或<strong>放弃</strong>。<br><br>离线时不会丢失任何内容：片段等待网络恢复，然后按顺序发出；当有很长一段音频仍在等待时，横幅会提醒你。<br><br>忘了停止？长时间静默后，横幅会询问你是否仍在录制，并且到达最长时长后会自动完成。如果有几秒钟从未到达服务器，纪要会如实说明——缺口会被指出，绝不会用猜测填补。"
+          },
+          "q5": {
+            "question": "音频存在哪里？谁能听到？保留多久？",
+            "answer": "一切都留在<strong>你的</strong>服务器上。录制时音频按片段保存，结束时合并一次，然后发送给你选择的转写引擎——没有其他任何人能听到。默认情况下，<strong>纪要一旦生成，音频即被删除</strong>；在设置 › 会议中你可以保留一段时间（不超过管理员设定的上限），之后自动清除。<br><br>转写以加密形式存放在数据库中，可以在会议页面显示，也可以单独删除而保留纪要。删除一场会议会移除它的音频、转写、纪要，以及已索引到你知识空间中的文档——不会留下任何残余。"
+          },
+          "q6": {
+            "question": "我能编辑纪要、发送它，并在之后向 LIA 询问我的会议吗？",
+            "answer": "可以。在会议页面上你可以<strong>编辑</strong>每个字段——标题、参与者的姓名和角色、每一节各按其格式——并随时<strong>恢复</strong>模型撰写的版本。<strong>PDF</strong> 将纪要下载为文档；<strong>邮件</strong>通过你连接的邮箱把它发送到你自己的地址，设置中也可以为每场会议自动完成。<br><br>每份纪要还会被索引到一个名为<strong>会议</strong>的知识空间中，首次使用时自动为你创建。因此你可以直接问：「关于迁移我们决定了什么？」「这周有哪些行动项到期？」——助手会基于你自己的会议回答，并标注来源。"
+          },
+          "q7": {
+            "question": "LIA 知道谁说了什么吗？",
+            "answer": "当引擎区分发言人时，每个声音都会在整段转写和纪要中获得一个稳定的标签——<strong>S1、S2……</strong>。只有当录音本身能够确认时才会出现<strong>姓名</strong>：有人自我介绍、被叫到名字，或与会议重叠的日历事件不留疑问。LIA 绝不臆造姓名；未命名的发言人保持为 S2，你可以在编辑纪要时自己为其命名。<br><br>本地引擎转写时不区分声音：此时纪要读起来像一份单一的叙述，附带它能确认的参与者。"
+          }
+        }
       }
     },
     "contact": {
@@ -8124,6 +8192,10 @@
       "server_escape_hatch": {
         "title": "输错地址不再是死胡同",
         "desc": "原生应用自带离线屏幕：可重试，也可更换服务器 —— 首次启动时的一个笔误，绝不意味着要重装应用。"
+      },
+      "meeting_banner": {
+        "title": "录音跟随你",
+        "desc": "会议进行中切换页面：横幅保留着时间、麦克风和回去的路——继续、完成或放弃。"
       }
     },
     "scenes": {
@@ -8218,6 +8290,11 @@
       },
       "pricing_workbook": {
         "preview": "写入前预览"
+      },
+      "meeting_banner": {
+        "recording": "录音中",
+        "interrupted": "已中断",
+        "resume": "继续"
       }
     },
     "craft": {
@@ -9342,6 +9419,10 @@
       "environment": {
         "title": "天气、空气质量与花粉",
         "description": "一个天气问题还会带来空气质量指数和当季花粉，类别文字直接来自服务本身——优先使用你所在国家的指数。聊天卡片、预报、主页以及地点详情中均可查看。"
+      },
+      "meetings": {
+        "title": "录制会议，收到纪要",
+        "description": "在聊天中按下 +，你的手机或电脑就开始录制会议——横幅跟随你到每个页面，同时你可以继续与 LIA 交谈。停止后，LIA 转写全部内容并按你的结构撰写纪要：日期、时间、地点、谁在场、讨论了什么、决定了什么、待办事项及负责人、有哪些风险。在聊天中阅读、下载 PDF、发送到你的邮箱，数周后还能向 LIA 询问。不臆造任何内容：录音中的缺口会被指出，未命名的发言人保持未命名，花费就写在旁边。"
       }
     },
     "use_cases": {
@@ -10062,12 +10143,12 @@
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
         "excerpt": "LIA 的语音领域结合了免费的本地 STT（Sherpa-onnx Whisper，可选远程 ElevenLabs Scribe 以获得更高精度）和目录驱动的 TTS（Edge / OpenAI / ElevenLabs）。按句级流式合成在约 1 秒内带来第一段音频。按消息的成本归属使付费语音调用完全可审计。",
-        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和你的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p>"
+        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和你的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p><h2>从一句语音指令到两小时的会议</h2><p>同一个麦克风现在可以录下整场会议。这对语音引擎的改变比对界面更大：本地 Whisper 只解码一个三十秒的窗口，对更长的内容会默默返回前三十秒——语音输入从未遇到这个缺陷，因为一句指令很短。长音频现在由语音活动检测器切成语音窗口，每个窗口单独解码，因此再长的录音也不成问题。远程引擎一次请求处理整个文件并区分发言人；引擎链从管理员的引擎依次到 ElevenLabs、OpenAI 和本地模型，拒绝的提供商会把接力交给下一个。纪要是一次填充用户模板的结构化调用，而每一项付费单位——引擎处的音频、模型处的 token——都会写在生成的卡片、会议页面和列表上。</p>"
       },
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",
         "excerpt": "导入PDF、Word、Excel等文档。LIA使用混合语义+BM25搜索对其进行索引。",
-        "body": "<h2>支持15+种格式</h2><p>LIA的知识空间接受超过<strong>15种文件格式</strong>，配备专用解析器：</p><ul><li><strong>PDF</strong> 通过PyMuPDF（快速精准提取）</li><li><strong>文档</strong> — DOCX、RTF、ODT</li><li><strong>表格</strong> — XLSX、CSV、ODS</li><li><strong>演示文稿</strong> — PPTX、ODP</li><li><strong>Web和文本</strong> — HTML、Markdown、JSON、XML、EPUB</li></ul><h2>智能分块</h2><p>文档通过<strong>RecursiveCharacterTextSplitter</strong>进行切分，参数经过优化：每块<strong>1000字符</strong>，<strong>200字符</strong>重叠（overlap）以保留段落间的上下文。安全限制：每文档最多<strong>500个块</strong>，每文件最大<strong>20 MB</strong>。</p><h2>混合搜索：两全其美</h2><p>LIA结合两种搜索方法：</p><ul><li><strong>语义搜索</strong> — 通过pgvector的Embeddings。即使用词不同，也能通过语义相似度找到结果。</li><li><strong>BM25搜索</strong> — 关键词匹配。适用于技术术语、专有名词和标识符。</li></ul><p>两种信号的分量并不相同，这是有意为之。相关性只由<strong>语义相似度</strong>决定：一段内容达到 <strong>0.62</strong> 即被保留，这一阈值已在真实语料上针对六种语言重新校准。BM25 随后只提供一个<strong>有上限的加分（0.05）</strong>用于打破平局——它可以把字面命中提到几乎并列者之前，但绝不能让一段内容入选或被剔除。像 LIA 在 2026 年 8 月之前那样把两种信号按相近权重混合，会在提问语言与文档语言拉开距离时丢弃三分之一的正确答案。默认每次查询检索<strong>5 个片段</strong>（最大可配置：20）。</p><h2>限制和配额</h2><p>每个用户拥有：最多<strong>10个空间</strong>、每空间<strong>50个文档</strong>、每文件<strong>20 MB</strong>。这些限制确保了最佳的搜索性能，同时为大多数使用场景提供了充足的容量。</p><h2>Google Drive同步</h2><p>你可以将<strong>Google Drive文件夹</strong>连接到知识空间。文档会自动同步，并在更改时重新索引。同步可检测新增、修改和删除操作。</p><h2>内置FAQ</h2><p>LIA拥有一个包含自身文档（18个FAQ文件）的系统知识空间。这使它能够精确回答关于自身功能的问题。</p>"
+        "body": "<h2>支持15+种格式</h2><p>LIA的知识空间接受超过<strong>15种文件格式</strong>，配备专用解析器：</p><ul><li><strong>PDF</strong> 通过PyMuPDF（快速精准提取）</li><li><strong>文档</strong> — DOCX、RTF、ODT</li><li><strong>表格</strong> — XLSX、CSV、ODS</li><li><strong>演示文稿</strong> — PPTX、ODP</li><li><strong>Web和文本</strong> — HTML、Markdown、JSON、XML、EPUB</li></ul><h2>智能分块</h2><p>文档通过<strong>RecursiveCharacterTextSplitter</strong>进行切分，参数经过优化：每块<strong>1000字符</strong>，<strong>200字符</strong>重叠（overlap）以保留段落间的上下文。安全限制：每文档最多<strong>500个块</strong>，每文件最大<strong>20 MB</strong>。</p><h2>混合搜索：两全其美</h2><p>LIA结合两种搜索方法：</p><ul><li><strong>语义搜索</strong> — 通过pgvector的Embeddings。即使用词不同，也能通过语义相似度找到结果。</li><li><strong>BM25搜索</strong> — 关键词匹配。适用于技术术语、专有名词和标识符。</li></ul><p>两种信号的分量并不相同，这是有意为之。相关性只由<strong>语义相似度</strong>决定：一段内容达到 <strong>0.62</strong> 即被保留，这一阈值已在真实语料上针对六种语言重新校准。BM25 随后只提供一个<strong>有上限的加分（0.05）</strong>用于打破平局——它可以把字面命中提到几乎并列者之前，但绝不能让一段内容入选或被剔除。像 LIA 在 2026 年 8 月之前那样把两种信号按相近权重混合，会在提问语言与文档语言拉开距离时丢弃三分之一的正确答案。默认每次查询检索<strong>5 个片段</strong>（最大可配置：20）。</p><h2>限制和配额</h2><p>每个用户拥有：最多<strong>10个空间</strong>、每空间<strong>50个文档</strong>、每文件<strong>20 MB</strong>。这些限制确保了最佳的搜索性能，同时为大多数使用场景提供了充足的容量。</p><h2>Google Drive同步</h2><p>你可以将<strong>Google Drive文件夹</strong>连接到知识空间。文档会自动同步，并在更改时重新索引。同步可检测新增、修改和删除操作。</p><h2>内置FAQ</h2><p>LIA拥有一个包含自身文档（18个FAQ文件）的系统知识空间。这使它能够精确回答关于自身功能的问题。</p><h2>一个自动填充的空间：会议</h2><p>有一个空间是为你创建的，而不是由你创建的。当 LIA 撰写一场录制会议的纪要时，会把它索引到「会议」空间——按角色而非名称查找，所以你可以重命名它——每场会议一份文档，编辑纪要时就地重写，删除会议当天即被移除。该空间不受每用户上限的限制，正是它让助手能够基于你自己的会议回答「关于迁移我们决定了什么？」，并标注来源。</p>"
       },
       "personal-journals": {
         "title": "个人日记：当你的 AI 助手发展出自己的记忆",
@@ -10100,9 +10181,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "499个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
+        "title": "506个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：473指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 499个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 506个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -10323,7 +10404,8 @@
       "computed_answers": "算出来的答案",
       "measured_palette": "经过测量的调色板",
       "declared_register": "声明的语气",
-      "shock_absorbers": "三种机制，一次汇聚"
+      "shock_absorbers": "三种机制，一次汇聚",
+      "meetings": "会议：这一行就是任务"
     }
   },
   "healthMetrics": {
@@ -10835,7 +10917,8 @@
       "plugins": "插件",
       "habits": "习惯",
       "mcp_servers": "MCP 服务器",
-      "telephony": "通话"
+      "telephony": "通话",
+      "meetings": "会议"
     },
     "items": {
       "stt": "语音输入（转写）",
@@ -10859,7 +10942,9 @@
       "mcp": "MCP 服务器",
       "mcp_description": "用户连接的外部 MCP 服务器。关闭后将关闭其管理路由。",
       "telephony": "电话呼叫",
-      "telephony_description": "由智能体发起的外呼。关闭后将关闭电话路由。"
+      "telephony_description": "由智能体发起的外呼。关闭后将关闭电话路由。",
+      "meetings": "会议录音",
+      "meetings_description": "录制会议并生成纪要。关闭后会议相关路由将被关闭；其他不受影响。"
     }
   },
   "showroom": {
@@ -11338,6 +11423,240 @@
       "error": "无法加载该文档 — 它可能已过期。",
       "not_renderable": "该格式需在其原生应用中打开 — 请下载后查看。",
       "download": "下载"
+    }
+  },
+  "meetings": {
+    "composer": {
+      "menu_label": "附件与会议录音",
+      "add_file": "添加文件",
+      "record": "录制会议",
+      "stop": "停止录音"
+    },
+    "banner": {
+      "region_label": "会议录音",
+      "starting": "正在开始录音…",
+      "recording": "录音中",
+      "offline": "离线——分段等待上传",
+      "interrupted": "录音已中断",
+      "stopping": "正在结束…",
+      "processing": "正在生成纪要…",
+      "error": "录音已停止",
+      "elapsed_label": "已用时间",
+      "level_label": "麦克风音量",
+      "uploaded_one": "已发送 {{count}} 个分段",
+      "uploaded_other": "已发送 {{count}} 个分段",
+      "pending_one": "{{count}} 个待发送",
+      "pending_other": "{{count}} 个待发送",
+      "stop": "停止",
+      "resume": "继续",
+      "finalize": "完成",
+      "finalize_with_gaps": "仍然完成",
+      "discard": "放弃",
+      "dismiss": "关闭",
+      "open_minutes": "打开纪要",
+      "keep_screen_on": "请保持屏幕亮起并让 LIA 处于前台：手机切到后台会静音麦克风。",
+      "missing_segments_one": "{{count}} 个分段从未到达服务器；纪要将注明录音曾中断。",
+      "missing_segments_other": "{{count}} 个分段从未到达服务器；纪要将注明录音曾中断。",
+      "silence_title": "会议还在继续吗？",
+      "silence_body": "已有 {{minutes}} 分钟没有声音。",
+      "silence_continue": "继续",
+      "engine": {
+        "elevenlabs": "ElevenLabs Scribe",
+        "openai": "OpenAI",
+        "local": "本地引擎（在服务器上）"
+      },
+      "offline_long": "已离线较长时间：音频暂存在此设备上。网络恢复后请尽快停止并完成。"
+    },
+    "toasts": {
+      "ready_title": "会议纪要已就绪",
+      "failed_title": "无法生成纪要"
+    },
+    "status": {
+      "recording": "录音中",
+      "interrupted": "已中断",
+      "stopped": "排队中",
+      "processing": "处理中",
+      "ready": "已就绪",
+      "failed": "失败"
+    },
+    "stage": {
+      "normalizing": "正在准备音频",
+      "transcribing": "正在转写",
+      "synthesizing": "正在撰写纪要",
+      "indexing": "正在加入知识空间"
+    },
+    "list": {
+      "title": "会议",
+      "subtitle": "你的录音及其纪要",
+      "empty_title": "还没有会议",
+      "empty_description": "在聊天输入框的回形针菜单中开始录音，纪要会显示在这里。",
+      "empty_action": "打开聊天",
+      "total_one": "{{count}} 场会议",
+      "total_other": "{{count}} 场会议",
+      "untitled": "未命名会议",
+      "open": "打开 {{title}}",
+      "participants_one": "{{count}} 位参会者",
+      "participants_other": "{{count}} 位参会者",
+      "actions_one": "{{count}} 项行动",
+      "actions_other": "{{count}} 项行动"
+    },
+    "detail": {
+      "back": "返回会议列表",
+      "not_found": "该会议不存在或已被删除。",
+      "date": "日期",
+      "time": "时间",
+      "duration": "时长",
+      "location": "地点",
+      "engine": "转写引擎",
+      "cost": "费用",
+      "progress_title": "正在生成纪要",
+      "processing_hint": "较长的会议可能需要几分钟。纪要就绪后会在聊天中通知你。",
+      "failed_title": "无法生成纪要",
+      "minutes_title": "纪要",
+      "edited_badge": "已编辑",
+      "generated_badge": "自动生成",
+      "edit": "编辑",
+      "pdf": "下载 PDF",
+      "email": "把纪要发到我的邮箱",
+      "email_ok": "纪要已发送到你的邮箱。",
+      "email_sent": "已于 {{when}} 通过邮件发送",
+      "regenerate": "用我的模板重新生成",
+      "reset": "恢复自动生成的版本",
+      "delete_transcript": "删除转写文本",
+      "delete": "删除会议",
+      "retry": "重试处理",
+      "saved": "纪要已保存",
+      "deleted": "会议已删除",
+      "transcript_title": "转写文本",
+      "transcript_show": "显示转写文本",
+      "transcript_hide": "隐藏转写文本",
+      "transcript_deleted": "转写文本已删除，纪要保留。",
+      "index_indexed": "已加入你的“会议”知识空间。",
+      "index_pending": "正在加入你的“会议”知识空间…",
+      "index_error": "无法加入知识空间。",
+      "index_disabled": "此实例已关闭知识空间。",
+      "gaps_notice_one": "录音曾中断 {{count}} 次，部分内容可能缺失。",
+      "gaps_notice_other": "录音曾中断 {{count}} 次，部分内容可能缺失。",
+      "no_names_notice": "发言人以编号表示：无法从录音中确定姓名。你可以在编辑纪要时为他们命名。",
+      "participants_title": "参会者",
+      "participant_name": "姓名",
+      "participant_role": "角色",
+      "title_label": "标题",
+      "section_empty": "本节没有记录到内容。",
+      "bullets_hint": "每行一项。",
+      "add_item": "添加一项",
+      "remove_item": "移除",
+      "topic_title": "议题",
+      "topic_summary": "摘要",
+      "action_description": "行动",
+      "action_owner": "负责人",
+      "action_due": "截止日期",
+      "confirm_delete_title": "删除这场会议？",
+      "confirm_delete_description": "纪要、转写文本和保留的音频将被永久删除。",
+      "confirm_delete_transcript_title": "删除转写文本？",
+      "confirm_delete_transcript_description": "纪要将保留；转写文本无法恢复，纪要也将无法重新生成。",
+      "confirm_regenerate_title": "重新生成纪要？",
+      "confirm_regenerate_description": "LIA 将根据转写文本和你当前的模板撰写新的纪要。你对本纪要的修改将被替换。",
+      "confirm_reset_title": "恢复自动生成的版本？",
+      "confirm_reset_description": "你的修改将被 LIA 生成的纪要替换。",
+      "cost_breakdown": "{{total}}（转写 {{stt}} · 纪要 {{minutes}}）",
+      "cost_unknown": "未定价"
+    },
+    "card": {
+      "title": "会议纪要已就绪",
+      "open": "打开纪要",
+      "cost_line": "转写 {{stt}} · 纪要 {{minutes}} · 合计 {{total}}"
+    },
+    "settings": {
+      "preferences_title": "偏好设置",
+      "engine_label": "转写引擎",
+      "engine_auto": "自动（可用的最佳引擎）",
+      "engine_remote": "仅远程服务商",
+      "engine_local": "仅本地引擎（免费，较慢）",
+      "engine_hint": "远程服务商可区分发言人并按音频小时计费；本地引擎免费但不区分发言人。",
+      "language_label": "会议语言",
+      "language_auto": "自动检测",
+      "language_codes": {
+        "en": "英语",
+        "fr": "法语",
+        "de": "德语",
+        "es": "西班牙语",
+        "it": "意大利语",
+        "zh": "中文",
+        "pt": "葡萄牙语",
+        "nl": "荷兰语"
+      },
+      "auto_email_label": "纪要就绪后发送到我的邮箱",
+      "auto_email_hint": "通过你已连接的邮箱账户发送到你自己的地址。",
+      "keep_audio_label": "处理后保留音频",
+      "keep_audio_none": "处理完成后立即删除",
+      "keep_audio_hours_one": "{{count}} 小时",
+      "keep_audio_hours_other": "{{count}} 小时",
+      "keep_audio_max_one": "最多 {{count}} 小时",
+      "keep_audio_max_other": "最多 {{count}} 小时",
+      "saved": "偏好设置已保存",
+      "template_title": "纪要结构",
+      "template_description": "LIA 按顺序填写的各个部分。可按需调整；随时可以恢复默认结构。",
+      "template_name_label": "模板名称",
+      "template_builtin_badge": "默认",
+      "reset_template": "恢复默认模板",
+      "template_saved": "模板已保存",
+      "template_reset": "已恢复默认模板",
+      "new_section_label": "新章节",
+      "section_position": "第 {{position}} 节",
+      "move_up": "上移“{{label}}”",
+      "move_down": "下移“{{label}}”",
+      "remove_section": "移除“{{label}}”",
+      "section_label": "标题",
+      "section_kind": "格式",
+      "section_instruction": "LIA 应在本节写入的内容",
+      "kind_paragraph": "段落",
+      "kind_bullets": "要点列表",
+      "kind_topics": "议题及摘要",
+      "kind_action_items": "行动项（含负责人和截止日期）",
+      "add_section": "添加章节",
+      "max_sections_one": "最多 {{count}} 节。",
+      "max_sections_other": "最多 {{count}} 节。",
+      "recent_title": "最近的会议",
+      "no_meetings": "尚未录制任何会议。",
+      "view_all_one": "全部会议（{{count}}）",
+      "view_all_other": "全部会议（{{count}}）"
+    },
+    "errors": {
+      "audio_normalize_failed": "无法处理音频。",
+      "audio_unavailable": "音频已不可用。",
+      "capture_failed": "麦克风停止工作。",
+      "duration_cap_reached": "已达到最长录音时长：会议纪要将根据已录制的内容生成。",
+      "email_connector_missing": "没有已连接的邮箱账户来发送纪要。",
+      "email_send_failed": "你的邮件服务商拒绝了这封邮件。",
+      "format_unavailable": "此录音以当前浏览器无法生成的格式开始：在此只能完成或放弃。",
+      "invalid_api_key": "转写服务拒绝了已配置的密钥。",
+      "meeting_already_recording": "已有一段录音正在进行。",
+      "meeting_in_progress": "会议仍在处理中。",
+      "meeting_not_interrupted": "这段录音并未中断。",
+      "meeting_not_recording": "这段录音已经结束。",
+      "meeting_not_retryable": "此会议无法重试。",
+      "microphone_denied": "麦克风访问被拒绝。",
+      "no_audio": "没有录到任何内容。",
+      "no_engine_available": "此实例没有可用的转写引擎。",
+      "no_speech": "录音中未检测到语音。",
+      "provider_rate_limited": "转写服务繁忙，将会重试。",
+      "rate_limited": "近期启动的录音过多，请稍后再试。",
+      "regeneration_in_progress": "纪要正在重新生成中。",
+      "report_not_ready": "纪要尚未就绪。",
+      "segment_empty": "一个空的音频片段被拒绝。",
+      "segment_malformed": "一个格式错误的音频片段被拒绝。",
+      "segment_too_large": "某个分段对服务器来说太大了。",
+      "segments_missing": "部分分段从未到达服务器。",
+      "start_failed": "无法开始录音。",
+      "stop_failed": "无法完成录音。",
+      "storage_unavailable": "服务器无法保存音频（存储已满或不可用）。片段已保留并会重新发送。",
+      "synthesis_failed": "无法撰写纪要。",
+      "transcript_unavailable": "转写文本已不可用。",
+      "unexpected": "处理过程中出现问题。",
+      "unknown": "未知错误（{{code}}）",
+      "usage_limit": "你已达到使用上限。",
+      "user_missing": "该账户已不存在。"
     }
   }
 }

@@ -41,6 +41,8 @@ export interface AppConfig {
     peers_enabled?: boolean;
     // Activity timeline (Lot 1-A1) — gates its entry links.
     activity_timeline_enabled?: boolean;
+    // Meeting recording & minutes (ADR-258) — gates the composer entry and the recorder.
+    meetings_enabled?: boolean;
   };
   api_version: string;
 }

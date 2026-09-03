@@ -33,21 +33,21 @@ beforeEach(() => {
 });
 
 describe('LanguageSelector', () => {
-  it('shows the current language native name and flag on the trigger', () => {
+  it('shows the current flag alone on the trigger — the name lives in the popup and the accessible name', () => {
     renderWithProviders(<LanguageSelector currentLocale="en" />);
-    expect(screen.getByText(languageNames.en.native)).toBeInTheDocument();
     expect(screen.getByText(languageFlags.en)).toBeInTheDocument();
+    expect(screen.queryByText(languageNames.en.native)).not.toBeInTheDocument();
   });
 
   it('exposes the trigger as a menu button', () => {
     renderWithProviders(<LanguageSelector currentLocale="fr" />);
     const trigger = screen.getByRole('button');
     expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
-    expect(screen.getByText(languageNames.fr.native)).toBeInTheDocument();
+    expect(screen.getByText(languageFlags.fr)).toBeInTheDocument();
   });
 
   /**
-   * Header reachability (S10): below `lg` only the flag renders, and a flag
+   * Header reachability (S10): only the flag renders, and a flag
    * emoji is not an accessible name — a screen-reader user would hear "🇫🇷"
    * or nothing. The trigger therefore carries an explicit name at every
    * viewport. The i18n stub echoes keys, so the key is what is asserted.

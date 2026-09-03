@@ -12,6 +12,8 @@ import {
   Bell,
   Check,
   Clock,
+  Disc,
+  Play,
   FileWarning,
   Image as ImageIcon,
   PencilLine,
@@ -319,7 +321,47 @@ function FixCommitmentScene({ active, labels }: SceneProps) {
   );
 }
 
+type BannerPhase = 'recording' | 'navigate' | 'interrupted' | 'resume';
+const BANNER_STEPS: readonly TimelineStep<BannerPhase>[] = [
+  { at: 0, state: 'recording' },
+  { at: 1400, state: 'navigate' },
+  { at: 2400, state: 'interrupted' },
+  { at: 3600, state: 'resume' },
+];
+
+/**
+ * The meeting banner (ADR-258): a page change mid-recording keeps the timer
+ * and the microphone; an interruption offers the way back. Pure CSS states
+ * gated on `active` (WCAG 2.2.2), no continuous animation left running.
+ */
+function MeetingBannerScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(BANNER_STEPS, { active });
+  const interrupted = phase === 'interrupted' || phase === 'resume';
+  return (
+    <div className={cn(STAGE, 'flex-col gap-2')}>
+      <MiniToast icon={interrupted ? AlertTriangle : Disc} tone={interrupted ? 'warning' : 'info'}>
+        <span className={cn(!interrupted && active && 'animate-pulse')}>
+          {interrupted ? labels.interrupted : labels.recording}
+        </span>
+        {!interrupted && <span className="tabular-nums text-foreground">12:04</span>}
+        {phase === 'resume' && (
+          <MiniChip pressed className="ml-1 gap-1">
+            <Play className="h-2.5 w-2.5" />
+            {labels.resume}
+          </MiniChip>
+        )}
+      </MiniToast>
+      <div className="flex w-full max-w-[220px] gap-1.5">
+        <SkeletonLine w="w-1/3" className={cn(phase === 'navigate' && 'bg-primary/30')} />
+        <SkeletonLine w="w-1/3" className={cn(phase !== 'navigate' && 'bg-primary/30')} />
+        <SkeletonLine w="w-1/3" />
+      </div>
+    </div>
+  );
+}
+
 export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
+  meeting_banner: MeetingBannerScene,
   actionable_errors: ActionableErrorsScene,
   retry_turn: RetryTurnScene,
   honest_freshness: HonestFreshnessScene,

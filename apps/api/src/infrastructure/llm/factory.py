@@ -191,6 +191,8 @@ LLMType = Literal[
     "telephony_agent",
     # Document generation — dedicated whole-document writer (ADR-226)
     "document_generation",
+    # Meeting minutes — structured synthesis of a transcribed recording (ADR-258)
+    "meeting_synthesis",
 ]
 
 

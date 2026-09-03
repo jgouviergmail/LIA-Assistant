@@ -153,6 +153,13 @@ export const STATIC_SLASH_COMMANDS: readonly StaticSlashCommandDef[] = [
     labelKey: 'chat.slash.spaces_label',
     descriptionKey: 'chat.slash.spaces_description',
   },
+  // Meeting minutes (ADR-258): the list of recorded meetings is a page.
+  {
+    id: 'meetings',
+    kind: 'local',
+    labelKey: 'chat.slash.meetings_label',
+    descriptionKey: 'chat.slash.meetings_description',
+  },
 ];
 
 /** The ids a user-defined shortcut may NOT take (statics win, deterministically). */

@@ -25,6 +25,8 @@ import { MarkdownContent } from './MarkdownContent';
 import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
+import { MeetingMinutesCard } from '@/components/meetings/MeetingMinutesCard';
+import { isMeetingNotificationMetadata } from '@/types/meetings';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
 import { isPhoneCallDebrief } from '@/types/telephony';
 import {
@@ -232,6 +234,25 @@ export function retryPromptOf(message: Message): string | undefined {
  * nothing for any other message, malformed metadata included (a shape drift
  * from the dispatcher must degrade to the plain text, never crash the chat).
  */
+/**
+ * ADR-258: the « minutes ready » card of a post-meeting proactive message —
+ * same discipline as the phone-call debrief (module-level, shape-guarded,
+ * renders nothing for any other message).
+ */
+function MeetingMinutesBlock({
+  metadata,
+  lng,
+  showCosts,
+}: {
+  metadata?: Record<string, unknown>;
+  lng: Language;
+  /** The user's token-display preference — the same gate as the bubble footer. */
+  showCosts: boolean;
+}) {
+  if (!isMeetingNotificationMetadata(metadata)) return null;
+  return <MeetingMinutesCard lng={lng} metadata={metadata} showCosts={showCosts} />;
+}
+
 function PhoneCallDebriefBlock({ metadata }: { metadata?: Record<string, unknown> }) {
   if (metadata?.type !== 'proactive_phone_call') return null;
   const debrief = metadata.debrief;
@@ -993,6 +1014,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {/* T01: structured debrief under a post-call report (renders
                 nothing for every other message — the block owns its checks). */}
             <PhoneCallDebriefBlock metadata={message.metadata} />
+            <MeetingMinutesBlock
+              metadata={message.metadata}
+              lng={i18n.language as Language}
+              showCosts={showTokens}
+            />
             {/* Bubble action row (UXR Lot 1) — hidden while streaming: an
                 in-flow row at the growing edge would jitter on every token.
                 Hosts the execution-trace disclosure at its right edge (the

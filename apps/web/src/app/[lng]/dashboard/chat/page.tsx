@@ -37,7 +37,7 @@ import { toast } from 'sonner';
 import { FeatureErrorBoundary } from '@/components/errors';
 
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
-import { useAppConfig } from '@/hooks/useAppConfig';
+import { useAppConfig, type AppConfig } from '@/hooks/useAppConfig';
 import { useInputDraft } from '@/hooks/useInputDraft';
 import { useSkills } from '@/hooks/useSkills';
 import {
@@ -60,6 +60,21 @@ import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator
 /** Short locale of an i18n language tag ("fr-FR" → "fr"; default "fr"). */
 function shortLang(language: string | undefined): string {
   return (language || 'fr').split('-')[0];
+}
+
+/**
+ * The composer's instance flags (module-level — CC discipline): attachments
+ * default ON (the historical behaviour), meeting recording default OFF
+ * (ADR-258: an instance that does not publish the flag has no recorder).
+ */
+function composerFeatureFlags(config: AppConfig | null): {
+  attachmentsEnabled: boolean;
+  meetingsEnabled: boolean;
+} {
+  return {
+    attachmentsEnabled: config?.features?.attachments_enabled ?? true,
+    meetingsEnabled: config?.features?.meetings_enabled ?? false,
+  };
 }
 
 /**
@@ -1080,7 +1095,7 @@ export default function ChatPage() {
                   isConnected={isConnected}
                   apiAvailable={apiAvailable && !isUsageBlocked}
                   onMessageChange={handleMessageChange}
-                  attachmentsEnabled={appConfig?.features?.attachments_enabled ?? true}
+                  {...composerFeatureFlags(appConfig)}
                   isGenerating={isTyping}
                   onStopGeneration={stopGeneration}
                 />

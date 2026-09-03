@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.39.0] - 2026-09-03
+
+**Un geste, et une réunion devient un compte rendu.** Le bouton « + » du composeur — celui qui joignait déjà un fichier — enregistre une réunion avec le téléphone ou l'ordinateur comme micro ; à l'arrêt, LIA transcrit l'ensemble et rend un compte rendu à la structure de l'utilisateur (ADR-258). L'exigence était double : **fonctionner en PWA, proprement et sans à-coups**, et **la structure du compte rendu appartient à l'utilisateur** — un modèle par utilisateur, remis au défaut d'un clic, appliqué a posteriori par « Reconstruire ».
+
+**Chaque hypothèse a été mesurée avant d'être conçue.** Le Whisper local tronquait tout au-delà de ~30 s sans le dire (la saisie vocale ne l'avait jamais vu : une commande est courte) ; les deux moteurs distants acceptent un fichier entier et séparent les voix ; Safari ne produit pas le même conteneur que Chrome ; les deux plateformes mobiles coupent le micro en arrière-plan ; la production tourne sur quatre workers. Le design en découle : des segments par fichier, du PCM imposé sur Apple, des fenêtres de parole pour le moteur local, un verrou d'écran, et la ligne `meetings` comme job durable (ADR-129).
+
+**Puis la fonctionnalité a été conduite de bout en bout dans les conteneurs de dev, cinq fois.** Les preuves ont trouvé quatre défauts qu'aucune suite unitaire ne voyait : une relecture périmée après un `UPDATE` en masse (un arrêt répondait `status: recording`), l'absence de repli au traitement (une clé refusée mettait la réunion en échec alors qu'une clé OpenAI attendait), un coût « 0,00 € » pour un modèle sans tarif, et une projection RAG orpheline après suppression. Chacun a son test.
+
+### Added
+
+- **Enregistrement de réunion depuis le composeur** : deux sources audio derrière une interface (Opus par `MediaRecorder`, PCM brut par le worklet partagé avec la saisie vocale — le seul chemin sur Apple), le format décidé au démarrage par une fonction pure, des segments envoyés dans l'ordre avec reprise et attente hors ligne, une bannière dans la mise en page du tableau de bord (durée, niveau, segments partis, reprises), un garde du silence, une durée maximale, un verrou d'écran.
+- **Le compte rendu structuré** : en-tête fixe (date, horaires, durée, lieu, participants) et sections du modèle utilisateur (paragraphe, puces, sujets, actions avec responsable et échéance) ; un appel structuré sur le slot `meeting_synthesis`, condensation par parties quand la transcription déborde la fenêtre du modèle, `repair_report` qui replie la réponse permissive dans le rapport strict ; édition, restauration de la version générée, reconstruction avec le modèle courant.
+- **La chaîne de moteurs** : slot admin → ElevenLabs Scribe → OpenAI `gpt-4o-transcribe-diarize` → Whisper local **sans plafond de durée** (fenêtres VAD Silero ≤ 20 s dans `voice/stt/long_audio.py`, qui corrige aussi la troncature de la saisie vocale) ; le moteur et son prix par heure publiés avant le premier octet ; **la chaîne reparcourue au traitement** (`transcribe_with_fallback`) : une faute permanente d'un fournisseur passe au suivant, seuls le silence et les fautes transitoires arrêtent le parcours.
+- **Un sérialiseur, trois sorties** : Markdown pour l'espace de connaissances « Réunions » (trouvé par rôle `rag_spaces.kind`, un document par réunion réécrit en place, supprimé avec la réunion), contenu sectionné pour le PDF (ADR-226), HTML pour l'e-mail par le connecteur de l'utilisateur ; notification `task_type="meeting"` avec sa carte dans le chat.
+- **Chaque unité payante est comptée et affichée** : l'audio par les statistiques STT distantes, les tokens par `track_proactive_tokens` sous le `run_id` que porte le message archivé (régénérations comprises) ; la ligne garde la dépense propre au compte rendu (`synthesis_*`), la page affiche le total exact et sa décomposition, la liste le total, la carte du chat les deux unités et leur somme ; un modèle sans tarif administré donne `null`, jamais zéro (ADR-185).
+- **Une destination « Réunions » dans l'en-tête**, entre Relations et Alertes, présente seulement là où l'instance active la fonction (`visibleDestinations`, une seule table pour la barre et le menu mobile) ; page liste avec total exact, page détail (faits, progression, échec avec relance, compte rendu, transcription), section de réglages (moteur, langue, rétention audio, modèle de compte rendu), commande `/meetings`, capacité de plateforme `MEETINGS`, tableau Grafana `27-meetings.json`, sept métriques.
+- **Migration `meetings` / `meeting_templates` / `meeting_preferences`** + colonne `rag_spaces.kind` et `source_type=meeting` ; réglages `MEETINGS_*` (bloc `[87]`) et six réglages de fenêtrage vocal ; volume `meetings_data` ; export RGPD.
+
+### Changed
+
+- **Le trombone du composeur devient un « + »** : il ouvre des actions, dont joindre un fichier ; 44 px de large sur téléphone, 40 au-delà, espacement réduit sur téléphone — la zone de saisie garde la largeur.
+- **Le sélecteur de langue montre son drapeau seul à toutes les largeurs** et le titre de la personnalité attend `2xl` : sept libellés dans la barre ont été payés côté contrôles, pas côté destinations.
+- **Le contexte React du recorder ne publie que l'état grossier** (`MeetingRecorderContextValue`) : le vumètre et les compteurs n'appartiennent qu'à la bannière, le composeur ne se re-rend plus plusieurs fois par seconde pendant une réunion.
+- `startup/schedulers.py` reste sous 600 SLOC : les jobs réunions et la gigue vivent dans `scheduler_meetings.py` / `scheduler_jitter.py`.
+
+### Fixed
+
+- **Relecture périmée après une transition en masse** : l'accusé de segment lit `RETURNING`, toute relecture après transition expire la session (`MeetingService._fresh`).
+- **Le plafond côté serveur est un arrêt, pas une panne** : un onglet ralenti qui rate le plafond client reçoit 413 `duration_cap_reached` ; la file d'envoi se déclare réglée à la séquence refusée et l'arrêt déclare ce que le serveur détient — aucune lacune inventée.
+- **Une réunion Opus adoptée depuis un autre appareil ne reprend que dans le même conteneur** (`format_unavailable`), sinon Finaliser / Abandonner ; une régénération ne peut plus rester bloquée sur `synthesizing` ; un échec après `ready` (notification, indexation) est journalisé et compté, jamais requalifié en échec ; cinq codes d'erreur backend manquaient au frontend ; la vue des puces saute les lignes vides comme les autres rendus.
+
+### Tests
+
+- **~330 tests frontend et ~150 tests backend écrits avant le code** : machine à états du recorder sous fakes (démarrage, silence, plafond client et serveur, arrêt avec lacunes, hors ligne, reprise, réconciliation, adoption multi-appareil), file d'envoi (ordre, reprise, hors ligne, compte réglé après refus), sources audio, store persisté, bannière, fournisseur (contexte grossier), composeur, éditeurs, vue, réglages, pages liste et détail (quinze parcours), carte de chat avec coûts ; côté API : modèles, gabarits, store audio, résolution et exclusion des moteurs, transcription et repli, synthèse (réparation, condensation, coût), rendu, enrichissement, indexation, livraison, classification du job et régénération (dépense cumulée), notification (run_id et coûts), gardes du service (RETURNING, expiration, suppression de la projection), clients de fichiers ElevenLabs/OpenAI sous `httpx.MockTransport`, fenêtres VAD.
+- **Cinq preuves runtime** contre les conteneurs de dev par le contrat HTTP (spec §8.1) : PCM → repli OpenAI → `ready`, WebM → Whisper local → `ready`, PDF, e-mail, édition, régénération avec dépense cumulée, suppression avec sa projection, message archivé portant `run_id` et coûts.
+
 ## [1.38.6] - 2026-09-02
 
 **Cinq défauts de couture, trouvés en lisant la recherche plutôt que le code.** Une revue de littérature (299 articles arXiv triés, 12 retenus) a servi de grille de lecture : non pas pour importer une technique, mais pour poser au code des questions qu'il ne se posait pas. Chaque hypothèse a été validée par une preuve exécutable sur le code de production **avant** toute modification, et cinq défauts ont survécu à la contre-vérification. Tous ont la même forme — **deux sous-systèmes corrects chacun sous son ADR, composés en un comportement que personne ne possède** (ADR-257).

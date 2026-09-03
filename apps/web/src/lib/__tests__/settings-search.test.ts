@@ -90,7 +90,9 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // connector card for its own Personalization section (2026-08-27).
     // 53 since the admin platform-health section (self-diagnostics spec
     // 2026-08-27) joined Administration / System.
-    expect(TOKENS).toHaveLength(53);
+    // 54 since the meetings section (ADR-258) joined Features / Extensions &
+    // Data (2026-09-02).
+    expect(TOKENS).toHaveLength(54);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(
@@ -191,6 +193,7 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
         'admin-mcp-servers',
         'briefing-grid',
         'heartbeat',
+        'meetings',
         'security-auth',
         'security-export',
         'telephony-calls',

@@ -32,6 +32,7 @@ import {
   Bug,
   Cable,
   CalendarClock,
+  ClipboardList,
   Coins,
   Compass,
   Cpu,
@@ -119,6 +120,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   skills: Blocks,
   plugins: Puzzle,
   'rag-spaces': Library,
+  meetings: ClipboardList,
   'user-consumption-export': FileSpreadsheet,
 
   // ---- Administration

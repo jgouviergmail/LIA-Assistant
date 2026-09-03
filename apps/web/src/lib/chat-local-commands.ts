@@ -24,6 +24,7 @@ export interface LocalCommandHandlers {
 const HANDLERS: Record<string, (h: LocalCommandHandlers) => void> = {
   briefing: h => h.navigate('/dashboard'),
   spaces: h => h.navigate('/dashboard/spaces'),
+  meetings: h => h.navigate('/dashboard/meetings'),
   search: h => h.openSearch(),
 };
 

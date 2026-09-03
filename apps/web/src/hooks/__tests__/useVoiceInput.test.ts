@@ -370,7 +370,10 @@ describe('useVoiceInput — teardown', () => {
     expect(active.disposed).toBe(true);
     expect(trackStop).toHaveBeenCalled();
     expect(contextClose).toHaveBeenCalled();
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:worklet');
+    // The worklet URL is shared with the meeting recorder and cached per chunk
+    // size (`lib/audio/pcm-worklet`, ADR-258): revoking it on unmount would
+    // break the other consumer, so the hook deliberately leaves it alive.
+    expect(revokeObjectURL).not.toHaveBeenCalledWith('blob:worklet');
   });
 
   it('disposes a pre-warmed connection that was never used', async () => {

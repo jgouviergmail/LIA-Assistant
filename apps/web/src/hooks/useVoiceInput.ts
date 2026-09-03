@@ -32,6 +32,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '@/lib/logger';
 import { VoiceInputService } from '@/lib/voice-input-service';
+import { PCM_WORKLET_PROCESSOR_NAME, getPcmWorkletUrl } from '@/lib/audio/pcm-worklet';
 import {
   VOICE_INPUT_SAMPLE_RATE,
   VOICE_INPUT_CHUNK_SIZE,
@@ -98,9 +99,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
   // Ref to signal cancellation when user releases button during async setup
   const cancelledRef = useRef(false);
-
-  // Cached worklet blob URL (created once, reused across recordings)
-  const workletUrlRef = useRef<string | null>(null);
 
   // Pre-warmed VoiceInputService (connected in background for lower latency)
   const prewarmedServiceRef = useRef<VoiceInputService | null>(null);
@@ -244,57 +242,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
   );
 
   /**
-   * Get or create AudioWorklet processor script as a cached Blob URL.
-   * The worklet code is identical across recordings, so we cache the URL.
-   */
-  const getOrCreateWorkletUrl = useCallback((): string => {
-    if (workletUrlRef.current) return workletUrlRef.current;
-
-    const workletCode = `
-      class VoiceInputProcessor extends AudioWorkletProcessor {
-        constructor() {
-          super();
-          this.buffer = [];
-          this.chunkSize = ${VOICE_INPUT_CHUNK_SIZE};
-        }
-
-        process(inputs) {
-          const input = inputs[0];
-          if (input.length > 0) {
-            const samples = input[0];
-
-            // Accumulate samples
-            for (let i = 0; i < samples.length; i++) {
-              this.buffer.push(samples[i]);
-            }
-
-            // Send chunk when buffer is full
-            while (this.buffer.length >= this.chunkSize) {
-              const chunk = this.buffer.splice(0, this.chunkSize);
-
-              // Convert Float32 [-1, 1] to Int16 [-32768, 32767]
-              const int16Array = new Int16Array(chunk.length);
-              for (let i = 0; i < chunk.length; i++) {
-                const s = Math.max(-1, Math.min(1, chunk[i]));
-                int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-              }
-
-              this.port.postMessage(int16Array.buffer, [int16Array.buffer]);
-            }
-          }
-          return true;
-        }
-      }
-
-      registerProcessor('voice-input-processor', VoiceInputProcessor);
-    `;
-
-    const blob = new Blob([workletCode], { type: 'application/javascript' });
-    workletUrlRef.current = URL.createObjectURL(blob);
-    return workletUrlRef.current;
-  }, []);
-
-  /**
    * Start recording.
    *
    * Launches getUserMedia and WebSocket connection in parallel for reduced latency.
@@ -415,9 +362,10 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       audioContextRef.current = audioContext;
 
       // Step 3: Create AudioWorklet (uses cached blob URL)
-      await audioContext.audioWorklet.addModule(getOrCreateWorkletUrl());
+      // Shared with the meeting recorder (ADR-258): one worklet source, cached per chunk size.
+      await audioContext.audioWorklet.addModule(getPcmWorkletUrl(VOICE_INPUT_CHUNK_SIZE));
 
-      const workletNode = new AudioWorkletNode(audioContext, 'voice-input-processor');
+      const workletNode = new AudioWorkletNode(audioContext, PCM_WORKLET_PROCESSOR_NAME);
       workletNodeRef.current = workletNode;
 
       // Step 4: Handle audio chunks from worklet
@@ -457,7 +405,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
     handleTranscription,
     handleConnectionChange,
     handleError,
-    getOrCreateWorkletUrl,
     cleanupAudio,
     cleanupService,
   ]);
@@ -540,10 +487,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       if (prewarmedServiceRef.current) {
         prewarmedServiceRef.current.dispose();
         prewarmedServiceRef.current = null;
-      }
-      if (workletUrlRef.current) {
-        URL.revokeObjectURL(workletUrlRef.current);
-        workletUrlRef.current = null;
       }
     };
   }, [cleanupAudio, cleanupService]);

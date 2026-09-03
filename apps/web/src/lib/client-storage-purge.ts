@@ -21,6 +21,7 @@ import {
   GEOLOCATION_ENABLED_KEY,
   GEOLOCATION_REACTIVATION_DISMISSED_KEY,
   LAST_LOCATION_PUSH_TS_KEY,
+  MEETING_RECORDER_STATE_KEY,
 } from '@/lib/constants';
 
 /** Keys in `sessionStorage` cleared on logout. */
@@ -47,6 +48,9 @@ export const SENSITIVE_LOCAL_STORAGE_KEYS: readonly string[] = [
   // left behind, account B's session would inherit A's throttle window and
   // skip its own first push (generalized last-known location, 2026-08-16).
   LAST_LOCATION_PUSH_TS_KEY,
+  // Meeting recorder state (ADR-258): names an account's live meeting id —
+  // account B must never be offered to resume or finalize A's recording.
+  MEETING_RECORDER_STATE_KEY,
 ];
 
 /**

@@ -31,7 +31,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { DASHBOARD_DESTINATIONS, destinationPath } from '@/lib/dashboard-nav';
+import {
+  DASHBOARD_DESTINATIONS,
+  destinationPath,
+  type DashboardDestination,
+} from '@/lib/dashboard-nav';
 import { cn } from '@/lib/utils';
 
 export interface MobileNavMenuProps {
@@ -43,6 +47,11 @@ export interface MobileNavMenuProps {
   isActiveRoute: (segment: string) => boolean;
   /** Accessible name of the trigger, e.g. "Menu". */
   triggerLabel: string;
+  /**
+   * The destinations this instance offers (`visibleDestinations`); defaults
+   * to the whole table. The layout passes the same list to the desktop nav.
+   */
+  destinations?: readonly DashboardDestination[];
 }
 
 export function MobileNavMenu({
@@ -50,6 +59,7 @@ export function MobileNavMenu({
   translate,
   isActiveRoute,
   triggerLabel,
+  destinations = DASHBOARD_DESTINATIONS,
 }: MobileNavMenuProps) {
   return (
     <DropdownMenu>
@@ -67,7 +77,7 @@ export function MobileNavMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">
-        {DASHBOARD_DESTINATIONS.map(({ segment, labelKey }) => (
+        {destinations.map(({ segment, labelKey }) => (
           <DropdownMenuItem key={segment || 'home'} asChild>
             <Link
               href={buildHref(destinationPath(segment))}
