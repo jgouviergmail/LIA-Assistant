@@ -110,7 +110,10 @@ proactive). La ligne `meetings` garde la dépense propre au compte rendu (`synth
 `synthesis_tokens_*`, `synthesis_cost_eur`, cumulés à chaque régénération) ; la page
 affiche le total exact et sa décomposition, la liste le total, la carte du chat les deux
 unités et leur somme quand l'utilisateur affiche les coûts. Un modèle sans tarif administré
-donne `null`, jamais zéro (ADR-185 : un montant est exact ou absent).
+donne `null`, jamais zéro (ADR-185 : un montant est exact ou absent). Les tarifs des deux moteurs STT
+OpenAI sont livrés par la migration `seed_meetings_stt_pricing` (la production ne rejoue pas le lot de
+seeds) : catalogue inséré seulement si inconnu, tarif seulement si aucun n'est actif — jamais par-dessus
+un prix administré ; `test_meetings_stt_pricing_migration_guard.py` tient migration et seed égaux.
 
 ## Ce que le compte rendu affirme
 

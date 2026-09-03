@@ -77,7 +77,13 @@ def upgrade() -> None:
         sa.Column("segment_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("audio_bytes", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("audio_duration_seconds", sa.Float(), nullable=True),
-        sa.Column("audio_gaps", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "audio_gaps",
+            sa.Integer(),
+            nullable=False,
+            server_default="0",
+            comment="Segments the client never delivered (the minutes carry a notice when > 0)",
+        ),
         sa.Column(
             "audio_path",
             sa.String(length=500),
