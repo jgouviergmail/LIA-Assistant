@@ -19,12 +19,13 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
-from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
+from src.domains.rag_spaces.jobs_repository import MAIL_SOURCE_TABLE, RAGJobsRepository
 from src.domains.rag_spaces.models import (
     RAGDocument,
     RAGDocumentStatus,
     RAGDriveSource,
     RAGDriveSyncStatus,
+    RAGMailSource,
 )
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.metrics_rag_spaces import rag_jobs_recovered_total
@@ -37,6 +38,7 @@ async def rag_job_reaper() -> None:
     semaphore = asyncio.Semaphore(settings.rag_job_reaper_concurrency)
     await _recover_documents(semaphore)
     await _recover_sources(semaphore)
+    await _recover_mail_sources(semaphore)
 
     # AC-001 crash-resume: after rebuilding the requeued documents, activate any
     # generational reindex whose interrupted drain never reached the flip. The
@@ -169,4 +171,56 @@ async def _recover_source(source_id: UUID, semaphore: asyncio.Semaphore) -> str:
         from src.domains.rag_spaces.drive_sync import sync_folder_background
 
         await sync_folder_background(space_id=space_id, source_id=source_id, user_id=user_id)
+        return "requeued"
+
+
+async def _recover_mail_sources(semaphore: asyncio.Semaphore) -> None:
+    """Same sweep over the Gmail label sources (ADR-262): stuck SYNCING + dead lease."""
+    async with get_db_context() as db:
+        source_ids = await RAGJobsRepository(db).fetch_recoverable_sources(
+            limit=settings.rag_job_reaper_batch_size, table=MAIL_SOURCE_TABLE
+        )
+    if not source_ids:
+        return
+    if len(source_ids) >= settings.rag_job_reaper_batch_size:
+        logger.info("rag_reaper_batch_capped", job_type="mail_sync", batch=len(source_ids))
+
+    outcomes = await asyncio.gather(
+        *(_recover_mail_source(source_id, semaphore) for source_id in source_ids)
+    )
+    requeued = sum(1 for o in outcomes if o == "requeued")
+    failed = sum(1 for o in outcomes if o == "failed")
+    if requeued:
+        rag_jobs_recovered_total.labels(job_type="mail_sync", outcome="requeued").inc(requeued)
+    if failed:
+        rag_jobs_recovered_total.labels(job_type="mail_sync", outcome="failed").inc(failed)
+    logger.info("rag_mail_sync_jobs_recovered", requeued=requeued, failed=failed)
+
+
+async def _recover_mail_source(source_id: UUID, semaphore: asyncio.Semaphore) -> str:
+    """Requeue-or-dead-letter one stuck label sync, then re-drive it if requeued.
+
+    The re-sync is idempotent (unchanged threads are skipped by their newest
+    message stamp), so a partial sync completes.
+    """
+    async with semaphore:
+        async with get_db_context() as db:
+            source = await db.get(RAGMailSource, source_id)
+            if source is None or source.user_id is None:
+                return "skipped"
+            user_id = source.user_id
+            new_status = await RAGJobsRepository(db).reclaim_or_fail_source(
+                source_id,
+                settings.rag_job_lease_ttl_seconds,
+                settings.rag_job_max_attempts,
+                table=MAIL_SOURCE_TABLE,
+            )
+
+        if new_status == RAGDriveSyncStatus.ERROR:
+            logger.warning("rag_mail_sync_dead_lettered", source_id=str(source_id))
+            return "failed"
+
+        from src.domains.rag_spaces.mail_sync import sync_label_background
+
+        await sync_label_background(source_id=source_id, user_id=user_id)
         return "requeued"

@@ -4,7 +4,7 @@
 
 **Version**: 5.2
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.39.1
+**Anwendung**: LIA v1.40.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,7 +70,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Proaktive Benachrichtigungen**: Stelle Häufigkeit, Zeitfenster und Kontextquellen ein (Kalender, Wetter, Aufgaben, E-Mails, Interessen, Erinnerungen, Journale)
 - **Geplante Aktionen**: Erstelle wiederkehrende Automatisierungen, die vom Assistenten ausgeführt werden
 - **Skills**: Aktiviere/deaktiviere Expertenfähigkeiten in einer Galerie mit Vorschauen, erstelle deine eigenen persönlichen Skills oder installiere eine von einer https-URL (serverseitig validiert)
-- **Wissensbereiche**: Lade deine Dokumente hoch (PDF, Word, Excel, PowerPoint, EPUB, HTML und 15+ Formate) oder synchronisiere einen Google Drive-Ordner — automatische Indexierung mit hybrider Suche
+- **Wissensbereiche**: Lade deine Dokumente hoch (PDF, Word, Excel, PowerPoint, EPUB, HTML und 15+ Formate) oder synchronisiere einen Google Drive-Ordner — automatische Indexierung mit hybrider Suche — oder einem Gmail-Label folgen, sodass die von Ihnen markierten Konversationen zu Dokumenten werden, die Sie Wochen später befragen können, und das Entfernen des Labels das Dokument entfernt
 - **Verbrauchsexport**: Lade deine LLM- und API-Verbrauchsdaten als CSV herunter
 
 ### 2.3. Was der Administrator kontrolliert
@@ -162,6 +162,7 @@ LIA beschränkt sich nicht aufs Antworten — LIA antizipiert:
 - **Konversationelle Initiative**: Während eines Austauschs prüft LIA proaktiv verwandte Informationen — wenn das Wetter für Samstag Regen vorhersagt, schaut LIA in deinen Kalender, um auf mögliche Outdoor-Aktivitäten hinzuweisen
 - **Interessengebiete**: LIA behält, was dir wirklich am Herzen liegt, nicht das, wonach du einmal gefragt hast — eine Frage zu stellen ist eine Aufgabe, keine Vorliebe, und es braucht erklärte Begeisterung, eigene Praxis, echtes Vorwissen oder tatsächliches Vertiefen, damit ein Thema zählt. Die Themen wechseln sich ab (nie zweimal hintereinander dasselbe Thema), jede Benachrichtigung enthält klickbare Links zu ihren Quellen, und ein Thema, das du ablehnst, kommt nicht zurück: Die Blockade wird mit jedem neuen Thema abgeglichen, auch unter anderem Namen
 - **Unteragenten**: Für komplexe Aufgaben delegiert LIA an spezialisierte, kurzlebige Agenten, die parallel arbeiten
+- **Reagieren, nicht nur prüfen**: Meldet das Postfach oder der Kalender etwas, kann LIA binnen Minuten entscheiden, statt auf den nächsten Durchgang zu warten — unter demselben Zeitfenster, demselben Limit und denselben Pausen, und nur für eine E-Mail mit dem von Ihnen als wichtig behandelten Label oder ein Ereignis, das Sie bald betrifft. Ein Schwall von Eingängen ergibt ein einziges Wecken, und ein als ungeeignet beurteilter Moment gibt die Nachricht einfach an den regulären Durchgang zurück
 
 ### 3.7. Autonomes Web-Browsing
 

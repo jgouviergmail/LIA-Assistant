@@ -57,6 +57,7 @@ from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 from src.domains.heartbeat.source_policy import is_source_enabled
 from src.domains.interests.models import InterestNotification, UserInterest
+from src.domains.push_channels.wake import WakePayload
 from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
@@ -153,8 +154,9 @@ class ContextAggregator:
     scoped session internally.
     """
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, wake: WakePayload | None = None) -> None:
         self._db = db
+        self._wake = wake  # ADR-261: what the push sweep already fetched
 
     async def _with_fresh_session(
         self,
@@ -480,7 +482,9 @@ class ContextAggregator:
                 fields=["id", "summary", "start", "end", "location"],
             )
 
-            events = result.get("items", [])
+            from src.domains.heartbeat.wake_context import merge_wake_events
+
+            events = merge_wake_events(self._wake, list(result.get("items", [])))
             if not events:
                 return None
 
@@ -764,13 +768,14 @@ class ContextAggregator:
             # None => legacy query path (first run, other provider, expired
             # anchor, Redis down) — always fail-open. Id-only entries: the
             # fetch loop below resolves full messages.
-            from src.domains.heartbeat.gmail_delta import delta_messages_or_none
+            from src.domains.heartbeat.wake_context import wake_or_delta_messages
 
-            messages = await delta_messages_or_none(client, user_id, max_emails)
+            user_tz = _resolve_user_tz(user)
+            # ADR-261: a push wake carries the delta the sweep already read.
+            messages = await wake_or_delta_messages(self._wake, client, user_id, max_emails)
             if messages is None:
                 # Filter to today's unread emails only (user's local date).
                 # Gmail-style `after:` uses the date as a lower bound (inclusive).
-                user_tz = _resolve_user_tz(user)
                 today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
 
                 # All providers accept Gmail-style query syntax (normalized internally)

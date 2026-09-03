@@ -62,3 +62,14 @@ habit_ambient_block_total = Counter(
     ["flow", "kind"],
     # kind: rhythm | unusual_hour | absence
 )
+
+habits_presence_recorded_total = Counter(
+    "habits_presence_recorded_total",
+    "Reading-presence signals received (ADR-214 amendment 2026-09-03): an app "
+    "opening (visibility ping) or a thumb on a notification. 'banked' means an "
+    "activity hour was written to the rollup; 'throttled' means that local hour "
+    "was already banked; 'disabled' means the feature or the user preference is off.",
+    ["kind", "outcome"],
+    # kind: visibility | feedback
+    # outcome: banked | throttled | disabled | error
+)

@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -53,6 +53,9 @@ class _StubRepo:
 
     async def fetch_run_activity(self, user_id, tz, since):  # noqa: ANN001, ANN201
         return dict(self.run_activity)
+
+    async def fetch_feedback_activity(self, user_id, tz, since):  # noqa: ANN001, ANN201
+        return dict(getattr(self, "feedback_days", {}))
 
     async def fetch_reset_activity(self, user_id, tz, since):  # noqa: ANN001, ANN201
         return dict(self.reset_activity)
@@ -437,3 +440,112 @@ class TestResetPresenceSource:
         # in the same hour: the union must read max, never 3.
         union = merge_activity_days({d: {8: 1}}, merge_activity_days({d: {8: 1}}, {d: {8: 1}}))
         assert union[d] == {8: 1}
+
+
+class TestRollupAwareDeltaSkip:
+    """Reading presence lands in the rollup without a timestamped source
+    behind ``last_at`` (ADR-214 amendment 2026-09-03): a rollup day newer
+    than the last computed source is a delta, or a user who reads without
+    typing would keep a stale verdict forever."""
+
+    def _stale_profile(self, last: datetime) -> MagicMock:
+        profile_row = MagicMock()
+        profile_row.source_max_created_at = last
+        profile_row.payload = {
+            "version": PROFILE_PAYLOAD_VERSION,
+            "active_days_fraction": 0.1,
+            "sparse": True,
+            "classes": {
+                "weekday": {
+                    "verdict": "sparse",
+                    "windows": [],
+                    "n_eff": 0.0,
+                    "bin_presence": [0.0] * 24,
+                },
+                "weekend": {
+                    "verdict": "sparse",
+                    "windows": [],
+                    "n_eff": 0.0,
+                    "bin_presence": [0.0] * 24,
+                },
+            },
+        }
+        return profile_row
+
+    async def test_a_presence_day_newer_than_the_last_source_recomputes(self) -> None:
+        repo = _StubRepo()
+        last = datetime.now(UTC) - timedelta(days=10)
+        repo.bounds = (last - timedelta(days=90), last)
+        repo.profile = self._stale_profile(last)
+        # Presence banked yesterday straight into the rollup — no message, no run.
+        repo.rollup = {datetime.now(UTC).date() - timedelta(days=1): {14: 1}}
+        service = _service_with(repo)
+        assert await service.recompute_user_profile(_user()) == "computed"
+
+    async def test_no_newer_rollup_day_still_skips(self) -> None:
+        repo = _StubRepo()
+        last = datetime.now(UTC) - timedelta(days=10)
+        repo.bounds = (last - timedelta(days=90), last)
+        repo.profile = self._stale_profile(last)
+        repo.rollup = {last.date() - timedelta(days=2): {14: 1}}
+        service = _service_with(repo)
+        assert await service.recompute_user_profile(_user()) == "skipped_no_delta"
+
+    async def test_thumbs_feed_the_merged_view(self) -> None:
+        repo = _StubRepo()
+        now = datetime.now(UTC)
+        repo.bounds = (now - timedelta(days=30), now)
+        repo.feedback_days = {now.date() - timedelta(days=1): {20: 1}}
+        service = _service_with(repo)
+        assert await service.recompute_user_profile(_user()) == "computed"
+        assert repo.upserted_rollup is not None
+        assert repo.upserted_rollup[now.date() - timedelta(days=1)][20] == 1
+
+
+class TestPresenceOnlyAccount:
+    """A user who READS without typing must still get a rhythm (ADR-214 amendment).
+
+    Cold review 2026-09-03: the activity BOUNDS read messages, product
+    outcomes and resets — none of which a reader produces. Reading presence
+    lands straight in the durable rollup with no timestamp of its own, so an
+    early exit on the bounds alone abandoned exactly the profile the
+    amendment set out to serve.
+    """
+
+    async def test_an_empty_rollup_with_no_bounds_still_skips(self) -> None:
+        service = HabitsService(AsyncMock())
+        service.repository = MagicMock()
+        service.repository.fetch_activity_bounds = AsyncMock(return_value=(None, None))
+        service.repository.fetch_activity_rollup = AsyncMock(return_value={})
+        service.repository.get_profile = AsyncMock()
+
+        assert await service.recompute_user_profile(_user()) == "skipped_no_activity"
+        service.repository.get_profile.assert_not_awaited()
+
+    async def test_presence_hours_alone_are_enough_to_compute(self) -> None:
+        service = HabitsService(AsyncMock())
+        service.repository = MagicMock()
+        service.repository.fetch_activity_bounds = AsyncMock(return_value=(None, None))
+        today = datetime.now(UTC).date()
+        rollup = {today - timedelta(days=n): {8: 1} for n in range(1, 15)}
+        service.repository.fetch_activity_rollup = AsyncMock(return_value=rollup)
+        service.repository.get_profile = AsyncMock(return_value=None)
+        for name in (
+            "fetch_day_activity",
+            "fetch_run_activity",
+            "fetch_reset_activity",
+            "fetch_feedback_activity",
+        ):
+            setattr(service.repository, name, AsyncMock(return_value={}))
+        service.repository.upsert_activity_days = AsyncMock()
+        service.repository.prune_activity_days = AsyncMock()
+        service.repository.upsert_profile = AsyncMock()
+        service._sync_active_window_habits = AsyncMock()
+
+        with patch("src.domains.habits.service.seed_ledger_from_outcomes", AsyncMock()):
+            outcome = await service.recompute_user_profile(_user())
+
+        assert outcome == "computed"
+        service.repository.upsert_profile.assert_awaited_once()
+        # No timestamped source: the delta marker stays NULL rather than a lie.
+        assert service.repository.upsert_profile.await_args.kwargs["source_max_created_at"] is None

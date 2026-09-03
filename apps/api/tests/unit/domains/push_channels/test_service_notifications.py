@@ -156,3 +156,89 @@ class TestGmailPush:
         assert outcome is NotificationOutcome.PROCESSED
         assert channel.last_history_id == 100
         invalidate.assert_awaited_once_with(PushChannelProvider.GOOGLE_GMAIL.value, channel.user_id)
+
+
+class TestWakeEnqueue:
+    """ADR-261: a PROCESSED notification queues a heartbeat wake — debounced,
+    ignored and sync deliveries never do, and the flag gates everything."""
+
+    async def test_processed_gmail_push_queues_a_wake_with_its_history_id(self) -> None:
+        channel = _channel(provider=PushChannelProvider.GOOGLE_GMAIL.value, last_history_id=10)
+        service = _service(channel)
+        with (
+            patch("src.domains.push_channels.service.settings") as settings_mock,
+            patch("src.domains.push_channels.service.invalidate_for_provider", new=AsyncMock()),
+            patch("src.domains.push_channels.service.get_redis_cache", new=AsyncMock()),
+            patch("src.domains.push_channels.wake.enqueue_wake", new=AsyncMock()) as enqueue,
+            patch.object(service, "_try_acquire_debounce", new=AsyncMock(return_value=True)),
+        ):
+            settings_mock.gmail_pubsub_push_token = "tok"
+            settings_mock.push_wake_enabled = True
+            settings_mock.push_wake_payload_ttl_seconds = 3600
+            outcome = await service.handle_gmail_push(
+                GmailPushEvent(email_address="me@example.com", history_id=11), provided_token="tok"
+            )
+        assert outcome is NotificationOutcome.PROCESSED
+        enqueue.assert_awaited_once()
+        assert enqueue.await_args.args[1:] == (channel.user_id, "google_gmail")
+        assert enqueue.await_args.kwargs["history_id"] == 11
+        assert enqueue.await_args.kwargs["ttl_seconds"] == 3600
+
+    async def test_processed_channel_notification_queues_a_wake_with_the_page_token(self) -> None:
+        channel = _channel(provider=PushChannelProvider.GOOGLE_DRIVE.value, page_token="pt-9")
+        service = _service(channel)
+        with (
+            patch("src.domains.push_channels.service.settings") as settings_mock,
+            patch("src.domains.push_channels.service.invalidate_for_provider", new=AsyncMock()),
+            patch("src.domains.push_channels.service.get_redis_cache", new=AsyncMock()),
+            patch("src.domains.push_channels.wake.enqueue_wake", new=AsyncMock()) as enqueue,
+            patch.object(service, "_try_acquire_debounce", new=AsyncMock(return_value=True)),
+        ):
+            settings_mock.push_wake_enabled = True
+            settings_mock.push_wake_payload_ttl_seconds = 3600
+            outcome = await service.handle_channel_notification(_notif())
+        assert outcome is NotificationOutcome.PROCESSED
+        assert enqueue.await_args.kwargs["page_token"] == "pt-9"
+
+    async def test_debounced_or_flag_off_never_queues(self) -> None:
+        channel = _channel()
+        service = _service(channel)
+        with (
+            patch("src.domains.push_channels.service.settings") as settings_mock,
+            patch("src.domains.push_channels.service.invalidate_for_provider", new=AsyncMock()),
+            patch("src.domains.push_channels.service.get_redis_cache", new=AsyncMock()),
+            patch("src.domains.push_channels.wake.enqueue_wake", new=AsyncMock()) as enqueue,
+            patch.object(service, "_try_acquire_debounce", new=AsyncMock(return_value=False)),
+        ):
+            settings_mock.push_wake_enabled = True
+            assert (
+                await service.handle_channel_notification(_notif()) is NotificationOutcome.DEBOUNCED
+            )
+        enqueue.assert_not_awaited()
+        with (
+            patch("src.domains.push_channels.service.settings") as settings_mock,
+            patch("src.domains.push_channels.service.invalidate_for_provider", new=AsyncMock()),
+            patch("src.domains.push_channels.wake.enqueue_wake", new=AsyncMock()) as enqueue,
+            patch.object(service, "_try_acquire_debounce", new=AsyncMock(return_value=True)),
+        ):
+            settings_mock.push_wake_enabled = False
+            assert (
+                await service.handle_channel_notification(_notif()) is NotificationOutcome.PROCESSED
+            )
+        enqueue.assert_not_awaited()
+
+    async def test_a_wake_queue_failure_never_fails_the_webhook(self) -> None:
+        service = _service(_channel())
+        with (
+            patch("src.domains.push_channels.service.settings") as settings_mock,
+            patch("src.domains.push_channels.service.invalidate_for_provider", new=AsyncMock()),
+            patch(
+                "src.domains.push_channels.service.get_redis_cache",
+                new=AsyncMock(side_effect=ConnectionError("down")),
+            ),
+            patch.object(service, "_try_acquire_debounce", new=AsyncMock(return_value=True)),
+        ):
+            settings_mock.push_wake_enabled = True
+            assert (
+                await service.handle_channel_notification(_notif()) is NotificationOutcome.PROCESSED
+            )

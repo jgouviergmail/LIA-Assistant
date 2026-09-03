@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-import uuid as uuid_mod
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import NoReturn
@@ -34,10 +33,15 @@ from src.core.exceptions import BaseAPIException
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.domains.rag_spaces.drive_ingest import (
+    ingest_drive_file,
+    remove_drive_document,
+)
+from src.domains.rag_spaces.drive_ingest import (
+    safe_storage_path as _safe_storage_path,
+)
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import (
-    RAGDocumentSourceType,
-    RAGDocumentStatus,
     RAGDriveSource,
     RAGDriveSyncStatus,
 )
@@ -67,36 +71,6 @@ _DRIVE_WORKER_ID = f"rag-sync-{os.getpid()}"
 # ============================================================================
 # Path Safety
 # ============================================================================
-
-
-def _safe_storage_path(base_dir: Path, *segments: str) -> Path:
-    """Build a storage path and verify it stays within the base directory.
-
-    Prevents path-traversal attacks when segments originate from the database.
-
-    Args:
-        base_dir: Trusted root directory (e.g. ``/app/data/rag_uploads``).
-        *segments: Untrusted path components (user_id, space_id, filename).
-
-    Returns:
-        Resolved absolute path guaranteed to be under *base_dir*.
-
-    Raises:
-        BaseAPIException: If the resolved path escapes *base_dir*.
-    """
-    target = (base_dir / Path(*segments)).resolve()
-    if not target.is_relative_to(base_dir.resolve()):
-        logger.error(
-            "rag_path_traversal_blocked",
-            base_dir=str(base_dir),
-            segments=segments,
-        )
-        raise BaseAPIException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file path",
-            log_event="rag_path_traversal_blocked",
-        )
-    return target
 
 
 # ============================================================================
@@ -450,7 +424,6 @@ async def sync_folder_background(
         async with get_db_context() as db:
             source_repo = RAGDriveSourceRepository(db)
             doc_repo = RAGDocumentRepository(db)
-            chunk_repo = RAGChunkRepository(db)
 
             # Get source
             source = await source_repo.get_by_id(source_id)
@@ -538,170 +511,37 @@ async def sync_folder_background(
                     # Renew the source lease before each (slow) file download so a
                     # live sync is never reclaimed by the reaper mid-flight.
                     await jobs.heartbeat_source(source_id, settings.rag_job_lease_ttl_seconds)
-                    file_id = drive_file["id"]
-                    seen_file_ids.add(file_id)
-                    mime_type = drive_file.get("mimeType", "")
-                    modified_time = drive_file.get("modifiedTime")
-                    original_name = drive_file.get("name", "unknown")
+                    seen_file_ids.add(drive_file["id"])
 
-                    try:
-                        # Check if already synced
-                        existing = await doc_repo.get_by_drive_file_id(space_id, file_id)
-                        if existing:
-                            # Compare modified time
-                            if existing.drive_modified_time and modified_time:
-                                drive_mod = datetime.fromisoformat(
-                                    modified_time.replace("Z", "+00:00")
-                                )
-                                if existing.drive_modified_time >= drive_mod:
-                                    skipped += 1
-                                    rag_drive_sync_files_total.labels(result="skipped").inc()
-                                    continue
-                            # Modified — delete old doc + chunks + file
-                            old_file = _safe_storage_path(
-                                Path(settings.rag_spaces_storage_path),
-                                str(user_id),
-                                str(space_id),
-                                existing.filename,
-                            )
-                            if old_file.exists():
-                                old_file.unlink()
-                            await chunk_repo.delete_by_document(existing.id)
-                            await doc_repo.delete(existing)
-                            await db.commit()
-
-                        # Check doc limit
-                        doc_count = await doc_repo.count_for_space(space_id)
-                        if doc_count >= settings.rag_spaces_max_docs_per_space:
-                            logger.warning(
-                                "rag_drive_sync_doc_limit",
-                                space_id=str(space_id),
-                            )
-                            skipped += 1
-                            continue
-
-                        # Download/export content
-                        if mime_type in RAG_DRIVE_GOOGLE_EXPORT_MAP:
-                            export_mime, ext, stored_type = RAG_DRIVE_GOOGLE_EXPORT_MAP[mime_type]
-                            content_bytes = await client.export_google_doc(file_id, export_mime)
-                            content_type = stored_type
-                        else:
-                            stored_type, ext = RAG_DRIVE_REGULAR_FILE_MAP[mime_type]
-                            max_bytes = settings.rag_spaces_max_file_size_mb * 1024 * 1024
-                            content_bytes = await client.get_file_content(
-                                file_id, max_size_bytes=max_bytes
-                            )
-                            content_type = stored_type
-
-                        if not content_bytes:
-                            skipped += 1
-                            logger.warning(
-                                "rag_drive_sync_empty_content",
-                                file_id=file_id,
-                                name=original_name,
-                            )
-                            continue
-
-                        file_size = len(content_bytes)
-
-                        # Write to disk
-                        stored_filename = f"{uuid_mod.uuid4().hex}{ext}"
-                        base_dir = Path(settings.rag_spaces_storage_path)
-                        storage_dir = _safe_storage_path(
-                            base_dir,
-                            str(user_id),
-                            str(space_id),
-                        )
-                        storage_dir.mkdir(parents=True, exist_ok=True)
-                        file_path = _safe_storage_path(
-                            base_dir,
-                            str(user_id),
-                            str(space_id),
-                            stored_filename,
-                        )
-                        file_path.write_bytes(content_bytes)
-
-                        # Parse modified time
-                        drive_mod_dt = None
-                        if modified_time:
-                            drive_mod_dt = datetime.fromisoformat(
-                                modified_time.replace("Z", "+00:00")
-                            )
-
-                        # Create RAGDocument as PENDING (audit F001 residual):
-                        # a PROCESSING row without a lease is indistinguishable
-                        # from a crashed job, so the reaper could requeue it
-                        # while this sync is still processing it (double
-                        # owner, duplicated chunks). PENDING documents flow
-                        # through the same atomic claim as uploads
-                        # (process_document: PENDING -> PROCESSING + lease),
-                        # so exactly one worker ever owns the embedding.
-                        document = await doc_repo.create(
-                            {
-                                "space_id": space_id,
-                                "user_id": user_id,
-                                "filename": stored_filename,
-                                "original_filename": original_name,
-                                "file_size": file_size,
-                                "content_type": content_type,
-                                "status": RAGDocumentStatus.PENDING,
-                                "source_type": RAGDocumentSourceType.DRIVE,
-                                "drive_source_id": source_id,
-                                "drive_file_id": file_id,
-                                "drive_modified_time": drive_mod_dt,
-                            }
-                        )
-                        await db.commit()
-
+                    ingest = await ingest_drive_file(
+                        db,
+                        client,
+                        space_id=space_id,
+                        source_id=source_id,
+                        user_id=user_id,
+                        drive_file=drive_file,
+                    )
+                    if ingest.outcome == "queued" and ingest.process_kwargs:
                         # Queue for processing. NOT counted as synced yet: a
                         # downloaded file is not a synced file until its
-                        # embedding succeeded (audit F053) — the success
-                        # counter and metric move after the processing oracle.
-                        docs_to_process.append(
-                            {
-                                "document_id": document.id,
-                                "space_id": space_id,
-                                "user_id": user_id,
-                                "filename": stored_filename,
-                                "original_filename": original_name,
-                                "content_type": content_type,
-                            }
-                        )
-
-                    except Exception:
+                        # embedding succeeded (audit F053).
+                        docs_to_process.append(ingest.process_kwargs)
+                    elif ingest.outcome == "failed":
                         failed += 1
-                        rag_drive_sync_files_total.labels(result="failed").inc()
-                        logger.exception(
-                            "rag_drive_sync_file_error",
-                            file_id=file_id,
-                            name=original_name,
-                        )
-                        continue
+                    else:
+                        skipped += 1
 
                 # Detect and delete removed files
                 existing_file_ids = await doc_repo.get_drive_file_ids_for_source(source_id)
                 removed_ids = existing_file_ids - seen_file_ids
                 for removed_file_id in removed_ids:
-                    try:
-                        doc = await doc_repo.get_by_drive_file_id(space_id, removed_file_id)
-                        if doc and doc.drive_source_id == source_id:
-                            old_file = _safe_storage_path(
-                                Path(settings.rag_spaces_storage_path),
-                                str(user_id),
-                                str(space_id),
-                                doc.filename,
-                            )
-                            if old_file.exists():
-                                old_file.unlink()
-                            await chunk_repo.delete_by_document(doc.id)
-                            await doc_repo.delete(doc)
-                            await db.commit()
-                            rag_drive_sync_files_total.labels(result="deleted").inc()
-                    except Exception:
-                        logger.exception(
-                            "rag_drive_sync_delete_error",
-                            file_id=removed_file_id,
-                        )
+                    await remove_drive_document(
+                        db,
+                        space_id=space_id,
+                        source_id=source_id,
+                        user_id=user_id,
+                        file_id=removed_file_id,
+                    )
 
                 # Launch processing with throttle
                 sem = asyncio.Semaphore(5)

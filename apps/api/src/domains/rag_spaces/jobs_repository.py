@@ -23,6 +23,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.rag_spaces.models import RAGDocumentStatus, RAGDriveSyncStatus
 
+DRIVE_SOURCE_TABLE = "rag_drive_sources"
+MAIL_SOURCE_TABLE = "rag_mail_sources"
+_SOURCE_TABLES: frozenset[str] = frozenset({DRIVE_SOURCE_TABLE, MAIL_SOURCE_TABLE})
+
+
+def source_table(table: str) -> str:
+    """The synced-source table name, or ``ValueError`` — never an arbitrary string."""
+    if table not in _SOURCE_TABLES:
+        msg = f"not a synced-source table: {table!r}"
+        raise ValueError(msg)
+    return table
+
 
 class RAGJobsRepository:
     """Atomic claim/heartbeat/complete/fail + recovery scan for document jobs."""
@@ -149,6 +161,14 @@ class RAGJobsRepository:
                 "    WHERE s.id = rag_documents.drive_source_id "
                 "    AND s.sync_status = :syncing "
                 "    AND s.lease_expires_at IS NOT NULL AND s.lease_expires_at > now()"
+                ") "
+                # Same rule for a label sync (ADR-262): its PENDING documents are
+                # live until the source lease expires.
+                "AND NOT EXISTS ("
+                "    SELECT 1 FROM rag_mail_sources m "
+                "    WHERE m.id = rag_documents.mail_source_id "
+                "    AND m.sync_status = :syncing "
+                "    AND m.lease_expires_at IS NOT NULL AND m.lease_expires_at > now()"
                 ")) "
                 "ORDER BY created_at LIMIT :limit FOR UPDATE SKIP LOCKED"
             ),
@@ -200,14 +220,19 @@ class RAGJobsRepository:
         return int(getattr(res, "rowcount", 0) or 0)
 
     # ------------------------------------------------------------------ #
-    # Drive-source sync jobs (audit F001, T6): sync_status IDLE/SYNCING   #
+    # Synced-source jobs (audit F001, T6): sync_status IDLE/SYNCING.      #
+    # One implementation for Drive folders AND Gmail labels (ADR-262):    #
+    # the table is a parameter, validated against an allowlist so the    #
+    # interpolation can never carry anything but our two names.          #
     # ------------------------------------------------------------------ #
 
-    async def heartbeat_source(self, source_id: UUID, lease_ttl_s: int) -> bool:
+    async def heartbeat_source(
+        self, source_id: UUID, lease_ttl_s: int, *, table: str = DRIVE_SOURCE_TABLE
+    ) -> bool:
         """Renew a syncing source's lease (the SYNCING status is the single-sync guard)."""
         res = await self.db.execute(
             text(
-                "UPDATE rag_drive_sources SET "
+                f"UPDATE {source_table(table)} SET "
                 "lease_expires_at = now() + (:ttl * interval '1 second'), "
                 "heartbeat_at = now() "
                 "WHERE id = :id AND sync_status = :syncing"
@@ -222,7 +247,12 @@ class RAGJobsRepository:
         return (getattr(res, "rowcount", 0) or 0) > 0
 
     async def reclaim_or_fail_source(
-        self, source_id: UUID, lease_ttl_s: int, max_attempts: int
+        self,
+        source_id: UUID,
+        lease_ttl_s: int,
+        max_attempts: int,
+        *,
+        table: str = DRIVE_SOURCE_TABLE,
     ) -> str:
         """Re-lease a stuck sync for another attempt, or ERROR once exhausted.
 
@@ -234,7 +264,7 @@ class RAGJobsRepository:
         """
         res = await self.db.execute(
             text(
-                "UPDATE rag_drive_sources SET "
+                f"UPDATE {source_table(table)} SET "
                 "sync_status = CASE WHEN attempts >= :max THEN :error ELSE :syncing END, "
                 "lease_expires_at = CASE WHEN attempts >= :max THEN NULL "
                 "  ELSE now() + (:ttl * interval '1 second') END, "
@@ -257,11 +287,13 @@ class RAGJobsRepository:
         await self.db.commit()
         return str(row[0]) if row else RAGDriveSyncStatus.ERROR
 
-    async def fetch_recoverable_sources(self, limit: int) -> list[UUID]:
+    async def fetch_recoverable_sources(
+        self, limit: int, *, table: str = DRIVE_SOURCE_TABLE
+    ) -> list[UUID]:
         """IDs of sources stuck in SYNCING with an expired/absent lease."""
         res = await self.db.execute(
             text(
-                "SELECT id FROM rag_drive_sources WHERE sync_status = :syncing "
+                f"SELECT id FROM {source_table(table)} WHERE sync_status = :syncing "
                 "AND (lease_expires_at IS NULL OR lease_expires_at < now()) "
                 "ORDER BY last_sync_at NULLS FIRST LIMIT :limit FOR UPDATE SKIP LOCKED"
             ),

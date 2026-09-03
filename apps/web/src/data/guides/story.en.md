@@ -4,7 +4,7 @@
 
 **Version**: 1.8
 **Date**: 2026-08-23
-**Application**: LIA v1.39.1
+**Application**: LIA v1.40.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 44 functional domains | **580,000** |
 | Automated tests, run on every commit and release | **29,700+** |
-| Documented architecture decisions (ADR) | **258** |
-| Versions shipped at a steady pace | **242** |
+| Documented architecture decisions (ADR) | **261** |
+| Versions shipped at a steady pace | **243** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 258 documented:
+Three structural decisions, among the 261 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -120,6 +120,8 @@ A later episode turned the method outward. Rather than re-reading the code with 
 The meeting-minutes cycle closed the loop the other way round: everything was green — twenty thousand backend tests, close to seven thousand on the frontend, every ratchet holding — and the feature had never run. So it was driven end to end against the development containers, through its own HTTP contract, five times. The proofs found four defects no unit suite could see, because each lived where two correct parts met: a read that returned the row as it was before a bulk update, a provider fault that dead-lettered a meeting while the next engine sat one step down the chain, a price of zero for a model that simply had no price, and a deleted meeting that left its minutes behind in the knowledge space. Each came back with a test; none would have been found by reading. The lesson of the earlier cycles held in its strictest form — passing the tests is the condition for starting a review, and a review is not finished until the system has been made to run.
 
 The immediate follow-up moved the boundary one notch further. The format library announced by that same cycle came back green end to end: complete unit suites, a runtime proof driven against the containers, every screen covered by its accessibility tests. The owner opened the page and could not find their own templates — a duplicated template inherited its original's category and filed itself among the thirty built-ins. No guard could see that defect: the code did exactly what was written, and what was written was a design mistake. The page was recomposed into two sections with folded categories, and a cold review run afterwards found six more defects that neither the tests nor the proof had touched. The full lesson fits in one sentence: green suites say the code does what was written, a runtime proof says the system runs, and only a user in front of the screen says whether the feature exists.
+
+The following cycle taught the opposite lesson of the previous one: not a feature that had never run, but three that ran perfectly and produced nothing. Push notifications arrived and were processed — eight hundred in a fortnight, not one refused — while their only consumer refreshed a cache. The habit detector had been observing for weeks without ever proposing a routine. The proposals inbox was empty. Every unit suite was green, and rightly so: each mechanism did exactly what it was written to do. The cause was found by crossing three sources nothing forced anyone to cross — the operational logs, the state store and the database — and it belonged to none of the three features: starting a new conversation deleted every stored value carrying the user's identifier, including the ledger the habit detector needed fourteen days to fill. A hundred and sixty-one resets in fifty-six days. The repair was to make each value declare what it is, so that clearing a conversation clears a conversation. And the cold review that followed the green gates found eight more defects, one of which mattered more than the rest: the very capability meant to serve people who read rather than type left them, alone, with no profile at all — the check for « has this account been active » read three sources, and none of them was reading.
 
 ## 7. Convictions
 

@@ -1564,3 +1564,23 @@ python -m pytest tests/unit/test_pii_filter.py --benchmark-only
 **Dernière révision** : 2026-07-07
 **Prochaine révision** : 2026-10-07 (tous les 3 mois)
 **Responsable** : Security & Compliance Team
+
+## Source « libellé Gmail » d'un espace RAG (ADR-262)
+
+Suivre un libellé **copie du contenu personnel** : chaque fil qui le porte
+devient un document Markdown de l'espace, stocké sous l'arborescence de
+l'espace et découpé en chunks vectorisés comme n'importe quel document. Les
+règles qui encadrent cette copie sont vérifiées par des tests, pas par une
+convention :
+
+| Règle | Où |
+|---|---|
+| Le choix est explicite et réversible : le libellé posé dans Gmail est l'opt-in, le libellé retiré est la suppression (au passage suivant) | `mail_sync.apply_history` |
+| Le contenu des pièces jointes n'entre jamais dans un document ; seuls leurs **noms** sont rendus | `mail_render._render_message` |
+| Le nom affiché du document est le **sujet**, jamais un participant : une liste de documents ne divulgue aucune adresse | `mail_render.document_name` |
+| Aucun cache : un fil lu ici devient un fichier, jamais une entrée Redis — une copie de plus serait une surface de plus | ADR-262, décision 3 |
+| Aucun sujet ni aucune adresse au niveau INFO ; les journaux ne portent que des identifiants et des compteurs | `mail_sync`, `mail_source_service` |
+| Délier un libellé propose de supprimer les documents indexés ; supprimer l'espace ou le compte les supprime en cascade | `RAGMailSyncService.unlink_label` |
+
+Le drapeau `RAG_SPACES_MAIL_SYNC_ENABLED` est **à false par défaut** : aucune
+boîte aux lettres n'est recopiée parce qu'une version a été installée.

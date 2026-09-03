@@ -19,7 +19,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.constants import RAG_DRIVE_REGULAR_FILE_MAP
-from src.domains.rag_spaces import drive_sync
+from src.domains.rag_spaces import drive_ingest, drive_sync
 from tests.support.structlog_capture import fresh_module_logger
 
 
@@ -94,11 +94,13 @@ async def test_source_completed_only_after_all_documents_processed(tmp_path):
         patch.object(drive_sync, "get_db_context", _fake_db_context),
         patch.object(drive_sync, "RAGDriveSourceRepository", return_value=source_repo),
         patch.object(drive_sync, "RAGDocumentRepository", return_value=doc_repo),
-        patch.object(drive_sync, "RAGChunkRepository", return_value=AsyncMock()),
+        patch.object(drive_ingest, "RAGDocumentRepository", return_value=doc_repo),
+        patch.object(drive_ingest, "RAGChunkRepository", return_value=AsyncMock()),
         patch.object(drive_sync, "ConnectorService", return_value=connector_service),
         patch.object(drive_sync, "GoogleDriveClient", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),
+        patch.object(drive_ingest, "settings", settings_mock),
     ):
         await drive_sync.sync_folder_background(space_id, source_id, user_id)
 
@@ -167,11 +169,13 @@ async def _run_sync(tmp_path, files: list[dict], fake_process) -> tuple[list[dic
         patch.object(drive_sync, "get_db_context", _fake_db_context),
         patch.object(drive_sync, "RAGDriveSourceRepository", return_value=source_repo),
         patch.object(drive_sync, "RAGDocumentRepository", return_value=doc_repo),
-        patch.object(drive_sync, "RAGChunkRepository", return_value=AsyncMock()),
+        patch.object(drive_ingest, "RAGDocumentRepository", return_value=doc_repo),
+        patch.object(drive_ingest, "RAGChunkRepository", return_value=AsyncMock()),
         patch.object(drive_sync, "ConnectorService", return_value=connector_service),
         patch.object(drive_sync, "GoogleDriveClient", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),
+        patch.object(drive_ingest, "settings", settings_mock),
     ):
         await drive_sync.sync_folder_background(space_id, source_id, user_id)
 

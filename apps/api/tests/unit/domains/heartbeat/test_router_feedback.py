@@ -138,3 +138,38 @@ class TestSubmitHeartbeatFeedback:
                 habit_id, user.id, positive=False
             )
             db.commit.assert_awaited_once()
+
+
+class TestThumbIsPresence:
+    """ADR-214 amendment (owner decision 2026-09-03): a thumb is an explicit
+    human act — a reading-presence signal for the rhythm detector. The
+    notification itself never was."""
+
+    async def test_a_thumb_records_feedback_presence_before_commit(self) -> None:
+        user = _user()
+        notification_id = uuid.uuid4()
+        db = AsyncMock()
+        order: list[str] = []
+        db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
+        recorder = AsyncMock(side_effect=lambda *a, **k: order.append("presence") or "banked")
+
+        with (
+            patch("src.domains.heartbeat.router.HeartbeatNotificationRepository") as repo_cls,
+            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.habits.presence.record_presence", recorder),
+        ):
+            repo_cls.return_value.update_feedback = AsyncMock(return_value=True)
+            repo_cls.return_value.get_by_id = AsyncMock(return_value=MagicMock(habit_offer_id=None))
+            conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
+
+            await submit_heartbeat_feedback(
+                notification_id=notification_id,
+                data=HeartbeatFeedbackRequest(feedback="thumbs_down"),
+                user=user,
+                db=db,
+            )
+
+        recorder.assert_awaited_once()
+        assert recorder.await_args.args[1] is user
+        assert recorder.await_args.kwargs["kind"] == "feedback"
+        assert order == ["presence", "commit"]  # same transaction as the verdict

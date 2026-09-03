@@ -198,7 +198,9 @@ def test_overview_publishes_observation_candidates(
     resp = client.get("/habits")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["candidates"] == [{"key": "email+contact", "observed_days": 3, "required_days": 4}]
+    assert body["candidates"] == [
+        {"key": "email+contact", "observed_days": 3, "required_days": 4, "origin": "live"}
+    ]
     assert body["candidates_more"] == 2
     kwargs = candidates_mock.await_args.kwargs
     assert kwargs["exclude_keys"] == {"weekday:morning"}
@@ -311,6 +313,35 @@ def test_delete_all_wipes_rows_and_profile(client: TestClient) -> None:
     assert _StubRepo.rollup_wiped is True
 
 
+def test_delete_all_also_drops_the_recurrence_ledger(client: TestClient) -> None:
+    """ADR-260: the conversation reset no longer touches the ledger, so the
+    forget surface is the one that removes it (or the candidates under
+    observation would come back on the next read)."""
+    from unittest.mock import patch
+
+    deleter = AsyncMock(return_value=4)
+    with (
+        patch(
+            "src.infrastructure.cache.redis.get_redis_cache", new=AsyncMock(return_value=object())
+        ),
+        patch("src.infrastructure.cache.recurrence_store.delete_user_ledger", new=deleter),
+    ):
+        resp = client.delete("/habits")
+    assert resp.status_code == 200
+    deleter.assert_awaited_once()
+
+
+def test_delete_all_survives_a_redis_outage(client: TestClient) -> None:
+    from unittest.mock import patch
+
+    with patch(
+        "src.infrastructure.cache.redis.get_redis_cache",
+        new=AsyncMock(side_effect=ConnectionError("down")),
+    ):
+        resp = client.delete("/habits")
+    assert resp.status_code == 200
+
+
 def test_settings_toggle_round_trips(client: TestClient) -> None:
     resp = client.patch("/habits/settings", json={"habits_enabled": False})
     assert resp.status_code == 200
@@ -398,3 +429,51 @@ def test_overview_carries_the_streak_block(client: TestClient) -> None:
     assert body["streak"]["longest"] >= 3
     assert body["streak"]["next_milestone"] == min(settings.habits_streak_milestones)
     assert body["streak"]["milestone_reached"] is None
+
+
+class TestPresenceEndpoint:
+    """Reading presence ping (ADR-214 amendment): 204 always for a valid
+    user, the outcome is the service's business; the per-user ceiling
+    answers 429 and fails open when the limiter itself is down."""
+
+    def test_ping_banks_and_answers_204(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import src.domains.habits.router as router_module
+
+        recorder = AsyncMock(return_value="banked")
+        limiter = MagicMock()
+        limiter.acquire = AsyncMock(return_value=True)
+        monkeypatch.setattr(router_module, "record_presence", recorder)
+        monkeypatch.setattr(router_module, "get_rate_limiter", AsyncMock(return_value=limiter))
+        resp = client.post("/habits/presence")
+        assert resp.status_code == 204
+        assert resp.content == b""
+        recorder.assert_awaited_once()
+        assert recorder.await_args.kwargs["kind"] == "visibility"
+
+    def test_ceiling_answers_429(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        import src.domains.habits.router as router_module
+
+        recorder = AsyncMock(return_value="banked")
+        limiter = MagicMock()
+        limiter.acquire = AsyncMock(return_value=False)
+        monkeypatch.setattr(router_module, "record_presence", recorder)
+        monkeypatch.setattr(router_module, "get_rate_limiter", AsyncMock(return_value=limiter))
+        resp = client.post("/habits/presence")
+        assert resp.status_code == 429
+        recorder.assert_not_awaited()
+
+    def test_limiter_outage_fails_open(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import src.domains.habits.router as router_module
+
+        recorder = AsyncMock(return_value="throttled")
+        monkeypatch.setattr(router_module, "record_presence", recorder)
+        monkeypatch.setattr(
+            router_module, "get_rate_limiter", AsyncMock(side_effect=ConnectionError("down"))
+        )
+        resp = client.post("/habits/presence")
+        assert resp.status_code == 204
+        recorder.assert_awaited_once()

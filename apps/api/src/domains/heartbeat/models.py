@@ -99,6 +99,22 @@ class HeartbeatNotification(Base, UUIDMixin):
         comment="User feedback: thumbs_up or thumbs_down.",
     )
 
+    # ADR-214 amendment (2026-09-03): WHEN the thumb was given — a presence
+    # source for the rhythm detector (a sent notification never is).
+    feedback_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the user gave feedback (presence source).",
+    )
+
+    # ADR-261: what woke the decision — the periodic tick or a push notification.
+    trigger: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        server_default="tick",
+        comment="tick | push — what triggered this decision.",
+    )
+
     # ADR-214 — the learned habit whose missed-routine offer this notification
     # carried, if any. Closes the feedback loop: a 👍/👎 on the notification
     # bumps the habit's Bayesian signals. SET NULL keeps the audit row honest

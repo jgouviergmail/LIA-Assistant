@@ -1001,6 +1001,6 @@ class InterestNotificationRepository:
                     InterestNotification.user_id == user_id,
                 )
             )
-            .values(user_feedback=feedback)
+            .values(user_feedback=feedback, feedback_at=datetime.now(UTC))
         )
         return result.rowcount > 0  # type: ignore[attr-defined, no-any-return]

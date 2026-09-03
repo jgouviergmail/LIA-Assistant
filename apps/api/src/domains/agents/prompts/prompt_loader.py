@@ -119,6 +119,8 @@ PromptName = Literal[
     # Heartbeat autonome (proactive notifications)
     "heartbeat_decision_prompt",
     "heartbeat_message_prompt",
+    # The FRESH line a push-driven wake opens its decision context with (ADR-261)
+    "heartbeat_wake_fresh_prompt",
     "peer_message_delivery_prompt",
     # MCP domain description generation
     "mcp_description_prompt",

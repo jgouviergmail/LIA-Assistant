@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.40.0] - 2026-09-03
+
+**Trois boucles tournaient en silence, et une seule cause de plomberie les taisait.** Le push Google marchait — 802 notifications Gmail traitées en quinze jours, aucun jeton refusé — sans que rien n'en découle : leur unique lecteur invalidait des caches. Les habitudes observaient depuis des semaines sans jamais rien proposer. La boîte de propositions restait vide. L'audit a croisé les journaux, Redis et la base : **le « nouvelle conversation » effaçait toute clé Redis portant l'identifiant de l'utilisateur** — dont le registre des récurrences, l'ancre de lecture du courrier et les seuils adaptatifs. Cent soixante et un resets en cinquante-six jours : l'apprentissage n'a jamais eu quatorze jours devant lui.
+
+**Une clé déclare désormais ce qu'elle est, et un reset ne purge que ce qu'il a créé** (ADR-260). Cinq portées — conversation, cache, apprentissage, exécution, global — une purge par famille au lieu d'un motif, et une famille inconnue est **conservée puis comptée** : garder une clé qu'on ne connaît pas coûte un cache manqué, la supprimer peut coûter des semaines. Deux gardes refusent le démarrage ou la construction si un préfixe échappe au registre.
+
+**Un push provoque enfin une décision** (ADR-261). Une notification traitée met l'utilisateur en file — une tempête reste **un** réveil, daté du premier — et un balayage élu leader la sert **sous l'éligibilité complète** : fenêtre, quota, cooldowns, préférence de source. Seul le lissage aléatoire est contourné, parce qu'un réveil répond à un événement. Le delta du courrier est **prévisualisé sans être consommé** tant que le réveil n'est pas servi : un réveil refusé laisse le message au tour suivant. Un changement Drive réindexe exactement les fichiers touchés, et l'historique dit désormais si une notification répondait à un e-mail ou à l'horloge.
+
+**Et un espace de connaissances peut suivre un libellé Gmail** (ADR-262). Indexer la boîte entière a été mesuré puis refusé : une seconde archive personnelle à protéger, un coût d'embedding dépensé sur des notifications et des listes, une recherche diluée par du texte que personne n'a choisi de garder. L'opt-in est donc le geste que l'utilisateur connaît déjà — poser un libellé. Un fil devient un document Markdown ; retirer le libellé retire le document.
+
+### Added
+
+- **Un registre des familles de clés Redis** (`infrastructure/cache/key_families.py`) : chaque famille déclare sa portée, la purge du reset lit le registre au lieu d'un motif, et l'apprentissage — registre des récurrences, ancre du courrier, seuils adaptatifs, dernières valeurs sûres du briefing, présence — survit désormais à une remise à zéro. « Tout oublier » et la suppression de compte restent, eux, totaux.
+- **La présence en lecture comme quatrième source de rythme** (`HABITS_PRESENCE_ENABLED`, désactivée par défaut) : ouvrir l'application compte, un pouce sur une notification compte, **une notification envoyée ne compte jamais**. Au plus une heure retenue par heure locale, écrite directement dans le cumul durable ; la porte d'inactivité du heartbeat lit maintenant la dernière présence autant que la dernière connexion — deux comptes s'étaient tus faute de reconnexion.
+- **Le réveil du heartbeat par une notification Google** (`PUSH_WAKE_ENABLED`, désactivé par défaut) : file de réveil, cooldown propre, pré-filtre **déterministe et publié** (libellé requis, catégories exclues, courrier de liste écarté ; invitation d'un tiers ou réponse en attente dans l'horizon), puis la décision pour cet utilisateur seul. Aucune règle « expéditeur favori » n'a été inventée : aucune adresse ne vit dans les relations, c'est une évolution énoncée, pas une approximation silencieuse.
+- **La réindexation ciblée d'un dossier Drive** à partir des changements notifiés, sous le verrou de la synchronisation manuelle, par l'ingestion par fichier désormais partagée avec la synchronisation complète.
+- **Une source « libellé Gmail » pour les espaces de connaissances** (`RAG_SPACES_MAIL_SYNC_ENABLED`, désactivée par défaut ; le chemin incrémental demande aussi `PUSH_WAKE_ENABLED`) : choisir un libellé parmi les siens, voir l'état de la synchronisation et le nombre exact de fils indexés, arrêter de le suivre en gardant ou en supprimant les documents. Un fil rend son sujet en titre, ses messages dans l'ordre, **les noms des pièces jointes seulement**, sous une taille bornée.
+- **Deux migrations** : `a7c3e9b1d5f2` (horodatage des pouces, déclencheur `push`/`tick` sur les notifications) et `f1a2b3c4d5e6` (table `rag_mail_sources`, provenance de courrier sur les documents).
+- **Quatre panneaux Grafana** pour la source e-mail, deux pour la purge du reset, quatre pour la présence et les réveils : aucune métrique de cette version n'est aveugle.
+
+### Changed
+
+- **Une seule définition durable du « tour humain »** (`habits/human_turns.py`), partagée par le détecteur de rythme, les bornes d'observation et l'amorçage du registre : `product_outcomes.channel = 'web'`, une colonne que le reset ne supprime pas. L'ancienne lecture — « pas de résumé de tokens, donc un humain » — prenait les tours du planificateur pour ceux de l'utilisateur et amorçait le registre avec les routines de LIA.
+- **Les habitudes affichent la provenance d'un candidat** : « observé » ou « reconstruit depuis l'historique », parce qu'un compteur ne dit pas d'où il vient.
+- **La carte d'une source synchronisée est unique** pour Drive et pour le courrier, et ses actions ne se révèlent plus au survol : elles sont visibles à toutes les tailles et se replient dans un menu nommé sur téléphone.
+- **Les trois travaux durables d'une source** (bail, reprise, moisson) prennent la table en paramètre, validée contre une liste blanche de deux noms : un dossier Drive et un libellé Gmail se réparent par le même code.
+
+### Fixed
+
+- **Une remise à zéro de conversation ne détruit plus l'apprentissage.** C'est la correction dont dépendent les trois symptômes.
+- **L'amorçage du registre des récurrences ne prend plus les tâches planifiées pour des habitudes** ; une suggestion de récurrence ignore désormais les tours automatisés, comme l'enregistrement le faisait déjà.
+- **Un compte qui vit en lisant obtient enfin un profil** : les bornes d'observation ignoraient les pouces, et la présence n'a pas d'horodatage propre — un lecteur restait « sans activité » pour toujours.
+- **Un identifiant de migration réutilisé faisait échouer Alembic pendant que la garde d'hygiène passait au vert** : elle indexait les révisions par identifiant, si bien qu'un doublon lui donnait « aucune révision ». Elle refuse maintenant un doublon comme une chaîne sans tête.
+- **Le nom d'un document n'est plus de confiance** : avec la source e-mail il devient un sujet écrit par un tiers, et il partait tel quel dans un en-tête de téléchargement. Le nom stocké et l'en-tête sont assainis — au bénéfice aussi des fichiers importés et des comptes rendus.
+- **Un delta de calendrier ne déforme plus le contrat des fournisseurs** : la lecture « ce qui a changé depuis » est une méthode Google dédiée, les autres agendas ne sachant pas la rendre.
+- **Une réindexation Drive qui échoue le dit** au lieu de répondre « aucun dossier lié » — un verdict faux dans une métrique est pire qu'une métrique absente.
+
+### Tests
+
+- **189 tests backend et 32 tests frontend**, dont 26 fichiers backend et 4 fichiers frontend entièrement nouveaux, la plupart écrits avant le code : portée des familles de clés et complétude du registre au démarrage, purge réelle contre un vrai Redis (l'apprentissage survit, une famille inconnue survit, la suppression de compte ne laisse rien), prédicat du tour humain contre le vocabulaire du domaine, présence (limitation horaire, deux workers, heure d'été, changement de fuseau, Redis indisponible), file de réveil sur un vrai Redis (**une tempête de cinquante notifications = un réveil daté du premier ; deux balayages concurrents se partagent la file sans jamais servir le même utilisateur**), table de cas du pré-filtre, contexte « frais » qui ne consomme pas l'ancre, balayage et ses issues comptées, rendu d'un fil de courrier (ordre, texte préféré, noms des pièces jointes, taille bornée, sujet hostile), chemin incrémental (libellé posé, libellé retiré, ancre expirée), propriété d'un espace qui cache l'existence, et la carte de source partagée (actions nommées, jamais révélées au survol, refus d'une seconde synchronisation).
+- **Rejeu complet des migrations depuis une base vide**, cycle descente/remontée et équivalence structurelle modèles ↔ schéma.
+- **Complexité cyclomatique backend abaissée** (331 → 330 fonctions au-dessus du seuil), plafond reverrouillé.
+
 ## [1.39.1] - 2026-09-03
 
 **Le modèle unique devient une bibliothèque, et le compte rendu choisit sa forme.** v1.39.0 livrait l'enregistrement de réunion avec **un** modèle par utilisateur et annonçait une bibliothèque pour plus tard : la voici (ADR-259). Trente modèles intégrés en sept catégories — réunions et équipes, transcriptions, analyses de conversation, commercial et conseil, technique, rendez-vous personnels, cours et formation — que l'utilisateur ajoute à ses modèles, adapte et décline. Quand il n'a rien choisi, **LIA choisit** à partir de ce qui a été dit, et la réunion affiche le format retenu, comment il l'a été et en une ligne pourquoi. Et un compte rendu déjà rédigé se réécrit dans un autre format depuis la transcription conservée : en place, ou en **nouveau compte rendu** issu de la même transcription, indexé comme son propre document.

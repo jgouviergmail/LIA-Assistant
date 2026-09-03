@@ -32,6 +32,8 @@ from src.core.constants import (
     HABITS_MAX_HABITS_PER_KIND_DEFAULT,
     HABITS_MIN_NEFF_WEEKDAY_DEFAULT,
     HABITS_MIN_NEFF_WEEKEND_DEFAULT,
+    HABITS_PRESENCE_CLIENT_THROTTLE_MINUTES_DEFAULT,
+    HABITS_PRESENCE_LAST_TTL_DAYS_DEFAULT,
     HABITS_PRESENCE_MIN_DEFAULT,
     HABITS_PROFILE_JOB_HOUR_UTC_DEFAULT,
     HABITS_RECENT_DAYS_DEFAULT,
@@ -214,4 +216,24 @@ class HabitsSettings(BaseSettings):
         ge=1,
         le=60,
         description="Floor below which a gap is never an 'absence'.",
+    )
+    habits_presence_enabled: bool = Field(
+        default=False,
+        description="Bank an activity hour when the user OPENS the app (visibility "
+        "ping). Thumbs on notifications always count; a sent notification never does. "
+        "Requires habits_enabled.",
+    )
+    habits_presence_client_throttle_minutes: int = Field(
+        default=HABITS_PRESENCE_CLIENT_THROTTLE_MINUTES_DEFAULT,
+        ge=1,
+        le=120,
+        description="Minimum minutes between two presence pings from one client "
+        "(published to the frontend; the server banks at most one hour per local hour).",
+    )
+    habits_presence_last_ttl_days: int = Field(
+        default=HABITS_PRESENCE_LAST_TTL_DAYS_DEFAULT,
+        ge=1,
+        le=365,
+        description="Sliding TTL of the last-presence marker the heartbeat inactivity "
+        "gate reads.",
     )

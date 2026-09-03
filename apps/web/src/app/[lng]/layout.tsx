@@ -11,6 +11,7 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { AuthProvider } from '@/lib/auth';
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
+import { PresencePing } from '@/components/telemetry/PresencePing';
 import { TelemetryBootstrap } from '@/components/telemetry/TelemetryBootstrap';
 import { QueryProvider } from '@/lib/query-client';
 import { LoggingProvider } from '@/lib/logging-context';
@@ -139,6 +140,7 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
                       <TooltipProvider delayDuration={300}>
                         <ServiceWorkerRegistration />
                         <TelemetryBootstrap />
+                        <PresencePing />
                         {children}
                         <Toaster />
                       </TooltipProvider>

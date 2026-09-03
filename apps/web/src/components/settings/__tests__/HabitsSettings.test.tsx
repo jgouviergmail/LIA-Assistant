@@ -273,14 +273,17 @@ describe('HabitsSettings', () => {
     state.overview = overview({
       habits: [],
       candidates: [
-        { key: 'email+contact', observed_days: 3, required_days: 4 },
-        { key: 'calendar', observed_days: 4, required_days: 4 },
+        { key: 'email+contact', observed_days: 3, required_days: 4, origin: 'live' },
+        { key: 'calendar', observed_days: 4, required_days: 4, origin: 'seed' },
       ],
       candidates_more: 2,
     });
     renderSection();
     expect(screen.getByText('settings.habits.observing_title')).toBeInTheDocument();
     expect(screen.getByText('email + contact')).toBeInTheDocument();
+    // Provenance is stated, never a different threshold (ADR-214 amendment):
+    // exactly one candidate was rebuilt from durable history.
+    expect(screen.getAllByText('settings.habits.candidate_origin_seed')).toHaveLength(1);
     // Below the published gate: a real progressbar with backend values.
     const bar = screen.getByRole('progressbar', { name: 'settings.habits.candidate_aria' });
     expect(bar).toHaveAttribute('aria-valuenow', '3');

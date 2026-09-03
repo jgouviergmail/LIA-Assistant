@@ -250,3 +250,35 @@ class TestSchema:
         # instead of at the boundary.
         with pytest.raises(ValueError):
             InterestFeedbackRequest(feedback="thumbs_up", run_id="x" * 101)
+
+
+class TestThumbIsPresence:
+    """ADR-214 amendment (owner decision 2026-09-03): a thumb on an interest
+    notification is a reading-presence signal for the rhythm detector."""
+
+    async def test_a_thumb_records_feedback_presence(self) -> None:
+        user = _user()
+        interest_id = uuid.uuid4()
+        recorder = AsyncMock(return_value="banked")
+
+        with (
+            patch("src.domains.interests.router.InterestRepository") as repo_cls,
+            patch("src.domains.interests.router.InterestNotificationRepository") as notif_cls,
+            patch("src.domains.conversations.repository.ConversationRepository") as conv_cls,
+            patch("src.domains.habits.presence.record_presence", recorder),
+        ):
+            repo_cls.return_value.get_by_id = AsyncMock(return_value=_interest_of(user.id))
+            repo_cls.return_value.apply_feedback = AsyncMock()
+            notif_cls.return_value.update_feedback_by_run_id = AsyncMock(return_value=True)
+            conv_cls.return_value.mark_proactive_feedback_submitted = AsyncMock(return_value=1)
+
+            await submit_feedback(
+                interest_id=interest_id,
+                data=InterestFeedbackRequest(feedback="thumbs_down", run_id="interest_x_2"),
+                user=user,
+                db=AsyncMock(),
+            )
+
+        recorder.assert_awaited_once()
+        assert recorder.await_args.args[1] is user
+        assert recorder.await_args.kwargs["kind"] == "feedback"

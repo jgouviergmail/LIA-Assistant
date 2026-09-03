@@ -68,6 +68,7 @@ from src.infrastructure.scheduler.token_refresh import refresh_expiring_tokens
 from src.infrastructure.scheduler.unverified_account_cleanup import cleanup_unverified_accounts
 from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
 from src.infrastructure.startup.scheduler_meetings import register_meetings_jobs
+from src.infrastructure.startup.scheduler_push import register_push_jobs
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -717,39 +718,9 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 minute=settings.demo_account_purge_minute,
             )
 
-        # Google push channel sync (lot H): ensure/renew watch channels for
-        # every active Google connector. The job body re-checks the flag, so a
-        # schedule left behind by a config change stays inert.
-        if getattr(settings, "push_channels_enabled", False):
-            from src.core.constants import (
-                PUSH_SYNC_INITIAL_DELAY_MINUTES,
-                SCHEDULER_JOB_PUSH_CHANNEL_SYNC,
-            )
-            from src.domains.push_channels.sync import sync_push_channels
-
-            scheduler.add_job(
-                sync_push_channels,
-                trigger="interval",
-                minutes=settings.push_sync_interval_minutes,
-                jitter=jitter_seconds_for(minutes=settings.push_sync_interval_minutes),
-                # next_run_time pins the FIRST sweep shortly after boot. An
-                # interval-only job would open no channel for a full interval
-                # (6 h by default) — the flag would read "on" while push is
-                # simply absent, and an API restarting more often than the
-                # interval would never open one at all (ADR-178 starvation,
-                # measured there on the product rollup).
-                next_run_time=datetime.now(UTC)
-                + timedelta(minutes=PUSH_SYNC_INITIAL_DELAY_MINUTES),
-                id=SCHEDULER_JOB_PUSH_CHANNEL_SYNC,
-                name="Ensure/renew Google push watch channels",
-                replace_existing=True,
-                max_instances=1,
-                misfire_grace_time=600,
-            )
-            logger.info(
-                "push_channel_sync_scheduled",
-                interval_minutes=settings.push_sync_interval_minutes,
-            )
+        # Google push channel sync (lot H) + push-driven heartbeat wake sweep
+        # (ADR-261): both live in scheduler_push.py (this file is frozen).
+        register_push_jobs(scheduler)
 
         # Acquire leadership and start scheduler (or start background re-election).
         # All jobs are registered above — scheduler.start() is called inside the elector.

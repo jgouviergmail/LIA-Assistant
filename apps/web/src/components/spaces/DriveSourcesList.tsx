@@ -55,7 +55,7 @@ export function DriveSourcesList({
       {/* Section header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <HardDriveDownload className="h-4 w-4 text-muted-foreground" />
+          <HardDriveDownload className="h-4 w-4 text-primary" aria-hidden="true" />
           <h3 className="text-sm font-medium">{t('spaces.drive.title')}</h3>
         </div>
         <Button

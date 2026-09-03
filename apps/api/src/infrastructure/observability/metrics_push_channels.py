@@ -11,7 +11,7 @@ Covers the two operational surfaces of the push subsystem:
 
 from __future__ import annotations
 
-from prometheus_client import Counter
+from prometheus_client import Counter, Histogram
 
 push_notifications_total = Counter(
     "push_notifications_total",
@@ -27,4 +27,29 @@ push_channel_sync_total = Counter(
     "Per-user watch ensure attempts of the sync job, by result.",
     ["result"],
     # result: ensured | error
+)
+
+# ADR-261 — push-driven heartbeat wake. Every queued wake ends in exactly one
+# outcome; "notified" is the only one that cost a decision AND produced a
+# notification. A sustained "ineligible" share is the eligibility checker
+# doing its job, not a defect; a sustained "error" share is.
+push_wakes_total = Counter(
+    "push_wakes_total",
+    "Push-driven heartbeat wakes served by the sweep, per provider and outcome.",
+    ["provider", "outcome"],
+    # outcome: cooldown | source_disabled | stale | no_signal | ineligible
+    #          | no_target | notified | reindexed | no_linked_folder | error
+)
+
+push_wake_latency_seconds = Histogram(
+    "push_wake_latency_seconds",
+    "Seconds between the push notification and the served wake decision.",
+    buckets=(5, 15, 30, 60, 120, 180, 300, 600, 1800),
+)
+
+rag_drive_push_reindex_total = Counter(
+    "rag_drive_push_reindex_total",
+    "Drive push notifications turned into targeted reindexations of linked folders.",
+    ["outcome"],
+    # outcome: reindexed | no_linked_folder | locked | error
 )

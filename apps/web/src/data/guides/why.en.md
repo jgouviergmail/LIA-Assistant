@@ -4,7 +4,7 @@
 
 **Version**: 5.2
 **Date**: 2026-08-23
-**Application**: LIA v1.39.1
+**Application**: LIA v1.40.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,7 +70,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
 - **Scheduled actions**: create recurring automations executed by the assistant
 - **Skills**: enable/disable expert competencies in a gallery with previews, create your own personal Skills, or install one from an https URL (server-validated)
-- **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats) or sync a Google Drive folder — automatic indexing with hybrid search
+- **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats) or sync a Google Drive folder — automatic indexing with hybrid search — or follow a Gmail label, so the conversations you label become documents you can question weeks later, and removing the label removes the document
 - **Consumption export**: download your LLM and API consumption data in CSV
 
 ### 2.3. What the administrator controls
@@ -162,6 +162,7 @@ LIA doesn't just respond — it anticipates:
 - **Conversational initiative**: during an exchange, LIA proactively checks related information — if weather forecasts rain on Saturday, it checks your calendar to flag potential outdoor activities
 - **Interests**: LIA keeps what you actually care about, not what you asked once — asking a question is a task, not a taste, and it takes a stated passion, a practice, real prior knowledge or genuine digging for a subject to count. Themes rotate (never the same subject twice in a row), every notification includes clickable links to its sources, and a subject you refuse does not come back: the block is compared against every new subject, including under another name
 - **Sub-agents**: for complex tasks, LIA delegates to ephemeral specialized agents working in parallel
+- **Reacting, not only checking**: when the mailbox or the calendar signals something, LIA can decide within minutes instead of waiting for its next pass — under exactly the same window, cap and pauses, and only for an email carrying the label you treat as important or an event that concerns you soon. A burst of arrivals is a single wake-up, and a moment judged wrong simply hands the message back to the regular pass
 
 ### 3.7. Autonomous web browsing
 

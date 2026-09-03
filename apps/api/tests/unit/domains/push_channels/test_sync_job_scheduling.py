@@ -20,7 +20,11 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-_SCHEDULERS = pathlib.Path("src/infrastructure/startup/schedulers.py")
+_SCHEDULERS = (
+    pathlib.Path("src/infrastructure/startup/schedulers.py"),
+    # ADR-261: the push jobs (sync + wake sweep) live in their own startup module.
+    pathlib.Path("src/infrastructure/startup/scheduler_push.py"),
+)
 # Interval jobs whose delay makes a missed first run a FUNCTIONAL outage
 # (not just late housekeeping): they must pin next_run_time.
 _MUST_RUN_AFTER_BOOT = {"SCHEDULER_JOB_PUSH_CHANNEL_SYNC"}
@@ -28,7 +32,14 @@ _MUST_RUN_AFTER_BOOT = {"SCHEDULER_JOB_PUSH_CHANNEL_SYNC"}
 
 def _interval_jobs() -> dict[str, set[str]]:
     """{job id constant: set of add_job keyword names} for interval jobs."""
-    tree = ast.parse(_SCHEDULERS.read_text(encoding="utf-8"))
+    tree = ast.Module(
+        body=[
+            node
+            for path in _SCHEDULERS
+            for node in ast.parse(path.read_text(encoding="utf-8")).body
+        ],
+        type_ignores=[],
+    )
     jobs: dict[str, set[str]] = {}
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "add_job"):

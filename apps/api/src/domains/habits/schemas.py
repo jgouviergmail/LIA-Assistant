@@ -93,6 +93,11 @@ class HabitsCandidateSchema(BaseModel):
     key: str = Field(description="Domain signature, e.g. 'email+contact'.")
     observed_days: int = Field(ge=0, description="Distinct local days observed in window.")
     required_days: int = Field(ge=1, description="Enforced existence threshold (published).")
+    origin: Literal["live", "seed"] = Field(
+        default="live",
+        description="Provenance: 'live' = typed turns; 'seed' = rebuilt from durable "
+        "outcomes by the recompute (stated on the screen, never a different threshold).",
+    )
 
 
 class HabitsStreakSchema(BaseModel):

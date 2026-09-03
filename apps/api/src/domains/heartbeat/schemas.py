@@ -113,6 +113,9 @@ class HeartbeatContext:
     unavailable or returned no data. The LLM only sees sections with data.
     """
 
+    # ADR-261: the push provider that woke this decision (None = periodic tick).
+    wake_trigger: str | None = None
+
     # Calendar
     calendar_events: list[dict[str, Any]] | None = None
 
@@ -223,6 +226,13 @@ class HeartbeatContext:
                 f"{self.user_local_time.strftime('%d/%m/%Y %H:%M')} "
                 f"({self.time_of_day})"
             )
+
+        if self.wake_trigger:
+            from src.domains.heartbeat.wake_context import fresh_section
+
+            fresh = fresh_section(self.wake_trigger)
+            if fresh:
+                sections.append(fresh)
 
         if self.calendar_events:
             events_text = "\n".join(
@@ -533,6 +543,9 @@ class HeartbeatNotificationResponse(BaseModel):
     sources_used: list[str]  # Parsed from JSON string
     priority: str
     user_feedback: str | None
+    # ADR-261: tick (periodic runner) or push (a Google push notification woke
+    # the decision) — the timeline says so.
+    trigger: str = "tick"
 
     @classmethod
     def from_model(cls, notification: Any) -> HeartbeatNotificationResponse:
@@ -548,6 +561,7 @@ class HeartbeatNotificationResponse(BaseModel):
             sources_used=sources,
             priority=notification.priority,
             user_feedback=notification.user_feedback,
+            trigger=str(getattr(notification, "trigger", None) or "tick"),
         )
 
 

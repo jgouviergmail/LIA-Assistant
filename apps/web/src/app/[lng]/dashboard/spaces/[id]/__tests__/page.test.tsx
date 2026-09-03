@@ -72,6 +72,26 @@ vi.mock('@/hooks/useDriveSources', () => ({
 vi.mock('@/hooks/useApiMutation', () => ({
   useApiMutation: () => ({ mutate: vi.fn(), loading: false, error: null }),
 }));
+// The Gmail label section (ADR-262) is gated on the INSTANCE flag: an
+// instance that does not run it must not advertise it.
+const features = vi.hoisted(() => ({ mailSync: false }));
+vi.mock('@/hooks/useAppConfig', () => ({
+  useAppConfig: () => ({
+    config: { features: { rag_spaces_mail_sync_enabled: features.mailSync } },
+    loading: false,
+    error: null,
+  }),
+}));
+vi.mock('@/hooks/useMailSources', () => ({
+  useMailSources: () => ({
+    linkLabel: vi.fn(),
+    unlinkLabel: vi.fn(),
+    syncLabel: vi.fn(),
+    linking: false,
+    syncing: false,
+  }),
+  useGmailLabels: () => ({ labels: [], loading: false, error: null, refetch: vi.fn() }),
+}));
 const push = vi.fn();
 vi.mock('@/hooks/useLocalizedRouter', () => ({
   useLocalizedRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
@@ -134,6 +154,7 @@ beforeEach(() => {
     ...space(),
     documents: [document(), document({ id: 'd2', original_filename: 'notes.md' })],
     drive_sources: [],
+    mail_sources: [],
   };
   detail.loading = false;
   list.spaces = [space(), space({ id: 's2', name: 'Archives', document_count: 4 })];
@@ -205,5 +226,21 @@ describe('SpaceDetailPage — selection (ADR-259)', () => {
     await user.click(await screen.findByRole('option', { name: /Archives/ }));
     await user.click(screen.getByRole('button', { name: 'spaces.documents.move_dialog.submit' }));
     await waitFor(() => expect(docs.moveDocuments).toHaveBeenCalledWith(['d1'], 's2'));
+  });
+});
+
+describe('Space detail — Gmail label section (ADR-262)', () => {
+  it('is absent when the instance does not run the mail source', () => {
+    features.mailSync = false;
+    renderWithProviders(<SpaceDetailPage params={params} />);
+    expect(screen.queryByText('spaces.mail.title')).not.toBeInTheDocument();
+  });
+
+  it('is offered, and empty, when the instance runs it', () => {
+    features.mailSync = true;
+    renderWithProviders(<SpaceDetailPage params={params} />);
+    expect(screen.getByText('spaces.mail.title')).toBeInTheDocument();
+    expect(screen.getByText('spaces.mail.empty')).toBeInTheDocument();
+    features.mailSync = false;
   });
 });

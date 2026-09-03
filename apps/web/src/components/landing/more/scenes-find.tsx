@@ -10,6 +10,7 @@
 'use client';
 
 import {
+  ArrowDown,
   Bell,
   ChevronDown,
   Fingerprint,
@@ -516,6 +517,65 @@ function TemplateLibraryScene({ active, labels }: SceneProps) {
   );
 }
 
+type MailLabelPhase = 'plain' | 'labelled' | 'landing' | 'indexed';
+const MAIL_LABEL_STEPS: readonly TimelineStep<MailLabelPhase>[] = [
+  { at: 0, state: 'plain' },
+  { at: 900, state: 'labelled' },
+  { at: 1700, state: 'landing' },
+  { at: 2500, state: 'indexed' },
+];
+
+/** A label put on a thread is the whole opt-in: the thread joins the space. */
+function MailLabelSourceScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(MAIL_LABEL_STEPS, { active });
+  const labelled = phase !== 'plain';
+  const arrived = phase === 'landing' || phase === 'indexed';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-2 px-6')}>
+      <div className="flex w-full max-w-[210px] items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
+        <SkeletonLine w="w-1/2" />
+        <span
+          className={cn(
+            'ml-auto rounded-full px-1.5 text-[9px] transition-opacity duration-300 motion-reduce:transition-none',
+            labelled ? 'bg-primary/10 text-primary opacity-100' : 'opacity-0'
+          )}
+        >
+          {labels.label}
+        </span>
+      </div>
+
+      <ArrowDown
+        className={cn(
+          'h-3 w-3 text-muted-foreground transition-opacity duration-300 motion-reduce:transition-none',
+          arrived ? 'opacity-100' : 'opacity-0'
+        )}
+        aria-hidden="true"
+      />
+
+      <div className="w-full max-w-[210px] rounded-md border border-border bg-background px-2 py-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-primary">{labels.space}</span>
+          {phase === 'indexed' && (
+            <span className="ml-auto rounded-full bg-primary/10 px-1.5 text-[9px] text-primary">
+              {labels.indexed}
+            </span>
+          )}
+        </div>
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows] duration-300 motion-reduce:transition-none',
+            arrived ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+          )}
+        >
+          <div className="min-h-0 pt-1">
+            <SkeletonLine w="w-2/3" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
@@ -523,6 +583,7 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   deep_links: DeepLinksScene,
   history_search: HistorySearchScene,
   template_library: TemplateLibraryScene,
+  mail_label_source: MailLabelSourceScene,
   mobile_logo_nav: MobileLogoNavScene,
   relation_star: RelationStarScene,
   relation_sections: RelationSectionsScene,

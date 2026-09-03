@@ -39,6 +39,7 @@ from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
+from src.domains.connectors.clients.gmail_threads_mixin import GmailThreadsMixin
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import get_redis_cache
@@ -180,7 +181,7 @@ class HTMLToTextConverter(HTMLParser):
         return "\n".join(lines)
 
 
-class GoogleGmailClient(BaseGoogleClient):
+class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
     """
     Google Gmail API client with OAuth, rate limiting, caching, and error handling.
 
@@ -576,17 +577,22 @@ class GoogleGmailClient(BaseGoogleClient):
         start_history_id: str,
         max_results: int = 100,
         page_token: str | None = None,
+        history_types: tuple[str, ...] = ("messageAdded",),
+        label_id: str = "INBOX",
     ) -> dict[str, Any]:
-        """List INBOX messageAdded changes since ``start_history_id`` (lot G).
+        """List history changes since ``start_history_id`` (lot G; ADR-262).
+
+        Defaults to INBOX ``messageAdded`` — sent, spam and archived mail are
+        not heartbeat signal. The mail RAG source reads label changes on its
+        own label instead (``history_types``/``label_id``).
 
         Gmail 404s an expired history id — callers must fall back to a full
         query and re-anchor (see heartbeat/gmail_delta.py).
         """
         params: dict[str, Any] = {
             "startHistoryId": start_history_id,
-            "historyTypes": "messageAdded",
-            # INBOX only: sent, spam and archived mail are not heartbeat signal.
-            "labelId": "INBOX",
+            "historyTypes": list(history_types),
+            "labelId": label_id,
             "maxResults": apply_max_items_limit(max_results),
         }
         if page_token:

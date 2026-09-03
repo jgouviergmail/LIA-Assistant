@@ -9,9 +9,10 @@ post-deployment history on the first recompute.
 
 Honesty bounds, in order of importance:
 
-- the SAME human-run whitelist as every durable source: an outcome whose
-  run maps to an automated session family must never seed (the
-  scheduled-action metronome, proven on prod 2026-08-05);
+- the SAME human predicate as every durable source (``habits/human_turns.py``,
+  a column test on ``product_outcomes``): a scheduler outcome must never
+  seed — the scheduled-action metronome, proven on prod 2026-08-05 and,
+  through the previous summary-based whitelist, again on 2026-09-03;
 - seed ONLY when the user's ledger is empty — live data always wins; the
   per-key NX write is belt-and-braces against a concurrent first record;
 - signatures rebuild as single domains (``product_outcomes`` stores the
@@ -35,14 +36,18 @@ import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import HUMAN_CHAT_SESSION_UUID_REGEX
+from src.domains.habits.human_turns import HUMAN_OUTCOME_PREDICATE_SQL
 from src.infrastructure.cache import recurrence_store
 
 logger = structlog.get_logger(__name__)
 
-# Human outcomes only (whitelist via the run→summary join, exactly like the
-# message source in habits/repository.py) with a resolved domain label.
-_SEED_ACTIVITY_SQL = text("""
+# Human outcomes only — the SAME column predicate the rhythm repository reads
+# (``habits/human_turns.py``) — with a resolved domain label. The previous
+# run→summary whitelist read "no token summary" as "human"; summaries are
+# deleted by the conversation reset and proactive run ids never matched, so
+# 183 scheduler outcomes seeded the primary account's ledger as the user's
+# own recurrences (measured 2026-09-03).
+_SEED_ACTIVITY_SQL = text(f"""
     SELECT po.domain AS domain,
            (po.produced_at AT TIME ZONE :tz)::date::text AS local_date,
            (EXTRACT(HOUR FROM po.produced_at AT TIME ZONE :tz)
@@ -51,13 +56,7 @@ _SEED_ACTIVITY_SQL = text("""
     WHERE po.user_id = :user_id
       AND po.produced_at >= :since
       AND po.domain <> 'unknown'
-      AND NOT EXISTS (
-          SELECT 1 FROM message_token_summary mts
-          WHERE mts.run_id = po.run_id
-            AND NOT (mts.session_id LIKE 'session\\_%'
-                     OR mts.session_id LIKE 'channel\\_%'
-                     OR mts.session_id ~ :uuid_regex)
-      )
+      AND {HUMAN_OUTCOME_PREDICATE_SQL}
     ORDER BY po.produced_at
     """)
 
@@ -105,12 +104,7 @@ async def seed_ledger_from_outcomes(
         async with db.begin_nested():
             result = await db.execute(
                 _SEED_ACTIVITY_SQL,
-                {
-                    "user_id": str(user_id),
-                    "tz": tz_name,
-                    "since": since,
-                    "uuid_regex": HUMAN_CHAT_SESSION_UUID_REGEX,
-                },
+                {"user_id": str(user_id), "tz": tz_name, "since": since},
             )
 
         per_signature: dict[str, dict[str, list[float]]] = {}
@@ -121,7 +115,13 @@ async def seed_ledger_from_outcomes(
 
         seeded = 0
         for signature, days in per_signature.items():
-            data: dict[str, Any] = {"days": days, "suggested_at": None}
+            # Provenance travels with the payload (ADR-214 amendment): a
+            # candidate rebuilt from history says so on the settings screen.
+            data: dict[str, Any] = {
+                "days": days,
+                "suggested_at": None,
+                "origin": recurrence_store.ORIGIN_SEED,
+            }
             recurrence_store.trim(data, int(settings.recurrence_ledger_max_entries))
             written = await recurrence_store.store_if_absent(
                 redis,

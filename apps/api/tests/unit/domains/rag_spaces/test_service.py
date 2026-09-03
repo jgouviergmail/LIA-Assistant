@@ -29,6 +29,7 @@ def service(mock_db):
     svc.space_repo = AsyncMock()
     svc.doc_repo = AsyncMock()
     svc.chunk_repo = AsyncMock()
+    svc.mail_source_repo = AsyncMock()
     return svc
 
 
@@ -278,6 +279,7 @@ class TestGetSpaceDetail:
         service.doc_repo.get_space_stats = AsyncMock(return_value=stats)
         service.doc_repo.get_all_for_space = AsyncMock(return_value=[sample_document])
         service.source_repo.get_all_for_space = AsyncMock(return_value=[])
+        service.mail_source_repo.get_all_for_space = AsyncMock(return_value=[])
 
         result = await service.get_space_detail(space_id, user_id)
 
@@ -286,6 +288,8 @@ class TestGetSpaceDetail:
         assert result["total_size"] == 1024
         assert len(result["documents"]) == 1
         assert result["drive_sources"] == []
+        # The detail carries every synced source, Gmail labels included (ADR-262).
+        assert result["mail_sources"] == []
 
 
 # ============================================================================

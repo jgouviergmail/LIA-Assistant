@@ -687,6 +687,15 @@ initiative_actions_rejected_total = Counter(
     ["reason"],  # non_readonly | duplicate
 )
 
+# ADR-214 amendment (2026-09-03): the recurrence evaluation is guarded like
+# the recurrence recording — a scheduled run never evaluates, so LIA cannot
+# propose to automate her own automation.
+recurrence_evaluation_skipped_total = Counter(
+    "recurrence_evaluation_skipped_total",
+    "Recurrence-suggestion evaluations skipped before any ledger read",
+    ["reason"],  # automated_source
+)
+
 initiative_duration_seconds = Histogram(
     "initiative_duration_seconds",
     "Initiative phase total duration",

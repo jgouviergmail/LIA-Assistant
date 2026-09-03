@@ -11,11 +11,14 @@
 /** Document processing lifecycle status. */
 export type RAGDocumentStatus = 'pending' | 'processing' | 'ready' | 'error' | 'reindexing';
 
-/** Drive folder sync status. */
-export type RAGDriveSyncStatus = 'idle' | 'syncing' | 'completed' | 'error';
+/** One sync lifecycle for every synced source — Drive folder, Gmail label (ADR-262). */
+export type RAGSourceSyncStatus = 'idle' | 'syncing' | 'completed' | 'error';
+
+/** Drive folder sync status (the shared lifecycle, kept for readability). */
+export type RAGDriveSyncStatus = RAGSourceSyncStatus;
 
 /** Document source type. */
-export type RAGDocumentSourceType = 'upload' | 'drive' | 'meeting';
+export type RAGDocumentSourceType = 'upload' | 'drive' | 'meeting' | 'mail';
 
 /** Single RAG document within a space. */
 export interface RAGDocument {
@@ -31,6 +34,8 @@ export interface RAGDocument {
   embedding_cost_eur: number;
   source_type: RAGDocumentSourceType;
   drive_file_id: string | null;
+  /** The Gmail thread this document renders, when it came from a label (ADR-262). */
+  mail_thread_id?: string | null;
   created_at: string;
 }
 
@@ -45,6 +50,25 @@ export interface RAGDriveSource {
   synced_file_count: number;
   error_message: string | null;
   created_at: string;
+}
+
+/** Linked Gmail label source (ADR-262): its threads are documents of the space. */
+export interface RAGMailSource {
+  id: string;
+  label_id: string;
+  label_name: string;
+  sync_status: RAGSourceSyncStatus;
+  last_sync_at: string | null;
+  thread_count: number;
+  synced_thread_count: number;
+  error_message: string | null;
+  created_at: string;
+}
+
+/** One Gmail label the picker may offer. */
+export interface GmailLabel {
+  id: string;
+  name: string;
 }
 
 /** Google Drive folder for browsing. */
@@ -78,6 +102,7 @@ export interface RAGSpace {
 export interface RAGSpaceDetail extends RAGSpace {
   documents: RAGDocument[];
   drive_sources: RAGDriveSource[];
+  mail_sources: RAGMailSource[];
 }
 
 /** API response for space list endpoint. */

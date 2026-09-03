@@ -4,7 +4,7 @@
 
 **Version**: 1.8
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.39.1
+**Anwendung**: LIA v1.40.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 44 Fachdomänen | **580.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **29.700+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **258** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **242** |
+| Dokumentierte Architekturentscheidungen (ADR) | **261** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **243** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 258 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 261 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -120,6 +120,8 @@ Eine spätere Episode richtete die Methode nach außen. Statt den Code mit dense
 Der Zyklus der Besprechungsprotokolle schloss den Kreis in umgekehrter Richtung: Alles war grün — zwanzigtausend Tests im Backend, knapp siebentausend im Frontend, jede Ratsche hielt — und die Funktion war nie gelaufen. Also wurde sie fünfmal von Anfang bis Ende gegen die Entwicklungscontainer gefahren, über ihren eigenen HTTP-Vertrag. Die Nachweise fanden vier Defekte, die keine Unit-Suite sehen konnte, weil jeder dort lebte, wo zwei korrekte Teile aufeinandertreffen: eine Lesung, die die Zeile so zurückgab, wie sie vor einem Bulk-Update war; ein Anbieterfehler, der eine Besprechung scheitern ließ, während die nächste Engine eine Stufe tiefer wartete; ein Preis von null für ein Modell, das schlicht keinen Preis hatte; und eine gelöschte Besprechung, die ihr Protokoll im Wissensraum zurückließ. Jeder kam mit einem Test zurück; keiner wäre durch Lesen gefunden worden. Die Lektion der früheren Zyklen galt in ihrer strengsten Form — bestandene Tests sind die Bedingung, eine Prüfung zu beginnen, und eine Prüfung ist nicht beendet, bevor das System zum Laufen gebracht wurde.
 
 Die unmittelbare Fortsetzung verschob die Grenze noch ein Stück. Die von genau diesem Zyklus angekündigte Formatbibliothek kam durchgehend grün zurück: vollständige Unit-Suiten, ein gegen die Container gefahrener Laufzeitnachweis, jeder Bildschirm durch seine Barrierefreiheitstests abgedeckt. Der Eigentümer öffnete die Seite und fand seine eigenen Vorlagen nicht — eine duplizierte Vorlage erbte die Kategorie ihres Originals und reihte sich zwischen die dreißig mitgelieferten ein. Keine Wache konnte diesen Fehler sehen: Der Code tat genau das, was geschrieben stand, und was geschrieben stand, war ein Entwurfsfehler. Die Seite wurde in zwei Abschnitte mit eingeklappten Kategorien neu aufgebaut, und eine danach durchgeführte kalte Durchsicht fand sechs weitere Fehler, die weder Tests noch Nachweis berührt hatten. Die vollständige Lehre passt in einen Satz: Grüne Suiten sagen, dass der Code tut, was geschrieben wurde, ein Laufzeitnachweis sagt, dass das System läuft, und nur ein Mensch vor dem Bildschirm sagt, ob die Funktion existiert.
+
+Der folgende Zyklus lehrte das Gegenteil des vorherigen: keine Funktion, die nie gelaufen war, sondern drei, die einwandfrei liefen und nichts hervorbrachten. Push-Benachrichtigungen trafen ein und wurden verarbeitet — achthundert in vierzehn Tagen, keine einzige abgelehnt —, während ihr einziger Verbraucher einen Cache auffrischte. Der Gewohnheitsdetektor beobachtete seit Wochen, ohne je eine Routine vorzuschlagen. Der Vorschlagsposteingang war leer. Alle Unit-Suiten waren grün, und das zu Recht: Jeder Mechanismus tat genau das, wofür er geschrieben war. Die Ursache fand sich erst beim Kreuzen dreier Quellen, zu deren Kreuzung nichts zwang — Betriebsprotokolle, Zustandsspeicher und Datenbank — und sie gehörte zu keiner der drei Funktionen: Eine neue Unterhaltung zu beginnen löschte jeden gespeicherten Wert, der die Nutzerkennung trug, einschließlich des Registers, das der Detektor vierzehn Tage lang füllen musste. Einhunderteinundsechzig Zurücksetzungen in sechsundfünfzig Tagen. Die Reparatur bestand darin, jeden Wert erklären zu lassen, was er ist, damit das Löschen einer Unterhaltung eine Unterhaltung löscht. Und die kalte Durchsicht nach grünen Toren fand acht weitere Fehler, einer davon wog schwerer als die übrigen: Genau die Fähigkeit, die Lesenden statt Schreibenden dienen sollte, ließ diese als Einzige gänzlich ohne Profil — die Prüfung „war dieses Konto aktiv“ las drei Quellen, und keine davon war das Lesen.
 
 ## 7. Überzeugungen
 

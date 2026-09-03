@@ -65,3 +65,15 @@ When habit learning is enabled, LIA tracks how many consecutive days each confir
 **🏆 Milestones and record** — reaching 7, 30 or 100 days is highlighted, and your best-ever streak is kept as a record even after a break.
 
 **🤝 Honest by design:** a missed day resets the current streak but never erases the record, and days where LIA had no data are not counted against you. Streaks appear in **Settings → Learn my habits** next to each confirmed habit.
+
+## Does reading LIA count towards the rhythm it learns?
+Yes, once the administrator has switched that on. The rhythm LIA learns used to see only what you *typed*, which under-reads anyone who mostly reads.
+
+**What counts as being there:**
+- opening the app (once per hour at most)
+- a 👍 or a 👎 on a notification — an explicit act
+
+**What never counts:** a notification LIA *sends* you. Its own activity is not yours, and treating it as such is how an assistant ends up learning from itself.
+
+Everything stays visible and reversible in **Settings › Habits**: the heat map of your hours, the days actually observed, and a single click to pause, block or forget everything. And what it has learned now survives a fresh conversation — the reset clears the conversation, not the learning.
+

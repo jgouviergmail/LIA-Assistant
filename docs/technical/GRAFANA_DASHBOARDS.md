@@ -124,16 +124,16 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug | 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
 | 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration | 61 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121) |
 | 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval | 27 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
-| 09 | Conversations & Users | `09-conversations-users` | lia, conversations, users, engagement | 35 | Activite utilisateurs, cycle de vie conversations, analyse abandon, succes et qualite agents, attachments, inscriptions |
+| 09 | Conversations & Users | `09-conversations-users` | lia, conversations, users, engagement | 37 | Activite utilisateurs, cycle de vie conversations, analyse abandon, succes et qualite agents, attachments, inscriptions, purge du reset par famille de cles (ADR-260) |
 | 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp | 39 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
 | 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket | 24 | TTS, streaming audio, STT, WebSocket |
 | 12 | Channels / Telegram | `12-channels` | lia, channels, telegram | 13 | Flux messages, bindings et securite, fonctionnalites canal |
-| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat | 20 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback |
+| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat | 26 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261) |
 | 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints | 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
 | 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework | 36 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
 | 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational | 27 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo | 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
-| 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge | 30 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation, recuperation de jobs |
+| 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge | 35 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation, recuperation de jobs, reindexation Drive ciblee et source libelle Gmail (ADR-261/262) |
 | 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills | 10 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs), skills |
 | 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser | 17 | Boucle ReAct (iterations, outils, HITL tool-level), sessions navigateur, snapshots |
 | 21 | Health Metrics | `21-health-metrics` | lia, health-metrics | 10 | Ingestion des echantillons sante (auth, validation, doublons), variations detectees |

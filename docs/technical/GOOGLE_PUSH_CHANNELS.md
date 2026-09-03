@@ -75,13 +75,46 @@ after 7 days regardless of the requested TTL — the sync job re-issues them.
 The heartbeat's `history.list` delta (lot G) stays the actual reader; push
 only makes the caches fresh sooner.
 
+## Consumers of a notification (ADR-261)
+
+A processed notification has three consumers, in this order:
+
+1. **Cache invalidation** (`cache_invalidation.py`) — the matching briefing
+   section, the Gmail search caches, and for Calendar the cached departure
+   advice (`heartbeat:departure:{user}:*`). This is the only consumer the
+   lot H shipped with; measured on 2026-09-03 it was the only one running
+   (802 Gmail notifications in 15 days, none of them followed by anything
+   the user could notice).
+2. **Heartbeat wake** (`wake.py`, `PUSH_WAKE_ENABLED`, OFF by default) — the
+   user is queued (`heartbeat:wake:pending` + one payload per
+   `(user, provider)`, `SET NX`: a storm is one wake) and a short
+   leader-elected sweep (`infrastructure/scheduler/heartbeat_wake_sweep.py`)
+   serves the queue under the FULL eligibility checker: staleness, wake
+   cooldown, the user's source preference, the fresh delta (Gmail
+   `history.list` previewed from the heartbeat's own anchor — never consumed
+   unless the wake is served), the deterministic pre-filter
+   (`wake_filter.py`, rules published as `PUSH_WAKE_*`), then the heartbeat
+   task for that user only. The audit row carries `trigger = push`.
+3. **Drive targeted reindex** (`rag_spaces/drive_ingest.py`) — the sweep
+   drains `changes.list` from the channel's `page_token`, keeps the files
+   directly under a linked folder, ingests the changed ones and removes the
+   trashed ones under the manual sync's lock, then advances the token.
+
+Metrics: `push_wakes_total{provider,outcome}`, `push_wake_latency_seconds`,
+`rag_drive_push_reindex_total{outcome}` (dashboards 13 and 18).
+
 ## Edge cases handled
 
 | Case | Behavior |
 |------|----------|
 | Duplicate / out-of-order Pub/Sub delivery | `last_history_id` ledger → `ignored_stale` |
 | Notification storm | Redis debounce per channel (SET NX EX) |
-| `sync` handshake on channel creation | Acknowledged, no invalidation |
+| `sync` handshake on channel creation | Acknowledged, no invalidation, no wake |
+| Notification storm on one channel | Debounced per channel; at most one queued wake per (user, provider) |
+| Wake for a source the user refused in the heartbeat settings | Dropped (`source_disabled`), never a notification |
+| Wake refused by the pre-filter | The Gmail delta is left untouched for the next tick (previewed, not consumed) |
+| Drive change outside every linked folder | `no_linked_folder`, token still advanced |
+| Linked folder already syncing | `locked`, left to the running sync |
 | Channel expired during downtime | Sync job recreates at next tick (resync on schedule) |
 | Forged notification (found URL) | Token mismatch → ignored, still 200 |
 | Redis down | Invalidation/debounce best-effort — notification path never fails |

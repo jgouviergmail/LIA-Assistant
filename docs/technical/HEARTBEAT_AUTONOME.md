@@ -74,7 +74,7 @@ APScheduler (30 min, configurable)
 | `HEARTBEAT_WEATHER_WIND_THRESHOLD` | `14.0` | m/s for wind alert |
 | `LAST_KNOWN_LOCATION_TTL_HOURS` | `24` | TTL for persisted browser geoloc before fallback to home |
 | `LAST_KNOWN_LOCATION_MIN_DISTANCE_KM` | `50.0` | Min distance from home to prefer last-known over home |
-| `HEARTBEAT_INACTIVE_SKIP_DAYS` | `7` | Skip if user inactive > N days |
+| `HEARTBEAT_INACTIVE_SKIP_DAYS` | `7` | Skip if user inactive > N days — inactivity is measured from the later of `last_login` and the last reading presence (app opening or thumb, ADR-214 amendment 2026-09-03), never from a sent notification |
 
 ## User Settings
 
@@ -197,6 +197,28 @@ Privacy: the persisted coordinates are encrypted (Fernet), non-historized (overw
 - When facts were fetched, a VERIFIED FACTS block is appended to the system prompt with a strict contract: center the message on 1-2 **named** items, never invent, never paste raw URLs
 - Source links are appended deterministically afterwards (`build_sources_block`, ADR-131)
 - Output: 2-4 sentences, natural tone
+
+## Push-driven wake (ADR-261)
+
+The periodic tick is no longer the only way a decision starts. When
+`PUSH_WAKE_ENABLED` is on, a processed Google push notification (mail,
+calendar) queues the user; the wake sweep serves the queue every
+`PUSH_WAKE_SWEEP_INTERVAL_SECONDS` (jittered) and runs the SAME
+`HeartbeatProactiveTask` for that user only, through the same
+`ProactiveTaskRunner` and the same `EligibilityChecker`. The only gate a wake
+skips is the probabilistic "guaranteed minimum" smoothing — a wake answers an
+event; the window, the daily quota and every cooldown still apply, plus a
+wake cooldown of its own (`PUSH_WAKE_COOLDOWN_MINUTES`).
+
+What the decision sees: the aggregator receives the wake payload — the mail
+metadata the pre-filter already fetched (used instead of the delta fast-path,
+then the anchor is advanced) or the changed calendar events (merged into the
+upcoming ones) — and `HeartbeatContext.wake_trigger` renders a FRESH line at
+the top of the prompt. The audit row persists `trigger = push`, published by
+the history API and shown as a badge in the notifications hub.
+
+See `docs/technical/GOOGLE_PUSH_CHANNELS.md` for the queue, the pre-filter
+rules and the metrics.
 
 ## API Endpoints
 

@@ -72,6 +72,25 @@ def _validate_memory_category_vocabulary() -> None:
         raise RuntimeError(f"Memory category vocabulary drift: {exc}") from exc
 
 
+def _validate_redis_key_families() -> None:
+    """Boot gate of the Redis key-family registry (ADR-260).
+
+    A key family without a declared scope is one the conversation reset can
+    neither purge nor protect knowingly. The registry refuses to boot when a
+    ``core.constants`` prefix names a family it does not know.
+
+    Raises:
+        RuntimeError: If any prefix constant is undeclared.
+    """
+    from src.infrastructure.cache.key_families import assert_key_families_complete
+
+    try:
+        assert_key_families_complete()
+    except RuntimeError as exc:
+        logger.error("redis_key_family_registry_drift", error=str(exc), exc_info=True)
+        raise
+
+
 def _validate_diagnostics_registries() -> None:
     """Boot gates of the diagnostics subsystem (ADR-085 pattern).
 
@@ -257,6 +276,7 @@ def run_failfast_validations() -> None:
     # any feature flag).
     _validate_memory_category_vocabulary()
     _validate_diagnostics_registries()
+    _validate_redis_key_families()
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an

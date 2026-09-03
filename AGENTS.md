@@ -473,6 +473,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - Rows consumed by schedulers use `FOR UPDATE SKIP LOCKED` + an atomic status transition in the same transaction — imitate `scheduled_actions/repository.py`.
 - Every distributed lock, lease, or durable claim has a unique owner token and, where stale writers can commit, a monotonic fencing token. Acquire, renew, release, heartbeat, complete, fail, and retry are atomic and conditioned on the current owner/token. A failed heartbeat immediately aborts all later effects. `SET NX` followed by unconditional `EXPIRE`/`DELETE`, and `SKIP LOCKED` followed by work outside the claiming transaction, are forbidden. Test expiry, takeover, stale completion/failure, and stale shutdown with two independent actors.
 - Absence of an exception is not proof of delivery. Durable work may enter `DELIVERED` or `SUCCEEDED` only from an explicit successful result. Claim before external effects, persist attempts and errors, propagate a stable idempotency key, and test total failure, partial success, crash after effect before commit, and two-worker execution.
+- **A Redis key named by a user id declares the scope of its family** in `apps/api/src/infrastructure/cache/key_families.py` (`CONVERSATION`, `USER_CACHE`, `USER_LEARNING`, `USER_RUNTIME`, `GLOBAL`). The conversation reset purges by declared family, never by pattern alone, and an undeclared family is kept and counted — the reset used to wipe the recurrence ledger, the Gmail delta anchor and the adaptive thresholds 161 times in 56 days because they were named like caches (ADR-260). Two guards fail the build otherwise: the boot assert over `core.constants` prefixes and `apps/api/tests/unit/test_redis_key_family_guard.py` over literal f-string keys. Account deletion and « Tout oublier » are the surfaces that remove learning keys; a reset never is.
 
 ### Registries & vocabulary
 
@@ -520,7 +521,7 @@ These rules close recurring bug classes identified by the 2026-07 full-codebase 
 - **HITL (Human-in-the-Loop)**: 6 approval levels (plan approval, clarification, draft critique, destructive confirm, FOR_EACH confirm, modifier review). Classified in `src/domains/agents/services/hitl_classifier.py`. Note: the plan-approval level is currently auto-approved (`approval_gate_node` is a pass-through — tool-level HITL supersedes it); do not build on plan-level interrupts without re-wiring the gate.
 - **Smart Services**: QueryAnalyzerService, SmartPlannerService, SmartCatalogueService use LRU caching and pattern learning to reduce LLM token usage.
 - **SSE Streaming**: Responses stream to the frontend via Server-Sent Events.
-- **Observability**: 507 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
+- **Observability**: 519 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
 - **LLM Factory**: `src/infrastructure/llm/factory.py` provides multi-provider LLM instantiation (OpenAI, Anthropic, Google, DeepSeek, Ollama). Provider adapters in `src/infrastructure/llm/providers/`.
 
 ## Good Practices
@@ -688,7 +689,8 @@ Run it after any Capacitor upgrade or any CSP change.
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`
 - Meeting recording & structured minutes (ADR-258), minutes template library, automatic selection and reformatting (ADR-259): `docs/technical/MEETINGS.md` — the meeting row is the durable job, two audio sources behind one interface, a `TemplateRef` rather than a row, ONE precedence for the format, a `transcript` section rewritten part by part, and a reformat that is never a « copy »
-- ADR index (258 ADR files, ADR-259 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- ADR index (261 ADR files, ADR-262 latest — ADR-008 has no separate file, so the highest number runs one above the file count): `docs/architecture/ADR_INDEX.md`
+- Silent-loops programme (ADR-260/261/262), each OFF by default where it adds a subsystem: `docs/architecture/ADR-260-Redis-Key-Families-Scope-And-Reset-Purge.md` (a Redis key family declares its scope; a reset purges by family, never by glob), `docs/architecture/ADR-261-Push-Driven-Heartbeat-Wake-And-Incremental-Drive-Sync.md` (a processed push queues a wake; the sweep serves it under the FULL eligibility, only the probabilistic smoothing bypassed), `docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md` (a space follows a Gmail LABEL, never the mailbox; removing the label removes the document)
 - CI/CD pipeline and the thin-CI doctrine (ADR-151): `docs/technical/CI_CD.md`
 - Native mobile shells: `docs/guides/GUIDE_MOBILE_ANDROID.md`, `docs/guides/GUIDE_MOBILE_IOS.md` — measured platform behaviour, not assumptions
 - 360° audit protocol (recurring; on "run the audit and update the public report", follow it end-to-end including the publication pipeline): `docs/audit/AUDIT_PROTOCOL.md` — public report: `docs/audit/README.md`, size metrics: `scripts/audit/measure_sloc.py`, complexity metrics: `scripts/audit/measure_cc.py`

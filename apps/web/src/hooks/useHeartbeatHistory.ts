@@ -19,6 +19,8 @@ export interface HeartbeatNotification {
   priority: string;
   /** `thumbs_up` | `thumbs_down`, or null when never rated. */
   user_feedback: string | null;
+  /** What started the decision: the periodic tick, or a Google push notification (ADR-261). */
+  trigger?: 'tick' | 'push';
 }
 
 export interface HeartbeatHistory {

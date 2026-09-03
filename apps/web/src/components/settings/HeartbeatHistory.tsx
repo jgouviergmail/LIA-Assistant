@@ -85,13 +85,21 @@ export function HeartbeatHistory({
         : item.priority,
       tone: priorityTone(item.priority),
     },
-    chips: item.sources_used.map(source => ({
-      key: source,
-      // An unknown label renders RAW rather than as a missing i18n key: a new
-      // backend source must never surface as `heartbeat.history.source_X` in
-      // the interface.
-      label: KNOWN_SOURCES.has(source) ? t(`heartbeat.history.source_${source}`) : source,
-    })),
+    chips: [
+      // A notification that answered a Google push (ADR-261) says so: the
+      // reader can tell an e-mail or an invitation from the clock. A tick, the
+      // default, is unmarked — it is the norm, not an event.
+      ...(item.trigger === 'push'
+        ? [{ key: 'trigger_push', label: t('heartbeat.history.trigger_push') }]
+        : []),
+      ...item.sources_used.map(source => ({
+        key: source,
+        // An unknown label renders RAW rather than as a missing i18n key: a new
+        // backend source must never surface as `heartbeat.history.source_X` in
+        // the interface.
+        label: KNOWN_SOURCES.has(source) ? t(`heartbeat.history.source_${source}`) : source,
+      })),
+    ],
     feedback: item.user_feedback,
   }));
 

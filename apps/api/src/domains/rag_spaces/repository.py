@@ -19,6 +19,7 @@ from src.domains.rag_spaces.models import (
     RAGDocument,
     RAGDocumentStatus,
     RAGDriveSource,
+    RAGMailSource,
     RAGSpace,
 )
 from src.infrastructure.observability.logging import get_logger
@@ -236,6 +237,12 @@ class RAGDriveSourceRepository(BaseRepository[RAGDriveSource]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_all_for_user(self, user_id: UUID) -> list[RAGDriveSource]:
+        """Every Drive source the user linked, across spaces (ADR-261 push reindex)."""
+        stmt = select(RAGDriveSource).where(RAGDriveSource.user_id == user_id)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_by_id_and_space(self, source_id: UUID, space_id: UUID) -> RAGDriveSource | None:
         """Get a Drive source by ID scoped to a specific space."""
         stmt = select(RAGDriveSource).where(
@@ -256,6 +263,53 @@ class RAGDriveSourceRepository(BaseRepository[RAGDriveSource]):
         stmt = select(func.count(RAGDriveSource.id)).where(
             RAGDriveSource.space_id == space_id,
             RAGDriveSource.folder_id == folder_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one() > 0
+
+
+class RAGMailSourceRepository(BaseRepository[RAGMailSource]):
+    """Repository for the Gmail label sources of a space (ADR-262)."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        super().__init__(db, RAGMailSource)
+
+    async def get_all_for_space(self, space_id: UUID) -> list[RAGMailSource]:
+        """Every label source of a space, newest first."""
+        stmt = (
+            select(RAGMailSource)
+            .where(RAGMailSource.space_id == space_id)
+            .order_by(RAGMailSource.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_all_for_user(self, user_id: UUID) -> list[RAGMailSource]:
+        """Every label source the user linked, across spaces (push-driven indexing)."""
+        stmt = select(RAGMailSource).where(RAGMailSource.user_id == user_id)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_by_id_and_space(self, source_id: UUID, space_id: UUID) -> RAGMailSource | None:
+        """A label source by id, scoped to its space (ownership is the space's)."""
+        stmt = select(RAGMailSource).where(
+            RAGMailSource.id == source_id,
+            RAGMailSource.space_id == space_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def count_for_space(self, space_id: UUID) -> int:
+        """Number of label sources in a space."""
+        stmt = select(func.count(RAGMailSource.id)).where(RAGMailSource.space_id == space_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def exists_for_space_and_label(self, space_id: UUID, label_id: str) -> bool:
+        """Whether a label is already linked to a space."""
+        stmt = select(func.count(RAGMailSource.id)).where(
+            RAGMailSource.space_id == space_id,
+            RAGMailSource.label_id == label_id,
         )
         result = await self.db.execute(stmt)
         return result.scalar_one() > 0
@@ -384,6 +438,43 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
         stmt = select(RAGDocument.drive_file_id).where(
             RAGDocument.drive_source_id == drive_source_id,
             RAGDocument.drive_file_id.is_not(None),
+        )
+        result = await self.db.execute(stmt)
+        return {row[0] for row in result.all()}
+
+    async def get_mail_documents_for_source(self, mail_source_id: UUID) -> list[RAGDocument]:
+        """Every document a label source rendered (ADR-262)."""
+        stmt = (
+            select(RAGDocument)
+            .where(RAGDocument.mail_source_id == mail_source_id)
+            .order_by(RAGDocument.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_by_mail_thread_id(self, space_id: UUID, thread_id: str) -> RAGDocument | None:
+        """The document rendering a Gmail thread within a space, if any."""
+        stmt = select(RAGDocument).where(
+            RAGDocument.space_id == space_id,
+            RAGDocument.mail_thread_id == thread_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def count_ready_mail_documents(self, mail_source_id: UUID) -> int:
+        """Exact number of READY documents a label source holds (the count it shows)."""
+        stmt = select(func.count(RAGDocument.id)).where(
+            RAGDocument.mail_source_id == mail_source_id,
+            RAGDocument.status == RAGDocumentStatus.READY,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def get_mail_thread_ids_for_source(self, mail_source_id: UUID) -> set[str]:
+        """Every thread id a label source already rendered."""
+        stmt = select(RAGDocument.mail_thread_id).where(
+            RAGDocument.mail_source_id == mail_source_id,
+            RAGDocument.mail_thread_id.is_not(None),
         )
         result = await self.db.execute(stmt)
         return {row[0] for row in result.all()}

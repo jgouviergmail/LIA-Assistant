@@ -90,3 +90,15 @@ Yes. Every document in a space offers **Download** — the original file, under 
 A move takes everything with it: the row, the index the search reads and the file itself — after which the document answers from its new space, and only from there. What stays put is what LIA maintains for you: documents synced from a Google Drive folder and meeting minutes, which belong to their source.
 
 Every batch tells you what it did and what it left aside, with the reason — target space full, document still being indexed, document managed elsewhere. And nothing moves during a general reindex: LIA would rather refuse cleanly than move a document the engine is re-reading.
+
+## Can a space follow a Gmail label?
+Yes, when the administrator has switched the capability on. A space can follow one of **your own Gmail labels**: every conversation you label becomes a document of that space, searchable weeks later like any other.
+
+**You decide, with a gesture you already know:**
+- label a thread in Gmail → it joins the space
+- remove the label → the document leaves at the next pass
+
+**What is copied:** the subject as the title, the messages in order, and the **names** of attachments — never their content. Your whole mailbox is never indexed: only labelled threads are, and that is the point — a second copy of an entire personal archive would cost more to protect than it returns in answers.
+
+In the space you see the label, its state, how many threads are indexed, and two actions: sync now, or stop following it — keeping the documents or deleting them with it.
+

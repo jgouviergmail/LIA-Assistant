@@ -15,7 +15,9 @@ the previous, weaker contract (pinned by tests instead of shared code):
 module without creating the agents↔habits cycle the coupling ratchet
 forbids (agents already imports habits for the promotion path).
 
-Payload shape: ``{"days": {iso_date: [local_hours]}, "suggested_at": ts}``.
+Payload shape: ``{"days": {iso_date: [local_hours]}, "suggested_at": ts,
+"origin": "live" | "seed"}`` — ``origin`` defaults to ``live`` on read so
+pre-amendment payloads keep their meaning.
 """
 
 from __future__ import annotations
@@ -25,6 +27,11 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 KEY_PREFIX = "recurrence"
+
+#: Provenance of a ledger payload: written by a live human turn, or rebuilt
+#: from ``product_outcomes`` by the habits recompute (ADR-214 amendment).
+ORIGIN_LIVE = "live"
+ORIGIN_SEED = "seed"
 
 
 def redis_key(user_id: str, signature: str) -> str:
@@ -44,6 +51,30 @@ def signature_from_key(key: str | bytes, user_id: str) -> str:
     return name[len(prefix) :] if name.startswith(prefix) else ""
 
 
+async def delete_user_ledger(redis: Any, user_id: str) -> int:
+    """Delete every ledger key of one user ("forget everything", ADR-260).
+
+    The ledger is learning material the conversation reset now leaves alone;
+    the explicit forget surface must therefore remove it itself, or a
+    recompute would list the user's recurrences again from data they asked
+    to forget.
+
+    Args:
+        redis: Async Redis client.
+        user_id: Owner (string form).
+
+    Returns:
+        Number of keys deleted (exact).
+    """
+    keys: list[str] = []
+    async for key in redis.scan_iter(match=user_key_pattern(user_id)):
+        keys.append(key.decode() if isinstance(key, bytes) else str(key))
+    if not keys:
+        return 0
+    deleted = await redis.delete(*keys)
+    return int(deleted or 0)
+
+
 def convert_legacy(data: dict[str, Any]) -> dict[str, Any]:
     """Convert a pre-v2 ``{"ts": [...]}`` payload to per-day storage.
 
@@ -55,7 +86,7 @@ def convert_legacy(data: dict[str, Any]) -> dict[str, Any]:
     for ts in data.get("ts") or []:
         moment = datetime.fromtimestamp(int(ts), tz=UTC)
         days.setdefault(moment.date().isoformat(), []).append(moment.hour + moment.minute / 60.0)
-    return {"days": days, "suggested_at": data.get("suggested_at")}
+    return {"days": days, "suggested_at": data.get("suggested_at"), "origin": ORIGIN_LIVE}
 
 
 async def load(redis: Any, key: str) -> dict[str, Any]:
@@ -73,6 +104,7 @@ async def load(redis: Any, key: str) -> dict[str, Any]:
         return convert_legacy(data)
     data.setdefault("days", {})
     data.setdefault("suggested_at", None)
+    data.setdefault("origin", ORIGIN_LIVE)
     return data
 
 

@@ -74,6 +74,7 @@ class HeartbeatNotificationRepository:
         model_name: str | None = None,
         notification_id: UUID | None = None,
         habit_offer_id: UUID | None = None,
+        trigger: str = "tick",
     ) -> HeartbeatNotification:
         """Create an audit record for a sent heartbeat notification.
 
@@ -343,6 +344,6 @@ class HeartbeatNotificationRepository:
                     HeartbeatNotification.user_id == user_id,
                 )
             )
-            .values(user_feedback=feedback)
+            .values(user_feedback=feedback, feedback_at=datetime.now(UTC))
         )
         return result.rowcount > 0  # type: ignore[attr-defined, no-any-return]

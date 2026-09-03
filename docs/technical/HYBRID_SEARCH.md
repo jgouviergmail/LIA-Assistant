@@ -376,3 +376,15 @@ Combined: [0.83, 0.62, 0.51]
 ---
 
 **Fin de HYBRID_SEARCH.md** - Documentation technique recherche hybride.
+
+## Provenance des documents indexés
+
+Le corpus d'un espace n'a qu'une forme — des chunks vectorisés — mais
+plusieurs provenances, portées par `rag_documents.source_type` : `upload`
+(un fichier déposé), `drive` (un fichier d'un dossier Drive lié),
+`meeting` (un compte rendu écrit par le domaine réunions, ADR-258) et
+`mail` (un fil Gmail portant un libellé suivi, ADR-262). La recherche ne les
+distingue pas — un fil de discussion se cherche comme un PDF — mais
+l'interface les affiche, et seule une importation `upload` peut être
+déplacée d'un espace à l'autre : les autres appartiennent à la source qui
+les entretient.

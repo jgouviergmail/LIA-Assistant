@@ -68,6 +68,9 @@ export interface HabitCandidate {
   observed_days: number;
   /** Enforced existence threshold — published by the backend (ADR-184). */
   required_days: number;
+  /** Provenance: typed turns, or rebuilt from durable history by the recompute
+   * (stated on screen, never a different threshold — ADR-214 amendment). */
+  origin: 'live' | 'seed';
 }
 
 export interface HabitsStreak {

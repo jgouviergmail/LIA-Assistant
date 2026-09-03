@@ -160,3 +160,80 @@ usages majoritairement pilotés par le push.
   devient une heatmap 24 créneaux dans le panneau ; l'explication d'une
   habitude récurrente publie les jours d'occurrence RÉELS du ledger —
   toujours aucune référence de conversation fabriquée.
+
+## Amendement 2026-09-03 — sources humaines durables, provenance du seed, garde d'évaluation
+
+L'audit « trois boucles silencieuses » (voir ADR-260) a mesuré, sur le compte
+principal en production, ce que les deux amendements précédents n'avaient pas
+pu voir :
+
+1. **La source `message_token_summary` ne survit PAS aux resets.** Le reset
+   de conversation supprime les résumés de tokens de la conversation
+   (`token_summaries_deleted_for_conversation`) : 5 lignes `session_` en
+   56 jours pour 235 tours humains réels. La liste blanche par forme de
+   session n'atteignait presque rien. **La source humaine durable est
+   `product_outcomes`** — une ligne par run finalisé, jamais supprimée par le
+   reset, dont la colonne `channel` dit qui était derrière le run. Le prédicat
+   « tour humain » a désormais **une seule implémentation**
+   (`habits/human_turns.py` : `channel = 'web'` et `result_type IN
+   ('answer','action')`), lue par le dépôt du rythme ET par le seed du ledger,
+   épinglée contre le vocabulaire du domaine produit. Deux formulations d'un
+   même « humain » finissent toujours par diverger (ADR-255).
+2. **Le seed reconstruisait les routines de LIA comme des habitudes de
+   l'utilisateur.** Sa liste blanche lisait « pas de résumé de tokens =
+   humain » ; or les résumés sont supprimés au reset et les `run_id` des runs
+   proactifs ne correspondent jamais. 183 outcomes `automation_run` (les
+   routines 07:00-09:00 exécutées de nuit pendant qu'un fuseau de voyage
+   restait actif) ont seedé `email` 27 jours, `event` 26, `weather` 26,
+   `web_search` 27 — pour cinq tours tapés. Rejoué avec `evaluate_locks`,
+   l'amas nocturne seul verrouille « daily à 01:16 » : LIA aurait proposé
+   d'automatiser sa propre automatisation ; mêlé aux heures humaines, il
+   diluait R sous 0,8 et masquait toute vraie habitude. Le seed lit le
+   prédicat partagé ; un test d'intégration rejoue le cas prod contre
+   PostgreSQL et exige zéro verrou.
+3. **La provenance est dite.** Un payload seedé porte `origin: "seed"`
+   (`live` par défaut à la lecture ; un tour vivant repasse la clé à `live`),
+   publié par `/habits` et affiché « reconstruit depuis l'historique » dans
+   l'écran des habitudes. Le seuil ne change pas : on dit d'où vient la
+   donnée, on ne la juge pas autrement.
+4. **L'évaluation est gardée comme l'enregistrement.**
+   `_resolve_recurrence_suggestion` refuse désormais un run automatisé
+   (`is_automated_source`, compté par `recurrence_evaluation_skipped_total`) :
+   un run programmé ne pouvait pas enregistrer une occurrence mais pouvait
+   évaluer, faire feu et promouvoir une habitude.
+5. **La clause historique `NOT EXISTS` de la source messages est datée** :
+   le marqueur `is_automated_source` existe depuis le 2026-08-05 ; à partir du
+   2026-09-30 plus aucune ligne non marquée n'est dans la fenêtre de 56 jours
+   et la clause peut disparaître.
+
+6. **La présence en lecture est une quatrième source** (décision propriétaire
+   2026-09-03 : une notification ne compte JAMAIS comme activité ; un pouce
+   haut ou bas compte). Le compte principal vivait par le heartbeat — 106
+   notifications lues en 30 jours, 361 ouvertures de l'application en 20
+   jours, 5 tours tapés — et le détecteur ne voyait que la frappe. Deux
+   signaux comptent désormais : l'**ouverture de l'application** (ping du
+   client au montage, sur `visibilitychange`→visible et au focus, throttlé ;
+   jamais depuis un poll d'arrière-plan ; flag `HABITS_PRESENCE_ENABLED`, OFF
+   par défaut) et le **pouce** sur une notification heartbeat ou intérêt
+   (toujours, dès que les habitudes sont actives ; `feedback_at` horodate le
+   geste, la source SQL ne lit que cette colonne). Une heure bankée par heure
+   locale et par utilisateur (`SET NX`), écrite par UPSERT atomique dans le
+   rollup durable avec `GREATEST(existant, 1)` — la présence marque l'heure,
+   elle ne gonfle jamais un compte de messages. Les clés sont de famille
+   `presence` (`USER_LEARNING`, ADR-260). La porte d'inactivité du heartbeat
+   lit `max(last_login, dernière présence)` : deux comptes qui lisaient sans se
+   reconnecter avaient été réduits au silence après sept jours.
+7. **Ce que la présence change, mesuré** (rejeu du vrai détecteur sur le
+   rollup prod du compte principal, seuils par défaut) : tel quel, `none`
+   (meilleur bin 0,39) ; avec une ouverture à 08 h trente jours sur
+   trente-cinq, **toujours `none`** — le bin 8 h monte à 0,89 mais la porte
+   *capture* refuse : l'activité de ce compte est étalée sur vingt-quatre
+   heures et une fenêtre d'une heure n'en capture pas 60 % ; avec une
+   présence uniforme (une heure différente chaque jour), `none` ; avec une
+   présence à 08 h seule, les jours de semaine, `windows` 07-09 h à 0,92. La
+   présence rend lisible le rythme d'un utilisateur qui lit sans écrire ; elle
+   n'invente pas de fenêtre à qui n'en a pas. Les seuils restent ceux de la
+   calibration.
+
+Ce qui ne change pas : les seuils calibrés, l'unité statistique (le jour), la
+règle « le rythme priorise, n'élargit jamais ».

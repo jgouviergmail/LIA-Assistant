@@ -1,18 +1,19 @@
 import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import {
-  ClipboardList,
-  TabletSmartphone,
-  CloudSun,
-  GitBranch,
-  Cpu,
-  TrendingUp,
-  Search,
-  Radio,
-  Layers,
   Blocks,
-  ShieldCheck,
+  ClipboardList,
+  CloudSun,
+  Cpu,
+  GitBranch,
+  KeyRound,
+  Layers,
   PhoneCall,
+  Radio,
+  Search,
+  ShieldCheck,
+  TabletSmartphone,
+  TrendingUp,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,11 @@ const TECH_ITEMS = [
     key: 'native_shells',
     icon: TabletSmartphone,
     iconBg: 'bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15',
+  },
+  {
+    key: 'scoped_state',
+    icon: KeyRound,
+    iconBg: 'bg-gradient-to-br from-amber-500/15 to-orange-500/15',
   },
   {
     key: 'structured_minutes',

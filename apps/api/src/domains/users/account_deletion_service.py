@@ -477,10 +477,11 @@ class AccountDeletionService:
             )
 
     async def _cleanup_redis_caches(self, user_id: UUID) -> None:
-        """Delete all user-specific Redis cache keys (best-effort).
+        """Delete every user-scoped Redis key (best-effort, ADR-260).
 
-        Covers: usage limits, conversation ID cache, Gmail labels cache,
-        sub-agent budget, rate limit keys for all connector types and channels.
+        Explicit known keys first, then every key of a family the registry
+        declares user-scoped (conversation, cache, LEARNING and RUNTIME):
+        account deletion is the one surface that removes learning state too.
 
         Args:
             user_id: User UUID.
@@ -512,25 +513,25 @@ class AccountDeletionService:
             for key in explicit_keys:
                 await redis.delete(key)
 
-            # Wildcard patterns (rate limits, channel caches)
-            patterns = [
-                f"apikey:user:{uid}:*",
-                f"user:{uid}:*",
-                f"apple_rate_limit:*:{uid}",
-                f"channel:*:{uid}",
-            ]
-            for pattern in patterns:
-                cursor = 0
-                while True:
-                    cursor, keys = await redis.scan(cursor, match=pattern, count=100)
-                    if keys:
-                        await redis.delete(*keys)
-                    if cursor == 0:
-                        break
+            # Every user-scoped family (ADR-260): the registry decides, the
+            # scan is the same one the conversation reset uses. Account
+            # deletion is the one surface that removes LEARNING and RUNTIME
+            # keys too — a reset never does.
+            from src.infrastructure.cache.key_families import (
+                is_user_scoped,
+                scan_keys,
+                scan_patterns_for,
+            )
+
+            matched = await scan_keys(redis, scan_patterns_for(uid))
+            user_keys = sorted(key for key in matched if is_user_scoped(key))
+            for start in range(0, len(user_keys), 100):
+                await redis.delete(*user_keys[start : start + 100])
 
             logger.info(
                 "account_deletion_redis_caches_cleaned",
                 user_id=uid,
+                user_keys_deleted=len(user_keys),
             )
         except Exception as e:
             logger.warning(

@@ -2724,7 +2724,7 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `psyche_states` / `psyche_history` | `src/domains/psyche/models.py` | État psychologique dynamique courant + snapshots historiques (ADR-068) |
 | `reminders` | `src/domains/reminders/models.py` | Rappels one-shot éphémères (ADR-051) |
 | `attachments` | `src/domains/attachments/models.py` | Pièces jointes chat (images/PDF) + analyse vision |
-| `rag_spaces` / `rag_documents` / `rag_chunks` / `rag_drive_sources` | `src/domains/rag_spaces/models.py` | Espaces de connaissances RAG, documents, chunks vectorisés, sync Drive (ADR-055/056) |
+| `rag_spaces` / `rag_documents` / `rag_chunks` / `rag_drive_sources` / `rag_mail_sources` | `src/domains/rag_spaces/models.py` | Espaces de connaissances RAG, documents, chunks vectorisés, sync Drive (ADR-055/056), source « libellé Gmail » opt-in (ADR-262 : `rag_mail_sources`, colonnes `mail_source_id` / `mail_thread_id` / `mail_last_message_at` de `rag_documents`) |
 | `health_samples` / `health_metric_tokens` | `src/domains/health_metrics/models.py` | Métriques santé (iPhone Shortcuts) + tokens d'ingestion par utilisateur (ADR-076) |
 | `heartbeat_notifications` | `src/domains/heartbeat/models.py` | Historique des notifications proactives Heartbeat |
 | `interest_notifications` | `src/domains/interests/models.py` | Historique des notifications d'intérêts |

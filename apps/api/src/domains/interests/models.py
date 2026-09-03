@@ -250,6 +250,11 @@ class InterestNotification(Base, UUIDMixin):
         String(20),
         nullable=True,
     )
+    # ADR-214 amendment (2026-09-03): when the thumb was given (presence source).
+    feedback_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     # Relationships
     interest: Mapped[UserInterest | None] = relationship(

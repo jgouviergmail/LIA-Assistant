@@ -180,3 +180,15 @@ The **activity timeline** on your dashboard shows the assistant's otherwise invi
 **🔎 Honest by construction:** every entry comes from a real recorded event — the timeline is a read model over LIA's own activity ledger, with exact counts (never estimates).
 
 **🕰️ In your timezone:** entries are displayed in your configured timezone and language.
+
+## Can LIA react to an email or an invitation right away?
+Yes, when the administrator has switched the capability on. Instead of waiting for its next scheduled pass, LIA can decide within minutes of a message or a calendar change arriving.
+
+**What it looks at — and nothing else:**
+- an email carrying the label you treat as important, never promotions, social or mailing lists
+- an event starting soon that someone else changed, or one still waiting for your answer
+
+**What does not change:** your notification window, your daily cap, the pauses between two messages, and your choice of sources. A burst of arrivals still produces a single wake-up, and if the moment is not right the message simply waits for the regular pass — nothing is consumed by a wake that was refused.
+
+In the notification history, the ones that answered an email or an invitation are marked as such, next to those that came from the regular pass.
+

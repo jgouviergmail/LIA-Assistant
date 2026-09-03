@@ -143,7 +143,11 @@ class HabitsService:
         as_of = (now_local - timedelta(days=1)).date()
 
         first_at, last_at = await self.repository.fetch_activity_bounds(user.id)
-        if last_at is None:
+        if last_at is None and not await self.repository.fetch_activity_rollup(user.id):
+            # No timestamped source AND an empty durable rollup: nothing to
+            # learn from. Reading presence (visibility pings) has no timestamp
+            # of its own — it lands straight in the rollup — so the rollup is
+            # the second half of the question, not an optimisation.
             return "skipped_no_activity"
 
         existing = await self.repository.get_profile(user.id)
@@ -154,6 +158,9 @@ class HabitsService:
         live_days = await self.repository.fetch_day_activity(user.id, str(user_tz), since)
         run_days = await self.repository.fetch_run_activity(user.id, str(user_tz), since)
         reset_days = await self.repository.fetch_reset_activity(user.id, str(user_tz), since)
+        # Thumbs on notifications (owner decision 2026-09-03): explicit human
+        # acts; a sent notification never counts.
+        feedback_days = await self.repository.fetch_feedback_activity(user.id, str(user_tz), since)
 
         # Durable rollup, fed UNCONDITIONALLY and BEFORE any skip decision:
         # the chat "reset" deletes messages (961 resets measured on the
@@ -170,7 +177,10 @@ class HabitsService:
         # sources never counts twice beyond the max.
         merged = merge_activity_days(
             rollup,
-            merge_activity_days(reset_days, merge_activity_days(run_days, live_days)),
+            merge_activity_days(
+                feedback_days,
+                merge_activity_days(reset_days, merge_activity_days(run_days, live_days)),
+            ),
         )
         window_floor = as_of - timedelta(days=thresholds.window_days - 1)
         merged = {d: h for d, h in merged.items() if d >= window_floor}
@@ -187,11 +197,26 @@ class HabitsService:
         # already banked): with no new messages NOTHING can appear, but
         # claims can still need to DECAY, so the skip only applies when
         # there is nothing left to release (no claimed windows).
+        # Reading presence (visibility pings) lands straight in the DURABLE
+        # rollup with no timestamped source behind ``last_at``: a stored
+        # rollup day newer than the last computed source is a delta too, or a
+        # user who reads without typing would keep a stale verdict forever.
+        computed_date = (
+            existing.source_max_created_at.astimezone(user_tz).date()
+            if existing is not None and existing.source_max_created_at is not None
+            else None
+        )
+        rollup_last = max(rollup.keys(), default=None)
+        rollup_is_newer = (
+            computed_date is not None and rollup_last is not None and rollup_last > computed_date
+        )
         if (
             not force
             and existing is not None
             and existing.source_max_created_at is not None
+            and last_at is not None
             and last_at <= existing.source_max_created_at
+            and not rollup_is_newer
             and previous is not None
             and not previous.weekday.windows
             and not previous.weekend.windows

@@ -311,6 +311,15 @@ TABLE_RULES: dict[str, TableRule] = {
         export=ExportPolicy.FULL,
         reason="Drive sync source config — exported as part of the space metadata.",
     ),
+    "rag_mail_sources": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Gmail label source config (ADR-262) — which label a space follows, "
+            "exported as part of the space metadata; the indexed threads "
+            "themselves are rag_documents."
+        ),
+    ),
     "rag_documents": TableRule(
         data_class=TableDataClass.USER_CASCADE,
         export=ExportPolicy.FULL,

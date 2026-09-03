@@ -61,6 +61,15 @@ async def invalidate_for_provider(provider: str, user_id: UUID) -> None:
             for start in range(0, len(keys), _DELETE_BATCH_SIZE):
                 await redis.delete(*keys[start : start + _DELETE_BATCH_SIZE])
 
+        if provider == PushChannelProvider.GOOGLE_CALENDAR.value:
+            # ADR-261 (P3): a changed agenda makes the cached departure advice
+            # stale — the next heartbeat pass recomputes it from fresh events.
+            departure_keys: list[str] = []
+            async for key in redis.scan_iter(match=f"heartbeat:departure:{user_id}:*"):
+                departure_keys.append(key)
+            for start in range(0, len(departure_keys), _DELETE_BATCH_SIZE):
+                await redis.delete(*departure_keys[start : start + _DELETE_BATCH_SIZE])
+
         logger.debug(
             "push_caches_invalidated",
             provider=provider,

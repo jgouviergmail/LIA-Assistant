@@ -447,93 +447,21 @@ class ConversationService:
                 error=str(context_cleanup_error),
             )
 
-        # Purge ALL Redis data for this user/conversation - GENERIC CLEANUP
-        # CRITICAL: Clean everything to prevent conversation bleed-through into new conversation
-        #
-        # Design: Generic user-scoped cleanup instead of hard-coded patterns.
-        # This approach:
-        # - Works for ANY agent (contacts, emails, calendar, docs, etc.)
-        # - No code changes needed when adding new agents
-        # - Comprehensive: cleans ALL user data, not just specific patterns
-        # - Safe: Uses SCAN (not KEYS), respects production best practices
+        # Purge the conversation's Redis keys by declared family (ADR-260).
+        # The scan patterns are the historical six; the registry decides what
+        # is conversation/cache (deleted) and what is learning/runtime (kept).
+        # Best-effort: a failed purge costs a cache miss, never a failed reset
+        # — but a Redis outage is a real signal, so it is warned, not hidden.
         try:
+            from src.domains.conversations.reset_purge import purge_conversation_keys
             from src.infrastructure.cache.redis import get_redis_cache
 
-            redis = await get_redis_cache()
-            conversation_id_str = str(conversation.id)
-            user_id_str = str(user_id)
-
-            # Generic pattern-based cleanup: delete ALL keys containing user_id or conversation_id
-            # Pattern coverage:
-            # - *:{user_id}:*       → contacts_search:USER:query, gmail:message:USER:id
-            # - *:{user_id}         → contacts_list:USER, any_cache:USER
-            # - {user_id}:*         → USER:session_data:*, USER:preferences:*
-            # - *:{conversation_id}:* → hitl_pending:CONV:data, context:CONV:state
-            # - *:{conversation_id} → pending_hitl:CONV, any_conv_cache:CONV
-            # - {conversation_id}:* → CONV:checkpoint:*, CONV:metadata:*
-            #
-            # This covers:
-            # - HITL: pending_hitl, hitl_pending, hitl:request_ts, hitl_tool_call_mapping
-            # - Contacts: contacts_list, contacts_search, contacts_details
-            # - Emails: gmail:message, gmail:search (via invalidate_llm_cache below)
-            # - LLM cache: llm_cache:* (via invalidate_llm_cache below)
-            # - ANY future agent caches automatically
-            patterns_to_scan = [
-                f"*:{user_id_str}:*",
-                f"*:{user_id_str}",
-                f"{user_id_str}:*",
-                f"*:{conversation_id_str}:*",
-                f"*:{conversation_id_str}",
-                f"{conversation_id_str}:*",
-            ]
-
-            deleted_count = 0
-            deleted_by_pattern = {}
-
-            for pattern in patterns_to_scan:
-                cursor = 0
-                pattern_deleted = 0
-
-                while True:
-                    cursor, keys = await redis.scan(cursor, match=pattern, count=100)
-
-                    if keys:
-                        # Filter out whitelisted global keys if needed (none for now)
-                        # keys_to_delete = [k for k in keys if not _is_whitelisted_key(k)]
-                        keys_to_delete = keys
-
-                        if keys_to_delete:
-                            result = await redis.delete(*keys_to_delete)
-                            pattern_deleted += result
-                            deleted_count += result
-                            logger.debug(
-                                "redis_pattern_batch_deleted",
-                                pattern=pattern,
-                                batch_size=len(keys_to_delete),
-                                batch_deleted=result,
-                            )
-
-                    if cursor == 0:
-                        break
-
-                if pattern_deleted > 0:
-                    deleted_by_pattern[pattern] = pattern_deleted
-                    logger.debug(
-                        "redis_pattern_deleted",
-                        pattern=pattern,
-                        count=pattern_deleted,
-                    )
-
-            logger.info(
-                "redis_purged_for_reset",
-                user_id=user_id_str,
-                conversation_id=conversation_id_str,
-                total_keys_deleted=deleted_count,
-                patterns_scanned=len(patterns_to_scan),
-                deleted_by_pattern=deleted_by_pattern,
+            await purge_conversation_keys(
+                await get_redis_cache(),
+                user_id=str(user_id),
+                conversation_id=str(conversation.id),
             )
         except Exception as redis_error:
-            # Non-fatal: continue even if Redis purge fails
             logger.warning(
                 "redis_purge_failed",
                 user_id=str(user_id),

@@ -126,6 +126,9 @@ async def record_occurrence(
         hours = data["days"].setdefault(local_date.isoformat(), [])
         if len(hours) < settings.recurrence_day_hours_cap:
             hours.append(round(float(local_hour), 2))
+        # A live turn is direct evidence: the payload's provenance becomes
+        # ``live`` even when the seed first rebuilt it (ADR-214 amendment).
+        data["origin"] = recurrence_store.ORIGIN_LIVE
         _trim(data, settings.recurrence_ledger_max_entries)
         await _store(redis, key, data, settings.recurrence_window_days)
     except Exception as exc:  # noqa: BLE001 — advisory ledger, never blocks

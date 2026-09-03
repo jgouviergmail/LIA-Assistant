@@ -60,3 +60,24 @@ class TestCandidateUsersQuery:
 
         with pytest.raises(ValueError, match="unknown enabled_field"):
             build_candidate_users_query(enabled_field="no_such_flag", batch_size=10)
+
+
+class TestExplicitUsers:
+    """ADR-261: the wake sweep targets explicit users; the random slot
+    allocation stays for the population batch."""
+
+    def test_user_ids_restrict_the_candidates(self) -> None:
+        import uuid
+
+        from src.infrastructure.proactive.runner import build_candidate_users_query
+
+        uid = uuid.uuid4()
+        query = build_candidate_users_query(
+            enabled_field="heartbeat_enabled", batch_size=1, user_ids=[uid]
+        )
+        sql = str(query.compile(dialect=postgresql.dialect()))
+        assert "users.id IN" in sql
+        assert "heartbeat_enabled" in sql
+
+    def test_without_user_ids_no_in_clause(self) -> None:
+        assert "users.id IN" not in _sql("heartbeat_enabled", 5)

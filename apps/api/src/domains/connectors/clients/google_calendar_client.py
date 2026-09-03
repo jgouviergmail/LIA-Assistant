@@ -264,6 +264,80 @@ class GoogleCalendarClient(BaseGoogleClient):
 
         return response
 
+    @staticmethod
+    def _events_params(
+        *,
+        time_min: str | None,
+        time_max: str | None,
+        max_results: int,
+        query: str | None = None,
+        fields: list[str] | None = None,
+        updated_min: str | None = None,
+    ) -> dict[str, Any]:
+        """Query parameters shared by the single-request event listings.
+
+        Enforces the global per-request volumetry ceiling (ADR: centralized
+        cap): these listings do NOT go through ``BaseGoogleClient._paginate``,
+        so the cap is applied here — the domain-level cap is applied upstream
+        in the tool, this is the hard safety ceiling.
+        """
+        params: dict[str, Any] = {
+            "maxResults": apply_max_items_limit(max_results),
+            "singleEvents": True,
+            "orderBy": "startTime",
+        }
+        if time_min:
+            params["timeMin"] = time_min
+        if time_max:
+            params["timeMax"] = time_max
+        if query:
+            params["q"] = query
+        if updated_min:
+            params["updatedMin"] = updated_min
+        # Field projection for optimization (reduces response size and latency):
+        # Google Calendar API uses "fields" with the items(field1,field2) syntax.
+        if fields:
+            params["fields"] = f"items({','.join(fields)}),nextPageToken"
+        return params
+
+    async def list_updated_events(
+        self,
+        *,
+        calendar_id: str,
+        updated_min: str,
+        time_min: str,
+        time_max: str,
+        max_results: int = 20,
+        fields: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Events changed since ``updated_min`` that start inside the window (ADR-261).
+
+        Google-only on purpose: the provider protocol's ``list_events`` has no
+        "changed since" filter and the other calendar providers cannot honour
+        one, so the push wake reads its delta through this dedicated method
+        rather than widening the shared signature (the parity contract would
+        rightly refuse).
+
+        Args:
+            calendar_id: Calendar to read.
+            updated_min: RFC3339 lower bound on the event's last modification.
+            time_min: RFC3339 start of the window the event must start in.
+            time_max: RFC3339 end of that window.
+            max_results: Hard-capped by ``apply_max_items_limit``.
+            fields: Optional projection, as for ``list_events``.
+
+        Returns:
+            The raw listing (``items``), unsorted beyond the API's start-time order.
+        """
+        params = self._events_params(
+            time_min=time_min,
+            time_max=time_max,
+            max_results=max_results,
+            fields=fields,
+            updated_min=updated_min,
+        )
+        return await self._make_request("GET", f"/calendars/{calendar_id}/events", params=params)
+
     async def list_events(
         self,
         time_min: str | None = None,
@@ -299,30 +373,13 @@ class GoogleCalendarClient(BaseGoogleClient):
             ... )
             >>> print(len(result["items"]))
         """
-        # Enforce the global per-request volumetry ceiling (ADR: centralized cap).
-        # list_events does NOT go through BaseGoogleClient._paginate (single direct
-        # request), so the cap must be applied explicitly here — the domain-level
-        # cap is applied upstream in the tool, this is the hard safety ceiling.
-        max_results = apply_max_items_limit(max_results)
-
-        params: dict[str, Any] = {
-            "maxResults": max_results,
-            "singleEvents": True,
-            "orderBy": "startTime",
-        }
-
-        if time_min:
-            params["timeMin"] = time_min
-        if time_max:
-            params["timeMax"] = time_max
-        if query:
-            params["q"] = query
-
-        # Field projection for optimization (reduces response size and latency)
-        if fields:
-            # Google Calendar API uses "fields" parameter with items(field1,field2) syntax
-            fields_str = ",".join(fields)
-            params["fields"] = f"items({fields_str}),nextPageToken"
+        params = self._events_params(
+            time_min=time_min,
+            time_max=time_max,
+            max_results=max_results,
+            query=query,
+            fields=fields,
+        )
 
         response = await self._make_request(
             "GET",

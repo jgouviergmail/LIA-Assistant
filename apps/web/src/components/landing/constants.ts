@@ -252,10 +252,10 @@
  *   changelog surfaces iterating the new key) = 25,444 → 25,400.
  *   Previous re-measure at v1.30.16: backend 19,335 (1,076 files, pytest
  *   --collect-only, unchanged — frontend-only release) + frontend 6,035
- *   Re-measured at v1.39.1 (the minutes template library + knowledge-space
- *   document batches): backend 22,775 (1,349 files, pytest
- *   --collect-only) + frontend 6,983 (559 files, vitest) =
- *   29,758 → 29,700 (rounded strictly down).
+ *   Re-measured at v1.40.0 (the silent-loops programme: key families,
+ *   push-driven wake, Gmail label source): backend 22,997 (1,375 files,
+ *   pytest --collect-only) + frontend 7,018 (vitest list) = 30,015 →
+ *   30,000 (rounded strictly down).
  *   (475 files, vitest; the expressive-eyes wave) = 25,370 → 25,300.
  *   Previous re-measure at v1.30.12: backend 19,844 (1,119 files, pytest
  *   --collect-only) + frontend 5,815 (463 files, vitest) = 25,659 → 25,600.
@@ -287,11 +287,11 @@ export const LANDING_STATS = {
   tools: 108,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 507,
+  metrics: 519,
   uiLanguages: 6,
-  tests: 29700,
-  adrs: 258,
-  releases: 242,
+  tests: 30000,
+  adrs: 261,
+  releases: 243,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

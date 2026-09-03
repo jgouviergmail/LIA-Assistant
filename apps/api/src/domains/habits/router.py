@@ -10,15 +10,17 @@ References:
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import HABITS_PRESENCE_RATE_LIMIT_PER_MINUTE
 from src.core.dependencies import get_db
-from src.core.exceptions import ResourceNotFoundError
+from src.core.exceptions import ResourceNotFoundError, raise_rate_limit_exceeded
 from src.core.session_dependencies import get_current_active_session
 from src.core.time_utils import resolve_user_timezone
 from src.domains.habits.candidates import (
@@ -26,6 +28,7 @@ from src.domains.habits.candidates import (
     observed_days_for_signature,
 )
 from src.domains.habits.models import HabitKind, ProfileVerdict, UserHabitProfile
+from src.domains.habits.presence import record_presence
 from src.domains.habits.rhythm import (
     RhythmProfile,
     RhythmThresholds,
@@ -48,6 +51,7 @@ from src.domains.habits.schemas import (
 from src.domains.habits.service import HabitsService
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
 logger = get_logger(__name__)
 
@@ -142,7 +146,10 @@ async def get_habits_overview(
         habits=[HabitResponse.model_validate(h) for h in habits],
         candidates=[
             HabitsCandidateSchema(
-                key=c.key, observed_days=c.observed_days, required_days=c.required_days
+                key=c.key,
+                observed_days=c.observed_days,
+                required_days=c.required_days,
+                origin=c.origin,
             )
             for c in candidates
         ],
@@ -174,6 +181,40 @@ async def recompute_habits_now(
         outcome=outcome,
     )
     return HabitsRecomputeResponse(outcome=outcome, profile=_profile_to_schema(profile))
+
+
+@router.post(
+    "/presence",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="Reading presence ping",
+    description="The client says the user has LIA in front of them (on mount, on "
+    "visibilitychange→visible, on focus — never from a background poll). Banks at "
+    "most one activity hour per local hour; a sent notification never counts.",
+)
+async def record_reading_presence(
+    current_user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Bank a reading-presence hour for the current user (idempotent)."""
+    # Per-user ceiling on a cheap, client-throttled call — Redis down means
+    # the limiter fails open (the endpoint is idempotent by construction).
+    allowed = True
+    with suppress(Exception):
+        limiter = await get_rate_limiter()
+        allowed = await limiter.acquire(
+            key=f"user:{current_user.id}:presence",
+            max_calls=HABITS_PRESENCE_RATE_LIMIT_PER_MINUTE,
+            window_seconds=60,
+        )
+    if not allowed:
+        raise_rate_limit_exceeded(
+            limit=HABITS_PRESENCE_RATE_LIMIT_PER_MINUTE, window_seconds=60, retry_after=60
+        )
+    outcome = await record_presence(db, current_user, kind="visibility")
+    await db.commit()
+    logger.debug("habits_presence_ping", user_id=str(current_user.id), outcome=outcome)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch(
@@ -289,5 +330,26 @@ async def delete_all_habits(
     # the profile instantly from data the user just asked to forget.
     await service.repository.delete_activity_rollup(current_user.id)
     await db.commit()
-    logger.info("habits_deleted_all", user_id=str(current_user.id), deleted=deleted)
+    # The recurrence ledger is learning material the conversation reset now
+    # leaves alone (ADR-260): "forget everything" is the surface that removes
+    # it, or the candidates under observation would come back on the next
+    # read from data the user just asked to forget. Best-effort — Redis being
+    # down must not fail the rows already deleted, but it is a real signal.
+    ledger_keys_deleted = 0
+    try:
+        from src.domains.habits.presence import forget_user
+        from src.infrastructure.cache import recurrence_store
+        from src.infrastructure.cache.redis import get_redis_cache
+
+        redis = await get_redis_cache()
+        ledger_keys_deleted = await recurrence_store.delete_user_ledger(redis, str(current_user.id))
+        ledger_keys_deleted += await forget_user(redis, current_user.id)
+    except Exception as exc:  # noqa: BLE001 — best-effort forget of advisory Redis state
+        logger.warning("habits_ledger_forget_failed", user_id=str(current_user.id), error=str(exc))
+    logger.info(
+        "habits_deleted_all",
+        user_id=str(current_user.id),
+        deleted=deleted,
+        ledger_keys_deleted=ledger_keys_deleted,
+    )
     return HabitsDeleteAllResponse(deleted_habits=deleted, profile_deleted=True)

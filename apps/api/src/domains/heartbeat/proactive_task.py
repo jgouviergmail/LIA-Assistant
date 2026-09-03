@@ -23,6 +23,7 @@ import structlog
 
 from src.core.config import get_settings
 from src.core.constants import HEARTBEAT_ENRICHMENT_CONTEXT_ID
+from src.domains.habits.presence import last_seen_at
 from src.domains.heartbeat.context_aggregator import ContextAggregator
 from src.domains.heartbeat.habit_context import should_defer_tick_for_rhythm
 from src.domains.heartbeat.prompts import (
@@ -30,6 +31,7 @@ from src.domains.heartbeat.prompts import (
     get_heartbeat_decision,
 )
 from src.domains.heartbeat.schemas import HeartbeatTarget
+from src.domains.push_channels.wake import WakePayload
 from src.infrastructure.database import get_db_context
 from src.infrastructure.observability.metrics_registry import heartbeat_enrichment_total
 from src.infrastructure.proactive.base import ContentSource, ProactiveTaskResult
@@ -76,6 +78,12 @@ class HeartbeatProactiveTask:
 
     task_type: str = "heartbeat"
 
+    def __init__(self, wake: WakePayload | None = None) -> None:
+        """Args:
+        wake: The push wake being served (ADR-261), or None for a tick.
+        """
+        self.wake = wake
+
     async def check_eligibility(
         self,
         user_id: UUID,
@@ -119,12 +127,11 @@ class HeartbeatProactiveTask:
 
                 # Early-exit: skip if user inactive for too long (save tokens)
                 inactive_days = getattr(settings, "heartbeat_inactive_skip_days", 7)
-                if user.last_login:
-                    last_login = user.last_login
-                    # Defensive: ensure timezone-aware for safe subtraction
-                    if last_login.tzinfo is None:
-                        last_login = last_login.replace(tzinfo=UTC)
-                    days_since = (datetime.now(UTC) - last_login).days
+                # ADR-214 amendment: a user who READS without logging in again
+                # is not inactive (last_login alone silenced two accounts).
+                last_seen = await last_seen_at(user)
+                if last_seen is not None:
+                    days_since = (datetime.now(UTC) - last_seen).days
                     if days_since > inactive_days:
                         logger.debug(
                             "heartbeat_skip_inactive_user",
@@ -134,8 +141,10 @@ class HeartbeatProactiveTask:
                         return None
 
                 # Aggregate context from all sources in parallel
-                aggregator = ContextAggregator(db)
+                aggregator = ContextAggregator(db, wake=self.wake)
                 context = await aggregator.aggregate(user_id, user)
+                if self.wake is not None:
+                    context.wake_trigger = self.wake.provider
 
             if not context.has_meaningful_context():
                 logger.debug(
@@ -442,6 +451,10 @@ class HeartbeatProactiveTask:
         is not used here.
         """
 
+    def _trigger(self) -> str:
+        """What woke this decision (ADR-261): a push notification or the tick."""
+        return "push" if self.wake is not None else "tick"
+
     async def on_notification_sent(
         self,
         user_id: UUID,
@@ -486,6 +499,7 @@ class HeartbeatProactiveTask:
                 model_name=result.model_name,
                 # ADR-214: persisted so the feedback route can bump the habit.
                 habit_offer_id=_as_uuid(result.metadata.get("habit_offer_id")),
+                trigger=self._trigger(),
             )
 
             # Unified mention ledger (ADR-135): an interest-centered heartbeat

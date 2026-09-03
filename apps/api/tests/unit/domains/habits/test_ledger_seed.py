@@ -161,13 +161,29 @@ class TestSeedLedgerFromOutcomes:
         assert len(days[date(2026, 8, 1)]) == 4  # hours-per-day cap
         assert len(days) == 28  # newest day entries kept (store trim)
 
-    async def test_sql_carries_the_human_whitelist_and_domain_filter(self) -> None:
+    async def test_sql_uses_the_shared_human_predicate_and_domain_filter(self) -> None:
+        """One definition of "human" for the seed AND the rhythm repository
+        (2026-09-03: the summary whitelist read "no summary" as "human" and
+        seeded 183 scheduler outcomes as the user's recurrences)."""
+        from src.domains.habits.human_turns import HUMAN_OUTCOME_PREDICATE_SQL
+
         sql = str(_SEED_ACTIVITY_SQL)
         assert "product_outcomes" in sql
-        assert "message_token_summary" in sql
-        assert "NOT EXISTS" in sql  # automated runs never seed
+        assert HUMAN_OUTCOME_PREDICATE_SQL in sql
+        assert "message_token_summary" not in sql
         assert "'unknown'" in sql  # unlabeled history never seeds
-        assert ":uuid_regex" in sql
+        assert ":uuid_regex" not in sql
+
+    async def test_seeded_payload_states_its_provenance(self) -> None:
+        """A candidate rebuilt from history says so (``origin: seed``) — the
+        settings screen states provenance, it never applies a different bar."""
+        user_id = uuid4()
+        redis = _FakeRedis()
+        db = _db_with_rows([("email", "2026-08-01", 9.0)])
+        with _patch_redis(redis):
+            await seed_ledger_from_outcomes(db, user_id, "Europe/Paris", _settings())
+        data = await recurrence_store.load(redis, recurrence_store.redis_key(str(user_id), "email"))
+        assert data["origin"] == recurrence_store.ORIGIN_SEED
 
 
 class TestRecomputeTriggersSeed:

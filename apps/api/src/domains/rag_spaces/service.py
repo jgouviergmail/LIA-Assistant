@@ -27,11 +27,18 @@ from src.domains.rag_spaces.document_access import (
     document_file_path,
     owned_document,
 )
-from src.domains.rag_spaces.models import RAGDocument, RAGDocumentStatus, RAGDriveSource, RAGSpace
+from src.domains.rag_spaces.models import (
+    RAGDocument,
+    RAGDocumentStatus,
+    RAGDriveSource,
+    RAGMailSource,
+    RAGSpace,
+)
 from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
     RAGDocumentRepository,
     RAGDriveSourceRepository,
+    RAGMailSourceRepository,
     RAGSpaceRepository,
 )
 from src.infrastructure.observability.logging import get_logger
@@ -155,6 +162,7 @@ class RAGSpaceService:
         self.doc_repo = RAGDocumentRepository(db)
         self.chunk_repo = RAGChunkRepository(db)
         self.source_repo = RAGDriveSourceRepository(db)
+        self.mail_source_repo = RAGMailSourceRepository(db)
 
     # ========================================================================
     # Space CRUD
@@ -230,11 +238,13 @@ class RAGSpaceService:
         stats = await self.doc_repo.get_space_stats(space_id)
         documents = await self.doc_repo.get_all_for_space(space_id)
         drive_sources = await self.source_repo.get_all_for_space(space_id)
+        mail_sources = await self.mail_source_repo.get_all_for_space(space_id)
         return {
             **space.dict(),
             **stats,
             "documents": [doc.dict() for doc in documents],
             "drive_sources": [src.dict() for src in drive_sources],
+            "mail_sources": [src.dict() for src in mail_sources],
         }
 
     async def update_space(
@@ -511,6 +521,15 @@ class RAGSpaceService:
         """
         await self.get_space(space_id, user_id)  # Verify ownership
         return await self.source_repo.get_all_for_space(space_id)
+
+    async def list_mail_sources(
+        self,
+        space_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> list[RAGMailSource]:
+        """Every Gmail label linked to a space (ADR-262), after the ownership check."""
+        await self.get_space(space_id, user_id)
+        return await self.mail_source_repo.get_all_for_space(space_id)
 
     async def get_drive_source(
         self,

@@ -213,7 +213,7 @@ def check_raw_http_exception() -> CheckResult:
     return result
 
 
-def check_alembic_single_head() -> CheckResult:
+def check_alembic_single_head(versions: Path | None = None) -> CheckResult:
     """The migration chain must have exactly one head.
 
     Two heads mean two branches of the chain were created in parallel; alembic
@@ -221,7 +221,8 @@ def check_alembic_single_head() -> CheckResult:
     time rather than at review time.
     """
     result = CheckResult("alembic_head", "Alembic migration heads")
-    versions = REPO_ROOT / "apps" / "api" / "alembic" / "versions"
+    if versions is None:
+        versions = REPO_ROOT / "apps" / "api" / "alembic" / "versions"
     if not versions.is_dir():
         result.details.append(f"versions directory not found: {versions}")
         result.failed = True
@@ -231,22 +232,34 @@ def check_alembic_single_head() -> CheckResult:
     down_re = re.compile(r"^down_revision[^=]*=\s*[\"']([^\"']+)", re.MULTILINE)
 
     revisions: dict[str, str] = {}
+    duplicates: list[str] = []
     parents: set[str] = set()
     for path in sorted(versions.glob("*.py")):
         content = path.read_text(encoding="utf-8")
         if match := rev_re.search(content):
-            revisions[match.group(1)] = path.name
+            rev = match.group(1)
+            if rev in revisions:
+                duplicates.append(f"{rev} ({revisions[rev]}, {path.name})")
+            revisions[rev] = path.name
         if match := down_re.search(content):
             parents.add(match.group(1))
 
     heads = [rev for rev in revisions if rev not in parents]
-    if len(heads) > 1:
+    if duplicates:
+        # A reused id makes alembic raise CycleDetected at upgrade time — and it
+        # made THIS check report "no revisions found" as a pass (2026-09-03).
+        result.failed = True
+        result.details = [f"duplicate revision id: {dup}" for dup in duplicates]
+    elif len(heads) > 1:
         result.failed = True
         result.details = [f"{head} ({revisions[head]})" for head in sorted(heads)]
     elif len(heads) == 1:
         result.details = [f"single head: {heads[0]} ({revisions[heads[0]]})"]
     else:
-        result.details = ["no revisions found"]
+        # Zero heads is never "nothing to check": with revisions present it means
+        # every revision is somebody's parent, i.e. the chain loops on itself.
+        result.failed = True
+        result.details = ["no head: empty versions directory or a cycle in the chain"]
     return result
 
 

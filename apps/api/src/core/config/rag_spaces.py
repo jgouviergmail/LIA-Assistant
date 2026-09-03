@@ -27,6 +27,9 @@ from src.core.constants import (
     RAG_JOB_REAPER_CONCURRENCY_DEFAULT,
     RAG_JOB_REAPER_GRACE_SECONDS_DEFAULT,
     RAG_JOB_REAPER_INTERVAL_SECONDS_DEFAULT,
+    RAG_MAIL_MAX_SOURCES_PER_SPACE_DEFAULT,
+    RAG_MAIL_MAX_THREAD_CHARS,
+    RAG_MAIL_MAX_THREADS_PER_SYNC,
     RAG_REINDEX_LOCK_TTL_SECONDS_DEFAULT,
     RAG_SPACES_ALLOWED_TYPES_DEFAULT,
     RAG_SPACES_ARCHIVE_MAX_MB_DEFAULT,
@@ -316,6 +319,42 @@ class RAGSpacesSettings(BaseSettings):
         ge=1,
         le=20,
         description="Maximum number of Drive folder sources per space.",
+    )
+
+    # ------------------------------------------------------------------
+    # Mail source (ADR-262): opt-in per Gmail label, OFF by default.
+    # ------------------------------------------------------------------
+
+    rag_spaces_mail_sync_enabled: bool = Field(
+        default=False,
+        description=(
+            "Enable the Gmail label source for RAG Spaces: the threads carrying an "
+            "opted-in label are indexed as documents, and follow the label (ADR-262). "
+            "The INCREMENTAL path rides the push wake, so it also needs "
+            "PUSH_WAKE_ENABLED; without it only the manual sync and the reaper "
+            "feed a label source."
+        ),
+    )
+
+    rag_mail_max_sources_per_space: int = Field(
+        default=RAG_MAIL_MAX_SOURCES_PER_SPACE_DEFAULT,
+        ge=1,
+        le=20,
+        description="Maximum number of Gmail label sources per space.",
+    )
+
+    rag_mail_max_threads_per_sync: int = Field(
+        default=RAG_MAIL_MAX_THREADS_PER_SYNC,
+        ge=1,
+        le=2000,
+        description="Threads read by one full label sync (the rest waits for the next run).",
+    )
+
+    rag_mail_max_thread_chars: int = Field(
+        default=RAG_MAIL_MAX_THREAD_CHARS,
+        ge=1000,
+        le=500000,
+        description="Size cap, in characters, of one rendered thread document.",
     )
 
     # ========================================================================

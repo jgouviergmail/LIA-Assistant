@@ -417,6 +417,34 @@ class GoogleDriveClient(BaseGoogleClient):
         response = await self._make_request("GET", "/changes/startPageToken")
         return str(response.get("startPageToken", ""))
 
+    async def list_changes(self, page_token: str, page_size: int = 100) -> dict[str, Any]:
+        """One page of the changes feed since ``page_token`` (ADR-261, P2).
+
+        Args:
+            page_token: The token stored with the watch channel (or the
+                ``nextPageToken`` of the previous page).
+            page_size: Changes per page (Google caps at 1000).
+
+        Returns:
+            ``{"changes": [...], "nextPageToken"?: ..., "newStartPageToken"?: ...}``
+            — the presence of ``newStartPageToken`` means the feed is drained
+            and that token is the next baseline.
+        """
+        return await self._make_request(
+            "GET",
+            "/changes",
+            params={
+                "pageToken": page_token,
+                "pageSize": apply_max_items_limit(page_size),
+                "fields": (
+                    "nextPageToken,newStartPageToken,"
+                    "changes(fileId,removed,changeType,"
+                    "file(id,name,mimeType,modifiedTime,parents,trashed))"
+                ),
+                "includeRemoved": "true",
+            },
+        )
+
     async def watch_changes(
         self,
         channel_id: str,

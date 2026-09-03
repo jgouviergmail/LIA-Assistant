@@ -17,7 +17,17 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +46,11 @@ class RAGDriveSyncStatus:
     ERROR = "error"
 
 
+# One sync lifecycle for every synced source (Drive folder, Gmail label —
+# ADR-262): the durable-job reaper reasons about SYNCING + lease the same way.
+RAGSourceSyncStatus = RAGDriveSyncStatus
+
+
 class RAGDocumentSourceType:
     """Source type for RAG documents."""
 
@@ -45,6 +60,9 @@ class RAGDocumentSourceType:
     # rendering the domain owns; the space UI links to the meeting, not to a
     # download, and deleting the row only unlinks the meeting (FK SET NULL).
     MEETING = "meeting"
+    # A Gmail thread carrying an opted-in label (ADR-262): rendered as Markdown
+    # by the mail source; it follows the label — removing the label removes it.
+    MAIL = "mail"
 
 
 class RAGDocumentStatus:
@@ -162,6 +180,13 @@ class RAGSpace(BaseModel):
 
     drive_sources: Mapped[list[RAGDriveSource]] = relationship(
         "RAGDriveSource",
+        back_populates="space",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+
+    mail_sources: Mapped[list[RAGMailSource]] = relationship(
+        "RAGMailSource",
         back_populates="space",
         cascade="all, delete-orphan",
         lazy="noload",
@@ -297,6 +322,107 @@ class RAGDriveSource(BaseModel):
     )
 
 
+class RAGMailSource(BaseModel):
+    """Gmail label linked to a RAG space (ADR-262): its threads become documents.
+
+    The opt-in is the label: the user applies it in Gmail, and only the threads
+    carrying it are rendered and indexed; removing the label removes the
+    document. The full sync lists the label's threads; the incremental path
+    reads Gmail's history from ``last_history_id`` when a push notification
+    arrives (ADR-261). Same durable-job fields as ``RAGDriveSource`` so the
+    reaper recovers a crashed sync the same way.
+
+    Attributes:
+        space_id: Parent RAG space.
+        user_id: Owning user (denormalized for direct access checks).
+        label_id: Gmail label id (``Label_123…`` or a system label).
+        label_name: Human-readable label name (display only).
+        sync_status: Current sync lifecycle state (idle/syncing/completed/error).
+        last_sync_at: Timestamp of the last successful sync.
+        thread_count: Threads seen under the label by the last full sync.
+        synced_thread_count: Threads whose document is indexed.
+        last_history_id: Gmail history id the incremental path resumes from.
+        error_message: Last error message (if sync_status == error).
+    """
+
+    __tablename__ = "rag_mail_sources"
+
+    space_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rag_spaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    label_id: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    label_name: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    sync_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=RAGSourceSyncStatus.IDLE,
+    )
+
+    last_sync_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+
+    thread_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    synced_thread_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    last_history_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+        default=None,
+        comment="Gmail history id the incremental path resumes from (ADR-262)",
+    )
+
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+
+    # --- Durable-job fields (audit F001): lease/heartbeat/bounded-retry ---
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+    heartbeat_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    worker_id: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
+
+    # Relationships
+    space: Mapped[RAGSpace] = relationship("RAGSpace", back_populates="mail_sources")
+
+    documents: Mapped[list[RAGDocument]] = relationship(
+        "RAGDocument",
+        back_populates="mail_source",
+        lazy="noload",
+    )
+
+    __table_args__ = (
+        Index("ix_rag_mail_sources_space_id", "space_id"),
+        Index("ix_rag_mail_sources_user_id", "user_id"),
+        Index("uq_rag_mail_sources_space_label", "space_id", "label_id", unique=True),
+        # Durable-job reaper scan (audit F001).
+        Index("ix_rag_mail_sources_status_lease", "sync_status", "lease_expires_at"),
+    )
+
+
 class RAGDocument(BaseModel):
     """
     Uploaded document within a RAG space.
@@ -413,6 +539,22 @@ class RAGDocument(BaseModel):
         default=None,
     )
 
+    # Mail source columns (ADR-262): the thread this document renders.
+    mail_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("rag_mail_sources.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
+
+    mail_thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+
+    mail_last_message_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+        comment="Newest message of the rendered thread (change detection)",
+    )
+
     # --- Durable-job fields (audit F001): lease/heartbeat/bounded-retry ---
     lease_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -447,6 +589,11 @@ class RAGDocument(BaseModel):
         back_populates="documents",
     )
 
+    mail_source: Mapped[RAGMailSource | None] = relationship(
+        "RAGMailSource",
+        back_populates="documents",
+    )
+
     chunks: Mapped[list[RAGChunk]] = relationship(
         "RAGChunk",
         back_populates="document",
@@ -459,6 +606,8 @@ class RAGDocument(BaseModel):
         Index("ix_rag_documents_user_id", "user_id"),
         Index("ix_rag_documents_drive_source_id", "drive_source_id"),
         Index("ix_rag_documents_drive_file_id", "drive_file_id"),
+        Index("ix_rag_documents_mail_source_id", "mail_source_id"),
+        Index("ix_rag_documents_mail_thread_id", "mail_thread_id"),
         # Durable-job reaper scan (audit F001).
         Index("ix_rag_documents_status_lease", "status", "lease_expires_at"),
     )

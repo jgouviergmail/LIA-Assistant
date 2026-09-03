@@ -155,6 +155,50 @@ Source: paper.pdf
 
 ---
 
+## Gmail Label Sources (ADR-262)
+
+A space follows a **Gmail label**, never the mailbox. The threads carrying
+that label become documents; removing the label removes the document at the
+next pass. Off by default (`RAG_SPACES_MAIL_SYNC_ENABLED`); the incremental
+path also needs `PUSH_WAKE_ENABLED`, because it rides the push wake of
+ADR-261 — without it the source is still correct, just no longer incremental.
+
+**Rendering** (`rag_spaces/mail_render.py`, pure): the subject as the title,
+one section per message in date order, the plain-text body preferred (HTML
+converted by the Gmail client's own extractor — never a second parser),
+attachment **names** only, and a hard cap of `RAG_MAIL_MAX_THREAD_CHARS`.
+The document's display name is the subject, sanitised: it is written by a
+third party and it travels into a `Content-Disposition` header.
+
+**Two ways in, one ingestion** (`rag_spaces/mail_sync.py`):
+
+| Path | Trigger | What it does |
+|---|---|---|
+| Full sync | link, manual sync, reaper re-drive | reads the history id **before** listing the label's threads (a message arriving mid-listing is replayed by the next pass instead of falling in the gap), ingests each thread, removes the documents whose thread left the label, completes with an EXACT `COUNT(*)` of READY documents |
+| Incremental | a Gmail push notification (ADR-261) | replays `history.list` from the source's anchor, revisits only the threads the history names (label added/removed, message added to an indexed thread), and falls back to a full sync when the anchor is missing or expired |
+
+Both call `ingest_thread`, which skips an unchanged thread by its newest
+message stamp and replaces a changed one — and both create the PENDING
+document through `drive_ingest.create_pending_document`, the step every
+synced source shares.
+
+**Durability**: `rag_mail_sources` carries the same lease/heartbeat/attempts/
+worker columns as `rag_drive_sources`, and `RAGJobsRepository`'s three source
+jobs take the TABLE as a parameter, validated against a two-name allowlist —
+so the reaper recovers a crashed label sync exactly like a crashed folder
+sync. A PENDING document of a LIVE label sync is excluded from recovery for
+the same reason as a Drive one: its sync will claim it.
+
+**Endpoints** (space-scoped, ownership hides existence):
+`GET /rag-spaces/{space_id}/mail-labels` (the user's own labels — system
+labels are never offered), `GET|POST /rag-spaces/{space_id}/mail-sources`,
+`DELETE …/mail-sources/{source_id}`, `POST …/mail-sources/{source_id}/sync`,
+`GET …/mail-sources/{source_id}/sync-status`.
+
+**Metrics**: `rag_mail_sync_runs_total{status}`,
+`rag_mail_sync_threads_total{result}`, `rag_mail_push_index_total{outcome}`,
+`rag_mail_sources_total_count` — all on dashboard 18.
+
 ## Reindexation & Generational Continuity (ADR-150)
 
 Changing `RAG_SPACES_EMBEDDING_MODEL` triggers an admin reindexation

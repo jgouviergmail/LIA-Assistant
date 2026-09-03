@@ -1,6 +1,10 @@
 /**
  * Card displaying a linked Google Drive folder source with sync status and actions.
  *
+ * The card itself is shared with the Gmail label source (ADR-262):
+ * `SourceSyncCard` owns the layout, the lifecycle tone and the two actions;
+ * this file owns the Drive icon and wording.
+ *
  * Phase: evolution — RAG Spaces (Google Drive sync)
  * Created: 2026-03-18
  */
@@ -8,20 +12,10 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import {
-  FolderSync,
-  RefreshCw,
-  Unlink,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Loader2,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import type { RAGDriveSource, RAGDriveSyncStatus } from '@/types/rag-spaces';
-import { lifecycleTone } from '@/lib/status-tone';
+import { FolderSync } from 'lucide-react';
+
+import { SourceSyncCard } from '@/components/spaces/SourceSyncCard';
+import type { RAGDriveSource, RAGSourceSyncStatus } from '@/types/rag-spaces';
 
 interface DriveSourceCardProps {
   source: RAGDriveSource;
@@ -30,123 +24,32 @@ interface DriveSourceCardProps {
   syncing?: boolean;
 }
 
-/** Map sync status to badge variant and icon. */
-/**
- * Icon and label per sync status; the TONE comes from the shared table.
- *
- * The icon is domain knowledge — a spinner for a sync in flight, a clock for an
- * idle source — but the colour is not: `idle` used to be an `outline` here and
- * `secondary` elsewhere, for the same "nothing is happening" meaning.
- */
-function getSyncStatusDisplay(status: RAGDriveSyncStatus) {
-  const tone = lifecycleTone(status);
-  switch (status) {
-    case 'syncing':
-      return {
-        variant: tone,
-        icon: <Loader2 className="h-3 w-3 animate-spin" />,
-        key: 'spaces.drive.status_syncing',
-      };
-    case 'completed':
-      return {
-        variant: tone,
-        icon: <CheckCircle className="h-3 w-3" />,
-        key: 'spaces.drive.status_completed',
-      };
-    case 'error':
-      return {
-        variant: tone,
-        icon: <AlertCircle className="h-3 w-3" />,
-        key: 'spaces.drive.status_error',
-      };
-    case 'idle':
-    default:
-      return {
-        variant: tone,
-        icon: <Clock className="h-3 w-3" />,
-        key: 'spaces.drive.status_idle',
-      };
-  }
-}
-
-/** Format a relative time string without date-fns. */
-function formatRelativeTime(dateString: string): string {
-  const now = Date.now();
-  const date = new Date(dateString).getTime();
-  const diffMs = now - date;
-  const diffMinutes = Math.floor(diffMs / 60_000);
-  const diffHours = Math.floor(diffMs / 3_600_000);
-  const diffDays = Math.floor(diffMs / 86_400_000);
-
-  if (diffMinutes < 1) return '< 1 min';
-  if (diffMinutes < 60) return `${diffMinutes} min`;
-  if (diffHours < 24) return `${diffHours}h`;
-  return `${diffDays}d`;
-}
+const STATUS_KEYS: Record<RAGSourceSyncStatus, string> = {
+  idle: 'spaces.drive.status_idle',
+  syncing: 'spaces.drive.status_syncing',
+  completed: 'spaces.drive.status_completed',
+  error: 'spaces.drive.status_error',
+};
 
 export function DriveSourceCard({ source, onSync, onUnlink, syncing }: DriveSourceCardProps) {
   const { t } = useTranslation();
-  const statusDisplay = getSyncStatusDisplay(source.sync_status);
 
   return (
-    <Card className="group">
-      <CardContent className="p-4 flex items-center gap-3">
-        {/* Folder icon */}
-        <div className="shrink-0 rounded-lg bg-primary/10 p-2">
-          <FolderSync className="h-4 w-4 text-primary" />
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{source.folder_name}</p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-            <Badge variant={statusDisplay.variant} size="sm" icon={statusDisplay.icon}>
-              {t(statusDisplay.key)}
-            </Badge>
-            <span>
-              {t('spaces.drive.synced_count', { count: source.synced_file_count })}
-              {' / '}
-              {t('spaces.drive.files_count', { count: source.file_count })}
-            </span>
-            {source.last_sync_at && (
-              <>
-                <span>&middot;</span>
-                <span>
-                  {t('spaces.drive.last_synced', {
-                    time: formatRelativeTime(source.last_sync_at),
-                  })}
-                </span>
-              </>
-            )}
-          </div>
-          {source.sync_status === 'error' && source.error_message && (
-            <p className="mt-1 text-xs text-destructive truncate">{source.error_message}</p>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onSync(source.id)}
-            disabled={syncing || source.sync_status === 'syncing'}
-            title={t('spaces.drive.sync_now')}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-            onClick={() => onUnlink(source.id)}
-            title={t('spaces.drive.unlink')}
-          >
-            <Unlink className="h-3.5 w-3.5 text-destructive" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <SourceSyncCard
+      icon={<FolderSync className="h-4 w-4 text-primary" />}
+      title={source.folder_name}
+      status={source.sync_status}
+      statusKeys={STATUS_KEYS}
+      syncedLabel={t('spaces.drive.synced_count', { count: source.synced_file_count })}
+      totalLabel={t('spaces.drive.files_count', { count: source.file_count })}
+      lastSyncAt={source.last_sync_at}
+      lastSyncedLabel={time => t('spaces.drive.last_synced', { time })}
+      errorMessage={source.error_message}
+      onSync={() => onSync(source.id)}
+      onUnlink={() => onUnlink(source.id)}
+      syncing={syncing}
+      syncTitle={t('spaces.drive.sync_now')}
+      unlinkTitle={t('spaces.drive.unlink')}
+    />
   );
 }

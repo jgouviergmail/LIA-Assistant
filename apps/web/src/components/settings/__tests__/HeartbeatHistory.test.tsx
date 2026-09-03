@@ -71,7 +71,9 @@ describe('HeartbeatHistory — reading what was delivered', () => {
   it('renders a source label it does not know without leaking the raw key', () => {
     // A new backend label must never surface as `heartbeat.history.source_X`.
     renderWithProviders(
-      <HeartbeatHistory {...makeProps({ notifications: [notification({ sources_used: ['NEW'] })] })} />
+      <HeartbeatHistory
+        {...makeProps({ notifications: [notification({ sources_used: ['NEW'] })] })}
+      />
     );
 
     expect(screen.queryByText(/heartbeat\.history\.source_NEW/)).not.toBeInTheDocument();
@@ -114,7 +116,9 @@ describe('HeartbeatHistory — states', () => {
 
   it('shows a spinner on FIRST load only', () => {
     renderWithProviders(
-      <HeartbeatHistory {...makeProps({ notifications: undefined, firstLoad: true, loading: true })} />
+      <HeartbeatHistory
+        {...makeProps({ notifications: undefined, firstLoad: true, loading: true })}
+      />
     );
 
     expect(screen.getByRole('status')).toBeInTheDocument();
@@ -146,9 +150,7 @@ describe('rendering values the frontend was not told about', () => {
   it('never shows a raw i18n key for a priority it does not know', () => {
     renderWithProviders(
       <HeartbeatHistory
-        notifications={[
-          notification({ priority: 'urgent' }),
-        ]}
+        notifications={[notification({ priority: 'urgent' })]}
         total={1}
         firstLoad={false}
         loading={false}
@@ -215,11 +217,33 @@ describe('how the three priorities are told apart', () => {
     // A level the backend adds later must not arrive shouting: rendering it
     // red because it is unrecognised would be a claim nobody made.
     renderWithProviders(
-      <HeartbeatHistory {...makeProps({ notifications: [notification({ priority: 'critical' })] })} />
+      <HeartbeatHistory
+        {...makeProps({ notifications: [notification({ priority: 'critical' })] })}
+      />
     );
 
     expect(marker().className).not.toMatch(/destructive|red/);
     // And its raw value is shown, never a missing i18n key.
     expect(screen.getByText('critical')).toBeInTheDocument();
+  });
+});
+
+describe('HeartbeatHistory — what woke the decision (ADR-261)', () => {
+  it('marks a notification that answered a Google push', () => {
+    renderWithProviders(
+      <HeartbeatHistory {...makeProps({ notifications: [notification({ trigger: 'push' })] })} />
+    );
+    expect(screen.getByText('heartbeat.history.trigger_push')).toBeInTheDocument();
+  });
+
+  it('leaves the periodic tick unmarked — it is the norm, not an event', () => {
+    renderWithProviders(
+      <HeartbeatHistory
+        {...makeProps({
+          notifications: [notification({ trigger: 'tick' }), notification({ id: 'b' })],
+        })}
+      />
+    );
+    expect(screen.queryByText('heartbeat.history.trigger_push')).not.toBeInTheDocument();
   });
 });

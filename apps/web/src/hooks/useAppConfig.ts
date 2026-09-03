@@ -29,6 +29,8 @@ export interface AppConfig {
     attachments_enabled: boolean;
     rag_spaces_enabled: boolean;
     rag_spaces_embedding_model: string;
+    // Mail source (ADR-262) — gates the « Gmail labels » section of a space.
+    rag_spaces_mail_sync_enabled?: boolean;
     journals_enabled: boolean;
     // UXR Lot 6 (A10) — additive instance flags (gate-keeper ADR-061).
     channels_enabled?: boolean;

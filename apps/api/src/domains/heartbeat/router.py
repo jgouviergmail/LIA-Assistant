@@ -335,6 +335,12 @@ async def submit_heartbeat_feedback(
             row.habit_offer_id, user.id, positive=(data.feedback == "thumbs_up")
         )
 
+    # ADR-214 amendment (2026-09-03): a thumb is an explicit human act — a
+    # presence hour for the rhythm detector (the notification itself never is).
+    from src.domains.habits.presence import record_presence
+
+    await record_presence(db, user, kind="feedback")
+
     await db.commit()
 
     logger.info(

@@ -681,6 +681,12 @@ async def submit_feedback(
         # Apply feedback on the interest entity
         await repo.apply_feedback(interest, data.feedback)
 
+        # ADR-214 amendment (2026-09-03): a thumb is an explicit human act — a
+        # presence hour for the rhythm detector (the notification itself never is).
+        from src.domains.habits.presence import record_presence
+
+        await record_presence(db, user, kind="feedback")
+
         # Record the verdict in the notification audit trail. Only when the card
         # told us WHICH notification it came from: attributing it to a guessed
         # row would be worse than leaving it null.

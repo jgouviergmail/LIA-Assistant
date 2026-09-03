@@ -23,6 +23,7 @@ import pytest
 
 from src.core.config import settings as app_settings
 from src.domains.habits.candidates import list_recurrence_candidates
+from src.infrastructure.cache import recurrence_store
 
 pytestmark = pytest.mark.unit
 
@@ -184,3 +185,35 @@ class TestListRecurrenceCandidates:
                 user_id, local_today=TODAY, exclude_keys=set(), settings=stg, limit=5
             )
         assert candidates == []
+
+
+class TestCandidateProvenance:
+    """A candidate rebuilt from durable history says so (``origin: seed``);
+    a live one, or a pre-amendment payload without the field, reads ``live``.
+    Provenance is stated on the screen — the threshold never changes."""
+
+    async def test_seeded_and_live_origins_are_published(self) -> None:
+        user_id = uuid4()
+        redis = _redis_with(
+            {
+                recurrence_store.redis_key(str(user_id), "email"): {
+                    **_entry({"2026-08-01": [9.0], "2026-08-02": [9.0]}),
+                    "origin": "seed",
+                },
+                recurrence_store.redis_key(str(user_id), "event"): _entry(
+                    {"2026-08-01": [9.0], "2026-08-02": [9.0]}
+                ),
+            }
+        )
+        with _patch_redis(redis):
+            candidates, _ = await list_recurrence_candidates(
+                user_id,
+                local_today=date(2026, 8, 3),
+                exclude_keys=set(),
+                settings=_settings(),
+                limit=5,
+            )
+        by_key = {c.key: c for c in candidates}
+        assert by_key["email"].origin == "seed"
+        assert by_key["event"].origin == "live"
+        assert by_key["email"].required_days == by_key["event"].required_days

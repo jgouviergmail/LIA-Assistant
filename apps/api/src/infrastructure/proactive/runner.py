@@ -28,10 +28,12 @@ References:
 """
 
 import time
+from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,7 +53,9 @@ from src.infrastructure.proactive.tracking import generate_proactive_run_id, tra
 logger = get_logger(__name__)
 
 
-def build_candidate_users_query(enabled_field: str | None, batch_size: int) -> Any:
+def build_candidate_users_query(
+    enabled_field: str | None, batch_size: int, user_ids: Sequence[UUID] | None = None
+) -> Any:
     """Candidate-user selection for one proactive tick (lot 5, D-05).
 
     Pushes the checker's boolean feature flag into SQL — disabled users used
@@ -92,6 +96,10 @@ def build_candidate_users_query(enabled_field: str | None, batch_size: int) -> A
             raise ValueError(f"unknown enabled_field: {enabled_field!r}")
         conditions.append(column.is_(True))
 
+    if user_ids is not None:
+        # ADR-261: an explicit set (the wake sweep) — the random slot allocation
+        # is for fairness across a whole population, not for a served event.
+        conditions.append(User.id.in_(list(user_ids)))
     return select(User).where(*conditions).order_by(func.random()).limit(batch_size)
 
 
@@ -182,6 +190,8 @@ class ProactiveTaskRunner:
         batch_size: int = 50,
         max_retries: int = 3,
         continue_on_error: bool = True,
+        user_ids: Sequence[UUID] | None = None,
+        skip_probabilistic_gate: bool = False,
     ):
         """
         Initialize proactive task runner.
@@ -193,7 +203,14 @@ class ProactiveTaskRunner:
             batch_size: Users per batch (default 50)
             max_retries: Retries per user on failure (default 3)
             continue_on_error: Continue if one user fails (default True)
+            user_ids: Restrict the candidates to these users (ADR-261 wake
+                sweep); None keeps the random batch.
+            skip_probabilistic_gate: Bypass the "guaranteed minimum" smoothing
+                only — a wake is an event, not a tick to spread; every HARD
+                gate (window, quota, cooldowns, activity) still applies.
         """
+        self.user_ids = list(user_ids) if user_ids is not None else None
+        self.skip_probabilistic_gate = skip_probabilistic_gate
         self.task = task
         self.eligibility_checker = eligibility_checker
         self.dispatcher = dispatcher or NotificationDispatcher()
@@ -311,7 +328,9 @@ class ProactiveTaskRunner:
             List of User model instances
         """
         enabled_field = getattr(self.eligibility_checker, "enabled_field", None)
-        query = build_candidate_users_query(enabled_field=enabled_field, batch_size=self.batch_size)
+        query = build_candidate_users_query(
+            enabled_field=enabled_field, batch_size=self.batch_size, user_ids=self.user_ids
+        )
         result = await db.execute(query)
         return list(result.scalars().all())
 
@@ -380,7 +399,9 @@ class ProactiveTaskRunner:
                 return False
 
             # 1b. Probabilistic check: should we send now?
-            # Time-aware algorithm with guaranteed minimum delivery.
+            # Time-aware algorithm with guaranteed minimum delivery. A push
+            # wake (ADR-261) skips THIS gate only: it answers an event, and
+            # the hard gates above already bounded the budget.
             today_count = await self._get_today_notification_count(user, db, now)
 
             start_hour_field = self.eligibility_checker.start_hour_field
@@ -394,13 +415,16 @@ class ProactiveTaskRunner:
             # Calculate elapsed hours in the user's notification window
             elapsed_hours = self._calculate_elapsed_hours(user, now, start_hour, window_hours)
 
-            should_send, debug_info = self.eligibility_checker.should_send_notification(
-                user=user,
-                today_count=today_count,
-                window_hours=window_hours,
-                elapsed_hours=elapsed_hours,
-                interval_minutes=self.eligibility_checker.interval_minutes,
-            )
+            if self.skip_probabilistic_gate:
+                should_send, debug_info = True, {"skip_probabilistic_gate": True}
+            else:
+                should_send, debug_info = self.eligibility_checker.should_send_notification(
+                    user=user,
+                    today_count=today_count,
+                    window_hours=window_hours,
+                    elapsed_hours=elapsed_hours,
+                    interval_minutes=self.eligibility_checker.interval_minutes,
+                )
 
             if not should_send:
                 logger.info(
@@ -818,6 +842,8 @@ async def execute_proactive_task(
     task: ProactiveTask,
     eligibility_checker: EligibilityChecker | None = None,
     batch_size: int = 50,
+    user_ids: Sequence[UUID] | None = None,
+    skip_probabilistic_gate: bool = False,
 ) -> RunnerStats:
     """
     Convenience function to execute a proactive task.
@@ -844,5 +870,7 @@ async def execute_proactive_task(
         task=task,
         eligibility_checker=eligibility_checker,
         batch_size=batch_size,
+        user_ids=user_ids,
+        skip_probabilistic_gate=skip_probabilistic_gate,
     )
     return await runner.execute()

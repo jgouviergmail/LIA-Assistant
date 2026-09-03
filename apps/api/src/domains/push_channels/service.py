@@ -96,6 +96,7 @@ class PushChannelService:
         channel.last_notification_at = datetime.now(UTC)
         await self.db.commit()
         await invalidate_for_provider(channel.provider, channel.user_id)
+        await self._enqueue_wake(channel.user_id, channel.provider, page_token=channel.page_token)
         logger.info(
             "push_notification_processed",
             provider=channel.provider,
@@ -137,12 +138,42 @@ class PushChannelService:
         channel.last_notification_at = datetime.now(UTC)
         await self.db.commit()
         await invalidate_for_provider(channel.provider, channel.user_id)
+        await self._enqueue_wake(channel.user_id, gmail, history_id=event.history_id)
         logger.info(
             "gmail_push_processed",
             channel_id=channel.channel_id,
             history_id=event.history_id,
         )
         return self._observed(gmail, NotificationOutcome.PROCESSED)
+
+    @staticmethod
+    async def _enqueue_wake(
+        user_id: UUID,
+        provider: str,
+        *,
+        history_id: int | None = None,
+        page_token: str | None = None,
+    ) -> None:
+        """Queue a heartbeat wake for a processed notification (ADR-261).
+
+        Flag-gated and best-effort: the webhook path never waits on, nor
+        fails on, the wake queue.
+        """
+        if not settings.push_wake_enabled:
+            return
+        try:
+            from src.domains.push_channels.wake import enqueue_wake
+
+            await enqueue_wake(
+                await get_redis_cache(),
+                user_id,
+                provider,
+                ttl_seconds=settings.push_wake_payload_ttl_seconds,
+                history_id=history_id,
+                page_token=page_token,
+            )
+        except Exception as exc:  # noqa: BLE001 — a lost wake is a tick, never a failed webhook
+            logger.debug("push_wake_enqueue_skipped", provider=provider, error=str(exc))
 
     @staticmethod
     def _observed(provider: str, outcome: NotificationOutcome) -> NotificationOutcome:

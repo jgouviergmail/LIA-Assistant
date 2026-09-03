@@ -77,3 +77,23 @@ class TestInvalidateForProvider:
             new=AsyncMock(side_effect=ConnectionError("down")),
         ):
             await invalidate_for_provider(PushChannelProvider.GOOGLE_CALENDAR.value, uuid4())
+
+
+class TestCalendarDepartureInvalidation:
+    """ADR-261 (P3): a changed agenda makes the cached departure advice stale."""
+
+    async def test_calendar_notification_drops_the_departure_advice(self) -> None:
+        from uuid import uuid4
+
+        from src.domains.push_channels.cache_invalidation import invalidate_for_provider
+        from src.domains.push_channels.models import PushChannelProvider
+
+        user_id = uuid4()
+        redis = _redis(scan_keys=[f"heartbeat:departure:{user_id}:abc"])
+        with patch(
+            "src.domains.push_channels.cache_invalidation.get_redis_cache",
+            new=AsyncMock(return_value=redis),
+        ):
+            await invalidate_for_provider(PushChannelProvider.GOOGLE_CALENDAR.value, user_id)
+        deleted = [call.args for call in redis.delete.await_args_list]
+        assert any(f"heartbeat:departure:{user_id}:abc" in args for args in deleted)

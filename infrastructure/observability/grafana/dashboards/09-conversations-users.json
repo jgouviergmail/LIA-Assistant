@@ -1826,6 +1826,106 @@
           }
         }
       ]
+    },
+    {
+      "id": 106,
+      "type": "row",
+      "title": "Conversation Reset (ADR-260)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 94
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 107,
+      "title": "Reset: keys deleted by family (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 95
+      },
+      "targets": [
+        {
+          "expr": "sum by (family) (increase(conversation_reset_keys_deleted_total[24h])) or vector(0)",
+          "legendFormat": "{{family}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Redis keys a conversation reset deleted, per declared family (conversation and user-cache scopes). A learning family (recurrence, gmail_history_anchor, adaptive, briefing:v2:lastgood) must NEVER appear here."
+    },
+    {
+      "id": 108,
+      "title": "Reset: keys kept by scope / undeclared families (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 95
+      },
+      "targets": [
+        {
+          "expr": "sum by (scope) (increase(conversation_reset_keys_kept_total[24h])) or vector(0)",
+          "legendFormat": "kept {{scope}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (family) (increase(reset_undeclared_family_total[24h])) or vector(0)",
+          "legendFormat": "undeclared {{family}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "What a reset matched but kept: learning and runtime scopes are expected; an 'undeclared' family is a key the registry can neither purge nor protect knowingly — declare it in infrastructure/cache/key_families.py."
     }
   ]
 }

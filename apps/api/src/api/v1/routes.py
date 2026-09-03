@@ -311,6 +311,11 @@ async def get_client_config() -> dict:
             "rag_spaces_embedding_model": getattr(
                 settings, "rag_spaces_embedding_model", "models/gemini-embedding-001"
             ),
+            # Mail source (ADR-262): the space page offers the label section
+            # only when the instance runs it.
+            "rag_spaces_mail_sync_enabled": getattr(
+                settings, "rag_spaces_mail_sync_enabled", False
+            ),
             "journals_enabled": getattr(settings, "journals_enabled", False),
             # UXR Lot 6 (A10) — additive instance flags so the starter
             # checklist (and B5's open-loops nav) never offers a disabled

@@ -15,6 +15,14 @@ from src.core.constants import (
     PUSH_NOTIFICATION_DEBOUNCE_SECONDS_DEFAULT,
     PUSH_RENEWAL_MARGIN_SECONDS_DEFAULT,
     PUSH_SYNC_INTERVAL_MINUTES_DEFAULT,
+    PUSH_WAKE_CALENDAR_LOOKAHEAD_HOURS_DEFAULT,
+    PUSH_WAKE_CALENDAR_RECENT_UPDATE_MINUTES_DEFAULT,
+    PUSH_WAKE_COOLDOWN_MINUTES_DEFAULT,
+    PUSH_WAKE_MAIL_EXCLUDE_LABELS_DEFAULT,
+    PUSH_WAKE_MAIL_REQUIRE_LABELS_DEFAULT,
+    PUSH_WAKE_MAX_USERS_PER_SWEEP_DEFAULT,
+    PUSH_WAKE_PAYLOAD_TTL_SECONDS_DEFAULT,
+    PUSH_WAKE_SWEEP_INTERVAL_SECONDS_DEFAULT,
     PUSH_WATCH_TTL_SECONDS_DEFAULT,
 )
 
@@ -79,4 +87,62 @@ class PushSettings(BaseSettings):
     push_notification_debounce_seconds: int = Field(
         default=PUSH_NOTIFICATION_DEBOUNCE_SECONDS_DEFAULT,
         description="Per-channel debounce window against notification storms.",
+    )
+    # --- Push-driven heartbeat wake (ADR-261) ---------------------------------
+    push_wake_enabled: bool = Field(
+        default=False,
+        description="A processed push notification queues the user for an event-driven "
+        "heartbeat decision (served by a short sweep under the full eligibility "
+        "checker). Requires push_channels_enabled and heartbeat_enabled.",
+    )
+    push_wake_sweep_interval_seconds: int = Field(
+        default=PUSH_WAKE_SWEEP_INTERVAL_SECONDS_DEFAULT,
+        ge=30,
+        le=900,
+        description="Interval of the leader-elected wake sweep (jittered).",
+    )
+    push_wake_cooldown_minutes: int = Field(
+        default=PUSH_WAKE_COOLDOWN_MINUTES_DEFAULT,
+        ge=1,
+        le=240,
+        description="Minimum minutes between two served wakes for one user (on top of "
+        "the heartbeat's own cooldowns).",
+    )
+    push_wake_max_users_per_sweep: int = Field(
+        default=PUSH_WAKE_MAX_USERS_PER_SWEEP_DEFAULT,
+        ge=1,
+        le=100,
+        description="Users served per sweep; the rest wait for the next one.",
+    )
+    push_wake_payload_ttl_seconds: int = Field(
+        default=PUSH_WAKE_PAYLOAD_TTL_SECONDS_DEFAULT,
+        ge=60,
+        le=86400,
+        description="How long a queued wake stays valid before it is dropped as stale.",
+    )
+    push_wake_mail_require_labels: list[str] = Field(
+        default=list(PUSH_WAKE_MAIL_REQUIRE_LABELS_DEFAULT),
+        description="A new mail wakes the heartbeat only when it carries one of these "
+        "Gmail labels (Google's own importance classifier by default).",
+    )
+    push_wake_mail_exclude_labels: list[str] = Field(
+        default=list(PUSH_WAKE_MAIL_EXCLUDE_LABELS_DEFAULT),
+        description="Gmail labels that never wake (promotions, social, forums).",
+    )
+    push_wake_mail_exclude_list_mail: bool = Field(
+        default=True,
+        description="Mail carrying List-Unsubscribe or a bulk/list Precedence never wakes.",
+    )
+    push_wake_calendar_lookahead_hours: int = Field(
+        default=PUSH_WAKE_CALENDAR_LOOKAHEAD_HOURS_DEFAULT,
+        ge=1,
+        le=168,
+        description="A calendar change wakes only for an event starting within this horizon.",
+    )
+    push_wake_calendar_recent_update_minutes: int = Field(
+        default=PUSH_WAKE_CALENDAR_RECENT_UPDATE_MINUTES_DEFAULT,
+        ge=1,
+        le=120,
+        description="A calendar change wakes only when the event was updated this recently "
+        "(the notification itself is the clock; older edits are the tick's business).",
     )

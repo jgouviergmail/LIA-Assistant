@@ -9,6 +9,7 @@ Created: 2026-03-14
 """
 
 import os
+import re
 from urllib.parse import quote
 from uuid import UUID
 
@@ -33,6 +34,7 @@ from src.domains.rag_spaces.document_ops import (
     move_documents,
 )
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService, sync_folder_background
+from src.domains.rag_spaces.mail_router import router as mail_router
 from src.domains.rag_spaces.processing import process_document
 from src.domains.rag_spaces.reindex import get_reindex_status as _get_reindex_status
 from src.domains.rag_spaces.reindex import start_reindexation
@@ -45,6 +47,7 @@ from src.domains.rag_spaces.schemas import (
     RAGDriveSourceCreate,
     RAGDriveSourceResponse,
     RAGDriveSyncStatusResponse,
+    RAGMailSourceResponse,
     RAGReindexResponse,
     RAGReindexStatusResponse,
     RAGSpaceCreate,
@@ -271,11 +274,12 @@ async def get_space_detail(
     """Get detailed view of a space including documents and Drive sources."""
     service = RAGSpaceService(db)
     detail = await service.get_space_detail(space_id, user.id)
-    nested_keys = {"documents", "drive_sources"}
+    nested_keys = {"documents", "drive_sources", "mail_sources"}
     return RAGSpaceDetailResponse(
         **{k: v for k, v in detail.items() if k not in nested_keys},
         documents=[RAGDocumentResponse(**d) for d in detail["documents"]],
         drive_sources=[RAGDriveSourceResponse(**s) for s in detail.get("drive_sources", [])],
+        mail_sources=[RAGMailSourceResponse(**s) for s in detail.get("mail_sources", [])],
     )
 
 
@@ -376,9 +380,24 @@ async def upload_document(
     return RAGDocumentResponse.model_validate(document)
 
 
+#: Characters that must never reach a quoted Content-Disposition value:
+#: C0/C1 controls (header injection) and the quoted-string terminators.
+_UNSAFE_HEADER_CHARS = re.compile(r'[\x00-\x1f\x7f-\x9f"\\]')
+
+
 def _attachment(filename: str, fallback: str) -> dict[str, str]:
-    """A Content-Disposition naming the download in ASCII and in UTF-8 (RFC 5987)."""
-    ascii_name = filename.encode("ascii", "ignore").decode() or fallback
+    """A Content-Disposition naming the download in ASCII and in UTF-8 (RFC 5987).
+
+    The name is NOT trusted: a document can be a Gmail thread (ADR-262), so
+    its display name is a subject line written by a third party. The quoted
+    ASCII half therefore drops control characters (CR/LF would be a header
+    injection, refused downstream as a 500 at best) and the two characters
+    that can end the quoted string (a double quote and a backslash), and is
+    length-bounded;
+    the UTF-8 half is percent-encoded by ``quote`` and safe by construction.
+    """
+    ascii_name = filename.encode("ascii", "ignore").decode()
+    ascii_name = _UNSAFE_HEADER_CHARS.sub("", ascii_name).strip()[:200] or fallback
     return {
         "Content-Disposition": (
             f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
@@ -654,3 +673,8 @@ async def get_drive_sync_status(
         synced_file_count=source.synced_file_count,
         error_message=source.error_message,
     )
+
+
+# Mail sources (ADR-262) live in their own module — this file is frozen at its
+# audited size — and inherit the prefix, the tags and the capability gate.
+router.include_router(mail_router)

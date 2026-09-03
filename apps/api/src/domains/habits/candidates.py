@@ -42,11 +42,14 @@ class RecurrenceCandidate:
         key: Domain signature (e.g. ``"email+contact"``).
         observed_days: Distinct local days with occurrences inside the window.
         required_days: The enforced existence threshold (published, ADR-184).
+        origin: ``live`` (typed turns) or ``seed`` (rebuilt from durable
+            outcomes by the recompute) — provenance the screen states.
     """
 
     key: str
     observed_days: int
     required_days: int
+    origin: str = recurrence_store.ORIGIN_LIVE
 
 
 def _observed_days(data: dict[str, Any], window_start: date) -> int:
@@ -133,6 +136,7 @@ async def list_recurrence_candidates(
                     key=signature,
                     observed_days=observed,
                     required_days=int(settings.recurrence_min_distinct_days),
+                    origin=str(data.get("origin") or recurrence_store.ORIGIN_LIVE),
                 )
             )
         found.sort(key=lambda c: (-c.observed_days, c.key))

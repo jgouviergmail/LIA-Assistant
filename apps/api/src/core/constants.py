@@ -2222,6 +2222,14 @@ HABITS_DEVIATION_GRACE_HOURS_DEFAULT = 1.0
 # get a patronizing "welcome back" for a perfectly normal interval.
 HABITS_ABSENCE_GAP_FACTOR_DEFAULT = 3.0
 HABITS_ABSENCE_MIN_DAYS_DEFAULT = 3
+# Reading presence (ADR-214 amendment 2026-09-03): an app opening or a thumb
+# on a notification is a presence hour; a notification being SENT never is.
+# One banked hour per local hour per user; the client throttles its pings.
+HABITS_PRESENCE_CLIENT_THROTTLE_MINUTES_DEFAULT = 15
+HABITS_PRESENCE_LAST_TTL_DAYS_DEFAULT = 30
+HABITS_PRESENCE_HOUR_LOCK_SECONDS = 7200
+HABITS_PRESENCE_RATE_LIMIT_PER_MINUTE = 6  # per user; the client throttles at minutes
+REDIS_KEY_PRESENCE_PREFIX = "presence:"  # + {user_id}:{local_date}:{hour} | last:{user_id}
 
 # Context aggregation
 HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT = 4
@@ -4397,6 +4405,16 @@ RAG_SPACES_SYSTEM_INDEX_EMBED_RETRY_BASE_SECONDS = 2.0
 
 # RAG Drive Sync
 RAG_DRIVE_MAX_SOURCES_PER_SPACE_DEFAULT = 5
+
+# Mail source (ADR-262): the threads carrying an opted-in Gmail label become
+# documents of a space. Bounds are published to the settings; the history
+# types are what the incremental path asks Gmail for.
+RAG_MAIL_MAX_SOURCES_PER_SPACE_DEFAULT = 3
+RAG_MAIL_MAX_THREADS_PER_SYNC = 200
+RAG_MAIL_MAX_THREAD_CHARS = 60000
+RAG_MAIL_DOCUMENT_CONTENT_TYPE = "text/markdown"
+RAG_MAIL_DOCUMENT_EXTENSION = ".md"
+RAG_MAIL_HISTORY_TYPES: tuple[str, ...] = ("messageAdded", "labelAdded", "labelRemoved")
 RAG_DRIVE_MAX_FILES_PER_SYNC = 500
 
 # Google native MIME types -> export format mapping
@@ -5528,6 +5546,27 @@ SCHEDULER_JOB_PUSH_CHANNEL_SYNC = "push_channel_sync"
 # interval (ADR-178 starvation).
 PUSH_SYNC_INITIAL_DELAY_MINUTES = 2
 REDIS_KEY_PUSH_DEBOUNCE_PREFIX = "push:debounce:"
+# Push-driven heartbeat wake (ADR-261): a processed notification queues the
+# user; a short leader-elected sweep serves the queue under the FULL
+# eligibility checker. Every wake is counted; nothing here bypasses a gate.
+PUSH_WAKE_SWEEP_INTERVAL_SECONDS_DEFAULT = 120
+PUSH_WAKE_COOLDOWN_MINUTES_DEFAULT = 20
+PUSH_WAKE_MAX_USERS_PER_SWEEP_DEFAULT = 10
+PUSH_WAKE_PAYLOAD_TTL_SECONDS_DEFAULT = 3600
+PUSH_WAKE_MAIL_MAX_MESSAGES = 10  # metadata fetched per wake for the pre-filter
+PUSH_WAKE_MAIL_REQUIRE_LABELS_DEFAULT: tuple[str, ...] = ("IMPORTANT",)
+PUSH_WAKE_MAIL_EXCLUDE_LABELS_DEFAULT: tuple[str, ...] = (
+    "CATEGORY_PROMOTIONS",
+    "CATEGORY_SOCIAL",
+    "CATEGORY_FORUMS",
+)
+PUSH_WAKE_CALENDAR_LOOKAHEAD_HOURS_DEFAULT = 24
+PUSH_WAKE_CALENDAR_RECENT_UPDATE_MINUTES_DEFAULT = 10
+PUSH_WAKE_INITIAL_DELAY_SECONDS = 60
+REDIS_KEY_WAKE_PENDING = "heartbeat:wake:pending"  # SET of user ids (global family)
+REDIS_KEY_WAKE_PAYLOAD_PREFIX = "heartbeat:wake:payload:"  # + {user_id}:{provider}
+REDIS_KEY_WAKE_COOLDOWN_PREFIX = "heartbeat:wake:cooldown:"  # + {user_id}
+SCHEDULER_JOB_HEARTBEAT_WAKE_SWEEP = "heartbeat_wake_sweep"
 
 # AQ/pollen enrichment of weather answers (2026-08) — both APIs are billed,
 # the cache bounds the spend to at most one call pair per point per TTL.

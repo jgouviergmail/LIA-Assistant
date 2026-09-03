@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.39.1</strong> — <strong>Thirty minutes formats, and LIA picks the right one</strong>. Recording a meeting hands back minutes in a structure that fits what was said: a library of <strong>thirty built-in formats</strong> in seven families — meetings and teams, transcripts, conversation analysis, sales and consulting, technical, personal appointments, courses and training — that a user adds to their own templates, adapts and declines. Choose nothing and LIA reads the transcript to pick the format itself, then states which one it used, where the choice came from and, in one line, why. A format can now hand back <em>the full transcript</em>, cleaned up and rewritten part by part rather than summarised. Minutes already written can be rewritten in another format from the stored transcript — replaced in place, or produced as <em>new minutes</em> from the same meeting, linked to their origin and indexed as a document of their own. The minutes email now leaves from the platform's own address, so it works without any mailbox connected; the meetings list accepts multiple selection; and in the knowledge spaces a document is downloadable, a selection archives to a zip, and documents move between spaces with their index and their file. Recording moved out of the composer to a place of its own — a header control on a computer, a pulsing entry in the logo menu on a phone — and the composer's <strong>+</strong> goes back to attaching a file. — 3 September 2026.
+  <strong>Version 1.40.0</strong> — <strong>Three loops were running in silence</strong>. Google push notifications were arriving and nothing followed; the habit detector had been watching for weeks without ever proposing anything; the proposals inbox stayed empty. One plumbing cause explained all three: <em>starting a new conversation</em> deleted every Redis key carrying the user's id — including the recurrence ledger, the mail reading anchor and the adaptive thresholds. A key now <strong>declares what it is</strong>, and a reset only purges what a conversation created; an unknown family is kept and counted, because keeping a key you do not know costs a cache miss while deleting it can cost weeks of learning. On top of that repair, a processed push notification now <strong>wakes a decision</strong> — under the full eligibility rules, one wake per storm, the mail delta previewed without being consumed so a refused wake leaves the message for the next pass — and a Drive change reindexes exactly the files it touched. Reading LIA now counts as presence for the rhythm it learns: opening the app counts, a thumb on a notification counts, <em>a notification sent never does</em>. And a knowledge space can follow a <strong>Gmail label</strong>: the threads carrying it become documents, and removing the label in Gmail removes the document — indexing a whole mailbox was measured and refused. All three additions ship switched off. — 3 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **29,200+** automated tests | **258** ADRs                                                           |
-| **242** versions shipped  | **6 languages**, parity enforced in CI  | **507** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **30,000+** automated tests | **261** ADRs                                                           |
+| **243** versions shipped  | **6 languages**, parity enforced in CI  | **519** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -267,6 +267,28 @@ The result is measured, not proclaimed:
 - **Reformatting, two modes, one transcript**: `replace` rewrites in place through the durable regeneration; `new` derives a second meeting row pointing at its source (`source_meeting_id`, FK `SET NULL`), READY with no report while the server writes, indexed as its own knowledge-space document. Never a « copy »: the transcript is the same, the minutes are not.
 - **The minutes leave from the platform**: `APPLICATION_SMTP_FROM` through `EmailService`, whose SMTP exchange runs off the event loop; the subject is the localized « Meeting minutes » followed by the title. The user's email connector — and its refusal when there was none — is gone from the path.
 
+### Redis Key Families & What a Reset May Purge ([ADR-260](docs/architecture/ADR-260-Redis-Key-Families-Scope-And-Reset-Purge.md))
+
+- **A key declares its scope, and the reset reads the declaration**: `CONVERSATION`, `USER_CACHE`, `USER_LEARNING`, `USER_RUNTIME`, `GLOBAL` in one registry (`infrastructure/cache/key_families.py`). The purge deletes by family instead of by glob — the scan is unchanged, so nothing escapes it; only the decision moved.
+- **An undeclared family is KEPT and counted**, never guessed: keeping an unknown key costs a cache miss, deleting it can cost weeks of learning. Two guards refuse the drift — a boot assertion over every Redis prefix constant, and an AST guard over literal f-string keys.
+- **Deletion stays total where it must be**: "Forget everything" and account deletion remove the learning keys too, by the same registry.
+
+### Push-Driven Wake & Reading Presence ([ADR-261](docs/architecture/ADR-261-Push-Driven-Heartbeat-Wake-And-Incremental-Drive-Sync.md), [ADR-214](docs/architecture/ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md))
+
+- **A processed notification queues a wake, and the webhook stays dumb**: `SET NX` per (user, provider), so a storm of notifications is ONE wake, dated by the first; the webhook answers 200 and decides nothing.
+- **A leader-elected sweep serves the queue under the FULL eligibility checker** — window, quota, cooldowns, the user's source preference. Only the "guaranteed minimum" smoothing is bypassed, because a wake answers an event; the runner gained `user_ids` and `skip_probabilistic_gate` and nothing else.
+- **The mail delta is previewed, never consumed** until the wake is served, so a refused wake leaves the message for the next tick. The two Gmail anchors stay distinct on purpose: the channel's is the last event *seen*, the heartbeat's the last mail *consumed*.
+- **The pre-filter is deterministic and published** (`PUSH_WAKE_*`): a required label, excluded categories, list mail out; an event starting within the lookahead, changed by someone else or still awaiting the user's answer. Every verdict is a bounded reason.
+- **A Drive change reindexes exactly what changed**, under the same lock the manual sync uses, through the per-file ingestion both paths now share.
+- **Reading counts as presence** (`HABITS_PRESENCE_ENABLED`, off by default): opening the app counts, a thumb on a notification counts, a notification *sent* never does. At most one banked hour per local hour, written straight into the durable rollup; the heartbeat's inactivity gate reads the last presence as much as the last sign-in.
+
+### Gmail Label as a Knowledge Source ([ADR-262](docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md))
+
+- **The opt-in IS the label** (`RAG_SPACES_MAIL_SYNC_ENABLED`, off by default): a space follows one Gmail label, only the threads carrying it are rendered and indexed, and removing the label in Gmail removes the document at the next pass — the deletion gesture is the one the user already knows.
+- **One thread, one Markdown document**: the subject as the title, messages in date order, plain text preferred, **attachment names only**, a hard size cap. The display name is the subject, never a participant — and it is sanitised, because a subject is written by a third party.
+- **Two ways in, one ingestion**: the full sync anchors Gmail's history *before* listing the threads, so a message arriving mid-listing is replayed by the next incremental pass instead of falling in the gap; the incremental path rides the push wake and answers to no notification gate — indexing is not deciding.
+- **A synced source is a durable job, whichever kind**: the lease, reclaim and reaper queries take the table as a parameter, validated against a two-name allowlist, so a Drive folder and a Gmail label recover through the same code.
+
 ### Knowledge-Space Document Operations ([ADR-259](docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md))
 
 - **One path builder, one ownership check** (`document_access.py`): the storage root, the owner, the space, then the stored filename, each segment resolved and contained. Reading, deleting, downloading and moving all go through it.
@@ -349,7 +371,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 507 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 519 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -992,7 +1014,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-258 ADR files (ADR-001 through ADR-259 — ADR-008 has no separate file) documenting major architectural decisions:
+261 ADR files (ADR-001 through ADR-262 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -1028,7 +1050,7 @@ pytest --cov=src --cov-report=html -v
 | ----------------------- | --------------------------------------------------------------------------------------------- |
 | Total backend tests     | 20,468 collected (`pytest tests/unit tests/agents --collect-only`, 2026-08-27)                |
 | Frontend tests (vitest) | 6,327 across 496 files (+ hermetic Playwright E2E specs incl. axe/dark/zoom)                   |
-| Coverage floor          | 69% backend enforced, 70.04% measured (shrink-only ratchet) · frontend thresholds per glob     |
+| Coverage floor          | 69% backend enforced, 71.37% measured (shrink-only ratchet) · frontend thresholds per glob     |
 | CI Workflows            | 3 (CI, Security, Release)                                                                     |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
@@ -1069,7 +1091,7 @@ ESLint + TypeScript check       ────────────────
 | **Branch protection**         | PR required (external contributors), 7 status checks, force push forbidden                                                                                                                                                          |
 | **Dependabot**                | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped                                                                                                                                                                  |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more)                                                                                                                                                                                 |
-| **Coverage threshold**        | 69% enforced in CI, 70.04% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
+| **Coverage threshold**        | 69% enforced in CI, 71.37% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
 | **Documentation gate**        | Every version and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; links, code paths and unreachable documents too       |
 
 ### Workflows

@@ -6,7 +6,7 @@
 
 **Versione**: 4.7
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.39.1
+**Applicazione**: LIA v1.40.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -65,8 +65,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 507 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 258 ADRs, ~22.775 test raccolti da pytest in 1.349 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 519 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 261 ADRs, ~22.775 test raccolti da pytest in 1.349 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -87,7 +87,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Test | 22.775 raccolti da pytest su 1.349 file di test + 6.983 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 258 |
+| ADR (Architecture Decision Record) | 261 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -827,6 +827,14 @@ Lo stesso nodo emette inoltre fino a 3 **chip di follow-up** — brevi richieste
 
 APScheduler con leader election Redis (SETNX, TTL 120s, recheck 5s). `FOR UPDATE SKIP LOCKED` per isolamento. Auto-approvazione dei piani (`plan_approved=True` iniettato nello state). Auto-disattivazione dopo 5 fallimenti consecutivi. Retry su errori transitori.
 
+### 16.4. Una notifica push che sfocia in una decisione
+
+I canali push di Google erano vivi e funzionalmente inerti: il loro unico consumatore invalidava cache, così una notifica comprava freschezza per una scheda che nessuno aveva aperto. Una notifica elaborata **mette ora l'utente in coda** — `SET NX` per (utente, fornitore), quindi una raffica è un solo risveglio datato dal primo — e il webhook risponde comunque 200 senza decidere nulla. Un breve passaggio, eletto leader, serve la coda sotto il verificatore di idoneità **completo**: finestra, tetto, pause, preferenza delle sorgenti. Solo il livellamento del «minimo garantito» viene aggirato, perché un risveglio risponde a un evento.
+
+Il delta della posta è **letto in anteprima, mai consumato** finché il risveglio non è servito: un risveglio rifiutato lascia il messaggio al passaggio successivo — i due ancoraggi Gmail restano distinti di proposito (quello del canale è l'ultimo evento *visto*, quello del heartbeat l'ultima posta *consumata*). Il prefiltro è deterministico e pubblicato come impostazioni: etichetta richiesta, categorie escluse, liste di distribuzione fuori; un evento entro l'orizzonte, modificato da altri o in attesa della tua risposta. E la decisione sa perché è stata svegliata: una riga FRESH apre il suo contesto e la riga di audit conserva `trigger = push | tick`, che la cronologia mostra.
+
+Una modifica su Drive non è affatto una decisione: svuota il flusso di modifiche dal token del canale e reindicizza esattamente i file situati sotto una cartella collegata, tramite l'ingestione per file che ora la sincronizzazione completa condivide.
+
 ---
 
 ## 17. RAG Spaces e ricerca ibrida
@@ -840,6 +848,25 @@ Nota: l'iniezione RAG avviene nel nodo di risposta, non nel pianificatore. Il pl
 ### 17.2. System RAG Spaces (ADR-058)
 
 FAQ integrata (250 Q/A, 24 sezioni) indicizzata da `docs/knowledge/`. Rilevamento `is_app_help_query` da QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 token, lazy loading). L'obsolescenza è valutata su uno SHA-256 dei file sorgente **e** sul corpus memorizzato stesso (un chunk per voce analizzata, esattamente un documento): un'impronta corrispondente su un numero di righe errato è una riparazione, non un no-op. L'auto-indicizzazione gira in ogni worker uvicorn, quindi la riga dello spazio è rivendicata con `FOR UPDATE SKIP LOCKED` — un solo scrittore, gli altri saltano senza accodarsi — e ogni vettore è calcolato **prima** della prima istruzione distruttiva: un rifiuto del fornitore non cancella nulla e il corpus precedente continua a servire (ADR-162).
+
+### 17.3. Sorgenti e-mail: ciò che l'utente designa (ADR-262)
+
+Uno spazio può seguire un'**etichetta Gmail**. Vengono renderizzate solo le
+conversazioni che la portano — una conversazione, un documento Markdown:
+l'oggetto come titolo, i messaggi in ordine, soltanto i *nomi* degli allegati —
+e indicizzate come qualsiasi altro documento. Togliere l'etichetta in Gmail
+rimuove il documento al passaggio successivo: il gesto di cancellazione è
+quello già noto.
+
+Indicizzare l'intera casella è stato misurato e rifiutato: duplica un archivio
+personale in un secondo deposito, spende embedding su un corpus fatto
+soprattutto di notifiche ed elenchi, e diluisce la ricerca con testo che
+nessuno ha scelto di conservare. Un'etichetta è una designazione che si
+mantiene in uno strumento usato ogni giorno. La sincronizzazione completa
+ancora la cronologia di Gmail **prima** di elencare le conversazioni, così un
+messaggio arrivato durante l'elenco viene recuperato al passaggio incrementale
+successivo; quel passaggio viaggia sul risveglio push della sezione 16 e non
+risponde ad alcuna porta di notifica — indicizzare non è decidere.
 
 ---
 
@@ -920,7 +947,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 507 metriche custom (RED pattern) |
+| Prometheus | 519 metriche custom (RED pattern) |
 | Grafana | 26 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -928,7 +955,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 | Alertmanager | Nucleo di 14 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) + webhook verso LIA: ogni avviso diventa un incidente nel prodotto (ADR-247) |
 | structlog | Logging strutturato con filtraggio PII |
 
-**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 507 definite; le 57 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
+**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 519 definite; le 57 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
 
 ### 20.2. Debug Panel integrato
 
@@ -1332,7 +1359,7 @@ La lezione di ingegneria più preziosa è arrivata da un difetto invisibile: la 
 
 ## 24. Architettura delle decisioni (ADR)
 
-258 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+261 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1438,7 +1465,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 258 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~22.775 test in 1.349 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 261 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~22.775 test in 1.349 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1551,4 +1578,4 @@ Il volto del compagno sceglieva la propria espressione di fine turno dall'emozio
 **Ogni unità pagata è contabilizzata, e mostrata.** Una riunione spende audio presso il motore di trascrizione e token presso il modello di sintesi, passaggi di condensazione e ricostruzioni compresi; entrambi raggiungono i registri della piattaforma come ogni scambio — l'audio tramite le statistiche del riconoscimento remoto, i token sotto un `run_id` che il messaggio archiviato porta, così la cronologia si unisce al registro dei token esattamente come per ogni notifica proattiva. La riga conserva la spesa propria del verbale perché la pagina dichiari il totale esatto con la sua scomposizione, la scheda dichiara le due unità e la loro somma, e un modello senza tariffa amministrata restituisce `null`: un prezzo sconosciuto non è un prezzo gratuito. La stessa onestà attraversa il verbale stesso — una lacuna è dichiarata, mai colmata; un interlocutore senza nome resta S2; una proposta rimasta aperta non è una decisione.
 
 **Il formato del verbale è diventato una libreria, e la scelta ha un solo luogo.** Trenta modelli integrati vivono nel codice, le loro parole in un modulo di dati i18n, e un'asserzione all'avvio rifiuta di partire se manca un nome in una delle sei lingue: ciò che un validatore può rifiutare, il catalogo non può consegnarlo. Un modello è designato da un riferimento — `builtin:<chiave>` o `user:<uuid>` — che riunioni, preferenze e richieste si scambiano al posto di una riga, così un modello integrato non ha bisogno di esistere in banca dati e un modello eliminato lascia un riferimento i cui lettori sanno ripiegare sull'istantanea conservata. La scelta segue **una sola precedenza**: il riferimento portato dalla riunione, poi il predefinito della preferenza, poi il modello linguistico che legge un estratto della trascrizione e sceglie sopra una soglia di confidenza, poi il modello integrato predefinito; ogni esito è contato e scritto sulla riga con la ragione enunciata, così la pagina mostra un fatto e non una ricostruzione. Una quinta specie di sezione restituisce la trascrizione stessa: non entra in una sola risposta — lo slot di sintesi emette al massimo ottomila token — quindi viene riscritta per parti, ciascuna limitata dalla finestra di uscita effettiva, un indice mancante divide la parte una volta e una risposta sospettosamente corta viene ritentata una volta. Riscrivere un verbale già redatto prende in prestito la rigenerazione durevole quando sostituisce, e crea una riga derivata che punta alla sua origine quando produce un nuovo verbale — mai una copia: la trascrizione è la stessa, il verbale no. La stessa cura per l'ordine governa i documenti degli spazi di conoscenza: poiché `rag_chunks.space_id` è denormalizzato e letto dalla ricerca, uno spostamento scrive la riga e i suoi frammenti, conferma, **poi** sposta il file; una rinomina fallita riporta indietro entrambi e lo segnala per quel solo documento, e un lotto non si ferma mai per un elemento — ogni identificatore torna fatto o ignorato con il suo codice.
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 258 ADRs e del changelog (da v1.0 a v1.39.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 261 ADRs e del changelog (da v1.0 a v1.40.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

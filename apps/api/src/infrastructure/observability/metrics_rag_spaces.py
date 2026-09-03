@@ -166,6 +166,31 @@ rag_drive_sources_total_count = Gauge(
     multiprocess_mode="livesum",
 )
 
+# Mail source (ADR-262): a Gmail label's threads indexed as documents.
+rag_mail_sync_runs_total = Counter(
+    "rag_mail_sync_runs_total",
+    "Total Gmail label sync runs by status",
+    ["status"],  # status: started|completed|error
+)
+
+rag_mail_sync_threads_total = Counter(
+    "rag_mail_sync_threads_total",
+    "Total threads processed during a label sync by result",
+    ["result"],  # result: synced|skipped|failed|deleted
+)
+
+rag_mail_sources_total_count = Gauge(
+    "rag_mail_sources_total_count",
+    "Total number of linked Gmail label sources",
+    multiprocess_mode="livesum",
+)
+
+rag_mail_push_index_total = Counter(
+    "rag_mail_push_index_total",
+    "Gmail push notifications turned into incremental indexing of label sources",
+    ["outcome"],  # outcome: indexed|nothing|no_source|locked|resynced|error
+)
+
 # ============================================================================
 # System RAG Spaces Metrics
 # ============================================================================

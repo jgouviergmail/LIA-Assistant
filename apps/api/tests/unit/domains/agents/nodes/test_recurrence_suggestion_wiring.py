@@ -209,3 +209,46 @@ class TestRecurrenceRecordWiring:
         state["query_intelligence"]["intent"] = "conversation"
         names = self._run(state=state, config=_CONFIG, settings=self._extraction_settings())
         assert not any(n.startswith("recurrence_record_") for n in names)
+
+
+@pytest.mark.unit
+class TestAutomatedRunGuard:
+    """ADR-214 amendment (2026-09-03): the evaluation is guarded like the
+    recording. A scheduled run with a LOCKED ledger must neither fire the
+    suggestion nor promote a habit — otherwise LIA proposes to automate her
+    own automation."""
+
+    async def test_automated_run_never_evaluates(self):
+        from src.infrastructure.observability.metrics_agents import (
+            recurrence_evaluation_skipped_total,
+        )
+
+        before = recurrence_evaluation_skipped_total.labels(reason="automated_source")._value.get()
+        with (
+            patch("src.domains.agents.nodes.initiative_recurrence.settings", _settings()),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="Veux-tu automatiser cela ?"),
+            ) as eval_mock,
+            installed_runtime_context(user_id=_USER_ID, is_automated_source=True),
+        ):
+            update = await initiative_node(_state(), _CONFIG)
+
+        assert STATE_KEY_INITIATIVE_SUGGESTION not in update
+        eval_mock.assert_not_awaited()
+        after = recurrence_evaluation_skipped_total.labels(reason="automated_source")._value.get()
+        assert after == before + 1
+
+    async def test_human_run_with_the_same_ledger_fires(self):
+        with (
+            patch("src.domains.agents.nodes.initiative_recurrence.settings", _settings()),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="Veux-tu automatiser cela ?"),
+            ) as eval_mock,
+            installed_runtime_context(user_id=_USER_ID, is_automated_source=False),
+        ):
+            update = await initiative_node(_state(), _CONFIG)
+
+        assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "Veux-tu automatiser cela ?"
+        eval_mock.assert_awaited_once()

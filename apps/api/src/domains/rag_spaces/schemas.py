@@ -72,6 +72,9 @@ class RAGSpaceDetailResponse(RAGSpaceResponse):
 
     documents: list[RAGDocumentResponse] = Field(default_factory=list)
     drive_sources: list[RAGDriveSourceResponse] = Field(default_factory=list)
+    mail_sources: list[RAGMailSourceResponse] = Field(
+        default_factory=list, description="Gmail labels linked to the space (ADR-262)."
+    )
 
 
 class RAGSpaceListResponse(BaseModel):
@@ -103,6 +106,9 @@ class RAGDocumentResponse(BaseModel):
     embedding_cost_eur: float = 0.0
     source_type: str = "upload"
     drive_file_id: str | None = None
+    mail_thread_id: str | None = Field(
+        default=None, description="Gmail thread this document renders (ADR-262)."
+    )
     created_at: datetime
 
 
@@ -225,6 +231,51 @@ class RAGDriveSyncStatusResponse(BaseModel):
     file_count: int
     synced_file_count: int
     error_message: str | None
+
+
+# ============================================================================
+# Mail source schemas (ADR-262)
+# ============================================================================
+
+
+class RAGMailSourceCreate(BaseModel):
+    """Request body to link a Gmail label to a RAG space."""
+
+    label_id: str = Field(max_length=255, description="Gmail label id (e.g. Label_123).")
+    label_name: str = Field(max_length=500, description="Display name of the label.")
+
+
+class RAGMailSourceResponse(BaseModel):
+    """Mail source data for API responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    label_id: str = Field(description="Gmail label id.")
+    label_name: str = Field(description="Display name of the label.")
+    sync_status: str = Field(description="idle | syncing | completed | error.")
+    last_sync_at: datetime | None = Field(description="Last successful sync.")
+    thread_count: int = Field(description="Threads under the label at the last full sync.")
+    synced_thread_count: int = Field(description="Threads whose document is indexed.")
+    error_message: str | None = Field(description="Last error, when sync_status is error.")
+    created_at: datetime
+
+
+class RAGMailSyncStatusResponse(BaseModel):
+    """Sync status for a mail source."""
+
+    sync_status: str = Field(description="idle | syncing | completed | error.")
+    last_sync_at: datetime | None = Field(description="Last successful sync.")
+    thread_count: int = Field(description="Threads under the label at the last full sync.")
+    synced_thread_count: int = Field(description="Threads whose document is indexed.")
+    error_message: str | None = Field(description="Last error, when sync_status is error.")
+
+
+class GmailLabelResponse(BaseModel):
+    """One Gmail label the user may link (the picker's rows)."""
+
+    id: str = Field(description="Gmail label id.")
+    name: str = Field(description="Display name.")
 
 
 # ============================================================================

@@ -569,3 +569,58 @@ class TestCalculateElapsedHours:
         )
 
         assert 3.0 < elapsed < 4.0  # ~3.5h elapsed
+
+
+@pytest.mark.unit
+class TestWakeGateBypass:
+    """ADR-261: a push wake skips ONLY the probabilistic smoothing — the hard
+    eligibility check still runs first and still refuses."""
+
+    @pytest.mark.asyncio
+    async def test_skip_probabilistic_gate_never_consults_should_send(self):
+        from src.infrastructure.proactive.eligibility import EligibilityResult
+
+        checker = AsyncMock()
+        checker.check = AsyncMock(return_value=EligibilityResult.success())
+        checker.should_send_notification = MagicMock(return_value=(False, {}))
+        checker.notification_model = None
+        checker.start_hour_field = "interests_notify_start_hour"
+        checker.end_hour_field = "interests_notify_end_hour"
+        task = MagicMock()
+        task.task_type = "heartbeat"
+        task.check_eligibility = AsyncMock(return_value=False)  # stop right after the gate
+        runner = ProactiveTaskRunner(
+            task=task, eligibility_checker=checker, skip_probabilistic_gate=True
+        )
+        runner._get_today_notification_count = AsyncMock(return_value=3)
+        stats = RunnerStats()
+
+        result = await runner._process_user(_make_mock_user(), AsyncMock(), stats)
+
+        assert result is False
+        checker.check.assert_awaited_once()
+        checker.should_send_notification.assert_not_called()
+        task.check_eligibility.assert_awaited_once()
+        assert "probabilistic_skip" not in stats.skip_reasons
+
+    @pytest.mark.asyncio
+    async def test_hard_eligibility_still_refuses_a_wake(self):
+        from src.infrastructure.proactive.eligibility import (
+            EligibilityReason,
+            EligibilityResult,
+        )
+
+        checker = AsyncMock()
+        checker.check = AsyncMock(
+            return_value=EligibilityResult(
+                eligible=False, reason=EligibilityReason.OUTSIDE_TIME_WINDOW
+            )
+        )
+        task = MagicMock()
+        task.task_type = "heartbeat"
+        runner = ProactiveTaskRunner(
+            task=task, eligibility_checker=checker, skip_probabilistic_gate=True
+        )
+        stats = RunnerStats()
+        assert await runner._process_user(_make_mock_user(), AsyncMock(), stats) is False
+        assert stats.skip_reasons == {"outside_time_window": 1}

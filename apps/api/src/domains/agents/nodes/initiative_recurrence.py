@@ -16,8 +16,14 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
-from src.domains.agents.context.runtime_context import runtime_user_id_str
+from src.domains.agents.context.runtime_context import (
+    runtime_context_if_running,
+    runtime_user_id_str,
+)
 from src.domains.agents.nodes.initiative_node import _extract_run_id, _initiative_core
+from src.infrastructure.observability.metrics_agents import (
+    recurrence_evaluation_skipped_total,
+)
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
@@ -38,6 +44,14 @@ async def _resolve_recurrence_suggestion(
     suggestion text, or None.
     """
     if not settings.recurrence_suggestion_enabled:
+        return None
+    # Symmetry with post_response_extractions (ADR-214 amendment): a scheduled
+    # run must neither RECORD nor EVALUATE — evaluating here would let LIA
+    # propose to automate her own automation and promote it as the user's
+    # habit the day a polluted ledger locks.
+    run_context = runtime_context_if_running()
+    if run_context is not None and run_context.is_automated_source:
+        recurrence_evaluation_skipped_total.labels(reason="automated_source").inc()
         return None
     from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
 

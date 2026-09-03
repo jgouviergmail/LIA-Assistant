@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import HUMAN_CHAT_SESSION_UUID_REGEX
+from src.domains.habits.human_turns import HUMAN_OUTCOME_PREDICATE_SQL
 from src.domains.habits.models import (
     HabitStatus,
     UserActivityDay,
@@ -41,7 +42,10 @@ logger = structlog.get_logger(__name__)
 #   days — enough for the detector to claim LIA's own scheduler as the
 #   user's habit. A message whose run maps to a non-whitelisted session is
 #   machine work; a message with no run/summary match predates tracking and
-#   stays (old rows are human — automation postdates the tracker).
+#   stays (old rows are human — automation postdates the tracker). The
+#   marker exists since 2026-08-05: from 2026-09-30 no unmarked row is left
+#   inside the 56-day window and this clause can go (dated task, ADR-214
+#   amendment 2026-09-03).
 _DAY_ACTIVITY_SQL = text("""
     SELECT (cm.created_at AT TIME ZONE :tz)::date AS local_date,
            EXTRACT(HOUR FROM cm.created_at AT TIME ZONE :tz)::int AS local_hour,
@@ -62,22 +66,22 @@ _DAY_ACTIVITY_SQL = text("""
     GROUP BY 1, 2
     """)
 
-# Durable retroactive source (ADR-214, owner finding 2026-08-05): the chat
-# "reset" deletes conversation messages, but message_token_summary (one row
-# per run, billing-retained) survives. HUMAN runs are WHITELISTED by session
-# shape (core/constants.py HUMAN_CHAT_SESSION_*): background jobs run at
-# FIXED hours, so a missed exclusion would teach LIA her own schedule — the
-# whitelist fails toward slower learning, never toward a fabricated habit.
-_RUN_ACTIVITY_SQL = text("""
-    SELECT (mts.created_at AT TIME ZONE :tz)::date AS local_date,
-           EXTRACT(HOUR FROM mts.created_at AT TIME ZONE :tz)::int AS local_hour,
+# Durable retroactive source (ADR-214 amendment, prod forensics 2026-09-03):
+# the chat "reset" deletes conversation messages AND their token summaries
+# (``token_summaries_deleted_for_conversation``) — the summary source the
+# first amendment relied on showed 5 human rows in 56 days for 235 real
+# turns. ``product_outcomes`` writes one row per finalized run and survives
+# a reset; its ``channel`` column says who sat behind the run, so the human
+# predicate is a column test shared with the recurrence-ledger seed
+# (``habits/human_turns.py``) — never a second wording of "human".
+_RUN_ACTIVITY_SQL = text(f"""
+    SELECT (po.produced_at AT TIME ZONE :tz)::date AS local_date,
+           EXTRACT(HOUR FROM po.produced_at AT TIME ZONE :tz)::int AS local_hour,
            COUNT(*) AS n
-    FROM message_token_summary mts
-    WHERE mts.user_id = :user_id
-      AND mts.created_at >= :since
-      AND (mts.session_id LIKE 'session\\_%'
-           OR mts.session_id LIKE 'channel\\_%'
-           OR mts.session_id ~ :uuid_regex)
+    FROM product_outcomes po
+    WHERE po.user_id = :user_id
+      AND po.produced_at >= :since
+      AND {HUMAN_OUTCOME_PREDICATE_SQL}
     GROUP BY 1, 2
     """)
 
@@ -99,11 +103,31 @@ _RESET_ACTIVITY_SQL = text("""
     GROUP BY 1, 2
     """)
 
+# Thumbs on notifications as a PRESENCE source (ADR-214 amendment
+# 2026-09-03, owner decision): a thumb is an explicit human act; the
+# notification being SENT never counts. ``feedback_at`` is stamped by the
+# feedback routes; rows without it predate the column and stay silent.
+_FEEDBACK_ACTIVITY_SQL = text("""
+    SELECT (f.feedback_at AT TIME ZONE :tz)::date AS local_date,
+           EXTRACT(HOUR FROM f.feedback_at AT TIME ZONE :tz)::int AS local_hour,
+           COUNT(*) AS n
+    FROM (
+        SELECT hn.feedback_at
+        FROM heartbeat_notifications hn
+        WHERE hn.user_id = :user_id AND hn.feedback_at >= :since
+        UNION ALL
+        SELECT inn.feedback_at
+        FROM interest_notifications inn
+        WHERE inn.user_id = :user_id AND inn.feedback_at >= :since
+    ) f
+    GROUP BY 1, 2
+    """)
+
 # Bounds of the human history (delta-skip marker + window clipping for new
 # accounts) — the UNION of all three sources: messages die on reset,
-# summaries and reset audit rows do not, and any one alone under-reports
+# outcomes and reset audit rows do not, and any one alone under-reports
 # the observation span.
-_ACTIVITY_BOUNDS_SQL = text("""
+_ACTIVITY_BOUNDS_SQL = text(f"""
     SELECT MIN(first_at) AS first_at, MAX(last_at) AS last_at FROM (
         SELECT MIN(cm.created_at) AS first_at, MAX(cm.created_at) AS last_at
         FROM conversation_messages cm
@@ -112,17 +136,27 @@ _ACTIVITY_BOUNDS_SQL = text("""
           AND cm.role = 'user'
           AND (cm.message_metadata ->> 'is_automated_source') IS DISTINCT FROM 'true'
         UNION ALL
-        SELECT MIN(mts.created_at), MAX(mts.created_at)
-        FROM message_token_summary mts
-        WHERE mts.user_id = :user_id
-          AND (mts.session_id LIKE 'session\\_%'
-               OR mts.session_id LIKE 'channel\\_%'
-               OR mts.session_id ~ :uuid_regex)
+        SELECT MIN(po.produced_at), MAX(po.produced_at)
+        FROM product_outcomes po
+        WHERE po.user_id = :user_id
+          AND {HUMAN_OUTCOME_PREDICATE_SQL}
         UNION ALL
         SELECT MIN(cal.created_at), MAX(cal.created_at)
         FROM conversation_audit_log cal
         WHERE cal.user_id = :user_id
           AND cal.action = 'reset'
+        UNION ALL
+        -- Thumbs (ADR-214 amendment 2026-09-03): an explicit human act, and
+        -- for a user who reads without typing it is their ONLY timestamped
+        -- trace. Left out, "no activity" was false for exactly the profile
+        -- the amendment set out to serve.
+        SELECT MIN(hn.feedback_at), MAX(hn.feedback_at)
+        FROM heartbeat_notifications hn
+        WHERE hn.user_id = :user_id AND hn.feedback_at IS NOT NULL
+        UNION ALL
+        SELECT MIN(inn.feedback_at), MAX(inn.feedback_at)
+        FROM interest_notifications inn
+        WHERE inn.user_id = :user_id AND inn.feedback_at IS NOT NULL
     ) bounds
     """)
 
@@ -173,21 +207,33 @@ class HabitsRepository:
     async def fetch_run_activity(
         self, user_id: UUID, tz_name: str, since: datetime
     ) -> dict[date, dict[int, int]]:
-        """Per-local-day hour histograms of HUMAN runs from token summaries.
+        """Per-local-day hour histograms of HUMAN runs from product outcomes.
 
-        The durable retroactive source: one row per chat run, survives
-        conversation resets. Human runs whitelisted by session shape (see
-        the SQL comment — a background job leaking in would teach LIA her
-        own fixed schedule as a habit).
+        The durable retroactive source: one row per finalized run, survives
+        conversation resets. Human runs selected by the shared column
+        predicate (``habits/human_turns.py``) — a scheduled action's
+        ``automation_run`` never counts, whatever became of its summary.
         """
         result = await self.db.execute(
             _RUN_ACTIVITY_SQL,
-            {
-                "user_id": str(user_id),
-                "tz": tz_name,
-                "since": since,
-                "uuid_regex": HUMAN_CHAT_SESSION_UUID_REGEX,
-            },
+            {"user_id": str(user_id), "tz": tz_name, "since": since},
+        )
+        days: dict[date, dict[int, int]] = {}
+        for local_date, local_hour, n in result.all():
+            days.setdefault(local_date, {})[int(local_hour)] = int(n)
+        return days
+
+    async def fetch_feedback_activity(
+        self, user_id: UUID, tz_name: str, since: datetime
+    ) -> dict[date, dict[int, int]]:
+        """Per-local-day hour histograms of the user's thumbs on notifications.
+
+        Presence-grade by decision (owner, 2026-09-03): a thumb is an explicit
+        human act on a notification LIA sent; the sending itself is excluded
+        by construction (only ``feedback_at`` is read).
+        """
+        result = await self.db.execute(
+            _FEEDBACK_ACTIVITY_SQL, {"user_id": str(user_id), "tz": tz_name, "since": since}
         )
         days: dict[date, dict[int, int]] = {}
         for local_date, local_hour, n in result.all():
@@ -215,7 +261,7 @@ class HabitsRepository:
         """(first, last) human activity timestamps across all three sources."""
         result = await self.db.execute(
             _ACTIVITY_BOUNDS_SQL,
-            {"user_id": str(user_id), "uuid_regex": HUMAN_CHAT_SESSION_UUID_REGEX},
+            {"user_id": str(user_id)},
         )
         row = result.one_or_none()
         if row is None:
@@ -271,6 +317,38 @@ class HabitsRepository:
                 )
             elif row.hour_counts != payload:
                 row.hour_counts = dict(payload)
+
+    async def bump_activity_hour(self, user_id: UUID, local_date: date, hour: int) -> None:
+        """Bank one presence hour into the rollup (server-side atomic UPSERT).
+
+        ``GREATEST(existing, 1)``: presence marks the hour, it never inflates
+        a count the message sources already wrote — and the nightly MAX-merge
+        keeps it (ADR-214 amendment 2026-09-03). Never SELECT → increment →
+        flush: two workers banking the same hour must not lose an update.
+
+        Args:
+            user_id: Owner.
+            local_date: The user's LOCAL calendar date.
+            hour: Local hour 0-23 (validated here — it becomes a JSON key).
+        """
+        if not 0 <= int(hour) <= 23:
+            raise ValueError(f"hour out of range: {hour}")
+        key = str(int(hour))
+        stmt = pg_insert(UserActivityDay).values(
+            user_id=user_id, local_date=local_date, hour_counts={key: 1}
+        )
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_user_activity_days_user_date",
+            set_={
+                "hour_counts": text(
+                    "jsonb_set(COALESCE(user_activity_days.hour_counts, '{}'::jsonb), "
+                    f"ARRAY['{key}'], to_jsonb(GREATEST(COALESCE("
+                    f"(user_activity_days.hour_counts->>'{key}')::int, 0), 1)), true)"
+                ),
+                "updated_at": datetime.now(UTC),
+            },
+        )
+        await self.db.execute(stmt)
 
     async def prune_activity_days(self, user_id: UUID, keep_after: date) -> int:
         """Drop rollup days older than the observation window."""
