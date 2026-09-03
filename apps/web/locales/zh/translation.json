@@ -3495,7 +3495,7 @@
         "journals": "日记, 日志, 画像, 反思, 笔记, 来源, 为什么, 出处, 信号, 起源, 更正, 配置, 整理、导出",
         "health-metrics": "健康, 心率, 步数, 睡眠, iPhone, Apple 健康, 运动",
         "skills": "技能, 能力, 插件, 扩展",
-        "rag-spaces": "文档, RAG, 知识库, 文件, 上传, 索引, 资料库",
+        "rag-spaces": "知识空间, 文档, 文件, 上传, 下载, 压缩包, zip, 移动, 批量删除, 索引, 文档检索, drive, 会议",
         "user-consumption-export": "CSV, 用量, 消耗, 令牌, 成本, 账单, 统计, 导出",
         "haptics": "触觉 震动 触感 反馈",
         "plugins": "插件, 扩展, agent plugins, 安装, 软件包, mcp, 技能",
@@ -3516,7 +3516,7 @@
         "debug-settings": "调试, 诊断, 日志, 面板, 令牌跟踪",
         "eyes-style": "眼睛, 头像, 动画, 样式, 目光, 伙伴, cozmo",
         "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络 向量 嵌入 配额 记忆 语言",
-        "meetings": "会议, 录音, 纪要, 转写, 报告, 麦克风, 笔记, 摘要, 行动"
+        "meetings": "会议, 录音, 纪要, 转写, 报告, 麦克风, 笔记, 摘要, 行动项, 模板, 模板库, 纪要格式, 默认格式, 自动格式, 更改格式, 章节, 指令, 纪要邮件"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -3761,7 +3761,47 @@
       "upload_formats_tooltip": "PDF、TXT、MD、DOCX、PPTX、XLSX、CSV、RTF、HTML、ODT、ODS、ODP、EPUB、JSON、XML",
       "chunk_count": "{{count}} 个片段",
       "embedding_tokens": "{{count}} 个令牌",
-      "file_too_large": "\"{{name}}\" 文件过大（最大 {{maxSize}} MB）"
+      "file_too_large": "\"{{name}}\" 文件过大（最大 {{maxSize}} MB）",
+      "select_row": "选择“{{name}}”",
+      "select_all": "选择所有文档",
+      "selection_region": "已选文档",
+      "selected_count_one": "已选择 {{count}} 个文档",
+      "selected_count_other": "已选择 {{count}} 个文档",
+      "clear_selection": "清除选择",
+      "download": "下载",
+      "download_selected": "下载为 zip",
+      "move": "移动到其他空间…",
+      "move_selected": "移动…",
+      "delete_selected": "删除",
+      "row_actions": "操作 — {{name}}",
+      "confirm_bulk_delete_title": "删除所选文档？",
+      "confirm_bulk_delete_description_one": "此文档及其索引和文件将被永久删除。",
+      "confirm_bulk_delete_description_other": "这 {{count}} 个文档及其索引和文件将被永久删除。",
+      "bulk_deleted_one": "已删除 {{count}} 个文档",
+      "bulk_deleted_other": "已删除 {{count}} 个文档",
+      "moved_one": "已移动 {{count}} 个文档",
+      "moved_other": "已移动 {{count}} 个文档",
+      "skipped_one": "{{count}} 个文档保留原位：{{reasons}}",
+      "skipped_other": "{{count}} 个文档保留原位：{{reasons}}",
+      "move_dialog": {
+        "title": "移动到其他空间",
+        "description": "文档及其索引和文件会一起移动。从 Drive 同步或由会议生成的文档保留原位。",
+        "target_label": "目标空间",
+        "target_count_one": "{{count}} 个文档",
+        "target_count_other": "{{count}} 个文档",
+        "submit": "移动",
+        "none_available": "您没有其他空间可以移动这些文档。请先创建一个。"
+      },
+      "skip": {
+        "same_space": "已在此空间中",
+        "document_managed_by_drive": "从 Drive 同步",
+        "document_managed_by_meetings": "由会议生成",
+        "document_busy": "仍在索引中",
+        "document_limit_exceeded": "目标空间已满",
+        "document_move_failed": "文件无法移动",
+        "delete_failed": "无法删除",
+        "document_not_found": "未找到"
+      }
     },
     "drive": {
       "title": "Google Drive 来源",
@@ -3800,6 +3840,11 @@
     },
     "meetings": {
       "source_type_meeting": "会议"
+    },
+    "errors": {
+      "archive_too_large": "所选内容超过了单个压缩包允许的 {{max}} MB。请减少选择的文档。",
+      "reindex_in_progress": "知识空间重新索引期间无法移动文档。请稍后再试。",
+      "document_file_missing": "此文档的文件已不在服务器上。"
     }
   },
   "navigation": {
@@ -4420,7 +4465,7 @@
         },
         "meetings": {
           "title": "🎙️ 会议纪要",
-          "description": "在输入框旁按下 +，手机或电脑就成了会议录音机：音频在你说话的同时以小片段发出，因此崩溃、刷新或断网只会损失几秒，绝不会损失整场会议。停止时，服务器合并整段录音，依次尝试引擎链——管理员的选择、能区分发言人的 ElevenLabs 或 OpenAI，或按语音窗口切分、再长也不怕的本地 Whisper——然后把转写交给一次结构化调用来填充你的模板：头部固定，章节由你定义。花费会在卡片、页面和列表上以两个金额和一个合计写明，纪要还会进入一个可供提问的知识空间。不臆造任何内容：缺口会被指出，未知发言人保持为 S2。"
+          "description": "页头的一个按钮——或手机菜单中的「录制会议」入口——设备便成了录音机：音频在说话的同时以小片段发出，因此崩溃或断网只会损失几秒，绝不会损失整场会议。停止时，服务器合并录音并依次尝试引擎链，直到有一个完成转写。纪要格式会通过阅读会上说了什么，从三十种内置模板中挑选，除非你指定自己的格式；会议会写明所用格式及其理由。已写好的纪要可以改用其他格式重写，直至完整转写，可原地替换或另存为新文档。花费以两个金额和一个总计说明，缺口会被指出，绝不会被填补。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -4429,6 +4474,19 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_39_1": {
+          "title": "v1.39.1 — 🗂️ 三十种纪要格式，LIA 自动选对",
+          "date": "2026 年 9 月",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗂️ 会议纪要格式库</b> — 三十种开箱即用的模板，按用途归类：会议与团队、转写、对话分析、销售与咨询、技术、个人预约、课程与培训。浏览、预览，把合适的加入我的模板——单个或批量——然后在自己的模板里调整：重命名、调整章节顺序、改写指令、把一个模板派生出多个变体、删除不再需要的。",
+            "i2": "<b>✨ LIA 自动选择格式</b> — 无需任何设置，它读取会上说了什么并选用匹配的格式：项目例会、面谈、就诊和授课的结构并不相同。纪要会写明所用格式，说明它来自您、来自您的默认设置还是它自己的选择，并用一句话解释原因。主动权仍在您手里：在设置中选择默认格式，或在录音横幅上为当前会议选择格式。",
+            "i3": "<b>🔁 事后更换格式</b> — 已生成的纪要可以基于保留的转写内容改用其他格式重写：要么替换现有的，要么得到同一场会议的<b>一份新纪要</b>，它保留与来源的关联，并作为独立文档进入知识空间。顺带的新功能：一种格式现在可以返回<b>完整转写</b>，经过整理、便于阅读，而不是摘要。",
+            "i4": "<b>✉️ 纪要邮件，人人可用</b> — 现在由应用自身的地址发往您账户的邮箱，主题为“会议纪要 · 标题”。不再需要连接邮箱：只要管理员配置了邮件，手动发送和自动发送在任何实例上都能工作。",
+            "i5": "<b>🗃️ 文档在知识空间之间流转</b> — 下载单个文档，或将整批选择打包为使用原始文件名的 zip 压缩包；把文档移动到其他空间，索引和文件一并跟随；一次删除多个。每次批量操作都会告诉您做了什么、跳过了什么以及原因：从 Drive 同步或由会议生成的文档会留在其所有者放置的位置。",
+            "i6": "<b>🎙️ 录音有了自己的位置</b> — 电脑端在页头有专属按钮，手机端在标志菜单中有“录制 / 停止”入口，录制期间触发按钮会闪烁红色；横幅在每个页面跟随您，且绝不会把输入区推出屏幕。输入框的“+”回归本职：附加文件。会议列表也终于支持多选批量删除。"
+          }
+        },
         "v1_39_0": {
           "title": "v1.39.0 — 🎙️ 录制会议，收到纪要",
           "date": "2026 年 9 月",
@@ -7555,7 +7613,7 @@
       "rag_spaces": {
         "title": "知识空间 (RAG)",
         "description": "上传和使用你的文档来丰富AI回答",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "什么是知识空间？",
@@ -7592,6 +7650,10 @@
           "q9": {
             "question": "LIA 能自主搜索我的文档吗？(v1.25.13)",
             "answer": "能。你的文档空间现在是一个<strong>可用领域</strong>：除了自动注入上下文之外，规划器还能决定主动搜索——派生查询、必要时多次检索、并与其他来源组合：「把 PDF 报价单和 Paul 邮件里的内容对比一下」会串联一次文档搜索和一次邮件搜索。<br><br>简报的「文档」卡片还会显示你最近修改的 Drive 文件——一键在聊天中摘要，或直接在 Drive 中打开。"
+          },
+          "q10": {
+            "question": "我可以下载、移动或删除多个文档吗？",
+            "answer": "可以。空间中的每个文档都提供<strong>下载</strong>——按原始文件名下载原始文件——也可以勾选以便一次处理多个。所选内容可以<strong>打包为 zip 压缩包下载</strong>、<strong>移动到其他空间</strong>，或一次<strong>删除</strong>。<br><br>移动会带走全部内容：数据行、供检索使用的索引，以及文件本身——此后该文档只会从新空间作答。保持原位的是 LIA 为你维护的文档：从 Google Drive 文件夹同步的文档，以及归属于其来源的会议纪要。<br><br>每次批量操作都会告诉你做了什么、跳过了什么以及原因——目标空间已满、文档仍在索引中、文档由别处管理。在全局重新索引期间不会移动任何内容：LIA 宁愿明确拒绝，也不会移动引擎正在重读的文档。"
           }
         }
       },
@@ -7906,15 +7968,15 @@
       "meetings": {
         "title": "会议纪要",
         "description": "在聊天里录制一场会议，按你自己的格式得到结构化的纪要，再在知识空间里找回它。",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
-            "question": "如何录制一场会议？",
-            "answer": "在聊天中，打开输入框旁边的 <strong>+</strong> 按钮，选择<strong>录制会议</strong>。你的手机或电脑就成了麦克风：LIA 只会询问一次，然后每个页面顶部的横幅会显示录音、时长以及已经到达你服务器的部分。期间你可以继续和 LIA 聊天——语音回答和唤醒词会暂停，以免麦克风听到助手自己的声音。<br><br>会议结束时，在横幅或同一个菜单里点击<strong>停止</strong>。LIA 会转写整段录音、撰写纪要，并在聊天中发布一张卡片，包含标题、摘要和<strong>打开纪要</strong>按钮。每一次录音也会出现在页眉的<strong>会议</strong>页面里，位于「关系」和「提醒」之间。<br><br><strong>💡 提示：</strong>该功能只在管理员启用的实例上存在，负责转写的引擎及其每小时音频价格会在开始前显示。"
+            "question": "如何录制会议？",
+            "answer": "在电脑上，录音按钮位于页头右侧；在手机上，打开 LIA 标志菜单并选择<strong>录制会议</strong>——录制期间菜单按钮会闪烁红色。你的手机或电脑会成为麦克风：LIA 只请求一次权限，随后每个页面顶部的横幅都会显示录音状态、时长以及已经到达服务器的部分。期间你可以继续与 LIA 聊天——语音回答和唤醒词会暂停，以免麦克风听到助手自己的声音。<br><br>会议结束时，在横幅上或你开始的位置按<strong>停止</strong>。LIA 会转写整段录音、撰写会议纪要，并在聊天中发布一张卡片，带有标题、摘要和<strong>打开纪要</strong>按钮。每次录制也会出现在页头的<strong>会议</strong>页面中，位于「关系」和「提醒」之间。<br><br><strong>💡 小贴士：</strong>该功能仅在管理员启用后才存在；开始之前会显示将要转写的引擎及其每小时音频的价格；并且可以在会议进行时通过横幅选择纪要格式。"
           },
           "q2": {
-            "question": "纪要包含哪些内容？我能改变它的结构吗？",
-            "answer": "纪要的头部是固定的：日期、按你时区显示的开始与结束时间、时长、已知的地点，以及参与者。正文遵循<strong>你的模板</strong>：一组有序的章节，每一节都有标题、给助手的指令和一种格式——一段文字、一个要点列表、每个议题一条，或带负责人与期限的行动项。<br><br>内置模板提供摘要、讨论的议题、决定、行动项、风险和未决问题。可在<strong>设置 › 会议</strong>中修改：重命名、重新排序、增删章节，并可一键恢复默认。已生成的纪要保留生成时的结构；<strong>重新生成</strong>会用你当前的模板，基于保存的转写重写一场过去的会议。<br><br>模型只报告转写能够支持的内容：悬而未决的提议不是决定，愿望不是行动项，每个相对日期都会被解析成真实日期。"
+            "question": "会议纪要包含什么，由谁决定它的结构？",
+            "answer": "纪要的抬头是固定的：日期、你所在时区的开始与结束时间、时长、已知的地点，以及参会人。正文遵循一种<strong>格式</strong>：有序的章节列表，每个章节有标题、给助手的指令和一种形态——段落、要点列表、按主题分条、带负责人和截止日期的行动项，或整理干净的完整转写。<br><br>LIA 随附<strong>三十种内置格式</strong>，按用途归类：会议与团队、转写、对话分析、销售与咨询、技术、个人预约、课程与培训。在<strong>会议 › 会议纪要模板</strong>中可以浏览、预览，并把需要的加入我的模板——单个或批量——然后进行调整：重命名、调整章节顺序、改写指令、派生模板、删除不再需要的。<br><br><strong>不做选择时，由 LIA 选择</strong>：它读取会上说了什么，选用匹配的格式，并在会议上写明所选格式以及一句话的理由。你可以在<strong>设置 › 会议</strong>中指定默认格式，或在横幅上为当前会议指定格式。完整转写类格式绝不会被自动选择：它们篇幅长，且按整场会议计费。<br><br>模型只报告转写内容能够支撑的事实：仍未定论的提议不是决定，愿望不是行动项，每个相对日期都会解析成真实日期。"
           },
           "q3": {
             "question": "由哪个引擎转写？费用是多少？",
@@ -7929,12 +7991,16 @@
             "answer": "一切都留在<strong>你的</strong>服务器上。录制时音频按片段保存，结束时合并一次，然后发送给你选择的转写引擎——没有其他任何人能听到。默认情况下，<strong>纪要一旦生成，音频即被删除</strong>；在设置 › 会议中你可以保留一段时间（不超过管理员设定的上限），之后自动清除。<br><br>转写以加密形式存放在数据库中，可以在会议页面显示，也可以单独删除而保留纪要。删除一场会议会移除它的音频、转写、纪要，以及已索引到你知识空间中的文档——不会留下任何残余。"
           },
           "q6": {
-            "question": "我能编辑纪要、发送它，并在之后向 LIA 询问我的会议吗？",
-            "answer": "可以。在会议页面上你可以<strong>编辑</strong>每个字段——标题、参与者的姓名和角色、每一节各按其格式——并随时<strong>恢复</strong>模型撰写的版本。<strong>PDF</strong> 将纪要下载为文档；<strong>邮件</strong>通过你连接的邮箱把它发送到你自己的地址，设置中也可以为每场会议自动完成。<br><br>每份纪要还会被索引到一个名为<strong>会议</strong>的知识空间中，首次使用时自动为你创建。因此你可以直接问：「关于迁移我们决定了什么？」「这周有哪些行动项到期？」——助手会基于你自己的会议回答，并标注来源。"
+            "question": "我可以编辑纪要、发送它，并在之后向 LIA 询问我的会议吗？",
+            "answer": "可以。在会议页面上你可以<strong>编辑</strong>每个字段——标题、参会人姓名与角色、每个章节各自的形态——并随时<strong>恢复</strong>模型撰写的版本。<strong>PDF</strong> 将纪要下载为文档；<strong>邮件</strong>从应用自身的地址发送到你账户的邮箱——无需连接任何邮箱——设置中还可以为每场会议自动发送。<br><br>每份纪要还会被索引到名为<strong>会议</strong>的知识空间中，首次使用时自动为你创建。因此你可以直接询问：「关于迁移我们决定了什么？」「本周有哪些行动项到期？」——助手会从你自己的会议中作答，并注明来源。<br><br>会议列表支持多选：勾选不再需要的会议并一次删除。仍在录制或仍在处理中的会议会被跳过，LIA 会告诉你是哪一场以及原因。"
           },
           "q7": {
             "question": "LIA 知道谁说了什么吗？",
             "answer": "当引擎区分发言人时，每个声音都会在整段转写和纪要中获得一个稳定的标签——<strong>S1、S2……</strong>。只有当录音本身能够确认时才会出现<strong>姓名</strong>：有人自我介绍、被叫到名字，或与会议重叠的日历事件不留疑问。LIA 绝不臆造姓名；未命名的发言人保持为 S2，你可以在编辑纪要时自己为其命名。<br><br>本地引擎转写时不区分声音：此时纪要读起来像一份单一的叙述，附带它能确认的参与者。"
+          },
+          "q8": {
+            "question": "已经生成的纪要可以更换格式吗？",
+            "answer": "可以，只要转写内容仍被保留。在会议页面上，<strong>更改格式…</strong>提供两种结果：<strong>替换</strong>现有纪要，或获得同一场会议的<strong>一份新纪要</strong>。新纪要保留与来源的关联——原会议会显示由它产生了多少份纪要——并作为独立文档进入知识空间，拥有自己的费用。<br><br>这让你可以用两种方式读同一场会议：一边是工作用的纪要，另一边是完整而整洁的转写，或者在你想看对话本身而非其结论时使用分析类格式。<strong>重新生成</strong>仍在旁边：它用<em>相同</em>格式重写纪要，在你刚修改过章节之后很有用。<br><br><strong>💡 小贴士：</strong>重写需要一次新的合成，计费方式与第一次相同，对话框会在你确认前提示。如果你删除了转写内容，纪要仍可阅读，但无法再被重写。"
           }
         }
       }
@@ -8196,6 +8262,10 @@
       "meeting_banner": {
         "title": "录音跟随你",
         "desc": "会议进行中切换页面：横幅保留着时间、麦克风和回去的路——继续、完成或放弃。"
+      },
+      "template_library": {
+        "title": "三十种格式，默认折叠",
+        "desc": "模板库打开时各分类均已折叠，你的模板在最前：展开需要的那一类，勾选，然后添加。"
       }
     },
     "scenes": {
@@ -8295,6 +8365,11 @@
         "recording": "录音中",
         "interrupted": "已中断",
         "resume": "继续"
+      },
+      "template_library": {
+        "mine": "我的模板",
+        "builtin": "内置",
+        "pick": "添加"
       }
     },
     "craft": {
@@ -9422,7 +9497,7 @@
       },
       "meetings": {
         "title": "录制会议，收到纪要",
-        "description": "在聊天中按下 +，你的手机或电脑就开始录制会议——横幅跟随你到每个页面，同时你可以继续与 LIA 交谈。停止后，LIA 转写全部内容并按你的结构撰写纪要：日期、时间、地点、谁在场、讨论了什么、决定了什么、待办事项及负责人、有哪些风险。在聊天中阅读、下载 PDF、发送到你的邮箱，数周后还能向 LIA 询问。不臆造任何内容：录音中的缺口会被指出，未命名的发言人保持未命名，花费就写在旁边。"
+        "description": "页头的一个按钮——或手机上的菜单入口——你的设备便开始录制会议，横幅跟随你到每个页面，同时你可以继续与 LIA 交谈。停止后，LIA 转写全部内容，并以合适的格式撰写纪要：三十种内置模板覆盖团队例会、面谈、个人预约和课程——LIA 会根据会上说了什么自行选择，你也可以指定自己的格式。在聊天中阅读、下载 PDF、通过邮件接收、改用其他格式重写，数周后还能向 LIA 询问。不臆造任何内容：缺口会被指出，未命名的发言人保持未命名，花费就写在旁边。"
       }
     },
     "use_cases": {
@@ -9524,6 +9599,10 @@
       "native_shells": {
         "title": "原生外壳与唤醒中继",
         "description": "每个商店一个应用，可作为任何自托管服务器的客户端：WebView 以与网页版相同的 httpOnly Cookie 会话加载您服务器的源。Android 在运行时与您自己的 Firebase 项目通信；iOS 由无状态中继唤醒，其句柄就是密封的设备令牌 —— 不存储任何内容、只说一句固定话语，真实内容从您的服务器获取。每一条平台断言都由测试台驱动真实应用逐场景实测。"
+      },
+      "structured_minutes": {
+        "title": "结构化会议纪要",
+        "description": "三十种纪要格式存在于代码中，它们的文字放在已翻译的数据里。模板由一个引用命名——内置或个人——会议、偏好设置与请求之间交换的是这个引用而非数据行：随附的格式因此无需数据库行。选择遵循唯一的优先级，由最明确到最一般，最后是一次模型调用：它读取转写摘录，并在置信度阈值之上作出选择；结果会被计数，并连同理由写入该会议。返回整份转写无法装进一次回答：它按部分重写，每部分都受该槽位有效输出窗口的约束。"
       }
     },
     "architecture": {
@@ -10148,7 +10227,7 @@
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",
         "excerpt": "导入PDF、Word、Excel等文档。LIA使用混合语义+BM25搜索对其进行索引。",
-        "body": "<h2>支持15+种格式</h2><p>LIA的知识空间接受超过<strong>15种文件格式</strong>，配备专用解析器：</p><ul><li><strong>PDF</strong> 通过PyMuPDF（快速精准提取）</li><li><strong>文档</strong> — DOCX、RTF、ODT</li><li><strong>表格</strong> — XLSX、CSV、ODS</li><li><strong>演示文稿</strong> — PPTX、ODP</li><li><strong>Web和文本</strong> — HTML、Markdown、JSON、XML、EPUB</li></ul><h2>智能分块</h2><p>文档通过<strong>RecursiveCharacterTextSplitter</strong>进行切分，参数经过优化：每块<strong>1000字符</strong>，<strong>200字符</strong>重叠（overlap）以保留段落间的上下文。安全限制：每文档最多<strong>500个块</strong>，每文件最大<strong>20 MB</strong>。</p><h2>混合搜索：两全其美</h2><p>LIA结合两种搜索方法：</p><ul><li><strong>语义搜索</strong> — 通过pgvector的Embeddings。即使用词不同，也能通过语义相似度找到结果。</li><li><strong>BM25搜索</strong> — 关键词匹配。适用于技术术语、专有名词和标识符。</li></ul><p>两种信号的分量并不相同，这是有意为之。相关性只由<strong>语义相似度</strong>决定：一段内容达到 <strong>0.62</strong> 即被保留，这一阈值已在真实语料上针对六种语言重新校准。BM25 随后只提供一个<strong>有上限的加分（0.05）</strong>用于打破平局——它可以把字面命中提到几乎并列者之前，但绝不能让一段内容入选或被剔除。像 LIA 在 2026 年 8 月之前那样把两种信号按相近权重混合，会在提问语言与文档语言拉开距离时丢弃三分之一的正确答案。默认每次查询检索<strong>5 个片段</strong>（最大可配置：20）。</p><h2>限制和配额</h2><p>每个用户拥有：最多<strong>10个空间</strong>、每空间<strong>50个文档</strong>、每文件<strong>20 MB</strong>。这些限制确保了最佳的搜索性能，同时为大多数使用场景提供了充足的容量。</p><h2>Google Drive同步</h2><p>你可以将<strong>Google Drive文件夹</strong>连接到知识空间。文档会自动同步，并在更改时重新索引。同步可检测新增、修改和删除操作。</p><h2>内置FAQ</h2><p>LIA拥有一个包含自身文档（18个FAQ文件）的系统知识空间。这使它能够精确回答关于自身功能的问题。</p><h2>一个自动填充的空间：会议</h2><p>有一个空间是为你创建的，而不是由你创建的。当 LIA 撰写一场录制会议的纪要时，会把它索引到「会议」空间——按角色而非名称查找，所以你可以重命名它——每场会议一份文档，编辑纪要时就地重写，删除会议当天即被移除。该空间不受每用户上限的限制，正是它让助手能够基于你自己的会议回答「关于迁移我们决定了什么？」，并标注来源。</p>"
+        "body": "<h2>支持15+种格式</h2><p>LIA的知识空间接受超过<strong>15种文件格式</strong>，配备专用解析器：</p><ul><li><strong>PDF</strong> 通过PyMuPDF（快速精准提取）</li><li><strong>文档</strong> — DOCX、RTF、ODT</li><li><strong>表格</strong> — XLSX、CSV、ODS</li><li><strong>演示文稿</strong> — PPTX、ODP</li><li><strong>Web和文本</strong> — HTML、Markdown、JSON、XML、EPUB</li></ul><h2>智能分块</h2><p>文档通过<strong>RecursiveCharacterTextSplitter</strong>进行切分，参数经过优化：每块<strong>1000字符</strong>，<strong>200字符</strong>重叠（overlap）以保留段落间的上下文。安全限制：每文档最多<strong>500个块</strong>，每文件最大<strong>20 MB</strong>。</p><h2>混合搜索：两全其美</h2><p>LIA结合两种搜索方法：</p><ul><li><strong>语义搜索</strong> — 通过pgvector的Embeddings。即使用词不同，也能通过语义相似度找到结果。</li><li><strong>BM25搜索</strong> — 关键词匹配。适用于技术术语、专有名词和标识符。</li></ul><p>两种信号的分量并不相同，这是有意为之。相关性只由<strong>语义相似度</strong>决定：一段内容达到 <strong>0.62</strong> 即被保留，这一阈值已在真实语料上针对六种语言重新校准。BM25 随后只提供一个<strong>有上限的加分（0.05）</strong>用于打破平局——它可以把字面命中提到几乎并列者之前，但绝不能让一段内容入选或被剔除。像 LIA 在 2026 年 8 月之前那样把两种信号按相近权重混合，会在提问语言与文档语言拉开距离时丢弃三分之一的正确答案。默认每次查询检索<strong>5 个片段</strong>（最大可配置：20）。</p><h2>限制和配额</h2><p>每个用户拥有：最多<strong>10个空间</strong>、每空间<strong>50个文档</strong>、每文件<strong>20 MB</strong>。这些限制确保了最佳的搜索性能，同时为大多数使用场景提供了充足的容量。</p><h2>Google Drive同步</h2><p>你可以将<strong>Google Drive文件夹</strong>连接到知识空间。文档会自动同步，并在更改时重新索引。同步可检测新增、修改和删除操作。</p><h2>内置FAQ</h2><p>LIA拥有一个包含自身文档（18个FAQ文件）的系统知识空间。这使它能够精确回答关于自身功能的问题。</p><h2>一个自动填充的空间：会议</h2><p>有一个空间是为你创建的，而不是由你创建的。当 LIA 撰写一场录制会议的纪要时，会把它索引到「会议」空间——按角色而非名称查找，所以你可以重命名它——每场会议一份文档，编辑纪要时就地重写，删除会议当天即被移除。该空间不受每用户上限的限制，正是它让助手能够基于你自己的会议回答「关于迁移我们决定了什么？」，并标注来源。</p><h2>可以流转的文档</h2><p>知识空间是用来管理的，而不只是用来装填。每个文档都可以按原始文件名下载，所选内容可以打包为一个 zip 压缩包取回，文档也可以<strong>移动</strong>到其他空间——数据行、供检索读取的索引和文件会一起迁移，因此移动之后该文档只会从新空间作答。删除同样支持批量选择。每次批量操作都会报告做了什么、跳过了什么以及原因：从 Drive 同步或由会议生成的文档归属于其来源，不会被移动；在全局重新索引期间也不会移动任何内容。</p>"
       },
       "personal-journals": {
         "title": "个人日记：当你的 AI 助手发展出自己的记忆",
@@ -10181,9 +10260,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "506个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
+        "title": "507个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：473指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 506个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 507个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -11426,12 +11505,6 @@
     }
   },
   "meetings": {
-    "composer": {
-      "menu_label": "附件与会议录音",
-      "add_file": "添加文件",
-      "record": "录制会议",
-      "stop": "停止录音"
-    },
     "banner": {
       "region_label": "会议录音",
       "starting": "正在开始录音…",
@@ -11465,7 +11538,10 @@
         "openai": "OpenAI",
         "local": "本地引擎（在服务器上）"
       },
-      "offline_long": "已离线较长时间：音频暂存在此设备上。网络恢复后请尽快停止并完成。"
+      "offline_long": "已离线较长时间：音频暂存在此设备上。网络恢复后请尽快停止并完成。",
+      "format_label": "纪要格式",
+      "format_auto": "默认（自动，或您的偏好）",
+      "format_saved": "已为本次会议保存格式"
     },
     "toasts": {
       "ready_title": "会议纪要已就绪",
@@ -11489,7 +11565,7 @@
       "title": "会议",
       "subtitle": "你的录音及其纪要",
       "empty_title": "还没有会议",
-      "empty_description": "在聊天输入框的回形针菜单中开始录音，纪要会显示在这里。",
+      "empty_description": "从页眉的“录制”按钮（手机上为 LIA 菜单）开始录制；会议纪要将显示在此处。",
       "empty_action": "打开聊天",
       "total_one": "{{count}} 场会议",
       "total_other": "{{count}} 场会议",
@@ -11498,7 +11574,25 @@
       "participants_one": "{{count}} 位参会者",
       "participants_other": "{{count}} 位参会者",
       "actions_one": "{{count}} 项行动",
-      "actions_other": "{{count}} 项行动"
+      "actions_other": "{{count}} 项行动",
+      "selection_region": "已选择的会议",
+      "select_row": "选择“{{title}}”",
+      "select_all_page": "选择本页全部会议",
+      "selected_count_one": "已选择 {{count}} 场会议",
+      "selected_count_other": "已选择 {{count}} 场会议",
+      "clear_selection": "取消选择",
+      "delete_selected_one": "删除（{{count}}）",
+      "delete_selected_other": "删除（{{count}}）",
+      "confirm_bulk_delete_title": "删除所选会议？",
+      "confirm_bulk_delete_description_one": "这场会议的纪要、转录文本和保留的录音将被永久删除。",
+      "confirm_bulk_delete_description_other": "这 {{count}} 场会议的纪要、转录文本和保留的录音将被永久删除。",
+      "bulk_deleted_one": "已删除 {{count}} 场会议",
+      "bulk_deleted_other": "已删除 {{count}} 场会议",
+      "bulk_skipped_one": "{{count}} 场会议已跳过：仍在录制或处理中。",
+      "bulk_skipped_other": "{{count}} 场会议已跳过：仍在录制或处理中。",
+      "not_selectable": "录制或处理期间无法选择",
+      "record": "录制会议",
+      "templates": "模板"
     },
     "detail": {
       "back": "返回会议列表",
@@ -11520,7 +11614,7 @@
       "email": "把纪要发到我的邮箱",
       "email_ok": "纪要已发送到你的邮箱。",
       "email_sent": "已于 {{when}} 通过邮件发送",
-      "regenerate": "用我的模板重新生成",
+      "regenerate": "以相同格式重新生成",
       "reset": "恢复自动生成的版本",
       "delete_transcript": "删除转写文本",
       "delete": "删除会议",
@@ -11556,16 +11650,46 @@
       "confirm_delete_transcript_title": "删除转写文本？",
       "confirm_delete_transcript_description": "纪要将保留；转写文本无法恢复，纪要也将无法重新生成。",
       "confirm_regenerate_title": "重新生成纪要？",
-      "confirm_regenerate_description": "LIA 将根据转写文本和你当前的模板撰写新的纪要。你对本纪要的修改将被替换。",
+      "confirm_regenerate_description": "LIA 将根据转写内容以相同格式重新撰写会议纪要。您对这份纪要的修改将被替换。",
       "confirm_reset_title": "恢复自动生成的版本？",
       "confirm_reset_description": "你的修改将被 LIA 生成的纪要替换。",
       "cost_breakdown": "{{total}}（转写 {{stt}} · 纪要 {{minutes}}）",
-      "cost_unknown": "未定价"
+      "cost_unknown": "未定价",
+      "transcript_line": "{{speaker}} 在 {{time}} 的发言",
+      "format": "格式",
+      "format_selection": {
+        "auto": "由 LIA 选择",
+        "user": "由您选择",
+        "preference": "您的默认格式"
+      },
+      "change_format": "更改格式…",
+      "reformat": {
+        "title": "更改格式",
+        "description": "LIA 将根据转写内容，以您选择的格式重新撰写会议纪要。",
+        "template_label": "格式",
+        "mode_label": "如何处理结果",
+        "mode_replace": "替换这份纪要",
+        "mode_new": "根据此转写新建一份纪要",
+        "cost_note": "重新撰写需要一次新的合成，计费方式与第一次相同。",
+        "transcript_note": "转写格式会重写整个对话：耗时更长，并按整场会议计费。",
+        "submit": "撰写纪要",
+        "started_new": "正在根据此转写撰写新的会议纪要。",
+        "started_replace": "正在重新撰写会议纪要。",
+        "choose": "选择格式…"
+      },
+      "pending_title": "正在撰写会议纪要",
+      "pending_hint": "正在将转写内容写成所选格式。本页面会自动更新。",
+      "pending_failed_title": "会议纪要无法撰写",
+      "try_again": "重试",
+      "derived_from": "与另一场会议来自同一份转写",
+      "derived_count_one": "已根据此转写撰写了 {{count}} 份新纪要。",
+      "derived_count_other": "已根据此转写撰写了 {{count}} 份新纪要。"
     },
     "card": {
       "title": "会议纪要已就绪",
       "open": "打开纪要",
-      "cost_line": "转写 {{stt}} · 纪要 {{minutes}} · 合计 {{total}}"
+      "cost_line": "转写 {{stt}} · 纪要 {{minutes}} · 合计 {{total}}",
+      "template": "格式：{{name}}"
     },
     "settings": {
       "preferences_title": "偏好设置",
@@ -11587,7 +11711,7 @@
         "nl": "荷兰语"
       },
       "auto_email_label": "纪要就绪后发送到我的邮箱",
-      "auto_email_hint": "通过你已连接的邮箱账户发送到你自己的地址。",
+      "auto_email_hint": "由 LIA 从其自身地址发送到您的邮箱。",
       "keep_audio_label": "处理后保留音频",
       "keep_audio_none": "处理完成后立即删除",
       "keep_audio_hours_one": "{{count}} 小时",
@@ -11595,13 +11719,6 @@
       "keep_audio_max_one": "最多 {{count}} 小时",
       "keep_audio_max_other": "最多 {{count}} 小时",
       "saved": "偏好设置已保存",
-      "template_title": "纪要结构",
-      "template_description": "LIA 按顺序填写的各个部分。可按需调整；随时可以恢复默认结构。",
-      "template_name_label": "模板名称",
-      "template_builtin_badge": "默认",
-      "reset_template": "恢复默认模板",
-      "template_saved": "模板已保存",
-      "template_reset": "已恢复默认模板",
       "new_section_label": "新章节",
       "section_position": "第 {{position}} 节",
       "move_up": "上移“{{label}}”",
@@ -11620,14 +11737,25 @@
       "recent_title": "最近的会议",
       "no_meetings": "尚未录制任何会议。",
       "view_all_one": "全部会议（{{count}}）",
-      "view_all_other": "全部会议（{{count}}）"
+      "view_all_other": "全部会议（{{count}}）",
+      "instruction_toggle": "LIA 应在此部分填写的内容",
+      "instruction_missing": "缺少说明：LIA 需要知道在此写什么。",
+      "instruction_preview_empty": "暂无说明",
+      "kind_transcript": "完整转录（改写）",
+      "default_template_label": "默认纪要格式",
+      "default_template_auto": "自动 — LIA 根据录音选择",
+      "default_template_hint": "应用于每次新录音。自动模式下 LIA 根据谈话内容选择最合适的格式；转录格式不会被自动选择。",
+      "templates_title": "纪要模板",
+      "templates_description": "内置格式和你自己的格式。复制内置格式即可自定义。",
+      "templates_count_one": "{{count}} 个自有模板",
+      "templates_count_other": "{{count}} 个自有模板",
+      "manage_templates": "管理我的模板"
     },
     "errors": {
       "audio_normalize_failed": "无法处理音频。",
       "audio_unavailable": "音频已不可用。",
       "capture_failed": "麦克风停止工作。",
       "duration_cap_reached": "已达到最长录音时长：会议纪要将根据已录制的内容生成。",
-      "email_connector_missing": "没有已连接的邮箱账户来发送纪要。",
       "email_send_failed": "你的邮件服务商拒绝了这封邮件。",
       "format_unavailable": "此录音以当前浏览器无法生成的格式开始：在此只能完成或放弃。",
       "invalid_api_key": "转写服务拒绝了已配置的密钥。",
@@ -11656,7 +11784,94 @@
       "unexpected": "处理过程中出现问题。",
       "unknown": "未知错误（{{code}}）",
       "usage_limit": "你已达到使用上限。",
-      "user_missing": "该账户已不存在。"
+      "user_missing": "该账户已不存在。",
+      "template_locked": "纪要撰写期间无法更改格式。",
+      "template_not_found": "此模板已不存在。",
+      "template_readonly": "内置模板无法修改；请先复制。",
+      "template_limit_reached": "已达到 {{max}} 个模板的上限。",
+      "template_ref_invalid": "此模板引用无效。",
+      "regeneration_interrupted": "撰写在完成前被中断；请重试。"
+    },
+    "header": {
+      "record": "录制会议",
+      "stop": "停止录制",
+      "live_label": "菜单 — 正在录制会议"
+    },
+    "templates": {
+      "category": {
+        "custom": "我的模板",
+        "meeting": "会议与团队",
+        "transcript": "转录",
+        "analysis": "对话分析",
+        "business": "销售与咨询",
+        "technical": "技术",
+        "personal": "个人预约",
+        "learning": "课程与培训"
+      },
+      "title": "会议纪要模板",
+      "subtitle": "LIA 撰写会议纪要所用的格式：内置模板库和您自己的模板。",
+      "new": "新建模板",
+      "builtin_badge": "内置",
+      "transcript_badge": "完整转写",
+      "sections_count_one": "{{count}} 个章节",
+      "sections_count_other": "{{count}} 个章节",
+      "preview": "预览",
+      "duplicate": "复制",
+      "edit": "编辑",
+      "delete": "删除",
+      "row_actions": "操作 — {{name}}",
+      "empty_custom": "您还没有自己的模板。复制一个内置模板进行调整，或从头创建。",
+      "limit_reached": "已达到 {{count}} 个模板的上限。请删除一个后再创建。",
+      "saved": "模板已保存",
+      "load_failed": "无法加载模板。",
+      "save_failed": "无法保存模板。",
+      "delete_failed": "无法删除模板。",
+      "back_to_library": "返回模板库",
+      "form": {
+        "name": "名称",
+        "name_missing": "请为模板命名。",
+        "description": "描述（可选）",
+        "category": "分类",
+        "create_title": "新建模板",
+        "edit_title": "编辑模板",
+        "sections_title": "章节",
+        "incomplete": "每个章节都需要标题和指令。"
+      },
+      "mine_title": "我的自定义模板",
+      "builtin_title": "内置模板",
+      "mine_count_one": "{{count}} / {{max}}",
+      "mine_count_other": "{{count}} / {{max}}",
+      "browse_builtins": "浏览内置模板",
+      "add_to_mine": "添加到我的模板",
+      "add_selected_one": "添加到我的模板（{{count}}）",
+      "add_selected_other": "添加到我的模板（{{count}}）",
+      "delete_selected_one": "删除（{{count}}）",
+      "delete_selected_other": "删除（{{count}}）",
+      "select_row": "选择“{{name}}”",
+      "select_all": "选择所有模板",
+      "selection_region": "已选模板",
+      "selected_count_one": "已选择 {{count}} 个模板",
+      "selected_count_other": "已选择 {{count}} 个模板",
+      "clear_selection": "清除选择",
+      "added_one": "已将 {{count}} 个模板添加到我的模板",
+      "added_other": "已将 {{count}} 个模板添加到我的模板",
+      "deleted_one": "已删除 {{count}} 个模板",
+      "deleted_other": "已删除 {{count}} 个模板",
+      "skipped_one": "{{count}} 个模板保持不变：{{reasons}}",
+      "skipped_other": "{{count}} 个模板保持不变：{{reasons}}",
+      "preference_reset": "您的默认纪要格式指向了已删除的模板：已恢复为自动。",
+      "confirm_delete_title_one": "删除此模板？",
+      "confirm_delete_title_other": "删除所选模板？",
+      "confirm_delete_description_one": "“{{name}}”将被移除。已用它撰写的会议纪要会保留。",
+      "confirm_delete_description_other": "这 {{count}} 个模板将被移除。已用它们撰写的会议纪要会保留。",
+      "skip": {
+        "template_not_found": "未找到",
+        "template_ref_invalid": "引用无效",
+        "template_readonly": "内置模板无法删除",
+        "template_limit_reached": "已达到模板上限",
+        "duplicate_failed": "无法添加",
+        "delete_failed": "无法删除"
+      }
     }
   }
 }

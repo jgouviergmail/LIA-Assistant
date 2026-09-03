@@ -342,3 +342,4 @@ infrastructure/caddy/Caddyfile
 # through the changelog like any other, described by what they now prevent.
 docs/superpowers/specs/*audit-securite*.md
 docs/superpowers/specs/*security-audit*.md
+modeles.txt

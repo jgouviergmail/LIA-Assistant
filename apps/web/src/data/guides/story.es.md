@@ -4,7 +4,7 @@
 
 **Versión**: 1.8
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.39.0
+**Aplicación**: LIA v1.39.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 44 dominios funcionales | **580.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **27.600+** |
-| Decisiones de arquitectura documentadas (ADR) | **257** |
-| Versiones entregadas a ritmo regular | **241** |
+| Tests automatizados, ejecutados en cada commit y entrega | **29.700+** |
+| Decisiones de arquitectura documentadas (ADR) | **258** |
+| Versiones entregadas a ritmo regular | **242** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 257 documentadas:
+Tres decisiones estructurantes, entre las 258 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -118,6 +118,8 @@ Y la lección más reciente llegó cuando todo estaba ya en verde. Se añadió u
 Un episodio posterior giró el método hacia fuera. En lugar de releer el código con los mismos ojos, se cribó un conjunto de investigación publicada y se usó como **rejilla de lectura**: no para importar una técnica, sino para plantear al sistema preguntas que no se estaba haciendo. Doce artículos de cerca de trescientos superaron ese filtro, y cada hipótesis que sugerían debía demostrarse — de forma ejecutable, contra el código de producción — antes de cambiar una sola línea. Cinco defectos sobrevivieron a la contraverificación, todos con la misma forma: dos subsistemas correctos cada uno en sus propios términos, compuestos en un comportamiento que ninguno poseía. La disciplina cortó en ambos sentidos, y ahí está justamente su interés: tres hipótesis del propio revisor quedaron desmentidas por las pruebas escritas para confirmarlas — una afirmación de coste que la caché del proveedor ya absorbía, un truncado creído ilimitado que un reductor limitaba desde siempre, y un defecto que se suponía agravado por la longitud de la conversación y que la medición mostró estrictamente constante. Una rejilla que solo confirma no es una rejilla.
 
 El ciclo de las actas de reunión cerró el bucle en sentido contrario: todo estaba en verde — veinte mil pruebas en el servidor, cerca de siete mil en la interfaz, cada trinquete aguantando — y la funcionalidad nunca había corrido. Así que se condujo de extremo a extremo contra los contenedores de desarrollo, a través de su propio contrato HTTP, cinco veces. Las pruebas encontraron cuatro defectos que ninguna suite unitaria podía ver, porque cada uno vivía donde dos partes correctas se encuentran: una lectura que devolvía la fila tal como estaba antes de una actualización masiva, un fallo de proveedor que hacía fallar una reunión mientras el siguiente motor esperaba un escalón más abajo, un precio de cero para un modelo que simplemente no tenía precio, y una reunión eliminada que dejaba su acta atrás en el espacio de conocimiento. Cada uno volvió con una prueba; ninguno se habría encontrado leyendo. La lección de los ciclos anteriores se mantuvo en su forma más estricta — pasar las pruebas es la condición para empezar una revisión, y una revisión no termina hasta que se ha hecho funcionar el sistema.
+
+La continuación inmediata movió el límite un paso más. La biblioteca de formatos anunciada por ese mismo ciclo volvió verde de principio a fin: suites unitarias completas, una prueba en ejecución conducida contra los contenedores, cada pantalla cubierta por sus pruebas de accesibilidad. El propietario abrió la página y no encontró sus propias plantillas — una plantilla duplicada heredaba la categoría de su original y se archivaba entre las treinta integradas. Ninguna guarda podía ver ese defecto: el código hacía exactamente lo que estaba escrito, y lo que estaba escrito era un error de diseño. La página se recompuso en dos secciones con las categorías plegadas, y una revisión en frío realizada después encontró seis defectos más que ni las pruebas ni la demostración habían tocado. La lección completa cabe en una frase: las suites verdes dicen que el código hace lo escrito, una prueba en ejecución dice que el sistema funciona, y solo un usuario frente a la pantalla dice si la funcionalidad existe.
 
 ## 7. Convicciones
 

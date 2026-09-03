@@ -7,6 +7,7 @@
 
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { formatElapsed } from '@/lib/meetings/format';
 import type { ActionItem, MeetingReport, Participant, ReportSection } from '@/types/meetings';
 
 export function participantDisplay(participant: Participant): string {
@@ -28,6 +29,8 @@ function isSectionEmpty(section: ReportSection): boolean {
       return section.topics.length === 0;
     case 'action_items':
       return section.action_items.length === 0;
+    case 'transcript':
+      return !section.transcript.some(line => line.text.trim());
   }
 }
 
@@ -66,6 +69,25 @@ function SectionBody({ section, emptyLabel }: { section: ReportSection; emptyLab
             <li key={`${section.key}-${index}`}>{actionDisplay(action)}</li>
           ))}
         </ul>
+      );
+    case 'transcript':
+      // The rewritten exchange, turn by turn: who spoke, when, and the text
+      // (the same shape the transcript panel and the PDF use).
+      return (
+        <ol className="space-y-1 text-sm">
+          {section.transcript.map((line, index) => (
+            <li
+              key={`${section.key}-${index}`}
+              className="grid grid-cols-[3.5rem_minmax(3rem,auto)_1fr] gap-2"
+            >
+              <span className="tabular-nums text-muted-foreground">
+                {formatElapsed(line.start)}
+              </span>
+              <span className="font-medium">{line.speaker}</span>
+              <span className="whitespace-pre-line">{line.text}</span>
+            </li>
+          ))}
+        </ol>
       );
   }
 }

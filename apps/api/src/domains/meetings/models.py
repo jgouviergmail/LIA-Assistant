@@ -8,10 +8,12 @@ Three tables:
   atomic conditional UPDATE in the repository. The transcript rests
   Fernet-encrypted (third parties' speech); the minutes are JSON validated by
   ``schemas.MeetingReport`` on both write and read.
-- ``meeting_templates`` — the user's minutes structure (one default per user in
-  v1; ``is_default`` and the free ``name`` prepare the announced library).
+- ``meeting_templates`` — the user's OWN minutes templates (ADR-259): several
+  per user, each with a category and a free name; the built-in templates live
+  in code (``template_catalogue.py``) and are referenced as ``builtin:<key>``.
 - ``meeting_preferences`` — one row per user: engine preference, language,
-  audio retention choice, auto-email.
+  audio retention choice, auto-email, default template reference (NULL =
+  LIA chooses from the transcript).
 
 Enum columns use ``native_enum=False``, which stores the member NAME in upper
 case (``'RECORDING'``) — every raw-SQL predicate must use the names, the same
@@ -182,6 +184,25 @@ class Meeting(BaseModel):
     calendar_event_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     calendar_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    # --- which template wrote the minutes (ADR-259) --------------------------
+    template_ref: Mapped[str | None] = mapped_column(
+        String(80), nullable=True, comment="builtin:<key> | user:<uuid> — what produced report_*"
+    )
+    template_name: Mapped[str | None] = mapped_column(
+        String(120), nullable=True, comment="Snapshot of the template name at synthesis time"
+    )
+    template_selection: Mapped[str | None] = mapped_column(
+        String(12), nullable=True, comment="auto | user | preference (TemplateSelection)"
+    )
+    template_selection_reason: Mapped[str | None] = mapped_column(
+        String(300), nullable=True, comment="The model's one-line justification when auto"
+    )
+    source_meeting_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("meetings.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="New minutes produced from another meeting's transcript (reformat mode 'new')",
+    )
+
     # --- minutes -------------------------------------------------------------
     # What the minutes cost in LLM tokens (initial synthesis + every rebuild, the
     # condense passes included). The billing truth is token_usage_logs (linked by
@@ -239,6 +260,7 @@ class Meeting(BaseModel):
         # Reaper scan: stuck jobs by lease, stale recordings by heartbeat.
         Index("ix_meetings_status_lease", "status", "lease_expires_at"),
         Index("ix_meetings_status_last_segment", "status", "last_segment_at"),
+        Index("ix_meetings_source", "source_meeting_id"),
         # Exactly one live recording per user, enforced by the database.
         Index(
             "uq_meetings_one_recording_per_user",
@@ -253,11 +275,12 @@ class Meeting(BaseModel):
 
 
 class MeetingTemplate(BaseModel):
-    """The user's minutes structure — ordered sections the model must fill.
+    """One of the user's own minutes templates — ordered sections the model must fill.
 
-    v1 keeps exactly one template per user (``is_default`` true); the column and
-    the free ``name`` exist so the announced library (several templates, chosen
-    per meeting) is a data change, not a schema change.
+    ADR-259: a user keeps several (bounded by ``MEETINGS_MAX_USER_TEMPLATES``),
+    each in a category; the one applied by default is a preference
+    (``MeetingPreference.default_template_ref``), never a flag on the row.
+    Built-in templates are not rows: they live in ``template_catalogue.py``.
     """
 
     __tablename__ = "meeting_templates"
@@ -266,20 +289,19 @@ class MeetingTemplate(BaseModel):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="custom",
+        server_default=text("'custom'"),
+        comment="TemplateCategory value; 'custom' unless the user files it elsewhere",
+    )
+    builtin_key: Mapped[str | None] = mapped_column(
+        String(60), nullable=True, comment="The built-in this row was duplicated from, if any"
+    )
     sections: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, comment="[{key, label, instruction, kind}] validated by schemas"
-    )
-    is_default: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default=text("true")
-    )
-
-    __table_args__ = (
-        Index(
-            "uq_meeting_templates_one_default_per_user",
-            "user_id",
-            unique=True,
-            postgresql_where=text("is_default = true"),
-        ),
     )
 
 
@@ -308,4 +330,9 @@ class MeetingPreference(BaseModel):
         default=0,
         server_default=text("0"),
         comment="0 = delete the audio after processing; bounded by the admin ceiling",
+    )
+    default_template_ref: Mapped[str | None] = mapped_column(
+        String(80),
+        nullable=True,
+        comment="builtin:<key> | user:<uuid> applied to every meeting; NULL = LIA chooses (ADR-259)",
     )

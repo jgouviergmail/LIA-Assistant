@@ -1,16 +1,18 @@
 # Meeting Minutes
 
 ## How do I record a meeting?
-In the chat, open the **+** button next to the message field and choose **Record a meeting**. Your phone or your computer becomes the microphone: LIA asks for it once, then a banner at the top of every page shows the recording, its duration and what has already reached your server. You can keep chatting with LIA in the meantime — spoken answers and the wake word are simply paused so the microphone never hears the assistant.
+On a computer the recording button sits in the header, on the right; on a phone, open the LIA logo menu and choose **Record a meeting** — the menu button pulses red for as long as the capture is open. Your phone or your computer becomes the microphone: LIA asks for it once, then a banner at the top of every page shows the recording, its duration and what has already reached your server. You can keep chatting with LIA in the meantime — spoken answers and the wake word are simply paused so the microphone never hears the assistant.
 
-When the meeting ends, press **Stop** in the banner or in the same menu. LIA transcribes the whole recording, writes the minutes and posts a card in the chat with the title, the summary and an **Open the minutes** button. Every recording also lives on the **Meetings** page of the header, between Relations and Alerts.
+When the meeting ends, press **Stop** in the banner or where you started. LIA transcribes the whole recording, writes the minutes and posts a card in the chat with the title, the summary and an **Open the minutes** button. Every recording also lives on the **Meetings** page of the header, between Relations and Alerts.
 
-**💡 Good to know:** the feature exists only where the administrator has enabled it, and the engine that will transcribe — with its price per hour of audio — is shown before you start.
+**💡 Good to know:** the feature exists only where the administrator has enabled it, the engine that will transcribe — with its price per hour of audio — is shown before you start, and the banner lets you pick the minutes format while the meeting runs.
 
-## What do the minutes contain, and can I change their structure?
-The head of the minutes is fixed: date, start and end time in your time zone, duration, place when it is known, and the participants. The body follows **your template**: an ordered list of sections, each with a heading, an instruction for the assistant and a format — a paragraph, a bullet list, one entry per topic, or action items with owner and deadline.
+## What do the minutes contain, and who chooses their structure?
+The head of the minutes is fixed: date, start and end time in your time zone, duration, place when it is known, and the participants. The body follows a **format**: an ordered list of sections, each with a heading, an instruction for the assistant and a shape — a paragraph, a bullet list, one entry per topic, action items with owner and deadline, or the full transcript rewritten cleanly.
 
-The built-in template gives a summary, the topics discussed, the decisions, the actions, the risks and the open questions. Change it in **Settings › Meetings**: rename, reorder, add or remove sections, and reset to the default in one click. The minutes already written keep the structure they were produced with; **Rebuild** applies your current template to a past meeting from its stored transcript.
+**Thirty built-in formats** ship with LIA, filed by use: meetings and teams, transcripts, conversation analysis, sales and consulting, technical, personal appointments, courses and training. In **Meetings › Minutes templates** you browse them, preview them and add the ones that serve you to your own templates — one at a time or several at once — then adapt them: rename, reorder the sections, rewrite the instructions, decline a template, delete what no longer serves.
+
+**Choose nothing and LIA chooses**: it reads what was said, keeps the matching format, then states it on the meeting with, in one line, the reason for its choice. You can impose a default in **Settings › Meetings**, or the current meeting's format from the banner. Full-transcript formats are never chosen automatically: they are long and priced like a whole meeting.
 
 The model reports only what the transcript supports: a proposal left open is not a decision, a wish is not an action, and every relative date is resolved to a real one.
 
@@ -34,11 +36,20 @@ Everything stays on **your** server. The audio is stored in segments while you r
 The transcript rests encrypted in the database and can be shown on the meeting page or deleted separately, keeping the minutes. Deleting a meeting removes its audio, its transcript, its minutes and the document that had been indexed in your knowledge space — nothing outlives it.
 
 ## Can I edit the minutes, send them, and ask LIA about my meetings later?
-Yes. On the meeting page you can **edit** every field — title, participant names and roles, each section in its own shape — and **restore** the version the model wrote at any time. **PDF** downloads the minutes as a document; **Email** sends them to your own address through your connected mailbox, and Settings can do that automatically for every meeting.
+Yes. On the meeting page you can **edit** every field — title, participant names and roles, each section in its own shape — and **restore** the version the model wrote at any time. **PDF** downloads the minutes as a document; **Email** sends them to your account's address from the application's own address — no connected mailbox needed — and Settings can do that automatically for every meeting.
 
 Every minutes are also indexed in a knowledge space named **Meetings**, created for you the first time. So you can simply ask: “what did we decide about the migration?”, “which actions are due this week?” — the assistant answers from your own meetings, sources cited.
+
+The meetings list accepts multiple selection: tick the ones that no longer serve and delete them at once. A meeting still recording or still being processed is left aside, and LIA tells you which one and why.
 
 ## Does LIA know who said what?
 When the engine separates the speakers, each voice gets a stable label — **S1, S2…** — throughout the transcript and the minutes. A **name** appears only when the recording itself establishes it: someone introduces themselves, is addressed by name, or the calendar event overlapping the meeting leaves no doubt. LIA never invents a name; an unnamed speaker stays S2, and you can name them yourself when editing the minutes.
 
 The local engine transcribes without separating voices: the minutes then read like a single account, with the participants it could establish.
+
+## Can I change the format of minutes already written?
+Yes, as long as the transcript is kept. On the meeting page, **Change the format…** offers two outcomes: **replace** the existing minutes, or get **new minutes** from the same meeting. The new ones keep the link to their origin — the original meeting states how many minutes came out of it — and join the knowledge space as a document of their own, with their own cost.
+
+That is what lets you read one meeting two ways: the working minutes on one side, the full cleaned-up transcript on the other, or an analysis format when you want to look at the exchange rather than its conclusions. **Rebuild** stays next to it: it rewrites the minutes with *the same* format, useful right after you changed your sections.
+
+**💡 Good to know:** rewriting costs a new synthesis, billed like the first one, and the dialog says so before you confirm. If you delete the transcript, the minutes stay readable but can no longer be rewritten.

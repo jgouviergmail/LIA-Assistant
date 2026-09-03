@@ -23,6 +23,7 @@ from src.core.constants import (
     MEETINGS_LOCAL_RTF_ESTIMATE_DEFAULT,
     MEETINGS_MAX_DURATION_MINUTES_CEILING,
     MEETINGS_MAX_DURATION_MINUTES_DEFAULT,
+    MEETINGS_MAX_USER_TEMPLATES_DEFAULT,
     MEETINGS_RATE_LIMIT_STARTS_DEFAULT,
     MEETINGS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     MEETINGS_REAPER_INTERVAL_SECONDS_DEFAULT,
@@ -33,6 +34,8 @@ from src.core.constants import (
     MEETINGS_SILENCE_PROMPT_MINUTES_DEFAULT,
     MEETINGS_STORAGE_PATH_DEFAULT,
     MEETINGS_STT_TIMEOUT_SECONDS_DEFAULT,
+    MEETINGS_TEMPLATE_AUTO_MIN_CONFIDENCE_DEFAULT,
+    MEETINGS_TEMPLATE_AUTO_SELECT_ENABLED_DEFAULT,
     STT_BYTES_PER_SECOND_AT_16KHZ_INT16,
 )
 
@@ -184,6 +187,33 @@ class MeetingsSettings(BaseSettings):
         ge=60,
         le=86400,
         description="Window of the start rate limit, in seconds.",
+    )
+
+    meetings_template_auto_select_enabled: bool = Field(
+        default=MEETINGS_TEMPLATE_AUTO_SELECT_ENABLED_DEFAULT,
+        description=(
+            "ADR-259: when a user set no default minutes template, LIA picks the "
+            "best built-in or user template from a bounded transcript excerpt "
+            "(one small structured call on the synthesis slot). Off = the "
+            "built-in default template is used."
+        ),
+    )
+
+    meetings_template_auto_min_confidence: float = Field(
+        default=MEETINGS_TEMPLATE_AUTO_MIN_CONFIDENCE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Confidence the model must state for its template choice to be kept; "
+            "below it the built-in default template applies (never a guess)."
+        ),
+    )
+
+    meetings_max_user_templates: int = Field(
+        default=MEETINGS_MAX_USER_TEMPLATES_DEFAULT,
+        ge=1,
+        le=500,
+        description="How many minutes templates a user may keep (built-ins not counted).",
     )
 
     @property

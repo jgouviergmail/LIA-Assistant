@@ -78,8 +78,36 @@ def test_rag_document_link_survives_document_deletion() -> None:
 
 
 def test_templates_and_preferences_are_per_user() -> None:
-    template_indexes = {index.name: index for index in MeetingTemplate.__table__.indexes}
-    default_index = template_indexes["uq_meeting_templates_one_default_per_user"]
-    assert default_index.unique is True
+    # ADR-259: several templates per user, so no "one default" partial index —
+    # the default lives in the preference row, which stays unique per user.
+    template_indexes = {index.name for index in MeetingTemplate.__table__.indexes}
+    assert "uq_meeting_templates_one_default_per_user" not in template_indexes
+    assert "ix_meeting_templates_user_id" in template_indexes
     assert MeetingPreference.__table__.c.user_id.unique is True
     assert MeetingPreference.__table__.c.keep_audio_hours.default.arg == 0
+
+
+# ---------------------------------------------------------------- ADR-259
+
+
+def test_the_template_library_columns_exist_with_their_contracts() -> None:
+    templates = MeetingTemplate.__table__.c
+    assert "is_default" not in templates, "one default per user is gone: the preference holds it"
+    assert templates.category.nullable is False
+    assert templates.description.nullable is True
+    assert templates.builtin_key.nullable is True
+    assert MeetingPreference.__table__.c.default_template_ref.nullable is True
+
+    meetings = Meeting.__table__.c
+    for name in (
+        "template_ref",
+        "template_name",
+        "template_selection",
+        "template_selection_reason",
+    ):
+        assert meetings[name].nullable is True, name
+    assert meetings.template_ref.type.length == 80
+    assert meetings.template_name.type.length == 120
+    assert meetings.template_selection_reason.type.length == 300
+    (fk,) = meetings.source_meeting_id.foreign_keys
+    assert fk.column.table.name == "meetings" and fk.ondelete == "SET NULL"

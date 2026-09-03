@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, use } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
-import { useSpaceDetail } from '@/hooks/useSpaces';
+import { useSpaceDetail, useSpaces } from '@/hooks/useSpaces';
 import { useSpaceDocuments } from '@/hooks/useSpaceDocuments';
 import { useDriveSources } from '@/hooks/useDriveSources';
 import { ArrowLeft, Pencil, Trash2, Library } from 'lucide-react';
@@ -13,7 +13,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardHeader } from '@/components/ui/card';
 import { SpaceActivationToggle } from '@/components/spaces/SpaceActivationToggle';
 import { DocumentUploadZone } from '@/components/spaces/DocumentUploadZone';
-import { DocumentRow } from '@/components/spaces/DocumentRow';
+import { DocumentsSection } from '@/components/spaces/DocumentsSection';
 import { DriveSourcesList } from '@/components/spaces/DriveSourcesList';
 import { EditSpaceDialog } from '@/components/spaces/EditSpaceDialog';
 import { DeleteSpaceConfirm } from '@/components/spaces/DeleteSpaceConfirm';
@@ -35,11 +35,29 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
 
   const { space, loading, refetch, setData } = useSpaceDetail(spaceId);
 
-  const { uploads, uploadDocument, deleteDocument, dismissUpload, deleting } = useSpaceDocuments({
+  const {
+    uploads,
+    uploadDocument,
+    deleteDocument,
+    dismissUpload,
+    deleting,
+    moveDocuments,
+    bulkDeleteDocuments,
+    moving,
+    bulkDeleting,
+    downloadHref,
+    archiveHref,
+  } = useSpaceDocuments({
     spaceId,
     documents: space?.documents ?? [],
     onDocumentReady: refetch,
   });
+  // The other spaces a document may move to (ADR-259).
+  const { spaces: allSpaces } = useSpaces();
+  const otherSpaces = useMemo(
+    () => allSpaces.filter(item => item.id !== spaceId),
+    [allSpaces, spaceId]
+  );
 
   // Space mutations
   const toggleMutation = useApiMutation<void, RAGSpaceToggleResponse>({
@@ -285,16 +303,18 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
             <p className="text-sm text-muted-foreground">{t('spaces.documents.empty')}</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {space.documents.map(doc => (
-              <DocumentRow
-                key={doc.id}
-                document={doc}
-                onDelete={handleDeleteDocument}
-                deleting={deleting}
-              />
-            ))}
-          </div>
+          <DocumentsSection
+            documents={space.documents}
+            otherSpaces={otherSpaces}
+            deleting={deleting}
+            moving={moving}
+            bulkDeleting={bulkDeleting}
+            downloadHref={downloadHref}
+            archiveHref={archiveHref}
+            onDeleteDocument={handleDeleteDocument}
+            moveDocuments={moveDocuments}
+            bulkDeleteDocuments={bulkDeleteDocuments}
+          />
         )}
 
         {/* Dialogs */}

@@ -327,3 +327,46 @@ describe('useSpaceDocuments — indexing poll', () => {
     expect(onDocumentReady).toHaveBeenCalledTimes(pollsWhileProcessing);
   });
 });
+
+describe('useSpaceDocuments — batches and links (ADR-259)', () => {
+  it('moves documents to another space and refreshes', async () => {
+    const { result, onDocumentReady } = setup([document()]);
+    remove.mockResolvedValueOnce({ done: ['doc-1'], skipped: [] });
+
+    let response: unknown;
+    await act(async () => {
+      response = await result.current.moveDocuments(['doc-1'], 'space-2');
+    });
+
+    expect(remove).toHaveBeenCalledWith('/rag-spaces/space-1/documents/move', {
+      ids: ['doc-1'],
+      target_space_id: 'space-2',
+    });
+    expect(response).toEqual({ done: ['doc-1'], skipped: [] });
+    expect(onDocumentReady).toHaveBeenCalled();
+  });
+
+  it('deletes several documents at once and refreshes', async () => {
+    const { result, onDocumentReady } = setup([document()]);
+    remove.mockResolvedValueOnce({ done: ['doc-1'], skipped: [] });
+
+    await act(async () => {
+      await result.current.bulkDeleteDocuments(['doc-1']);
+    });
+
+    expect(remove).toHaveBeenCalledWith('/rag-spaces/space-1/documents/bulk-delete', {
+      ids: ['doc-1'],
+    });
+    expect(onDocumentReady).toHaveBeenCalled();
+  });
+
+  it('builds the download and archive links on the API origin', () => {
+    const { result } = setup();
+    expect(result.current.downloadHref('doc-1')).toMatch(
+      /\/rag-spaces\/space-1\/documents\/doc-1\/download$/
+    );
+    expect(result.current.archiveHref(['a', 'b'])).toMatch(
+      /\/rag-spaces\/space-1\/documents\/archive\?ids=a,b$/
+    );
+  });
+});

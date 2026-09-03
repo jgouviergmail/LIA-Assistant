@@ -81,6 +81,12 @@ function detail(over: Partial<MeetingDetail> = {}): MeetingDetail {
     email_sent_at: null,
     last_error_code: null,
     last_error_message: null,
+    template_ref: null,
+    template_name: null,
+    template_selection: null,
+    template_selection_reason: null,
+    source_meeting_id: null,
+    derived_count: 0,
     transcript: null,
     ...over,
   };

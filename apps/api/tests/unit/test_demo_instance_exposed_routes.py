@@ -223,6 +223,12 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/rag-spaces/{space_id}",
         "PATCH /api/v1/rag-spaces/{space_id}",
         "POST /api/v1/rag-spaces/{space_id}/documents",
+        # Document operations (ADR-259): the same surface as upload/delete —
+        # a visitor's own documents, in the visitor's own spaces.
+        "GET /api/v1/rag-spaces/{space_id}/documents/archive",
+        "POST /api/v1/rag-spaces/{space_id}/documents/bulk-delete",
+        "POST /api/v1/rag-spaces/{space_id}/documents/move",
+        "GET /api/v1/rag-spaces/{space_id}/documents/{document_id}/download",
         "DELETE /api/v1/rag-spaces/{space_id}/documents/{document_id}",
         "GET /api/v1/rag-spaces/{space_id}/documents/{document_id}/status",
         "GET /api/v1/rag-spaces/{space_id}/drive-browse",

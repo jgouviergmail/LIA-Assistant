@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.39.0</strong> — <strong>Record a meeting, get the minutes</strong>. One gesture — the composer's <strong>+</strong> button — turns a phone or a computer into a meeting recorder, and LIA hands back structured minutes in <em>your</em> format: date, times, place, participants, then the sections you defined — summary, topics, decisions, actions with owner and deadline, risks, open questions. Audio leaves in small segments as you speak, so a crash, a locked phone or a lost connection costs seconds, never the meeting; a banner follows you on every page while you keep chatting with LIA. At the stop, the server assembles the recording and walks a chain of engines — the administrator's, ElevenLabs or OpenAI with speaker separation, the local Whisper now able to transcribe any length in speech windows — and a provider that refuses hands over to the next instead of failing the meeting. One structured call fills the template; the minutes reach the chat as a card, a PDF, your mailbox, and a « Meetings » knowledge space you can question weeks later. What it cost is stated everywhere it appears — transcription and minutes as two amounts and a total, counted like any other exchange — and nothing is invented: a gap is stated, an unnamed speaker stays S2, an unpriced model reads <em>not priced</em>. The feature was driven end to end against the dev containers before shipping; the runtime proofs found four defects invisible to every unit suite, each fixed with its test. — 3 September 2026.
+  <strong>Version 1.39.1</strong> — <strong>Thirty minutes formats, and LIA picks the right one</strong>. Recording a meeting hands back minutes in a structure that fits what was said: a library of <strong>thirty built-in formats</strong> in seven families — meetings and teams, transcripts, conversation analysis, sales and consulting, technical, personal appointments, courses and training — that a user adds to their own templates, adapts and declines. Choose nothing and LIA reads the transcript to pick the format itself, then states which one it used, where the choice came from and, in one line, why. A format can now hand back <em>the full transcript</em>, cleaned up and rewritten part by part rather than summarised. Minutes already written can be rewritten in another format from the stored transcript — replaced in place, or produced as <em>new minutes</em> from the same meeting, linked to their origin and indexed as a document of their own. The minutes email now leaves from the platform's own address, so it works without any mailbox connected; the meetings list accepts multiple selection; and in the knowledge spaces a document is downloadable, a selection archives to a zip, and documents move between spaces with their index and their file. Recording moved out of the composer to a place of its own — a header control on a computer, a pulsing entry in the logo menu on a phone — and the composer's <strong>+</strong> goes back to attaching a file. — 3 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **29,200+** automated tests | **257** ADRs                                                           |
-| **241** versions shipped  | **6 languages**, parity enforced in CI  | **506** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **29,200+** automated tests | **258** ADRs                                                           |
+| **242** versions shipped  | **6 languages**, parity enforced in CI  | **507** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -253,7 +253,7 @@ The result is measured, not proclaimed:
 - **Graceful degradation**: missing API key on a paid provider transparently falls back to Edge with a structured warning log.
 - **Persistent HTTP pool** on ElevenLabs: keep-alive across sentences saves ~100–300 ms TLS handshake per call.
 
-### Meeting Recording & Structured Minutes ([ADR-258](docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md))
+### Meeting Recording & Structured Minutes ([ADR-258](docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md), [ADR-259](docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md))
 
 - **One gesture**: the composer's **+** button records a meeting with the phone or the computer as microphone; a banner follows the user on every dashboard page (duration, level, segments uploaded) while the chat stays usable — spoken answers and the wake word pause so the microphone never hears the assistant.
 - **Capture that survives real life**: audio leaves in short segments (Opus through `MediaRecorder`, raw PCM through the shared AudioWorklet on Apple devices), one atomic file per sequence under four API workers, ordered retrying uploads that wait offline instead of failing. A reload, a lost microphone or a locked phone comes back as `interrupted` with resume / finalize / discard; a silence watchdog asks « still recording? »; the maximum duration finalizes by itself; a gap is stated in the minutes, never filled in.
@@ -262,6 +262,16 @@ The result is measured, not proclaimed:
 - **The template is the contract**: one structured-output call on the dedicated `meeting_synthesis` slot fills the user's sections (paragraph, bullets, topics, action items), condensing the transcript part by part when it overflows the model's window; `repair_report` folds the permissive answer into the strict report, participants restricted to speakers who actually spoke (`S1…Sn`, a name only when established). Edit, restore the generated version, rebuild with the current template.
 - **One serializer, three outputs**: Markdown for the « Meetings » knowledge space (found by role, one document per meeting rewritten in place and deleted with it), sectioned content for the PDF renderer, HTML for the email through the user's own connector.
 - **Every paid unit accounted and shown**: audio through the remote-STT statistics, tokens through `track_proactive_tokens` under the archived message's `run_id` (regenerations included); the row keeps the minutes' spend, the page states the exact total with its breakdown, the chat card both units and their sum; an unpriced model yields `null`, never zero.
+- **A library of formats, and one place that chooses** (ADR-259): thirty built-in templates in seven categories plus the user's own, each named by a `TemplateRef` (`builtin:<key>` / `user:<uuid>`) that meetings, preferences and requests exchange instead of a row — so a built-in needs no database row and a deleted template leaves a reference its readers know how to fall back from. One precedence decides the format: the meeting's own reference, then the preference's default, then the model's choice over a transcript excerpt above a confidence floor, then the built-in default. Every outcome is counted (`meeting_template_selection_total`) and written on the row with the reason the model gave.
+- **A fifth section kind, the transcript itself**: the exchange rewritten turn by turn, split under a character budget and each part bounded by the slot's effective output window — a missing index splits the part once, a suspiciously short answer is retried once. Transcript templates are never chosen automatically: they are long and priced like a whole meeting, so they stay an explicit choice.
+- **Reformatting, two modes, one transcript**: `replace` rewrites in place through the durable regeneration; `new` derives a second meeting row pointing at its source (`source_meeting_id`, FK `SET NULL`), READY with no report while the server writes, indexed as its own knowledge-space document. Never a « copy »: the transcript is the same, the minutes are not.
+- **The minutes leave from the platform**: `APPLICATION_SMTP_FROM` through `EmailService`, whose SMTP exchange runs off the event loop; the subject is the localized « Meeting minutes » followed by the title. The user's email connector — and its refusal when there was none — is gone from the path.
+
+### Knowledge-Space Document Operations ([ADR-259](docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md))
+
+- **One path builder, one ownership check** (`document_access.py`): the storage root, the owner, the space, then the stored filename, each segment resolved and contained. Reading, deleting, downloading and moving all go through it.
+- **Download, archive, move, bulk delete**: a single file by its original name; a selection as one zip (deduplicated member names, a `_missing.txt` listing files gone from the disk, refused beyond `RAG_SPACES_ARCHIVE_MAX_MB`); a move to another space of the same user; a batch delete. A batch never fails as a whole for one document — every id is reported done or skipped with a stable code the UI localizes.
+- **A move takes the index with it**: `rag_chunks.space_id` is denormalized and read by retrieval, so the row and its chunks are updated and committed BEFORE the file is moved; a rename that fails reverts both and reports that document only. Refused wholesale during a reindex; Drive-synced and meeting-owned documents stay where their owner put them.
 
 ### FOR_EACH Iteration Pattern
 
@@ -339,7 +349,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 506 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 507 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -982,7 +992,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-257 ADR files (ADR-001 through ADR-258 — ADR-008 has no separate file) documenting major architectural decisions:
+258 ADR files (ADR-001 through ADR-259 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -1018,7 +1028,7 @@ pytest --cov=src --cov-report=html -v
 | ----------------------- | --------------------------------------------------------------------------------------------- |
 | Total backend tests     | 20,468 collected (`pytest tests/unit tests/agents --collect-only`, 2026-08-27)                |
 | Frontend tests (vitest) | 6,327 across 496 files (+ hermetic Playwright E2E specs incl. axe/dark/zoom)                   |
-| Coverage floor          | 68% backend enforced, 70.04% measured (shrink-only ratchet) · frontend thresholds per glob     |
+| Coverage floor          | 69% backend enforced, 70.04% measured (shrink-only ratchet) · frontend thresholds per glob     |
 | CI Workflows            | 3 (CI, Security, Release)                                                                     |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
@@ -1035,7 +1045,7 @@ Pre-commit (local)              GitHub Actions CI
 ===================             ==================
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy             Fast unit tests + coverage (68%)
+Ruff + Black + MyPy             Fast unit tests + coverage (69%)
 Fast unit tests                 Integration tests (PostgreSQL + Redis)
 Critical pattern detection      Agents suite
 i18n keys sync                  Code Hygiene (i18n, Alembic, lockfiles, patterns)
@@ -1059,7 +1069,7 @@ ESLint + TypeScript check       ────────────────
 | **Branch protection**         | PR required (external contributors), 7 status checks, force push forbidden                                                                                                                                                          |
 | **Dependabot**                | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped                                                                                                                                                                  |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more)                                                                                                                                                                                 |
-| **Coverage threshold**        | 68% enforced in CI, 70.04% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
+| **Coverage threshold**        | 69% enforced in CI, 70.04% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
 | **Documentation gate**        | Every version and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; links, code paths and unreachable documents too       |
 
 ### Workflows

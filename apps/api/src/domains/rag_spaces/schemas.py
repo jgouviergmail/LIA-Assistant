@@ -13,6 +13,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.constants import RAG_SPACES_BULK_MAX
+
 # ============================================================================
 # Space Schemas
 # ============================================================================
@@ -111,6 +113,42 @@ class RAGDocumentStatusResponse(BaseModel):
     status: str
     error_message: str | None
     chunk_count: int
+
+
+# ============================================================================
+# Document batch operations (ADR-259)
+# ============================================================================
+
+
+class RAGDocumentIdsRequest(BaseModel):
+    """A set of documents of one space to act on together."""
+
+    ids: list[UUID] = Field(
+        ...,
+        min_length=1,
+        max_length=RAG_SPACES_BULK_MAX,
+        description="Documents of the space; duplicates are ignored.",
+    )
+
+
+class RAGDocumentMoveRequest(RAGDocumentIdsRequest):
+    """Move documents to another space of the same user."""
+
+    target_space_id: UUID = Field(..., description="The space to move the documents into.")
+
+
+class RAGBatchSkipped(BaseModel):
+    """One id a batch left untouched, with the stable reason the UI localizes."""
+
+    id: UUID = Field(..., description="The document that was skipped.")
+    code: str = Field(..., description="Why (same_space, document_busy, delete_failed…).")
+
+
+class RAGDocumentBatchResponse(BaseModel):
+    """What a batch did: the ids it handled and the ones it skipped."""
+
+    done: list[UUID] = Field(default_factory=list, description="Ids handled in order.")
+    skipped: list[RAGBatchSkipped] = Field(default_factory=list, description="Ids left untouched.")
 
 
 # ============================================================================

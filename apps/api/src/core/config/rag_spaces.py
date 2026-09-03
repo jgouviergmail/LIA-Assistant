@@ -29,6 +29,7 @@ from src.core.constants import (
     RAG_JOB_REAPER_INTERVAL_SECONDS_DEFAULT,
     RAG_REINDEX_LOCK_TTL_SECONDS_DEFAULT,
     RAG_SPACES_ALLOWED_TYPES_DEFAULT,
+    RAG_SPACES_ARCHIVE_MAX_MB_DEFAULT,
     RAG_SPACES_BM25_BONUS_WEIGHT_DEFAULT,
     RAG_SPACES_CHUNK_OVERLAP_DEFAULT,
     RAG_SPACES_CHUNK_SIZE_DEFAULT,
@@ -91,6 +92,16 @@ class RAGSpacesSettings(BaseSettings):
         ge=1,
         le=200,
         description="Maximum number of documents per RAG space.",
+    )
+
+    rag_spaces_archive_max_mb: int = Field(
+        default=RAG_SPACES_ARCHIVE_MAX_MB_DEFAULT,
+        ge=1,
+        le=2048,
+        description=(
+            "Maximum total size (MB) of the documents a single archive download may "
+            "bundle (ADR-259); beyond it the request is refused with 413."
+        ),
     )
 
     rag_reindex_lock_ttl_seconds: int = Field(

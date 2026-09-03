@@ -8,11 +8,16 @@ Phase: evolution — RAG Spaces (User Knowledge Documents)
 Created: 2026-03-14
 """
 
+import os
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.background import BackgroundTask
 
+from src.core.constants import RAG_SPACES_BULK_MAX
 from src.core.dependencies import get_db
 from src.core.exceptions import BaseAPIException
 from src.core.session_dependencies import (
@@ -21,11 +26,20 @@ from src.core.session_dependencies import (
 )
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.rag_spaces.document_ops import (
+    build_archive,
+    bulk_delete_documents,
+    download_document,
+    move_documents,
+)
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService, sync_folder_background
 from src.domains.rag_spaces.processing import process_document
 from src.domains.rag_spaces.reindex import get_reindex_status as _get_reindex_status
 from src.domains.rag_spaces.reindex import start_reindexation
 from src.domains.rag_spaces.schemas import (
+    RAGDocumentBatchResponse,
+    RAGDocumentIdsRequest,
+    RAGDocumentMoveRequest,
     RAGDocumentResponse,
     RAGDocumentStatusResponse,
     RAGDriveSourceCreate,
@@ -360,6 +374,107 @@ async def upload_document(
     )
 
     return RAGDocumentResponse.model_validate(document)
+
+
+def _attachment(filename: str, fallback: str) -> dict[str, str]:
+    """A Content-Disposition naming the download in ASCII and in UTF-8 (RFC 5987)."""
+    ascii_name = filename.encode("ascii", "ignore").decode() or fallback
+    return {
+        "Content-Disposition": (
+            f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
+        )
+    }
+
+
+def _parse_ids(ids: str) -> list[UUID]:
+    """The comma-separated ids of an archive link, validated and capped."""
+    parts = [part for part in ids.split(",") if part]
+    try:
+        parsed = [UUID(part) for part in parts]
+    except ValueError:
+        raise BaseAPIException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": "document_ids_invalid"},
+            log_event="rag_archive_ids_invalid",
+        ) from None
+    if not parsed or len(parsed) > RAG_SPACES_BULK_MAX:
+        raise BaseAPIException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": "document_ids_invalid", "max": RAG_SPACES_BULK_MAX},
+            log_event="rag_archive_ids_invalid",
+        )
+    return parsed
+
+
+# Static segments before the ``{document_id}`` routes: ``archive``, ``move``
+# and ``bulk-delete`` are not document ids.
+@router.get(
+    "/{space_id}/documents/archive",
+    summary="Download several documents as one zip (ADR-259)",
+)
+async def download_documents_archive(
+    space_id: UUID,
+    ids: str = Query(..., description="Comma-separated document ids of the space"),
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    """A zip named after the space, one member per document (original filenames)."""
+    path, filename = await build_archive(RAGSpaceService(db), space_id, user.id, _parse_ids(ids))
+    return FileResponse(
+        path,
+        media_type="application/zip",
+        headers=_attachment(filename, "documents.zip"),
+        background=BackgroundTask(os.remove, path),
+    )
+
+
+@router.post(
+    "/{space_id}/documents/move",
+    response_model=RAGDocumentBatchResponse,
+    summary="Move documents to another space (ADR-259)",
+)
+async def move_space_documents(
+    space_id: UUID,
+    request: RAGDocumentMoveRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> RAGDocumentBatchResponse:
+    """Move uploaded documents (rows, chunks and files) into another space of yours."""
+    return await move_documents(RAGSpaceService(db), space_id, user.id, request)
+
+
+@router.post(
+    "/{space_id}/documents/bulk-delete",
+    response_model=RAGDocumentBatchResponse,
+    summary="Delete several documents (ADR-259)",
+)
+async def bulk_delete_space_documents(
+    space_id: UUID,
+    request: RAGDocumentIdsRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> RAGDocumentBatchResponse:
+    """Delete the selected documents, reporting each id."""
+    return await bulk_delete_documents(RAGSpaceService(db), space_id, user.id, request.ids)
+
+
+@router.get(
+    "/{space_id}/documents/{document_id}/download",
+    summary="Download a document's file (ADR-259)",
+)
+async def download_space_document(
+    space_id: UUID,
+    document_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    """The stored file, named after the original upload."""
+    path, document = await download_document(RAGSpaceService(db), space_id, document_id, user.id)
+    return FileResponse(
+        path,
+        media_type=document.content_type,
+        headers=_attachment(document.original_filename, "document"),
+    )
 
 
 @router.delete(

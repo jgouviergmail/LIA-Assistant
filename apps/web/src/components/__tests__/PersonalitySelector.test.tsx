@@ -75,6 +75,16 @@ describe('PersonalitySelector', () => {
     expect(screen.getByRole('button', { name: 'personality.selector_label' })).toBeInTheDocument();
   });
 
+  /**
+   * Owner rule (2026-09-03): the header shows the personality's icon alone at
+   * EVERY width — the title lives in the accessible name and in the menu.
+   */
+  it('shows the icon alone, never the title, at any width', () => {
+    render(<PersonalitySelector />);
+    const trigger = screen.getByRole('button', { name: 'personality.selector_label' });
+    expect(trigger).not.toHaveTextContent('Cynique');
+  });
+
   it('names the trigger while loading, when no title exists at all', () => {
     mockReturn.loading = true;
     render(<PersonalitySelector />);

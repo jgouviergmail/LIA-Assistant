@@ -1,23 +1,23 @@
 'use client';
 
 /**
- * Meeting minutes settings (ADR-258): engine and retention preferences, the
- * minutes structure (template) and the recent meetings.
+ * Meeting minutes settings (ADR-258, library ADR-259): engine and retention
+ * preferences, the default minutes format, a door to the template library,
+ * and the recent meetings.
  *
  * Self-gated on the instance flag `features.meetings_enabled` (the
  * OpenLoopsSection precedent): off, it renders nothing and the settings shell
  * says the section is absent. First load shows skeletons; every later refetch
- * keeps the content mounted (`aria-busy`), so a typed instruction survives.
+ * keeps the content mounted (`aria-busy`), so a typed value survives.
  */
 
 import { useMemo, useState } from 'react';
-import { ClipboardList, ExternalLink, RotateCcw, Save } from 'lucide-react';
+import { ClipboardList, ExternalLink, LibraryBig, Save, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { MeetingStatusBadge } from '@/components/meetings/MeetingStatusBadge';
-import { MeetingTemplateEditor } from '@/components/meetings/MeetingTemplateEditor';
-import { Badge } from '@/components/ui/badge';
+import { TemplateSelect } from '@/components/meetings/TemplateSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,29 +34,30 @@ import { useAppConfig } from '@/hooks/useAppConfig';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useMeetingList } from '@/hooks/useMeetings';
 import { useMeetingPreferences } from '@/hooks/useMeetingPreferences';
-import { useMeetingTemplate } from '@/hooks/useMeetingTemplate';
+import { useMeetingTemplates } from '@/hooks/useMeetingTemplates';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { formatElapsed } from '@/lib/meetings/format';
+import { userTemplateCount } from '@/lib/meetings/templates';
 import type { BaseSettingsProps } from '@/types/settings';
 import type {
   MeetingPreferences,
   MeetingPreferencesUpdate,
   MeetingSttEnginePreference,
-  TemplateSection,
+  MeetingTemplateSummary,
 } from '@/types/meetings';
 
 /** ISO-639-1 hints the engines accept, offered next to auto-detection. */
 const LANGUAGE_HINTS: readonly string[] = ['en', 'fr', 'de', 'es', 'it', 'zh', 'pt', 'nl'];
 const ENGINES: readonly MeetingSttEnginePreference[] = ['auto', 'remote', 'local'];
 const RECENT_LIMIT = 5;
-
 function preferencesDraft(preferences: MeetingPreferences): MeetingPreferencesUpdate {
   return {
     stt_engine: preferences.stt_engine,
     language: preferences.language,
     auto_email: preferences.auto_email,
     keep_audio_hours: preferences.keep_audio_hours,
+    default_template_ref: preferences.default_template_ref,
   };
 }
 
@@ -65,11 +66,48 @@ function samePreferences(a: MeetingPreferencesUpdate, b: MeetingPreferencesUpdat
     a.stt_engine === b.stt_engine &&
     a.language === b.language &&
     a.auto_email === b.auto_email &&
-    a.keep_audio_hours === b.keep_audio_hours
+    a.keep_audio_hours === b.keep_audio_hours &&
+    a.default_template_ref === b.default_template_ref
   );
 }
 
-function PreferencesForm({ lng }: { lng: Language }) {
+/**
+ * « Default minutes format »: automatic first, then every template grouped by
+ * category in library order (ADR-259). The API stores null for automatic.
+ */
+function DefaultTemplateSelect({
+  lng,
+  templates,
+  value,
+  onChange,
+}: {
+  lng: Language;
+  templates: MeetingTemplateSummary[];
+  value: string | null;
+  onChange: (ref: string | null) => void;
+}) {
+  const { t } = useTranslation(lng);
+  return (
+    <TemplateSelect
+      lng={lng}
+      id="meeting-default-template"
+      label={t('meetings.settings.default_template_label')}
+      templates={templates}
+      value={value}
+      onChange={onChange}
+      autoLabel={t('meetings.settings.default_template_auto')}
+      hint={t('meetings.settings.default_template_hint')}
+    />
+  );
+}
+
+function PreferencesForm({
+  lng,
+  templates,
+}: {
+  lng: Language;
+  templates: MeetingTemplateSummary[];
+}) {
   const { t } = useTranslation(lng);
   const { preferences, isLoading, isSaving, save } = useMeetingPreferences();
   // The draft is DERIVED during render: null means "what the server holds";
@@ -135,6 +173,12 @@ function PreferencesForm({ lng }: { lng: Language }) {
           </Select>
         </div>
       </div>
+      <DefaultTemplateSelect
+        lng={lng}
+        templates={templates}
+        value={value.default_template_ref}
+        onChange={ref => edit({ default_template_ref: ref })}
+      />
       <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
         <div>
           <Label htmlFor="meeting-auto-email">{t('meetings.settings.auto_email_label')}</Label>
@@ -184,94 +228,33 @@ function PreferencesForm({ lng }: { lng: Language }) {
   );
 }
 
-interface TemplateDraft {
-  name: string;
-  sections: TemplateSection[];
-}
-
-function TemplateForm({ lng }: { lng: Language }) {
+/** The library in one line: how many templates the user keeps, and the door to it. */
+function TemplatesBlock({
+  lng,
+  templates,
+  isLoading,
+}: {
+  lng: Language;
+  templates: MeetingTemplateSummary[];
+  isLoading: boolean;
+}) {
   const { t } = useTranslation(lng);
-  const { template, isLoading, isSaving, save, reset } = useMeetingTemplate();
-  // Same derivation as the preferences: null = the server's template.
-  const [draft, setDraft] = useState<TemplateDraft | null>(null);
-
-  if (isLoading || template === null) {
-    return <Skeleton className="h-64 w-full" />;
-  }
-  const value: TemplateDraft = draft ?? { name: template.name, sections: template.sections };
-  const valid =
-    value.name.trim().length > 0 &&
-    value.sections.length > 0 &&
-    value.sections.every(s => s.label.trim().length > 0 && s.instruction.trim().length > 0);
-
-  const submit = async () => {
-    if (isSaving || !valid) return;
-    const result = await save({ name: value.name.trim(), sections: value.sections });
-    if (result) {
-      setDraft(null);
-      toast.success(t('meetings.settings.template_saved'));
-    } else {
-      toast.error(t('common.error'));
-    }
-  };
-  const restore = async () => {
-    if (isSaving) return;
-    const restored = await reset();
-    if (restored) {
-      setDraft(null);
-      toast.success(t('meetings.settings.template_reset'));
-    } else {
-      toast.error(t('common.error'));
-    }
-  };
-
+  const router = useLocalizedRouter();
+  if (isLoading) return <Skeleton className="h-16 w-full" />;
   return (
-    <div className="space-y-4" aria-busy={isSaving}>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-[12rem] flex-1 space-y-3">
-          <Label htmlFor="meeting-template-name">
-            {t('meetings.settings.template_name_label')}
-          </Label>
-          <Input
-            id="meeting-template-name"
-            value={value.name}
-            maxLength={120}
-            onChange={e => setDraft({ ...value, name: e.target.value })}
-          />
-        </div>
-        {template.is_builtin_default && draft === null && (
-          <Badge variant="default" size="sm">
-            {t('meetings.settings.template_builtin_badge')}
-          </Badge>
-        )}
-      </div>
-      <MeetingTemplateEditor
-        lng={lng}
-        sections={value.sections}
-        onChange={sections => setDraft({ ...value, sections })}
-      />
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => void submit()}
-          aria-disabled={!valid || isSaving || draft === null}
-          isLoading={isSaving}
-        >
-          <Save className="mr-1 h-4 w-4" aria-hidden="true" />
-          {t('common.save')}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => void restore()}
-          aria-disabled={isSaving}
-        >
-          <RotateCcw className="mr-1 h-4 w-4" aria-hidden="true" />
-          {t('meetings.settings.reset_template')}
-        </Button>
-      </div>
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="text-sm text-muted-foreground">
+        {t('meetings.settings.templates_count', { count: userTemplateCount(templates) })}
+      </p>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => router.push('/dashboard/meetings/templates')}
+      >
+        <LibraryBig className="mr-1 h-4 w-4" aria-hidden="true" />
+        {t('meetings.settings.manage_templates')}
+      </Button>
     </div>
   );
 }
@@ -324,6 +307,8 @@ export function MeetingsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config, loading } = useAppConfig();
   const enabled = useMemo(() => config?.features?.meetings_enabled ?? false, [config]);
+  // One library read for the section: the default-format select and the block share it.
+  const { templates, isLoading: templatesLoading } = useMeetingTemplates(enabled);
   if (loading || !enabled) return null;
 
   return (
@@ -336,20 +321,20 @@ export function MeetingsSettings({ lng }: BaseSettingsProps) {
       <div className="space-y-8">
         <section className="space-y-3">
           <h4 className="flex items-center gap-2 text-sm font-semibold">
-            <ClipboardList className="h-4 w-4 text-primary" aria-hidden="true" />
+            <Wand2 className="h-4 w-4 text-primary" aria-hidden="true" />
             {t('meetings.settings.preferences_title')}
           </h4>
-          <PreferencesForm lng={lng} />
+          <PreferencesForm lng={lng} templates={templates} />
         </section>
         <section className="space-y-3">
           <h4 className="flex items-center gap-2 text-sm font-semibold">
-            <ClipboardList className="h-4 w-4 text-primary" aria-hidden="true" />
-            {t('meetings.settings.template_title')}
+            <LibraryBig className="h-4 w-4 text-primary" aria-hidden="true" />
+            {t('meetings.settings.templates_title')}
           </h4>
           <p className="text-xs text-muted-foreground">
-            {t('meetings.settings.template_description')}
+            {t('meetings.settings.templates_description')}
           </p>
-          <TemplateForm lng={lng} />
+          <TemplatesBlock lng={lng} templates={templates} isLoading={templatesLoading} />
         </section>
         <section className="space-y-3">
           <h4 className="flex items-center gap-2 text-sm font-semibold">

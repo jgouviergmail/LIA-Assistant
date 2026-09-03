@@ -9,9 +9,14 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { UseMeetingRecorderReturn } from '@/hooks/useMeetingRecorder';
-import { LIVE_PHASES, isCapturingPhase, useMeetingRecorderStore } from '@/stores/meetingRecorderStore';
+import {
+  LIVE_PHASES,
+  isCapturingPhase,
+  useMeetingRecorderStore,
+} from '@/stores/meetingRecorderStore';
 
 import {
+  MeetingRecorderBannerSlot,
   MeetingRecorderProvider,
   useMeetingRecorderContext,
 } from '../MeetingRecorderProvider';
@@ -92,5 +97,85 @@ describe('MeetingRecorderProvider', () => {
     });
     expect(screen.getByTestId('phase')).toHaveTextContent('recording');
     expect(renderSpy).toHaveBeenCalledTimes(afterMount + 1);
+  });
+});
+
+describe('MeetingRecorderBannerSlot (ADR-259)', () => {
+  // The store is a module singleton: every case starts from idle.
+  beforeEach(() => {
+    useMeetingRecorderStore.getState().reset();
+  });
+
+  it('renders the banner where the slot is, not inside the provider', () => {
+    useMeetingRecorderStore.getState().setPhase('recording');
+    renderWithProviders(
+      <MeetingRecorderProvider lng="en" enabled>
+        <div data-testid="before" />
+        <MeetingRecorderBannerSlot lng="en" />
+      </MeetingRecorderProvider>
+    );
+    const banner = screen.getByRole('status', { name: 'meetings.banner.region_label' });
+    // The banner follows the slot: it comes AFTER the sibling rendered before it.
+    expect(
+      screen.getByTestId('before').compareDocumentPosition(banner) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('renders nothing outside a provider', () => {
+    const { container } = renderWithProviders(<MeetingRecorderBannerSlot lng="en" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('publishes its measured height for the chat shell and withdraws it on unmount', () => {
+    const observers: Array<() => void> = [];
+    class FakeResizeObserver {
+      constructor(callback: () => void) {
+        observers.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    }
+    const previous = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
+    try {
+      useMeetingRecorderStore.getState().setPhase('recording');
+      const { unmount } = renderWithProviders(
+        <MeetingRecorderProvider lng="en" enabled>
+          <MeetingRecorderBannerSlot lng="en" />
+        </MeetingRecorderProvider>
+      );
+      expect(observers).toHaveLength(1);
+      act(() => observers[0]());
+      expect(document.documentElement.style.getPropertyValue('--meeting-banner-h')).toBe('0px');
+      unmount();
+      expect(document.documentElement.style.getPropertyValue('--meeting-banner-h')).toBe('');
+    } finally {
+      globalThis.ResizeObserver = previous;
+    }
+  });
+
+  it('publishes no height while idle: an absent banner costs the chat shell nothing', () => {
+    const observers: Array<() => void> = [];
+    class FakeResizeObserver {
+      constructor(callback: () => void) {
+        observers.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    }
+    const previous = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
+    try {
+      renderWithProviders(
+        <MeetingRecorderProvider lng="en" enabled>
+          <MeetingRecorderBannerSlot lng="en" />
+        </MeetingRecorderProvider>
+      );
+      expect(observers).toHaveLength(0);
+      expect(document.documentElement.style.getPropertyValue('--meeting-banner-h')).toBe('');
+    } finally {
+      globalThis.ResizeObserver = previous;
+    }
   });
 });

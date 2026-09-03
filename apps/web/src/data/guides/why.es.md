@@ -4,7 +4,7 @@
 
 **Versión**: 5.2
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.39.0
+**Aplicación**: LIA v1.39.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -210,11 +210,11 @@ Queda lo que ningún sistema puede adivinar. LIA agrupa lo que se escribe igual,
 
 ### 3.13. Una reunión grabada, un acta redactada
 
-Pulsa **+** en el chat y tu teléfono o tu ordenador se convierte en la grabadora de la reunión. Un banner te acompaña en cada página con el tiempo y lo que ya ha llegado a tu servidor; mientras tanto sigues hablando con LIA — las respuestas habladas simplemente se pausan para que el micrófono nunca oiga al asistente. Cuando paras, LIA transcribe todo y redacta el acta **con tu estructura**: la cabecera es fija (fecha, horas, lugar, participantes), el cuerpo es tuyo — resumen, temas, decisiones, acciones con responsable y plazo, riesgos, preguntas abiertas, o las secciones que definas una vez en Ajustes y restablezcas con un clic.
+Un botón en la cabecera — o la entrada «Grabar una reunión» del menú en el móvil — y tu teléfono o tu ordenador se convierte en la grabadora de la reunión. Un banner te acompaña en cada página con el tiempo y lo que ya ha llegado a tu servidor; mientras tanto sigues hablando con LIA — las respuestas habladas simplemente se pausan para que el micrófono nunca oiga al asistente. Cuando paras, LIA transcribe todo y redacta el acta **con tu estructura**: la cabecera es fija (fecha, horas, lugar, participantes), el cuerpo sigue un formato que eliges entre treinta plantillas integradas — reuniones y equipos, transcripciones, análisis de conversación, ventas, técnico, citas personales, cursos — o que construyes tú mismo, sección a sección. Y si no eliges nada, LIA lee lo que se dijo y se queda con el formato que corresponde, y luego te dice cuál y por qué: una reunión de proyecto y una consulta médica no tienen la misma estructura.
 
 La vida real está prevista, no excusada. El audio sale en pequeños segmentos mientras hablas, de modo que un teléfono bloqueado, una conexión perdida o una recarga cuestan segundos, nunca la reunión: al volver reanudas, finalizas o descartas. Un largo silencio recibe una pregunta, una duración máxima finaliza por sí sola, y una laguna en la grabación se declara en el acta — nunca se rellena con una suposición. Una voz sin nombre sigue siendo S2; un nombre aparece solo cuando la grabación lo establece.
 
-El acta te llega por tres caminos — una tarjeta en el chat, un PDF, tu propio buzón — y se une a un espacio de conocimiento **Reuniones** creado para ti, para que semanas después puedas simplemente preguntar qué se decidió. Lo que costó está escrito al lado: la transcripción y el acta como dos importes y su total, contados como cualquier otro intercambio. Y el motor de transcripción lo eliges tú: uno remoto que separa a los interlocutores, o el local que no cuesta nada y nunca sale de tu servidor.
+El acta te llega por tres caminos — una tarjeta en el chat, un PDF, tu bandeja de entrada desde la dirección de la aplicación, sin ningún buzón que conectar — y se une a un espacio de conocimiento **Reuniones** creado para ti, para que semanas después puedas simplemente preguntar qué se decidió. Lo que costó está escrito al lado: la transcripción y el acta como dos importes y su total, contados como cualquier otro intercambio. Y nada queda congelado: un acta ya redactada se reescribe en otro formato a partir de la transcripción conservada — hasta la transcripción completa y limpia — ya sea reemplazando la que tienes, ya sea produciendo unas actas nuevas de la misma reunión. El motor de transcripción lo sigues eligiendo tú: uno remoto que separa a los interlocutores, o el local que no cuesta nada y nunca sale de tu servidor.
 
 ---
 

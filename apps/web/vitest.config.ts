@@ -315,16 +315,16 @@ export default defineConfig({
         // touch toolbar): measured 76.20 / 71.39 / 73.20 / 76.85 →
         // statements joins branches and functions one point up
         // (floor(measured - 2)); lines already sits at its doctrine floor.
-        // Global floor — re-measured 2026-08-21 after the eyes liveliness +
-        // lid-system lots (transition grammar with min-hold and masked
-        // three-beat, the reading line, mood-shift/wonder/wake beats, the
-        // per-family breathing/blink channels, and the curved clip lids):
-        // statements 76.47 / branches 71.60 / functions 73.52 / lines 77.13.
-        // Raised 74/69/71/74 -> 74/69/71/75 (floor(measured - 2) per axis —
-        // lines alone crosses an integer step this time).
-        statements: 75,
-        branches: 70,
-        functions: 72,
+        // Global floor — re-measured 2026-09-03 after the meeting template
+        // library (ADR-259: library page with its batches, the reformat dialog
+        // and pending panel, the banner format picker, the recorder control,
+        // the knowledge-space document batches on the shared selection bar):
+        // statements 78.07 / branches 73.38 / functions 75.25 / lines 78.82.
+        // Raised 75/70/72/76 -> 76/71/73/76 (floor(measured - 2) per axis —
+        // lines stays at 76, its margin being 2.82).
+        statements: 76,
+        branches: 71,
+        functions: 73,
         lines: 76,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {

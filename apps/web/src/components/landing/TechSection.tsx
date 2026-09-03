@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import {
+  ClipboardList,
   TabletSmartphone,
   CloudSun,
   GitBranch,
@@ -30,6 +31,11 @@ const TECH_ITEMS = [
     key: 'native_shells',
     icon: TabletSmartphone,
     iconBg: 'bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15',
+  },
+  {
+    key: 'structured_minutes',
+    icon: ClipboardList,
+    iconBg: 'bg-gradient-to-br from-sky-500/15 to-cyan-500/15',
   },
   {
     key: 'langgraph',

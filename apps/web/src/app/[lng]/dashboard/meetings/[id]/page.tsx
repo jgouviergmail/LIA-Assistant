@@ -6,14 +6,17 @@
  *
  * Progress is polled (`useMeeting` stops by itself once the row is terminal).
  * Editing is local until saved; « Restore the generated version » goes back to
- * the model's output; « Rebuild with my template » re-runs the synthesis on the
- * stored transcript. The PDF is a browser navigation (the cookie rides along).
- * The page composes the panels of `MeetingDetailPanels` and owns the draft.
+ * the model's output; « Rebuild with the same format » re-runs the synthesis on
+ * the stored transcript and « Change the format » does so with another template,
+ * in place or as new minutes (ADR-259). The PDF is a browser navigation (the
+ * cookie rides along). The page composes the panels of `MeetingDetailPanels`
+ * and owns the draft and the dialog state.
  */
 
 import { use, useState } from 'react';
 import { ArrowLeft, ClipboardList } from 'lucide-react';
 
+import { MeetingLineage } from '@/components/meetings/MeetingDetailLinks';
 import {
   FailedPanel,
   MeetingHeader,
@@ -21,6 +24,8 @@ import {
   ProcessingPanel,
   ReadyTail,
 } from '@/components/meetings/MeetingDetailPanels';
+import { MeetingPendingPanel } from '@/components/meetings/MeetingPendingPanel';
+import { ReformatDialog } from '@/components/meetings/ReformatDialog';
 import { useMeetingActions } from '@/components/meetings/useMeetingActions';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -60,11 +65,13 @@ export default function MeetingPage({ params }: MeetingPageProps) {
   const { confirm, confirmDialog } = useConfirm();
   const [showTranscript, setShowTranscript] = useState(false);
   const [draft, setDraft] = useState<MeetingReport | null>(null);
+  const [formatOpen, setFormatOpen] = useState(false);
   const state = useMeeting(id, showTranscript);
   const actions = useMeetingActions(state, {
     t,
     confirm,
     navigateToList: () => router.push('/dashboard/meetings'),
+    navigateToMeeting: target => router.push(`/dashboard/meetings/${target}`),
     setDraft,
     setShowTranscript,
   });
@@ -107,9 +114,17 @@ export default function MeetingPage({ params }: MeetingPageProps) {
       </div>
 
       <MeetingHeader lng={lng} meeting={meeting} report={report} />
+      <MeetingLineage
+        lng={lng}
+        meeting={meeting}
+        onOpenMeeting={target => router.push(`/dashboard/meetings/${target}`)}
+      />
 
       {inFlight(meeting) && <ProcessingPanel lng={lng} meeting={meeting} />}
       {meeting.status === 'failed' && <FailedPanel lng={lng} meeting={meeting} actions={actions} />}
+      {meeting.status === 'ready' && report === null && (
+        <MeetingPendingPanel lng={lng} meeting={meeting} actions={actions} />
+      )}
 
       {report && (
         <MinutesPanel
@@ -121,6 +136,20 @@ export default function MeetingPage({ params }: MeetingPageProps) {
           isActing={isActing}
           onDraftChange={setDraft}
           actions={actions}
+          onChangeFormat={() => setFormatOpen(true)}
+        />
+      )}
+      {meeting.status === 'ready' && (
+        <ReformatDialog
+          lng={lng}
+          open={formatOpen}
+          onOpenChange={setFormatOpen}
+          meeting={meeting}
+          isActing={isActing}
+          onSubmit={request => {
+            setFormatOpen(false);
+            void actions.reformat(request);
+          }}
         />
       )}
 

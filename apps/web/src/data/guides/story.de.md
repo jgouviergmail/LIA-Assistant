@@ -4,7 +4,7 @@
 
 **Version**: 1.8
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.39.0
+**Anwendung**: LIA v1.39.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 44 Fachdomänen | **580.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **27.600+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **257** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **241** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **29.700+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **258** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **242** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 257 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 258 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -118,6 +118,8 @@ Und die jüngste Lektion kam, als bereits alles grün war. Ein externer Werkzeug
 Eine spätere Episode richtete die Methode nach außen. Statt den Code mit denselben Augen erneut zu lesen, wurde ein Bündel veröffentlichter Forschung gesichtet und als **Leseraster** verwendet: nicht um eine Technik zu importieren, sondern um dem System Fragen zu stellen, die es sich selbst nicht stellte. Zwölf von fast dreihundert Arbeiten überstanden diesen Filter, und jede Hypothese, die sie nahelegten, musste bewiesen werden — ausführbar, gegen den Produktionscode — bevor sich eine einzige Zeile änderte. Fünf Mängel überstanden die Gegenprüfung, alle von derselben Gestalt: zwei Teilsysteme, jedes für sich korrekt, die zu einem Verhalten zusammenwirken, das keinem von beiden gehört. Die Disziplin schnitt in beide Richtungen, und genau darum geht es: Drei Hypothesen des Prüfers selbst wurden von eben den Tests widerlegt, die sie bestätigen sollten — eine Kostenbehauptung, die das Caching des Anbieters längst auffing, eine für unbegrenzt gehaltene Kürzung, die ein Reducer immer schon begrenzt hatte, und ein Mangel, der sich mit der Gesprächslänge verschlimmern sollte und sich in der Messung als streng konstant erwies. Ein Raster, das nur bestätigt, ist kein Raster.
 
 Der Zyklus der Besprechungsprotokolle schloss den Kreis in umgekehrter Richtung: Alles war grün — zwanzigtausend Tests im Backend, knapp siebentausend im Frontend, jede Ratsche hielt — und die Funktion war nie gelaufen. Also wurde sie fünfmal von Anfang bis Ende gegen die Entwicklungscontainer gefahren, über ihren eigenen HTTP-Vertrag. Die Nachweise fanden vier Defekte, die keine Unit-Suite sehen konnte, weil jeder dort lebte, wo zwei korrekte Teile aufeinandertreffen: eine Lesung, die die Zeile so zurückgab, wie sie vor einem Bulk-Update war; ein Anbieterfehler, der eine Besprechung scheitern ließ, während die nächste Engine eine Stufe tiefer wartete; ein Preis von null für ein Modell, das schlicht keinen Preis hatte; und eine gelöschte Besprechung, die ihr Protokoll im Wissensraum zurückließ. Jeder kam mit einem Test zurück; keiner wäre durch Lesen gefunden worden. Die Lektion der früheren Zyklen galt in ihrer strengsten Form — bestandene Tests sind die Bedingung, eine Prüfung zu beginnen, und eine Prüfung ist nicht beendet, bevor das System zum Laufen gebracht wurde.
+
+Die unmittelbare Fortsetzung verschob die Grenze noch ein Stück. Die von genau diesem Zyklus angekündigte Formatbibliothek kam durchgehend grün zurück: vollständige Unit-Suiten, ein gegen die Container gefahrener Laufzeitnachweis, jeder Bildschirm durch seine Barrierefreiheitstests abgedeckt. Der Eigentümer öffnete die Seite und fand seine eigenen Vorlagen nicht — eine duplizierte Vorlage erbte die Kategorie ihres Originals und reihte sich zwischen die dreißig mitgelieferten ein. Keine Wache konnte diesen Fehler sehen: Der Code tat genau das, was geschrieben stand, und was geschrieben stand, war ein Entwurfsfehler. Die Seite wurde in zwei Abschnitte mit eingeklappten Kategorien neu aufgebaut, und eine danach durchgeführte kalte Durchsicht fand sechs weitere Fehler, die weder Tests noch Nachweis berührt hatten. Die vollständige Lehre passt in einen Satz: Grüne Suiten sagen, dass der Code tut, was geschrieben wurde, ein Laufzeitnachweis sagt, dass das System läuft, und nur ein Mensch vor dem Bildschirm sagt, ob die Funktion existiert.
 
 ## 7. Überzeugungen
 

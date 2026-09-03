@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { formatElapsed } from '@/lib/meetings/format';
 import type { ActionItem, MeetingReport, ReportSection, TopicItem } from '@/types/meetings';
 
 interface MeetingReportEditorProps {
@@ -152,6 +153,44 @@ function SectionEditor({
             <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
             {t('meetings.detail.add_item')}
           </Button>
+        </fieldset>
+      );
+    case 'transcript':
+      // One textarea per turn; the speaker and the timestamp are facts of the
+      // recording and stay read-only (a participant is renamed above).
+      return (
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium">{section.label}</legend>
+          {section.transcript.map((line, index) => {
+            const time = formatElapsed(line.start);
+            return (
+              <div
+                key={`${section.key}-${index}`}
+                className="grid gap-2 sm:grid-cols-[8rem_1fr] sm:items-start"
+              >
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{line.speaker}</span>{' '}
+                  <span className="tabular-nums">{time}</span>
+                </span>
+                <Textarea
+                  rows={2}
+                  value={line.text}
+                  aria-label={t('meetings.detail.transcript_line', {
+                    speaker: line.speaker,
+                    time,
+                  })}
+                  onChange={e =>
+                    onChange({
+                      ...section,
+                      transcript: section.transcript.map((item, i) =>
+                        i === index ? { ...item, text: e.target.value } : item
+                      ),
+                    })
+                  }
+                />
+              </div>
+            );
+          })}
         </fieldset>
       );
   }

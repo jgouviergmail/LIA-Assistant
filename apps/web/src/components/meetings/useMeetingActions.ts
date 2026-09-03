@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import type { ConfirmOptions } from '@/components/ui/use-confirm';
 import type { UseMeetingReturn } from '@/hooks/useMeetings';
 import { meetingErrorCode } from '@/lib/meetings/api';
-import type { MeetingReport } from '@/types/meetings';
+import type { MeetingReformatRequest, MeetingReport } from '@/types/meetings';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -22,6 +22,8 @@ export interface MeetingActionDeps {
   t: Translate;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   navigateToList: () => void;
+  /** Where new minutes written from this transcript live (reformat `new`). */
+  navigateToMeeting: (id: string) => void;
   setDraft: Dispatch<SetStateAction<MeetingReport | null>>;
   setShowTranscript: Dispatch<SetStateAction<boolean>>;
 }
@@ -30,6 +32,8 @@ export interface MeetingActions {
   save: (draft: MeetingReport) => Promise<void>;
   resetReport: () => Promise<void>;
   regenerate: () => Promise<void>;
+  /** Write the minutes again with another template, in place or as new minutes. */
+  reformat: (request: MeetingReformatRequest) => Promise<void>;
   retry: () => Promise<void>;
   email: () => Promise<void>;
   deleteTranscript: () => Promise<void>;
@@ -48,7 +52,7 @@ export function useMeetingActions(
   state: UseMeetingReturn,
   deps: MeetingActionDeps
 ): MeetingActions {
-  const { t, confirm, navigateToList, setDraft, setShowTranscript } = deps;
+  const { t, confirm, navigateToList, navigateToMeeting, setDraft, setShowTranscript } = deps;
 
   const run = useCallback(
     async (operation: () => Promise<void>, successKey?: string) => {
@@ -102,6 +106,22 @@ export function useMeetingActions(
     });
   }, [confirmed, run, setDraft, state]);
 
+  const reformat = useCallback(
+    (request: MeetingReformatRequest) =>
+      run(async () => {
+        const response = await state.reformat(request);
+        if (response === null) return;
+        setDraft(null);
+        if (request.mode === 'new') {
+          toast.success(t('meetings.detail.reformat.started_new'));
+          navigateToMeeting(response.id);
+        } else {
+          toast.success(t('meetings.detail.reformat.started_replace'));
+        }
+      }),
+    [navigateToMeeting, run, setDraft, state, t]
+  );
+
   const retry = useCallback(() => run(() => state.retry()), [run, state]);
 
   const email = useCallback(
@@ -134,5 +154,5 @@ export function useMeetingActions(
     });
   }, [confirmed, navigateToList, run, state, t]);
 
-  return { save, resetReport, regenerate, retry, email, deleteTranscript, remove };
+  return { save, resetReport, regenerate, reformat, retry, email, deleteTranscript, remove };
 }

@@ -83,3 +83,13 @@ describe('MeetingMinutesCard — costs (ADR-258)', () => {
   });
 });
 
+describe('MeetingMinutesCard — the template that wrote the minutes (ADR-259)', () => {
+  it('names the template when the notification carries it, nothing otherwise', () => {
+    const { rerender } = renderWithProviders(
+      <MeetingMinutesCard lng="en" metadata={{ ...metadata, template_name: 'Daily' }} />
+    );
+    expect(screen.getByText('meetings.card.template')).toBeInTheDocument();
+    rerender(<MeetingMinutesCard lng="en" metadata={metadata} />);
+    expect(screen.queryByText('meetings.card.template')).not.toBeInTheDocument();
+  });
+});

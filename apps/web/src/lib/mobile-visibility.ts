@@ -123,18 +123,6 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
     reason: 'An inline search field cannot share the header row with the status pill below 880 px.',
   },
   {
-    id: 'header-personality-label',
-    location: 'components/PersonalitySelector',
-    kind: 'action',
-    tier: 'substituted',
-    minWidth: 1536,
-    substitute: 'The personality emoji, with an aria-label stating the current value.',
-    reason:
-      'The label cannot sit next to seven nav labels below 1536 px (ADR-258 added the ' +
-      'meetings destination); the control itself stays. The language control gave up its ' +
-      'label at every width instead — the popup names the languages.',
-  },
-  {
     id: 'chat-reset-label',
     location: 'app/[lng]/dashboard/chat/page',
     kind: 'action',
@@ -218,6 +206,19 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
       'Operator tooling gated by an admin setting. It accumulates per-request metrics, so it ' +
       'is conditionally MOUNTED via matchMedia rather than CSS-hidden — hiding it would keep ' +
       'the collection running on phones that never display it.',
+  },
+  {
+    id: 'meeting-recorder-control',
+    location: 'app/[lng]/dashboard/layout',
+    kind: 'action',
+    tier: 'substituted',
+    minWidth: 1024,
+    substitute:
+      'The logo menu offers Record / Stop (RecorderAwareMobileNavMenu) and its trigger ' +
+      'pulses red while a recording is live; the sticky banner keeps the one-tap Stop.',
+    reason:
+      'ADR-259: a seventh 44 px control overflows the phone header by ~26 px at 390 px ' +
+      '(measured), so below lg the command moves into the menu the logo already opens.',
   },
   {
     id: 'dashboard-nav',

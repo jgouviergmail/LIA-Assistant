@@ -6,7 +6,7 @@
 
 **Version** : 4.7
 **Date** : 2026-08-23
-**Application** : LIA v1.39.0
+**Application** : LIA v1.39.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -65,8 +65,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 506 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 257 ADRs, ~22 199 tests collectés par pytest sur 1 311 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 507 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 258 ADRs, ~22 775 tests collectés par pytest sur 1 349 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -84,10 +84,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 22 199 collectés par pytest sur 1 311 fichiers de test + 6 693 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | 22 775 collectés par pytest sur 1 349 fichiers de test + 6 983 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 257 |
+| ADRs (Architecture Decision Records) | 258 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -920,7 +920,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 506 métriques custom (RED pattern) |
+| Prometheus | 507 métriques custom (RED pattern) |
 | Grafana | 26 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -928,7 +928,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 506 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 507 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1336,7 +1336,7 @@ La leçon d’ingénierie la plus précieuse est venue d’un défaut invisible 
 
 ## 24. Architecture des décisions (ADR)
 
-257 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+258 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1482,7 +1482,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 257 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~22 199 tests sur 1 311 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 258 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~22 775 tests sur 1 349 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1593,4 +1593,6 @@ Le visage du compagnon choisissait son expression de fin de tour dans l'émotion
 **Le modèle est le contrat, et le modèle de langage n'est pas cru sur parole.** Les sections de l'utilisateur — clé, libellé, consigne, genre — sont rendues dans un seul appel à sortie structurée ; quand la transcription déborde la fenêtre du modèle, elle est d'abord condensée par parties, si bien qu'un modèle à 128k produit encore un compte rendu fidèle pour trois heures de réunion. Le modèle répond dans une forme permissive, et une étape de réparation la replie dans le rapport strict : les sections omises reviennent vides, les sections inventées sont écartées, une charge dans la mauvaise forme pour son genre est convertie, les participants sont restreints aux étiquettes qui ont réellement parlé. Le rapport généré est immuable ; ce que l'utilisateur modifie est une copie, « restaurer » recopie, « reconstruire » relance la synthèse sur la transcription conservée avec le modèle courant. Un seul sérialiseur produit le Markdown qu'indexe l'espace « Réunions » (trouvé par rôle, un document par réunion réécrit en place et supprimé avec elle), le contenu sectionné que le rendu PDF transforme en fichier, et le HTML que porte l'e-mail — les trois ne peuvent donc jamais se contredire.
 
 **Chaque unité payante est comptée, et montrée.** Une réunion dépense de l'audio chez le moteur de transcription et des tokens chez le modèle de synthèse, passes de condensation et reconstructions comprises ; les deux rejoignent la comptabilité de la plateforme comme tout échange — l'audio par les statistiques de reconnaissance distante, les tokens sous un `run_id` que le message archivé porte, si bien que l'historique se joint au journal des tokens exactement comme pour toute notification proactive. La ligne garde la dépense propre au compte rendu pour que la page affiche le total exact et sa décomposition, la carte dit les deux unités et leur somme, et un modèle sans tarif administré donne `null` : un prix inconnu n'est pas un prix nul. La même honnêteté traverse le compte rendu lui-même — une lacune est dite, jamais comblée ; un interlocuteur non nommé reste S2 ; une proposition restée ouverte n'est pas une décision.
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 257 ADRs, et du changelog (v1.0 à v1.39.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+
+**Le format du compte rendu est devenu une bibliothèque, et le choix a un seul lieu.** Trente modèles intégrés vivent dans le code, leurs mots dans une donnée i18n, et une assertion au démarrage refuse de booter si un nom manque dans l'une des six langues : ce qu'un validateur peut rejeter, le catalogue ne peut pas le livrer. Un modèle est désigné par une référence — `builtin:<clé>` ou `user:<uuid>` — que réunions, préférences et requêtes échangent à la place d'une ligne, si bien qu'un intégré n'a pas besoin d'exister en base et qu'un modèle supprimé laisse une référence dont les lecteurs savent se replier sur l'instantané conservé. Le choix suit **une seule précédence** : la référence portée par la réunion, puis le défaut de la préférence, puis le modèle de langage qui lit un extrait de transcription et choisit au-dessus d'un seuil de confiance, puis l'intégré par défaut ; chaque issue est comptée et écrite sur la ligne avec la raison énoncée, de sorte que la page affiche un fait et non une reconstruction. Une cinquième sorte de section rend la transcription elle-même : elle ne tient pas dans une réponse — le slot de synthèse sort au plus huit mille tokens — donc elle est réécrite par parties, chacune bornée par la fenêtre de sortie effective, un index manquant scindant la partie une fois et une réponse trop courte étant retentée une fois. Réécrire un compte rendu déjà rendu emprunte la régénération durable quand il s'agit de remplacer, et crée une ligne dérivée pointant sa source quand il s'agit d'un nouveau compte rendu — jamais une copie : la transcription est la même, le compte rendu non. Le même souci d'ordre gouverne les documents des espaces de connaissances : `rag_chunks.space_id` étant dénormalisé et lu par la recherche, un déplacement écrit la ligne et ses morceaux, valide, **puis** déplace le fichier ; un renommage qui échoue remet les deux en arrière et le rapporte pour ce document seul, et un lot ne s'interrompt jamais pour un élément — chaque identifiant revient fait ou ignoré avec son code.
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 258 ADRs, et du changelog (v1.0 à v1.39.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

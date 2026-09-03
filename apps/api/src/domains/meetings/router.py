@@ -1,7 +1,7 @@
 """Meetings API (ADR-258) — recording lifecycle, minutes, template, preferences.
 
 Mounted only when ``MEETINGS_ENABLED`` is set (see ``api/v1/routes.py``).
-Static sub-paths (``/active``, ``/template``, ``/preferences``) are declared
+Static sub-paths (``/active``, ``/templates``, ``/preferences``) are declared
 before the ``/{meeting_id}`` family: FastAPI matches in order and a UUID path
 parameter would otherwise answer 422 for them.
 """
@@ -19,21 +19,33 @@ from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.meetings import template_bulk
+from src.domains.meetings.bulk import bulk_delete
 from src.domains.meetings.schemas import (
     MeetingActionResponse,
+    MeetingBulkDeleteRequest,
+    MeetingBulkDeleteResponse,
     MeetingDetailResponse,
     MeetingListResponse,
     MeetingPatchRequest,
     MeetingPreferencesResponse,
     MeetingPreferencesUpdate,
+    MeetingReformatRequest,
+    MeetingReformatResponse,
     MeetingSegmentAck,
     MeetingStartRequest,
     MeetingStartResponse,
     MeetingStopRequest,
+    MeetingTemplateBulkDeleteResponse,
+    MeetingTemplateBulkDuplicateResponse,
+    MeetingTemplateCreate,
+    MeetingTemplateListResponse,
     MeetingTemplateResponse,
     MeetingTemplateUpdate,
+    TemplateRefsRequest,
 )
 from src.domains.meetings.service import MeetingService, raise_meeting_too_large
+from src.domains.meetings.template_service import MeetingTemplateService
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -107,29 +119,106 @@ async def list_meetings(
 # ============================================================================
 
 
-@router.get("/template", response_model=MeetingTemplateResponse, summary="Minutes template")
-async def get_template(
+@router.post(
+    "/bulk-delete",
+    response_model=MeetingBulkDeleteResponse,
+    summary="Delete several meetings (each id answered)",
+)
+async def bulk_delete_meetings(
+    body: MeetingBulkDeleteRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingBulkDeleteResponse:
+    """Terminal meetings are deleted; live and processing ones are skipped with a code."""
+    return await bulk_delete(MeetingService(db), user.id, body.ids)
+
+
+@router.get(
+    "/templates", response_model=MeetingTemplateListResponse, summary="The template library"
+)
+async def list_templates(
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingTemplateListResponse:
+    """Every built-in template (localized) plus the user's own, with the user cap."""
+    return await MeetingTemplateService(db).library(user.id, user.language)
+
+
+@router.post(
+    "/templates",
+    response_model=MeetingTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a template (from sections, or by duplicating a reference)",
+)
+async def create_template(
+    body: MeetingTemplateCreate,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> MeetingTemplateResponse:
-    return await MeetingService(db).get_template(user.id, user.language)
+    return await MeetingTemplateService(db).create(user.id, body, user.language)
 
 
-@router.put("/template", response_model=MeetingTemplateResponse, summary="Replace the template")
-async def put_template(
+@router.post(
+    "/templates/bulk-duplicate",
+    response_model=MeetingTemplateBulkDuplicateResponse,
+    summary="Add several templates to « My templates » (ADR-259)",
+)
+async def bulk_duplicate_templates(
+    body: TemplateRefsRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingTemplateBulkDuplicateResponse:
+    """One user row per ref; every ref is reported created or skipped with a code."""
+    return await template_bulk.bulk_duplicate(
+        MeetingTemplateService(db), user.id, body.refs, user.language
+    )
+
+
+@router.post(
+    "/templates/bulk-delete",
+    response_model=MeetingTemplateBulkDeleteResponse,
+    summary="Delete several user templates (ADR-259)",
+)
+async def bulk_delete_templates(
+    body: TemplateRefsRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingTemplateBulkDeleteResponse:
+    """User rows only; says whether the default-format preference was reset."""
+    return await template_bulk.bulk_delete(MeetingTemplateService(db), user.id, body.refs)
+
+
+@router.get("/templates/{ref}", response_model=MeetingTemplateResponse, summary="One template")
+async def get_template(
+    ref: str,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingTemplateResponse:
+    return await MeetingTemplateService(db).get(user.id, ref, user.language)
+
+
+@router.put(
+    "/templates/{ref}", response_model=MeetingTemplateResponse, summary="Replace a user template"
+)
+async def update_template(
+    ref: str,
     body: MeetingTemplateUpdate,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> MeetingTemplateResponse:
-    return await MeetingService(db).put_template(user.id, body)
+    """A built-in answers 409 ``template_readonly``: duplicate it instead."""
+    return await MeetingTemplateService(db).update(user.id, ref, body)
 
 
-@router.delete("/template", response_model=MeetingTemplateResponse, summary="Reset the template")
-async def reset_template(
+@router.delete(
+    "/templates/{ref}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a user template"
+)
+async def delete_template(
+    ref: str,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
-) -> MeetingTemplateResponse:
-    return await MeetingService(db).reset_template(user.id, user.language)
+) -> None:
+    await MeetingTemplateService(db).delete(user.id, ref)
 
 
 @router.get("/preferences", response_model=MeetingPreferencesResponse, summary="Preferences")
@@ -148,7 +237,7 @@ async def put_preferences(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> MeetingPreferencesResponse:
-    return await MeetingService(db).put_preferences(user.id, body)
+    return await MeetingService(db).put_preferences(user.id, body, user.language)
 
 
 # ============================================================================
@@ -163,9 +252,9 @@ async def get_meeting(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> MeetingDetailResponse:
-    service = MeetingService(db)
-    meeting = await service.get(user.id, meeting_id)
-    return service.to_detail(meeting, include_transcript=include_transcript)
+    return await MeetingService(db).detail(
+        user.id, meeting_id, include_transcript=include_transcript
+    )
 
 
 @router.put(
@@ -253,10 +342,34 @@ async def regenerate_minutes(
     db: AsyncSession = Depends(get_db),
 ) -> MeetingActionResponse:
     meeting = await MeetingService(db).regenerate(user.id, meeting_id)
-    from src.domains.meetings.processing import launch_regenerate
+    from src.domains.meetings.regeneration import launch_regenerate
 
     launch_regenerate(meeting.id)
     return MeetingActionResponse(id=meeting.id, status=meeting.status, stage=meeting.stage)
+
+
+@router.post(
+    "/{meeting_id}/reformat",
+    response_model=MeetingReformatResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Write the minutes again with another template (in place, or as new minutes)",
+)
+async def reformat_minutes(
+    meeting_id: uuid.UUID,
+    body: MeetingReformatRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> MeetingReformatResponse:
+    """``replace`` rewrites this meeting; ``new`` answers with the derived meeting's id."""
+    from src.domains.meetings.reformat import reformat_meeting
+
+    meeting = await reformat_meeting(MeetingService(db), user.id, meeting_id, body, user.language)
+    return MeetingReformatResponse(
+        id=meeting.id,
+        status=meeting.status,
+        stage=meeting.stage,
+        source_meeting_id=meeting.source_meeting_id,
+    )
 
 
 @router.get("/{meeting_id}/pdf", summary="Download the minutes as PDF")
@@ -298,7 +411,7 @@ async def patch_meeting(
     db: AsyncSession = Depends(get_db),
 ) -> MeetingDetailResponse:
     service = MeetingService(db)
-    meeting = await service.patch_report(user.id, meeting_id, body)
+    meeting = await service.patch_report(user.id, meeting_id, body, user.language)
     from src.domains.meetings.indexing import schedule_reindex
 
     schedule_reindex(meeting.id)

@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { slugifySectionLabel, uniqueSectionKey } from '../template-keys';
+import { rederiveSectionKeys, slugifySectionLabel, uniqueSectionKey } from '../template-keys';
 
 const API_PATTERN = /^[a-z][a-z0-9_]{1,39}$/;
 
@@ -44,5 +44,16 @@ describe('uniqueSectionKey', () => {
 
   it('returns the plain slug when nothing collides', () => {
     expect(uniqueSectionKey('Décisions', ['resume'])).toBe('decisions');
+  });
+});
+
+describe('rederiveSectionKeys', () => {
+  it('derives every key from its heading, unique in order, and keeps the rest of the section', () => {
+    const sections = rederiveSectionKeys([
+      { key: 'new_section', label: 'Went well', instruction: 'a', kind: 'bullets' as const },
+      { key: 'new_section_2', label: 'Went well', instruction: 'b', kind: 'bullets' as const },
+    ]);
+    expect(sections.map(s => s.key)).toEqual(['went_well', 'went_well_2']);
+    expect(sections[1]).toMatchObject({ label: 'Went well', instruction: 'b', kind: 'bullets' });
   });
 });

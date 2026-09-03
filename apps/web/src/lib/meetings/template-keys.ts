@@ -47,3 +47,18 @@ export function uniqueSectionKey(label: string, taken: Iterable<string>): string
     if (!used.has(candidate)) return candidate;
   }
 }
+
+/**
+ * Keys derived afresh from the headings, unique in order — for a template
+ * being CREATED, whose keys nothing refers to yet. An existing template keeps
+ * its keys through renames (`uniqueSectionKey` at insertion), because the
+ * minutes already written carry them.
+ */
+export function rederiveSectionKeys<T extends { label: string }>(sections: readonly T[]): T[] {
+  const taken: string[] = [];
+  return sections.map(section => {
+    const key = uniqueSectionKey(section.label, taken);
+    taken.push(key);
+    return { ...section, key };
+  });
+}

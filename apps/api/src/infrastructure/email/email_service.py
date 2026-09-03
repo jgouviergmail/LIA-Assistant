@@ -3,6 +3,7 @@ Email service for sending notifications.
 Uses SMTP with template-based emails.
 """
 
+import asyncio
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -31,6 +32,22 @@ class EmailService:
         self.smtp_user = settings.smtp_user  # Alias for alertmanager_smtp_auth_username
         self.smtp_password = settings.smtp_password  # Alias for alertmanager_smtp_auth_password
         self.smtp_from = settings.smtp_from  # Alias for application_smtp_from
+
+    def _deliver(self, to_email: str, payload: str) -> None:
+        """Hand ``payload`` to the relay — blocking, call it from a worker thread.
+
+        TLS and authentication only when there are credentials to present. A
+        relay reached over a private network has neither, and demanding them
+        there is how the demonstrator's verification email — the one that
+        ACTIVATES the account — failed on every registration (measured
+        2026-08-06). Where credentials exist, the exchange is unchanged:
+        encrypted then authenticated, never one without the other.
+        """
+        with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            if self.smtp_user and self.smtp_password:
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_password)
+            server.sendmail(self.smtp_from, to_email, payload)
 
     async def send_email(
         self,
@@ -67,34 +84,18 @@ class EmailService:
             part2 = MIMEText(html_body, "html")
             msg.attach(part2)
 
-            # Send via SMTP
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
-                # TLS and authentication only when there are credentials to
-                # present. A relay reached over a private network has neither,
-                # and demanding them there is how the demonstrator's
-                # verification email — the one that ACTIVATES the account —
-                # failed on every registration (measured 2026-08-06). Where
-                # credentials exist, the exchange is unchanged: encrypted then
-                # authenticated, never one without the other.
-                if self.smtp_user and self.smtp_password:
-                    server.starttls()
-                    server.login(self.smtp_user, self.smtp_password)
-                server.sendmail(self.smtp_from, to_email, msg.as_string())
+            # The SMTP exchange is synchronous (smtplib): it runs in a worker
+            # thread so the event loop keeps serving SSE while the relay answers.
+            await asyncio.to_thread(self._deliver, to_email, msg.as_string())
 
-            logger.info(
-                "email_sent",
-                to_email=to_email,
-                subject=subject,
-            )
+            # No PII at INFO: the address and the subject (user content) stay at DEBUG.
+            logger.info("email_sent", subject_length=len(subject))
+            logger.debug("email_sent_detail", to_email=to_email, subject=subject)
             return True
 
         except Exception as e:
-            logger.error(
-                "email_send_failed",
-                to_email=to_email,
-                subject=subject,
-                error=str(e),
-            )
+            logger.error("email_send_failed", error=str(e), error_type=e.__class__.__name__)
+            logger.debug("email_send_failed_detail", to_email=to_email, subject=subject)
             return False
 
     async def send_user_deactivated_notification(

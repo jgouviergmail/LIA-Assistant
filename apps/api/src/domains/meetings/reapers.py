@@ -40,6 +40,9 @@ async def meetings_job_reaper() -> None:
             settings.meetings_recording_stale_minutes
         )
         requeued = await repo.requeue_expired_leases()
+        # ADR-259: a regeneration is a fire-and-forget without a lease; a hard
+        # kill leaves the stage set. Past the lease TTL nobody is working on it.
+        cleared = await repo.clear_stale_regenerations(settings.meetings_job_lease_ttl_seconds)
         orphans = await repo.fetch_stopped_orphans(
             grace_seconds=settings.meetings_reaper_interval_seconds, limit=_REDRIVE_BATCH
         )
@@ -49,17 +52,20 @@ async def meetings_job_reaper() -> None:
         meeting_reaper_transitions_total.labels(outcome="interrupted").inc(interrupted)
     if requeued:
         meeting_reaper_transitions_total.labels(outcome="requeued").inc(requeued)
+    if cleared:
+        meeting_reaper_transitions_total.labels(outcome="regeneration_cleared").inc(cleared)
     if orphans:
         from src.domains.meetings.processing import launch_processing
 
         for meeting_id in orphans:
             launch_processing(meeting_id)
         meeting_reaper_transitions_total.labels(outcome="redriven").inc(len(orphans))
-    if interrupted or requeued or orphans:
+    if interrupted or requeued or cleared or orphans:
         logger.info(
             "meetings_reaped",
             interrupted=interrupted,
             requeued=requeued,
+            regeneration_cleared=cleared,
             redriven=len(orphans),
         )
 

@@ -14,10 +14,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+
 # Central prompt store, reached by path (never by importing the agents package).
 _PROMPTS_DIR = Path(__file__).parents[1] / "agents" / "prompts"
 
-MeetingPromptName = Literal["meeting_synthesis_prompt", "meeting_condense_prompt"]
+MeetingPromptName = Literal[
+    "meeting_synthesis_prompt",
+    "meeting_condense_prompt",
+    "meeting_template_selection_prompt",
+    "meeting_transcript_rewrite_prompt",
+]
 
 
 class MeetingPromptError(Exception):
@@ -43,3 +50,8 @@ def load_meeting_prompt(name: MeetingPromptName, version: str = "v1") -> str:
         return path.read_text(encoding="utf-8")
     except OSError as exc:
         raise MeetingPromptError(f"Cannot load prompt {name!r} ({path})") from exc
+
+
+def build_messages(system: str, human: str) -> list[BaseMessage]:
+    """The system + human pair every meetings model call sends."""
+    return [SystemMessage(content=system), HumanMessage(content=human)]

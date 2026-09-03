@@ -67,6 +67,28 @@ describe('meetingRecorderStore', () => {
     expect(useMeetingRecorderStore.getState().recording?.nextSequence).toBe(4);
   });
 
+  it('setTemplateRef remembers the chosen format on the recording only (ADR-259)', () => {
+    const store = useMeetingRecorderStore.getState();
+    store.setTemplateRef('builtin:daily_standup');
+    expect(useMeetingRecorderStore.getState().recording).toBeNull();
+    store.begin(
+      {
+        meetingId: 'm1',
+        startedAt: '2026-09-02T10:00:00Z',
+        audioFormat: 'pcm_s16le_16',
+        mimeType: null,
+        segmentSeconds: 30,
+        nextSequence: 0,
+      },
+      null,
+      null
+    );
+    useMeetingRecorderStore.getState().setTemplateRef('builtin:daily_standup');
+    expect(useMeetingRecorderStore.getState().recording?.templateRef).toBe('builtin:daily_standup');
+    useMeetingRecorderStore.getState().setTemplateRef(null);
+    expect(useMeetingRecorderStore.getState().recording?.templateRef).toBeNull();
+  });
+
   it('fail moves to error, drops the silence prompt and zeroes the level', () => {
     const store = useMeetingRecorderStore.getState();
     store.setSilencePrompt(true);

@@ -8,7 +8,7 @@ clock is the database clock (``now()``) on both sides of every comparison.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -24,6 +24,7 @@ from src.domains.meetings.models import (
     MeetingStatus,
     MeetingTemplate,
 )
+from src.domains.meetings.schemas import TemplateSelection
 
 # Statuses under which a recording still accepts segments.
 LIVE_STATUSES: tuple[MeetingStatus, ...] = (MeetingStatus.RECORDING, MeetingStatus.INTERRUPTED)
@@ -422,11 +423,15 @@ class MeetingRepository(BaseRepository[Meeting]):
 
     # ---------------------------------------------------------- regenerate
 
-    async def begin_regenerate(self, meeting_id: UUID) -> bool:
+    async def begin_regenerate(
+        self, meeting_id: UUID, *, values: dict[str, Any] | None = None
+    ) -> bool:
         """``ready`` (idle) → ``ready`` + ``stage=synthesizing``. True iff this call did it.
 
         The status stays READY so the minutes remain readable while the new
-        ones are computed; the stage is the progress the page shows.
+        ones are computed; the stage is the progress the page shows. ``values``
+        (ADR-259: the template the rebuild must use) ride on the same UPDATE,
+        so the job never reads a ref the claim did not write.
         """
         stmt = (
             update(Meeting)
@@ -435,7 +440,12 @@ class MeetingRepository(BaseRepository[Meeting]):
                 Meeting.status == MeetingStatus.READY,
                 Meeting.stage.is_(None),
             )
-            .values(stage=MeetingStage.SYNTHESIZING, last_error_code=None, last_error_message=None)
+            .values(
+                stage=MeetingStage.SYNTHESIZING,
+                last_error_code=None,
+                last_error_message=None,
+                **(values or {}),
+            )
             .execution_options(synchronize_session=False)
         )
         result = await self.db.execute(stmt)
@@ -471,6 +481,52 @@ class MeetingRepository(BaseRepository[Meeting]):
             .execution_options(synchronize_session=False)
         )
         await self.db.commit()
+
+    async def clear_stale_regenerations(self, older_than_seconds: int) -> int:
+        """``ready`` + ``stage`` older than the lease TTL → stage cleared, error recorded (ADR-259).
+
+        A regeneration is a fire-and-forget without a lease: a hard kill leaves
+        the stage set and every later attempt refused (``regeneration_in_progress``).
+        """
+        threshold = func.now() - text(":s * interval '1 second'").bindparams(s=older_than_seconds)
+        stmt = (
+            update(Meeting)
+            .where(
+                Meeting.status == MeetingStatus.READY,
+                Meeting.stage.is_not(None),
+                Meeting.updated_at < threshold,
+            )
+            .values(stage=None, last_error_code="regeneration_interrupted", last_error_message="")
+            .execution_options(synchronize_session=False)
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return int(result.rowcount or 0)  # type: ignore[attr-defined]
+
+    async def set_template(self, meeting_id: UUID, *, ref: str, name: str) -> None:
+        """Remember the template chosen for a meeting before its minutes exist (ADR-259)."""
+        await self.db.execute(
+            update(Meeting)
+            .where(Meeting.id == meeting_id)
+            .values(template_ref=ref, template_name=name)
+            .execution_options(synchronize_session=False)
+        )
+        await self.db.commit()
+
+    async def count_derived(self, meeting_id: UUID) -> int:
+        """How many minutes were produced from this meeting's transcript (reformat 'new')."""
+        total = await self.db.scalar(
+            select(func.count()).select_from(Meeting).where(Meeting.source_meeting_id == meeting_id)
+        )
+        return int(total or 0)
+
+    async def create_from_transcript(
+        self, source: Meeting, *, values: dict[str, Any], rag_enabled: bool
+    ) -> Meeting:
+        """A new meeting row derived from ``source``'s transcript (reformat 'new', ADR-259)."""
+        return await self.create(
+            derived_meeting_values(source, template_values=values, rag_enabled=rag_enabled)
+        )
 
     async def fail_regenerate(self, meeting_id: UUID, *, code: str, message: str) -> None:
         """Clear the stage and record why the regeneration failed; the old minutes stay."""
@@ -511,19 +567,100 @@ class MeetingRepository(BaseRepository[Meeting]):
         await self.db.commit()
 
 
+#: What a derived meeting copies from its source: the facts of the recording and
+#: of the transcription — never the audio, never the transcription price.
+_DERIVED_COPIED_COLUMNS: tuple[str, ...] = (
+    "user_id",
+    "audio_format",
+    "segment_count",
+    "audio_bytes",
+    "audio_duration_seconds",
+    "audio_gaps",
+    "started_at",
+    "stopped_at",
+    "client_timezone",
+    "location_lat",
+    "location_lon",
+    "location_accuracy_m",
+    "location_label",
+    "calendar_event_id",
+    "calendar_provider",
+    "stt_provider",
+    "stt_model",
+    "stt_language_hint",
+    "stt_detected_language",
+    "stt_diarized",
+    "stt_audio_seconds",
+    "transcript_encrypted",
+)
+
+
+def derived_meeting_values(
+    source: Any, *, template_values: dict[str, Any], rag_enabled: bool
+) -> dict[str, Any]:
+    """The column values of new minutes derived from ``source``'s transcript (ADR-259).
+
+    READY with the synthesizing stage and no report: the page shows « writing »
+    until the regeneration publishes the minutes. No audio (``audio_path`` NULL,
+    purged now), no STT price (paid once, by the source), its own knowledge-space
+    document (``index_state`` pending), and the template values the caller decided.
+    """
+    values: dict[str, Any] = {column: getattr(source, column) for column in _DERIVED_COPIED_COLUMNS}
+    values.update(
+        {
+            "source_meeting_id": source.id,
+            "status": MeetingStatus.READY,
+            "stage": MeetingStage.SYNTHESIZING,
+            "audio_path": None,
+            "audio_purged_at": datetime.now(UTC),
+            "keep_audio_until": None,
+            "stt_cost_eur": None,
+            "transcript_deleted_at": None,
+            "template_snapshot": None,
+            "report_generated": None,
+            "report_current": None,
+            "report_edited_at": None,
+            "index_state": MeetingIndexState.PENDING if rag_enabled else MeetingIndexState.DISABLED,
+            "template_selection": TemplateSelection.USER.value,
+            "template_selection_reason": None,
+        }
+    )
+    values.update(template_values)
+    return values
+
+
 class MeetingTemplateRepository(BaseRepository[MeetingTemplate]):
-    """The user's default minutes template (one row at most in v1)."""
+    """The user's own minutes templates (ADR-259: several per user, by name)."""
 
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, MeetingTemplate)
 
-    async def get_default_for_user(self, user_id: UUID) -> MeetingTemplate | None:
+    async def list_for_user(self, user_id: UUID) -> list[MeetingTemplate]:
+        """Every template the user owns, by name."""
+        result = await self.db.execute(
+            select(MeetingTemplate)
+            .where(MeetingTemplate.user_id == user_id)
+            .order_by(MeetingTemplate.name.asc(), MeetingTemplate.created_at.asc())
+        )
+        return list(result.scalars().all())
+
+    async def get_for_user(self, template_id: UUID, user_id: UUID) -> MeetingTemplate | None:
+        """One template, only when it belongs to ``user_id``."""
         result = await self.db.execute(
             select(MeetingTemplate).where(
-                MeetingTemplate.user_id == user_id, MeetingTemplate.is_default.is_(True)
+                MeetingTemplate.id == template_id, MeetingTemplate.user_id == user_id
             )
         )
         return result.scalar_one_or_none()
+
+    async def count_for_user(self, user_id: UUID) -> int:
+        """How many templates the user keeps (the cap's oracle)."""
+        total = await self.db.scalar(
+            select(func.count())
+            .select_from(MeetingTemplate)
+            .where(MeetingTemplate.user_id == user_id)
+        )
+        return int(total or 0)
 
 
 class MeetingPreferenceRepository(BaseRepository[MeetingPreference]):
@@ -531,6 +668,23 @@ class MeetingPreferenceRepository(BaseRepository[MeetingPreference]):
 
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, MeetingPreference)
+
+    async def clear_default_template_if(self, user_id: UUID, ref: str) -> bool:
+        """Back to automatic when the default template pointed at ``ref`` (no commit here).
+
+        Returns:
+            True when a preference was reset — the caller tells the user.
+        """
+        result = await self.db.execute(
+            update(MeetingPreference)
+            .where(
+                MeetingPreference.user_id == user_id,
+                MeetingPreference.default_template_ref == ref,
+            )
+            .values(default_template_ref=None)
+            .execution_options(synchronize_session=False)
+        )
+        return bool(getattr(result, "rowcount", 0) or 0)
 
     async def get_for_user(self, user_id: UUID) -> MeetingPreference | None:
         result = await self.db.execute(

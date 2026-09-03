@@ -20,7 +20,6 @@ from src.domains.meetings.processing import (
     _keep_audio_until,
     _language_hint,
     _summary_text,
-    _template_sections,
 )
 from src.domains.meetings.schemas import (
     ActionItem,
@@ -28,9 +27,13 @@ from src.domains.meetings.schemas import (
     ReportSection,
     SectionKind,
     TemplateSection,
+    TemplateSelection,
+    TranscriptLine,
     TranscriptTurn,
 )
 from src.domains.meetings.synthesis import SynthesisResult, SynthesisUsage
+from src.domains.meetings.template_ref import TemplateRef
+from src.domains.meetings.template_resolution import TemplateDecision
 from src.domains.meetings.transcription import TranscriptionOutcome
 
 pytestmark = pytest.mark.unit
@@ -73,15 +76,6 @@ def test_summary_text_takes_the_first_paragraph_then_the_first_bullets() -> None
     assert _summary_text(MeetingReport(title="T", sections=[])) == ""
 
 
-def test_template_sections_read_the_row_or_fall_back_to_the_localized_default() -> None:
-    row = SimpleNamespace(
-        sections=[{"key": "extra", "label": "X", "instruction": "i", "kind": "bullets"}]
-    )
-    assert [s.key for s in _template_sections(row, "fr")] == ["extra"]
-    default = _template_sections(None, "fr")
-    assert default[0].label == "Résumé" and default[0].kind is SectionKind.PARAGRAPH
-
-
 def test_completion_values_carry_every_derived_fact_and_encrypt_the_transcript(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -119,18 +113,29 @@ def test_completion_values_carry_every_derived_fact_and_encrypt_the_transcript(
     calendar = SimpleNamespace(
         event_id="evt-1", provider="google_calendar", title="P", attendees=[], location=None
     )
+    decision = TemplateDecision(
+        sections=template,
+        ref=TemplateRef.builtin("daily_standup"),
+        name="Daily",
+        selection=TemplateSelection.AUTO,
+        reason="Un daily.",
+    )
     values = _completion_values(
         meeting=SimpleNamespace(calendar_event_id=None, calendar_provider=None),
         audio_path="u/m/audio.webm",
         duration=61.5,
         outcome=outcome,
         synthesis=synthesis,
-        template=template,
+        decision=decision,
         calendar=calendar,
         location_label="Salle B",
         keep_audio_until=None,
         gaps=2,
     )
+    # ADR-259: which template wrote the minutes, and why, rides on the row.
+    assert values["template_ref"] == "builtin:daily_standup"
+    assert values["template_name"] == "Daily" and values["template_selection"] == "auto"
+    assert values["template_selection_reason"] == "Un daily."
     assert values["audio_path"] == "u/m/audio.webm" and values["audio_gaps"] == 2
     assert values["stt_provider"] is MeetingSttProvider.OPENAI and values["stt_diarized"] is True
     assert values["stt_cost_eur"] == 0.009 and values["stt_detected_language"] == "fr"
@@ -259,3 +264,18 @@ def _outcome(*, cost_eur: float | None) -> TranscriptionOutcome:
         cost_usd=None if cost_eur is None else cost_eur * 1.1,
         cost_eur=cost_eur,
     )
+
+
+def test_summary_text_falls_back_to_the_head_of_a_transcript_section() -> None:
+    transcript = ReportSection(
+        key="transcript",
+        label="T",
+        kind=SectionKind.TRANSCRIPT,
+        transcript=[
+            TranscriptLine(speaker="S1", start=0.0, text="Première phrase."),
+            TranscriptLine(speaker="S2", start=5.0, text="Seconde phrase. " * 40),
+        ],
+    )
+    text = _summary_text(MeetingReport(title="T", sections=[transcript]))
+    assert text.startswith("S1 : Première phrase.")
+    assert len(text) <= 300

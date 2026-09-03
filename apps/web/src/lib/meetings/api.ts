@@ -9,16 +9,24 @@
 import { apiClient, ApiError } from '@/lib/api-client';
 import type {
   MeetingActionResponse,
+  MeetingBulkDeleteResponse,
   MeetingDetail,
   MeetingListResponse,
   MeetingPatchRequest,
   MeetingPreferences,
   MeetingPreferencesUpdate,
+  MeetingReformatRequest,
+  MeetingReformatResponse,
   MeetingStartRequest,
   MeetingStartResponse,
   MeetingStopRequest,
   MeetingTemplate,
+  MeetingTemplateCreate,
+  MeetingTemplateListResponse,
   MeetingTemplateUpdate,
+  MeetingTemplateBulkDeleteResponse,
+  MeetingTemplateBulkDuplicateResponse,
+  TemplateRefsRequest,
 } from '@/types/meetings';
 
 const BASE = '/meetings';
@@ -49,6 +57,10 @@ export const meetingsApi = {
 
   regenerate: (id: string) => apiClient.post<MeetingActionResponse>(`${BASE}/${id}/regenerate`),
 
+  /** Write the minutes again with another template, in place or as new minutes (ADR-259). */
+  reformat: (id: string, request: MeetingReformatRequest) =>
+    apiClient.post<MeetingReformatResponse>(`${BASE}/${id}/reformat`, request),
+
   patch: (id: string, request: MeetingPatchRequest) =>
     apiClient.patch<MeetingDetail>(`${BASE}/${id}`, request),
 
@@ -60,12 +72,31 @@ export const meetingsApi = {
 
   remove: (id: string) => apiClient.delete<void>(`${BASE}/${id}`),
 
-  template: () => apiClient.get<MeetingTemplate>(`${BASE}/template`),
+  /** Delete several meetings; the server answers every id (deleted or skipped with a code). */
+  bulkDelete: (ids: string[]) =>
+    apiClient.post<MeetingBulkDeleteResponse>(`${BASE}/bulk-delete`, { ids }),
 
-  putTemplate: (request: MeetingTemplateUpdate) =>
-    apiClient.put<MeetingTemplate>(`${BASE}/template`, request),
+  /** The library: every built-in (localized) plus the user's own (ADR-259). */
+  templates: () => apiClient.get<MeetingTemplateListResponse>(`${BASE}/templates`),
 
-  resetTemplate: () => apiClient.delete<MeetingTemplate>(`${BASE}/template`),
+  template: (ref: string) => apiClient.get<MeetingTemplate>(`${BASE}/templates/${ref}`),
+
+  createTemplate: (request: MeetingTemplateCreate) =>
+    apiClient.post<MeetingTemplate>(`${BASE}/templates`, request),
+
+  updateTemplate: (ref: string, request: MeetingTemplateUpdate) =>
+    apiClient.put<MeetingTemplate>(`${BASE}/templates/${ref}`, request),
+
+  deleteTemplate: (ref: string) => apiClient.delete<void>(`${BASE}/templates/${ref}`),
+  /** Add several templates to « My templates »: each ref created or skipped with a code. */
+  bulkDuplicateTemplates: (request: TemplateRefsRequest) =>
+    apiClient.post<MeetingTemplateBulkDuplicateResponse>(
+      `${BASE}/templates/bulk-duplicate`,
+      request
+    ),
+  /** Delete several user templates; says whether the default-format preference was reset. */
+  bulkDeleteTemplates: (request: TemplateRefsRequest) =>
+    apiClient.post<MeetingTemplateBulkDeleteResponse>(`${BASE}/templates/bulk-delete`, request),
 
   preferences: () => apiClient.get<MeetingPreferences>(`${BASE}/preferences`),
 

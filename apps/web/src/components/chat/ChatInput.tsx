@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
-import { Send, Mic, Plus, Square, ImageUp, Disc, FilePlus2 } from 'lucide-react';
+import { Send, Mic, Plus, Square, ImageUp } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -30,16 +30,7 @@ import AttachmentPreview from '@/components/chat/AttachmentPreview';
 import { SlashCommandMenu, useSlashMenu } from '@/components/chat/SlashCommandMenu';
 import type { SlashCommand } from '@/lib/slash-commands';
 import { MessageAttachmentMeta } from '@/types/chat';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  useMeetingRecorderContext,
-  type MeetingRecorderContextValue,
-} from '@/components/meetings/MeetingRecorderProvider';
+import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';
 
 /** Attachment metadata passed alongside IDs for immediate local display. */
 export type SendAttachmentMeta = MessageAttachmentMeta;
@@ -72,9 +63,9 @@ export interface ChatInputProps {
   /** Whether attachments feature is enabled */
   attachmentsEnabled?: boolean;
   /**
-   * ADR-258: the instance offers meeting recording. The paperclip then opens a
-   * menu (add a file / record a meeting) instead of the file picker directly;
-   * the recorder itself lives in the dashboard layout's provider.
+   * ADR-258: the instance offers meeting recording. The composer only needs
+   * it to keep hold-to-talk off the table while a meeting is being captured;
+   * the recording controls live in the header and the logo menu (ADR-259).
    */
   meetingsEnabled?: boolean;
   /**
@@ -347,136 +338,65 @@ function useSentHistoryNavigation(args: {
 }
 
 /**
- * The composer's « + » control (ADR-258, module-level — CC discipline): a menu
- * when a recorder is offered (add a file / record or stop a meeting), the file
- * picker directly otherwise, nothing when neither applies.
+ * The composer's « + » (module-level — CC discipline): the file picker, and
+ * only that (ADR-259 — recording moved to the header, the logo menu and the
+ * Meetings page). Nothing when attachments are off.
  *
- * A « + » rather than a paperclip because the button opens ACTIONS, of which a
- * file is one. Square and narrow — 44 px wide on a phone, the comfortable
- * touch minimum, 40 px once the row is wider than `mobile` — so the typing
- * area keeps the width (owner arbitration 2026-09-03).
+ * A « + » rather than a paperclip (kept from ADR-258): square and narrow —
+ * 44 px wide on a phone, the comfortable touch minimum, 40 px once the row is
+ * wider than `mobile` — so the typing area keeps the width (owner arbitration
+ * 2026-09-03).
  */
 const COMPOSER_ACTION_BUTTON = 'h-12 w-11 shrink-0 self-end p-0 mobile:w-10';
 
 function ComposerAttachmentsControl({
   t,
-  recorder,
   attachmentsEnabled,
   disabled,
   onPickFile,
 }: {
   t: (key: string) => string;
-  recorder: MeetingRecorderContextValue | null;
   attachmentsEnabled: boolean;
   disabled: boolean;
   onPickFile: () => void;
 }) {
-  if (recorder === null) {
-    if (!attachmentsEnabled) return null;
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="lg"
-            className={COMPOSER_ACTION_BUTTON}
-            disabled={disabled}
-            onClick={onPickFile}
-            aria-label={t('chat.attachments.add')}
-          >
-            <Plus className="h-5 w-5" aria-hidden="true" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
-      </Tooltip>
-    );
-  }
+  if (!attachmentsEnabled) return null;
   return (
-    <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className={cn('relative', COMPOSER_ACTION_BUTTON)}
-              disabled={disabled}
-              aria-label={t('meetings.composer.menu_label')}
-            >
-              <Plus className="h-5 w-5" aria-hidden="true" />
-              {recorder.isCapturing && (
-                <span
-                  className="absolute right-1 top-1.5 h-2 w-2 animate-pulse rounded-full bg-destructive"
-                  aria-hidden="true"
-                  data-testid="composer-recording-dot"
-                />
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent>{t('meetings.composer.menu_label')}</TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent align="start" side="top">
-        {attachmentsEnabled && (
-          <DropdownMenuItem onSelect={onPickFile}>
-            <FilePlus2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            {t('meetings.composer.add_file')}
-          </DropdownMenuItem>
-        )}
-        <RecordMenuItem t={t} recorder={recorder} />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/** Record or Stop, whichever the recorder's phase allows. */
-function RecordMenuItem({
-  t,
-  recorder,
-}: {
-  t: (key: string) => string;
-  recorder: MeetingRecorderContextValue;
-}) {
-  if (recorder.isCapturing) {
-    return (
-      <DropdownMenuItem onSelect={() => void recorder.stop()}>
-        <Square className="mr-2 h-4 w-4 text-destructive" aria-hidden="true" />
-        {t('meetings.composer.stop')}
-      </DropdownMenuItem>
-    );
-  }
-  return (
-    <DropdownMenuItem
-      disabled={recorder.isLive || recorder.phase === 'processing'}
-      onSelect={() => void recorder.start()}
-    >
-      <Disc className="mr-2 h-4 w-4 text-destructive" aria-hidden="true" />
-      {t('meetings.composer.record')}
-    </DropdownMenuItem>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="lg"
+          className={COMPOSER_ACTION_BUTTON}
+          disabled={disabled}
+          onClick={onPickFile}
+          aria-label={t('chat.attachments.add')}
+        >
+          <Plus className="h-5 w-5" aria-hidden="true" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
+    </Tooltip>
   );
 }
 
 /**
- * ADR-258 (module-level hook — CC discipline): the recorder as the composer
- * sees it. `null` outside the dashboard provider, on an unsupported browser or
- * when the instance flag is off — the menu is then not offered. `pttBlocked`
- * folds the two microphone owners (voice mode, meeting) into ONE predicate so
- * the hold-to-talk guard keeps a single condition.
+ * ADR-258 (module-level hook — CC discipline): the two microphone owners
+ * (voice mode, meeting capture) folded into ONE predicate, so the hold-to-talk
+ * guard keeps a single condition. `null` context (outside the dashboard
+ * provider) reads as "no meeting".
  */
 function useComposerRecorder(
   meetingsEnabled: boolean,
   voiceModeEnabled: boolean
 ): {
-  recorder: MeetingRecorderContextValue | null;
   meetingRecording: boolean;
   pttBlocked: boolean;
 } {
   const context = useMeetingRecorderContext();
-  const recorder = meetingsEnabled && context !== null && context.isSupported ? context : null;
-  const meetingRecording = context?.isCapturing ?? false;
-  return { recorder, meetingRecording, pttBlocked: voiceModeEnabled || meetingRecording };
+  const meetingRecording = meetingsEnabled && (context?.isCapturing ?? false);
+  return { meetingRecording, pttBlocked: voiceModeEnabled || meetingRecording };
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -530,11 +450,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Check if voice mode (active listening) is enabled - disable push-to-talk when active
   const voiceModeEnabled = useVoiceModeStore(s => s.isEnabled);
-  // ADR-258: the recorder as the composer sees it (null → no menu).
-  const { recorder, meetingRecording, pttBlocked } = useComposerRecorder(
-    meetingsEnabled,
-    voiceModeEnabled
-  );
+  // ADR-258: a meeting being captured keeps hold-to-talk off the table.
+  const { meetingRecording, pttBlocked } = useComposerRecorder(meetingsEnabled, voiceModeEnabled);
 
   // Auto-resize the textarea. The vertical scrollbar exists only once the
   // height cap freezes growth (UX P2) — below it, the box grows and any
@@ -973,11 +890,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onChange={handleFileSelect}
             aria-label={t('chat.attachments.add')}
           />
-          {/* « + »: a menu when meeting recording is offered (ADR-258), the
-              file picker directly otherwise — extracted (CC discipline). */}
+          {/* « + »: the file picker (ADR-259) — extracted (CC discipline). */}
           <ComposerAttachmentsControl
             t={t}
-            recorder={recorder}
             attachmentsEnabled={attachmentsEnabled}
             disabled={disabled || !apiAvailable || isUploading}
             onPickFile={() => fileInputRef.current?.click()}

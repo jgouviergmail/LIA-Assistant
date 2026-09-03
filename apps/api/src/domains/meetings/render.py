@@ -25,6 +25,7 @@ from src.domains.meetings.schemas import (
     Participant,
     ReportSection,
     SectionKind,
+    TranscriptLine,
 )
 
 #: Language-neutral separator between an action's fields.
@@ -126,6 +127,19 @@ def action_display(action: ActionItem) -> str:
     return _FIELD_SEPARATOR.join(parts)
 
 
+def _elapsed(seconds: float) -> str:
+    """``m:ss`` / ``h:mm:ss`` — the timestamp of a transcript line."""
+    total = int(seconds)
+    if total >= 3600:
+        return f"{total // 3600}:{(total % 3600) // 60:02d}:{total % 60:02d}"
+    return f"{total // 60}:{total % 60:02d}"
+
+
+def transcript_line_label(line: TranscriptLine) -> str:
+    """``S1 [1:05]`` — who spoke and when, before the rewritten text."""
+    return f"{line.speaker} [{_elapsed(line.start)}]"
+
+
 def minutes_filename_stem(meeting: Meeting, report: MeetingReport) -> str:
     """``YYYY-MM-DD <title>`` made safe for a filename."""
     local_date = meeting.started_at.astimezone(ZoneInfo(meeting.client_timezone))
@@ -151,6 +165,10 @@ def _md_section(section: ReportSection) -> list[str]:
                 lines.extend([f"### {topic.title}", "", topic.summary, ""])
         case SectionKind.ACTION_ITEMS:
             lines.extend(f"- {action_display(action)}" for action in section.action_items)
+        case SectionKind.TRANSCRIPT:
+            lines.extend(
+                f"**{transcript_line_label(line)}** {line.text}" for line in section.transcript
+            )
     lines.append("")
     return lines
 
@@ -191,6 +209,11 @@ def _blocks_for_section(section: ReportSection) -> list[SectionBlock]:
                 SectionBlock(
                     kind="bullets", items=[action_display(a) for a in section.action_items]
                 )
+            )
+        case SectionKind.TRANSCRIPT:
+            blocks.extend(
+                SectionBlock(kind="paragraph", text=f"{transcript_line_label(line)} — {line.text}")
+                for line in section.transcript
             )
     return blocks
 
@@ -241,6 +264,11 @@ def _html_section(section: ReportSection) -> str:
                 + "".join(f"<li>{_e(action_display(a))}</li>" for a in section.action_items)
                 + "</ul>"
             )
+        case SectionKind.TRANSCRIPT:
+            parts.extend(
+                f"<p><strong>{_e(transcript_line_label(line))}</strong> {_e(line.text)}</p>"
+                for line in section.transcript
+            )
     return "".join(parts)
 
 
@@ -288,4 +316,5 @@ __all__ = [
     "render_html",
     "render_markdown",
     "render_sectioned",
+    "transcript_line_label",
 ]

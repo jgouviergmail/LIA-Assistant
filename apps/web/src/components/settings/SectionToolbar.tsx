@@ -49,6 +49,13 @@ export interface ToolbarAction {
   /** Replaces the icon with a spinner and disables the control. */
   loading?: boolean;
   /**
+   * The action is refused for a reason the caller will explain on activation
+   * (a cap reached, a quota exhausted): stated with `aria-disabled`, the
+   * control stays in the tab order and still fires — `disabled` would blur a
+   * focused keyboard user back to `<body>` and hide the reason with the click.
+   */
+  blocked?: boolean;
+  /**
    * Secondary only: render inline at EVERY size instead of folding into the
    * phone "⋯" menu. For actions the reader reaches for often enough that the
    * fold read as absence (Export, per owner arbitration 2026-08-05).
@@ -83,6 +90,7 @@ function ToolbarButton({
       variant={variant}
       onClick={action.onSelect}
       disabled={action.disabled || action.loading}
+      aria-disabled={action.blocked || undefined}
       className={className}
     >
       {action.loading ? (

@@ -1,21 +1,21 @@
-"""Delivery of the minutes: PDF bytes and email through the user's connector (ADR-258).
+"""Delivery of the minutes: PDF bytes and email from the platform sender (ADR-258, ADR-259).
 
-The email goes through the user's ACTIVE email connector (Google, Microsoft or
-Apple), resolved exactly like the telephony availability pre-fetch resolves the
-calendar: provider resolver → credentials → client class from the registry. The
-minutes travel as the HTML body — the connector protocol has no attachment
-seam, and a body reads on every phone without a download.
+The email leaves from the platform SMTP sender (``APPLICATION_SMTP_FROM``),
+like every account email: the minutes are LIA's document, not a message the
+user writes from their mailbox. The body travels as HTML with the Markdown
+rendering as the plain-text alternative — the ONE serializer produces both,
+so the two parts can never disagree.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.i18n_meetings import get_header_label
 from src.domains.document_generation.renderers import render_document
 from src.domains.document_generation.schemas import DocumentType
 from src.domains.meetings.models import Meeting
@@ -23,12 +23,17 @@ from src.domains.meetings.render import (
     build_header,
     minutes_filename_stem,
     render_html,
+    render_markdown,
     render_sectioned,
 )
 from src.domains.meetings.repository import MeetingRepository
 from src.domains.meetings.schemas import MeetingReport
+from src.infrastructure.email import get_email_service
 
 logger = structlog.get_logger(__name__)
+
+#: Language-neutral separator between the minutes label and the title.
+_SUBJECT_SEPARATOR = " · "
 
 
 class MinutesDeliveryError(Exception):
@@ -52,27 +57,9 @@ def pdf_filename(meeting: Meeting, report: MeetingReport) -> str:
     return f"{minutes_filename_stem(meeting, report)}.pdf"
 
 
-async def _resolve_email_client(user_id: UUID, db: AsyncSession) -> Any:
-    """The user's active email client, or raise ``email_connector_missing``."""
-    from src.domains.connectors.clients.registry import ClientRegistry
-    from src.domains.connectors.provider_resolver import resolve_active_connector
-    from src.domains.connectors.service import ConnectorService
-
-    connector_service = ConnectorService(db)
-    resolved_type = await resolve_active_connector(user_id, "email", connector_service)
-    if resolved_type is None:
-        raise MinutesDeliveryError("email_connector_missing", "no active email connector")
-    credentials = (
-        await connector_service.get_apple_credentials(user_id, resolved_type)
-        if resolved_type.is_apple
-        else await connector_service.get_connector_credentials(user_id, resolved_type)
-    )
-    if not credentials:
-        raise MinutesDeliveryError("email_connector_missing", "email connector has no credentials")
-    client_class = ClientRegistry.get_client_class(resolved_type)
-    if client_class is None:
-        raise MinutesDeliveryError("email_connector_missing", "no client for the email connector")
-    return client_class(user_id, credentials, connector_service)
+def minutes_subject(report: MeetingReport, language: str) -> str:
+    """``<Meeting minutes> · <title>`` — a mailbox lists subjects, not pages."""
+    return f"{get_header_label('minutes', language)}{_SUBJECT_SEPARATOR}{report.title}"
 
 
 async def send_minutes_email(
@@ -85,24 +72,23 @@ async def send_minutes_email(
     language: str,
     gaps: int = 0,
 ) -> None:
-    """Email the minutes to ``recipient`` (the user's own address) and record it.
+    """Email the minutes to ``recipient`` from the platform sender and record it.
 
     Raises:
-        MinutesDeliveryError: ``email_connector_missing`` when no active email
-            connector can send, ``email_send_failed`` when the provider refused.
+        MinutesDeliveryError: ``email_send_failed`` when the SMTP relay refused
+            or is unreachable (``EmailService`` answers False and logs the cause).
     """
-    client = await _resolve_email_client(user_id, db)
     header = build_header(meeting, report, language=language, gaps=gaps)
-    body = render_html(report, header)
-    try:
-        await client.send_email(to=recipient, subject=report.title, body=body, is_html=True)
-    except Exception as exc:  # noqa: BLE001 — three provider clients, three exception zoos
+    sent = await get_email_service().send_email(
+        to_email=recipient,
+        subject=minutes_subject(report, language),
+        html_body=render_html(report, header),
+        text_body=render_markdown(report, header),
+    )
+    if not sent:
         logger.warning(
-            "meeting_minutes_email_failed",
-            meeting_id=str(meeting.id),
-            user_id=str(user_id),
-            error=exc.__class__.__name__,
+            "meeting_minutes_email_failed", meeting_id=str(meeting.id), user_id=str(user_id)
         )
-        raise MinutesDeliveryError("email_send_failed", str(exc)) from exc
+        raise MinutesDeliveryError("email_send_failed", "smtp delivery refused")
     await MeetingRepository(db).set_email_sent(meeting.id, sent_at=datetime.now(UTC))
     logger.info("meeting_minutes_emailed", meeting_id=str(meeting.id), user_id=str(user_id))

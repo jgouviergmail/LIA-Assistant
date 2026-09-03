@@ -428,6 +428,52 @@
           ]
         }
       }
+    },
+    {
+      "id": 102,
+      "title": "Template selection (24h)",
+      "type": "bargauge",
+      "datasource": "$datasource",
+      "description": "How the minutes template was chosen (ADR-259): user = chosen for the meeting, preference = the user's default, auto = the model picked from the transcript, fallback = the model was hesitant or unavailable and the built-in default applied. A rising fallback share means the selection prompt or the confidence floor needs a look. `or vector(0)`: a label that never fired has no series.",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(meeting_template_selection_total[24h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

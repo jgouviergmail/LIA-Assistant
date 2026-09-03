@@ -4,7 +4,7 @@
 
 **Version**: 5.2
 **Date**: 2026-08-23
-**Application**: LIA v1.39.0
+**Application**: LIA v1.39.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -210,11 +210,11 @@ What remains is what no system can guess. LIA groups what is written the same, a
 
 ### 3.13. A meeting recorded, minutes written up
 
-Press **+** in the chat and your phone or your computer becomes the meeting's recorder. A banner follows you on every page with the time and what has already reached your server; you keep talking with LIA meanwhile — spoken answers simply pause so the microphone never hears the assistant. When you stop, LIA transcribes everything and writes the minutes **in your structure**: the head is fixed (date, times, place, participants), the body is yours — summary, topics, decisions, actions with owner and deadline, risks, open questions, or whatever sections you define once in Settings and reset in one click.
+A button in the header — or the “Record a meeting” entry of the menu on a phone — and your phone or your computer becomes the meeting's recorder. A banner follows you on every page with the time and what has already reached your server; you keep talking with LIA meanwhile — spoken answers simply pause so the microphone never hears the assistant. When you stop, LIA transcribes everything and writes the minutes **in your structure**: the head is fixed (date, times, place, participants), the body follows a format you pick among thirty built-in templates — meetings and teams, transcripts, conversation analysis, sales, technical, personal appointments, courses — or one you build yourself, section by section. And if you pick nothing, LIA reads what was said and keeps the format that fits, then tells you which one and why: a project review and a medical consultation do not share a structure.
 
 Real life is designed in, not apologised for. Audio leaves in small segments as you speak, so a locked phone, a lost connection or a reload costs seconds, never the meeting: on return you resume, finalize or discard. A long silence gets a question, a maximum duration finalizes by itself, and a gap in the recording is stated in the minutes — never filled in with a guess. An unnamed voice stays S2; a name appears only when the recording establishes it.
 
-The minutes reach you three ways — a card in the chat, a PDF, your own mailbox — and join a **Meetings** knowledge space created for you, so weeks later you can simply ask what was decided. What it cost is written next to it: the transcription and the minutes as two amounts and their total, counted like any other exchange. And the transcription engine is yours to choose: a remote one that separates the speakers, or the local one that costs nothing and leaves your server never.
+The minutes reach you three ways — a card in the chat, a PDF, your inbox from the application's own address with no mailbox to connect — and join a **Meetings** knowledge space created for you, so weeks later you can simply ask what was decided. What it cost is written next to it: the transcription and the minutes as two amounts and their total, counted like any other exchange. And nothing is frozen: minutes already written can be rewritten in another format from the stored transcript — up to the full transcript, cleaned up — either replacing the ones you have, or producing new minutes of the same meeting. The transcription engine stays yours to choose: a remote one that separates the speakers, or the local one that costs nothing and leaves your server never.
 
 ---
 

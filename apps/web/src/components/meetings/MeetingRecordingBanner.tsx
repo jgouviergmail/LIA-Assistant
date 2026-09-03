@@ -16,15 +16,21 @@
  * notices, the silence prompt.
  */
 
+import { useId, useState } from 'react';
 import { AlertTriangle, Check, CircleDot, Loader2, Play, Square, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
+import { TemplateSelect } from '@/components/meetings/TemplateSelect';
+import { describeFailure } from '@/components/meetings/useMeetingActions';
 import { Button } from '@/components/ui/button';
 import type { UseMeetingRecorderReturn } from '@/hooks/useMeetingRecorder';
+import { useMeetingTemplates } from '@/hooks/useMeetingTemplates';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { MEETING_DEFAULT_SILENCE_PROMPT_MINUTES } from '@/lib/constants';
+import { meetingsApi } from '@/lib/meetings/api';
 import { formatElapsed, isBannerPhase } from '@/lib/meetings/format';
-import type { MeetingRecorderPhase } from '@/stores/meetingRecorderStore';
+import { useMeetingRecorderStore, type MeetingRecorderPhase } from '@/stores/meetingRecorderStore';
 import { cn } from '@/lib/utils';
 
 interface BannerProps {
@@ -211,6 +217,51 @@ function Notices({ lng, recorder }: BannerProps) {
   );
 }
 
+/**
+ * The minutes format, chosen ahead of processing (ADR-259). The choice is
+ * saved on the meeting at once and remembered in the store, so a reload shows
+ * what the server holds; a refusal (the minutes already being written) is
+ * named and the previous choice stays.
+ */
+function FormatSelect({ lng, meetingId }: { lng: Language; meetingId: string }) {
+  const { t } = useTranslation(lng);
+  const id = useId();
+  const { templates } = useMeetingTemplates(true);
+  const templateRef = useMeetingRecorderStore(state => state.recording?.templateRef ?? null);
+  const setTemplateRef = useMeetingRecorderStore(state => state.setTemplateRef);
+  const [saving, setSaving] = useState(false);
+
+  const choose = async (ref: string | null) => {
+    if (saving || ref === null || ref === templateRef) return;
+    setSaving(true);
+    try {
+      await meetingsApi.patch(meetingId, { template_ref: ref });
+      setTemplateRef(ref);
+      toast.success(t('meetings.banner.format_saved'));
+    } catch (error) {
+      toast.error(describeFailure(t, error, 'common.error'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-2" aria-busy={saving || undefined}>
+      <TemplateSelect
+        lng={lng}
+        id={id}
+        layout="inline"
+        label={t('meetings.banner.format_label')}
+        templates={templates}
+        value={templateRef}
+        onChange={ref => void choose(ref)}
+        autoLabel={t('meetings.banner.format_auto')}
+        triggerClassName="h-8 w-auto min-w-48 text-xs"
+      />
+    </div>
+  );
+}
+
 function SilencePrompt({ lng, recorder }: BannerProps) {
   const { t } = useTranslation(lng);
   return (
@@ -225,7 +276,8 @@ function SilencePrompt({ lng, recorder }: BannerProps) {
       </span>
       <span id="meeting-silence-body" className="text-xs text-muted-foreground">
         {t('meetings.banner.silence_body', {
-          minutes: recorder.limits?.silence_prompt_minutes ?? MEETING_DEFAULT_SILENCE_PROMPT_MINUTES,
+          minutes:
+            recorder.limits?.silence_prompt_minutes ?? MEETING_DEFAULT_SILENCE_PROMPT_MINUTES,
         })}
       </span>
       <span className="ml-auto inline-flex gap-2">
@@ -258,6 +310,9 @@ export function MeetingRecordingBanner({ lng, recorder }: BannerProps) {
         <Actions lng={lng} recorder={recorder} />
       </div>
       <Notices lng={lng} recorder={recorder} />
+      {recorder.isLive && recorder.recording && (
+        <FormatSelect lng={lng} meetingId={recorder.recording.meetingId} />
+      )}
       {recorder.silencePrompt && <SilencePrompt lng={lng} recorder={recorder} />}
     </section>
   );

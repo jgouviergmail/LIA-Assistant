@@ -1,12 +1,18 @@
 /**
- * Template and preferences hooks: load once, save returns the server's row,
- * a failed save keeps the previous value and exposes the error.
+ * Library and preferences hooks (ADR-259): the library loads once, every write
+ * returns the server's row and updates the list in place, a failed write keeps
+ * the previous value and exposes the error.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { MeetingPreferences, MeetingTemplate } from '@/types/meetings';
+import type {
+  MeetingPreferences,
+  MeetingTemplate,
+  MeetingTemplateListResponse,
+  MeetingTemplateSummary,
+} from '@/types/meetings';
 
 const api = vi.hoisted(() => ({
   get: vi.fn(),
@@ -24,19 +30,35 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { useMeetingPreferences } from '../useMeetingPreferences';
-import { useMeetingTemplate } from '../useMeetingTemplate';
+import { useMeetingTemplates } from '../useMeetingTemplates';
 
-const template: MeetingTemplate = {
-  id: null,
-  name: 'Default',
-  is_builtin_default: true,
-  sections: [{ key: 'summary', label: 'Summary', instruction: 'i', kind: 'paragraph' }],
+const builtin: MeetingTemplateSummary = {
+  ref: 'builtin:default_minutes',
+  name: 'Meeting minutes',
+  description: 'Summary, topics…',
+  category: 'meeting',
+  builtin: true,
+  sections_count: 6,
+  auto_selectable: true,
 };
+const mine: MeetingTemplate = {
+  ref: 'user:11111111-1111-1111-1111-111111111111',
+  id: '11111111-1111-1111-1111-111111111111',
+  name: 'Mine',
+  description: null,
+  category: 'custom',
+  sections: [{ key: 'summary', label: 'Summary', instruction: 'i', kind: 'paragraph' }],
+  builtin: false,
+  builtin_key: null,
+  auto_selectable: true,
+};
+const library: MeetingTemplateListResponse = { items: [builtin], max_user_templates: 50 };
 const preferences: MeetingPreferences = {
   stt_engine: 'auto',
   language: 'auto',
   auto_email: false,
   keep_audio_hours: 0,
+  default_template_ref: null,
   keep_audio_hours_max: 168,
 };
 
@@ -48,51 +70,96 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('useMeetingTemplate', () => {
-  it('loads, saves and resets through the API', async () => {
-    api.get.mockResolvedValueOnce(template);
-    const saved = { ...template, id: 't1', name: 'Mine', is_builtin_default: false };
-    api.put.mockResolvedValueOnce(saved);
-    api.delete.mockResolvedValueOnce(template);
-    const { result } = renderHook(() => useMeetingTemplate());
+describe('useMeetingTemplates', () => {
+  it('loads the library and creates, updates and removes a user template in place', async () => {
+    api.get.mockResolvedValueOnce(library);
+    api.post.mockResolvedValueOnce(mine);
+    api.put.mockResolvedValueOnce({ ...mine, name: 'Renamed' });
+    api.delete.mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useMeetingTemplates());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.template).toEqual(template);
+    expect(api.get).toHaveBeenCalledWith('/meetings/templates');
+    expect(result.current.templates).toEqual([builtin]);
+    expect(result.current.maxUserTemplates).toBe(50);
 
     await act(async () => {
-      await result.current.save({ name: 'Mine', sections: template.sections });
+      await result.current.create({ duplicate_of: 'builtin:default_minutes', name: 'Mine' });
     });
-    expect(api.put).toHaveBeenCalledWith('/meetings/template', {
+    expect(api.post).toHaveBeenCalledWith('/meetings/templates', {
+      duplicate_of: 'builtin:default_minutes',
       name: 'Mine',
-      sections: template.sections,
     });
-    expect(result.current.template?.name).toBe('Mine');
+    expect(result.current.templates.map(t => t.ref)).toEqual([builtin.ref, mine.ref]);
+    expect(result.current.templates[1]).toMatchObject({
+      name: 'Mine',
+      builtin: false,
+      sections_count: 1,
+    });
 
     await act(async () => {
-      await result.current.reset();
+      await result.current.update(mine.ref, {
+        name: 'Renamed',
+        description: null,
+        category: 'custom',
+        sections: mine.sections,
+      });
     });
-    expect(api.delete).toHaveBeenCalledWith('/meetings/template');
-    expect(result.current.template?.is_builtin_default).toBe(true);
+    expect(api.put).toHaveBeenCalledWith(`/meetings/templates/${mine.ref}`, {
+      name: 'Renamed',
+      description: null,
+      category: 'custom',
+      sections: mine.sections,
+    });
+    expect(result.current.templates[1].name).toBe('Renamed');
+
+    await act(async () => {
+      await result.current.remove(mine.ref);
+    });
+    expect(api.delete).toHaveBeenCalledWith(`/meetings/templates/${mine.ref}`);
+    expect(result.current.templates.map(t => t.ref)).toEqual([builtin.ref]);
   });
 
-  it('a failed save keeps the current template and exposes the error', async () => {
-    api.get.mockResolvedValueOnce(template);
-    api.put.mockRejectedValueOnce(new Error('422'));
-    const { result } = renderHook(() => useMeetingTemplate());
+  it('loads one template with its sections on demand', async () => {
+    api.get.mockResolvedValueOnce(library).mockResolvedValueOnce(mine);
+    const { result } = renderHook(() => useMeetingTemplates());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    let outcome: MeetingTemplate | null = template;
+    let loaded: MeetingTemplate | null = null;
     await act(async () => {
-      outcome = await result.current.save({ name: 'x', sections: template.sections });
+      loaded = await result.current.load(mine.ref);
+    });
+    expect(api.get).toHaveBeenLastCalledWith(`/meetings/templates/${mine.ref}`);
+    expect(loaded).toEqual(mine);
+  });
+
+  it('a failed write keeps the library and exposes the error', async () => {
+    api.get.mockResolvedValueOnce(library);
+    api.post.mockRejectedValueOnce(new Error('409'));
+    const { result } = renderHook(() => useMeetingTemplates());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    let outcome: MeetingTemplate | null = mine;
+    await act(async () => {
+      outcome = await result.current.create({ duplicate_of: 'builtin:default_minutes' });
     });
     expect(outcome).toBeNull();
-    expect(result.current.template).toEqual(template);
-    expect(result.current.error?.message).toBe('422');
+    expect(result.current.templates).toEqual([builtin]);
+    expect(result.current.error?.message).toBe('409');
+  });
+
+  it('does not fetch when disabled', () => {
+    const { result } = renderHook(() => useMeetingTemplates(false));
+    expect(result.current.isLoading).toBe(false);
+    expect(api.get).not.toHaveBeenCalled();
   });
 });
 
 describe('useMeetingPreferences', () => {
-  it('loads and saves the preferences', async () => {
+  it('loads and saves the preferences, the default template included', async () => {
     api.get.mockResolvedValueOnce(preferences);
-    api.put.mockResolvedValueOnce({ ...preferences, auto_email: true });
+    api.put.mockResolvedValueOnce({
+      ...preferences,
+      auto_email: true,
+      default_template_ref: 'builtin:daily_standup',
+    });
     const { result } = renderHook(() => useMeetingPreferences());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     await act(async () => {
@@ -101,6 +168,7 @@ describe('useMeetingPreferences', () => {
         language: 'auto',
         auto_email: true,
         keep_audio_hours: 0,
+        default_template_ref: 'builtin:daily_standup',
       });
     });
     expect(api.put).toHaveBeenCalledWith('/meetings/preferences', {
@@ -108,8 +176,10 @@ describe('useMeetingPreferences', () => {
       language: 'auto',
       auto_email: true,
       keep_audio_hours: 0,
+      default_template_ref: 'builtin:daily_standup',
     });
     expect(result.current.preferences?.auto_email).toBe(true);
+    expect(result.current.preferences?.default_template_ref).toBe('builtin:daily_standup');
   });
 
   it('does not fetch when disabled', async () => {

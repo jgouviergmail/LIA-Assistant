@@ -3490,7 +3490,7 @@
         "journals": "diario, giornale di bordo, ritratto, riflessioni, note, provenienza, perché, fonte, segnale, origine, correggere, configurazione, consolidamento, esportare",
         "health-metrics": "frequenza cardiaca, passi, sonno, iPhone, Apple Salute, forma fisica, attività",
         "skills": "competenze, capacità, abilità, plugin, estensioni",
-        "rag-spaces": "documenti, RAG, base di conoscenza, file, caricamento, indicizzazione, biblioteca",
+        "rag-spaces": "spazi di conoscenza, documenti, file, caricare, scaricare, archivio, zip, spostare, eliminare più, indicizzazione, ricerca documentale, drive, riunioni",
         "user-consumption-export": "CSV, consumo, token, costo, fatturazione, statistiche, esportazione",
         "haptics": "aptico vibrazione tattile sensoriale",
         "plugins": "plugin, estensioni, agent plugins, installare, pacchetto, mcp, skill",
@@ -3511,7 +3511,7 @@
         "debug-settings": "debug, diagnostica, log, pannello, tracciamento dei token",
         "eyes-style": "occhi, avatar, animazione, stile, sguardo, compagno, cozmo",
         "admin-diagnostics": "salute diagnosi incidenti avvisi monitoraggio autocontrollo stato piattaforma prometheus loki connettività uscita rete embeddings vettori quota memoria lingua",
-        "meetings": "riunione, registrazione, verbale, trascrizione, rapporto, microfono, note, riepilogo, azioni"
+        "meetings": "riunione, registrazione, verbale, trascrizione, rapporto, microfono, note, sintesi, azioni, modello, modelli, libreria di modelli, formato del verbale, formato predefinito, formato automatico, cambiare il formato, sezioni, istruzioni, e-mail del verbale"
       }
     },
     "haptics": {
@@ -3755,7 +3755,47 @@
       "upload_formats_tooltip": "PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML",
       "chunk_count": "{{count}} frammenti",
       "embedding_tokens": "{{count}} token",
-      "file_too_large": "\"{{name}}\" è troppo grande (max {{maxSize}} MB)"
+      "file_too_large": "\"{{name}}\" è troppo grande (max {{maxSize}} MB)",
+      "select_row": "Seleziona « {{name}} »",
+      "select_all": "Seleziona tutti i documenti",
+      "selection_region": "Documenti selezionati",
+      "selected_count_one": "{{count}} documento selezionato",
+      "selected_count_other": "{{count}} documenti selezionati",
+      "clear_selection": "Annulla la selezione",
+      "download": "Scarica",
+      "download_selected": "Scarica come zip",
+      "move": "Sposta in un altro spazio…",
+      "move_selected": "Sposta…",
+      "delete_selected": "Elimina",
+      "row_actions": "Azioni — {{name}}",
+      "confirm_bulk_delete_title": "Eliminare i documenti selezionati?",
+      "confirm_bulk_delete_description_one": "Questo documento, il suo indice e il suo file vengono eliminati definitivamente.",
+      "confirm_bulk_delete_description_other": "Questi {{count}} documenti, il loro indice e i loro file vengono eliminati definitivamente.",
+      "bulk_deleted_one": "{{count}} documento eliminato",
+      "bulk_deleted_other": "{{count}} documenti eliminati",
+      "moved_one": "{{count}} documento spostato",
+      "moved_other": "{{count}} documenti spostati",
+      "skipped_one": "{{count}} documento è rimasto al suo posto: {{reasons}}",
+      "skipped_other": "{{count}} documenti sono rimasti al loro posto: {{reasons}}",
+      "move_dialog": {
+        "title": "Sposta in un altro spazio",
+        "description": "I documenti, il loro indice e i loro file si spostano insieme. I documenti sincronizzati da Drive o generati da una riunione restano dove sono.",
+        "target_label": "Spazio di destinazione",
+        "target_count_one": "{{count}} documento",
+        "target_count_other": "{{count}} documenti",
+        "submit": "Sposta",
+        "none_available": "Non hai un altro spazio in cui spostare questi documenti. Creane uno prima."
+      },
+      "skip": {
+        "same_space": "già in questo spazio",
+        "document_managed_by_drive": "sincronizzato da Drive",
+        "document_managed_by_meetings": "generato da una riunione",
+        "document_busy": "ancora in fase di indicizzazione",
+        "document_limit_exceeded": "lo spazio di destinazione è pieno",
+        "document_move_failed": "il file non ha potuto essere spostato",
+        "delete_failed": "non ha potuto essere eliminato",
+        "document_not_found": "non trovato"
+      }
     },
     "drive": {
       "title": "Fonti Google Drive",
@@ -3794,6 +3834,11 @@
     },
     "meetings": {
       "source_type_meeting": "Riunione"
+    },
+    "errors": {
+      "archive_too_large": "La selezione supera i {{max}} MB che un archivio può contenere. Seleziona meno documenti.",
+      "reindex_in_progress": "I documenti non possono essere spostati durante la reindicizzazione degli spazi di conoscenza. Riprova più tardi.",
+      "document_file_missing": "Il file di questo documento non è più sul server."
     }
   },
   "navigation": {
@@ -4427,7 +4472,7 @@
         },
         "meetings": {
           "title": "🎙️ Verbali di riunione",
-          "description": "Premi + nel compositore e un telefono o un computer diventa un registratore di riunioni: l'audio parte in piccoli segmenti mentre parli, così un crash, un ricaricamento o una connessione persa costano secondi, mai la riunione. Allo stop il server assembla la registrazione, percorre la sua catena di motori — la scelta dell'amministratore, ElevenLabs o OpenAI con separazione delle voci, oppure il Whisper locale in finestre di parlato perché nessuna durata sia troppo lunga — e consegna la trascrizione a un'unica chiamata strutturata che riempie il tuo modello: l'intestazione è fissa, le sezioni sono tue. Quanto è costato è detto come due importi e un totale, e il verbale entra in uno spazio di conoscenza interrogabile. Una lacuna è dichiarata, mai colmata."
+          "description": "Un pulsante nell'intestazione — o la voce «Registra una riunione» del menu sul telefono — e il dispositivo diventa un registratore: l'audio parte in piccoli segmenti mentre si parla, così un blocco o una disconnessione costano secondi, mai la riunione. Alla fermata il server riassembla la registrazione e percorre la catena di motori finché uno trascrive. Il formato del verbale è scelto fra trenta modelli integrati leggendo ciò che è stato detto, a meno che tu non imponga il tuo; la riunione indica il formato usato e il perché. Un verbale già scritto si riscrive in un altro formato — fino alla trascrizione completa — sul posto o come nuovo documento. Quanto è costato è detto in due importi e un totale, e una lacuna viene annunciata, mai colmata."
         }
       },
       "diagram_alt": "Diagramma dell'architettura di LIA"
@@ -4436,6 +4481,19 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_39_1": {
+          "title": "v1.39.1 — 🗂️ Trenta formati di verbale, e LIA sceglie quello giusto",
+          "date": "Settembre 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗂️ Una libreria di formati di verbale</b> — trenta modelli pronti all'uso, ordinati per impiego: riunioni e team, trascrizioni, analisi delle conversazioni, vendite e consulenza, tecnico, appuntamenti personali, corsi e formazione. Li sfogli, li visualizzi, aggiungi ai tuoi modelli quelli che ti servono — uno alla volta o per selezione — e poi li adatti a casa tua: rinominare, riordinare le sezioni, riscrivere le istruzioni, declinare un modello in più varianti, eliminare ciò che non serve più.",
+            "i2": "<b>✨ LIA sceglie il formato da sola</b> — senza impostare nulla, legge quello che è stato detto e tiene il formato corrispondente: un punto di progetto, un colloquio, una visita medica e una lezione non hanno la stessa struttura. Il verbale indica il formato usato, se viene da te, dal tuo formato predefinito o dalla sua scelta, e in una riga perché. Il volante resta tuo: scegli il predefinito nelle impostazioni, o quello della riunione in corso dalla barra di registrazione.",
+            "i3": "<b>🔁 Cambia il formato a posteriori</b> — un verbale già redatto si riscrive in un altro formato a partire dalla trascrizione conservata: o sostituisci quello che hai, o ottieni un <b>nuovo verbale</b> della stessa riunione, che conserva il legame con la sua origine ed entra nello spazio di conoscenza come documento a sé. Novità nel passaggio: un formato può ora restituire <b>la trascrizione completa</b>, ripulita e leggibile, invece di una sintesi.",
+            "i4": "<b>✉️ Il verbale via e-mail, per tutti</b> — ora parte dall'indirizzo dell'applicazione verso quello del tuo account, oggetto « Verbale di riunione · Titolo ». Non serve più avere la posta collegata: invio manuale e automatico funzionano su ogni istanza il cui amministratore ha configurato l'e-mail.",
+            "i5": "<b>🗃️ I tuoi documenti circolano tra i tuoi spazi di conoscenza</b> — scarica un documento, o un'intera selezione in un archivio zip con i nomi originali; sposta documenti in un altro spazio, indice e file li seguono; eliminane più di uno alla volta. Ogni lotto ti dice cosa ha fatto e cosa ha lasciato da parte, con il motivo: un documento sincronizzato da Drive o generato da una riunione resta dove il suo proprietario lo ha messo.",
+            "i6": "<b>🎙️ La registrazione ha un posto tutto suo</b> — un pulsante dedicato nell'intestazione sul computer, una voce « Registra / Ferma » nel menu del logo sul telefono, il cui pulsante pulsa in rosso durante la cattura, e la barra che ti segue su ogni pagina senza mai spingere l'area di scrittura fuori schermo. Il « + » del compositore torna a essere quello che era: allegare un file. E l'elenco delle riunioni accetta finalmente la selezione multipla per eliminarne diverse."
+          }
+        },
         "v1_39_0": {
           "title": "v1.39.0 — 🎙️ Registra una riunione, ricevi il verbale",
           "date": "Settembre 2026",
@@ -7562,7 +7620,7 @@
       "rag_spaces": {
         "title": "Spazi di conoscenza (RAG)",
         "description": "Carica e utilizza i tuoi documenti per arricchire le risposte dell'IA",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Cosa sono gli Spazi di conoscenza?",
@@ -7599,6 +7657,10 @@
           "q9": {
             "question": "LIA può cercare da sola nei miei documenti? (v1.25.13)",
             "answer": "Sì. I tuoi spazi documentali sono ora un <strong>dominio attivo</strong>: oltre all'iniezione automatica di contesto, il pianificatore può decidere di cercarvi — con query derivate, più passate se necessario, e combinazioni con altre fonti: «confronta il preventivo PDF con ciò che Paul ha inviato via mail» concatena una ricerca documentale e una ricerca di email.<br><br>La card «Documenti» del briefing mostra inoltre i tuoi ultimi file Drive modificati — un clic per riassumere in chat, o aprire direttamente in Drive."
+          },
+          "q10": {
+            "question": "Posso scaricare, spostare o eliminare più documenti?",
+            "answer": "Sì. Ogni documento di uno spazio offre <strong>Scarica</strong> — il file originale, con il suo nome originale — e si spunta per agire su più documenti insieme. Una selezione può essere <strong>scaricata come un archivio zip</strong>, <strong>spostata in un altro spazio</strong> o <strong>eliminata</strong> in una volta.<br><br>Uno spostamento porta con sé tutto: la riga, l'indice che la ricerca legge e il file stesso — dopo di che il documento risponde dal suo nuovo spazio, e solo da lì. Restano dove sono i documenti che LIA mantiene per te: quelli sincronizzati da una cartella Google Drive e i verbali di riunione, che appartengono alla loro fonte.<br><br>Ogni lotto ti dice cosa ha fatto e cosa ha lasciato da parte, con il motivo — spazio di destinazione pieno, documento ancora in indicizzazione, documento gestito altrove. E nulla si muove durante una reindicizzazione generale: LIA preferisce rifiutare con chiarezza piuttosto che spostare un documento che il motore sta rileggendo."
           }
         }
       },
@@ -7913,15 +7975,15 @@
       "meetings": {
         "title": "Verbali di riunione",
         "description": "Registra una riunione dalla chat, ottieni un verbale strutturato a modo tuo e ritrovalo in uno spazio di conoscenza.",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Come registro una riunione?",
-            "answer": "Nella chat, apri il pulsante <strong>+</strong> accanto al campo del messaggio e scegli <strong>Registra una riunione</strong>. Il tuo telefono o il tuo computer diventa il microfono: LIA lo chiede una volta, poi un banner in alto su ogni pagina mostra la registrazione, la sua durata e ciò che ha già raggiunto il tuo server. Nel frattempo puoi continuare a chattare con LIA — le risposte parlate e la parola di attivazione sono semplicemente sospese, così il microfono non sente mai l'assistente.<br><br>Quando la riunione finisce, premi <strong>Ferma</strong> nel banner o nello stesso menu. LIA trascrive tutta la registrazione, scrive il verbale e pubblica una scheda nella chat con il titolo, il riassunto e un pulsante <strong>Apri il verbale</strong>. Ogni registrazione vive anche nella pagina <strong>Riunioni</strong> dell'intestazione, tra Relazioni e Avvisi.<br><br><strong>💡 Buono a sapersi:</strong> la funzione esiste solo dove l'amministratore l'ha attivata, e il motore che trascriverà — con il suo prezzo per ora di audio — è mostrato prima di iniziare."
+            "answer": "Sul computer il pulsante di registrazione è nell'intestazione, a destra; sul telefono apri il menu del logo LIA e scegli <strong>Registra una riunione</strong> — il pulsante del menu pulsa in rosso finché la cattura è aperta. Il tuo telefono o il tuo computer diventa il microfono: LIA lo chiede una volta, poi una barra in cima a ogni pagina mostra la registrazione, la sua durata e ciò che ha già raggiunto il tuo server. Nel frattempo puoi continuare a parlare con LIA — le risposte parlate e la parola di attivazione restano sospese perché il microfono non senta mai l'assistente.<br><br>Quando la riunione finisce, premi <strong>Ferma</strong> nella barra o dove hai iniziato. LIA trascrive l'intera registrazione, redige il verbale e pubblica una scheda nella chat con il titolo, la sintesi e un pulsante <strong>Apri il verbale</strong>. Ogni registrazione vive anche nella pagina <strong>Riunioni</strong> dell'intestazione, tra Relazioni e Avvisi.<br><br><strong>💡 Buono a sapersi:</strong> la funzione esiste solo dove l'amministratore l'ha attivata, il motore che trascriverà — con il suo prezzo per ora di audio — è mostrato prima di iniziare, e la barra consente di scegliere il formato del verbale mentre la riunione è in corso."
           },
           "q2": {
-            "question": "Cosa contiene il verbale e posso cambiarne la struttura?",
-            "answer": "L'intestazione del verbale è fissa: data, ora di inizio e di fine nel tuo fuso orario, durata, luogo quando è noto e partecipanti. Il corpo segue <strong>il tuo modello</strong>: un elenco ordinato di sezioni, ciascuna con un titolo, un'istruzione per l'assistente e un formato — un paragrafo, un elenco puntato, una voce per argomento, oppure azioni con responsabile e scadenza.<br><br>Il modello integrato offre un riassunto, gli argomenti trattati, le decisioni, le azioni, i rischi e le domande aperte. Modificalo in <strong>Impostazioni › Riunioni</strong>: rinomina, riordina, aggiungi o togli sezioni, e torna al predefinito con un clic. I verbali già scritti conservano la struttura con cui sono stati prodotti; <strong>Ricostruisci</strong> applica il tuo modello attuale a una riunione passata partendo dalla trascrizione conservata.<br><br>Il modello riporta solo ciò che la trascrizione sostiene: una proposta rimasta aperta non è una decisione, un desiderio non è un'azione, e ogni data relativa viene risolta in una data reale."
+            "question": "Cosa contiene il verbale e chi ne sceglie la struttura?",
+            "answer": "L'intestazione del verbale è fissa: data, ora di inizio e di fine nel tuo fuso, durata, luogo quando è noto, e i partecipanti. Il corpo segue un <strong>formato</strong>: un elenco ordinato di sezioni, ciascuna con un titolo, un'istruzione per l'assistente e una forma — un paragrafo, un elenco puntato, una voce per argomento, azioni con responsabile e scadenza, oppure la trascrizione completa riscritta in modo pulito.<br><br><strong>Trenta formati integrati</strong> sono inclusi, ordinati per impiego: riunioni e team, trascrizioni, analisi delle conversazioni, vendite e consulenza, tecnico, appuntamenti personali, corsi e formazione. In <strong>Riunioni › Modelli di verbale</strong> li sfogli, li visualizzi e aggiungi ai tuoi modelli quelli che ti servono — uno alla volta o più insieme — e poi li adatti: rinominare, riordinare le sezioni, riscrivere le istruzioni, declinare un modello, eliminare ciò che non serve più.<br><br><strong>Se non scegli nulla, sceglie LIA</strong>: legge quello che è stato detto, tiene il formato corrispondente e poi lo indica sulla riunione con, in una riga, il motivo della scelta. Puoi imporre un formato predefinito in <strong>Impostazioni › Riunioni</strong>, o quello della riunione in corso dalla barra. I formati di trascrizione completa non vengono mai scelti automaticamente: sono lunghi e fatturati come una riunione intera.<br><br>Il modello riporta solo ciò che la trascrizione sostiene: una proposta rimasta aperta non è una decisione, un desiderio non è un'azione, e ogni data relativa viene risolta in una data reale."
           },
           "q3": {
             "question": "Quale motore trascrive e quanto costa?",
@@ -7936,12 +7998,16 @@
             "answer": "Tutto resta sul <strong>tuo</strong> server. L'audio è salvato in segmenti durante la registrazione, assemblato una volta alla fine e inviato al motore di trascrizione che hai scelto — nient'altro lo ascolta. Per impostazione predefinita l'audio è <strong>eliminato appena il verbale esiste</strong>; in Impostazioni › Riunioni puoi conservarlo per un po' (fino al tetto fissato dal tuo amministratore), dopo di che viene eliminato automaticamente.<br><br>La trascrizione riposa cifrata nel database e può essere mostrata nella pagina della riunione o eliminata separatamente, conservando il verbale. Eliminare una riunione rimuove il suo audio, la sua trascrizione, il suo verbale e il documento che era stato indicizzato nel tuo spazio di conoscenza — nulla le sopravvive."
           },
           "q6": {
-            "question": "Posso modificare il verbale, inviarlo e chiedere a LIA delle mie riunioni più tardi?",
-            "answer": "Sì. Nella pagina della riunione puoi <strong>modificare</strong> ogni campo — titolo, nomi e ruoli dei partecipanti, ogni sezione nella sua forma — e <strong>ripristinare</strong> in qualsiasi momento la versione scritta dal modello. <strong>PDF</strong> scarica il verbale come documento; <strong>E-mail</strong> lo invia al tuo indirizzo tramite la casella collegata, e le Impostazioni possono farlo automaticamente per ogni riunione.<br><br>Ogni verbale è inoltre indicizzato in uno spazio di conoscenza chiamato <strong>Riunioni</strong>, creato per te la prima volta. Puoi quindi chiedere semplicemente: «cosa abbiamo deciso sulla migrazione?», «quali azioni scadono questa settimana?» — l'assistente risponde dalle tue riunioni, fonti citate."
+            "question": "Posso modificare il verbale, inviarlo e interrogare LIA sulle mie riunioni in seguito?",
+            "answer": "Sì. Nella pagina della riunione puoi <strong>modificare</strong> ogni campo — titolo, nomi e ruoli dei partecipanti, ogni sezione nella sua forma — e <strong>ripristinare</strong> in qualsiasi momento la versione scritta dal modello. <strong>PDF</strong> scarica il verbale come documento; <strong>E-mail</strong> lo invia all'indirizzo del tuo account dall'indirizzo dell'applicazione — nessuna casella collegata necessaria — e le Impostazioni possono farlo automaticamente per ogni riunione.<br><br>Ogni verbale viene inoltre indicizzato in uno spazio di conoscenza chiamato <strong>Riunioni</strong>, creato per te la prima volta. Puoi quindi semplicemente chiedere: «cosa abbiamo deciso sulla migrazione?», «quali azioni scadono questa settimana?» — l'assistente risponde dalle tue riunioni, con le fonti citate.<br><br>L'elenco delle riunioni accetta la selezione multipla: spunta quelle che non servono più ed eliminale in una volta. Una riunione ancora in registrazione o in elaborazione viene lasciata da parte, e LIA ti dice quale e perché."
           },
           "q7": {
             "question": "LIA sa chi ha detto cosa?",
             "answer": "Quando il motore separa gli interlocutori, ogni voce riceve un'etichetta stabile — <strong>S1, S2…</strong> — in tutta la trascrizione e nel verbale. Un <strong>nome</strong> compare solo quando la registrazione stessa lo stabilisce: qualcuno si presenta, viene chiamato per nome, o l'evento di calendario che si sovrappone alla riunione non lascia dubbi. LIA non inventa mai un nome; un interlocutore senza nome resta S2, e puoi nominarlo tu modificando il verbale.<br><br>Il motore locale trascrive senza separare le voci: il verbale si legge allora come un unico racconto, con i partecipanti che è riuscito a stabilire."
+          },
+          "q8": {
+            "question": "Posso cambiare il formato di un verbale già redatto?",
+            "answer": "Sì, finché la trascrizione è conservata. Nella pagina della riunione, <strong>Cambia il formato…</strong> propone due esiti: <strong>sostituire</strong> il verbale esistente, oppure ottenere un <strong>nuovo verbale</strong> della stessa riunione. Il nuovo conserva il legame con la sua origine — la riunione originale indica quanti verbali ne sono usciti — ed entra nello spazio di conoscenza come documento a sé, con il proprio costo.<br><br>È ciò che permette di leggere la stessa riunione in due modi: il verbale di lavoro da un lato, la trascrizione completa e ripulita dall'altro, o un formato di analisi quando vuoi guardare lo scambio invece delle sue conclusioni. <strong>Rigenera</strong> resta accanto: riscrive il verbale con <em>lo stesso</em> formato, utile subito dopo aver modificato le tue sezioni.<br><br><strong>💡 Buono a sapersi:</strong> riscrivere costa una nuova sintesi, fatturata come la prima, e la finestra lo ricorda prima che tu confermi. Se elimini la trascrizione, il verbale resta leggibile ma non può più essere riscritto."
           }
         }
       }
@@ -8203,6 +8269,10 @@
       "meeting_banner": {
         "title": "La registrazione ti segue",
         "desc": "Cambia pagina nel pieno della riunione: il banner conserva il tempo, il microfono e la via del ritorno — riprendere, finalizzare o eliminare."
+      },
+      "template_library": {
+        "title": "Trenta formati, richiusi",
+        "desc": "La libreria apre con le categorie chiuse, i tuoi per primi: apri quella che ti serve, spunti e aggiungi."
       }
     },
     "scenes": {
@@ -8302,6 +8372,11 @@
         "recording": "Registrazione",
         "interrupted": "Interrotta",
         "resume": "Riprendi"
+      },
+      "template_library": {
+        "mine": "I miei modelli",
+        "builtin": "Integrati",
+        "pick": "Aggiungi"
       }
     },
     "craft": {
@@ -9429,7 +9504,7 @@
       },
       "meetings": {
         "title": "Registra una riunione, ricevi il verbale",
-        "description": "Premi + nella chat e il tuo telefono o computer registra la riunione — un banner ti segue su ogni pagina mentre continui a parlare con LIA. Quando ti fermi, LIA trascrive tutto e scrive il verbale nella tua struttura: data, orari, luogo, chi c'era, cosa si è discusso, deciso, da fare e da chi, cosa è a rischio. Leggilo nella chat, scarica il PDF, invialo alla tua casella e chiedi a LIA settimane dopo. Nulla di inventato: una lacuna nella registrazione è dichiarata, un interlocutore senza nome resta senza nome, e quanto è costato è scritto accanto."
+        "description": "Un pulsante nell'intestazione — o la voce di menu sul telefono — e il tuo dispositivo registra la riunione, con un banner che ti segue su ogni pagina mentre continui a parlare con LIA. Quando ti fermi, LIA trascrive tutto e scrive il verbale nel formato adatto: trenta modelli integrati coprono riunioni di team, colloqui, appuntamenti personali, lezioni — LIA sceglie da sola in base a ciò che è stato detto, oppure imponi il tuo. Leggilo nella chat, scarica il PDF, ricevilo via e-mail, riscrivilo in un altro formato e chiedi a LIA settimane dopo. Nulla di inventato: una lacuna è dichiarata, un interlocutore senza nome resta senza nome, e quanto è costato è scritto accanto."
       }
     },
     "use_cases": {
@@ -9531,6 +9606,10 @@
       "native_shells": {
         "title": "Gusci nativi e relè di sveglia",
         "description": "Un'app per store, client di qualsiasi server auto-ospitato: la WebView carica l'origine del tuo server con la stessa sessione a cookie httpOnly del web. Android parla al tuo progetto Firebase a runtime; iOS viene svegliato da un relè senza stato la cui maniglia È il token del dispositivo sigillato — nulla di memorizzato, una frase fissa, e il contenuto reale recuperato dal tuo server. Ogni affermazione di piattaforma è misurata da un banco che guida la vera app, scena per scena."
+      },
+      "structured_minutes": {
+        "title": "Verbali strutturati",
+        "description": "Trenta formati di verbale vivono nel codice, le loro parole in dati tradotti. Un modello è designato da un riferimento — integrato o personale — che riunioni, preferenze e richieste si scambiano al posto di una riga: un formato fornito non ha quindi bisogno di esistere in banca dati. La scelta segue una sola precedenza, dal più esplicito al più generale, e finisce in una chiamata al modello che legge un estratto della trascrizione sopra una soglia di confidenza; l'esito è contato e scritto sulla riunione con la sua ragione. Restituire l'intera trascrizione non entra in una risposta: viene riscritta per parti, limitate dalla finestra di uscita effettiva."
       }
     },
     "architecture": {
@@ -10155,7 +10234,7 @@
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Trasforma i tuoi documenti in intelligenza IA",
         "excerpt": "Importa PDF, Word, Excel e altro. LIA li indicizza con ricerca ibrida semantica + BM25.",
-        "body": "<h2>15+ formati supportati</h2><p>I Knowledge Spaces di LIA accettano oltre <strong>15 formati di file</strong> con parser dedicati:</p><ul><li><strong>PDF</strong> tramite PyMuPDF (estrazione rapida e precisa)</li><li><strong>Documenti</strong> — DOCX, RTF, ODT</li><li><strong>Fogli di calcolo</strong> — XLSX, CSV, ODS</li><li><strong>Presentazioni</strong> — PPTX, ODP</li><li><strong>Web e testo</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Chunking intelligente</h2><p>I documenti vengono suddivisi da un <strong>RecursiveCharacterTextSplitter</strong> con parametri ottimizzati: <strong>1000 caratteri</strong> per chunk, <strong>200 caratteri</strong> di sovrapposizione (overlap) per preservare il contesto tra i segmenti. Limite di sicurezza: <strong>500 chunk massimi per documento</strong>, dimensione massima <strong>20 MB per file</strong>.</p><h2>Ricerca ibrida: il meglio dei due mondi</h2><p>LIA combina due approcci di ricerca:</p><ul><li><strong>Ricerca semantica</strong> — Embedding tramite pgvector. Trova i risultati per similarità di significato, anche se le parole differiscono.</li><li><strong>Ricerca BM25</strong> — Corrispondenza per parole chiave. Ideale per termini tecnici, nomi propri e identificativi.</li></ul><p>I due segnali non pesano allo stesso modo, ed è voluto. La pertinenza si decide sulla <strong>sola similarità semantica</strong>: un estratto viene mantenuto se raggiunge <strong>0.62</strong>, soglia ricalibrata sulle sei lingue a partire da corpus reali. BM25 aggiunge poi solo un <strong>bonus limitato (0.05)</strong> per fare da spareggio: può far salire un'occorrenza letterale davanti a un quasi pari merito, mai far entrare o escludere un estratto. Mescolare i due segnali in proporzioni comparabili, come LIA faceva fino ad agosto 2026, scartava una risposta corretta su tre non appena la lingua della domanda si allontanava da quella dei documenti. Per impostazione predefinita, <strong>5 estratti</strong> vengono recuperati per query (massimo configurabile: 20).</p><h2>Limiti e quote</h2><p>Ogni utente dispone di: <strong>10 spazi</strong> massimi, <strong>50 documenti per spazio</strong>, <strong>20 MB per file</strong>. Questi limiti garantiscono prestazioni di ricerca ottimali offrendo al contempo una capacità sufficiente per la maggior parte degli utilizzi.</p><h2>Sincronizzazione Google Drive</h2><p>Puoi connettere una <strong>cartella Google Drive</strong> a un Knowledge Space. I documenti vengono automaticamente sincronizzati e re-indicizzati quando cambiano. La sincronizzazione rileva aggiunte, modifiche ed eliminazioni.</p><h2>FAQ integrata</h2><p>LIA possiede un Knowledge Space di sistema contenente la propria documentazione (18 file di FAQ). Questo gli permette di rispondere alle domande sulle proprie funzionalità con precisione.</p><h2>Uno spazio che si riempie da solo: Riunioni</h2><p>Uno spazio viene creato per te invece che da te. Quando LIA scrive il verbale di una riunione registrata, lo indicizza in uno spazio «Riunioni» — trovato per il suo ruolo, non per il nome, quindi puoi rinominarlo — con un documento per riunione, riscritto sul posto ogni volta che modifichi il verbale e rimosso il giorno in cui elimini la riunione. Lo spazio è esente dal tetto per utente, ed è ciò che permette all’assistente di rispondere a «cosa abbiamo deciso sulla migrazione?» a partire dalle tue riunioni, fonti citate.</p>"
+        "body": "<h2>15+ formati supportati</h2><p>I Knowledge Spaces di LIA accettano oltre <strong>15 formati di file</strong> con parser dedicati:</p><ul><li><strong>PDF</strong> tramite PyMuPDF (estrazione rapida e precisa)</li><li><strong>Documenti</strong> — DOCX, RTF, ODT</li><li><strong>Fogli di calcolo</strong> — XLSX, CSV, ODS</li><li><strong>Presentazioni</strong> — PPTX, ODP</li><li><strong>Web e testo</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Chunking intelligente</h2><p>I documenti vengono suddivisi da un <strong>RecursiveCharacterTextSplitter</strong> con parametri ottimizzati: <strong>1000 caratteri</strong> per chunk, <strong>200 caratteri</strong> di sovrapposizione (overlap) per preservare il contesto tra i segmenti. Limite di sicurezza: <strong>500 chunk massimi per documento</strong>, dimensione massima <strong>20 MB per file</strong>.</p><h2>Ricerca ibrida: il meglio dei due mondi</h2><p>LIA combina due approcci di ricerca:</p><ul><li><strong>Ricerca semantica</strong> — Embedding tramite pgvector. Trova i risultati per similarità di significato, anche se le parole differiscono.</li><li><strong>Ricerca BM25</strong> — Corrispondenza per parole chiave. Ideale per termini tecnici, nomi propri e identificativi.</li></ul><p>I due segnali non pesano allo stesso modo, ed è voluto. La pertinenza si decide sulla <strong>sola similarità semantica</strong>: un estratto viene mantenuto se raggiunge <strong>0.62</strong>, soglia ricalibrata sulle sei lingue a partire da corpus reali. BM25 aggiunge poi solo un <strong>bonus limitato (0.05)</strong> per fare da spareggio: può far salire un'occorrenza letterale davanti a un quasi pari merito, mai far entrare o escludere un estratto. Mescolare i due segnali in proporzioni comparabili, come LIA faceva fino ad agosto 2026, scartava una risposta corretta su tre non appena la lingua della domanda si allontanava da quella dei documenti. Per impostazione predefinita, <strong>5 estratti</strong> vengono recuperati per query (massimo configurabile: 20).</p><h2>Limiti e quote</h2><p>Ogni utente dispone di: <strong>10 spazi</strong> massimi, <strong>50 documenti per spazio</strong>, <strong>20 MB per file</strong>. Questi limiti garantiscono prestazioni di ricerca ottimali offrendo al contempo una capacità sufficiente per la maggior parte degli utilizzi.</p><h2>Sincronizzazione Google Drive</h2><p>Puoi connettere una <strong>cartella Google Drive</strong> a un Knowledge Space. I documenti vengono automaticamente sincronizzati e re-indicizzati quando cambiano. La sincronizzazione rileva aggiunte, modifiche ed eliminazioni.</p><h2>FAQ integrata</h2><p>LIA possiede un Knowledge Space di sistema contenente la propria documentazione (18 file di FAQ). Questo gli permette di rispondere alle domande sulle proprie funzionalità con precisione.</p><h2>Uno spazio che si riempie da solo: Riunioni</h2><p>Uno spazio viene creato per te invece che da te. Quando LIA scrive il verbale di una riunione registrata, lo indicizza in uno spazio «Riunioni» — trovato per il suo ruolo, non per il nome, quindi puoi rinominarlo — con un documento per riunione, riscritto sul posto ogni volta che modifichi il verbale e rimosso il giorno in cui elimini la riunione. Lo spazio è esente dal tetto per utente, ed è ciò che permette all’assistente di rispondere a «cosa abbiamo deciso sulla migrazione?» a partire dalle tue riunioni, fonti citate.</p><h2>Documenti che circolano</h2><p>Uno spazio si gestisce, non si riempie soltanto. Ogni documento si scarica con il suo nome originale, una selezione torna come un archivio zip, e i documenti si <strong>spostano</strong> in un altro spazio — la riga, l’indice che la ricerca legge e il file viaggiano insieme, così dopo lo spostamento il documento risponde solo dal suo nuovo spazio. Anche l’eliminazione accetta una selezione. Ogni lotto riferisce cosa ha fatto e cosa ha lasciato da parte, con il motivo: un documento sincronizzato da Drive o generato da una riunione appartiene alla sua fonte e non viene spostato, e nulla si muove durante una reindicizzazione generale.</p>"
       },
       "personal-journals": {
         "title": "Diari personali: quando il tuo assistente IA sviluppa la propria memoria",
@@ -10188,9 +10267,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA è progettato fin dall'origine con la protezione dei dati come principio fondante, non come un'aggiunta a posteriori.</p><h2>Crittografia simmetrica Fernet</h2><p>Tutti i dati sensibili sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) tramite la funzione <code>encrypt_data()</code>. Ciò copre i token OAuth, le credenziali dei connettori, i PII e le credenziali dei server MCP. Le credenziali OAuth vengono crittografate prima della scrittura nel database e decrittografate al volo durante il recupero. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>Minimizzazione della raccolta</h2><p>LIA raccoglie solo i dati strettamente necessari al suo funzionamento:</p><ul><li>Informazioni del profilo (nome, email, preferenze)</li><li>Storico delle conversazioni (crittografato)</li><li>Token di connessione ai servizi (crittografati)</li><li>Metriche di utilizzo anonimizzate</li></ul><h2>Eliminazione e cascading</h2><p>L'eliminazione di un account utente attiva un <strong>cascading delete</strong> completo: connettori, conversazioni, impostazioni, sessioni, memorie e tutti i dati associati vengono eliminati irreversibilmente. Nessun dato orfano persiste nel database.</p><h2>Sessioni e cookie sicuri</h2><p>I cookie di sessione sono configurati con gli attributi <code>HttpOnly</code>, <code>Secure</code> (in produzione) e <code>SameSite=lax</code>. La durata della sessione è di 7 giorni per impostazione predefinita, estensibile a 30 giorni con l'opzione \"Ricordami\". I token monouso vengono invalidati dopo il primo utilizzo tramite una blacklist Redis.</p><h2>Protezione dei contenuti esterni</h2><p>I contenuti recuperati da fonti esterne (email, pagine web, documenti) vengono contrassegnati come <code>UNTRUSTED</code> con un wrapping configurabile prima dell'iniezione nei prompt. Lo strumento web_fetch è limitato a 10 chiamate per finestra di 60 secondi per utente per prevenire gli abusi.</p><h2>Filtraggio PII nei log</h2><p>Il sistema di logging applica le raccomandazioni <strong>OWASP Logging Cheat Sheet</strong> per filtrare automaticamente i dati personali dai log applicativi. Nessun dato sensibile appare nei log.</p><h2>Portabilità dei dati (v1.9.1)</h2><p>LIA consente a ogni utente di <strong>esportare i propri dati di consumo</strong> in formato CSV da Impostazioni > Funzionalità. Tre tipi di esportazione: consumo LLM (token e costi per chiamata), consumo API Google e riepilogo aggregato. Sicurezza: lo <code>user_id</code> viene forzato lato server — nessun parametro è esposto (protezione IDOR).</p><h2>Backup con ripristino provato</h2><p>Proteggere i dati significa anche garantire che sopravvivano agli incidenti. Il database di produzione viene salvato automaticamente ogni notte, con 7 giorni, 4 settimane e 6 mesi di storico conservati, in una directory dedicata con permessi restrittivi. E poiché un backup conta solo quando il ripristino è stato provato, la procedura è testata davvero: l'ultimo dump viene ripristinato in un container usa e getta e confrontato con il database live (revisione di schema, conteggi di righe) — un'esercitazione inclusa nello stack.</p>"
       },
       "observability": {
-        "title": "506 metriche Prometheus, 26 dashboard Grafana e tracing Langfuse",
+        "title": "507 metriche Prometheus, 26 dashboard Grafana e tracing Langfuse",
         "excerpt": "LIA offre osservabilità enterprise con 473 metriche, dashboard Grafana, tracing LLM via Langfuse e alert e-mail con runbook.",
-        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 506 metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, centralizzato in Loki con filtraggio PII</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo) e tracing LLM tramite Langfuse</li></ul><h2>23 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 23 moduli coprono: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errori, sub-agenti, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, metriche di salute, diari, telefonia e limiti di utilizzo. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 dashboard Grafana</h2><p>LIA fornisce 26 dashboard Grafana numerati da 01 a 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony e briefing. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente. Il 26° è un cockpit prodotto: risultati validati (👍 esplicito o un'azione rimasta senza correzioni), funnel di attivazione, retention e costo per risultato utile — il conteggio esatto vive in PostgreSQL e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0.1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0.1 e 10 secondi, confidenza router p50 &gt; 0.8, costo LLM per richiesta &lt; 0.05€, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Alert e-mail con runbook</h2><p>La supervisione non si ferma alle dashboard: un nucleo di 14 alert vitali — API, PostgreSQL o Redis non disponibili, disco, memoria dei container, tasso di errori 5xx, latenza di streaming, backup notturno fallito, URL pubblico irraggiungibile, certificato TLS prossimo alla scadenza, rate limiting fuori servizio — è valutato in continuo da Prometheus e notificato via e-mail tramite Alertmanager. Ogni alert referenzia il proprio runbook (procedura di risoluzione passo passo), le soglie sono configurate per ambiente in file .env, e test unitari promtool garantiscono che le soglie mostrate nelle notifiche corrispondano esattamente alle espressioni di attivazione. Una sonda blackbox testa perfino l'intera catena end-to-end, dall'edge Cloudflare al frontend, esattamente come un utente.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse dispone di 8 metriche dedicate per tracciare ogni chiamata LLM: token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container e analizza l'utilizzo delle risorse. Sessioni persistenti, permessi configurabili per ambiente e streaming in tempo reale dei passaggi di indagine via SSE.</p><h2>E dalla v1.34: l'assistente legge la propria telemetria</h2><p>Tutto quanto sopra esisteva per gli umani; l'assistente stessa non ne leggeva nulla. L'ADR-247 ha chiuso quel cerchio: un autocontrollo periodico trasforma i segnali aurei e sonde dirette in istantanee di salute con valori esatti; avvisi e verdetti critici convergono in un incidente per guasto, diagnosticato da un LLM con budget limitato e fondato sui runbook operativi; gli amministratori hanno un pannello Salute della piattaforma, notifiche proattive e strumenti di chat in sola lettura. E un guasto noto ora plasma le risposte — le capacità degradate vengono aggirate in pianificazione, e i passaggi falliti spiegati da codici di errore tipizzati, mai da log grezzi.</p><h2>Contare gli esiti, non i tentativi</h2><p>Un contatore è stato ripensato nella v1.38.3. Contare le chiamate che raggiungono un fornitore è la verità sul fornitore — e il denominatore sbagliato non appena quelle chiamate vengono ritentate, perché un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. Un secondo contatore registra ora una riga per operazione logica, con i ritentativi ripiegati, e risponde all'unica domanda su cui un operatore agisce: il chiamante ha ottenuto il suo risultato? Un terzo dice cosa ha fatto la regolazione di frequenza di ogni tentativo, perché «il budget è troppo piccolo» e «Redis è caduto» sono indistinguibili in un booleano e richiedono azioni opposte.</p><p>La lezione più recente riguarda la scelta di ciò che si misura. Il ciclo autonomo contava le proprie iterazioni e la propria durata — e nulla per ciò che cresce davvero: il prompt consegnato al modello a ogni passo. Misurato sul codice di produzione, sono 2,3 k token alla prima iterazione e 112 k alla novantesima, perché ogni risultato di strumento resta nella conversazione che il modello rilegge. Due istogrammi registrano ora la dimensione consegnata e la sua quota della finestra di contesto del modello, alimentati dallo stesso contatore memoizzato che il riduttore di stato già mantiene, così la misura non costa nulla sul percorso caldo. Nessuna politica di compressione è partita con essi, deliberatamente: un sistema che agisce su una grandezza mai osservata sta ottimizzando una congettura.</p>"
+        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 507 metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, centralizzato in Loki con filtraggio PII</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo) e tracing LLM tramite Langfuse</li></ul><h2>23 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 23 moduli coprono: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errori, sub-agenti, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, metriche di salute, diari, telefonia e limiti di utilizzo. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 dashboard Grafana</h2><p>LIA fornisce 26 dashboard Grafana numerati da 01 a 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony e briefing. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente. Il 26° è un cockpit prodotto: risultati validati (👍 esplicito o un'azione rimasta senza correzioni), funnel di attivazione, retention e costo per risultato utile — il conteggio esatto vive in PostgreSQL e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0.1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0.1 e 10 secondi, confidenza router p50 &gt; 0.8, costo LLM per richiesta &lt; 0.05€, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Alert e-mail con runbook</h2><p>La supervisione non si ferma alle dashboard: un nucleo di 14 alert vitali — API, PostgreSQL o Redis non disponibili, disco, memoria dei container, tasso di errori 5xx, latenza di streaming, backup notturno fallito, URL pubblico irraggiungibile, certificato TLS prossimo alla scadenza, rate limiting fuori servizio — è valutato in continuo da Prometheus e notificato via e-mail tramite Alertmanager. Ogni alert referenzia il proprio runbook (procedura di risoluzione passo passo), le soglie sono configurate per ambiente in file .env, e test unitari promtool garantiscono che le soglie mostrate nelle notifiche corrispondano esattamente alle espressioni di attivazione. Una sonda blackbox testa perfino l'intera catena end-to-end, dall'edge Cloudflare al frontend, esattamente come un utente.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse dispone di 8 metriche dedicate per tracciare ogni chiamata LLM: token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container e analizza l'utilizzo delle risorse. Sessioni persistenti, permessi configurabili per ambiente e streaming in tempo reale dei passaggi di indagine via SSE.</p><h2>E dalla v1.34: l'assistente legge la propria telemetria</h2><p>Tutto quanto sopra esisteva per gli umani; l'assistente stessa non ne leggeva nulla. L'ADR-247 ha chiuso quel cerchio: un autocontrollo periodico trasforma i segnali aurei e sonde dirette in istantanee di salute con valori esatti; avvisi e verdetti critici convergono in un incidente per guasto, diagnosticato da un LLM con budget limitato e fondato sui runbook operativi; gli amministratori hanno un pannello Salute della piattaforma, notifiche proattive e strumenti di chat in sola lettura. E un guasto noto ora plasma le risposte — le capacità degradate vengono aggirate in pianificazione, e i passaggi falliti spiegati da codici di errore tipizzati, mai da log grezzi.</p><h2>Contare gli esiti, non i tentativi</h2><p>Un contatore è stato ripensato nella v1.38.3. Contare le chiamate che raggiungono un fornitore è la verità sul fornitore — e il denominatore sbagliato non appena quelle chiamate vengono ritentate, perché un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. Un secondo contatore registra ora una riga per operazione logica, con i ritentativi ripiegati, e risponde all'unica domanda su cui un operatore agisce: il chiamante ha ottenuto il suo risultato? Un terzo dice cosa ha fatto la regolazione di frequenza di ogni tentativo, perché «il budget è troppo piccolo» e «Redis è caduto» sono indistinguibili in un booleano e richiedono azioni opposte.</p><p>La lezione più recente riguarda la scelta di ciò che si misura. Il ciclo autonomo contava le proprie iterazioni e la propria durata — e nulla per ciò che cresce davvero: il prompt consegnato al modello a ogni passo. Misurato sul codice di produzione, sono 2,3 k token alla prima iterazione e 112 k alla novantesima, perché ogni risultato di strumento resta nella conversazione che il modello rilegge. Due istogrammi registrano ora la dimensione consegnata e la sua quota della finestra di contesto del modello, alimentati dallo stesso contatore memoizzato che il riduttore di stato già mantiene, così la misura non costa nulla sul percorso caldo. Nessuna politica di compressione è partita con essi, deliberatamente: un sistema che agisce su una grandezza mai osservata sta ottimizzando una congettura.</p>"
       },
       "prompt-engineering": {
         "title": "Sistema di prompt versionati: 78 prompt gestiti come codice",
@@ -11433,12 +11512,6 @@
     }
   },
   "meetings": {
-    "composer": {
-      "menu_label": "Allegati e registrazione della riunione",
-      "add_file": "Aggiungi un file",
-      "record": "Registra una riunione",
-      "stop": "Interrompi la registrazione"
-    },
     "banner": {
       "region_label": "Registrazione della riunione",
       "starting": "Avvio della registrazione…",
@@ -11472,7 +11545,10 @@
         "openai": "OpenAI",
         "local": "Motore locale (sul server)"
       },
-      "offline_long": "Offline da molto tempo: l'audio attende su questo dispositivo. Interrompi e finalizza appena torna la connessione."
+      "offline_long": "Offline da molto tempo: l'audio attende su questo dispositivo. Interrompi e finalizza appena torna la connessione.",
+      "format_label": "Formato del verbale",
+      "format_auto": "Predefinito (automatico o la tua preferenza)",
+      "format_saved": "Formato salvato per questa riunione"
     },
     "toasts": {
       "ready_title": "Verbale della riunione pronto",
@@ -11496,7 +11572,7 @@
       "title": "Riunioni",
       "subtitle": "Le tue registrazioni e i loro verbali",
       "empty_title": "Nessuna riunione per ora",
-      "empty_description": "Avvia una registrazione dalla graffetta nel compositore della chat; il verbale apparirà qui.",
+      "empty_description": "Avvia una registrazione dal pulsante Registra nell’intestazione (o dal menu LIA sul telefono); i verbali appariranno qui.",
       "empty_action": "Apri la chat",
       "total_one": "{{count}} riunione",
       "total_other": "{{count}} riunioni",
@@ -11505,7 +11581,25 @@
       "participants_one": "{{count}} partecipante",
       "participants_other": "{{count}} partecipanti",
       "actions_one": "{{count}} azione",
-      "actions_other": "{{count}} azioni"
+      "actions_other": "{{count}} azioni",
+      "selection_region": "Riunioni selezionate",
+      "select_row": "Seleziona «{{title}}»",
+      "select_all_page": "Seleziona tutte le riunioni di questa pagina",
+      "selected_count_one": "{{count}} riunione selezionata",
+      "selected_count_other": "{{count}} riunioni selezionate",
+      "clear_selection": "Annulla la selezione",
+      "delete_selected_one": "Elimina ({{count}})",
+      "delete_selected_other": "Elimina ({{count}})",
+      "confirm_bulk_delete_title": "Eliminare le riunioni selezionate?",
+      "confirm_bulk_delete_description_one": "Il verbale, la trascrizione e l’audio conservato di questa riunione vengono eliminati definitivamente.",
+      "confirm_bulk_delete_description_other": "I verbali, le trascrizioni e l’audio conservato di queste {{count}} riunioni vengono eliminati definitivamente.",
+      "bulk_deleted_one": "{{count}} riunione eliminata",
+      "bulk_deleted_other": "{{count}} riunioni eliminate",
+      "bulk_skipped_one": "{{count}} riunione è stata ignorata: è ancora in registrazione o in elaborazione.",
+      "bulk_skipped_other": "{{count}} riunioni sono state ignorate: sono ancora in registrazione o in elaborazione.",
+      "not_selectable": "Non selezionabile durante la registrazione o l’elaborazione",
+      "record": "Registra una riunione",
+      "templates": "Modelli"
     },
     "detail": {
       "back": "Torna alle riunioni",
@@ -11527,7 +11621,7 @@
       "email": "Inviami il verbale per e-mail",
       "email_ok": "Il verbale è stato inviato al tuo indirizzo e-mail.",
       "email_sent": "Inviato per e-mail il {{when}}",
-      "regenerate": "Ricostruisci con il mio modello",
+      "regenerate": "Rigenera con lo stesso formato",
       "reset": "Ripristina la versione generata",
       "delete_transcript": "Elimina la trascrizione",
       "delete": "Elimina la riunione",
@@ -11563,16 +11657,46 @@
       "confirm_delete_transcript_title": "Eliminare la trascrizione?",
       "confirm_delete_transcript_description": "Il verbale resta; la trascrizione non è recuperabile e il verbale non potrà più essere ricostruito.",
       "confirm_regenerate_title": "Ricostruire il verbale?",
-      "confirm_regenerate_description": "LIA redige un nuovo verbale dalla trascrizione con il tuo modello attuale. Le tue modifiche a questo verbale vengono sostituite.",
+      "confirm_regenerate_description": "LIA redige un nuovo verbale dalla trascrizione, nello stesso formato. Le tue modifiche a questo verbale vengono sostituite.",
       "confirm_reset_title": "Ripristinare la versione generata?",
       "confirm_reset_description": "Le tue modifiche vengono sostituite dal verbale generato da LIA.",
       "cost_breakdown": "{{total}} (trascrizione {{stt}} · verbale {{minutes}})",
-      "cost_unknown": "senza tariffa"
+      "cost_unknown": "senza tariffa",
+      "transcript_line": "Intervento di {{speaker}} alle {{time}}",
+      "format": "Formato",
+      "format_selection": {
+        "auto": "scelto da LIA",
+        "user": "scelto da te",
+        "preference": "il tuo formato predefinito"
+      },
+      "change_format": "Cambia il formato…",
+      "reformat": {
+        "title": "Cambia il formato",
+        "description": "LIA redige di nuovo il verbale dalla trascrizione, nel formato che scegli.",
+        "template_label": "Formato",
+        "mode_label": "Cosa fare del risultato",
+        "mode_replace": "Sostituisci questo verbale",
+        "mode_new": "Nuovo verbale da questa trascrizione",
+        "cost_note": "Redigere di nuovo costa una nuova sintesi, fatturata come la prima.",
+        "transcript_note": "Un formato di trascrizione riscrive l'intero scambio: più lungo da produrre e fatturato come una riunione intera.",
+        "submit": "Redigi il verbale",
+        "started_new": "Un nuovo verbale è in corso di redazione da questa trascrizione.",
+        "started_replace": "Il verbale è in corso di redazione.",
+        "choose": "Scegli un formato…"
+      },
+      "pending_title": "Redazione del verbale",
+      "pending_hint": "La trascrizione viene redatta nel formato scelto. Questa pagina si aggiorna da sola.",
+      "pending_failed_title": "Il verbale non ha potuto essere redatto",
+      "try_again": "Riprova",
+      "derived_from": "Dalla stessa trascrizione di un'altra riunione",
+      "derived_count_one": "{{count}} nuovo verbale è stato redatto da questa trascrizione.",
+      "derived_count_other": "{{count}} nuovi verbali sono stati redatti da questa trascrizione."
     },
     "card": {
       "title": "Verbale della riunione pronto",
       "open": "Apri il verbale",
-      "cost_line": "Trascrizione {{stt}} · verbale {{minutes}} · totale {{total}}"
+      "cost_line": "Trascrizione {{stt}} · verbale {{minutes}} · totale {{total}}",
+      "template": "Formato: {{name}}"
     },
     "settings": {
       "preferences_title": "Preferenze",
@@ -11594,7 +11718,7 @@
         "nl": "Olandese"
       },
       "auto_email_label": "Inviami il verbale per e-mail appena pronto",
-      "auto_email_hint": "Inviato tramite il tuo account e-mail collegato, al tuo indirizzo.",
+      "auto_email_hint": "Inviato da LIA dal proprio indirizzo, al tuo.",
       "keep_audio_label": "Conserva l'audio dopo l'elaborazione",
       "keep_audio_none": "Eliminato subito dopo l'elaborazione",
       "keep_audio_hours_one": "{{count}} ora",
@@ -11602,13 +11726,6 @@
       "keep_audio_max_one": "fino a {{count}} ora",
       "keep_audio_max_other": "fino a {{count}} ore",
       "saved": "Preferenze salvate",
-      "template_title": "Struttura del verbale",
-      "template_description": "Le sezioni che LIA compila, in ordine. Adattale alle tue esigenze; la struttura predefinita può essere ripristinata in qualsiasi momento.",
-      "template_name_label": "Nome del modello",
-      "template_builtin_badge": "Predefinito",
-      "reset_template": "Ripristina il modello predefinito",
-      "template_saved": "Modello salvato",
-      "template_reset": "Modello predefinito ripristinato",
       "new_section_label": "Nuova sezione",
       "section_position": "Sezione {{position}}",
       "move_up": "Sposta « {{label}} » in alto",
@@ -11627,14 +11744,25 @@
       "recent_title": "Riunioni recenti",
       "no_meetings": "Nessuna riunione registrata per ora.",
       "view_all_one": "Tutte le riunioni ({{count}})",
-      "view_all_other": "Tutte le riunioni ({{count}})"
+      "view_all_other": "Tutte le riunioni ({{count}})",
+      "instruction_toggle": "Cosa LIA deve inserire in questa sezione",
+      "instruction_missing": "Istruzione mancante: LIA deve sapere cosa scrivere qui.",
+      "instruction_preview_empty": "Nessuna istruzione per ora",
+      "kind_transcript": "Trascrizione completa (riscritta)",
+      "default_template_label": "Formato di verbale predefinito",
+      "default_template_auto": "Automatico: LIA sceglie in base alla registrazione",
+      "default_template_hint": "Applicato a ogni nuova registrazione. In automatico LIA sceglie il formato migliore in base a quanto detto; un formato trascrizione non viene mai scelto automaticamente.",
+      "templates_title": "Modelli di verbale",
+      "templates_description": "I formati integrati e i tuoi. Duplica un formato integrato per personalizzarlo.",
+      "templates_count_one": "{{count}} modello tuo",
+      "templates_count_other": "{{count}} modelli tuoi",
+      "manage_templates": "Gestisci i miei modelli"
     },
     "errors": {
       "audio_normalize_failed": "Impossibile preparare l'audio.",
       "audio_unavailable": "L'audio non è più disponibile.",
       "capture_failed": "Il microfono ha smesso di funzionare.",
       "duration_cap_reached": "La durata massima di registrazione è stata raggiunta: il verbale viene prodotto da quanto è stato catturato.",
-      "email_connector_missing": "Nessun account e-mail è collegato per inviare il verbale.",
       "email_send_failed": "Il tuo provider e-mail ha rifiutato il messaggio.",
       "format_unavailable": "Questa registrazione è stata avviata in un formato che questo browser non può produrre: da qui può solo essere finalizzata o eliminata.",
       "invalid_api_key": "Il servizio di trascrizione ha rifiutato la chiave configurata.",
@@ -11663,7 +11791,94 @@
       "unexpected": "Qualcosa è andato storto durante l'elaborazione.",
       "unknown": "Errore sconosciuto ({{code}})",
       "usage_limit": "Hai raggiunto il tuo limite di utilizzo.",
-      "user_missing": "L'account non esiste più."
+      "user_missing": "L'account non esiste più.",
+      "template_locked": "Il formato non può cambiare mentre il verbale viene redatto.",
+      "template_not_found": "Questo modello non esiste più.",
+      "template_readonly": "Un modello integrato non può essere modificato; duplicalo prima.",
+      "template_limit_reached": "Hai raggiunto il limite di {{max}} modelli.",
+      "template_ref_invalid": "Questo riferimento di modello non è valido.",
+      "regeneration_interrupted": "La redazione è stata interrotta prima della fine; riprova."
+    },
+    "header": {
+      "record": "Registra una riunione",
+      "stop": "Interrompi la registrazione",
+      "live_label": "Menu — una riunione è in registrazione"
+    },
+    "templates": {
+      "category": {
+        "custom": "I miei modelli",
+        "meeting": "Riunioni e team",
+        "transcript": "Trascrizioni",
+        "analysis": "Analisi della conversazione",
+        "business": "Commerciale e consulenza",
+        "technical": "Tecnico",
+        "personal": "Appuntamenti personali",
+        "learning": "Corsi e formazione"
+      },
+      "title": "Modelli di verbale",
+      "subtitle": "I formati in cui LIA redige i verbali: la libreria integrata e i tuoi modelli.",
+      "new": "Nuovo modello",
+      "builtin_badge": "Integrato",
+      "transcript_badge": "Trascrizione completa",
+      "sections_count_one": "{{count}} sezione",
+      "sections_count_other": "{{count}} sezioni",
+      "preview": "Anteprima",
+      "duplicate": "Duplica",
+      "edit": "Modifica",
+      "delete": "Elimina",
+      "row_actions": "Azioni — {{name}}",
+      "empty_custom": "Nessun modello personale per ora. Duplica un modello integrato per adattarlo, oppure creane uno da zero.",
+      "limit_reached": "Hai raggiunto il limite di {{count}} modelli. Eliminane uno per crearne un altro.",
+      "saved": "Modello salvato",
+      "load_failed": "Impossibile caricare il modello.",
+      "save_failed": "Impossibile salvare il modello.",
+      "delete_failed": "Impossibile eliminare il modello.",
+      "back_to_library": "Torna alla libreria",
+      "form": {
+        "name": "Nome",
+        "name_missing": "Dai un nome al modello.",
+        "description": "Descrizione (facoltativa)",
+        "category": "Categoria",
+        "create_title": "Nuovo modello",
+        "edit_title": "Modifica il modello",
+        "sections_title": "Sezioni",
+        "incomplete": "Ogni sezione ha bisogno di un titolo e di un'istruzione."
+      },
+      "mine_title": "I miei modelli personalizzati",
+      "builtin_title": "Modelli integrati",
+      "mine_count_one": "{{count}} su {{max}}",
+      "mine_count_other": "{{count}} su {{max}}",
+      "browse_builtins": "Sfoglia i modelli integrati",
+      "add_to_mine": "Aggiungi ai miei modelli",
+      "add_selected_one": "Aggiungi ai miei modelli ({{count}})",
+      "add_selected_other": "Aggiungi ai miei modelli ({{count}})",
+      "delete_selected_one": "Elimina ({{count}})",
+      "delete_selected_other": "Elimina ({{count}})",
+      "select_row": "Seleziona « {{name}} »",
+      "select_all": "Seleziona tutti i modelli",
+      "selection_region": "Modelli selezionati",
+      "selected_count_one": "{{count}} modello selezionato",
+      "selected_count_other": "{{count}} modelli selezionati",
+      "clear_selection": "Annulla la selezione",
+      "added_one": "{{count}} modello aggiunto ai miei modelli",
+      "added_other": "{{count}} modelli aggiunti ai miei modelli",
+      "deleted_one": "{{count}} modello eliminato",
+      "deleted_other": "{{count}} modelli eliminati",
+      "skipped_one": "{{count}} modello è rimasto com'era: {{reasons}}",
+      "skipped_other": "{{count}} modelli sono rimasti com'erano: {{reasons}}",
+      "preference_reset": "Il tuo formato di verbale predefinito puntava a un modello eliminato: è tornato automatico.",
+      "confirm_delete_title_one": "Eliminare questo modello?",
+      "confirm_delete_title_other": "Eliminare i modelli selezionati?",
+      "confirm_delete_description_one": "« {{name}} » verrà rimosso. I verbali già redatti con esso vengono conservati.",
+      "confirm_delete_description_other": "Questi {{count}} modelli verranno rimossi. I verbali già redatti con essi vengono conservati.",
+      "skip": {
+        "template_not_found": "non trovato",
+        "template_ref_invalid": "riferimento non valido",
+        "template_readonly": "un modello integrato non si può eliminare",
+        "template_limit_reached": "il limite di modelli è raggiunto",
+        "duplicate_failed": "non ha potuto essere aggiunto",
+        "delete_failed": "non ha potuto essere eliminato"
+      }
     }
   }
 }

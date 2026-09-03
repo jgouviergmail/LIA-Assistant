@@ -2,7 +2,8 @@
  * Scenes of section 04 — "When you search": the master-detail settings shell,
  * the group tones that turn a flat list into a map, the everyday-words settings
  * search, settings deep links that survive a reload, full history search, the
- * phone logo navigation.
+ * minutes-template library whose categories open closed, the phone logo
+ * navigation.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
@@ -455,12 +456,73 @@ function SettingsTonesScene({ active, labels }: SceneProps) {
   );
 }
 
+type LibraryPhase = 'closed' | 'opening' | 'ticked' | 'added';
+const LIBRARY_STEPS: readonly TimelineStep<LibraryPhase>[] = [
+  { at: 0, state: 'closed' },
+  { at: 900, state: 'opening' },
+  { at: 1700, state: 'ticked' },
+  { at: 2400, state: 'added' },
+];
+
+/** Categories shut by default: the reader opens the one that concerns them. */
+function TemplateLibraryScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(LIBRARY_STEPS, { active });
+  const opened = phase !== 'closed';
+  return (
+    <div className={cn(STAGE, 'justify-center gap-1.5 px-6')}>
+      <div className="flex w-full max-w-[210px] items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
+        <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        <span className="text-[10px] text-primary">{labels.mine}</span>
+      </div>
+      <div className="w-full max-w-[210px]">
+        <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
+          <ChevronDown
+            className={cn(
+              'h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none',
+              opened && 'rotate-180'
+            )}
+          />
+          <span className="text-[10px] text-primary">{labels.builtin}</span>
+          {phase === 'added' && (
+            <span className="ml-auto rounded-full bg-primary/10 px-1.5 text-[9px] text-primary">
+              {labels.pick}
+            </span>
+          )}
+        </div>
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows] duration-300 motion-reduce:transition-none',
+            opened ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+          )}
+        >
+          <div className="min-h-0 space-y-1 pl-4 pt-1">
+            {[0, 1].map(row => (
+              <div key={row} className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'h-2.5 w-2.5 shrink-0 rounded-[3px] border border-border transition-colors duration-200 motion-reduce:transition-none',
+                    row === 0 &&
+                      (phase === 'ticked' || phase === 'added') &&
+                      'border-primary bg-primary'
+                  )}
+                />
+                <SkeletonLine w={row === 0 ? 'w-2/3' : 'w-1/2'} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
   settings_search: SettingsSearchScene,
   deep_links: DeepLinksScene,
   history_search: HistorySearchScene,
+  template_library: TemplateLibraryScene,
   mobile_logo_nav: MobileLogoNavScene,
   relation_star: RelationStarScene,
   relation_sections: RelationSectionsScene,

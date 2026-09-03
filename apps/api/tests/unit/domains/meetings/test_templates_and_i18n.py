@@ -5,10 +5,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from src.core import i18n_meetings
+from src.core import i18n_meeting_templates, i18n_meetings
 from src.core.i18n_meetings import (
-    DEFAULT_SECTION_INSTRUCTIONS,
-    DEFAULT_SECTION_KEYS,
     get_header_label,
     get_notification_title,
     get_section_label,
@@ -23,6 +21,8 @@ from src.domains.meetings.schemas import (
     TemplateSection,
 )
 from src.domains.meetings.templates import (
+    DEFAULT_SECTION_INSTRUCTIONS,
+    DEFAULT_SECTION_KEYS,
     DEFAULT_SECTION_KINDS,
     default_sections,
     default_template,
@@ -37,9 +37,7 @@ SIX = ("en", "fr", "de", "es", "it", "zh-CN")
 
 def test_the_six_languages_are_covered_by_every_table() -> None:
     assert set(supported_languages()) == set(SIX)
-    for table in (i18n_meetings._SECTION_LABELS,):
-        for key, labels in table.items():
-            assert set(labels) == set(SIX), f"{key}: {set(SIX) ^ set(labels)}"
+    assert set(i18n_meeting_templates.supported_languages()) == set(SIX)
     for lng in SIX:
         header = i18n_meetings._HEADER_LABELS[lng]
         assert set(header) == set(i18n_meetings._HEADER_LABELS["en"]), lng
@@ -60,7 +58,7 @@ def test_default_template_is_ordered_localized_and_complete() -> None:
         set(DEFAULT_SECTION_KINDS) == set(DEFAULT_SECTION_INSTRUCTIONS) == set(DEFAULT_SECTION_KEYS)
     )
     template = default_template("zh")
-    assert template.is_builtin_default is True and template.id is None
+    assert template.builtin is True and template.id is None
     assert template.sections[0].label == get_section_label("summary", "zh-CN")
 
 

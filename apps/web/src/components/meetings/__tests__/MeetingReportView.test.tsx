@@ -27,6 +27,7 @@ const REPORT: MeetingReport = {
       bullets: [],
       topics: [],
       action_items: [],
+      transcript: [],
     },
     {
       key: 'decisions',
@@ -36,6 +37,7 @@ const REPORT: MeetingReport = {
       bullets: ['Mise en production le 26', ''],
       topics: [],
       action_items: [],
+      transcript: [],
     },
     {
       key: 'topics',
@@ -45,6 +47,7 @@ const REPORT: MeetingReport = {
       bullets: [],
       topics: [{ title: 'Migration', summary: 'Terminée mardi.' }],
       action_items: [],
+      transcript: [],
     },
     {
       key: 'action_items',
@@ -57,6 +60,7 @@ const REPORT: MeetingReport = {
         { description: 'Préparer la bascule', owner: 'Marc', due_date: '2026-09-09' },
         { description: 'Relancer le prestataire', owner: null, due_date: null },
       ],
+      transcript: [],
     },
     {
       key: 'risks',
@@ -66,6 +70,7 @@ const REPORT: MeetingReport = {
       bullets: ['   '],
       topics: [],
       action_items: [],
+      transcript: [],
     },
   ],
 };
@@ -108,9 +113,49 @@ describe('MeetingReportView', () => {
   });
 
   it('omits the participants block when nobody is listed', () => {
-    renderWithProviders(
-      <MeetingReportView lng="en" report={{ ...REPORT, participants: [] }} />
-    );
+    renderWithProviders(<MeetingReportView lng="en" report={{ ...REPORT, participants: [] }} />);
     expect(screen.queryByText('meetings.detail.participants_title')).not.toBeInTheDocument();
+  });
+});
+
+describe('MeetingReportView — transcript kind (ADR-259)', () => {
+  const transcriptReport: MeetingReport = {
+    title: 'Dictée',
+    participants: [],
+    sections: [
+      {
+        key: 'transcript',
+        label: 'Transcription',
+        kind: 'transcript',
+        paragraph: null,
+        bullets: [],
+        topics: [],
+        action_items: [],
+        transcript: [
+          { speaker: 'S1', start: 0, text: 'Bonjour à tous.' },
+          { speaker: 'S2', start: 65, text: 'Bonjour Marie.' },
+        ],
+      },
+      {
+        key: 'empty',
+        label: 'Vide',
+        kind: 'transcript',
+        paragraph: null,
+        bullets: [],
+        topics: [],
+        action_items: [],
+        transcript: [],
+      },
+    ],
+  };
+
+  it('renders one timestamped, speaker-labelled line per turn and says when empty', () => {
+    renderWithProviders(<MeetingReportView lng="en" report={transcriptReport} />);
+    const items = screen.getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('0:00');
+    expect(items[0]).toHaveTextContent('S1');
+    expect(items[0]).toHaveTextContent('Bonjour à tous.');
+    expect(items[1]).toHaveTextContent('1:05');
+    expect(screen.getByText('meetings.detail.section_empty')).toBeInTheDocument();
   });
 });

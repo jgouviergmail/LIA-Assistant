@@ -46,8 +46,19 @@ export interface RowAction {
   disabled?: boolean;
   /** Replaces the icon with a spinner and disables the control. */
   loading?: boolean;
+  /**
+   * Refused for a reason the caller explains on activation (a cap reached):
+   * stated with `aria-disabled`, still focusable, still fires — `disabled`
+   * would hide the reason with the click.
+   */
+  blocked?: boolean;
   /** Extra classes for the `sm+` icon button (e.g. a pinned state tint). */
   iconClassName?: string;
+  /**
+   * A navigation rather than a handler (a file download): both renderings
+   * become real links the browser handles, `onSelect` is then unused.
+   */
+  href?: string;
 }
 
 export interface RowActionsProps {
@@ -67,6 +78,24 @@ export function RowActions({ actions, menuLabel, className }: RowActionsProps) {
       <div className="hidden gap-1 sm:flex">
         {actions.map(action => {
           const Icon = action.icon;
+          const glyph = action.loading ? (
+            <LoadingSpinner size="default" />
+          ) : (
+            <Icon className="h-4 w-4" aria-hidden="true" />
+          );
+          const className = cn(
+            action.tone === 'destructive' && 'text-destructive hover:text-destructive',
+            action.iconClassName
+          );
+          if (action.href) {
+            return (
+              <Button key={action.key} variant="ghost" size="icon" asChild className={className}>
+                <a href={action.href} download aria-label={action.label} title={action.label}>
+                  {glyph}
+                </a>
+              </Button>
+            );
+          }
           return (
             <Button
               key={action.key}
@@ -76,17 +105,11 @@ export function RowActions({ actions, menuLabel, className }: RowActionsProps) {
               aria-label={action.label}
               title={action.label}
               disabled={action.disabled || action.loading}
+              aria-disabled={action.blocked || undefined}
               onClick={action.onSelect}
-              className={cn(
-                action.tone === 'destructive' && 'text-destructive hover:text-destructive',
-                action.iconClassName
-              )}
+              className={className}
             >
-              {action.loading ? (
-                <LoadingSpinner size="default" />
-              ) : (
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              )}
+              {glyph}
             </Button>
           );
         })}
@@ -108,15 +131,8 @@ export function RowActions({ actions, menuLabel, className }: RowActionsProps) {
         <DropdownMenuContent align="end">
           {actions.map(action => {
             const Icon = action.icon;
-            return (
-              <DropdownMenuItem
-                key={action.key}
-                disabled={action.disabled || action.loading}
-                onSelect={action.onSelect}
-                className={cn(
-                  action.tone === 'destructive' && 'text-destructive focus:text-destructive'
-                )}
-              >
+            const content = (
+              <>
                 {action.loading ? (
                   // Decorative: the item is named by its visible label.
                   <LoadingSpinner size="default" aria-hidden="true" />
@@ -124,6 +140,29 @@ export function RowActions({ actions, menuLabel, className }: RowActionsProps) {
                   <Icon aria-hidden="true" />
                 )}
                 {action.label}
+              </>
+            );
+            const className = cn(
+              action.tone === 'destructive' && 'text-destructive focus:text-destructive'
+            );
+            if (action.href) {
+              return (
+                <DropdownMenuItem key={action.key} asChild className={className}>
+                  <a href={action.href} download>
+                    {content}
+                  </a>
+                </DropdownMenuItem>
+              );
+            }
+            return (
+              <DropdownMenuItem
+                key={action.key}
+                disabled={action.disabled || action.loading}
+                aria-disabled={action.blocked || undefined}
+                onSelect={action.onSelect}
+                className={className}
+              >
+                {content}
               </DropdownMenuItem>
             );
           })}

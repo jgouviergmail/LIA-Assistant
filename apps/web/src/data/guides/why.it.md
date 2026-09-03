@@ -4,7 +4,7 @@
 
 **Versione**: 5.2
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.39.0
+**Applicazione**: LIA v1.39.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -210,11 +210,11 @@ Resta ciò che nessun sistema può indovinare. LIA raggruppa ciò che si scrive 
 
 ### 3.13. Una riunione registrata, un verbale scritto
 
-Premi **+** nella chat e il tuo telefono o il tuo computer diventa il registratore della riunione. Un banner ti segue su ogni pagina con il tempo e ciò che ha già raggiunto il tuo server; nel frattempo continui a parlare con LIA — le risposte parlate si mettono semplicemente in pausa perché il microfono non senta mai l'assistente. Quando ti fermi, LIA trascrive tutto e scrive il verbale **nella tua struttura**: l'intestazione è fissa (data, orari, luogo, partecipanti), il corpo è tuo — riassunto, argomenti, decisioni, azioni con responsabile e scadenza, rischi, domande aperte, o le sezioni che definisci una volta nelle Impostazioni e ripristini con un clic.
+Un pulsante nell'intestazione — o la voce «Registra una riunione» del menu sul telefono — e il tuo telefono o il tuo computer diventa il registratore della riunione. Un banner ti segue su ogni pagina con il tempo e ciò che ha già raggiunto il tuo server; nel frattempo continui a parlare con LIA — le risposte parlate si mettono semplicemente in pausa perché il microfono non senta mai l'assistente. Quando ti fermi, LIA trascrive tutto e scrive il verbale **nella tua struttura**: l'intestazione è fissa (data, orari, luogo, partecipanti), il corpo segue un formato che scegli fra trenta modelli integrati — riunioni e team, trascrizioni, analisi delle conversazioni, vendite, tecnico, appuntamenti personali, corsi — oppure che costruisci tu stesso, sezione per sezione. E se non scegli nulla, LIA legge ciò che è stato detto e tiene il formato adatto, poi ti dice quale e perché: un punto di progetto e una visita medica non hanno la stessa struttura.
 
 La vita reale è prevista, non scusata. L'audio parte in piccoli segmenti mentre parli, così un telefono bloccato, una connessione persa o un ricaricamento costano secondi, mai la riunione: al ritorno riprendi, finalizzi o elimini. Un lungo silenzio riceve una domanda, una durata massima finalizza da sola, e una lacuna nella registrazione è dichiarata nel verbale — mai colmata con una supposizione. Una voce senza nome resta S2; un nome compare solo quando la registrazione lo stabilisce.
 
-Il verbale ti arriva per tre vie — una scheda nella chat, un PDF, la tua casella — ed entra in uno spazio di conoscenza **Riunioni** creato per te, così settimane dopo puoi semplicemente chiedere cosa è stato deciso. Quanto è costato è scritto accanto: la trascrizione e il verbale come due importi e il loro totale, conteggiati come ogni altro scambio. E il motore di trascrizione lo scegli tu: uno remoto che separa le voci, o quello locale che non costa nulla e non lascia mai il tuo server.
+Il verbale ti arriva per tre vie — una scheda nella chat, un PDF, la tua casella di posta dall'indirizzo dell'applicazione, senza alcuna casella da collegare — ed entra in uno spazio di conoscenza **Riunioni** creato per te, così settimane dopo puoi semplicemente chiedere cosa è stato deciso. Quanto è costato è scritto accanto: la trascrizione e il verbale come due importi e il loro totale, conteggiati come ogni altro scambio. E nulla è fissato: un verbale già redatto si riscrive in un altro formato a partire dalla trascrizione conservata — fino alla trascrizione completa e ripulita — sostituendo quello che hai oppure producendo un nuovo verbale della stessa riunione. Il motore di trascrizione lo scegli sempre tu: uno remoto che separa le voci, o quello locale che non costa nulla e non lascia mai il tuo server.
 
 ---
 

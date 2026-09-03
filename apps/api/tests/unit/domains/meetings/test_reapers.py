@@ -50,6 +50,10 @@ async def test_job_reaper_uses_settings_thresholds_and_redrives_orphans(
             seen["grace"] = grace_seconds
             return [orphan]
 
+        async def clear_stale_regenerations(self, older_than_seconds: int) -> int:
+            seen["stale_regen"] = older_than_seconds
+            return 1
+
     launched: list[uuid.UUID] = []
     import src.domains.meetings.processing as processing
 
@@ -60,6 +64,8 @@ async def test_job_reaper_uses_settings_thresholds_and_redrives_orphans(
 
     assert seen["stale"] == settings.meetings_recording_stale_minutes  # never hard-coded
     assert seen["grace"] == settings.meetings_reaper_interval_seconds
+    # ADR-259: a regeneration killed mid-flight is cleared after the lease TTL.
+    assert seen["stale_regen"] == settings.meetings_job_lease_ttl_seconds
     assert launched == [orphan]
     assert db["committed"] is True
 

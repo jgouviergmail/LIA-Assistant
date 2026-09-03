@@ -1,10 +1,9 @@
-"""The minutes template: built-in default and validation (ADR-258).
+"""The minutes template: built-in default, validation and JSON round trip (ADR-258, ADR-259).
 
-The default lives in CODE (kinds here, labels and instructions in
-``core/i18n_meetings.py``) so a reset is deterministic and speaks the user's
-language; a user edit is a ``meeting_templates`` row. The kinds map is asserted
-complete against the label keys at import time (ADR-085): a default section
-without a kind — or a label without a section — refuses to boot.
+The default is ONE entry of the catalogue (``template_catalogue.py``, key
+``MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY``); ``DEFAULT_SECTION_*`` derive from it
+so every historical reader keeps its name. A user edit is a
+``meeting_templates`` row.
 """
 
 from __future__ import annotations
@@ -13,12 +12,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from src.core.i18n_meetings import (
-    DEFAULT_SECTION_INSTRUCTIONS,
-    DEFAULT_SECTION_KEYS,
-    get_section_label,
-    get_template_name,
-)
+from src.core.constants import MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY
 from src.domains.meetings.schemas import (
     MAX_TEMPLATE_SECTIONS,
     MeetingTemplateResponse,
@@ -26,54 +20,30 @@ from src.domains.meetings.schemas import (
     SectionKind,
     TemplateSection,
 )
+from src.domains.meetings.template_catalogue import (
+    BUILTIN_BY_KEY,
+    builtin_sections,
+    builtin_template,
+)
 
-#: Shape of each default section. Rendering order is ``DEFAULT_SECTION_KEYS``.
-DEFAULT_SECTION_KINDS: dict[str, SectionKind] = {
-    "summary": SectionKind.PARAGRAPH,
-    "topics": SectionKind.TOPICS,
-    "decisions": SectionKind.BULLETS,
-    "action_items": SectionKind.ACTION_ITEMS,
-    "risks": SectionKind.BULLETS,
-    "open_questions": SectionKind.BULLETS,
-}
+_DEFAULT = BUILTIN_BY_KEY[MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY]
 
-# Boot-time completeness (ADR-085): the three declarations name the same sections.
-assert set(DEFAULT_SECTION_KINDS) == set(
-    DEFAULT_SECTION_KEYS
-), "DEFAULT_SECTION_KINDS must cover exactly DEFAULT_SECTION_KEYS"
-assert set(DEFAULT_SECTION_INSTRUCTIONS) == set(
-    DEFAULT_SECTION_KEYS
-), "DEFAULT_SECTION_INSTRUCTIONS must cover exactly DEFAULT_SECTION_KEYS"
+#: Default section keys, in rendering order (derived from the catalogue).
+DEFAULT_SECTION_KEYS: tuple[str, ...] = tuple(section.key for section in _DEFAULT.sections)
+#: Shape of each default section.
+DEFAULT_SECTION_KINDS: dict[str, SectionKind] = {s.key: s.kind for s in _DEFAULT.sections}
+#: What the model is asked to put in each default section (English, the prompt's language).
+DEFAULT_SECTION_INSTRUCTIONS: dict[str, str] = {s.key: s.instruction for s in _DEFAULT.sections}
 
 
 def default_sections(language: str | None) -> list[TemplateSection]:
-    """The built-in template, labelled in ``language``.
-
-    Args:
-        language: Backend-canonical or raw locale; normalized by the i18n table.
-
-    Returns:
-        Ordered sections with localized labels and English model instructions.
-    """
-    return [
-        TemplateSection(
-            key=key,
-            label=get_section_label(key, language),
-            instruction=DEFAULT_SECTION_INSTRUCTIONS[key],
-            kind=DEFAULT_SECTION_KINDS[key],
-        )
-        for key in DEFAULT_SECTION_KEYS
-    ]
+    """The built-in default template's sections, labelled in ``language``."""
+    return builtin_sections(MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY, language)
 
 
 def default_template(language: str | None) -> MeetingTemplateResponse:
-    """The template served when the user has not edited one."""
-    return MeetingTemplateResponse(
-        id=None,
-        name=get_template_name(language),
-        sections=default_sections(language),
-        is_builtin_default=True,
-    )
+    """The built-in default template, labelled in ``language``."""
+    return builtin_template(MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY, language)
 
 
 def parse_sections(raw: Any) -> list[TemplateSection]:
@@ -101,6 +71,8 @@ def sections_to_json(sections: list[TemplateSection]) -> list[dict[str, Any]]:
 
 
 __all__ = [
+    "DEFAULT_SECTION_INSTRUCTIONS",
+    "DEFAULT_SECTION_KEYS",
     "DEFAULT_SECTION_KINDS",
     "MAX_TEMPLATE_SECTIONS",
     "default_sections",

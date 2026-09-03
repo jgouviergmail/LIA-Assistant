@@ -85,3 +85,49 @@ describe('RowActions', () => {
     expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
   });
 });
+
+describe('RowActions — link actions (ADR-259)', () => {
+  it('renders an href action as a real link on both paths, named like the others', async () => {
+    renderWithProviders(
+      <RowActions
+        actions={[
+          {
+            key: 'download',
+            label: 'Download Standup',
+            icon: Pencil,
+            href: 'https://api.test/documents/d1/download',
+            onSelect: vi.fn(),
+          },
+        ]}
+        menuLabel="Actions — Standup"
+      />
+    );
+    const link = screen.getByRole('link', { name: 'Download Standup' });
+    expect(link).toHaveAttribute('href', 'https://api.test/documents/d1/download');
+    expect(link).toHaveAttribute('download');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Actions — Standup' }));
+    const item = await screen.findByRole('menuitem', { name: 'Download Standup' });
+    expect(item.tagName).toBe('A');
+    expect(item).toHaveAttribute('href', 'https://api.test/documents/d1/download');
+  });
+});
+
+describe('RowActions — blocked actions', () => {
+  it('states a blocked action with aria-disabled, keeps it focusable and still fires it', async () => {
+    const onSelect = vi.fn();
+    renderWithProviders(
+      <RowActions
+        actions={[{ key: 'add', label: 'Add Standup', icon: Pencil, onSelect, blocked: true }]}
+        menuLabel="Actions — Standup"
+      />
+    );
+    const button = screen.getByRole('button', { name: 'Add Standup' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    button.focus();
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+});

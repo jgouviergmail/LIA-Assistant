@@ -228,8 +228,11 @@ Observability: `meetings_total{status}`, `meeting_recording_duration_seconds`, `
 | DELETE | `/meetings/{id}/transcript` | Purge the transcript only |
 | DELETE | `/meetings/{id}` | Everything (RAG document + chunks + files) |
 | GET | `/meetings/{id}/pdf` | Streamed inline A4 built on demand |
-| POST | `/meetings/{id}/email` | To `user.email` via the active email connector; 409 `email_connector_missing` |
-| GET/PUT/DELETE | `/meetings/template` | Read (default when no row), replace (validated), reset |
+| POST | `/meetings/{id}/email` | To `user.email` from `APPLICATION_SMTP_FROM` (ADR-259); 502 `email_send_failed` |
+| GET/POST | `/meetings/templates` | The library (built-ins + the user's rows, `max_user_templates`); create from sections or `duplicate_of` (ADR-259) |
+| GET/PUT/DELETE | `/meetings/templates/{ref}` | One template with its sections; user rows only for PUT/DELETE (409 `template_readonly`) |
+| POST | `/meetings/{id}/reformat` | `{template_ref, mode: replace | new}` → 202; `new` answers with the new row's id (ADR-259) |
+| POST | `/meetings/bulk-delete` | `{ids}` → `{deleted, skipped: [{id, code}]}` (ADR-259) |
 | GET/PUT | `/meetings/preferences` | Engine, language, auto-email, keep-audio |
 
 `NEXT_PUBLIC_API_URL` already carries multipart uploads to the API directly (attachments); segments use the same transport.

@@ -140,3 +140,23 @@ describe('SectionToolbar — pinned secondaries', () => {
     expect(screen.queryByRole('menuitem', { name: 'Export' })).toBeNull();
   });
 });
+
+describe('SectionToolbar — blocked primary', () => {
+  it('states the block with aria-disabled, keeps the control focusable, and still fires so the caller can explain', async () => {
+    const onCreate = vi.fn();
+    renderWithProviders(
+      <SectionToolbar
+        count=""
+        menuLabel="More actions"
+        primary={{ key: 'create', label: 'Add', icon: Plus, onSelect: onCreate, blocked: true }}
+      />
+    );
+    const button = screen.getByRole('button', { name: 'Add' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    button.focus();
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+});

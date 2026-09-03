@@ -14,11 +14,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.domains.meetings import processing
+from src.domains.meetings import processing, regeneration
 from src.domains.meetings.models import MeetingStage, MeetingStatus, MeetingSttProvider
-from src.domains.meetings.processing import LeaseLostError, process_meeting, regenerate_minutes
-from src.domains.meetings.schemas import MeetingReport
+from src.domains.meetings.processing import LeaseLostError, process_meeting
+from src.domains.meetings.regeneration import regenerate_minutes
+from src.domains.meetings.schemas import MeetingReport, TemplateSelection
 from src.domains.meetings.synthesis import SynthesisResult, SynthesisUsage
+from src.domains.meetings.template_ref import TemplateRef
+from src.domains.meetings.template_resolution import TemplateDecision
 from src.domains.meetings.transcription import TranscriptionError
 from src.infrastructure.llm.structured_output import StructuredOutputError
 
@@ -35,6 +38,7 @@ def db_context(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
         yield db
 
     monkeypatch.setattr(processing, "get_db_context", _ctx)
+    monkeypatch.setattr(regeneration, "get_db_context", _ctx)
     return db
 
 
@@ -42,6 +46,7 @@ def db_context(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 def repo(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     instance = AsyncMock()
     monkeypatch.setattr(processing, "MeetingRepository", MagicMock(return_value=instance))
+    monkeypatch.setattr(regeneration, "MeetingRepository", MagicMock(return_value=instance))
     return instance
 
 
@@ -144,11 +149,14 @@ def regenerate_world(
     monkeypatch: pytest.MonkeyPatch, db_context: MagicMock, repo: AsyncMock
 ) -> dict[str, Any]:
     """Template repo, user repo, transcript and reindex are doubles; the LLM is scripted."""
-    template_repo = AsyncMock()
-    template_repo.get_default_for_user.return_value = None
-    monkeypatch.setattr(
-        processing, "MeetingTemplateRepository", MagicMock(return_value=template_repo)
+    decision = TemplateDecision(
+        sections=[],
+        ref=TemplateRef.builtin("default_minutes"),
+        name="Minutes",
+        selection=TemplateSelection.PREFERENCE,
+        reason=None,
     )
+    monkeypatch.setattr(regeneration, "template_for_regeneration", AsyncMock(return_value=decision))
     user_repo = AsyncMock()
     user_repo.get_by_id.return_value = MagicMock(language="fr")
     monkeypatch.setattr(
@@ -161,7 +169,7 @@ def regenerate_world(
     reindex = MagicMock()
     monkeypatch.setattr("src.domains.meetings.indexing.schedule_reindex", reindex)
     synthesize = AsyncMock(return_value=_synthesis())
-    monkeypatch.setattr(processing, "synthesize_minutes", synthesize)
+    monkeypatch.setattr(regeneration, "synthesize_minutes", synthesize)
     tracked = AsyncMock(return_value="run-1")
     monkeypatch.setattr("src.infrastructure.proactive.tracking.track_proactive_tokens", tracked)
     monkeypatch.setattr(processing, "get_cached_cost_usd_eur", lambda **kwargs: (0.002, 0.0017))
@@ -186,6 +194,9 @@ class TestRegenerateMinutes:
         spend = repo.finish_regenerate.await_args.kwargs
         assert (spend["tokens_in"], spend["tokens_out"], spend["tokens_cache"]) == (1, 1, 0)
         assert spend["cost_eur"] == 0.0017 and values["synthesis_model"] == "m"
+        # The meeting's own template (ADR-259) wrote the rebuild, and the row says so.
+        assert values["template_ref"] == "builtin:default_minutes"
+        assert values["template_name"] == "Minutes" and values["template_selection"] == "preference"
         regenerate_world["reindex"].assert_called_once()
 
     async def test_a_row_not_in_regeneration_is_left_alone(
@@ -212,9 +223,9 @@ class TestRegenerateMinutes:
         [
             (
                 StructuredOutputError("bad json", "openai", "MeetingReport"),
-                processing.ERROR_SYNTHESIS,
+                regeneration.ERROR_SYNTHESIS,
             ),
-            (RuntimeError("provider down"), processing.ERROR_UNEXPECTED),
+            (RuntimeError("provider down"), regeneration.ERROR_UNEXPECTED),
         ],
     )
     async def test_any_failure_clears_the_stage_and_keeps_the_old_minutes(

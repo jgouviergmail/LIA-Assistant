@@ -159,6 +159,15 @@ services:
       # unlike the prod image, which uses `pip install --user`.
       - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-api
       - SKILLS_SCRIPT_SANDBOX_PYTHONPATH=
+      # Bytecode stays INSIDE the container. `/app` is a bind mount shared with
+      # the host, whose own Python (pytest, mypy) writes `__pycache__` there too;
+      # a cache written by one interpreter and read by the other produced
+      # nonsensical import failures (`UnboundLocalError: cls` inside
+      # typing_extensions, `Config has no attribute 'list'` inside pydantic)
+      # until the API could not boot — measured 2026-09-03: the same import
+      # succeeded with the mount-side caches ignored, and every file read
+      # through the mount matched the host byte for byte.
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
     ports:
       - "${DEV_BIND_HOST_APP:-${DEV_BIND_HOST:-127.0.0.1}}:${API_HOST_PORT:-8000}:8000"
       - "${DEV_BIND_HOST:-127.0.0.1}:${DEBUG_HOST_PORT:-5678}:5678"  # Debug port

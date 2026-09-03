@@ -4291,6 +4291,13 @@ RAG_SPACES_STORAGE_PATH_DEFAULT = "/app/data/rag_uploads"
 RAG_SPACES_MAX_FILE_SIZE_MB_DEFAULT = 20
 RAG_SPACES_MAX_SPACES_PER_USER_DEFAULT = 10
 RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT = 100
+# Document operations (ADR-259): a zip of selected documents is built on disk
+# and streamed, so its size is bounded; a batch (move, delete, archive) is
+# capped at the same size as the meetings bulk delete.
+RAG_SPACES_ARCHIVE_MAX_MB_DEFAULT = 200
+RAG_SPACES_BULK_MAX = 100
+# Member listing the documents whose file was gone when the archive was built.
+RAG_SPACES_ARCHIVE_MISSING_MEMBER = "_missing.txt"
 # Reindex distributed-lock TTL (audit F001). Short and RENEWED after each
 # document (heartbeat), so a live reindex holds the lock indefinitely while a
 # hard crash frees it within this window — instead of the old fixed 6h wait.
@@ -5309,6 +5316,30 @@ MEETINGS_CONDENSE_PART_CHARS: int = 60000
 # paid resources are covered by usage_limits.
 MEETINGS_RATE_LIMIT_STARTS_DEFAULT: int = 10
 MEETINGS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 3600
+
+# Ids one bulk request may carry (ADR-259): a page of the list is 20, the
+# widest page the API serves is 100.
+MEETINGS_BULK_MAX: int = 100
+
+# Template library (ADR-259). The built-in default template every instance
+# ships; the key must exist in the catalogue (asserted at import).
+MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY: str = "default_minutes"
+# ``builtin:<key>`` | ``user:<uuid>`` — the longest legal reference.
+MEETINGS_TEMPLATE_REF_MAX: int = 80
+# Automatic selection: the model reads a bounded excerpt (head + evenly
+# sampled slices), never the whole transcript — the choice needs the SUBJECT,
+# not every sentence.
+MEETINGS_TEMPLATE_AUTO_SELECT_ENABLED_DEFAULT: bool = True
+MEETINGS_TEMPLATE_AUTO_MIN_CONFIDENCE_DEFAULT: float = 0.5
+MEETINGS_TEMPLATE_AUTO_EXCERPT_CHARS: int = 6000
+MEETINGS_MAX_USER_TEMPLATES_DEFAULT: int = 50
+# Transcript rewrite (the ``transcript`` section kind) runs part by part: a part
+# is sized so its OUTPUT stays under the slot's max_tokens (a rewrite is about
+# as long as its input), with a safety factor for JSON framing.
+MEETINGS_REWRITE_PART_CHARS: int = 12000
+MEETINGS_REWRITE_OUTPUT_SAFETY: float = 0.6
+# A rewritten part shorter than this fraction of its input lost content: retried once.
+MEETINGS_REWRITE_MIN_RATIO: float = 0.4
 
 # Normalization to Opus: 32 kbps is transparent for speech; the floor keeps a
 # 210-minute meeting under the remote 25 MB cap.

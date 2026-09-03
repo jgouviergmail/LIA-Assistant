@@ -4,7 +4,7 @@
 
 **Version**: 1.8
 **Date**: 2026-08-23
-**Application**: LIA v1.39.0
+**Application**: LIA v1.39.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 44 functional domains | **580,000** |
-| Automated tests, run on every commit and release | **27,600+** |
-| Documented architecture decisions (ADR) | **257** |
-| Versions shipped at a steady pace | **241** |
+| Automated tests, run on every commit and release | **29,700+** |
+| Documented architecture decisions (ADR) | **258** |
+| Versions shipped at a steady pace | **242** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 257 documented:
+Three structural decisions, among the 258 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -118,6 +118,8 @@ And the most recent lesson arrived when everything was already green. An externa
 A later episode turned the method outward. Rather than re-reading the code with the same eyes, a batch of published research was triaged and used as a **reading grid**: not to import a technique, but to ask the system questions it was not asking itself. Twelve papers out of nearly three hundred survived that filter, and each hypothesis they suggested had to be proven — executable, against production code — before a single line changed. Five defects survived counter-verification, all of the same shape: two subsystems, each correct on its own terms, composing into a behaviour neither owned. The discipline cut both ways, and that is the point: three of the reviewer's own hypotheses were disproven by the very tests written to confirm them — a cost claim that provider caching already absorbed, a truncation believed unbounded that a reducer had bounded all along, and a defect thought to worsen with conversation length that measurement showed to be strictly constant. A grid that only ever confirms is not a grid.
 
 The meeting-minutes cycle closed the loop the other way round: everything was green — twenty thousand backend tests, close to seven thousand on the frontend, every ratchet holding — and the feature had never run. So it was driven end to end against the development containers, through its own HTTP contract, five times. The proofs found four defects no unit suite could see, because each lived where two correct parts met: a read that returned the row as it was before a bulk update, a provider fault that dead-lettered a meeting while the next engine sat one step down the chain, a price of zero for a model that simply had no price, and a deleted meeting that left its minutes behind in the knowledge space. Each came back with a test; none would have been found by reading. The lesson of the earlier cycles held in its strictest form — passing the tests is the condition for starting a review, and a review is not finished until the system has been made to run.
+
+The immediate follow-up moved the boundary one notch further. The format library announced by that same cycle came back green end to end: complete unit suites, a runtime proof driven against the containers, every screen covered by its accessibility tests. The owner opened the page and could not find their own templates — a duplicated template inherited its original's category and filed itself among the thirty built-ins. No guard could see that defect: the code did exactly what was written, and what was written was a design mistake. The page was recomposed into two sections with folded categories, and a cold review run afterwards found six more defects that neither the tests nor the proof had touched. The full lesson fits in one sentence: green suites say the code does what was written, a runtime proof says the system runs, and only a user in front of the screen says whether the feature exists.
 
 ## 7. Convictions
 

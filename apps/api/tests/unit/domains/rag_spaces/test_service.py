@@ -779,12 +779,10 @@ class TestDeleteDocument:
     """Tests for document deletion with cascade cleanup."""
 
     @pytest.mark.asyncio
-    @patch("src.domains.rag_spaces.service.settings")
-    @patch("src.domains.rag_spaces.service.Path")
+    @patch("src.domains.rag_spaces.service.document_file_path")
     async def test_delete_document_success(
         self,
-        mock_path_cls,
-        mock_settings,
+        mock_file_path_of,
         service,
         user_id,
         space_id,
@@ -792,23 +790,20 @@ class TestDeleteDocument:
         sample_document,
     ) -> None:
         """Should delete chunks, document record, and physical file."""
-        mock_settings.rag_spaces_storage_path = "/tmp/rag_storage"
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
         service.doc_repo.get_by_id = AsyncMock(return_value=sample_document)
         service.chunk_repo.delete_by_document = AsyncMock(return_value=3)
         service.doc_repo.delete = AsyncMock()
 
-        # Mock file path existence check
+        # The one path builder (document_access) answers with an existing file.
         mock_file_path = MagicMock()
         mock_file_path.exists.return_value = True
-        mock_storage = MagicMock()
-        mock_storage.__truediv__ = MagicMock(return_value=mock_storage)
-        mock_path_cls.return_value = mock_storage
-        mock_storage.__truediv__ = MagicMock(return_value=mock_file_path)
+        mock_file_path_of.return_value = mock_file_path
 
         with patch("src.domains.rag_spaces.service.os.remove") as mock_remove:
             await service.delete_document(space_id, sample_document.id, user_id)
-            mock_remove.assert_called_once()
+            mock_file_path_of.assert_called_once_with(sample_document)
+            mock_remove.assert_called_once_with(mock_file_path)
 
         service.chunk_repo.delete_by_document.assert_awaited_once_with(sample_document.id)
         service.doc_repo.delete.assert_awaited_once_with(sample_document)

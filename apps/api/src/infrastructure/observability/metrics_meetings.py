@@ -61,3 +61,11 @@ meeting_stt_audio_seconds_total = Counter(
     ["provider"],
     # provider: elevenlabs | openai | local
 )
+
+meeting_template_selection_total = Counter(
+    "meeting_template_selection_total",
+    "How the minutes template of a meeting was chosen (ADR-259).",
+    ["outcome"],
+    # outcome: user | preference | auto | fallback — fallback = the model was
+    # hesitant, wrong or unavailable and the built-in default applied.
+)

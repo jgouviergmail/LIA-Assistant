@@ -19,8 +19,11 @@ import { logger } from '@/lib/logger';
 import { meetingsApi } from '@/lib/meetings/api';
 import {
   IN_FLIGHT_MEETING_STATUSES,
+  type MeetingBulkDeleteResponse,
   type MeetingDetail,
   type MeetingPatchRequest,
+  type MeetingReformatRequest,
+  type MeetingReformatResponse,
   type MeetingSummary,
 } from '@/types/meetings';
 
@@ -32,6 +35,14 @@ export interface UseMeetingListReturn {
   isUnavailable: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
+  /** True while a bulk delete request is in flight. */
+  isDeleting: boolean;
+  /**
+   * Delete several meetings. Resolves with the server's per-id answer; rejects
+   * when the request itself failed (the caller shows the error). It does NOT
+   * refetch — the caller decides between a refetch and a page step.
+   */
+  bulkDelete: (ids: string[]) => Promise<MeetingBulkDeleteResponse>;
 }
 
 /** Whether the detail page must keep re-reading this meeting. */
@@ -45,6 +56,7 @@ export function useMeetingList(limit: number, offset = 0, enabled = true): UseMe
   const [isLoading, setIsLoading] = useState(enabled);
   const [isUnavailable, setIsUnavailable] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const guard = useStaleGuard();
 
   const refetch = useCallback(async () => {
@@ -74,7 +86,19 @@ export function useMeetingList(limit: number, offset = 0, enabled = true): UseMe
     void refetch();
   }, [refetch]);
 
-  return { meetings, total, isLoading, isUnavailable, error, refetch };
+  const bulkDelete = useCallback(async (ids: string[]) => {
+    setIsDeleting(true);
+    try {
+      return await meetingsApi.bulkDelete(ids);
+    } catch (err) {
+      logger.error('meetings_bulk_delete_failed', err as Error, { component: 'useMeetingList' });
+      throw err;
+    } finally {
+      setIsDeleting(false);
+    }
+  }, []);
+
+  return { meetings, total, isLoading, isUnavailable, error, refetch, isDeleting, bulkDelete };
 }
 
 export interface UseMeetingReturn {
@@ -88,6 +112,12 @@ export interface UseMeetingReturn {
   patch: (request: MeetingPatchRequest) => Promise<MeetingDetail | null>;
   resetReport: () => Promise<MeetingDetail | null>;
   regenerate: () => Promise<void>;
+  /**
+   * Write the minutes again with another template (ADR-259). `replace`
+   * re-reads this meeting; `new` answers with the derived meeting — the
+   * caller navigates there.
+   */
+  reformat: (request: MeetingReformatRequest) => Promise<MeetingReformatResponse | null>;
   retry: () => Promise<void>;
   email: () => Promise<MeetingDetail | null>;
   deleteTranscript: () => Promise<MeetingDetail | null>;
@@ -194,6 +224,17 @@ export function useMeeting(id: string | null, includeTranscript = false): UseMee
       await refetch();
     });
   }, [act, id, refetch]);
+  const reformat = useCallback(
+    async (request: MeetingReformatRequest) => {
+      if (id === null) return null;
+      return act(async () => {
+        const response = await meetingsApi.reformat(id, request);
+        if (request.mode === 'replace') await refetch();
+        return response;
+      });
+    },
+    [act, id, refetch]
+  );
   const retry = useCallback(async () => {
     if (id === null) return;
     await act(async () => {
@@ -220,6 +261,7 @@ export function useMeeting(id: string | null, includeTranscript = false): UseMee
     patch,
     resetReport,
     regenerate,
+    reformat,
     retry,
     email,
     deleteTranscript,

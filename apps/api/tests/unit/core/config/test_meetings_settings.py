@@ -55,3 +55,27 @@ def test_segment_byte_cap_is_derived_from_the_densest_format() -> None:
     assert settings.meetings_segment_max_bytes == int(
         STT_BYTES_PER_SECOND_AT_16KHZ_INT16 * 60 * 1.05
     )
+
+
+# ---------------------------------------------------------------- ADR-259
+
+
+def test_template_library_defaults_load() -> None:
+    settings = MeetingsSettings(_env_file=None)
+    assert settings.meetings_template_auto_select_enabled is True
+    assert 0.0 <= settings.meetings_template_auto_min_confidence <= 1.0
+    assert settings.meetings_max_user_templates >= 1
+
+
+def test_the_auto_selection_confidence_is_a_probability() -> None:
+    with pytest.raises(ValidationError):
+        MeetingsSettings(_env_file=None, meetings_template_auto_min_confidence=1.5)
+    with pytest.raises(ValidationError):
+        MeetingsSettings(_env_file=None, meetings_template_auto_min_confidence=-0.1)
+
+
+def test_the_user_template_cap_is_bounded() -> None:
+    with pytest.raises(ValidationError):
+        MeetingsSettings(_env_file=None, meetings_max_user_templates=0)
+    with pytest.raises(ValidationError):
+        MeetingsSettings(_env_file=None, meetings_max_user_templates=501)

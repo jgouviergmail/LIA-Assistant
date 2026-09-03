@@ -450,6 +450,25 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
         )
         return int(count)
 
+    async def move_to_space(self, document_id: UUID, space_id: UUID) -> int:
+        """Point every chunk of a document at another space (ADR-259).
+
+        The chunk carries ``space_id`` denormalized for retrieval, so a moved
+        document must carry its chunks along or retrieval keeps answering from
+        the old space.
+
+        Args:
+            document_id: The document whose chunks move.
+            space_id: The destination space.
+
+        Returns:
+            The number of chunks updated.
+        """
+        result = await self.db.execute(
+            update(RAGChunk).where(RAGChunk.document_id == document_id).values(space_id=space_id)
+        )
+        return int(getattr(result, "rowcount", 0) or 0)
+
     async def delete_by_space(self, space_id: UUID) -> int:
         """Bulk delete all chunks for a space. Returns count deleted."""
         stmt = delete(RAGChunk).where(RAGChunk.space_id == space_id)

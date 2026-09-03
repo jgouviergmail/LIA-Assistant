@@ -10,7 +10,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiMutation } from './useApiMutation';
-import type { RAGDocument } from '@/types/rag-spaces';
+import { apiEndpointUrl } from '@/lib/api-client';
+import type {
+  RAGDocument,
+  RAGDocumentBatchResponse,
+  RAGDocumentIdsRequest,
+  RAGDocumentMoveRequest,
+} from '@/types/rag-spaces';
 
 /** Upload progress state for a single file. */
 export interface DocumentUploadState {
@@ -178,6 +184,52 @@ export function useSpaceDocuments({
     [spaceId, deleteMutation]
   );
 
+  // Batches (ADR-259): every id is reported done or skipped with a reason.
+  const moveMutation = useApiMutation<RAGDocumentMoveRequest, RAGDocumentBatchResponse>({
+    method: 'POST',
+    componentName: 'SpaceDocuments',
+  });
+  const bulkDeleteMutation = useApiMutation<RAGDocumentIdsRequest, RAGDocumentBatchResponse>({
+    method: 'POST',
+    componentName: 'SpaceDocuments',
+  });
+
+  const moveDocuments = useCallback(
+    async (ids: string[], targetSpaceId: string) => {
+      const result = await moveMutation.mutate(`/rag-spaces/${spaceId}/documents/move`, {
+        ids,
+        target_space_id: targetSpaceId,
+      });
+      onDocumentReadyRef.current?.();
+      return result ?? null;
+    },
+    [spaceId, moveMutation]
+  );
+
+  const bulkDeleteDocuments = useCallback(
+    async (ids: string[]) => {
+      const result = await bulkDeleteMutation.mutate(
+        `/rag-spaces/${spaceId}/documents/bulk-delete`,
+        { ids }
+      );
+      onDocumentReadyRef.current?.();
+      return result ?? null;
+    },
+    [spaceId, bulkDeleteMutation]
+  );
+
+  // Downloads are browser navigations on the API origin (the cookie rides along).
+  const downloadHref = useCallback(
+    (documentId: string) =>
+      apiEndpointUrl(`/rag-spaces/${spaceId}/documents/${documentId}/download`),
+    [spaceId]
+  );
+  const archiveHref = useCallback(
+    (ids: string[]) =>
+      apiEndpointUrl(`/rag-spaces/${spaceId}/documents/archive?ids=${ids.join(',')}`),
+    [spaceId]
+  );
+
   // Remove an upload entry from the list
   const dismissUpload = useCallback((tempId: string) => {
     const xhr = xhrRefs.current.get(tempId);
@@ -200,5 +252,11 @@ export function useSpaceDocuments({
     dismissUpload,
     clearCompletedUploads,
     deleting: deleteMutation.loading,
+    moveDocuments,
+    bulkDeleteDocuments,
+    moving: moveMutation.loading,
+    bulkDeleting: bulkDeleteMutation.loading,
+    downloadHref,
+    archiveHref,
   };
 }

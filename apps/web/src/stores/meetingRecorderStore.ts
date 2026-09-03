@@ -59,6 +59,12 @@ export interface PersistedRecording {
   segmentSeconds: number;
   /** Sequence the next segment will take — the count a stop declares. */
   nextSequence: number;
+  /**
+   * The minutes format the user chose while live (ADR-259), null or absent
+   * for the default. Persisted with the recording so a reload shows the
+   * choice the server already holds.
+   */
+  templateRef?: string | null;
 }
 
 export interface MeetingRecorderState {
@@ -87,6 +93,7 @@ export interface MeetingRecorderActions {
   ) => void;
   setPhase: (phase: MeetingRecorderPhase) => void;
   setNextSequence: (next: number) => void;
+  setTemplateRef: (ref: string | null) => void;
   setProgress: (uploaded: number, pending: number) => void;
   setLevel: (level: number) => void;
   setElapsed: (seconds: number) => void;
@@ -146,6 +153,10 @@ export const useMeetingRecorderStore = create<MeetingRecorderStore>()(
       setNextSequence: next =>
         set(state => ({
           recording: state.recording ? { ...state.recording, nextSequence: next } : null,
+        })),
+      setTemplateRef: ref =>
+        set(state => ({
+          recording: state.recording ? { ...state.recording, templateRef: ref } : null,
         })),
       setProgress: (uploaded, pending) =>
         set({ uploadedSegments: uploaded, pendingSegments: pending }),

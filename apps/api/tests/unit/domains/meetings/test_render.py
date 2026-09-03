@@ -26,6 +26,7 @@ from src.domains.meetings.schemas import (
     ReportSection,
     SectionKind,
     TopicItem,
+    TranscriptLine,
 )
 
 pytestmark = pytest.mark.unit
@@ -158,3 +159,47 @@ def test_display_helpers_and_filename() -> None:
     )
     assert stem.startswith("2026-09-02 Point")
     assert "/" not in stem and ":" not in stem and "?" not in stem
+
+
+# ---------------------------------------------------------------- ADR-259: transcript kind
+
+
+def _transcript_report() -> MeetingReport:
+    return MeetingReport(
+        title="Dictée",
+        participants=[Participant(label="S1", name="Marie", role=None)],
+        sections=[
+            ReportSection(
+                key="transcript",
+                label="Transcription",
+                kind=SectionKind.TRANSCRIPT,
+                transcript=[
+                    TranscriptLine(speaker="S1", start=0.0, text="Bonjour à <tous>."),
+                    TranscriptLine(speaker="S2", start=65.0, text="Bonjour Marie."),
+                ],
+            ),
+            ReportSection(key="empty", label="Vide", kind=SectionKind.TRANSCRIPT, transcript=[]),
+        ],
+    )
+
+
+def test_markdown_renders_a_transcript_as_timestamped_speaker_lines() -> None:
+    report = _transcript_report()
+    markdown = render_markdown(report, build_header(_meeting(), report, language="fr"))
+    assert (
+        "## Transcription\n\n**S1 [0:00]** Bonjour à <tous>.\n**S2 [1:05]** Bonjour Marie.\n"
+        in markdown
+    )
+    assert "## Vide\n\n" in markdown
+
+
+def test_sectioned_document_and_html_render_the_transcript_too() -> None:
+    report = _transcript_report()
+    header = build_header(_meeting(), report, language="fr")
+    content = render_sectioned(report, header, filename_stem="x")
+    kinds = [(block.kind, block.text) for block in content.blocks if block.kind == "paragraph"]
+    assert ("paragraph", "S1 [0:00] — Bonjour à <tous>.") in kinds
+    assert ("paragraph", "S2 [1:05] — Bonjour Marie.") in kinds
+    html = render_html(report, header)
+    assert "<strong>S1 [0:00]</strong> Bonjour à &lt;tous&gt;." in html
+    assert "<h2>Vide</h2>" in html and html.count("<p") >= 2

@@ -4,7 +4,7 @@
 
 **Version** : 1.8
 **Date** : 2026-08-23
-**Application** : LIA v1.39.0
+**Application** : LIA v1.39.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 44 domaines fonctionnels | **580 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **27 600+** |
-| Décisions d'architecture documentées (ADR) | **257** |
-| Versions livrées à rythme régulier | **241** |
+| Tests automatisés, exécutés à chaque commit et livraison | **29 700+** |
+| Décisions d'architecture documentées (ADR) | **258** |
+| Versions livrées à rythme régulier | **242** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 257 documentées :
+Trois décisions structurantes, parmi les 258 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -118,6 +118,8 @@ Et la leçon la plus récente est arrivée quand tout était déjà vert. Un ser
 Un épisode plus tardif a tourné la méthode vers l'extérieur. Plutôt que de relire le code avec les mêmes yeux, un lot de recherche publiée a été trié puis utilisé comme **grille de lecture** : non pour importer une technique, mais pour poser au système des questions qu'il ne se posait pas. Douze articles sur près de trois cents ont passé ce filtre, et chaque hypothèse qu'ils suggéraient devait être prouvée — exécutable, sur le code de production — avant qu'une seule ligne ne change. Cinq défauts ont survécu à la contre-vérification, tous de la même forme : deux sous-systèmes corrects chacun selon ses propres termes, composés en un comportement que ni l'un ni l'autre ne possédait. La discipline a coupé dans les deux sens, et c'est précisément l'intérêt : trois hypothèses du relecteur lui-même ont été démenties par les tests écrits pour les confirmer — une affirmation de coût que le cache du fournisseur absorbait déjà, une troncature crue non bornée qu'un réducteur bornait depuis toujours, et un défaut supposé s'aggraver avec la longueur de la conversation que la mesure a montré strictement constant. Une grille qui ne fait que confirmer n'est pas une grille.
 
 Le cycle des comptes rendus de réunion a bouclé la boucle dans l'autre sens : tout était vert — vingt mille tests côté serveur, près de sept mille côté interface, chaque cliquet tenu — et la fonctionnalité n'avait jamais tourné. Elle a donc été conduite de bout en bout contre les conteneurs de développement, par son propre contrat HTTP, cinq fois. Les preuves ont trouvé quatre défauts qu'aucune suite unitaire ne pouvait voir, parce que chacun vivait là où deux parties correctes se rencontrent : une lecture qui rendait la ligne telle qu'elle était avant une mise à jour en masse, une panne de fournisseur qui mettait une réunion en échec alors que le moteur suivant attendait un cran plus bas, un prix de zéro pour un modèle qui n'avait simplement pas de prix, et une réunion supprimée qui laissait son compte rendu derrière elle dans l'espace de connaissances. Chacun est revenu avec un test ; aucun n'aurait été trouvé en lisant. La leçon des cycles précédents a tenu sous sa forme la plus stricte — passer les tests est la condition pour commencer une revue, et une revue n'est pas finie tant que le système n'a pas été fait tourner.
+
+La suite immédiate a déplacé la limite d'un cran. La bibliothèque de formats annoncée par ce même cycle est repartie verte de bout en bout : suites unitaires au complet, preuve runtime conduite contre les conteneurs, chaque écran couvert par ses tests d'accessibilité. Le propriétaire a ouvert la page et n'a pas trouvé ses propres modèles — un modèle dupliqué héritait de la catégorie de son original et se rangeait au milieu des trente modèles fournis. Aucune garde ne pouvait voir ce défaut : le code faisait exactement ce qui était écrit, et ce qui était écrit était une erreur de conception. La page a été recomposée en deux sections, catégories repliées, et une revue à froid menée après coup a encore trouvé six défauts que ni les tests ni la preuve n'avaient touchés. La leçon complète tient en une phrase : des suites vertes disent que le code fait ce qu'on a écrit, une preuve runtime dit que le système tourne, et seul un utilisateur devant l'écran dit si la fonctionnalité existe.
 
 ## 7. Convictions
 

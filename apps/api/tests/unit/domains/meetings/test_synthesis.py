@@ -10,11 +10,17 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from src.domains.meetings import synthesis
-from src.domains.meetings.schemas import SectionKind, TemplateSection, TranscriptTurn
+from src.domains.meetings.schemas import (
+    SectionKind,
+    TemplateSection,
+    TranscriptLine,
+    TranscriptTurn,
+)
 from src.domains.meetings.synthesis import (
     SynthesisContext,
     SynthesizedAction,
@@ -286,3 +292,84 @@ async def test_synthesize_condenses_part_by_part_when_the_transcript_overflows(
     assert "CONDENSED NOTES (from the transcript):" in final_human
     assert f"PART 1/{parts}" + chr(10) + "notes part 1" in final_human
     assert f"PART {parts}/{parts}" + chr(10) + f"notes part {parts}" in final_human
+
+
+# ---------------------------------------------------------------------------
+# ADR-259: the transcript kind
+# ---------------------------------------------------------------------------
+
+
+def _transcript_template() -> list[TemplateSection]:
+    return [
+        TemplateSection(key="summary", label="Résumé", instruction="s", kind=SectionKind.PARAGRAPH),
+        TemplateSection(
+            key="transcript",
+            label="Transcription",
+            instruction="clean",
+            kind=SectionKind.TRANSCRIPT,
+        ),
+    ]
+
+
+def test_repair_injects_the_rewritten_transcript_and_ignores_what_the_model_put_there() -> None:
+    minutes = SynthesizedMinutes(
+        title="T",
+        sections=[
+            SynthesizedSection(key="summary", paragraph="Court."),
+            SynthesizedSection(key="transcript", paragraph="the model tried to fill it"),
+        ],
+    )
+    lines = [TranscriptLine(speaker="S1", start=0.0, text="Propre.")]
+    report = repair_report(
+        minutes,
+        _transcript_template(),
+        speaker_labels=["S1"],
+        language="fr",
+        rewritten={"transcript": lines},
+    )
+    assert report.sections[1].kind is SectionKind.TRANSCRIPT
+    assert report.sections[1].transcript == lines
+    assert report.sections[1].paragraph is None
+    # Without an injection the section is empty, never the model's improvisation.
+    bare = repair_report(minutes, _transcript_template(), speaker_labels=["S1"], language="fr")
+    assert bare.sections[1].is_empty()
+
+
+def test_render_template_hides_transcript_sections_from_the_single_call() -> None:
+    block = render_template(_transcript_template())
+    assert "key=summary" in block and "key=transcript" not in block
+
+
+async def test_synthesize_rewrites_transcript_sections_and_asks_the_rest_of_the_template(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lines = [TranscriptLine(speaker="S1", start=0.0, text="Propre.")]
+    rewrite = AsyncMock(return_value={"transcript": lines})
+    monkeypatch.setattr(synthesis, "rewrite_for_template", rewrite)
+    seen: dict[str, str] = {}
+
+    async def _answer(_llm, messages, _schema, **kwargs):
+        seen["human"] = messages[-1].content
+        return SynthesizedMinutes(
+            title="T", sections=[SynthesizedSection(key="summary", paragraph="C.")]
+        )
+
+    monkeypatch.setattr(
+        synthesis, "get_structured_output_with_retry", AsyncMock(side_effect=_answer)
+    )
+    monkeypatch.setattr(synthesis, "get_llm", MagicMock(return_value=MagicMock()))
+    monkeypatch.setattr(
+        synthesis,
+        "get_llm_config_for_agent",
+        MagicMock(return_value=SimpleNamespace(provider="openai", model="gpt-x")),
+    )
+    monkeypatch.setattr(synthesis, "transcript_budget_tokens", lambda model: 10_000_000)
+    capture = MagicMock(tokens_in=3, tokens_out=4, tokens_cache=0)
+    turns = [TranscriptTurn(speaker="S1", start=0, end=1, text="Bonjour, euh, bonjour.")]
+    result = await synthesize_minutes(turns, _transcript_template(), _context(), capture=capture)
+    rewrite.assert_awaited_once()
+    assert rewrite.await_args.kwargs["capture"] is capture
+    assert "key=transcript" not in seen["human"] and "key=summary" in seen["human"]
+    assert result.report.sections[1].transcript == lines
+    assert result.report.sections[0].paragraph == "C."
+    assert result.usage.tokens_in == 3

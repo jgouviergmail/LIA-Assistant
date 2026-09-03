@@ -3488,7 +3488,7 @@
         "journals": "diario, bitácora, retrato, reflexiones, notas, procedencia, por qué, fuente, señal, origen, corregir, configuración, consolidación, exportar",
         "health-metrics": "frecuencia cardíaca, pasos, sueño, iPhone, Apple Salud, forma física, actividad",
         "skills": "habilidades, capacidades, competencias, plugins, extensiones",
-        "rag-spaces": "documentos, RAG, base de conocimiento, archivos, subida, indexación, biblioteca",
+        "rag-spaces": "espacios de conocimientos, documentos, archivos, subir, descargar, archivo, zip, mover, eliminar varios, indexación, búsqueda documental, drive, reuniones",
         "user-consumption-export": "CSV, consumo, tokens, coste, facturación, estadísticas, exportación",
         "haptics": "háptica vibración táctil sensorial",
         "plugins": "plugins, plugin, extensiones, agent plugins, instalar, paquete, mcp, skills",
@@ -3509,7 +3509,7 @@
         "debug-settings": "depuración, diagnóstico, registros, panel, seguimiento de tokens",
         "eyes-style": "ojos, avatar, animación, estilo, mirada, compañero, cozmo",
         "admin-diagnostics": "salud diagnóstico incidentes alertas supervisión autocomprobación estado plataforma prometheus loki conectividad salida red embeddings vectores cuota memoria idioma",
-        "meetings": "reunión, grabación, acta, transcripción, informe, micrófono, notas, resumen, acciones"
+        "meetings": "reunión, grabación, acta, transcripción, informe, micrófono, notas, resumen, acciones, plantilla, plantillas, biblioteca de plantillas, formato del acta, formato predeterminado, formato automático, cambiar el formato, secciones, instrucciones, correo del acta"
       }
     },
     "haptics": {
@@ -3753,7 +3753,47 @@
       "upload_formats_tooltip": "PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML",
       "chunk_count": "{{count}} fragmentos",
       "embedding_tokens": "{{count}} tokens",
-      "file_too_large": "\"{{name}}\" es demasiado grande (máx. {{maxSize}} MB)"
+      "file_too_large": "\"{{name}}\" es demasiado grande (máx. {{maxSize}} MB)",
+      "select_row": "Seleccionar « {{name}} »",
+      "select_all": "Seleccionar todos los documentos",
+      "selection_region": "Documentos seleccionados",
+      "selected_count_one": "{{count}} documento seleccionado",
+      "selected_count_other": "{{count}} documentos seleccionados",
+      "clear_selection": "Borrar la selección",
+      "download": "Descargar",
+      "download_selected": "Descargar como zip",
+      "move": "Mover a otro espacio…",
+      "move_selected": "Mover…",
+      "delete_selected": "Eliminar",
+      "row_actions": "Acciones — {{name}}",
+      "confirm_bulk_delete_title": "¿Eliminar los documentos seleccionados?",
+      "confirm_bulk_delete_description_one": "Este documento, su índice y su archivo se eliminan definitivamente.",
+      "confirm_bulk_delete_description_other": "Estos {{count}} documentos, su índice y sus archivos se eliminan definitivamente.",
+      "bulk_deleted_one": "{{count}} documento eliminado",
+      "bulk_deleted_other": "{{count}} documentos eliminados",
+      "moved_one": "{{count}} documento movido",
+      "moved_other": "{{count}} documentos movidos",
+      "skipped_one": "{{count}} documento se quedó en su sitio: {{reasons}}",
+      "skipped_other": "{{count}} documentos se quedaron en su sitio: {{reasons}}",
+      "move_dialog": {
+        "title": "Mover a otro espacio",
+        "description": "Los documentos, su índice y sus archivos se mueven juntos. Los documentos sincronizados desde Drive o generados a partir de una reunión se quedan donde están.",
+        "target_label": "Espacio de destino",
+        "target_count_one": "{{count}} documento",
+        "target_count_other": "{{count}} documentos",
+        "submit": "Mover",
+        "none_available": "No tiene otro espacio al que mover estos documentos. Cree uno primero."
+      },
+      "skip": {
+        "same_space": "ya está en este espacio",
+        "document_managed_by_drive": "sincronizado desde Drive",
+        "document_managed_by_meetings": "generado a partir de una reunión",
+        "document_busy": "todavía se está indexando",
+        "document_limit_exceeded": "el espacio de destino está lleno",
+        "document_move_failed": "no se pudo mover el archivo",
+        "delete_failed": "no se pudo eliminar",
+        "document_not_found": "no encontrado"
+      }
     },
     "drive": {
       "title": "Fuentes de Google Drive",
@@ -3792,6 +3832,11 @@
     },
     "meetings": {
       "source_type_meeting": "Reunión"
+    },
+    "errors": {
+      "archive_too_large": "La selección supera los {{max}} MB que puede contener un archivo. Seleccione menos documentos.",
+      "reindex_in_progress": "Los documentos no se pueden mover mientras se reindexan los espacios de conocimiento. Inténtelo más tarde.",
+      "document_file_missing": "El archivo de este documento ya no está en el servidor."
     }
   },
   "navigation": {
@@ -4425,7 +4470,7 @@
         },
         "meetings": {
           "title": "🎙️ Actas de reunión",
-          "description": "Pulsa + en el compositor y un teléfono o un ordenador se convierte en grabadora de reuniones: el audio sale en pequeños segmentos mientras hablas, de modo que un fallo, una recarga o una pérdida de conexión cuestan segundos, nunca la reunión. Al detener, el servidor ensambla la grabación, recorre su cadena de motores — la elección del administrador, ElevenLabs u OpenAI con separación de voces, o el Whisper local en ventanas de habla para que ninguna duración sea excesiva — y entrega la transcripción a una única llamada estructurada que rellena tu plantilla: la cabecera es fija, las secciones son tuyas. Lo que costó se indica como dos importes y un total, y el acta se une a un espacio de conocimiento consultable. Una laguna se declara, nunca se rellena."
+          "description": "Un botón en la cabecera — o la entrada «Grabar una reunión» del menú en el móvil — y el aparato se convierte en grabadora: el audio sale en pequeños segmentos mientras se habla, de modo que un fallo o un corte cuestan segundos, nunca la reunión. Al detener, el servidor ensambla la grabación y recorre su cadena de motores hasta que uno transcribe. El formato del acta se elige entre treinta plantillas integradas leyendo lo que se dijo, salvo que impongas el tuyo; la reunión indica el formato utilizado y por qué. Un acta ya redactada se reescribe en otro formato — hasta la transcripción completa — en el sitio o como documento nuevo. Lo que costó se dice en dos importes y un total, y una laguna se anuncia, nunca se rellena."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -4434,6 +4479,19 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_39_1": {
+          "title": "v1.39.1 — 🗂️ Treinta formatos de acta, y LIA elige el adecuado",
+          "date": "Septiembre 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗂️ Una biblioteca de formatos de acta</b> — treinta plantillas listas para usar, ordenadas por uso: reuniones y equipos, transcripciones, análisis de conversación, ventas y consultoría, técnico, citas personales, cursos y formación. Explóralas, previsualízalas, añade a tus plantillas las que te convengan — de una en una o por selección — y luego adáptalas en tu espacio: renombrar, reordenar las secciones, reescribir las instrucciones, declinar una plantilla en varias variantes, eliminar lo que ya no sirve.",
+            "i2": "<b>✨ LIA elige el formato por sí misma</b> — sin configurar nada, lee lo que se dijo y se queda con el formato que corresponde: una reunión de proyecto, una entrevista, una cita médica y una clase no tienen la misma estructura. El acta indica el formato utilizado, si viene de ti, de tu formato predeterminado o de su propia elección, y en una línea por qué. Tú mantienes el control: elige tu formato predeterminado en los ajustes, o el de la reunión en curso desde la barra de grabación.",
+            "i3": "<b>🔁 Cambia el formato después</b> — un acta ya redactada se reescribe en otro formato a partir de la transcripción conservada: o reemplazas la que tienes, o consigues unas <b>actas nuevas</b> de la misma reunión, que conservan el vínculo con su origen y entran en el espacio de conocimientos como documento propio. Novedad de paso: un formato puede devolver ahora <b>la transcripción completa</b>, limpia y legible, en lugar de un resumen.",
+            "i4": "<b>✉️ El acta por correo, para todo el mundo</b> — ahora sale de la dirección de la aplicación hacia la de tu cuenta, con el asunto « Acta de reunión · Título ». Ya no hace falta tener el correo conectado: el envío manual y el automático funcionan en cualquier instancia cuyo administrador haya configurado el correo.",
+            "i5": "<b>🗃️ Tus documentos circulan entre tus espacios de conocimientos</b> — descarga un documento, o toda una selección en un archivo zip con los nombres originales; mueve documentos a otro espacio, el índice y el fichero les siguen; elimina varios de una vez. Cada lote te dice lo que hizo y lo que dejó de lado, con el motivo: un documento sincronizado desde Drive o generado a partir de una reunión se queda donde su propietario lo puso.",
+            "i6": "<b>🎙️ La grabación tiene su propio sitio</b> — un botón dedicado en la cabecera en ordenador, una entrada « Grabar / Detener » en el menú del logotipo en el móvil cuyo botón parpadea en rojo durante la captura, y la barra que te sigue en cada página sin empujar nunca la zona de escritura fuera de la pantalla. El « + » del compositor vuelve a ser lo que era: adjuntar un fichero. Y la lista de reuniones acepta por fin la selección múltiple para eliminar varias."
+          }
+        },
         "v1_39_0": {
           "title": "v1.39.0 — 🎙️ Graba una reunión, recibe el acta",
           "date": "Septiembre 2026",
@@ -7560,7 +7618,7 @@
       "rag_spaces": {
         "title": "Espacios de conocimiento (RAG)",
         "description": "Sube y utiliza tus propios documentos para enriquecer las respuestas de la IA",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "¿Qué son los Espacios de conocimiento?",
@@ -7597,6 +7655,10 @@
           "q9": {
             "question": "¿Puede LIA buscar por sí sola en mis documentos? (v1.25.13)",
             "answer": "Sí. Tus espacios de documentos son ahora un <strong>dominio activo</strong>: más allá de la inyección automática de contexto, el planificador puede decidir buscar en ellos — con consultas derivadas, varias pasadas si hace falta, y combinaciones con otras fuentes: «compara el presupuesto PDF con lo que Paul envió por correo» encadena una búsqueda documental y una búsqueda de correos.<br><br>La tarjeta «Documentos» del briefing muestra además tus últimos archivos de Drive modificados — un clic para resumir en el chat, o abrir directamente en Drive."
+          },
+          "q10": {
+            "question": "¿Puedo descargar, mover o eliminar varios documentos?",
+            "answer": "Sí. Cada documento de un espacio ofrece <strong>Descargar</strong> — el archivo original, con su nombre original — y se marca para actuar sobre varios a la vez. Una selección puede <strong>descargarse como un archivo zip</strong>, <strong>moverse a otro espacio</strong> o <strong>eliminarse</strong> de una vez.<br><br>Un movimiento se lo lleva todo: la fila, el índice que lee la búsqueda y el propio archivo — tras lo cual el documento responde desde su nuevo espacio, y solo desde él. Se quedan donde están los documentos que LIA mantiene por ti: los sincronizados desde una carpeta de Google Drive y las actas de reunión, que pertenecen a su origen.<br><br>Cada lote te dice lo que hizo y lo que dejó de lado, con el motivo — espacio de destino lleno, documento aún en indexación, documento gestionado en otro sitio. Y nada se mueve durante una reindexación general: LIA prefiere rechazar con claridad antes que mover un documento que el motor está releyendo."
           }
         }
       },
@@ -7911,15 +7973,15 @@
       "meetings": {
         "title": "Actas de reunión",
         "description": "Graba una reunión desde el chat, obtén un acta estructurada a tu manera y vuelve a encontrarla en un espacio de conocimiento.",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "¿Cómo grabo una reunión?",
-            "answer": "En el chat, abre el botón <strong>+</strong> junto al campo de mensaje y elige <strong>Grabar una reunión</strong>. Tu teléfono o tu ordenador se convierte en el micrófono: LIA lo pide una vez y luego un banner en la parte superior de cada página muestra la grabación, su duración y lo que ya ha llegado a tu servidor. Puedes seguir chateando con LIA mientras tanto — las respuestas habladas y la palabra de activación simplemente se pausan para que el micrófono nunca oiga al asistente.<br><br>Cuando la reunión termina, pulsa <strong>Detener</strong> en el banner o en el mismo menú. LIA transcribe toda la grabación, redacta el acta y publica una tarjeta en el chat con el título, el resumen y un botón <strong>Abrir el acta</strong>. Cada grabación vive también en la página <strong>Reuniones</strong> del encabezado, entre Relaciones y Alertas.<br><br><strong>💡 Bueno saberlo:</strong> la función solo existe donde el administrador la ha activado, y el motor que transcribirá — con su precio por hora de audio — se muestra antes de empezar."
+            "answer": "En ordenador el botón de grabación está en la cabecera, a la derecha; en el móvil, abre el menú del logotipo de LIA y elige <strong>Grabar una reunión</strong> — el botón del menú parpadea en rojo mientras la captura está abierta. Tu móvil o tu ordenador se convierte en el micrófono: LIA lo pide una vez, y luego una barra en la parte superior de cada página muestra la grabación, su duración y lo que ya ha llegado a tu servidor. Puedes seguir hablando con LIA mientras tanto — las respuestas habladas y la palabra de activación se pausan para que el micrófono nunca escuche a la asistente.<br><br>Cuando la reunión termina, pulsa <strong>Detener</strong> en la barra o donde empezaste. LIA transcribe toda la grabación, redacta el acta y publica una tarjeta en el chat con el título, el resumen y un botón <strong>Abrir el acta</strong>. Cada grabación vive también en la página <strong>Reuniones</strong> de la cabecera, entre Relaciones y Alertas.<br><br><strong>💡 Bueno saberlo:</strong> la función solo existe donde el administrador la ha activado, el motor que transcribirá — con su precio por hora de audio — se muestra antes de empezar, y la barra permite elegir el formato del acta mientras la reunión transcurre."
           },
           "q2": {
-            "question": "¿Qué contiene el acta y puedo cambiar su estructura?",
-            "answer": "La cabecera del acta es fija: fecha, hora de inicio y de fin en tu zona horaria, duración, lugar cuando se conoce y participantes. El cuerpo sigue <strong>tu plantilla</strong>: una lista ordenada de secciones, cada una con un título, una instrucción para el asistente y un formato — un párrafo, una lista de viñetas, una entrada por tema, o acciones con responsable y plazo.<br><br>La plantilla integrada ofrece un resumen, los temas tratados, las decisiones, las acciones, los riesgos y las preguntas abiertas. Cámbiala en <strong>Ajustes › Reuniones</strong>: renombra, reordena, añade o quita secciones y vuelve al valor por defecto con un clic. Las actas ya escritas conservan la estructura con la que se produjeron; <strong>Reconstruir</strong> aplica tu plantilla actual a una reunión pasada a partir de su transcripción guardada.<br><br>El modelo solo recoge lo que la transcripción respalda: una propuesta que quedó abierta no es una decisión, un deseo no es una acción, y toda fecha relativa se resuelve en una fecha real."
+            "question": "¿Qué contiene el acta y quién elige su estructura?",
+            "answer": "La cabecera del acta es fija: fecha, hora de inicio y de fin en tu zona horaria, duración, lugar cuando se conoce, y los participantes. El cuerpo sigue un <strong>formato</strong>: una lista ordenada de secciones, cada una con un título, una instrucción para la asistente y una forma — un párrafo, una lista de viñetas, una entrada por tema, acciones con responsable y plazo, o la transcripción completa reescrita con limpieza.<br><br><strong>Treinta formatos integrados</strong> vienen incluidos, ordenados por uso: reuniones y equipos, transcripciones, análisis de conversación, ventas y consultoría, técnico, citas personales, cursos y formación. En <strong>Reuniones › Plantillas de actas</strong> los exploras, los previsualizas y añades a tus plantillas los que te sirven — uno a uno o varios a la vez — y luego los adaptas: renombrar, reordenar las secciones, reescribir las instrucciones, declinar una plantilla, eliminar lo que ya no sirve.<br><br><strong>Si no eliges nada, LIA elige</strong>: lee lo que se dijo, se queda con el formato que corresponde y lo indica en la reunión con, en una línea, el motivo de su elección. Puedes imponer un formato predeterminado en <strong>Ajustes › Reuniones</strong>, o el de la reunión en curso desde la barra. Los formatos de transcripción completa nunca se eligen automáticamente: son largos y se facturan como una reunión entera.<br><br>El modelo informa solo de lo que la transcripción sostiene: una propuesta que quedó abierta no es una decisión, un deseo no es una acción, y cada fecha relativa se resuelve en una fecha real."
           },
           "q3": {
             "question": "¿Qué motor transcribe y cuánto cuesta?",
@@ -7935,11 +7997,15 @@
           },
           "q6": {
             "question": "¿Puedo editar el acta, enviarla y preguntar a LIA por mis reuniones más tarde?",
-            "answer": "Sí. En la página de la reunión puedes <strong>editar</strong> cada campo — título, nombres y roles de los participantes, cada sección en su propia forma — y <strong>restaurar</strong> en cualquier momento la versión que escribió el modelo. <strong>PDF</strong> descarga el acta como documento; <strong>Correo</strong> la envía a tu propia dirección a través de tu buzón conectado, y los Ajustes pueden hacerlo automáticamente para cada reunión.<br><br>Cada acta se indexa además en un espacio de conocimiento llamado <strong>Reuniones</strong>, creado para ti la primera vez. Así puedes simplemente preguntar: «¿qué decidimos sobre la migración?», «¿qué acciones vencen esta semana?» — el asistente responde desde tus propias reuniones, con las fuentes citadas."
+            "answer": "Sí. En la página de la reunión puedes <strong>editar</strong> cada campo — título, nombres y roles de los participantes, cada sección en su propia forma — y <strong>restaurar</strong> en cualquier momento la versión escrita por el modelo. <strong>PDF</strong> descarga el acta como documento; <strong>Correo</strong> la envía a la dirección de tu cuenta desde la dirección de la aplicación — no hace falta ningún buzón conectado — y los Ajustes pueden hacerlo automáticamente en cada reunión.<br><br>Cada acta se indexa además en un espacio de conocimientos llamado <strong>Reuniones</strong>, creado para ti la primera vez. Así que puedes preguntar sin más: «¿qué decidimos sobre la migración?», «¿qué acciones vencen esta semana?» — la asistente responde desde tus propias reuniones, con las fuentes citadas.<br><br>La lista de reuniones acepta la selección múltiple: marca las que ya no sirven y elimínalas de una vez. Una reunión que aún se está grabando o procesando se deja aparte, y LIA te dice cuál y por qué."
           },
           "q7": {
             "question": "¿Sabe LIA quién dijo qué?",
             "answer": "Cuando el motor separa a los interlocutores, cada voz recibe una etiqueta estable — <strong>S1, S2…</strong> — en toda la transcripción y el acta. Un <strong>nombre</strong> aparece solo cuando la propia grabación lo establece: alguien se presenta, es llamado por su nombre, o el evento de calendario que se superpone a la reunión no deja lugar a dudas. LIA nunca inventa un nombre; un interlocutor sin nombre sigue siendo S2, y puedes nombrarlo tú al editar el acta.<br><br>El motor local transcribe sin separar voces: el acta se lee entonces como un único relato, con los participantes que pudo establecer."
+          },
+          "q8": {
+            "question": "¿Puedo cambiar el formato de un acta ya redactada?",
+            "answer": "Sí, mientras se conserve la transcripción. En la página de la reunión, <strong>Cambiar el formato…</strong> ofrece dos salidas: <strong>reemplazar</strong> el acta existente, o obtener unas <strong>actas nuevas</strong> de la misma reunión. Las nuevas conservan el vínculo con su origen — la reunión original indica cuántas actas han salido de ella — y entran en el espacio de conocimientos como documento propio, con su propio coste.<br><br>Es lo que permite leer una misma reunión de dos maneras: el acta de trabajo por un lado, la transcripción completa y limpia por otro, o un formato de análisis cuando quieres mirar el intercambio en lugar de sus conclusiones. <strong>Volver a generar</strong> sigue al lado: reescribe el acta con <em>el mismo</em> formato, útil justo después de cambiar tus secciones.<br><br><strong>💡 Bueno saberlo:</strong> reescribir cuesta una nueva síntesis, facturada como la primera, y el diálogo lo recuerda antes de que confirmes. Si eliminas la transcripción, el acta sigue siendo legible pero ya no puede reescribirse."
           }
         }
       }
@@ -8201,6 +8267,10 @@
       "meeting_banner": {
         "title": "La grabación te acompaña",
         "desc": "Cambia de página en plena reunión: el banner conserva el tiempo, el micrófono y el camino de vuelta — reanudar, finalizar o descartar."
+      },
+      "template_library": {
+        "title": "Treinta formatos, plegados",
+        "desc": "La biblioteca abre con las categorías cerradas, las tuyas primero: despliegas la que te interesa, marcas y añades."
       }
     },
     "scenes": {
@@ -8300,6 +8370,11 @@
         "recording": "Grabando",
         "interrupted": "Interrumpida",
         "resume": "Reanudar"
+      },
+      "template_library": {
+        "mine": "Mis plantillas",
+        "builtin": "Integradas",
+        "pick": "Añadir"
       }
     },
     "craft": {
@@ -9427,7 +9502,7 @@
       },
       "meetings": {
         "title": "Graba una reunión, recibe el acta",
-        "description": "Pulsa + en el chat y tu teléfono u ordenador graba la reunión — un banner te acompaña en cada página mientras sigues hablando con LIA. Cuando paras, LIA transcribe todo y redacta el acta con tu estructura: fecha, horas, lugar, quién estaba, qué se habló, se decidió, queda por hacer y por quién, qué está en riesgo. Léela en el chat, descarga el PDF, envíala a tu buzón y pregúntale a LIA semanas después. Nada inventado: una laguna en la grabación se declara, un interlocutor sin nombre sigue sin nombre, y lo que costó está escrito al lado."
+        "description": "Un botón en la cabecera — o la entrada del menú en el móvil — y tu aparato graba la reunión, con un banner que te acompaña en cada página mientras sigues hablando con LIA. Cuando paras, LIA transcribe todo y redacta el acta en el formato que corresponde: treinta plantillas integradas cubren reuniones de equipo, entrevistas, citas personales, clases — LIA elige sola a partir de lo que se dijo, o tú impones la tuya. Léela en el chat, descarga el PDF, recíbela por correo, reescríbela en otro formato y pregúntale a LIA semanas después. Nada inventado: una laguna se declara, un interlocutor sin nombre sigue sin nombre, y lo que costó está escrito al lado."
       }
     },
     "use_cases": {
@@ -9529,6 +9604,10 @@
       "native_shells": {
         "title": "Carcasas nativas y relé de despertar",
         "description": "Una app por tienda, cliente de cualquier servidor autoalojado: la WebView carga el origen de tu servidor con la misma sesión de cookie httpOnly que la web. Android habla con tu propio proyecto Firebase en tiempo de ejecución; iOS se despierta mediante un relé sin estado cuya asa ES el token de dispositivo sellado — nada almacenado, una frase fija, y el contenido real se recupera de tu servidor. Cada afirmación de plataforma la mide un banco que conduce la app real, escena por escena."
+      },
+      "structured_minutes": {
+        "title": "Actas estructuradas",
+        "description": "Treinta formatos de acta viven en el código, sus palabras en datos traducidos. Una plantilla se designa por una referencia — integrada o personal — que reuniones, preferencias y peticiones intercambian en lugar de una fila: un formato entregado no necesita existir en base de datos. La elección sigue una sola precedencia, de lo más explícito a lo más general, y termina en una llamada al modelo que lee un extracto de la transcripción por encima de un umbral de confianza; el resultado se cuenta y se escribe en la reunión con su motivo. Devolver la transcripción entera no cabe en una respuesta: se reescribe por partes, acotadas por la ventana de salida efectiva."
       }
     },
     "architecture": {
@@ -10153,7 +10232,7 @@
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Transforma tus documentos en inteligencia IA",
         "excerpt": "Importa PDFs, Word, Excel y más. LIA los indexa con búsqueda híbrida semántica + BM25.",
-        "body": "<h2>15+ formatos soportados</h2><p>Los Knowledge Spaces de LIA aceptan más de <strong>15 formatos de archivos</strong> con parsers dedicados:</p><ul><li><strong>PDF</strong> mediante PyMuPDF (extracción rápida y precisa)</li><li><strong>Documentos</strong> — DOCX, RTF, ODT</li><li><strong>Hojas de cálculo</strong> — XLSX, CSV, ODS</li><li><strong>Presentaciones</strong> — PPTX, ODP</li><li><strong>Web y texto</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Chunking inteligente</h2><p>Los documentos se dividen mediante un <strong>RecursiveCharacterTextSplitter</strong> con parámetros optimizados: <strong>1000 caracteres</strong> por chunk, <strong>200 caracteres</strong> de solapamiento (overlap) para preservar el contexto entre segmentos. Límite de seguridad: <strong>500 chunks máximo por documento</strong>, tamaño máximo <strong>20 MB por archivo</strong>.</p><h2>Búsqueda híbrida: lo mejor de ambos mundos</h2><p>LIA combina dos enfoques de búsqueda:</p><ul><li><strong>Búsqueda semántica</strong> — Embeddings mediante pgvector. Encuentra resultados por similitud de significado, incluso si las palabras difieren.</li><li><strong>Búsqueda BM25</strong> — Correspondencia por palabras clave. Ideal para términos técnicos, nombres propios e identificadores.</li></ul><p>Las dos señales no pesan igual, y es deliberado. La pertinencia se decide por la <strong>similitud semántica sola</strong>: un extracto se conserva si alcanza <strong>0.62</strong>, umbral recalibrado sobre los seis idiomas a partir de corpus reales. BM25 añade después solo un <strong>bonus acotado (0.05)</strong> que sirve para desempatar: puede subir una aparición literal por delante de un casi empate, nunca admitir ni descartar un extracto. Mezclar ambas señales en proporciones comparables, como LIA hacía hasta agosto de 2026, descartaba una de cada tres respuestas correctas en cuanto el idioma de la pregunta se alejaba del de los documentos. Por defecto, se recuperan <strong>5 extractos</strong> por consulta (máximo configurable: 20).</p><h2>Límites y cuotas</h2><p>Cada usuario dispone de: <strong>10 espacios</strong> máximo, <strong>50 documentos por espacio</strong>, <strong>20 MB por archivo</strong>. Estos límites garantizan un rendimiento de búsqueda óptimo mientras ofrecen una capacidad suficiente para la mayoría de los usos.</p><h2>Sincronización con Google Drive</h2><p>Puedes conectar una <strong>carpeta de Google Drive</strong> a un Knowledge Space. Los documentos se sincronizan automáticamente y se reindexan cuando cambian. La sincronización detecta las adiciones, modificaciones y eliminaciones.</p><h2>FAQ integrada</h2><p>LIA posee un Knowledge Space del sistema que contiene su propia documentación (18 archivos de FAQ). Esto le permite responder a las preguntas sobre sus propias funcionalidades con precisión.</p><h2>Un espacio que se llena solo: Reuniones</h2><p>Un espacio se crea para ti en lugar de por ti. Cuando LIA redacta el acta de una reunión grabada, la indexa en un espacio «Reuniones» — encontrado por su función, no por su nombre, así que puedes renombrarlo — con un documento por reunión, reescrito en su sitio cada vez que editas el acta y retirado el día en que eliminas la reunión. El espacio está exento del tope por usuario, y es el que permite al asistente responder «¿qué decidimos sobre la migración?» desde tus propias reuniones, con las fuentes citadas.</p>"
+        "body": "<h2>15+ formatos soportados</h2><p>Los Knowledge Spaces de LIA aceptan más de <strong>15 formatos de archivos</strong> con parsers dedicados:</p><ul><li><strong>PDF</strong> mediante PyMuPDF (extracción rápida y precisa)</li><li><strong>Documentos</strong> — DOCX, RTF, ODT</li><li><strong>Hojas de cálculo</strong> — XLSX, CSV, ODS</li><li><strong>Presentaciones</strong> — PPTX, ODP</li><li><strong>Web y texto</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Chunking inteligente</h2><p>Los documentos se dividen mediante un <strong>RecursiveCharacterTextSplitter</strong> con parámetros optimizados: <strong>1000 caracteres</strong> por chunk, <strong>200 caracteres</strong> de solapamiento (overlap) para preservar el contexto entre segmentos. Límite de seguridad: <strong>500 chunks máximo por documento</strong>, tamaño máximo <strong>20 MB por archivo</strong>.</p><h2>Búsqueda híbrida: lo mejor de ambos mundos</h2><p>LIA combina dos enfoques de búsqueda:</p><ul><li><strong>Búsqueda semántica</strong> — Embeddings mediante pgvector. Encuentra resultados por similitud de significado, incluso si las palabras difieren.</li><li><strong>Búsqueda BM25</strong> — Correspondencia por palabras clave. Ideal para términos técnicos, nombres propios e identificadores.</li></ul><p>Las dos señales no pesan igual, y es deliberado. La pertinencia se decide por la <strong>similitud semántica sola</strong>: un extracto se conserva si alcanza <strong>0.62</strong>, umbral recalibrado sobre los seis idiomas a partir de corpus reales. BM25 añade después solo un <strong>bonus acotado (0.05)</strong> que sirve para desempatar: puede subir una aparición literal por delante de un casi empate, nunca admitir ni descartar un extracto. Mezclar ambas señales en proporciones comparables, como LIA hacía hasta agosto de 2026, descartaba una de cada tres respuestas correctas en cuanto el idioma de la pregunta se alejaba del de los documentos. Por defecto, se recuperan <strong>5 extractos</strong> por consulta (máximo configurable: 20).</p><h2>Límites y cuotas</h2><p>Cada usuario dispone de: <strong>10 espacios</strong> máximo, <strong>50 documentos por espacio</strong>, <strong>20 MB por archivo</strong>. Estos límites garantizan un rendimiento de búsqueda óptimo mientras ofrecen una capacidad suficiente para la mayoría de los usos.</p><h2>Sincronización con Google Drive</h2><p>Puedes conectar una <strong>carpeta de Google Drive</strong> a un Knowledge Space. Los documentos se sincronizan automáticamente y se reindexan cuando cambian. La sincronización detecta las adiciones, modificaciones y eliminaciones.</p><h2>FAQ integrada</h2><p>LIA posee un Knowledge Space del sistema que contiene su propia documentación (18 archivos de FAQ). Esto le permite responder a las preguntas sobre sus propias funcionalidades con precisión.</p><h2>Un espacio que se llena solo: Reuniones</h2><p>Un espacio se crea para ti en lugar de por ti. Cuando LIA redacta el acta de una reunión grabada, la indexa en un espacio «Reuniones» — encontrado por su función, no por su nombre, así que puedes renombrarlo — con un documento por reunión, reescrito en su sitio cada vez que editas el acta y retirado el día en que eliminas la reunión. El espacio está exento del tope por usuario, y es el que permite al asistente responder «¿qué decidimos sobre la migración?» desde tus propias reuniones, con las fuentes citadas.</p><h2>Documentos que circulan</h2><p>Un espacio se gestiona, no solo se llena. Cada documento se descarga con su nombre original, una selección vuelve como un archivo zip, y los documentos se <strong>mueven</strong> a otro espacio — la fila, el índice que lee la búsqueda y el fichero viajan juntos, de modo que tras el movimiento el documento solo responde desde su nuevo espacio. La eliminación también acepta una selección. Cada lote informa de lo que hizo y de lo que dejó aparte, con el motivo: un documento sincronizado desde Drive o generado a partir de una reunión pertenece a su origen y no se mueve, y nada se mueve durante una reindexación general.</p>"
       },
       "personal-journals": {
         "title": "Diarios personales: cuando tu asistente IA desarrolla su propia memoria",
@@ -10186,9 +10265,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA está diseñado desde el origen con la protección de datos como principio fundacional, no como un añadido posterior.</p><h2>Cifrado simétrico Fernet</h2><p>Todos los datos sensibles se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) mediante la función <code>encrypt_data()</code>. Esto cubre los tokens OAuth, las credenciales de los conectores, los PII y las credenciales de los servidores MCP. Las credenciales OAuth se cifran antes de escribirse en base de datos y se descifran al vuelo durante la recuperación. Las claves de cifrado se gestionan por separado de los datos.</p><h2>Minimización de la recopilación</h2><p>LIA solo recopila los datos estrictamente necesarios para su funcionamiento:</p><ul><li>Información de perfil (nombre, email, preferencias)</li><li>Historial de conversaciones (cifrado)</li><li>Tokens de conexión a los servicios (cifrados)</li><li>Métricas de uso anonimizadas</li></ul><h2>Eliminación y cascading</h2><p>La eliminación de una cuenta de usuario desencadena un <strong>cascading delete</strong> completo: conectores, conversaciones, configuraciones, sesiones, memorias y todos los datos asociados se eliminan irreversiblemente. Ningún dato huérfano persiste en la base de datos.</p><h2>Sesiones y cookies seguras</h2><p>Las cookies de sesión se configuran con los atributos <code>HttpOnly</code>, <code>Secure</code> (en producción) y <code>SameSite=lax</code>. La duración de la sesión es de 7 días por defecto, extensible a 30 días con la opción \"Recordarme\". Los tokens de un solo uso se invalidan tras su primera utilización mediante una lista negra en Redis.</p><h2>Protección de contenidos externos</h2><p>Los contenidos recuperados de fuentes externas (emails, páginas web, documentos) se etiquetan como <code>UNTRUSTED</code> con un envoltorio configurable antes de su inyección en los prompts. La herramienta web_fetch está limitada a 10 llamadas por ventana de 60 segundos por usuario para prevenir abusos.</p><h2>Filtrado de PII en los logs</h2><p>El sistema de logging aplica las recomendaciones <strong>OWASP Logging Cheat Sheet</strong> para filtrar automáticamente los datos personales de los registros de la aplicación. Ningún dato sensible aparece en los logs.</p><h2>Portabilidad de datos (v1.9.1)</h2><p>LIA permite a cada usuario <strong>exportar sus propios datos de consumo</strong> en formato CSV desde Configuración > Funcionalidades. Tres tipos de exportación: consumo LLM (tokens y costos por llamada), consumo API Google, y resumen agregado. Seguridad: el <code>user_id</code> se fuerza en el servidor — ningún parámetro se expone (protección IDOR).</p><h2>Copias de seguridad con restauración probada</h2><p>Proteger los datos también significa garantizar que sobrevivan a los incidentes. La base de datos de producción se respalda automáticamente cada noche, conservando 7 días, 4 semanas y 6 meses de historial, en un directorio dedicado con permisos restrictivos. Y como una copia solo cuenta cuando la restauración ha sido probada, el procedimiento se prueba de verdad: el último dump se restaura en un contenedor desechable y se compara con la base viva (revisión de esquema, recuentos de filas) — un simulacro incluido con el stack.</p>"
       },
       "observability": {
-        "title": "506 métricas Prometheus, 26 dashboards Grafana y tracing Langfuse",
+        "title": "507 métricas Prometheus, 26 dashboards Grafana y tracing Langfuse",
         "excerpt": "LIA ofrece observabilidad empresarial con 473 métricas, dashboards Grafana, tracing LLM via Langfuse y alertas por correo con runbooks.",
-        "body": "<h2>Los tres pilares de la observabilidad</h2><p>LIA implementa los tres pilares de la observabilidad moderna:</p><ul><li><strong>Métricas</strong> — 506 métricas Prometheus que cubren HTTP, agentes, tokens, costos, OAuth y rendimiento</li><li><strong>Logs</strong> — Registro estructurado JSON mediante structlog, centralizado en Loki con filtrado de PII</li><li><strong>Trazas</strong> — Trazado distribuido mediante OpenTelemetry (Tempo) y trazado LLM mediante Langfuse</li></ul><h2>23 archivos de métricas especializados</h2><p>Cada dominio posee su propio archivo de métricas declarativo. Los 23 módulos cubren: HTTP, agents (SSE/router/LLM/HITL/planner), base de datos, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errores, sub-agentes, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métricas de salud, diarios, telefonía y límites de uso. Cada archivo define Counter, Histogram y Gauge Prometheus adaptados al dominio.</p><h2>Definición de métricas Prometheus</h2><p>Cada dominio define sus métricas de manera declarativa:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 dashboards Grafana</h2><p>LIA proporciona 26 paneles de control Grafana numerados del 01 al 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony y briefing. Cada dashboard ofrece vistas filtrables por usuario, por período y por entorno. El 26.º es un cockpit de producto: resultados validados (👍 explícito o una acción sin corregir), funnel de activación, retención y coste por resultado útil — el conteo exacto vive en PostgreSQL y Grafana lo lee mediante un rol de solo lectura restringido a vistas agregadas.</p><h2>KPIs objetivo extraídos del código</h2><p>LIA monitoriza indicadores precisos definidos en el código fuente: TTFT (Time To First Token) del streaming, latencia del router entre 0.1 y 2 segundos, duración de ejecución de las herramientas de agentes entre 0.1 y 10 segundos, confianza del router p50 &gt; 0.8, costo LLM por solicitud &lt; 0.05€, tasa de error HTTP 5xx &lt; 1%.</p><h2>Alertas por correo con runbooks</h2><p>La supervisión no se detiene en los dashboards: un núcleo de 14 alertas vitales — API, PostgreSQL o Redis caídos, disco, memoria de contenedores, tasa de errores 5xx, latencia de streaming, copia de seguridad nocturna fallida, URL pública inaccesible, certificado TLS próximo a expirar, limitación de tasa fuera de servicio — es evaluado continuamente por Prometheus y notificado por correo mediante Alertmanager. Cada alerta referencia su runbook (procedimiento de resolución paso a paso), los umbrales se configuran por entorno en archivos .env, y tests unitarios de promtool garantizan que los umbrales mostrados en las notificaciones coinciden exactamente con las expresiones de disparo. Una sonda blackbox prueba incluso la cadena completa de extremo a extremo, del edge de Cloudflare al frontend, exactamente como un usuario.</p><h2>Langfuse: trazado LLM dedicado</h2><p>La integración con Langfuse dispone de 8 métricas dedicadas para trazar cada llamada LLM: tokens consumidos (entrada/salida/caché), tiempo de respuesta, modelo utilizado, costo estimado y contexto de la solicitud. Esto permite identificar los prompts ineficientes, comparar los modelos LLM entre sí y optimizar el consumo de tokens a largo plazo.</p><h2>DevOps Claude CLI: Diagnóstico en lenguaje natural (v1.13.0)</h2><p>Última evolución del stack de observabilidad: los administradores ahora pueden diagnosticar servidores directamente desde la conversación de LIA. Claude Code CLI — instalado en el contenedor API Docker — inspecciona de forma autónoma los logs, verifica la salud de los contenedores y analiza el uso de recursos. Sesiones persistentes, permisos configurables por entorno y streaming en tiempo real de los pasos de investigación via SSE.</p><h2>Y desde la v1.34: la asistente lee su propia telemetría</h2><p>Todo lo anterior existía para los humanos; la propia asistente no leía nada. El ADR-247 cerró ese bucle: una autocomprobación periódica convierte las señales doradas y sondas directas en instantáneas de salud con valores exactos; alertas y veredictos críticos convergen en un incidente por avería, diagnosticado por un LLM con presupuesto limitado y basado en los runbooks de operación; los administradores disponen de un panel de Salud de la plataforma, notificaciones proactivas y herramientas de chat de solo lectura. Y una avería conocida ahora da forma a las respuestas: las capacidades degradadas se esquivan al planificar, y los pasos fallidos se explican desde códigos de error tipados, nunca desde logs en bruto.</p><h2>Contar resultados, no intentos</h2><p>Un contador tuvo que repensarse en la v1.38.3. Contar las llamadas que llegan a un proveedor es la verdad sobre el proveedor, y el denominador equivocado en cuanto esas llamadas se reintentan, porque un fallo recuperado infla la tasa de error aunque no se haya perdido nada. Un segundo contador registra ahora una línea por operación lógica, con los reintentos plegados, y responde a la única pregunta sobre la que actúa un operador: ¿obtuvo el llamante su resultado? Un tercero dice qué hizo el suavizado de tasa con cada intento, porque «el presupuesto es demasiado pequeño» y «Redis se ha caído» son indistinguibles en un booleano y piden acciones opuestas.</p><p>La lección más reciente trata sobre qué se elige medir. El bucle autónomo contaba sus iteraciones y su duración, y nada de lo que realmente crece: el prompt entregado al modelo en cada paso. Medido sobre el código de producción, eso son 2,3 k tokens en la primera iteración y 112 k en la nonagésima, porque cada resultado de herramienta permanece en la conversación que el modelo vuelve a leer. Dos histogramas registran ahora el tamaño entregado y su proporción de la ventana de contexto del modelo, alimentados por el mismo contador memoizado que el reductor de estado ya mantiene, de modo que la medición no cuesta nada en el camino caliente. Ninguna política de compresión salió con ellos, deliberadamente: un sistema que actúa sobre una magnitud que nunca ha observado está optimizando una conjetura.</p>"
+        "body": "<h2>Los tres pilares de la observabilidad</h2><p>LIA implementa los tres pilares de la observabilidad moderna:</p><ul><li><strong>Métricas</strong> — 507 métricas Prometheus que cubren HTTP, agentes, tokens, costos, OAuth y rendimiento</li><li><strong>Logs</strong> — Registro estructurado JSON mediante structlog, centralizado en Loki con filtrado de PII</li><li><strong>Trazas</strong> — Trazado distribuido mediante OpenTelemetry (Tempo) y trazado LLM mediante Langfuse</li></ul><h2>23 archivos de métricas especializados</h2><p>Cada dominio posee su propio archivo de métricas declarativo. Los 23 módulos cubren: HTTP, agents (SSE/router/LLM/HITL/planner), base de datos, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errores, sub-agentes, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métricas de salud, diarios, telefonía y límites de uso. Cada archivo define Counter, Histogram y Gauge Prometheus adaptados al dominio.</p><h2>Definición de métricas Prometheus</h2><p>Cada dominio define sus métricas de manera declarativa:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 dashboards Grafana</h2><p>LIA proporciona 26 paneles de control Grafana numerados del 01 al 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony y briefing. Cada dashboard ofrece vistas filtrables por usuario, por período y por entorno. El 26.º es un cockpit de producto: resultados validados (👍 explícito o una acción sin corregir), funnel de activación, retención y coste por resultado útil — el conteo exacto vive en PostgreSQL y Grafana lo lee mediante un rol de solo lectura restringido a vistas agregadas.</p><h2>KPIs objetivo extraídos del código</h2><p>LIA monitoriza indicadores precisos definidos en el código fuente: TTFT (Time To First Token) del streaming, latencia del router entre 0.1 y 2 segundos, duración de ejecución de las herramientas de agentes entre 0.1 y 10 segundos, confianza del router p50 &gt; 0.8, costo LLM por solicitud &lt; 0.05€, tasa de error HTTP 5xx &lt; 1%.</p><h2>Alertas por correo con runbooks</h2><p>La supervisión no se detiene en los dashboards: un núcleo de 14 alertas vitales — API, PostgreSQL o Redis caídos, disco, memoria de contenedores, tasa de errores 5xx, latencia de streaming, copia de seguridad nocturna fallida, URL pública inaccesible, certificado TLS próximo a expirar, limitación de tasa fuera de servicio — es evaluado continuamente por Prometheus y notificado por correo mediante Alertmanager. Cada alerta referencia su runbook (procedimiento de resolución paso a paso), los umbrales se configuran por entorno en archivos .env, y tests unitarios de promtool garantizan que los umbrales mostrados en las notificaciones coinciden exactamente con las expresiones de disparo. Una sonda blackbox prueba incluso la cadena completa de extremo a extremo, del edge de Cloudflare al frontend, exactamente como un usuario.</p><h2>Langfuse: trazado LLM dedicado</h2><p>La integración con Langfuse dispone de 8 métricas dedicadas para trazar cada llamada LLM: tokens consumidos (entrada/salida/caché), tiempo de respuesta, modelo utilizado, costo estimado y contexto de la solicitud. Esto permite identificar los prompts ineficientes, comparar los modelos LLM entre sí y optimizar el consumo de tokens a largo plazo.</p><h2>DevOps Claude CLI: Diagnóstico en lenguaje natural (v1.13.0)</h2><p>Última evolución del stack de observabilidad: los administradores ahora pueden diagnosticar servidores directamente desde la conversación de LIA. Claude Code CLI — instalado en el contenedor API Docker — inspecciona de forma autónoma los logs, verifica la salud de los contenedores y analiza el uso de recursos. Sesiones persistentes, permisos configurables por entorno y streaming en tiempo real de los pasos de investigación via SSE.</p><h2>Y desde la v1.34: la asistente lee su propia telemetría</h2><p>Todo lo anterior existía para los humanos; la propia asistente no leía nada. El ADR-247 cerró ese bucle: una autocomprobación periódica convierte las señales doradas y sondas directas en instantáneas de salud con valores exactos; alertas y veredictos críticos convergen en un incidente por avería, diagnosticado por un LLM con presupuesto limitado y basado en los runbooks de operación; los administradores disponen de un panel de Salud de la plataforma, notificaciones proactivas y herramientas de chat de solo lectura. Y una avería conocida ahora da forma a las respuestas: las capacidades degradadas se esquivan al planificar, y los pasos fallidos se explican desde códigos de error tipados, nunca desde logs en bruto.</p><h2>Contar resultados, no intentos</h2><p>Un contador tuvo que repensarse en la v1.38.3. Contar las llamadas que llegan a un proveedor es la verdad sobre el proveedor, y el denominador equivocado en cuanto esas llamadas se reintentan, porque un fallo recuperado infla la tasa de error aunque no se haya perdido nada. Un segundo contador registra ahora una línea por operación lógica, con los reintentos plegados, y responde a la única pregunta sobre la que actúa un operador: ¿obtuvo el llamante su resultado? Un tercero dice qué hizo el suavizado de tasa con cada intento, porque «el presupuesto es demasiado pequeño» y «Redis se ha caído» son indistinguibles en un booleano y piden acciones opuestas.</p><p>La lección más reciente trata sobre qué se elige medir. El bucle autónomo contaba sus iteraciones y su duración, y nada de lo que realmente crece: el prompt entregado al modelo en cada paso. Medido sobre el código de producción, eso son 2,3 k tokens en la primera iteración y 112 k en la nonagésima, porque cada resultado de herramienta permanece en la conversación que el modelo vuelve a leer. Dos histogramas registran ahora el tamaño entregado y su proporción de la ventana de contexto del modelo, alimentados por el mismo contador memoizado que el reductor de estado ya mantiene, de modo que la medición no cuesta nada en el camino caliente. Ninguna política de compresión salió con ellos, deliberadamente: un sistema que actúa sobre una magnitud que nunca ha observado está optimizando una conjetura.</p>"
       },
       "prompt-engineering": {
         "title": "Sistema de prompts versionados: 78 prompts gestionados como código",
@@ -11431,12 +11510,6 @@
     }
   },
   "meetings": {
-    "composer": {
-      "menu_label": "Adjuntos y grabación de reunión",
-      "add_file": "Añadir un archivo",
-      "record": "Grabar una reunión",
-      "stop": "Detener la grabación"
-    },
     "banner": {
       "region_label": "Grabación de reunión",
       "starting": "Iniciando la grabación…",
@@ -11470,7 +11543,10 @@
         "openai": "OpenAI",
         "local": "Motor local (en el servidor)"
       },
-      "offline_long": "Sin conexión desde hace rato: el audio espera en este dispositivo. Detén y finaliza en cuanto vuelva la conexión."
+      "offline_long": "Sin conexión desde hace rato: el audio espera en este dispositivo. Detén y finaliza en cuanto vuelva la conexión.",
+      "format_label": "Formato de las actas",
+      "format_auto": "Predeterminado (automático o su preferencia)",
+      "format_saved": "Formato guardado para esta reunión"
     },
     "toasts": {
       "ready_title": "Acta de la reunión lista",
@@ -11494,7 +11570,7 @@
       "title": "Reuniones",
       "subtitle": "Tus grabaciones y sus actas",
       "empty_title": "Aún no hay reuniones",
-      "empty_description": "Inicia una grabación desde el clip del compositor del chat; el acta aparecerá aquí.",
+      "empty_description": "Inicia una grabación desde el botón Grabar de la cabecera (o el menú LIA en el móvil); las actas aparecerán aquí.",
       "empty_action": "Abrir el chat",
       "total_one": "{{count}} reunión",
       "total_other": "{{count}} reuniones",
@@ -11503,7 +11579,25 @@
       "participants_one": "{{count}} participante",
       "participants_other": "{{count}} participantes",
       "actions_one": "{{count}} acción",
-      "actions_other": "{{count}} acciones"
+      "actions_other": "{{count}} acciones",
+      "selection_region": "Reuniones seleccionadas",
+      "select_row": "Seleccionar «{{title}}»",
+      "select_all_page": "Seleccionar todas las reuniones de esta página",
+      "selected_count_one": "{{count}} reunión seleccionada",
+      "selected_count_other": "{{count}} reuniones seleccionadas",
+      "clear_selection": "Anular la selección",
+      "delete_selected_one": "Eliminar ({{count}})",
+      "delete_selected_other": "Eliminar ({{count}})",
+      "confirm_bulk_delete_title": "¿Eliminar las reuniones seleccionadas?",
+      "confirm_bulk_delete_description_one": "El acta, la transcripción y el audio conservado de esta reunión se eliminan definitivamente.",
+      "confirm_bulk_delete_description_other": "Las actas, las transcripciones y el audio conservado de estas {{count}} reuniones se eliminan definitivamente.",
+      "bulk_deleted_one": "{{count}} reunión eliminada",
+      "bulk_deleted_other": "{{count}} reuniones eliminadas",
+      "bulk_skipped_one": "{{count}} reunión se ha omitido: todavía se está grabando o procesando.",
+      "bulk_skipped_other": "{{count}} reuniones se han omitido: todavía se están grabando o procesando.",
+      "not_selectable": "No se puede seleccionar durante la grabación o el procesamiento",
+      "record": "Grabar una reunión",
+      "templates": "Plantillas"
     },
     "detail": {
       "back": "Volver a las reuniones",
@@ -11525,7 +11619,7 @@
       "email": "Enviarme el acta por correo",
       "email_ok": "El acta se envió a tu dirección de correo.",
       "email_sent": "Enviada por correo el {{when}}",
-      "regenerate": "Reconstruir con mi plantilla",
+      "regenerate": "Volver a generar con el mismo formato",
       "reset": "Restaurar la versión generada",
       "delete_transcript": "Eliminar la transcripción",
       "delete": "Eliminar la reunión",
@@ -11561,16 +11655,46 @@
       "confirm_delete_transcript_title": "¿Eliminar la transcripción?",
       "confirm_delete_transcript_description": "El acta se conserva; la transcripción no se puede recuperar y el acta ya no podrá reconstruirse.",
       "confirm_regenerate_title": "¿Reconstruir el acta?",
-      "confirm_regenerate_description": "LIA redacta un acta nueva a partir de la transcripción con tu plantilla actual. Tus cambios en esta acta se reemplazan.",
+      "confirm_regenerate_description": "LIA redacta unas actas nuevas a partir de la transcripción, con el mismo formato. Sus modificaciones de estas actas se reemplazan.",
       "confirm_reset_title": "¿Restaurar la versión generada?",
       "confirm_reset_description": "Tus cambios se reemplazan por el acta generada por LIA.",
       "cost_breakdown": "{{total}} (transcripción {{stt}} · acta {{minutes}})",
-      "cost_unknown": "sin tarifa"
+      "cost_unknown": "sin tarifa",
+      "transcript_line": "Intervención de {{speaker}} a las {{time}}",
+      "format": "Formato",
+      "format_selection": {
+        "auto": "elegido por LIA",
+        "user": "elegido por usted",
+        "preference": "su formato predeterminado"
+      },
+      "change_format": "Cambiar el formato…",
+      "reformat": {
+        "title": "Cambiar el formato",
+        "description": "LIA vuelve a redactar las actas a partir de la transcripción, en el formato que elija.",
+        "template_label": "Formato",
+        "mode_label": "Qué hacer con el resultado",
+        "mode_replace": "Reemplazar estas actas",
+        "mode_new": "Actas nuevas a partir de esta transcripción",
+        "cost_note": "Volver a redactar cuesta una nueva síntesis, facturada como la primera.",
+        "transcript_note": "Un formato de transcripción reescribe todo el intercambio: tarda más y se factura como una reunión entera.",
+        "submit": "Redactar las actas",
+        "started_new": "Se están redactando actas nuevas a partir de esta transcripción.",
+        "started_replace": "Las actas se están redactando de nuevo.",
+        "choose": "Elegir un formato…"
+      },
+      "pending_title": "Redactando las actas",
+      "pending_hint": "La transcripción se está redactando en el formato elegido. Esta página se actualiza sola.",
+      "pending_failed_title": "No se pudieron redactar las actas",
+      "try_again": "Reintentar",
+      "derived_from": "De la misma transcripción que otra reunión",
+      "derived_count_one": "Se redactaron {{count}} actas nuevas a partir de esta transcripción.",
+      "derived_count_other": "Se redactaron {{count}} actas nuevas a partir de esta transcripción."
     },
     "card": {
       "title": "Acta de la reunión lista",
       "open": "Abrir el acta",
-      "cost_line": "Transcripción {{stt}} · acta {{minutes}} · total {{total}}"
+      "cost_line": "Transcripción {{stt}} · acta {{minutes}} · total {{total}}",
+      "template": "Formato: {{name}}"
     },
     "settings": {
       "preferences_title": "Preferencias",
@@ -11592,7 +11716,7 @@
         "nl": "Neerlandés"
       },
       "auto_email_label": "Enviarme el acta por correo cuando esté lista",
-      "auto_email_hint": "Enviada a través de tu cuenta de correo conectada, a tu propia dirección.",
+      "auto_email_hint": "Enviado por LIA desde su propia dirección, a la tuya.",
       "keep_audio_label": "Conservar el audio tras el procesamiento",
       "keep_audio_none": "Eliminado justo después del procesamiento",
       "keep_audio_hours_one": "{{count}} hora",
@@ -11600,13 +11724,6 @@
       "keep_audio_max_one": "hasta {{count}} hora",
       "keep_audio_max_other": "hasta {{count}} horas",
       "saved": "Preferencias guardadas",
-      "template_title": "Estructura del acta",
-      "template_description": "Las secciones que LIA rellena, en orden. Ajústalas a tus necesidades; la estructura por defecto se puede restaurar en cualquier momento.",
-      "template_name_label": "Nombre de la plantilla",
-      "template_builtin_badge": "Por defecto",
-      "reset_template": "Restaurar la plantilla por defecto",
-      "template_saved": "Plantilla guardada",
-      "template_reset": "Plantilla por defecto restaurada",
       "new_section_label": "Nueva sección",
       "section_position": "Sección {{position}}",
       "move_up": "Subir « {{label}} »",
@@ -11625,14 +11742,25 @@
       "recent_title": "Reuniones recientes",
       "no_meetings": "Aún no hay reuniones grabadas.",
       "view_all_one": "Todas las reuniones ({{count}})",
-      "view_all_other": "Todas las reuniones ({{count}})"
+      "view_all_other": "Todas las reuniones ({{count}})",
+      "instruction_toggle": "Lo que LIA debe poner en esta sección",
+      "instruction_missing": "Falta la instrucción: LIA necesita saber qué escribir aquí.",
+      "instruction_preview_empty": "Todavía sin instrucción",
+      "kind_transcript": "Transcripción completa (reescrita)",
+      "default_template_label": "Formato de acta por defecto",
+      "default_template_auto": "Automático: LIA elige según la grabación",
+      "default_template_hint": "Se aplica a cada nueva grabación. En automático, LIA elige el mejor formato según lo dicho; un formato de transcripción nunca se elige automáticamente.",
+      "templates_title": "Modelos de acta",
+      "templates_description": "Los formatos integrados y los tuyos. Duplica un formato integrado para personalizarlo.",
+      "templates_count_one": "{{count}} modelo propio",
+      "templates_count_other": "{{count}} modelos propios",
+      "manage_templates": "Gestionar mis modelos"
     },
     "errors": {
       "audio_normalize_failed": "No se pudo preparar el audio.",
       "audio_unavailable": "El audio ya no está disponible.",
       "capture_failed": "El micrófono dejó de funcionar.",
       "duration_cap_reached": "Se alcanzó la duración máxima de grabación: el acta se elabora con lo que se captó.",
-      "email_connector_missing": "No hay ninguna cuenta de correo conectada para enviar el acta.",
       "email_send_failed": "Tu proveedor de correo rechazó el mensaje.",
       "format_unavailable": "Esta grabación se inició en un formato que este navegador no puede producir: aquí solo se puede finalizar o descartar.",
       "invalid_api_key": "El servicio de transcripción rechazó la clave configurada.",
@@ -11661,7 +11789,94 @@
       "unexpected": "Algo falló durante el procesamiento.",
       "unknown": "Error desconocido ({{code}})",
       "usage_limit": "Has alcanzado tu límite de uso.",
-      "user_missing": "La cuenta ya no existe."
+      "user_missing": "La cuenta ya no existe.",
+      "template_locked": "El formato no puede cambiar mientras se redactan las actas.",
+      "template_not_found": "Esta plantilla ya no existe.",
+      "template_readonly": "Una plantilla integrada no se puede modificar; duplíquela primero.",
+      "template_limit_reached": "Ha alcanzado el límite de {{max}} plantillas.",
+      "template_ref_invalid": "Esta referencia de plantilla no es válida.",
+      "regeneration_interrupted": "La redacción se interrumpió antes de terminar; vuelva a intentarlo."
+    },
+    "header": {
+      "record": "Grabar una reunión",
+      "stop": "Detener la grabación",
+      "live_label": "Menú — se está grabando una reunión"
+    },
+    "templates": {
+      "category": {
+        "custom": "Mis modelos",
+        "meeting": "Reuniones y equipos",
+        "transcript": "Transcripciones",
+        "analysis": "Análisis de conversación",
+        "business": "Comercial y consultoría",
+        "technical": "Técnico",
+        "personal": "Citas personales",
+        "learning": "Cursos y formación"
+      },
+      "title": "Plantillas de actas",
+      "subtitle": "Los formatos en los que LIA redacta las actas: la biblioteca integrada y sus propias plantillas.",
+      "new": "Nueva plantilla",
+      "builtin_badge": "Integrada",
+      "transcript_badge": "Transcripción completa",
+      "sections_count_one": "{{count}} sección",
+      "sections_count_other": "{{count}} secciones",
+      "preview": "Vista previa",
+      "duplicate": "Duplicar",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "row_actions": "Acciones — {{name}}",
+      "empty_custom": "Todavía no tiene plantillas propias. Duplique una plantilla integrada para adaptarla o cree una desde cero.",
+      "limit_reached": "Ha alcanzado el límite de {{count}} plantillas. Elimine una para crear otra.",
+      "saved": "Plantilla guardada",
+      "load_failed": "No se pudo cargar la plantilla.",
+      "save_failed": "No se pudo guardar la plantilla.",
+      "delete_failed": "No se pudo eliminar la plantilla.",
+      "back_to_library": "Volver a la biblioteca",
+      "form": {
+        "name": "Nombre",
+        "name_missing": "Dé un nombre a la plantilla.",
+        "description": "Descripción (opcional)",
+        "category": "Categoría",
+        "create_title": "Nueva plantilla",
+        "edit_title": "Editar la plantilla",
+        "sections_title": "Secciones",
+        "incomplete": "Cada sección necesita un título y una instrucción."
+      },
+      "mine_title": "Mis plantillas personalizadas",
+      "builtin_title": "Plantillas integradas",
+      "mine_count_one": "{{count}} de {{max}}",
+      "mine_count_other": "{{count}} de {{max}}",
+      "browse_builtins": "Explorar las plantillas integradas",
+      "add_to_mine": "Añadir a mis plantillas",
+      "add_selected_one": "Añadir a mis plantillas ({{count}})",
+      "add_selected_other": "Añadir a mis plantillas ({{count}})",
+      "delete_selected_one": "Eliminar ({{count}})",
+      "delete_selected_other": "Eliminar ({{count}})",
+      "select_row": "Seleccionar « {{name}} »",
+      "select_all": "Seleccionar todas las plantillas",
+      "selection_region": "Plantillas seleccionadas",
+      "selected_count_one": "{{count}} plantilla seleccionada",
+      "selected_count_other": "{{count}} plantillas seleccionadas",
+      "clear_selection": "Borrar la selección",
+      "added_one": "{{count}} plantilla añadida a mis plantillas",
+      "added_other": "{{count}} plantillas añadidas a mis plantillas",
+      "deleted_one": "{{count}} plantilla eliminada",
+      "deleted_other": "{{count}} plantillas eliminadas",
+      "skipped_one": "{{count}} plantilla se quedó como estaba: {{reasons}}",
+      "skipped_other": "{{count}} plantillas se quedaron como estaban: {{reasons}}",
+      "preference_reset": "Su formato de actas predeterminado apuntaba a una plantilla eliminada: vuelve a ser automático.",
+      "confirm_delete_title_one": "¿Eliminar esta plantilla?",
+      "confirm_delete_title_other": "¿Eliminar las plantillas seleccionadas?",
+      "confirm_delete_description_one": "« {{name}} » se eliminará. Las actas ya redactadas con ella se conservan.",
+      "confirm_delete_description_other": "Estas {{count}} plantillas se eliminarán. Las actas ya redactadas con ellas se conservan.",
+      "skip": {
+        "template_not_found": "no encontrada",
+        "template_ref_invalid": "referencia no válida",
+        "template_readonly": "una plantilla integrada no se puede eliminar",
+        "template_limit_reached": "se alcanzó el límite de plantillas",
+        "duplicate_failed": "no se pudo añadir",
+        "delete_failed": "no se pudo eliminar"
+      }
     }
   }
 }

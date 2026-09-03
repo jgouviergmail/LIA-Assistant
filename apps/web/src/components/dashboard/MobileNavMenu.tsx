@@ -21,14 +21,21 @@
  * Two elements rather than one element changing role: an element that is a link
  * at one width and a button at another cannot state its role to assistive
  * technology, and would hydrate differently from what the server rendered.
+ *
+ * ADR-259: the menu may carry ONE action after the destinations — on a phone
+ * the header has no width for a seventh control (measured: 26 px over at
+ * 390 px), so « Record a meeting » / « Stop the recording » lives here, and the
+ * trigger itself pulses red while a recording is live (`live`).
  */
 
 import Link from 'next/link';
+import type { LucideIcon } from 'lucide-react';
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -37,6 +44,16 @@ import {
   type DashboardDestination,
 } from '@/lib/dashboard-nav';
 import { cn } from '@/lib/utils';
+
+/** One action the menu offers after the destinations (already translated). */
+export interface MobileNavAction {
+  label: string;
+  icon: LucideIcon;
+  /** `destructive` carries red at rest — Stop, never Record. */
+  tone?: 'default' | 'destructive';
+  disabled?: boolean;
+  onSelect: () => void;
+}
 
 export interface MobileNavMenuProps {
   /** Builds the localized href of a route (the layout's own builder). */
@@ -52,6 +69,13 @@ export interface MobileNavMenuProps {
    * to the whole table. The layout passes the same list to the desktop nav.
    */
   destinations?: readonly DashboardDestination[];
+  /** An action rendered after the destinations, behind a separator. */
+  action?: MobileNavAction;
+  /**
+   * A live state the trigger must show: red, pulsing, and NAMED after the
+   * state (`label` replaces `triggerLabel`) so a screen reader hears it too.
+   */
+  live?: { label: string };
 }
 
 export function MobileNavMenu({
@@ -60,20 +84,33 @@ export function MobileNavMenu({
   isActiveRoute,
   triggerLabel,
   destinations = DASHBOARD_DESTINATIONS,
+  action,
+  live,
 }: MobileNavMenuProps) {
+  const ActionIcon = action?.icon;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label={triggerLabel}
+          aria-label={live ? live.label : triggerLabel}
           // `h-11` (44 px), not the desktop logo's `h-10`: this is now a
           // CONTROL, and 40 px fails the touch-target floor the header
           // reachability spec enforces — it caught exactly that. The two forms
           // never show together, so the 4 px difference is invisible.
-          className="flex h-11 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className={cn(
+            'flex h-11 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            live ? 'from-destructive to-destructive/80 animate-pulse' : 'from-primary to-primary/80'
+          )}
         >
-          <span className="text-sm font-bold text-primary-foreground">LIA</span>
+          <span
+            className={cn(
+              'text-sm font-bold',
+              live ? 'text-destructive-foreground' : 'text-primary-foreground'
+            )}
+          >
+            LIA
+          </span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">
@@ -93,6 +130,22 @@ export function MobileNavMenu({
             </Link>
           </DropdownMenuItem>
         ))}
+        {action && ActionIcon && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={action.disabled}
+              onSelect={action.onSelect}
+              className={cn(
+                'cursor-pointer',
+                action.tone === 'destructive' && 'text-destructive focus:text-destructive'
+              )}
+            >
+              <ActionIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+              {action.label}
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

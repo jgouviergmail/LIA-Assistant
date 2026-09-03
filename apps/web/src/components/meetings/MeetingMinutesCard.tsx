@@ -61,6 +61,11 @@ export function MeetingMinutesCard({ lng, metadata, showCosts = false }: Meeting
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{t('meetings.card.title')}</p>
         <p className="text-xs text-muted-foreground">{facts}</p>
+        {metadata.template_name && (
+          <p className="text-xs text-muted-foreground">
+            {t('meetings.card.template', { name: metadata.template_name })}
+          </p>
+        )}
         {metadata.gaps > 0 && (
           <p className="text-xs text-warning">
             {t('meetings.detail.gaps_notice', { count: metadata.gaps })}

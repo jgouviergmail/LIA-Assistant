@@ -3515,7 +3515,7 @@
         "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger, configuration, consolidation, exporter",
         "health-metrics": "fréquence cardiaque, pas, sommeil, iPhone, Apple Santé, forme, activité",
         "skills": "compétences, capacités, aptitudes, plugins, extensions",
-        "rag-spaces": "documents, RAG, base de connaissances, fichiers, téléversement, indexation, bibliothèque",
+        "rag-spaces": "espaces de connaissances, documents, fichiers, téléverser, télécharger, archive, zip, déplacer, supprimer plusieurs, indexation, recherche documentaire, drive, réunions",
         "user-consumption-export": "CSV, consommation, tokens, coût, facturation, statistiques, export",
         "haptics": "haptique vibration tactile retour sensoriel",
         "plugins": "plugins, plugin, extensions, agent plugins, installer, paquet, mcp, skills",
@@ -3536,7 +3536,7 @@
         "debug-settings": "debug, diagnostics, journaux, panneau, suivi des jetons",
         "eyes-style": "yeux, avatar, animation, style, regard, compagnon, cozmo",
         "admin-diagnostics": "santé diagnostic incidents alertes supervision auto-contrôle statut plateforme prometheus loki connectivité sortie réseau embeddings vecteurs quota mémoire langue",
-        "meetings": "réunion, enregistrement, compte rendu, transcription, rapport, micro, notes, résumé, actions"
+        "meetings": "réunion, enregistrement, compte rendu, transcription, rapport, micro, notes, résumé, actions, modèle, modèles, bibliothèque de modèles, format du compte rendu, format par défaut, format automatique, changer le format, sections, consignes, e-mail du compte rendu"
       }
     },
     "haptics": {
@@ -3780,7 +3780,47 @@
       "upload_formats_tooltip": "PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML",
       "chunk_count": "{{count}} fragments",
       "embedding_tokens": "{{count}} tokens",
-      "file_too_large": "\"{{name}}\" est trop volumineux (max {{maxSize}} Mo)"
+      "file_too_large": "\"{{name}}\" est trop volumineux (max {{maxSize}} Mo)",
+      "select_row": "Sélectionner « {{name}} »",
+      "select_all": "Sélectionner tous les documents",
+      "selection_region": "Documents sélectionnés",
+      "selected_count_one": "{{count}} document sélectionné",
+      "selected_count_other": "{{count}} documents sélectionnés",
+      "clear_selection": "Effacer la sélection",
+      "download": "Télécharger",
+      "download_selected": "Télécharger en zip",
+      "move": "Déplacer vers un autre espace…",
+      "move_selected": "Déplacer…",
+      "delete_selected": "Supprimer",
+      "row_actions": "Actions — {{name}}",
+      "confirm_bulk_delete_title": "Supprimer les documents sélectionnés ?",
+      "confirm_bulk_delete_description_one": "Ce document, son index et son fichier sont supprimés définitivement.",
+      "confirm_bulk_delete_description_other": "Ces {{count}} documents, leur index et leurs fichiers sont supprimés définitivement.",
+      "bulk_deleted_one": "{{count}} document supprimé",
+      "bulk_deleted_other": "{{count}} documents supprimés",
+      "moved_one": "{{count}} document déplacé",
+      "moved_other": "{{count}} documents déplacés",
+      "skipped_one": "{{count}} document est resté en place : {{reasons}}",
+      "skipped_other": "{{count}} documents sont restés en place : {{reasons}}",
+      "move_dialog": {
+        "title": "Déplacer vers un autre espace",
+        "description": "Les documents, leur index et leurs fichiers se déplacent ensemble. Les documents synchronisés depuis Drive ou issus d'une réunion restent où ils sont.",
+        "target_label": "Espace de destination",
+        "target_count_one": "{{count}} document",
+        "target_count_other": "{{count}} documents",
+        "submit": "Déplacer",
+        "none_available": "Vous n'avez pas d'autre espace où déplacer ces documents. Créez-en un d'abord."
+      },
+      "skip": {
+        "same_space": "déjà dans cet espace",
+        "document_managed_by_drive": "synchronisé depuis Drive",
+        "document_managed_by_meetings": "issu d'une réunion",
+        "document_busy": "encore en cours d'indexation",
+        "document_limit_exceeded": "l'espace de destination est plein",
+        "document_move_failed": "le fichier n'a pas pu être déplacé",
+        "delete_failed": "n'a pas pu être supprimé",
+        "document_not_found": "introuvable"
+      }
     },
     "drive": {
       "title": "Sources Google Drive",
@@ -3819,6 +3859,11 @@
     },
     "meetings": {
       "source_type_meeting": "Réunion"
+    },
+    "errors": {
+      "archive_too_large": "La sélection dépasse les {{max}} Mo qu'une archive peut contenir. Sélectionnez moins de documents.",
+      "reindex_in_progress": "Les documents ne peuvent pas être déplacés pendant la réindexation des espaces de connaissances. Réessayez plus tard.",
+      "document_file_missing": "Le fichier de ce document n'est plus sur le serveur."
     }
   },
   "navigation": {
@@ -4439,7 +4484,7 @@
         },
         "meetings": {
           "title": "🎙️ Comptes rendus de réunion",
-          "description": "Appuie sur + dans le composeur et un téléphone ou un ordinateur devient un enregistreur de réunion : l'audio part en petits segments au fil de la parole, si bien qu'un plantage, un rechargement ou une coupure coûtent des secondes, jamais la réunion. À l'arrêt, le serveur assemble l'enregistrement, parcourt sa chaîne de moteurs — le choix de l'administrateur, ElevenLabs ou OpenAI avec séparation des voix, ou le Whisper local découpé en fenêtres de parole pour qu'aucune durée ne soit trop longue — et confie la transcription à un seul appel structuré qui remplit ton modèle : l'en-tête est fixe, les sections sont les tiennes. Ce que ça a coûté est dit en deux montants et un total, et le compte rendu rejoint un espace de connaissances interrogeable. Une lacune est annoncée, jamais comblée."
+          "description": "Un bouton dans l'en-tête — ou l'entrée « Enregistrer une réunion » du menu sur téléphone — et l'appareil devient un enregistreur : l'audio part en petits segments au fil de la parole, si bien qu'un plantage ou une coupure coûtent des secondes, jamais la réunion. À l'arrêt, le serveur assemble l'enregistrement et parcourt sa chaîne de moteurs jusqu'à ce que l'un transcrive. Le format du compte rendu est choisi parmi trente modèles intégrés en lisant ce qui a été dit, à moins que tu n'imposes le tien ; la réunion affiche le format retenu et pourquoi. Un compte rendu déjà écrit se réécrit dans un autre format — jusqu'à la transcription complète — en place ou en nouveau document. Ce que ça a coûté est dit en deux montants et un total, et une lacune est annoncée, jamais comblée."
         }
       },
       "diagram_alt": "Schéma d'architecture de LIA"
@@ -4448,6 +4493,19 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_39_1": {
+          "title": "v1.39.1 — 🗂️ Trente formats de compte rendu, et LIA choisit le bon",
+          "date": "Septembre 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗂️ Une bibliothèque de formats de compte rendu</b> — trente modèles prêts à l'emploi, rangés par usage : réunions et équipes, transcriptions, analyses de conversation, commercial et conseil, technique, rendez-vous personnels, cours et formation. Tu parcours, tu aperçois, tu ajoutes à tes modèles ceux qui te parlent — seuls ou par sélection — puis tu les adaptes chez toi : renommer, réorganiser les sections, réécrire les consignes, décliner un modèle en plusieurs variantes, supprimer ce qui ne sert plus.",
+            "i2": "<b>✨ LIA choisit le format toute seule</b> — sans rien régler, elle lit ce qui a été dit et retient le format qui correspond : un point projet, un entretien, un rendez-vous médical ou un cours n'ont pas la même structure. Le compte rendu affiche le format retenu, s'il vient de toi, de ton format par défaut ou de son propre choix, et en une ligne pourquoi. Tu gardes la main : choisis ton format par défaut dans les réglages, ou celui de la réunion en cours depuis le bandeau d'enregistrement.",
+            "i3": "<b>🔁 Change le format après coup</b> — un compte rendu déjà rendu se réécrit dans un autre format à partir de la transcription conservée : soit tu remplaces celui que tu as, soit tu obtiens un <b>nouveau compte rendu</b> issu de la même réunion, qui garde le lien vers son origine et rejoint l'espace de connaissances comme document à part entière. Nouveauté au passage : un format peut désormais rendre <b>la transcription complète</b>, nettoyée et lisible, plutôt qu'un résumé.",
+            "i4": "<b>✉️ Le compte rendu par e-mail, pour tout le monde</b> — il part maintenant de l'adresse de l'application vers celle de ton compte, sujet « Compte rendu de réunion · Titre ». Plus besoin d'avoir connecté ta messagerie : l'envoi manuel comme l'envoi automatique fonctionnent sur toute instance dont l'administrateur a configuré l'e-mail.",
+            "i5": "<b>🗃️ Tes documents circulent entre tes espaces de connaissances</b> — télécharge un document, ou toute une sélection en une archive zip aux noms d'origine ; déplace des documents vers un autre espace, l'index et le fichier suivent ; supprimes-en plusieurs d'un coup. Chaque lot te dit ce qu'il a fait et ce qu'il a laissé de côté, avec la raison : un document synchronisé depuis Drive ou issu d'une réunion reste là où son propriétaire l'a mis.",
+            "i6": "<b>🎙️ L'enregistrement a sa place à lui</b> — un bouton dédié dans l'en-tête sur ordinateur, une entrée « Enregistrer / Arrêter » dans le menu du logo sur téléphone dont le bouton pulse en rouge pendant la capture, et le bandeau qui te suit sur chaque page sans jamais pousser la zone de saisie hors de l'écran. Le « + » du composeur redevient ce qu'il était : joindre un fichier. Et la liste des réunions accepte enfin la sélection multiple pour en supprimer plusieurs."
+          }
+        },
         "v1_39_0": {
           "title": "v1.39.0 — 🎙️ Enregistre une réunion, reçois le compte rendu",
           "date": "Septembre 2026",
@@ -7574,7 +7632,7 @@
       "rag_spaces": {
         "title": "Espaces de connaissances (RAG)",
         "description": "Télécharge et utilise tes propres documents pour enrichir les réponses de l'IA",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Que sont les Espaces de connaissances ?",
@@ -7611,6 +7669,10 @@
           "q9": {
             "question": "LIA peut-elle chercher seule dans mes documents ? (v1.25.13)",
             "answer": "Oui. Tes espaces documentaires sont désormais un <strong>domaine actif</strong> : au-delà de l'injection automatique de contexte, le planificateur peut décider d'y chercher — avec des requêtes dérivées, plusieurs passes si nécessaire, et des combinaisons avec d'autres sources : « compare le devis PDF avec ce que Paul a envoyé par mail » enchaîne une recherche documentaire et une recherche d'e-mails.<br><br>La carte « Documents » du briefing montre aussi tes derniers fichiers Drive modifiés — un clic pour résumer dans le chat, ou ouvrir directement dans Drive."
+          },
+          "q10": {
+            "question": "Puis-je télécharger, déplacer ou supprimer plusieurs documents ?",
+            "answer": "Oui. Chaque document d'un espace propose <strong>Télécharger</strong> — le fichier d'origine, sous son nom d'origine — et se coche pour agir sur plusieurs à la fois. Une sélection peut être <strong>téléchargée en une archive zip</strong>, <strong>déplacée vers un autre espace</strong> ou <strong>supprimée</strong> d'un coup.<br><br>Un déplacement emmène tout : la ligne, l'index qui sert à la recherche et le fichier lui-même — après quoi le document répond depuis son nouvel espace, et seulement depuis lui. Restent où ils sont les documents que LIA maintient pour toi : ceux synchronisés depuis un dossier Google Drive et les comptes rendus de réunion, qui appartiennent à leur source.<br><br>Chaque lot te dit ce qu'il a fait et ce qu'il a laissé de côté, avec la raison — espace de destination plein, document encore en cours d'indexation, document géré ailleurs. Et rien ne bouge pendant une réindexation générale : LIA préfère refuser proprement que déplacer un document que le moteur est en train de relire."
           }
         }
       },
@@ -7925,15 +7987,15 @@
       "meetings": {
         "title": "Comptes rendus de réunion",
         "description": "Enregistre une réunion depuis le chat, obtiens un compte rendu structuré à ta façon, retrouve-le dans un espace de connaissances.",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Comment enregistrer une réunion ?",
-            "answer": "Dans le chat, ouvre le bouton <strong>+</strong> à côté du champ de saisie et choisis <strong>Enregistrer une réunion</strong>. Ton téléphone ou ton ordinateur devient le micro : LIA le demande une fois, puis une bannière en haut de chaque page affiche l'enregistrement, sa durée et ce qui a déjà atteint ton serveur. Tu peux continuer à discuter avec LIA pendant ce temps — les réponses parlées et le mot d'activation sont simplement suspendus pour que le micro n'entende jamais l'assistant.<br><br>Quand la réunion se termine, appuie sur <strong>Arrêter</strong> dans la bannière ou dans le même menu. LIA transcrit tout l'enregistrement, rédige le compte rendu et publie une carte dans le chat avec le titre, le résumé et un bouton <strong>Ouvrir le compte rendu</strong>. Chaque enregistrement vit aussi dans la page <strong>Réunions</strong> de l'en-tête, entre Relations et Alertes.<br><br><strong>💡 Bon à savoir :</strong> la fonction n'existe que là où l'administrateur l'a activée, et le moteur qui transcrira — avec son prix par heure d'audio — est affiché avant de commencer."
+            "answer": "Sur ordinateur, le bouton d'enregistrement est dans l'en-tête, à droite ; sur téléphone, ouvre le menu du logo LIA et choisis <strong>Enregistrer une réunion</strong> — le bouton du menu pulse en rouge tant que la capture est ouverte. Ton téléphone ou ton ordinateur devient le micro : LIA le demande une fois, puis une bannière en haut de chaque page affiche l'enregistrement, sa durée et ce qui a déjà atteint ton serveur. Tu peux continuer à discuter avec LIA pendant ce temps — les réponses parlées et le mot d'activation sont simplement suspendus pour que le micro n'entende jamais l'assistant.<br><br>Quand la réunion se termine, appuie sur <strong>Arrêter</strong> dans la bannière ou au même endroit qu'au départ. LIA transcrit tout l'enregistrement, rédige le compte rendu et publie une carte dans le chat avec le titre, le résumé et un bouton <strong>Ouvrir le compte rendu</strong>. Chaque enregistrement vit aussi dans la page <strong>Réunions</strong> de l'en-tête, entre Relations et Alertes.<br><br><strong>💡 Bon à savoir :</strong> la fonction n'existe que là où l'administrateur l'a activée, le moteur qui transcrira — avec son prix par heure d'audio — est affiché avant de commencer, et la bannière laisse choisir le format du compte rendu pendant que la réunion tourne."
           },
           "q2": {
-            "question": "Que contient le compte rendu, et puis-je changer sa structure ?",
-            "answer": "L'en-tête du compte rendu est fixe : date, heure de début et de fin dans ton fuseau, durée, lieu quand il est connu, et participants. Le corps suit <strong>ton modèle</strong> : une liste ordonnée de sections, chacune avec un titre, une consigne pour l'assistant et un format — un paragraphe, une liste à puces, une entrée par sujet, ou des actions avec responsable et échéance.<br><br>Le modèle intégré donne un résumé, les sujets abordés, les décisions, les actions, les risques et les questions ouvertes. Modifie-le dans <strong>Réglages › Réunions</strong> : renomme, réordonne, ajoute ou retire des sections, et reviens au défaut en un clic. Les comptes rendus déjà écrits gardent la structure qui les a produits ; <strong>Reconstruire</strong> applique ton modèle actuel à une réunion passée à partir de sa transcription conservée.<br><br>Le modèle ne rapporte que ce que la transcription soutient : une proposition restée ouverte n'est pas une décision, un souhait n'est pas une action, et chaque date relative est résolue en date réelle."
+            "question": "Que contient le compte rendu, et qui choisit sa structure ?",
+            "answer": "L'en-tête du compte rendu est fixe : date, heure de début et de fin dans ton fuseau, durée, lieu quand il est connu, et participants. Le corps suit un <strong>format</strong> : une liste ordonnée de sections, chacune avec un titre, une consigne pour l'assistant et une forme — un paragraphe, une liste à puces, une entrée par sujet, des actions avec responsable et échéance, ou la transcription complète réécrite proprement.<br><br><strong>Trente formats intégrés</strong> sont fournis, rangés par usage : réunions et équipes, transcriptions, analyses de conversation, commercial et conseil, technique, rendez-vous personnels, cours et formation. Dans <strong>Réunions › Modèles de compte rendu</strong> tu les parcours, tu les aperçois et tu ajoutes à tes modèles ceux qui te servent — un par un ou plusieurs à la fois — puis tu les adaptes : renommer, réordonner les sections, réécrire les consignes, décliner un modèle, supprimer ce qui ne sert plus.<br><br><strong>Si tu ne choisis rien, LIA choisit</strong> : elle lit ce qui a été dit et retient le format qui correspond, puis l'affiche sur la réunion avec, en une ligne, la raison de son choix. Tu peux imposer un format par défaut dans <strong>Réglages › Réunions</strong>, ou celui de la réunion en cours depuis la bannière. Les formats de transcription complète ne sont jamais choisis automatiquement : ils sont longs et facturés comme une réunion entière.<br><br>Le modèle ne rapporte que ce que la transcription soutient : une proposition restée ouverte n'est pas une décision, un souhait n'est pas une action, et chaque date relative est résolue en date réelle."
           },
           "q3": {
             "question": "Quel moteur transcrit, et combien ça coûte ?",
@@ -7949,11 +8011,15 @@
           },
           "q6": {
             "question": "Puis-je modifier le compte rendu, l'envoyer, et interroger LIA sur mes réunions plus tard ?",
-            "answer": "Oui. Sur la page de la réunion tu peux <strong>modifier</strong> chaque champ — titre, noms et rôles des participants, chaque section dans sa propre forme — et <strong>restaurer</strong> à tout moment la version écrite par le modèle. <strong>PDF</strong> télécharge le compte rendu en document ; <strong>E-mail</strong> l'envoie à ta propre adresse par ta messagerie connectée, et les Réglages peuvent le faire automatiquement pour chaque réunion.<br><br>Chaque compte rendu est aussi indexé dans un espace de connaissances nommé <strong>Réunions</strong>, créé pour toi la première fois. Tu peux donc simplement demander : « qu'a-t-on décidé sur la migration ? », « quelles actions tombent cette semaine ? » — l'assistant répond depuis tes propres réunions, sources citées."
+            "answer": "Oui. Sur la page de la réunion tu peux <strong>modifier</strong> chaque champ — titre, noms et rôles des participants, chaque section dans sa propre forme — et <strong>restaurer</strong> à tout moment la version écrite par le modèle. <strong>PDF</strong> télécharge le compte rendu en document ; <strong>E-mail</strong> l'envoie à l'adresse de ton compte depuis l'adresse de l'application — aucune messagerie connectée n'est nécessaire — et les Réglages peuvent le faire automatiquement pour chaque réunion.<br><br>Chaque compte rendu est aussi indexé dans un espace de connaissances nommé <strong>Réunions</strong>, créé pour toi la première fois. Tu peux donc simplement demander : « qu'a-t-on décidé sur la migration ? », « quelles actions tombent cette semaine ? » — l'assistant répond depuis tes propres réunions, sources citées.<br><br>La liste des réunions accepte la sélection multiple : coche celles qui ne servent plus et supprime-les d'un coup. Une réunion en cours d'enregistrement ou de traitement est laissée de côté, et LIA te dit laquelle et pourquoi."
           },
           "q7": {
             "question": "LIA sait-elle qui a dit quoi ?",
             "answer": "Quand le moteur sépare les interlocuteurs, chaque voix reçoit une étiquette stable — <strong>S1, S2…</strong> — dans toute la transcription et le compte rendu. Un <strong>nom</strong> n'apparaît que si l'enregistrement lui-même l'établit : quelqu'un se présente, est appelé par son nom, ou l'événement d'agenda qui chevauche la réunion ne laisse aucun doute. LIA n'invente jamais un nom ; un interlocuteur non nommé reste S2, et tu peux le nommer toi-même en modifiant le compte rendu.<br><br>Le moteur local transcrit sans séparer les voix : le compte rendu se lit alors comme un récit unique, avec les participants qu'il a pu établir."
+          },
+          "q8": {
+            "question": "Puis-je changer le format d'un compte rendu déjà rendu ?",
+            "answer": "Oui, tant que la transcription est conservée. Sur la page de la réunion, <strong>Changer le format…</strong> propose deux issues : <strong>remplacer</strong> le compte rendu existant, ou obtenir un <strong>nouveau compte rendu</strong> issu de la même réunion. Le nouveau garde le lien vers son origine — la réunion d'origine affiche combien de comptes rendus en sont issus — et rejoint l'espace de connaissances comme document à part entière, avec son propre coût.<br><br>C'est ce qui permet de lire la même réunion de deux façons : le compte rendu de travail d'un côté, la transcription complète et nettoyée de l'autre, ou un format d'analyse quand tu veux regarder l'échange plutôt que ses conclusions. <strong>Regénérer</strong> reste à côté : il réécrit le compte rendu avec <em>le même</em> format, utile quand tu viens de modifier tes sections.<br><br><strong>💡 Bon à savoir :</strong> réécrire coûte une nouvelle synthèse, facturée comme la première, et le dialogue le rappelle avant que tu ne valides. Si tu supprimes la transcription, le compte rendu reste lisible mais ne peut plus être réécrit."
           }
         }
       }
@@ -8215,6 +8281,10 @@
       "meeting_banner": {
         "title": "L’enregistrement te suit",
         "desc": "Change de page en pleine réunion : la bannière garde le temps, le micro et le chemin du retour — reprendre, finaliser ou abandonner."
+      },
+      "template_library": {
+        "title": "Trente formats, repliés",
+        "desc": "La bibliothèque s’ouvre catégories fermées, les tiens d’abord : tu déplies celle qui te concerne, tu coches, tu ajoutes."
       }
     },
     "scenes": {
@@ -8314,6 +8384,11 @@
         "recording": "Enregistrement",
         "interrupted": "Interrompu",
         "resume": "Reprendre"
+      },
+      "template_library": {
+        "mine": "Mes modèles",
+        "builtin": "Modèles intégrés",
+        "pick": "Ajouter"
       }
     },
     "craft": {
@@ -9433,7 +9508,7 @@
       },
       "meetings": {
         "title": "Enregistre une réunion, reçois le compte rendu",
-        "description": "Appuie sur + dans le chat et ton téléphone ou ton ordinateur enregistre la réunion — une bannière te suit sur chaque page pendant que tu continues à parler avec LIA. Quand tu arrêtes, LIA transcrit tout et rédige le compte rendu à ta structure : date, horaires, lieu, qui était là, ce qui a été discuté, décidé, à faire et par qui, ce qui est à risque. Lis-le dans le chat, télécharge le PDF, envoie-le dans ta messagerie, et interroge LIA dessus des semaines plus tard. Rien d'inventé : une lacune de l'enregistrement est dite, un interlocuteur non nommé reste non nommé, et ce que ça a coûté est écrit à côté."
+        "description": "Un bouton dans l'en-tête — ou l'entrée du menu sur téléphone — et ton appareil enregistre la réunion, une bannière te suivant sur chaque page pendant que tu continues à parler avec LIA. Quand tu arrêtes, LIA transcrit tout et rédige le compte rendu dans le format qui convient : trente modèles intégrés couvrent les points d'équipe, les entretiens, les rendez-vous personnels, les cours — LIA choisit toute seule d'après ce qui a été dit, ou tu imposes le tien. Lis-le dans le chat, télécharge le PDF, reçois-le par e-mail, réécris-le dans un autre format, et interroge LIA dessus des semaines plus tard. Rien d'inventé : une lacune est dite, un interlocuteur non nommé reste non nommé, et ce que ça a coûté est écrit à côté."
       }
     },
     "use_cases": {
@@ -9535,6 +9610,10 @@
       "native_shells": {
         "title": "Coques natives et relais de réveil",
         "description": "Une app par store, cliente de tout serveur auto-hébergé : la WebView charge l'origine de votre serveur avec la même session cookie httpOnly que le web. Android parle à votre propre projet Firebase au runtime ; iOS est réveillé par un relais sans état dont la poignée EST le jeton d'appareil scellé — rien de stocké, une phrase fixe, et le vrai contenu récupéré sur votre serveur. Chaque affirmation de plateforme est mesurée par un banc qui pilote la vraie app, scène par scène."
+      },
+      "structured_minutes": {
+        "title": "Comptes rendus structurés",
+        "description": "Trente formats de compte rendu vivent dans le code, leurs mots dans une donnée traduite. Un modèle est désigné par une référence — intégrée ou personnelle — que réunions, préférences et requêtes échangent à la place d'une ligne : un format fourni n'a donc pas besoin d'exister en base. Le choix suit une seule précédence, du plus explicite au plus général, et finit par un appel au modèle qui lit un extrait de transcription au-dessus d'un seuil de confiance ; l'issue est comptée et écrite sur la réunion avec sa raison. Rendre la transcription entière ne tient pas dans une réponse : elle est réécrite par parties, chacune bornée par la fenêtre de sortie effective du slot."
       }
     },
     "architecture": {
@@ -10159,7 +10238,7 @@
       "knowledge-spaces": {
         "title": "Knowledge Spaces : transforme tes documents en intelligence IA",
         "excerpt": "Importe tes PDF, Word, Excel et autres documents. LIA les indexe avec une recherche hybride sémantique + BM25 pour répondre à tes questions.",
-        "body": "<h2>15+ formats supportés</h2><p>Les Knowledge Spaces de LIA acceptent plus de <strong>15 formats de fichiers</strong> avec des parseurs dédiés :</p><ul><li><strong>PDF</strong> via PyMuPDF (extraction rapide et précise)</li><li><strong>Documents</strong> — DOCX, RTF, ODT</li><li><strong>Tableurs</strong> — XLSX, CSV, ODS</li><li><strong>Présentations</strong> — PPTX, ODP</li><li><strong>Web et texte</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Chunking intelligent</h2><p>Les documents sont découpés par un <strong>RecursiveCharacterTextSplitter</strong> avec des paramètres optimisés : <strong>1000 caractères</strong> par chunk, <strong>200 caractères</strong> de chevauchement (overlap) pour préserver le contexte entre les segments. Limite de sécurité : <strong>500 chunks maximum par document</strong>, taille maximale <strong>20 Mo par fichier</strong>.</p><h2>Recherche hybride : le meilleur des deux mondes</h2><p>LIA combine deux approches de recherche :</p><ul><li><strong>Recherche sémantique</strong> — Embeddings via pgvector. Trouve les résultats par similarité de sens, même si les mots diffèrent.</li><li><strong>Recherche BM25</strong> — Correspondance par mots-clés. Idéale pour les termes techniques, noms propres et identifiants.</li></ul><p>Les deux signaux ne pèsent pas pareil, et c'est délibéré. La pertinence se décide sur la <strong>similarité sémantique seule</strong> : un extrait est retenu s'il atteint <strong>0.62</strong>, seuil recalibré sur les six langues à partir des corpus réels. BM25 n'ajoute ensuite qu'un <strong>bonus borné (0.05)</strong> servant à départager — il peut faire remonter une occurrence littérale devant un quasi-ex æquo, jamais faire entrer ou sortir un extrait. Mélanger les deux signaux à parts comparables, comme LIA le faisait jusqu'en août 2026, écartait une bonne réponse sur trois dès que la langue de la question s'éloignait de celle des documents. Par défaut, <strong>5 extraits</strong> sont récupérés par requête (maximum configurable : 20).</p><h2>Limites et quotas</h2><p>Chaque utilisateur dispose de : <strong>10 espaces</strong> maximum, <strong>50 documents par espace</strong>, <strong>20 Mo par fichier</strong>. Ces limites garantissent des performances de recherche optimales tout en offrant une capacité suffisante pour la plupart des usages.</p><h2>Synchronisation Google Drive</h2><p>Tu peux connecter un <strong>dossier Google Drive</strong> à un Knowledge Space. Les documents sont automatiquement synchronisés et ré-indexés lorsqu'ils changent. La synchronisation détecte les ajouts, modifications et suppressions.</p><h2>FAQ intégrée</h2><p>LIA possède un Knowledge Space système contenant sa propre documentation (18 fichiers de FAQ). Cela lui permet de répondre aux questions sur ses propres fonctionnalités avec précision.</p><h2>Un espace qui se remplit tout seul : Réunions</h2><p>Un espace est créé pour toi plutôt que par toi. Quand LIA rédige le compte rendu d’une réunion enregistrée, elle l’indexe dans un espace « Réunions » — trouvé par son rôle, pas par son nom, tu peux donc le renommer — à raison d’un document par réunion, réécrit sur place dès que tu modifies le compte rendu et retiré le jour où tu supprimes la réunion. L’espace échappe au plafond par utilisateur, et c’est lui qui permet à l’assistant de répondre à « qu’a-t-on décidé sur la migration ? » depuis tes propres réunions, sources citées.</p>"
+        "body": "<h2>15+ formats supportés</h2><p>Les Knowledge Spaces de LIA acceptent plus de <strong>15 formats de fichiers</strong> avec des parseurs dédiés :</p><ul><li><strong>PDF</strong> via PyMuPDF (extraction rapide et précise)</li><li><strong>Documents</strong> — DOCX, RTF, ODT</li><li><strong>Tableurs</strong> — XLSX, CSV, ODS</li><li><strong>Présentations</strong> — PPTX, ODP</li><li><strong>Web et texte</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Chunking intelligent</h2><p>Les documents sont découpés par un <strong>RecursiveCharacterTextSplitter</strong> avec des paramètres optimisés : <strong>1000 caractères</strong> par chunk, <strong>200 caractères</strong> de chevauchement (overlap) pour préserver le contexte entre les segments. Limite de sécurité : <strong>500 chunks maximum par document</strong>, taille maximale <strong>20 Mo par fichier</strong>.</p><h2>Recherche hybride : le meilleur des deux mondes</h2><p>LIA combine deux approches de recherche :</p><ul><li><strong>Recherche sémantique</strong> — Embeddings via pgvector. Trouve les résultats par similarité de sens, même si les mots diffèrent.</li><li><strong>Recherche BM25</strong> — Correspondance par mots-clés. Idéale pour les termes techniques, noms propres et identifiants.</li></ul><p>Les deux signaux ne pèsent pas pareil, et c'est délibéré. La pertinence se décide sur la <strong>similarité sémantique seule</strong> : un extrait est retenu s'il atteint <strong>0.62</strong>, seuil recalibré sur les six langues à partir des corpus réels. BM25 n'ajoute ensuite qu'un <strong>bonus borné (0.05)</strong> servant à départager — il peut faire remonter une occurrence littérale devant un quasi-ex æquo, jamais faire entrer ou sortir un extrait. Mélanger les deux signaux à parts comparables, comme LIA le faisait jusqu'en août 2026, écartait une bonne réponse sur trois dès que la langue de la question s'éloignait de celle des documents. Par défaut, <strong>5 extraits</strong> sont récupérés par requête (maximum configurable : 20).</p><h2>Limites et quotas</h2><p>Chaque utilisateur dispose de : <strong>10 espaces</strong> maximum, <strong>50 documents par espace</strong>, <strong>20 Mo par fichier</strong>. Ces limites garantissent des performances de recherche optimales tout en offrant une capacité suffisante pour la plupart des usages.</p><h2>Synchronisation Google Drive</h2><p>Tu peux connecter un <strong>dossier Google Drive</strong> à un Knowledge Space. Les documents sont automatiquement synchronisés et ré-indexés lorsqu'ils changent. La synchronisation détecte les ajouts, modifications et suppressions.</p><h2>FAQ intégrée</h2><p>LIA possède un Knowledge Space système contenant sa propre documentation (18 fichiers de FAQ). Cela lui permet de répondre aux questions sur ses propres fonctionnalités avec précision.</p><h2>Un espace qui se remplit tout seul : Réunions</h2><p>Un espace est créé pour toi plutôt que par toi. Quand LIA rédige le compte rendu d’une réunion enregistrée, elle l’indexe dans un espace « Réunions » — trouvé par son rôle, pas par son nom, tu peux donc le renommer — à raison d’un document par réunion, réécrit sur place dès que tu modifies le compte rendu et retiré le jour où tu supprimes la réunion. L’espace échappe au plafond par utilisateur, et c’est lui qui permet à l’assistant de répondre à « qu’a-t-on décidé sur la migration ? » depuis tes propres réunions, sources citées.</p><h2>Des documents qui circulent</h2><p>Un espace se gère, pas seulement se remplit. Chaque document se télécharge sous son nom d’origine, une sélection se récupère en une archive zip, et des documents se <strong>déplacent</strong> vers un autre espace — la ligne, l’index que lit la recherche et le fichier partent ensemble, si bien qu’après le déplacement le document ne répond plus que depuis son nouvel espace. La suppression accepte elle aussi une sélection. Chaque lot rapporte ce qu’il a fait et ce qu’il a laissé de côté, avec la raison : un document synchronisé depuis Drive ou issu d’une réunion appartient à sa source et n’est pas déplacé, et rien ne bouge pendant une réindexation générale.</p>"
       },
       "personal-journals": {
         "title": "Carnets de bord : quand ton assistant IA développe sa propre mémoire",
@@ -10192,9 +10271,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA est conçu dès l'origine avec la protection des données comme principe fondateur, pas comme un ajout après coup.</p><h2>Chiffrement symétrique Fernet</h2><p>Toutes les données sensibles sont chiffrées avec <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via la fonction <code>encrypt_data()</code>. Cela couvre les tokens OAuth, les credentials des connecteurs, les PII et les credentials des serveurs MCP. Les credentials OAuth sont chiffrés avant écriture en base et déchiffrés à la volée lors de la récupération. Les clés de chiffrement sont gérées séparément des données.</p><h2>Minimisation de la collecte</h2><p>LIA ne collecte que les données strictement nécessaires à son fonctionnement :</p><ul><li>Informations de profil (nom, email, préférences)</li><li>Historique des conversations (chiffré)</li><li>Tokens de connexion aux services (chiffrés)</li><li>Métriques d'usage anonymisées</li></ul><h2>Suppression et cascading</h2><p>La suppression d'un compte utilisateur déclenche un <strong>cascading delete</strong> complet : connecteurs, conversations, paramètres, sessions, mémoires et toutes les données associées sont supprimées irréversiblement. Aucune donnée orpheline ne persiste en base.</p><h2>Sessions et cookies sécurisés</h2><p>Les cookies de session sont configurés avec les attributs <code>HttpOnly</code>, <code>Secure</code> (en production) et <code>SameSite=lax</code>. La durée de session est de 7 jours par défaut, extensible à 30 jours avec l'option \"Se souvenir de moi\". Les tokens à usage unique sont invalidés après première utilisation via un blacklist Redis.</p><h2>Protection des contenus externes</h2><p>Les contenus récupérés depuis des sources externes (emails, pages web, documents) sont tagués comme <code>UNTRUSTED</code> avec un wrapping configurable avant injection dans les prompts. L'outil web_fetch est rate limité à 10 appels par fenêtre de 60 secondes par utilisateur pour prévenir les abus.</p><h2>Filtrage PII dans les logs</h2><p>Le système de logging applique les recommandations <strong>OWASP Logging Cheat Sheet</strong> pour filtrer automatiquement les données personnelles des journaux applicatifs. Aucune donnée sensible n'apparaît dans les logs.</p><h2>Portabilité des données (v1.9.1)</h2><p>LIA permet à chaque utilisateur d'<strong>exporter ses propres données de consommation</strong> au format CSV depuis Réglages > Fonctionnalités. Trois types d'export : consommation LLM (tokens et coûts par appel), consommation API Google, et résumé agrégé. Sécurité : le <code>user_id</code> est forcé côté serveur — aucun paramètre n'est exposé, empêchant tout accès aux données d'autres utilisateurs (protection IDOR).</p><h2>Des sauvegardes dont la restauration est prouvée</h2><p>Protéger les données, c'est aussi garantir qu'elles survivent aux incidents. La base de production est sauvegardée automatiquement chaque nuit, avec 7 jours, 4 semaines et 6 mois d'historique conservés, dans un répertoire dédié aux permissions restrictives. Et parce qu'une sauvegarde ne compte qu'une fois la restauration prouvée, la procédure est réellement testée : le dernier dump est restauré dans un conteneur jetable puis comparé à la base vivante (révision de schéma, comptages) — un exercice livré avec la stack.</p>"
       },
       "observability": {
-        "title": "506 métriques Prometheus, 26 dashboards Grafana et tracing Langfuse",
+        "title": "507 métriques Prometheus, 26 dashboards Grafana et tracing Langfuse",
         "excerpt": "LIA offre une observabilité de niveau entreprise avec 473 métriques, des dashboards Grafana dédiés, du tracing LLM via Langfuse et des alertes e-mail avec runbooks.",
-        "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 506 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, centralisée dans Loki avec filtrage PII</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo) et tracing LLM via Langfuse</li></ul><h2>23 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 23 modules couvrent : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé, journaux, téléphonie et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 dashboards Grafana</h2><p>LIA fournit 26 tableaux de bord Grafana numérotés de 01 à 26 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony et briefing. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement. Le 26e est un cockpit produit : résultats validés (👍 explicite ou action restée non corrigée), funnel d'activation, rétention et coût par résultat utile — le comptage exact vit dans PostgreSQL et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau de 14 alertes vitales — API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration, limitation de débit hors service — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse dispose de 8 métriques dédiées pour tracer chaque appel LLM : tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p><h2>Et depuis la v1.34 : l'assistante lit sa propre télémétrie</h2><p>Tout ce qui précède existait pour les humains ; l'assistante elle-même n'en lisait rien. L'ADR-247 a fermé cette boucle : un auto-contrôle périodique transforme les signaux dorés et des sondes directes en instantanés de santé aux valeurs exactes ; alertes et verdicts critiques convergent vers un incident unique par panne, diagnostiqué par un LLM plafonné par budget et ancré sur les runbooks d'exploitation ; les administrateurs disposent d'un panneau Santé de la plateforme, de notifications proactives et d'outils de chat en lecture seule. Et une panne connue façonne désormais les réponses — les capacités dégradées sont contournées dès la planification, et les étapes en échec expliquées depuis des codes d'erreur typés, jamais des logs bruts.</p><h2>Compter les issues, pas les tentatives</h2><p>Un compteur a dû être repensé en v1.38.3. Compter les appels qui atteignent un fournisseur, c'est la vérité sur le fournisseur — et le mauvais dénominateur dès lors qu'on réessaie ces appels, puisqu'un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. Un second compteur enregistre désormais une ligne par opération logique, réessais repliés, et répond à la seule question sur laquelle un exploitant agit : l'appelant a-t-il eu son résultat ? Un troisième dit ce que le lisseur de débit a fait de chaque tentative, parce que « le budget est trop petit » et « Redis est tombé » sont indiscernables dans un booléen et appellent des actions opposées.</p><p>La leçon la plus récente porte sur le choix de ce que l'on mesure. La boucle autonome comptait ses itérations et sa durée — et rien pour ce qui grossit réellement : le prompt délivré au modèle à chaque étape. Mesuré sur le code de production, cela fait 2,3 k tokens à la première itération et 112 k à la quatre-vingt-dixième, parce que chaque résultat d'outil reste dans la conversation que le modèle relit. Deux histogrammes enregistrent désormais la taille délivrée et sa part de la fenêtre de contexte du modèle, alimentés par le compteur mémoïsé que le réducteur d'état maintient déjà, si bien que la mesure ne coûte rien sur le chemin chaud. Aucune politique de compression n'est partie avec eux, délibérément : un système qui agit sur une grandeur qu'il n'a jamais observée optimise une supposition.</p>"
+        "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 507 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, centralisée dans Loki avec filtrage PII</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo) et tracing LLM via Langfuse</li></ul><h2>23 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 23 modules couvrent : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé, journaux, téléphonie et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 dashboards Grafana</h2><p>LIA fournit 26 tableaux de bord Grafana numérotés de 01 à 26 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony et briefing. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement. Le 26e est un cockpit produit : résultats validés (👍 explicite ou action restée non corrigée), funnel d'activation, rétention et coût par résultat utile — le comptage exact vit dans PostgreSQL et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau de 14 alertes vitales — API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration, limitation de débit hors service — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse dispose de 8 métriques dédiées pour tracer chaque appel LLM : tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p><h2>Et depuis la v1.34 : l'assistante lit sa propre télémétrie</h2><p>Tout ce qui précède existait pour les humains ; l'assistante elle-même n'en lisait rien. L'ADR-247 a fermé cette boucle : un auto-contrôle périodique transforme les signaux dorés et des sondes directes en instantanés de santé aux valeurs exactes ; alertes et verdicts critiques convergent vers un incident unique par panne, diagnostiqué par un LLM plafonné par budget et ancré sur les runbooks d'exploitation ; les administrateurs disposent d'un panneau Santé de la plateforme, de notifications proactives et d'outils de chat en lecture seule. Et une panne connue façonne désormais les réponses — les capacités dégradées sont contournées dès la planification, et les étapes en échec expliquées depuis des codes d'erreur typés, jamais des logs bruts.</p><h2>Compter les issues, pas les tentatives</h2><p>Un compteur a dû être repensé en v1.38.3. Compter les appels qui atteignent un fournisseur, c'est la vérité sur le fournisseur — et le mauvais dénominateur dès lors qu'on réessaie ces appels, puisqu'un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. Un second compteur enregistre désormais une ligne par opération logique, réessais repliés, et répond à la seule question sur laquelle un exploitant agit : l'appelant a-t-il eu son résultat ? Un troisième dit ce que le lisseur de débit a fait de chaque tentative, parce que « le budget est trop petit » et « Redis est tombé » sont indiscernables dans un booléen et appellent des actions opposées.</p><p>La leçon la plus récente porte sur le choix de ce que l'on mesure. La boucle autonome comptait ses itérations et sa durée — et rien pour ce qui grossit réellement : le prompt délivré au modèle à chaque étape. Mesuré sur le code de production, cela fait 2,3 k tokens à la première itération et 112 k à la quatre-vingt-dixième, parce que chaque résultat d'outil reste dans la conversation que le modèle relit. Deux histogrammes enregistrent désormais la taille délivrée et sa part de la fenêtre de contexte du modèle, alimentés par le compteur mémoïsé que le réducteur d'état maintient déjà, si bien que la mesure ne coûte rien sur le chemin chaud. Aucune politique de compression n'est partie avec eux, délibérément : un système qui agit sur une grandeur qu'il n'a jamais observée optimise une supposition.</p>"
       },
       "prompt-engineering": {
         "title": "Système de prompts versionnés : 78 prompts gérés comme du code",
@@ -11437,12 +11516,6 @@
     }
   },
   "meetings": {
-    "composer": {
-      "menu_label": "Pièces jointes et enregistrement de réunion",
-      "add_file": "Ajouter un fichier",
-      "record": "Enregistrer une réunion",
-      "stop": "Arrêter l'enregistrement"
-    },
     "banner": {
       "region_label": "Enregistrement de réunion",
       "starting": "Démarrage de l'enregistrement…",
@@ -11476,7 +11549,10 @@
         "openai": "OpenAI",
         "local": "Moteur local (sur le serveur)"
       },
-      "offline_long": "Hors ligne depuis longtemps : l'audio attend sur cet appareil. Arrête et finalise dès que la connexion revient."
+      "offline_long": "Hors ligne depuis longtemps : l'audio attend sur cet appareil. Arrête et finalise dès que la connexion revient.",
+      "format_label": "Format du compte rendu",
+      "format_auto": "Par défaut (automatique, ou votre préférence)",
+      "format_saved": "Format enregistré pour cette réunion"
     },
     "toasts": {
       "ready_title": "Compte rendu de réunion prêt",
@@ -11500,7 +11576,7 @@
       "title": "Réunions",
       "subtitle": "Tes enregistrements et leurs comptes rendus",
       "empty_title": "Aucune réunion pour l'instant",
-      "empty_description": "Lance un enregistrement depuis le trombone du composeur de chat ; le compte rendu apparaîtra ici.",
+      "empty_description": "Lancez un enregistrement depuis le bouton Enregistrer de l’en-tête (ou le menu LIA sur téléphone) ; les comptes rendus apparaîtront ici.",
       "empty_action": "Ouvrir le chat",
       "total_one": "{{count}} réunion",
       "total_other": "{{count}} réunions",
@@ -11509,7 +11585,25 @@
       "participants_one": "{{count}} participant",
       "participants_other": "{{count}} participants",
       "actions_one": "{{count}} action",
-      "actions_other": "{{count}} actions"
+      "actions_other": "{{count}} actions",
+      "selection_region": "Réunions sélectionnées",
+      "select_row": "Sélectionner « {{title}} »",
+      "select_all_page": "Sélectionner toutes les réunions de cette page",
+      "selected_count_one": "{{count}} réunion sélectionnée",
+      "selected_count_other": "{{count}} réunions sélectionnées",
+      "clear_selection": "Annuler la sélection",
+      "delete_selected_one": "Supprimer ({{count}})",
+      "delete_selected_other": "Supprimer ({{count}})",
+      "confirm_bulk_delete_title": "Supprimer les réunions sélectionnées ?",
+      "confirm_bulk_delete_description_one": "Le compte rendu, la transcription et l’audio conservé de cette réunion sont supprimés définitivement.",
+      "confirm_bulk_delete_description_other": "Les comptes rendus, les transcriptions et l’audio conservé de ces {{count}} réunions sont supprimés définitivement.",
+      "bulk_deleted_one": "{{count}} réunion supprimée",
+      "bulk_deleted_other": "{{count}} réunions supprimées",
+      "bulk_skipped_one": "{{count}} réunion a été ignorée : elle est encore en enregistrement ou en traitement.",
+      "bulk_skipped_other": "{{count}} réunions ont été ignorées : elles sont encore en enregistrement ou en traitement.",
+      "not_selectable": "Impossible à sélectionner pendant l’enregistrement ou le traitement",
+      "record": "Enregistrer une réunion",
+      "templates": "Modèles"
     },
     "detail": {
       "back": "Retour aux réunions",
@@ -11531,7 +11625,7 @@
       "email": "M'envoyer le compte rendu par e-mail",
       "email_ok": "Le compte rendu a été envoyé à ton adresse e-mail.",
       "email_sent": "Envoyé par e-mail le {{when}}",
-      "regenerate": "Reconstruire avec mon modèle",
+      "regenerate": "Regénérer avec le même format",
       "reset": "Revenir à la version générée",
       "delete_transcript": "Supprimer la transcription",
       "delete": "Supprimer la réunion",
@@ -11567,16 +11661,46 @@
       "confirm_delete_transcript_title": "Supprimer la transcription ?",
       "confirm_delete_transcript_description": "Le compte rendu reste ; la transcription est irrécupérable et le compte rendu ne pourra plus être reconstruit.",
       "confirm_regenerate_title": "Reconstruire le compte rendu ?",
-      "confirm_regenerate_description": "LIA rédige un nouveau compte rendu à partir de la transcription avec ton modèle actuel. Tes modifications sur ce compte rendu sont remplacées.",
+      "confirm_regenerate_description": "LIA rédige un nouveau compte rendu à partir de la transcription, dans le même format. Vos modifications de ce compte rendu sont remplacées.",
       "confirm_reset_title": "Revenir à la version générée ?",
       "confirm_reset_description": "Tes modifications sont remplacées par le compte rendu généré par LIA.",
       "cost_breakdown": "{{total}} (transcription {{stt}} · compte rendu {{minutes}})",
-      "cost_unknown": "non tarifé"
+      "cost_unknown": "non tarifé",
+      "transcript_line": "Tour de parole de {{speaker}} à {{time}}",
+      "format": "Format",
+      "format_selection": {
+        "auto": "choisi par LIA",
+        "user": "choisi par vous",
+        "preference": "votre format par défaut"
+      },
+      "change_format": "Changer le format…",
+      "reformat": {
+        "title": "Changer le format",
+        "description": "LIA rédige à nouveau le compte rendu à partir de la transcription, dans le format que vous choisissez.",
+        "template_label": "Format",
+        "mode_label": "Que faire du résultat",
+        "mode_replace": "Remplacer ce compte rendu",
+        "mode_new": "Nouveau compte rendu à partir de cette transcription",
+        "cost_note": "Rédiger à nouveau coûte une nouvelle synthèse, facturée comme la première.",
+        "transcript_note": "Un format de transcription réécrit tout l'échange : plus long à produire et facturé comme une réunion entière.",
+        "submit": "Rédiger le compte rendu",
+        "started_new": "Un nouveau compte rendu est en cours de rédaction à partir de cette transcription.",
+        "started_replace": "Le compte rendu est en cours de rédaction.",
+        "choose": "Choisir un format…"
+      },
+      "pending_title": "Rédaction du compte rendu",
+      "pending_hint": "La transcription est rédigée dans le format choisi. Cette page se met à jour toute seule.",
+      "pending_failed_title": "Le compte rendu n'a pas pu être rédigé",
+      "try_again": "Réessayer",
+      "derived_from": "Issu de la même transcription qu'une autre réunion",
+      "derived_count_one": "{{count}} nouveau compte rendu a été rédigé à partir de cette transcription.",
+      "derived_count_other": "{{count}} nouveaux comptes rendus ont été rédigés à partir de cette transcription."
     },
     "card": {
       "title": "Compte rendu de réunion prêt",
       "open": "Ouvrir le compte rendu",
-      "cost_line": "Transcription {{stt}} · compte rendu {{minutes}} · total {{total}}"
+      "cost_line": "Transcription {{stt}} · compte rendu {{minutes}} · total {{total}}",
+      "template": "Format : {{name}}"
     },
     "settings": {
       "preferences_title": "Préférences",
@@ -11598,7 +11722,7 @@
         "nl": "Néerlandais"
       },
       "auto_email_label": "M'envoyer le compte rendu par e-mail dès qu'il est prêt",
-      "auto_email_hint": "Envoyé via ton compte e-mail connecté, à ta propre adresse.",
+      "auto_email_hint": "Envoyé par LIA depuis sa propre adresse, à la vôtre.",
       "keep_audio_label": "Conserver l'audio après traitement",
       "keep_audio_none": "Supprimé dès la fin du traitement",
       "keep_audio_hours_one": "{{count}} heure",
@@ -11606,13 +11730,6 @@
       "keep_audio_max_one": "jusqu'à {{count}} heure",
       "keep_audio_max_other": "jusqu'à {{count}} heures",
       "saved": "Préférences enregistrées",
-      "template_title": "Structure du compte rendu",
-      "template_description": "Les sections que LIA remplit, dans l'ordre. Ajuste-les à tes besoins ; la structure par défaut peut être restaurée à tout moment.",
-      "template_name_label": "Nom du modèle",
-      "template_builtin_badge": "Par défaut",
-      "reset_template": "Restaurer le modèle par défaut",
-      "template_saved": "Modèle enregistré",
-      "template_reset": "Modèle par défaut restauré",
       "new_section_label": "Nouvelle section",
       "section_position": "Section {{position}}",
       "move_up": "Monter « {{label}} »",
@@ -11631,14 +11748,25 @@
       "recent_title": "Réunions récentes",
       "no_meetings": "Aucune réunion enregistrée pour l'instant.",
       "view_all_one": "Toutes les réunions ({{count}})",
-      "view_all_other": "Toutes les réunions ({{count}})"
+      "view_all_other": "Toutes les réunions ({{count}})",
+      "instruction_toggle": "Ce que LIA doit mettre dans cette section",
+      "instruction_missing": "Consigne manquante — LIA doit savoir quoi écrire ici.",
+      "instruction_preview_empty": "Aucune consigne pour l’instant",
+      "kind_transcript": "Transcription complète (réécrite)",
+      "default_template_label": "Format de compte rendu par défaut",
+      "default_template_auto": "Automatique — LIA choisit d'après l'enregistrement",
+      "default_template_hint": "Appliqué à chaque nouvel enregistrement. En automatique, LIA choisit le meilleur format d'après ce qui a été dit ; un format transcription n'est jamais choisi automatiquement.",
+      "templates_title": "Modèles de compte rendu",
+      "templates_description": "Les formats intégrés et les vôtres. Dupliquez un format intégré pour le personnaliser.",
+      "templates_count_one": "{{count}} modèle à vous",
+      "templates_count_other": "{{count}} modèles à vous",
+      "manage_templates": "Gérer mes modèles"
     },
     "errors": {
       "audio_normalize_failed": "L'audio n'a pas pu être préparé.",
       "audio_unavailable": "L'audio n'est plus disponible.",
       "capture_failed": "Le micro a cessé de fonctionner.",
       "duration_cap_reached": "La durée maximale d'enregistrement est atteinte : le compte rendu est produit à partir de ce qui a été capté.",
-      "email_connector_missing": "Aucun compte e-mail n'est connecté pour envoyer le compte rendu.",
       "email_send_failed": "Ton fournisseur e-mail a refusé le message.",
       "format_unavailable": "Cet enregistrement a été démarré dans un format que ce navigateur ne peut pas produire : il reste possible de le finaliser ou de l'abandonner ici.",
       "invalid_api_key": "Le service de transcription a refusé la clé configurée.",
@@ -11667,7 +11795,94 @@
       "unexpected": "Une erreur est survenue pendant le traitement.",
       "unknown": "Erreur inconnue ({{code}})",
       "usage_limit": "Ta limite d'utilisation est atteinte.",
-      "user_missing": "Le compte n'existe plus."
+      "user_missing": "Le compte n'existe plus.",
+      "template_locked": "Le format ne peut pas changer pendant la rédaction du compte rendu.",
+      "template_not_found": "Ce modèle n'existe plus.",
+      "template_readonly": "Un modèle intégré ne peut pas être modifié ; dupliquez-le d'abord.",
+      "template_limit_reached": "Vous avez atteint la limite de {{max}} modèles.",
+      "template_ref_invalid": "Cette référence de modèle n'est pas valide.",
+      "regeneration_interrupted": "La rédaction a été interrompue avant la fin ; réessayez."
+    },
+    "header": {
+      "record": "Enregistrer une réunion",
+      "stop": "Arrêter l’enregistrement",
+      "live_label": "Menu — une réunion est en cours d’enregistrement"
+    },
+    "templates": {
+      "category": {
+        "custom": "Mes modèles",
+        "meeting": "Réunions et équipes",
+        "transcript": "Transcriptions",
+        "analysis": "Analyse de conversation",
+        "business": "Commercial et conseil",
+        "technical": "Technique",
+        "personal": "Rendez-vous personnels",
+        "learning": "Cours et formations"
+      },
+      "title": "Modèles de compte rendu",
+      "subtitle": "Les formats dans lesquels LIA rédige les comptes rendus : la bibliothèque intégrée et vos propres modèles.",
+      "new": "Nouveau modèle",
+      "builtin_badge": "Intégré",
+      "transcript_badge": "Transcription complète",
+      "sections_count_one": "{{count}} section",
+      "sections_count_other": "{{count}} sections",
+      "preview": "Aperçu",
+      "duplicate": "Dupliquer",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "row_actions": "Actions — {{name}}",
+      "empty_custom": "Aucun modèle personnel pour l'instant. Dupliquez un modèle intégré pour l'adapter, ou créez-en un de zéro.",
+      "limit_reached": "Vous avez atteint la limite de {{count}} modèles. Supprimez-en un pour en créer un autre.",
+      "saved": "Modèle enregistré",
+      "load_failed": "Le modèle n'a pas pu être chargé.",
+      "save_failed": "Le modèle n'a pas pu être enregistré.",
+      "delete_failed": "Le modèle n'a pas pu être supprimé.",
+      "back_to_library": "Retour à la bibliothèque",
+      "form": {
+        "name": "Nom",
+        "name_missing": "Donnez un nom au modèle.",
+        "description": "Description (facultative)",
+        "category": "Catégorie",
+        "create_title": "Nouveau modèle",
+        "edit_title": "Modifier le modèle",
+        "sections_title": "Sections",
+        "incomplete": "Chaque section a besoin d'un titre et d'une consigne."
+      },
+      "mine_title": "Mes modèles personnalisés",
+      "builtin_title": "Modèles intégrés",
+      "mine_count_one": "{{count}} sur {{max}}",
+      "mine_count_other": "{{count}} sur {{max}}",
+      "browse_builtins": "Parcourir les modèles intégrés",
+      "add_to_mine": "Ajouter à mes modèles",
+      "add_selected_one": "Ajouter à mes modèles ({{count}})",
+      "add_selected_other": "Ajouter à mes modèles ({{count}})",
+      "delete_selected_one": "Supprimer ({{count}})",
+      "delete_selected_other": "Supprimer ({{count}})",
+      "select_row": "Sélectionner « {{name}} »",
+      "select_all": "Sélectionner tous les modèles",
+      "selection_region": "Modèles sélectionnés",
+      "selected_count_one": "{{count}} modèle sélectionné",
+      "selected_count_other": "{{count}} modèles sélectionnés",
+      "clear_selection": "Effacer la sélection",
+      "added_one": "{{count}} modèle ajouté à mes modèles",
+      "added_other": "{{count}} modèles ajoutés à mes modèles",
+      "deleted_one": "{{count}} modèle supprimé",
+      "deleted_other": "{{count}} modèles supprimés",
+      "skipped_one": "{{count}} modèle est resté tel quel : {{reasons}}",
+      "skipped_other": "{{count}} modèles sont restés tels quels : {{reasons}}",
+      "preference_reset": "Votre format de compte rendu par défaut visait un modèle supprimé : il est revenu à l'automatique.",
+      "confirm_delete_title_one": "Supprimer ce modèle ?",
+      "confirm_delete_title_other": "Supprimer les modèles sélectionnés ?",
+      "confirm_delete_description_one": "« {{name}} » sera retiré. Les comptes rendus déjà rédigés avec lui sont conservés.",
+      "confirm_delete_description_other": "Ces {{count}} modèles seront retirés. Les comptes rendus déjà rédigés avec eux sont conservés.",
+      "skip": {
+        "template_not_found": "introuvable",
+        "template_ref_invalid": "référence invalide",
+        "template_readonly": "un modèle intégré ne se supprime pas",
+        "template_limit_reached": "la limite de modèles est atteinte",
+        "duplicate_failed": "n'a pas pu être ajouté",
+        "delete_failed": "n'a pas pu être supprimé"
+      }
     }
   }
 }

@@ -13,12 +13,14 @@ import {
   Mail,
   Pencil,
   RefreshCw,
+  Replace,
   RotateCcw,
   Save,
   Trash2,
   X,
 } from 'lucide-react';
 
+import { MeetingFormatFact } from '@/components/meetings/MeetingDetailLinks';
 import { MeetingProgress } from '@/components/meetings/MeetingProgress';
 import { MeetingReportEditor } from '@/components/meetings/MeetingReportEditor';
 import { MeetingReportView } from '@/components/meetings/MeetingReportView';
@@ -87,6 +89,7 @@ export function MeetingFacts({ lng, meeting }: { lng: Language; meeting: Meeting
         value={meeting.stt_provider ? t(`meetings.banner.engine.${meeting.stt_provider}`) : null}
       />
       <Fact label={t('meetings.detail.cost')} value={costValue} />
+      <MeetingFormatFact lng={lng} meeting={meeting} />
     </dl>
   );
 }
@@ -152,6 +155,8 @@ interface MinutesPanelProps {
   isActing: boolean;
   onDraftChange: (draft: MeetingReport | null) => void;
   actions: MeetingActions;
+  /** Opens the « Change the format » dialog (ADR-259). */
+  onChangeFormat: () => void;
 }
 
 function MinutesToolbar({
@@ -163,6 +168,7 @@ function MinutesToolbar({
   isActing,
   onDraftChange,
   actions,
+  onChangeFormat,
 }: MinutesPanelProps) {
   const { t } = useTranslation(lng);
   if (draft !== null) {
@@ -222,6 +228,16 @@ function MinutesToolbar({
       >
         <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" />
         {t('meetings.detail.regenerate')}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        aria-disabled={!canRebuild}
+        onClick={() => canRebuild && onChangeFormat()}
+      >
+        <Replace className="mr-1 h-4 w-4" aria-hidden="true" />
+        {t('meetings.detail.change_format')}
       </Button>
       {meeting.report_is_edited && (
         <Button

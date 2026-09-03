@@ -4,7 +4,7 @@
 
 **Version**: 5.2
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.39.0
+**Anwendung**: LIA v1.39.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -210,11 +210,11 @@ Bleibt, was kein System erraten kann. LIA gruppiert, was gleich geschrieben wird
 
 ### 3.13. Eine Besprechung aufgenommen, ein Protokoll geschrieben
 
-Drücke **+** im Chat, und dein Telefon oder Computer wird zum Aufnahmegerät der Besprechung. Ein Banner begleitet dich auf jeder Seite mit der Zeit und dem, was deinen Server schon erreicht hat; du sprichst währenddessen weiter mit LIA — gesprochene Antworten pausieren einfach, damit das Mikrofon den Assistenten nie hört. Wenn du stoppst, transkribiert LIA alles und schreibt das Protokoll **in deiner Struktur**: Der Kopf ist fest (Datum, Zeiten, Ort, Teilnehmende), der Hauptteil ist deiner — Zusammenfassung, Themen, Entscheidungen, Aufgaben mit Verantwortlichen und Frist, Risiken, offene Fragen oder welche Abschnitte du einmal in den Einstellungen festlegst und mit einem Klick zurücksetzt.
+Eine Schaltfläche in der Kopfzeile — oder der Eintrag „Besprechung aufnehmen“ im Menü am Telefon — und dein Telefon oder Computer wird zum Aufnahmegerät der Besprechung. Ein Banner begleitet dich auf jeder Seite mit der Zeit und dem, was deinen Server schon erreicht hat; du sprichst währenddessen weiter mit LIA — gesprochene Antworten pausieren einfach, damit das Mikrofon den Assistenten nie hört. Wenn du stoppst, transkribiert LIA alles und schreibt das Protokoll **in deiner Struktur**: Der Kopf ist fest (Datum, Zeiten, Ort, Teilnehmende), der Hauptteil folgt einem Format, das du aus dreißig integrierten Vorlagen wählst — Besprechungen und Teams, Transkripte, Gesprächsanalysen, Vertrieb, Technik, persönliche Termine, Kurse — oder das du selbst baust, Abschnitt für Abschnitt. Und wählst du nichts, liest LIA, was gesagt wurde, behält das passende Format und sagt dir welches und warum: eine Projektbesprechung und eine ärztliche Beratung haben nicht dieselbe Struktur.
 
 Das echte Leben ist eingeplant, nicht entschuldigt. Der Ton geht in kleinen Segmenten hinaus, während du sprichst, sodass ein gesperrtes Telefon, ein Verbindungsabbruch oder ein Neuladen Sekunden kostet, nie die Besprechung: Bei der Rückkehr setzt du fort, schließt ab oder verwirfst. Lange Stille bringt eine Frage, eine Höchstdauer schließt von selbst ab, und eine Lücke in der Aufnahme wird im Protokoll benannt — nie mit einer Vermutung gefüllt. Eine unbenannte Stimme bleibt S2; ein Name erscheint nur, wenn die Aufnahme ihn belegt.
 
-Das Protokoll erreicht dich auf drei Wegen — als Karte im Chat, als PDF, in deinem eigenen Postfach — und landet in einem für dich angelegten Wissensraum **Meetings**, sodass du Wochen später einfach fragen kannst, was entschieden wurde. Was es gekostet hat, steht daneben: Transkription und Protokoll als zwei Beträge und ihre Summe, gezählt wie jeder andere Austausch. Und die Transkriptions-Engine wählst du: eine entfernte, die die Sprechenden trennt, oder die lokale, die nichts kostet und deinen Server nie verlässt.
+Das Protokoll erreicht dich auf drei Wegen — als Karte im Chat, als PDF, in deinem Posteingang von der Adresse der Anwendung aus, ohne ein Postfach verbinden zu müssen — und landet in einem für dich angelegten Wissensraum **Meetings**, sodass du Wochen später einfach fragen kannst, was entschieden wurde. Was es gekostet hat, steht daneben: Transkription und Protokoll als zwei Beträge und ihre Summe, gezählt wie jeder andere Austausch. Und nichts ist festgeschrieben: ein bereits erstelltes Protokoll lässt sich aus dem gespeicherten Transkript in einem anderen Format neu schreiben — bis hin zum vollständigen, aufgeräumten Transkript — entweder als Ersatz für das vorhandene oder als neues Protokoll derselben Besprechung. Die Transkriptions-Engine wählst weiterhin du: eine entfernte, die die Sprechenden trennt, oder die lokale, die nichts kostet und deinen Server nie verlässt.
 
 ---
 

@@ -11,8 +11,9 @@ import pytest
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
+from src.domains.meetings import service as service_module
 from src.domains.meetings.models import MeetingAudioFormat, MeetingStatus
-from src.domains.meetings.schemas import MeetingStopRequest
+from src.domains.meetings.schemas import MeetingPatchRequest, MeetingStopRequest
 from src.domains.meetings.service import MeetingService
 
 pytestmark = pytest.mark.unit
@@ -184,3 +185,57 @@ class TestDelete:
             await service.delete(meeting.user_id, meeting.id)
         assert _code(exc) == "meeting_in_progress"
         service.repo.delete.assert_not_awaited()
+
+
+# ---------------------------------------------------------------- ADR-259: the meeting's template
+
+
+class TestTemplateChoice:
+    @pytest.fixture
+    def templates(self, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+        from src.domains.meetings.schemas import TemplateCategory
+        from src.domains.meetings.template_ref import TemplateRef
+        from src.domains.meetings.template_service import ResolvedTemplate
+
+        resolved = ResolvedTemplate(
+            ref=TemplateRef.builtin("daily_standup"),
+            name="Daily",
+            category=TemplateCategory.MEETING,
+            sections=[],
+            auto_selectable=True,
+        )
+        fake = MagicMock()
+        fake.resolve = AsyncMock(return_value=resolved)
+        monkeypatch.setattr(service_module, "MeetingTemplateService", MagicMock(return_value=fake))
+        return fake
+
+    async def test_a_live_meeting_takes_the_template_and_remembers_its_name(
+        self, service: MeetingService, templates: MagicMock
+    ) -> None:
+        meeting = _meeting(MeetingStatus.RECORDING)
+        meeting.report_current = None
+        service.repo.get_for_user.return_value = meeting
+        await service.patch_report(
+            meeting.user_id, meeting.id, MeetingPatchRequest(template_ref="builtin:daily_standup")
+        )
+        templates.resolve.assert_awaited_once()
+        service.repo.set_template.assert_awaited_once_with(
+            meeting.id, ref="builtin:daily_standup", name="Daily"
+        )
+        service.repo.set_report_current.assert_not_awaited()
+
+    async def test_once_processing_started_the_template_is_locked(
+        self, service: MeetingService, templates: MagicMock
+    ) -> None:
+        for status in (MeetingStatus.PROCESSING, MeetingStatus.READY):
+            meeting = _meeting(status)
+            meeting.report_current = None
+            service.repo.get_for_user.return_value = meeting
+            with pytest.raises(BaseAPIException) as exc:
+                await service.patch_report(
+                    meeting.user_id,
+                    meeting.id,
+                    MeetingPatchRequest(template_ref="builtin:daily_standup"),
+                )
+            assert exc.value.status_code == 409 and _code(exc) == "template_locked"
+        service.repo.set_template.assert_not_awaited()

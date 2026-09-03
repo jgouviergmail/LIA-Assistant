@@ -105,6 +105,26 @@ export interface RAGSpaceToggleResponse {
 }
 
 /** API response for document status polling. */
+/** One id a batch left untouched, with the stable reason (ADR-259). */
+export interface RAGBatchSkipped {
+  id: string;
+  code: string;
+}
+
+/** What a batch (move, bulk delete) did. */
+export interface RAGDocumentBatchResponse {
+  done: string[];
+  skipped: RAGBatchSkipped[];
+}
+
+export interface RAGDocumentIdsRequest {
+  ids: string[];
+}
+
+export interface RAGDocumentMoveRequest extends RAGDocumentIdsRequest {
+  target_space_id: string;
+}
+
 export interface RAGDocumentStatusResponse {
   id: string;
   status: RAGDocumentStatus;

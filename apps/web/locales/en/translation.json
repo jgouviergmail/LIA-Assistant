@@ -3510,7 +3510,7 @@
         "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct, configuration, consolidation, export",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
         "skills": "skills, capabilities, abilities, plugins, extensions",
-        "rag-spaces": "documents, RAG, knowledge base, files, upload, indexing, library",
+        "rag-spaces": "knowledge spaces, documents, files, upload, download, archive, zip, move, delete several, indexing, document search, drive, meetings",
         "user-consumption-export": "CSV, usage, tokens, cost, billing, statistics, export",
         "haptics": "haptics vibration touch feedback sensory",
         "plugins": "plugins, plugin, extensions, agent plugins, install, package, mcp, skills",
@@ -3531,7 +3531,7 @@
         "debug-settings": "debug, diagnostics, logs, panel, token tracking",
         "eyes-style": "eyes, avatar, animation, style, gaze, companion, cozmo",
         "admin-diagnostics": "health diagnostics incidents alerts monitoring self-check platform status prometheus loki connectivity egress outbound network embeddings vectors quota memory language",
-        "meetings": "meeting, recording, minutes, transcription, report, microphone, notes, summary, actions"
+        "meetings": "meeting, recording, minutes, transcription, report, microphone, notes, summary, actions, template, templates, template library, minutes format, default format, automatic format, change the format, sections, instructions, minutes email"
       }
     },
     "haptics": {
@@ -3775,7 +3775,47 @@
       "upload_formats_tooltip": "PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML",
       "chunk_count": "{{count}} chunks",
       "embedding_tokens": "{{count}} tokens",
-      "file_too_large": "\"{{name}}\" is too large (max {{maxSize}} MB)"
+      "file_too_large": "\"{{name}}\" is too large (max {{maxSize}} MB)",
+      "select_row": "Select « {{name}} »",
+      "select_all": "Select every document",
+      "selection_region": "Selected documents",
+      "selected_count_one": "{{count}} document selected",
+      "selected_count_other": "{{count}} documents selected",
+      "clear_selection": "Clear selection",
+      "download": "Download",
+      "download_selected": "Download as a zip",
+      "move": "Move to another space…",
+      "move_selected": "Move…",
+      "delete_selected": "Delete",
+      "row_actions": "Actions — {{name}}",
+      "confirm_bulk_delete_title": "Delete the selected documents?",
+      "confirm_bulk_delete_description_one": "This document, its index and its file are deleted for good.",
+      "confirm_bulk_delete_description_other": "These {{count}} documents, their index and their files are deleted for good.",
+      "bulk_deleted_one": "{{count}} document deleted",
+      "bulk_deleted_other": "{{count}} documents deleted",
+      "moved_one": "{{count}} document moved",
+      "moved_other": "{{count}} documents moved",
+      "skipped_one": "{{count}} document was left in place: {{reasons}}",
+      "skipped_other": "{{count}} documents were left in place: {{reasons}}",
+      "move_dialog": {
+        "title": "Move to another space",
+        "description": "The documents, their index and their files move together. Documents kept in sync from Drive or written from a meeting stay where they are.",
+        "target_label": "Target space",
+        "target_count_one": "{{count}} document",
+        "target_count_other": "{{count}} documents",
+        "submit": "Move",
+        "none_available": "You have no other space to move these documents to. Create one first."
+      },
+      "skip": {
+        "same_space": "already in this space",
+        "document_managed_by_drive": "kept in sync from Drive",
+        "document_managed_by_meetings": "written from a meeting",
+        "document_busy": "still being indexed",
+        "document_limit_exceeded": "target space is full",
+        "document_move_failed": "the file could not be moved",
+        "delete_failed": "could not be deleted",
+        "document_not_found": "not found"
+      }
     },
     "drive": {
       "title": "Google Drive Sources",
@@ -3814,6 +3854,11 @@
     },
     "meetings": {
       "source_type_meeting": "Meeting"
+    },
+    "errors": {
+      "archive_too_large": "The selection exceeds the {{max}} MB an archive may hold. Select fewer documents.",
+      "reindex_in_progress": "Documents cannot move while the knowledge spaces are being re-indexed. Try again later.",
+      "document_file_missing": "The file of this document is no longer on the server."
     }
   },
   "navigation": {
@@ -4434,7 +4479,7 @@
         },
         "meetings": {
           "title": "🎙️ Meeting minutes",
-          "description": "Press + in the composer and a phone or a computer becomes a meeting recorder: audio leaves in small segments as you speak, so a crash, a reload or a lost connection costs seconds, never the meeting. At the stop the server assembles the recording, walks its engine chain — the administrator's choice, ElevenLabs or OpenAI with speaker separation, or the local Whisper cut into speech windows so no length is too long — and hands the transcript to one structured call that fills your template: the head is fixed, the sections are yours. What it cost is stated as two amounts and a total, and the minutes join a knowledge space you can question. A gap is stated, never filled in."
+          "description": "A button in the header — or the “Record a meeting” entry of the phone menu — and the device becomes a recorder: audio leaves in small segments as you speak, so a crash or a lost connection costs seconds, never the meeting. At the stop the server assembles the recording and walks its chain of engines until one transcribes. The minutes format is picked among thirty built-in templates by reading what was said, unless you impose your own; the meeting states which one it used and why. Minutes already written can be rewritten in another format — up to the full transcript — in place or as a new document. The cost is stated as two amounts and a total, and a gap is announced, never filled in."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -4443,6 +4488,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_39_1": {
+          "title": "v1.39.1 — 🗂️ Thirty minutes formats, and LIA picks the right one",
+          "date": "September 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🗂️ A library of minutes formats</b> — thirty ready-made templates, filed by use: meetings and teams, transcripts, conversation analysis, sales and consulting, technical, personal appointments, courses and training. Browse them, preview them, add the ones that speak to you to your own templates — one at a time or as a selection — then adapt them at home: rename, reorder the sections, rewrite the instructions, decline a template into several variants, delete what no longer serves.",
+            "i2": "<b>✨ LIA picks the format by itself</b> — with nothing to set up, it reads what was said and keeps the matching format: a project review, an interview, a medical appointment and a lecture do not share a structure. The minutes state which format was used, whether it came from you, from your default or from its own choice, and in one line why. You keep the wheel: pick your default in the settings, or the current meeting's format from the recording banner.",
+            "i3": "<b>🔁 Change the format afterwards</b> — minutes already written can be rewritten in another format from the stored transcript: either you replace the ones you have, or you get <b>new minutes</b> from the same meeting, keeping the link to their origin and joining the knowledge space as a document of their own. New along the way: a format can now hand back <b>the full transcript</b>, cleaned up and readable, rather than a summary.",
+            "i4": "<b>✉️ The minutes by email, for everyone</b> — they now leave from the application's own address to your account's, subject “Meeting minutes · Title”. No connected mailbox required any more: manual and automatic sending both work on any instance whose administrator configured email.",
+            "i5": "<b>🗃️ Your documents move between your knowledge spaces</b> — download a document, or a whole selection as a zip archive under the original names; move documents to another space, index and file follow; delete several at once. Every batch tells you what it did and what it left aside, with the reason: a document synced from Drive or written from a meeting stays where its owner put it.",
+            "i6": "<b>🎙️ Recording has a place of its own</b> — a dedicated button in the header on a computer, a “Record / Stop” entry in the logo menu on a phone whose trigger pulses red while capturing, and the banner that follows you on every page without ever pushing the typing area off screen. The composer's “+” goes back to what it was: attaching a file. And the meetings list finally accepts multiple selection to delete several at once."
+          }
+        },
         "v1_39_0": {
           "title": "v1.39.0 — 🎙️ Record a meeting, get the minutes",
           "date": "September 2026",
@@ -7569,7 +7627,7 @@
       "rag_spaces": {
         "title": "Knowledge Spaces (RAG)",
         "description": "Upload and use your own documents to enrich AI responses",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "What are Knowledge Spaces?",
@@ -7606,6 +7664,10 @@
           "q9": {
             "question": "Can LIA search my documents on its own? (v1.25.13)",
             "answer": "Yes. Your document spaces are now an <strong>active domain</strong>: beyond the automatic context injection, the planner can decide to search them — with derived queries, several passes if needed, and combinations with other sources: « compare the PDF quote with what Paul sent by email » chains a document search and an email search.<br><br>The « Documents » briefing card also shows your latest modified Drive files — one click to summarize in chat, or open directly in Drive."
+          },
+          "q10": {
+            "question": "Can I download, move or delete several documents?",
+            "answer": "Yes. Every document in a space offers <strong>Download</strong> — the original file, under its original name — and ticks to act on several at once. A selection can be <strong>downloaded as one zip archive</strong>, <strong>moved to another space</strong> or <strong>deleted</strong> in one go.<br><br>A move takes everything with it: the row, the index the search reads and the file itself — after which the document answers from its new space, and only from there. What stays put is what LIA maintains for you: documents synced from a Google Drive folder and meeting minutes, which belong to their source.<br><br>Every batch tells you what it did and what it left aside, with the reason — target space full, document still being indexed, document managed elsewhere. And nothing moves during a general reindex: LIA would rather refuse cleanly than move a document the engine is re-reading."
           }
         }
       },
@@ -7920,15 +7982,15 @@
       "meetings": {
         "title": "Meeting minutes",
         "description": "Record a meeting from the chat, get structured minutes in your own format, find them again in a knowledge space.",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "How do I record a meeting?",
-            "answer": "In the chat, open the <strong>+</strong> button next to the message field and choose <strong>Record a meeting</strong>. Your phone or your computer becomes the microphone: LIA asks for it once, then a banner at the top of every page shows the recording, its duration and what has already reached your server. You can keep chatting with LIA in the meantime — spoken answers and the wake word are simply paused so the microphone never hears the assistant.<br><br>When the meeting ends, press <strong>Stop</strong> in the banner or in the same menu. LIA transcribes the whole recording, writes the minutes and posts a card in the chat with the title, the summary and an <strong>Open the minutes</strong> button. Every recording also lives on the <strong>Meetings</strong> page of the header, between Relations and Alerts.<br><br><strong>💡 Good to know:</strong> the feature exists only where the administrator has enabled it, and the engine that will transcribe — with its price per hour of audio — is shown before you start."
+            "answer": "On a computer the recording button sits in the header, on the right; on a phone, open the LIA logo menu and choose <strong>Record a meeting</strong> — the menu button pulses red for as long as the capture is open. Your phone or your computer becomes the microphone: LIA asks for it once, then a banner at the top of every page shows the recording, its duration and what has already reached your server. You can keep chatting with LIA in the meantime — spoken answers and the wake word are simply paused so the microphone never hears the assistant.<br><br>When the meeting ends, press <strong>Stop</strong> in the banner or where you started. LIA transcribes the whole recording, writes the minutes and posts a card in the chat with the title, the summary and an <strong>Open the minutes</strong> button. Every recording also lives on the <strong>Meetings</strong> page of the header, between Relations and Alerts.<br><br><strong>💡 Good to know:</strong> the feature exists only where the administrator has enabled it, the engine that will transcribe — with its price per hour of audio — is shown before you start, and the banner lets you pick the minutes format while the meeting runs."
           },
           "q2": {
-            "question": "What do the minutes contain, and can I change their structure?",
-            "answer": "The head of the minutes is fixed: date, start and end time in your time zone, duration, place when it is known, and the participants. The body follows <strong>your template</strong>: an ordered list of sections, each with a heading, an instruction for the assistant and a format — a paragraph, a bullet list, one entry per topic, or action items with owner and deadline.<br><br>The built-in template gives a summary, the topics discussed, the decisions, the actions, the risks and the open questions. Change it in <strong>Settings › Meetings</strong>: rename, reorder, add or remove sections, and reset to the default in one click. The minutes already written keep the structure they were produced with; <strong>Rebuild</strong> applies your current template to a past meeting from its stored transcript.<br><br>The model reports only what the transcript supports: a proposal left open is not a decision, a wish is not an action, and every relative date is resolved to a real one."
+            "question": "What do the minutes contain, and who chooses their structure?",
+            "answer": "The head of the minutes is fixed: date, start and end time in your time zone, duration, place when it is known, and the participants. The body follows a <strong>format</strong>: an ordered list of sections, each with a heading, an instruction for the assistant and a shape — a paragraph, a bullet list, one entry per topic, action items with owner and deadline, or the full transcript rewritten cleanly.<br><br><strong>Thirty built-in formats</strong> ship with LIA, filed by use: meetings and teams, transcripts, conversation analysis, sales and consulting, technical, personal appointments, courses and training. In <strong>Meetings › Minutes templates</strong> you browse them, preview them and add the ones that serve you to your own templates — one at a time or several at once — then adapt them: rename, reorder the sections, rewrite the instructions, decline a template, delete what no longer serves.<br><br><strong>Choose nothing and LIA chooses</strong>: it reads what was said, keeps the matching format, then states it on the meeting with, in one line, the reason for its choice. You can impose a default in <strong>Settings › Meetings</strong>, or the current meeting's format from the banner. Full-transcript formats are never chosen automatically: they are long and priced like a whole meeting.<br><br>The model reports only what the transcript supports: a proposal left open is not a decision, a wish is not an action, and every relative date is resolved to a real one."
           },
           "q3": {
             "question": "Which engine transcribes, and what does it cost?",
@@ -7944,11 +8006,15 @@
           },
           "q6": {
             "question": "Can I edit the minutes, send them, and ask LIA about my meetings later?",
-            "answer": "Yes. On the meeting page you can <strong>edit</strong> every field — title, participant names and roles, each section in its own shape — and <strong>restore</strong> the version the model wrote at any time. <strong>PDF</strong> downloads the minutes as a document; <strong>Email</strong> sends them to your own address through your connected mailbox, and Settings can do that automatically for every meeting.<br><br>Every minutes are also indexed in a knowledge space named <strong>Meetings</strong>, created for you the first time. So you can simply ask: “what did we decide about the migration?”, “which actions are due this week?” — the assistant answers from your own meetings, sources cited."
+            "answer": "Yes. On the meeting page you can <strong>edit</strong> every field — title, participant names and roles, each section in its own shape — and <strong>restore</strong> the version the model wrote at any time. <strong>PDF</strong> downloads the minutes as a document; <strong>Email</strong> sends them to your account's address from the application's own address — no connected mailbox needed — and Settings can do that automatically for every meeting.<br><br>Every minutes are also indexed in a knowledge space named <strong>Meetings</strong>, created for you the first time. So you can simply ask: “what did we decide about the migration?”, “which actions are due this week?” — the assistant answers from your own meetings, sources cited.<br><br>The meetings list accepts multiple selection: tick the ones that no longer serve and delete them at once. A meeting still recording or still being processed is left aside, and LIA tells you which one and why."
           },
           "q7": {
             "question": "Does LIA know who said what?",
             "answer": "When the engine separates the speakers, each voice gets a stable label — <strong>S1, S2…</strong> — throughout the transcript and the minutes. A <strong>name</strong> appears only when the recording itself establishes it: someone introduces themselves, is addressed by name, or the calendar event overlapping the meeting leaves no doubt. LIA never invents a name; an unnamed speaker stays S2, and you can name them yourself when editing the minutes.<br><br>The local engine transcribes without separating voices: the minutes then read like a single account, with the participants it could establish."
+          },
+          "q8": {
+            "question": "Can I change the format of minutes already written?",
+            "answer": "Yes, as long as the transcript is kept. On the meeting page, <strong>Change the format…</strong> offers two outcomes: <strong>replace</strong> the existing minutes, or get <strong>new minutes</strong> from the same meeting. The new ones keep the link to their origin — the original meeting states how many minutes came out of it — and join the knowledge space as a document of their own, with their own cost.<br><br>That is what lets you read one meeting two ways: the working minutes on one side, the full cleaned-up transcript on the other, or an analysis format when you want to look at the exchange rather than its conclusions. <strong>Rebuild</strong> stays next to it: it rewrites the minutes with <em>the same</em> format, useful right after you changed your sections.<br><br><strong>💡 Good to know:</strong> rewriting costs a new synthesis, billed like the first one, and the dialog says so before you confirm. If you delete the transcript, the minutes stay readable but can no longer be rewritten."
           }
         }
       }
@@ -8210,6 +8276,10 @@
       "meeting_banner": {
         "title": "The recording follows you",
         "desc": "Change page mid-meeting: the banner keeps the time, the microphone and the way back — resume, finalize or discard."
+      },
+      "template_library": {
+        "title": "Thirty formats, folded",
+        "desc": "The library opens with its categories closed, yours first: you unfold the one you need, tick, and add."
       }
     },
     "scenes": {
@@ -8309,6 +8379,11 @@
         "recording": "Recording",
         "interrupted": "Interrupted",
         "resume": "Resume"
+      },
+      "template_library": {
+        "mine": "My templates",
+        "builtin": "Built-in",
+        "pick": "Add"
       }
     },
     "craft": {
@@ -9507,7 +9582,7 @@
       },
       "meetings": {
         "title": "Record a meeting, get the minutes",
-        "description": "Press + in the chat and your phone or computer records the meeting — a banner follows you on every page while you keep talking with LIA. When you stop, LIA transcribes everything and writes the minutes in your own structure: date, times, place, who was there, what was discussed, decided, to be done and by whom, what is at risk. Read them in the chat, download the PDF, send them to your mailbox, and ask LIA about them weeks later. Nothing invented: a gap in the recording is stated, an unnamed speaker stays unnamed, and what it cost is written next to it."
+        "description": "A button in the header — or the menu entry on a phone — and your device records the meeting, a banner following you on every page while you keep talking with LIA. When you stop, LIA transcribes everything and writes the minutes in the format that fits: thirty built-in templates cover team reviews, interviews, personal appointments, lectures — LIA picks one from what was said, or you impose your own. Read them in the chat, download the PDF, get them by email, rewrite them in another format, and ask LIA about them weeks later. Nothing invented: a gap is stated, an unnamed speaker stays unnamed, and what it cost is written next to it."
       }
     },
     "use_cases": {
@@ -9609,6 +9684,10 @@
       "native_shells": {
         "title": "Native Shells & Wake Relay",
         "description": "One app per store, a client for any self-hosted server: the WebView loads your server's origin over the same httpOnly-cookie session as the web. Android talks to your own Firebase project at runtime; iOS is woken by a stateless relay whose handle IS the sealed device token — nothing stored, one fixed sentence, and the real content fetched from your server. Every platform claim is measured by a bench that drives the real app, scene by scene."
+      },
+      "structured_minutes": {
+        "title": "Structured minutes",
+        "description": "Thirty minutes formats live in the code, their words in translated data. A template is named by a reference — built-in or personal — that meetings, preferences and requests exchange instead of a row: a shipped format therefore needs no database row. The choice follows one precedence, from the most explicit to the most general, ending in a model call that reads a transcript excerpt above a confidence floor; the outcome is counted and written on the meeting with its reason. Handing back the whole transcript does not fit in one answer: it is rewritten part by part, each bounded by the slot's effective output window."
       }
     },
     "architecture": {
@@ -10233,7 +10312,7 @@
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Turn Your Documents into AI Intelligence",
         "excerpt": "Import your PDFs, Word, Excel and other documents. LIA indexes them with hybrid semantic + BM25 search to answer your questions.",
-        "body": "<h2>15+ supported formats</h2><p>LIA's Knowledge Spaces accept over <strong>15 file formats</strong> with dedicated parsers:</p><ul><li><strong>PDF</strong> via PyMuPDF (fast and accurate extraction)</li><li><strong>Documents</strong> — DOCX, RTF, ODT</li><li><strong>Spreadsheets</strong> — XLSX, CSV, ODS</li><li><strong>Presentations</strong> — PPTX, ODP</li><li><strong>Web and text</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Intelligent chunking</h2><p>Documents are split by a <strong>RecursiveCharacterTextSplitter</strong> with optimized parameters: <strong>1000 characters</strong> per chunk, <strong>200 characters</strong> of overlap to preserve context between segments. Safety limit: <strong>500 chunks maximum per document</strong>, maximum size <strong>20 MB per file</strong>.</p><h2>Hybrid search: best of both worlds</h2><p>LIA combines two search approaches:</p><ul><li><strong>Semantic search</strong> — Embeddings via pgvector. Finds results by meaning similarity, even when words differ.</li><li><strong>BM25 search</strong> — Keyword matching. Ideal for technical terms, proper names, and identifiers.</li></ul><p>The two signals do not carry the same weight, and that is deliberate. Relevance is decided on <strong>semantic similarity alone</strong>: an excerpt is kept if it reaches <strong>0.62</strong>, a threshold recalibrated across the six languages on real corpora. BM25 then adds only a <strong>bounded bonus (0.05)</strong> used to break ties — it can lift a literal occurrence above a near-tie, never admit or evict an excerpt. Blending both signals in comparable shares, as LIA did until August 2026, discarded one correct answer in three as soon as the question's language drifted from the documents'. By default, <strong>5 excerpts</strong> are retrieved per query (configurable maximum: 20).</p><h2>Limits and quotas</h2><p>Each user has: <strong>10 spaces</strong> maximum, <strong>50 documents per space</strong>, <strong>20 MB per file</strong>. These limits ensure optimal search performance while offering sufficient capacity for most use cases.</p><h2>Google Drive sync</h2><p>You can connect a <strong>Google Drive folder</strong> to a Knowledge Space. Documents are automatically synced and re-indexed when they change. Synchronization detects additions, modifications, and deletions.</p><h2>Built-in FAQ</h2><p>LIA has a system Knowledge Space containing its own documentation (18 FAQ files). This allows it to answer questions about its own features with precision.</p><h2>A space that fills itself: Meetings</h2><p>One space is created for you rather than by you. When LIA writes the minutes of a recorded meeting, it indexes them into a “Meetings” space — found by its role, not its name, so you may rename it — as one document per meeting, rewritten in place whenever you edit the minutes and removed the day you delete the meeting. The space is exempt from the per-user cap, and it is what lets the assistant answer “what did we decide about the migration?” from your own meetings, sources cited.</p>"
+        "body": "<h2>15+ supported formats</h2><p>LIA's Knowledge Spaces accept over <strong>15 file formats</strong> with dedicated parsers:</p><ul><li><strong>PDF</strong> via PyMuPDF (fast and accurate extraction)</li><li><strong>Documents</strong> — DOCX, RTF, ODT</li><li><strong>Spreadsheets</strong> — XLSX, CSV, ODS</li><li><strong>Presentations</strong> — PPTX, ODP</li><li><strong>Web and text</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Intelligent chunking</h2><p>Documents are split by a <strong>RecursiveCharacterTextSplitter</strong> with optimized parameters: <strong>1000 characters</strong> per chunk, <strong>200 characters</strong> of overlap to preserve context between segments. Safety limit: <strong>500 chunks maximum per document</strong>, maximum size <strong>20 MB per file</strong>.</p><h2>Hybrid search: best of both worlds</h2><p>LIA combines two search approaches:</p><ul><li><strong>Semantic search</strong> — Embeddings via pgvector. Finds results by meaning similarity, even when words differ.</li><li><strong>BM25 search</strong> — Keyword matching. Ideal for technical terms, proper names, and identifiers.</li></ul><p>The two signals do not carry the same weight, and that is deliberate. Relevance is decided on <strong>semantic similarity alone</strong>: an excerpt is kept if it reaches <strong>0.62</strong>, a threshold recalibrated across the six languages on real corpora. BM25 then adds only a <strong>bounded bonus (0.05)</strong> used to break ties — it can lift a literal occurrence above a near-tie, never admit or evict an excerpt. Blending both signals in comparable shares, as LIA did until August 2026, discarded one correct answer in three as soon as the question's language drifted from the documents'. By default, <strong>5 excerpts</strong> are retrieved per query (configurable maximum: 20).</p><h2>Limits and quotas</h2><p>Each user has: <strong>10 spaces</strong> maximum, <strong>50 documents per space</strong>, <strong>20 MB per file</strong>. These limits ensure optimal search performance while offering sufficient capacity for most use cases.</p><h2>Google Drive sync</h2><p>You can connect a <strong>Google Drive folder</strong> to a Knowledge Space. Documents are automatically synced and re-indexed when they change. Synchronization detects additions, modifications, and deletions.</p><h2>Built-in FAQ</h2><p>LIA has a system Knowledge Space containing its own documentation (18 FAQ files). This allows it to answer questions about its own features with precision.</p><h2>A space that fills itself: Meetings</h2><p>One space is created for you rather than by you. When LIA writes the minutes of a recorded meeting, it indexes them into a “Meetings” space — found by its role, not its name, so you may rename it — as one document per meeting, rewritten in place whenever you edit the minutes and removed the day you delete the meeting. The space is exempt from the per-user cap, and it is what lets the assistant answer “what did we decide about the migration?” from your own meetings, sources cited.</p><h2>Documents that circulate</h2><p>A space is managed, not only filled. Every document downloads under its original name, a selection comes back as one zip archive, and documents <strong>move</strong> to another space — the row, the index the search reads and the file travel together, so after the move the document answers only from its new space. Deletion accepts a selection too. Every batch reports what it did and what it left aside, with the reason: a document synced from Drive or written from a meeting belongs to its source and is not moved, and nothing moves during a general reindex.</p>"
       },
       "personal-journals": {
         "title": "Personal Journals: When Your AI Assistant Develops Its Own Memory",
@@ -10266,9 +10345,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>PII filtering in logs</h2><p>The logging system applies <strong>OWASP Logging Cheat Sheet</strong> recommendations to automatically filter personal data from application logs. No sensitive data appears in logs.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>Protecting data also means making sure it survives incidents. The production database is backed up automatically every night, with 7 days, 4 weeks and 6 months of history kept, in a dedicated directory with restrictive permissions. And because a backup only counts once a restore has been proven, the procedure is tested for real: the latest dump is restored into a disposable container and compared against the live database (schema revision, row counts) — a drill that ships with the stack.</p>"
       },
       "observability": {
-        "title": "506 Prometheus Metrics, 26 Grafana Dashboards, and Langfuse Tracing",
+        "title": "507 Prometheus Metrics, 26 Grafana Dashboards, and Langfuse Tracing",
         "excerpt": "LIA offers enterprise-grade observability with 473 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 506 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana dashboards</h2><p>LIA provides 26 Grafana dashboards numbered 01 to 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, and briefing. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 507 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana dashboards</h2><p>LIA provides 26 Grafana dashboards numbered 01 to 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, and briefing. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 78 Prompts Managed as Code",
@@ -11432,12 +11511,6 @@
     }
   },
   "meetings": {
-    "composer": {
-      "menu_label": "Attachments and meeting recording",
-      "add_file": "Add a file",
-      "record": "Record a meeting",
-      "stop": "Stop the recording"
-    },
     "banner": {
       "region_label": "Meeting recording",
       "starting": "Starting the recording…",
@@ -11471,7 +11544,10 @@
         "openai": "OpenAI",
         "local": "Local engine (on the server)"
       },
-      "offline_long": "Offline for a long while: the audio waits on this device. Stop and finalize as soon as the connection is back."
+      "offline_long": "Offline for a long while: the audio waits on this device. Stop and finalize as soon as the connection is back.",
+      "format_label": "Minutes format",
+      "format_auto": "Default (automatic, or your preference)",
+      "format_saved": "Format saved for this meeting"
     },
     "toasts": {
       "ready_title": "Meeting minutes ready",
@@ -11495,7 +11571,7 @@
       "title": "Meetings",
       "subtitle": "Your recordings and their minutes",
       "empty_title": "No meeting yet",
-      "empty_description": "Start a recording from the paperclip in the chat composer; the minutes will appear here.",
+      "empty_description": "Start a recording from the Record button in the header (or the LIA menu on a phone); the minutes will appear here.",
       "empty_action": "Open the chat",
       "total_one": "{{count}} meeting",
       "total_other": "{{count}} meetings",
@@ -11504,7 +11580,25 @@
       "participants_one": "{{count}} participant",
       "participants_other": "{{count}} participants",
       "actions_one": "{{count}} action",
-      "actions_other": "{{count}} actions"
+      "actions_other": "{{count}} actions",
+      "selection_region": "Selected meetings",
+      "select_row": "Select “{{title}}”",
+      "select_all_page": "Select every meeting on this page",
+      "selected_count_one": "{{count}} meeting selected",
+      "selected_count_other": "{{count}} meetings selected",
+      "clear_selection": "Clear selection",
+      "delete_selected_one": "Delete ({{count}})",
+      "delete_selected_other": "Delete ({{count}})",
+      "confirm_bulk_delete_title": "Delete the selected meetings?",
+      "confirm_bulk_delete_description_one": "The minutes, the transcript and any kept audio of this meeting are deleted for good.",
+      "confirm_bulk_delete_description_other": "The minutes, the transcripts and any kept audio of these {{count}} meetings are deleted for good.",
+      "bulk_deleted_one": "{{count}} meeting deleted",
+      "bulk_deleted_other": "{{count}} meetings deleted",
+      "bulk_skipped_one": "{{count}} meeting was skipped: it is still recording or being processed.",
+      "bulk_skipped_other": "{{count}} meetings were skipped: they are still recording or being processed.",
+      "not_selectable": "Cannot be selected while recording or processing",
+      "record": "Record a meeting",
+      "templates": "Templates"
     },
     "detail": {
       "back": "Back to meetings",
@@ -11526,7 +11620,7 @@
       "email": "Email me the minutes",
       "email_ok": "The minutes were sent to your email address.",
       "email_sent": "Emailed on {{when}}",
-      "regenerate": "Rebuild with my template",
+      "regenerate": "Rebuild with the same format",
       "reset": "Restore the generated version",
       "delete_transcript": "Delete the transcript",
       "delete": "Delete the meeting",
@@ -11562,16 +11656,46 @@
       "confirm_delete_transcript_title": "Delete the transcript?",
       "confirm_delete_transcript_description": "The minutes stay; the transcript cannot be recovered and the minutes can no longer be rebuilt.",
       "confirm_regenerate_title": "Rebuild the minutes?",
-      "confirm_regenerate_description": "LIA writes new minutes from the transcript with your current template. Your edits to these minutes are replaced.",
+      "confirm_regenerate_description": "LIA writes new minutes from the transcript with the same format. Your edits to these minutes are replaced.",
       "confirm_reset_title": "Restore the generated version?",
       "confirm_reset_description": "Your edits are replaced by the minutes LIA generated.",
       "cost_breakdown": "{{total}} (transcription {{stt}} · minutes {{minutes}})",
-      "cost_unknown": "not priced"
+      "cost_unknown": "not priced",
+      "transcript_line": "Turn of {{speaker}} at {{time}}",
+      "format": "Format",
+      "format_selection": {
+        "auto": "chosen by LIA",
+        "user": "chosen by you",
+        "preference": "your default"
+      },
+      "change_format": "Change the format…",
+      "reformat": {
+        "title": "Change the format",
+        "description": "LIA writes the minutes again from the transcript, in the format you choose.",
+        "template_label": "Format",
+        "mode_label": "What to do with the result",
+        "mode_replace": "Replace these minutes",
+        "mode_new": "New minutes from this transcript",
+        "cost_note": "Writing again costs a new synthesis, billed like the first one.",
+        "transcript_note": "A transcript format rewrites the whole exchange: longer to produce and priced like a whole meeting.",
+        "submit": "Write the minutes",
+        "started_new": "New minutes are being written from this transcript.",
+        "started_replace": "The minutes are being written again.",
+        "choose": "Choose a format…"
+      },
+      "pending_title": "Writing the minutes",
+      "pending_hint": "The transcript is being written into the chosen format. This page updates by itself.",
+      "pending_failed_title": "The minutes could not be written",
+      "try_again": "Try again",
+      "derived_from": "From the same transcript as another meeting",
+      "derived_count_one": "{{count}} new minutes were written from this transcript.",
+      "derived_count_other": "{{count}} new minutes were written from this transcript."
     },
     "card": {
       "title": "Meeting minutes ready",
       "open": "Open the minutes",
-      "cost_line": "Transcription {{stt}} · minutes {{minutes}} · total {{total}}"
+      "cost_line": "Transcription {{stt}} · minutes {{minutes}} · total {{total}}",
+      "template": "Format: {{name}}"
     },
     "settings": {
       "preferences_title": "Preferences",
@@ -11593,7 +11717,7 @@
         "nl": "Dutch"
       },
       "auto_email_label": "Email me the minutes when they are ready",
-      "auto_email_hint": "Sent through your connected email account, to your own address.",
+      "auto_email_hint": "Sent by LIA from its own address, to yours.",
       "keep_audio_label": "Keep the audio after processing",
       "keep_audio_none": "Deleted right after processing",
       "keep_audio_hours_one": "{{count}} hour",
@@ -11601,13 +11725,6 @@
       "keep_audio_max_one": "up to {{count}} hour",
       "keep_audio_max_other": "up to {{count}} hours",
       "saved": "Preferences saved",
-      "template_title": "Minutes structure",
-      "template_description": "The sections LIA fills, in order. Adjust them to your needs; the default structure can be restored at any time.",
-      "template_name_label": "Template name",
-      "template_builtin_badge": "Default",
-      "reset_template": "Restore the default",
-      "template_saved": "Template saved",
-      "template_reset": "Default template restored",
       "new_section_label": "New section",
       "section_position": "Section {{position}}",
       "move_up": "Move « {{label}} » up",
@@ -11626,14 +11743,25 @@
       "recent_title": "Recent meetings",
       "no_meetings": "No meeting recorded yet.",
       "view_all_one": "All meetings ({{count}})",
-      "view_all_other": "All meetings ({{count}})"
+      "view_all_other": "All meetings ({{count}})",
+      "instruction_toggle": "What LIA must put in this section",
+      "instruction_missing": "Instruction missing — LIA needs to know what to write here.",
+      "instruction_preview_empty": "No instruction yet",
+      "kind_transcript": "Full transcript (rewritten)",
+      "default_template_label": "Default minutes format",
+      "default_template_auto": "Automatic — LIA chooses from the recording",
+      "default_template_hint": "Applied to every new recording. Automatic lets LIA pick the best format from what was said; a transcript format is never chosen automatically.",
+      "templates_title": "Minutes templates",
+      "templates_description": "Built-in formats and your own. Duplicate a built-in to customize it.",
+      "templates_count_one": "{{count}} template of your own",
+      "templates_count_other": "{{count}} templates of your own",
+      "manage_templates": "Manage my templates"
     },
     "errors": {
       "audio_normalize_failed": "The audio could not be prepared.",
       "audio_unavailable": "The audio is no longer available.",
       "capture_failed": "The microphone stopped working.",
       "duration_cap_reached": "The maximum recording duration was reached: the minutes are built from what was captured.",
-      "email_connector_missing": "No email account is connected to send the minutes.",
       "email_send_failed": "Your email provider refused the message.",
       "format_unavailable": "This recording was started in a format this browser cannot produce: from here it can only be finalized or discarded.",
       "invalid_api_key": "The transcription provider refused the configured key.",
@@ -11662,7 +11790,94 @@
       "unexpected": "Something went wrong while processing.",
       "unknown": "Unknown error ({{code}})",
       "usage_limit": "Your usage limit is reached.",
-      "user_missing": "The account no longer exists."
+      "user_missing": "The account no longer exists.",
+      "template_locked": "The format cannot change while the minutes are being written.",
+      "template_not_found": "This template no longer exists.",
+      "template_readonly": "A built-in template cannot be changed; duplicate it first.",
+      "template_limit_reached": "You have reached the limit of {{max}} templates.",
+      "template_ref_invalid": "This template reference is not valid.",
+      "regeneration_interrupted": "The write was interrupted before it finished; try again."
+    },
+    "header": {
+      "record": "Record a meeting",
+      "stop": "Stop the recording",
+      "live_label": "Menu — a meeting is being recorded"
+    },
+    "templates": {
+      "category": {
+        "custom": "My templates",
+        "meeting": "Meetings and teams",
+        "transcript": "Transcripts",
+        "analysis": "Conversation analysis",
+        "business": "Sales and consulting",
+        "technical": "Technical",
+        "personal": "Personal appointments",
+        "learning": "Courses and training"
+      },
+      "title": "Minutes templates",
+      "subtitle": "The formats LIA writes minutes in: the built-in library and your own templates.",
+      "new": "New template",
+      "builtin_badge": "Built-in",
+      "transcript_badge": "Full transcript",
+      "sections_count_one": "{{count}} section",
+      "sections_count_other": "{{count}} sections",
+      "preview": "Preview",
+      "duplicate": "Duplicate",
+      "edit": "Edit",
+      "delete": "Delete",
+      "row_actions": "Actions — {{name}}",
+      "empty_custom": "No template of your own yet. Duplicate a built-in to adapt it, or create one from scratch.",
+      "limit_reached": "You have reached the limit of {{count}} templates. Delete one to create another.",
+      "saved": "Template saved",
+      "load_failed": "The template could not be loaded.",
+      "save_failed": "The template could not be saved.",
+      "delete_failed": "The template could not be deleted.",
+      "back_to_library": "Back to the library",
+      "form": {
+        "name": "Name",
+        "name_missing": "Give the template a name.",
+        "description": "Description (optional)",
+        "category": "Category",
+        "create_title": "New template",
+        "edit_title": "Edit the template",
+        "sections_title": "Sections",
+        "incomplete": "Every section needs a heading and an instruction."
+      },
+      "mine_title": "My custom templates",
+      "builtin_title": "Built-in templates",
+      "mine_count_one": "{{count}} of {{max}}",
+      "mine_count_other": "{{count}} of {{max}}",
+      "browse_builtins": "Browse the built-in templates",
+      "add_to_mine": "Add to my templates",
+      "add_selected_one": "Add to my templates ({{count}})",
+      "add_selected_other": "Add to my templates ({{count}})",
+      "delete_selected_one": "Delete ({{count}})",
+      "delete_selected_other": "Delete ({{count}})",
+      "select_row": "Select « {{name}} »",
+      "select_all": "Select every template",
+      "selection_region": "Selected templates",
+      "selected_count_one": "{{count}} template selected",
+      "selected_count_other": "{{count}} templates selected",
+      "clear_selection": "Clear selection",
+      "added_one": "{{count}} template added to my templates",
+      "added_other": "{{count}} templates added to my templates",
+      "deleted_one": "{{count}} template deleted",
+      "deleted_other": "{{count}} templates deleted",
+      "skipped_one": "{{count}} template was left as it was: {{reasons}}",
+      "skipped_other": "{{count}} templates were left as they were: {{reasons}}",
+      "preference_reset": "Your default minutes format pointed at a deleted template: it is back to automatic.",
+      "confirm_delete_title_one": "Delete this template?",
+      "confirm_delete_title_other": "Delete the selected templates?",
+      "confirm_delete_description_one": "« {{name}} » will be removed. Minutes already written with it are kept.",
+      "confirm_delete_description_other": "These {{count}} templates will be removed. Minutes already written with them are kept.",
+      "skip": {
+        "template_not_found": "not found",
+        "template_ref_invalid": "invalid reference",
+        "template_readonly": "a built-in cannot be deleted",
+        "template_limit_reached": "the limit of templates is reached",
+        "duplicate_failed": "could not be added",
+        "delete_failed": "could not be deleted"
+      }
     }
   }
 }

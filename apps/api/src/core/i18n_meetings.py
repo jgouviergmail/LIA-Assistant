@@ -1,9 +1,9 @@
 """Central i18n for the meetings feature (recording & structured minutes, ADR-258).
 
-Strings the BACKEND renders into artifacts the user keeps — the default minutes
-template (section labels a user has not edited yet), the header labels of the
-Markdown/PDF/email rendering, the speaker placeholder, the proactive
-notification title and the auto-created knowledge-space name. Everything the
+Strings the BACKEND renders into artifacts the user keeps — the header labels
+of the Markdown/PDF/email rendering, the speaker placeholder, the proactive
+notification title and the auto-created knowledge-space name. Template names
+and section labels live in ``core/i18n_meeting_templates.py`` (ADR-259). Everything the
 UI shows lives in the frontend locales; nothing here is a chat message.
 
 Six supported languages, keyed by the backend-canonical code (``zh-CN``);
@@ -14,103 +14,12 @@ exempt from the size ratchet.
 
 from __future__ import annotations
 
+from src.core.constants import MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY
 from src.core.i18n import normalize_language
+from src.core.i18n_meeting_templates import get_section_label as _get_section_label
+from src.core.i18n_meeting_templates import get_template_name as _get_template_name
 
 _DEFAULT = "en"
-
-#: Default template section keys, in rendering order. The kinds live with the
-#: template model (``domains/meetings/templates.py``); labels live here so a
-#: template reset speaks the user's language.
-DEFAULT_SECTION_KEYS: tuple[str, ...] = (
-    "summary",
-    "topics",
-    "decisions",
-    "action_items",
-    "risks",
-    "open_questions",
-)
-
-_SECTION_LABELS: dict[str, dict[str, str]] = {
-    "summary": {
-        "en": "Summary",
-        "fr": "Résumé",
-        "de": "Zusammenfassung",
-        "es": "Resumen",
-        "it": "Riepilogo",
-        "zh-CN": "摘要",
-    },
-    "topics": {
-        "en": "Topics discussed",
-        "fr": "Sujets abordés",
-        "de": "Besprochene Themen",
-        "es": "Temas tratados",
-        "it": "Argomenti trattati",
-        "zh-CN": "讨论议题",
-    },
-    "decisions": {
-        "en": "Decisions",
-        "fr": "Décisions",
-        "de": "Entscheidungen",
-        "es": "Decisiones",
-        "it": "Decisioni",
-        "zh-CN": "决定",
-    },
-    "action_items": {
-        "en": "Actions and deadlines",
-        "fr": "Actions et échéances",
-        "de": "Aufgaben und Fristen",
-        "es": "Acciones y plazos",
-        "it": "Azioni e scadenze",
-        "zh-CN": "行动项与期限",
-    },
-    "risks": {
-        "en": "Risks and points of vigilance",
-        "fr": "Risques et points de vigilance",
-        "de": "Risiken und Wachsamkeitspunkte",
-        "es": "Riesgos y puntos de vigilancia",
-        "it": "Rischi e punti di attenzione",
-        "zh-CN": "风险与关注点",
-    },
-    "open_questions": {
-        "en": "Open questions",
-        "fr": "Questions ouvertes",
-        "de": "Offene Fragen",
-        "es": "Preguntas abiertas",
-        "it": "Domande aperte",
-        "zh-CN": "待解决问题",
-    },
-}
-
-#: What the model is asked to put in each default section. Written for the
-#: model, in English (the prompt's working language); the OUTPUT language is
-#: imposed separately by the prompt. A user who edits an instruction writes
-#: whatever they like.
-DEFAULT_SECTION_INSTRUCTIONS: dict[str, str] = {
-    "summary": (
-        "A clear, concise overall summary of the exchange: purpose, what was covered, "
-        "outcome. Three to six sentences, no bullet points."
-    ),
-    "topics": (
-        "Every distinct topic discussed, each with a short factual summary of what "
-        "was said about it. One entry per topic, in the order they came up."
-    ),
-    "decisions": (
-        "Decisions actually taken during the meeting, one per bullet. Only what was "
-        "explicitly decided — never a proposal that was left open."
-    ),
-    "action_items": (
-        "Concrete actions, tasks and commitments, each with its owner when named and "
-        "its deadline as an absolute date when one was given."
-    ),
-    "risks": (
-        "Risks, blockers, disagreements, points of vigilance and anything flagged as "
-        "sensitive or urgent. Empty when nothing of the kind was raised."
-    ),
-    "open_questions": (
-        "Questions raised and left unanswered, items postponed, and follow-ups to "
-        "clarify. Empty when everything was settled."
-    ),
-}
 
 _HEADER_LABELS: dict[str, dict[str, str]] = {
     "en": {
@@ -208,13 +117,33 @@ _SPACE_DESCRIPTION: dict[str, str] = {
     "zh-CN": "用 LIA 录制的会议纪要，可随时提问。",
 }
 
-_TEMPLATE_NAME: dict[str, str] = {
-    "en": "Default minutes",
-    "fr": "Compte rendu par défaut",
-    "de": "Standardprotokoll",
-    "es": "Acta por defecto",
-    "it": "Verbale predefinito",
-    "zh-CN": "默认纪要",
+#: Why the built-in default template applied instead of an automatic choice
+#: (ADR-259). Shown to the user next to the format of their minutes.
+_SELECTION_FALLBACK: dict[str, dict[str, str]] = {
+    "low_confidence": {
+        "en": "LIA was not sure enough of a better template (confidence {confidence}), so the default minutes apply.",
+        "fr": "LIA n'était pas assez sûre d'un meilleur modèle (confiance {confidence}) : le compte rendu par défaut s'applique.",
+        "de": "LIA war sich eines besseren Modells nicht sicher genug (Konfidenz {confidence}), daher gilt das Standardprotokoll.",
+        "es": "LIA no estaba lo bastante segura de un modelo mejor (confianza {confidence}); se aplica el acta por defecto.",
+        "it": "LIA non era abbastanza sicura di un modello migliore (confidenza {confidence}): si applica il verbale predefinito.",
+        "zh-CN": "LIA 对更合适的模板把握不足（置信度 {confidence}），因此采用默认纪要。",
+    },
+    "unknown_choice": {
+        "en": "LIA named a template that does not exist, so the default minutes apply.",
+        "fr": "LIA a désigné un modèle qui n'existe pas : le compte rendu par défaut s'applique.",
+        "de": "LIA nannte ein Modell, das es nicht gibt, daher gilt das Standardprotokoll.",
+        "es": "LIA indicó un modelo que no existe; se aplica el acta por defecto.",
+        "it": "LIA ha indicato un modello inesistente: si applica il verbale predefinito.",
+        "zh-CN": "LIA 指定了不存在的模板，因此采用默认纪要。",
+    },
+    "unavailable": {
+        "en": "The template choice was unavailable, so the default minutes apply.",
+        "fr": "Le choix du modèle n'a pas pu être fait : le compte rendu par défaut s'applique.",
+        "de": "Die Modellwahl war nicht verfügbar, daher gilt das Standardprotokoll.",
+        "es": "La elección del modelo no estuvo disponible; se aplica el acta por defecto.",
+        "it": "La scelta del modello non era disponibile: si applica il verbale predefinito.",
+        "zh-CN": "无法完成模板选择，因此采用默认纪要。",
+    },
 }
 
 _NOTIFICATION_TITLE: dict[str, str] = {
@@ -234,16 +163,20 @@ def _lang(language: str | None) -> str:
     return code if code in _SPEAKER_LABEL else _DEFAULT
 
 
-def get_section_label(key: str, language: str | None) -> str:
-    """Localized label of a DEFAULT template section (``key`` in :data:`DEFAULT_SECTION_KEYS`)."""
-    labels = _SECTION_LABELS[key]
-    return labels.get(_lang(language), labels[_DEFAULT])
-
-
 def get_header_label(key: str, language: str | None) -> str:
     """Localized header label used by the Markdown/PDF/email rendering."""
     table = _HEADER_LABELS.get(_lang(language), _HEADER_LABELS[_DEFAULT])
     return table.get(key, _HEADER_LABELS[_DEFAULT][key])
+
+
+def get_section_label(key: str, language: str | None) -> str:
+    """Localized label of a section key (delegates to the template data module)."""
+    return _get_section_label(key, language)
+
+
+def get_template_name(language: str | None) -> str:
+    """Name of the built-in default template (ADR-259: one catalogue entry among thirty)."""
+    return _get_template_name(MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY, language)
 
 
 def get_speaker_label(index: int, language: str | None) -> str:
@@ -261,9 +194,10 @@ def get_space_description(language: str | None) -> str:
     return _SPACE_DESCRIPTION.get(_lang(language), _SPACE_DESCRIPTION[_DEFAULT])
 
 
-def get_template_name(language: str | None) -> str:
-    """Name of the default template as first materialized for a user."""
-    return _TEMPLATE_NAME.get(_lang(language), _TEMPLATE_NAME[_DEFAULT])
+def get_selection_fallback_reason(kind: str, language: str | None, **values: str) -> str:
+    """Why the default template applied instead of an automatic choice (ADR-259)."""
+    table = _SELECTION_FALLBACK[kind]
+    return table.get(_lang(language), table[_DEFAULT]).format(**values)
 
 
 def get_notification_title(language: str | None) -> str:

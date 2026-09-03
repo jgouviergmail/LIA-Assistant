@@ -24,6 +24,7 @@ function report(): MeetingReport {
         bullets: [],
         topics: [],
         action_items: [],
+        transcript: [],
       },
       {
         key: 'decisions',
@@ -33,6 +34,7 @@ function report(): MeetingReport {
         bullets: ['Go'],
         topics: [],
         action_items: [],
+        transcript: [],
       },
       {
         key: 'topics',
@@ -42,6 +44,7 @@ function report(): MeetingReport {
         bullets: [],
         topics: [{ title: 'Budget', summary: 'Validé.' }],
         action_items: [],
+        transcript: [],
       },
       {
         key: 'actions',
@@ -51,6 +54,7 @@ function report(): MeetingReport {
         bullets: [],
         topics: [],
         action_items: [{ description: 'Relancer', owner: null, due_date: null }],
+        transcript: [],
       },
     ],
   };
@@ -127,5 +131,39 @@ describe('MeetingReportEditor', () => {
     await user.type(due, '2026-09-05');
     const last = onChange.mock.calls.at(-1)?.[0] as MeetingReport;
     expect(last.sections[3].action_items[0].due_date).toBe('2026-09-05');
+  });
+});
+
+describe('MeetingReportEditor — transcript kind (ADR-259)', () => {
+  it('edits one turn at a time, keeping its speaker and timestamp', async () => {
+    const value: MeetingReport = {
+      title: 'Dictée',
+      participants: [],
+      sections: [
+        {
+          key: 'transcript',
+          label: 'Transcription',
+          kind: 'transcript',
+          paragraph: null,
+          bullets: [],
+          topics: [],
+          action_items: [],
+          transcript: [
+            { speaker: 'S1', start: 0, text: 'Bonjour.' },
+            { speaker: 'S2', start: 65, text: 'Salut.' },
+          ],
+        },
+      ],
+    };
+    const onChange = vi.fn();
+    const { user } = renderWithProviders(
+      <MeetingReportEditor lng="en" value={value} onChange={onChange} />
+    );
+    const lines = screen.getAllByRole('textbox', { name: 'meetings.detail.transcript_line' });
+    expect(lines).toHaveLength(2);
+    await user.type(lines[1], '!');
+    const next = onChange.mock.calls.at(-1)?.[0] as MeetingReport;
+    expect(next.sections[0].transcript[1]).toEqual({ speaker: 'S2', start: 65, text: 'Salut.!' });
+    expect(next.sections[0].transcript[0].text).toBe('Bonjour.');
   });
 });

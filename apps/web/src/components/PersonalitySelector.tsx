@@ -84,10 +84,10 @@ export function PersonalitySelector() {
           // announce itself without taking the control away: swapping it for
           // the loading placeholder would blank the header mid-session.
           aria-busy={refreshing}
-          // The visible title is hidden below `2xl` (the header row cannot fit
-          // it next to seven nav labels — ADR-258 moved it from `xl`), and an
-          // emoji is not an accessible name — so the name is carried explicitly
-          // and states the current value.
+          // The trigger shows the icon alone at EVERY width (owner rule
+          // 2026-09-03: the header carries the personality's glyph, its name
+          // lives in the menu), and an emoji is not an accessible name — so the
+          // name is carried explicitly and states the current value.
           aria-label={t('personality.selector_label', { name: displayTitle })}
         >
           <AnimatedEmoji
@@ -96,7 +96,6 @@ export function PersonalitySelector() {
             imgClassName="w-5 h-5"
             spanClassName="text-base"
           />
-          <span className="hidden 2xl:inline">{displayTitle}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">

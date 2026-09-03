@@ -50,11 +50,7 @@ from src.domains.meetings.models import (
     MeetingStatus,
     MeetingSttEnginePreference,
 )
-from src.domains.meetings.repository import (
-    MeetingPreferenceRepository,
-    MeetingRepository,
-    MeetingTemplateRepository,
-)
+from src.domains.meetings.repository import MeetingPreferenceRepository, MeetingRepository
 from src.domains.meetings.schemas import MeetingReport, SectionKind, TemplateSection
 from src.domains.meetings.synthesis import (
     SynthesisContext,
@@ -62,7 +58,8 @@ from src.domains.meetings.synthesis import (
     SynthesisUsage,
     synthesize_minutes,
 )
-from src.domains.meetings.templates import default_sections, parse_sections, sections_to_json
+from src.domains.meetings.template_resolution import TemplateDecision, decide_template
+from src.domains.meetings.templates import sections_to_json
 from src.domains.meetings.transcription import (
     TranscriptionError,
     TranscriptionOutcome,
@@ -72,6 +69,7 @@ from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.structured_output import StructuredOutputError
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.observability.metrics_meetings import (
     meeting_failures_total,
     meeting_processing_stage_duration_seconds,
@@ -103,14 +101,13 @@ def launch_processing(meeting_id: UUID) -> None:
     safe_fire_and_forget(process_meeting(meeting_id), name=f"meeting_process_{meeting_id}")
 
 
-def launch_regenerate(meeting_id: UUID) -> None:
-    """Rebuild the minutes of a READY meeting from its transcript, in the background."""
-    safe_fire_and_forget(regenerate_minutes(meeting_id), name=f"meeting_regenerate_{meeting_id}")
-
-
 # ----------------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------------
+
+
+#: A transcript head is a teaser, not the minutes: bounded like a chat preview.
+_SUMMARY_MAX_CHARS = 300
 
 
 def _summary_text(report: MeetingReport) -> str:
@@ -121,11 +118,11 @@ def _summary_text(report: MeetingReport) -> str:
     for section in report.sections:
         if section.kind is SectionKind.BULLETS and section.bullets:
             return "\n".join(f"- {item}" for item in section.bullets)
+    for section in report.sections:
+        if section.kind is SectionKind.TRANSCRIPT and section.transcript:
+            head = " ".join(f"{line.speaker} : {line.text}" for line in section.transcript[:3])
+            return head if len(head) <= _SUMMARY_MAX_CHARS else head[: _SUMMARY_MAX_CHARS - 1] + "…"
     return ""
-
-
-def _template_sections(row: Any, language: str) -> list[TemplateSection]:
-    return parse_sections(row.sections) if row is not None else default_sections(language)
 
 
 def _keep_audio_until(preference: MeetingPreference | None, now: datetime) -> datetime | None:
@@ -241,6 +238,7 @@ async def _synthesize(
     location_label: str | None,
     calendar: CalendarMatch | None,
     gaps: int,
+    capture: TokenCaptureHandler | None = None,
 ) -> SynthesisResult:
     context = SynthesisContext(
         language=language,
@@ -254,7 +252,7 @@ async def _synthesize(
         gaps=gaps,
         diarized=outcome.diarized,
     )
-    return await synthesize_minutes(outcome.turns, template, context)
+    return await synthesize_minutes(outcome.turns, template, context, capture=capture)
 
 
 def _completion_values(
@@ -264,7 +262,7 @@ def _completion_values(
     duration: float,
     outcome: TranscriptionOutcome,
     synthesis: SynthesisResult,
-    template: list[TemplateSection],
+    decision: TemplateDecision,
     calendar: CalendarMatch | None,
     location_label: str | None,
     keep_audio_until: datetime | None,
@@ -289,7 +287,11 @@ def _completion_values(
         "calendar_event_id": calendar.event_id if calendar else meeting.calendar_event_id,
         "calendar_provider": calendar.provider if calendar else meeting.calendar_provider,
         "location_label": location_label,
-        "template_snapshot": sections_to_json(template),
+        "template_snapshot": sections_to_json(decision.sections),
+        "template_ref": str(decision.ref),
+        "template_name": decision.name,
+        "template_selection": decision.selection.value,
+        "template_selection_reason": decision.reason,
         "synthesis_model": synthesis.usage.model_name,
         "synthesis_tokens_in": synthesis.usage.tokens_in,
         "synthesis_tokens_out": synthesis.usage.tokens_out,
@@ -359,6 +361,7 @@ async def _notify_ready(
             "duration_seconds": outcome.audio_duration_seconds,
             "participants_count": len(report.participants),
             "action_items_count": sum(len(s.action_items) for s in report.sections),
+            "template_name": meeting.template_name,
             "index_state": meeting.index_state.value if meeting.index_state else None,
             "stt_provider": outcome.provider.value,
             "gaps": gaps,
@@ -404,7 +407,7 @@ async def _auto_email(
     language: str,
     gaps: int,
 ) -> None:
-    """Email the minutes when the user opted in; a missing connector is logged, not raised."""
+    """Email the minutes when the user opted in; a refused relay is logged, not raised."""
     from src.domains.meetings.delivery import MinutesDeliveryError, send_minutes_email
 
     try:
@@ -533,8 +536,9 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
         return
 
     stopped_at = meeting.stopped_at or datetime.now(UTC)
-    template_row = await MeetingTemplateRepository(db).get_default_for_user(meeting.user_id)
-    template = _template_sections(template_row, language)
+    # One capture for the whole meeting: the template choice (ADR-259), the
+    # condense passes and the synthesis add up to what the minutes cost.
+    capture = TokenCaptureHandler()
 
     # 1. normalizing
     audio_path, duration, gaps = await _normalize(job, meeting)
@@ -564,15 +568,25 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     # 3. synthesizing (enrichment first — both are hints for the same call)
     await job.enter_stage(repo, MeetingStage.SYNTHESIZING)
     calendar, location_label = await _enrich(db, meeting, stopped_at=stopped_at, language=language)
+    decision = await decide_template(
+        db,
+        meeting=meeting,
+        preference=preference,
+        turns=outcome.turns,
+        calendar_title=calendar.title if calendar else None,
+        language=language,
+        capture=capture,
+    )
     synthesis = await _synthesize(
         meeting,
         outcome,
-        template=template,
+        template=decision.sections,
         language=language,
         stopped_at=stopped_at,
         location_label=location_label,
         calendar=calendar,
         gaps=gaps,
+        capture=capture,
     )
     await job.heartbeat(repo)
     job.close_stage()
@@ -586,7 +600,7 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
             duration=duration,
             outcome=outcome,
             synthesis=synthesis,
-            template=template,
+            decision=decision,
             calendar=calendar,
             location_label=location_label,
             keep_audio_until=_keep_audio_until(preference, datetime.now(UTC)),
@@ -663,91 +677,3 @@ async def process_meeting(meeting_id: UUID) -> None:
         except Exception as exc:  # noqa: BLE001 — a PROCESSING row must never be left hanging
             logger.exception("meeting_processing_unexpected", meeting_id=str(meeting_id))
             await _fail(repo, job, code=ERROR_UNEXPECTED, message=str(exc), transient=True)
-
-
-# ----------------------------------------------------------------------------
-# Regeneration (READY meeting, current template, stored transcript)
-# ----------------------------------------------------------------------------
-
-
-async def regenerate_minutes(meeting_id: UUID) -> None:
-    """Re-synthesize the minutes; the old ones stay until the new ones are published."""
-    from src.domains.meetings.indexing import schedule_reindex
-    from src.domains.meetings.service import MeetingService
-    from src.domains.users.repository import UserRepository
-
-    async with get_db_context() as db:
-        repo = MeetingRepository(db)
-        meeting = await repo.get_by_id(meeting_id)
-        if meeting is None or meeting.stage is not MeetingStage.SYNTHESIZING:
-            return
-        if not meeting.transcript_encrypted:
-            await repo.fail_regenerate(meeting_id, code="transcript_unavailable", message="")
-            return
-        user = await UserRepository(db).get_by_id(meeting.user_id)
-        language = str(getattr(user, "language", None) or settings.default_language)
-        template_row = await MeetingTemplateRepository(db).get_default_for_user(meeting.user_id)
-        template = _template_sections(template_row, language)
-        turns = MeetingService.decrypt_transcript(meeting.transcript_encrypted)
-        context = SynthesisContext(
-            language=language,
-            timezone=meeting.client_timezone,
-            started_at=meeting.started_at,
-            stopped_at=meeting.stopped_at,
-            duration_seconds=meeting.audio_duration_seconds,
-            location_label=meeting.location_label,
-            calendar_title=None,
-            calendar_attendees=[],
-            gaps=meeting.audio_gaps,
-            diarized=meeting.stt_diarized,
-        )
-        try:
-            synthesis = await synthesize_minutes(turns, template, context)
-        except StructuredOutputError as exc:
-            meeting_failures_total.labels(reason=ERROR_SYNTHESIS).inc()
-            await repo.fail_regenerate(meeting_id, code=ERROR_SYNTHESIS, message=str(exc)[:1000])
-            return
-        except Exception as exc:  # noqa: BLE001 — a stage left at SYNTHESIZING blocks every retry
-            logger.exception("meeting_regenerate_unexpected", meeting_id=str(meeting_id))
-            meeting_failures_total.labels(reason=ERROR_UNEXPECTED).inc()
-            await repo.fail_regenerate(meeting_id, code=ERROR_UNEXPECTED, message=str(exc)[:1000])
-            return
-        report = synthesis.report.model_dump(mode="json")
-        usage = synthesis.usage
-        # A rebuild is paid like the first pass: tracked for the platform, added
-        # to the meeting's own total for the user.
-        if usage.tokens_in or usage.tokens_out:
-            from src.infrastructure.proactive.tracking import track_proactive_tokens
-
-            await track_proactive_tokens(
-                user_id=meeting.user_id,
-                task_type=MEETINGS_PROACTIVE_TASK_TYPE,
-                target_id=str(meeting.id),
-                conversation_id=None,
-                tokens_in=usage.tokens_in,
-                tokens_out=usage.tokens_out,
-                tokens_cache=usage.tokens_cache,
-                model_name=usage.model_name,
-                db=db,
-            )
-        await repo.finish_regenerate(
-            meeting_id,
-            values={
-                "template_snapshot": sections_to_json(template),
-                "synthesis_model": usage.model_name,
-                "report_generated": report,
-                "report_current": report,
-                "report_edited_at": None,
-            },
-            tokens_in=usage.tokens_in,
-            tokens_out=usage.tokens_out,
-            tokens_cache=usage.tokens_cache,
-            cost_eur=synthesis_cost_eur(usage),
-        )
-        logger.info(
-            "meeting_minutes_regenerated",
-            meeting_id=str(meeting_id),
-            tokens_in=usage.tokens_in,
-            tokens_out=usage.tokens_out,
-        )
-    schedule_reindex(meeting_id)

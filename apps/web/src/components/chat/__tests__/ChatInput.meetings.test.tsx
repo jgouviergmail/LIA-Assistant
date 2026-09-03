@@ -1,19 +1,21 @@
 /**
- * The paperclip becomes a menu when meeting recording is offered (ADR-258):
- * add a file / record a meeting, and Stop while recording. Without a provider
- * or with the flag off, the historical file button stays exactly as it was.
+ * The composer's « + » is the file picker, and only that (ADR-259, owner
+ * decision 1): recording moved to the header, the logo menu and the Meetings
+ * page. What the composer keeps from ADR-258 is the microphone arbitration —
+ * hold-to-talk is not offered while a meeting is being captured.
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import type { UseMeetingRecorderReturn } from '@/hooks/useMeetingRecorder';
+import type { MeetingRecorderContextValue } from '@/components/meetings/MeetingRecorderProvider';
 import type { UseVoiceInputReturn } from '@/hooks/useVoiceInput';
 import type { PendingAttachment, useFileUpload as useFileUploadFn } from '@/hooks/useFileUpload';
 import type { VoiceModeStore } from '@/stores/voiceModeStore';
 
 type UploadHook = ReturnType<typeof useFileUploadFn>;
 
+const voice = vi.hoisted(() => ({ startRecording: vi.fn(async () => undefined) }));
 vi.mock('@/hooks/useVoiceInput', () => ({
   useVoiceInput: (): UseVoiceInputReturn => ({
     state: 'idle',
@@ -23,9 +25,9 @@ vi.mock('@/hooks/useVoiceInput', () => ({
     error: null,
     transcription: null,
     durationSeconds: null,
-    startRecording: vi.fn(async () => undefined),
+    startRecording: voice.startRecording,
     stopRecording: vi.fn(),
-    isSupported: false,
+    isSupported: true,
   }),
 }));
 
@@ -63,23 +65,19 @@ vi.mock('@/hooks/useFileUpload', () => ({
   }),
 }));
 
-const recorderContext = vi.hoisted(() => ({ value: null as UseMeetingRecorderReturn | null }));
+const recorderContext = vi.hoisted(() => ({ value: null as MeetingRecorderContextValue | null }));
 vi.mock('@/components/meetings/MeetingRecorderProvider', () => ({
   useMeetingRecorderContext: () => recorderContext.value,
 }));
 
 import { ChatInput } from '../ChatInput';
 
-function recorder(over: Partial<UseMeetingRecorderReturn> = {}): UseMeetingRecorderReturn {
+function recorder(over: Partial<MeetingRecorderContextValue> = {}): MeetingRecorderContextValue {
   return {
     phase: 'idle',
     recording: null,
     engine: null,
     limits: null,
-    elapsedSeconds: 0,
-    level: 0,
-    uploadedSegments: 0,
-    pendingSegments: 0,
     silencePrompt: false,
     errorCode: null,
     missingSegments: null,
@@ -99,62 +97,33 @@ function recorder(over: Partial<UseMeetingRecorderReturn> = {}): UseMeetingRecor
 
 beforeEach(() => {
   recorderContext.value = null;
+  voice.startRecording.mockClear();
 });
 
-describe('ChatInput — meeting recording entry', () => {
-  it('keeps the plain file button when the feature is off', () => {
+describe('ChatInput — the « + » is the file picker (ADR-259)', () => {
+  it('shows the plain file button whether or not the instance records meetings', () => {
     recorderContext.value = recorder();
-    renderWithProviders(
-      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled meetingsEnabled={false} />
-    );
-    expect(screen.getByRole('button', { name: 'chat.attachments.add' })).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'meetings.composer.menu_label' })
-    ).not.toBeInTheDocument();
-  });
-
-  it('keeps the plain file button without a recorder provider', () => {
     renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled meetingsEnabled />);
     expect(screen.getByRole('button', { name: 'chat.attachments.add' })).toBeInTheDocument();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.queryByText(/meetings\.composer/)).not.toBeInTheDocument();
   });
 
-  it('opens a menu with "Add a file" and "Record a meeting", and starts the recorder', async () => {
-    const rec = recorder();
-    recorderContext.value = rec;
-    const { user } = renderWithProviders(
-      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled meetingsEnabled />
-    );
-    await user.click(screen.getByRole('button', { name: 'meetings.composer.menu_label' }));
-    expect(
-      await screen.findByRole('menuitem', { name: 'meetings.composer.add_file' })
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole('menuitem', { name: 'meetings.composer.record' }));
-    expect(rec.start).toHaveBeenCalledTimes(1);
-  });
-
-  it('offers Stop while a recording is open and marks the paperclip', async () => {
-    const rec = recorder({ phase: 'recording', isCapturing: true, isLive: true });
-    recorderContext.value = rec;
-    const { user } = renderWithProviders(
-      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled meetingsEnabled />
-    );
-    expect(screen.getByTestId('composer-recording-dot')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'meetings.composer.menu_label' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'meetings.composer.stop' }));
-    expect(rec.stop).toHaveBeenCalledTimes(1);
-  });
-
-  it('still offers the recording menu when attachments are disabled', async () => {
+  it('shows no « + » at all when attachments are disabled', () => {
     recorderContext.value = recorder();
-    const { user } = renderWithProviders(
+    renderWithProviders(
       <ChatInput onSendMessage={vi.fn()} attachmentsEnabled={false} meetingsEnabled />
     );
-    await user.click(screen.getByRole('button', { name: 'meetings.composer.menu_label' }));
-    expect(
-      await screen.findByRole('menuitem', { name: 'meetings.composer.record' })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('menuitem', { name: 'meetings.composer.add_file' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'chat.attachments.add' })).not.toBeInTheDocument();
+  });
+
+  it('keeps hold-to-talk off the table while a meeting is being captured', async () => {
+    recorderContext.value = recorder({ phase: 'recording', isCapturing: true, isLive: true });
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled meetingsEnabled />
+    );
+    const composerButton = screen.getByRole('button', { name: 'chat.input.send' });
+    await user.pointer({ keys: '[MouseLeft>]', target: composerButton });
+    expect(voice.startRecording).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-"""Meeting lifecycle service (ADR-258): recording, minutes edition, preferences, template.
+"""Meeting lifecycle service (ADR-258): recording, minutes edition, preferences.
 
 Every access is scoped by owner (private resource: absence and foreign
 ownership both read as 404). Refusals carry a stable ``code`` in a structured
@@ -44,7 +44,6 @@ from src.domains.meetings.repository import (
     LIVE_STATUSES,
     MeetingPreferenceRepository,
     MeetingRepository,
-    MeetingTemplateRepository,
 )
 from src.domains.meetings.schemas import (
     EngineInfo,
@@ -59,11 +58,11 @@ from src.domains.meetings.schemas import (
     MeetingStartResponse,
     MeetingStopRequest,
     MeetingSummary,
-    MeetingTemplateResponse,
-    MeetingTemplateUpdate,
+    TemplateSelection,
     TranscriptTurn,
 )
-from src.domains.meetings.templates import default_template, parse_sections, sections_to_json
+from src.domains.meetings.template_service import MeetingTemplateService, ResolvedTemplate
+from src.domains.meetings.templates import parse_sections
 from src.domains.usage_limits.service import UsageLimitService
 from src.infrastructure.observability.metrics_meetings import (
     meeting_segments_received_total,
@@ -131,13 +130,21 @@ def raise_meeting_storage_unavailable() -> NoReturn:
 
 
 def raise_meeting_delivery_failed(code: str) -> NoReturn:
-    """502: the user's email provider refused the minutes (``code`` is the frontend key)."""
+    """502: the SMTP relay refused the minutes (``code`` is the frontend key)."""
     raise BaseAPIException(
         status_code=status.HTTP_502_BAD_GATEWAY,
         detail={"code": code},
         log_event="meeting_delivery_failed",
         code=code,
     )
+
+
+def _selection_or_none(value: str | None) -> TemplateSelection | None:
+    """The stored selection as its enum; an unknown historical value reads as absent."""
+    try:
+        return TemplateSelection(value) if value else None
+    except ValueError:
+        return None
 
 
 def total_cost_eur(meeting: Meeting) -> float | None:
@@ -156,7 +163,7 @@ def total_cost_eur(meeting: Meeting) -> float | None:
 
 
 class MeetingService:
-    """Recording lifecycle + minutes edition + preferences + template.
+    """Recording lifecycle + minutes edition + preferences (templates: template_service).
 
     Class-based service (``AttachmentService`` pattern): receives the session,
     owns its repositories and the audio store.
@@ -165,7 +172,6 @@ class MeetingService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.repo = MeetingRepository(db)
-        self.template_repo = MeetingTemplateRepository(db)
         self.preference_repo = MeetingPreferenceRepository(db)
         self.store = MeetingAudioStore(settings.meetings_storage_path)
 
@@ -217,6 +223,7 @@ class MeetingService:
         language = request.language
         if language == "auto" and preferences and preferences.language != "auto":
             language = preferences.language
+        template = await self._resolved_template(user_id, request.template_ref, user.language)
         now = datetime.now(UTC)
         try:
             meeting = await self.repo.create(
@@ -236,6 +243,9 @@ class MeetingService:
                     "stt_model": engine.model,
                     "stt_language_hint": None if language == "auto" else language,
                     "stt_diarized": engine.diarized,
+                    # ADR-259: the template chosen for THIS meeting, if any.
+                    "template_ref": str(template.ref) if template else None,
+                    "template_name": template.name if template else None,
                     # Retention is decided at COMPLETION from the preference in force
                     # then (processing.py) — one authority, never two.
                 }
@@ -423,9 +433,15 @@ class MeetingService:
             stt_provider=meeting.stt_provider,
             total_cost_eur=total_cost_eur(meeting),
             last_error_code=meeting.last_error_code,
+            template_ref=meeting.template_ref,
+            template_name=meeting.template_name,
+            template_selection=_selection_or_none(meeting.template_selection),
+            source_meeting_id=meeting.source_meeting_id,
         )
 
-    def to_detail(self, meeting: Meeting, *, include_transcript: bool) -> MeetingDetailResponse:
+    def to_detail(
+        self, meeting: Meeting, *, include_transcript: bool, derived_count: int = 0
+    ) -> MeetingDetailResponse:
         """Page projection; the transcript is decrypted only on request."""
         report = self._report_or_none(meeting.report_current)
         transcript: list[TranscriptTurn] | None = None
@@ -479,6 +495,12 @@ class MeetingService:
             email_sent_at=meeting.email_sent_at,
             last_error_code=meeting.last_error_code,
             last_error_message=meeting.last_error_message,
+            template_ref=meeting.template_ref,
+            template_name=meeting.template_name,
+            template_selection=_selection_or_none(meeting.template_selection),
+            template_selection_reason=meeting.template_selection_reason,
+            source_meeting_id=meeting.source_meeting_id,
+            derived_count=derived_count,
             transcript=transcript,
         )
 
@@ -495,10 +517,23 @@ class MeetingService:
     # ---------------------------------------------------------------- minutes
 
     async def patch_report(
-        self, user_id: uuid.UUID, meeting_id: uuid.UUID, request: MeetingPatchRequest
+        self,
+        user_id: uuid.UUID,
+        meeting_id: uuid.UUID,
+        request: MeetingPatchRequest,
+        language: str | None = None,
     ) -> Meeting:
-        """Edit the minutes (structured). Re-indexing is the caller's follow-up."""
+        """Edit the minutes (structured). Re-indexing is the caller's follow-up.
+
+        ``template_ref`` (ADR-259) is accepted only while the meeting is live or
+        queued: once processing started the template is the job's, and a READY
+        meeting changes format through ``reformat``.
+        """
         meeting = await self._owned(meeting_id, user_id)
+        if request.template_ref is not None:
+            await self._apply_template_choice(meeting, request.template_ref, language)
+            if not request.touches_report:
+                return await self._fresh(meeting_id, user_id)
         report = self._report_or_none(meeting.report_current)
         if report is None and (request.title or request.participants or request.sections):
             raise_meeting_conflict("report_not_ready", status=meeting.status.value)
@@ -588,49 +623,6 @@ class MeetingService:
             document_id=str(document.id),
         )
 
-    # --------------------------------------------------------------- template
-
-    async def get_template(
-        self, user_id: uuid.UUID, language: str | None
-    ) -> MeetingTemplateResponse:
-        """The user's template, or the built-in default in their language."""
-        row = await self.template_repo.get_default_for_user(user_id)
-        if row is None:
-            return default_template(language)
-        return MeetingTemplateResponse(
-            id=row.id,
-            name=row.name,
-            sections=parse_sections(row.sections),
-            is_builtin_default=False,
-        )
-
-    async def put_template(
-        self, user_id: uuid.UUID, request: MeetingTemplateUpdate
-    ) -> MeetingTemplateResponse:
-        """Replace (or create) the user's template."""
-        row = await self.template_repo.get_default_for_user(user_id)
-        payload = {"name": request.name, "sections": sections_to_json(request.sections)}
-        if row is None:
-            row = await self.template_repo.create(
-                {"user_id": user_id, "is_default": True, **payload}
-            )
-        else:
-            row = await self.template_repo.update(row, payload)
-        await self.db.commit()
-        return MeetingTemplateResponse(
-            id=row.id, name=row.name, sections=request.sections, is_builtin_default=False
-        )
-
-    async def reset_template(
-        self, user_id: uuid.UUID, language: str | None
-    ) -> MeetingTemplateResponse:
-        """Back to the built-in default (the row is deleted)."""
-        row = await self.template_repo.get_default_for_user(user_id)
-        if row is not None:
-            await self.template_repo.delete(row)
-            await self.db.commit()
-        return default_template(language)
-
     # ------------------------------------------------------------ preferences
 
     async def get_preferences(self, user_id: uuid.UUID) -> MeetingPreferencesResponse:
@@ -638,15 +630,24 @@ class MeetingService:
         return self._preferences_response(row)
 
     async def put_preferences(
-        self, user_id: uuid.UUID, request: MeetingPreferencesUpdate
+        self, user_id: uuid.UUID, request: MeetingPreferencesUpdate, language: str | None = None
     ) -> MeetingPreferencesResponse:
-        """Replace the preferences; the retention is clamped to the admin ceiling."""
+        """Replace the preferences; the retention is clamped, the default template resolved.
+
+        A ``default_template_ref`` reaches the row only once resolved (built-in
+        key or owned row): a bad reference never becomes a stored default.
+        """
         keep_hours = min(request.keep_audio_hours, settings.meetings_audio_retention_hours_max)
+        if request.default_template_ref is not None:
+            await MeetingTemplateService(self.db).resolve(
+                user_id, request.default_template_ref, language
+            )
         payload = {
             "stt_engine": request.stt_engine,
             "language": request.language,
             "auto_email": request.auto_email,
             "keep_audio_hours": keep_hours,
+            "default_template_ref": request.default_template_ref,
         }
         row = await self.preference_repo.get_for_user(user_id)
         if row is None:
@@ -663,6 +664,7 @@ class MeetingService:
             language=row.language if row else "auto",
             auto_email=row.auto_email if row else False,
             keep_audio_hours=row.keep_audio_hours if row else 0,
+            default_template_ref=row.default_template_ref if row else None,
             keep_audio_hours_max=settings.meetings_audio_retention_hours_max,
         )
 
@@ -688,7 +690,7 @@ class MeetingService:
         )
 
     async def email(self, user: Any, meeting_id: uuid.UUID) -> Meeting:
-        """Email the current minutes to the user's own address through their connector."""
+        """Email the current minutes to the user's own address from the platform sender."""
         meeting, report = await self._ready_with_report(user.id, meeting_id)
         try:
             await send_minutes_email(
@@ -701,12 +703,36 @@ class MeetingService:
                 gaps=meeting.audio_gaps,
             )
         except MinutesDeliveryError as exc:
-            if exc.code == "email_connector_missing":
-                raise_meeting_conflict(exc.code)
             raise_meeting_delivery_failed(exc.code)
         return await self._fresh(meeting_id, user.id)
 
     # ----------------------------------------------------------------- helpers
+
+    async def _apply_template_choice(
+        self, meeting: Meeting, ref: str, language: str | None
+    ) -> None:
+        """Remember the template for a meeting that has not been processed yet (ADR-259)."""
+        if meeting.status not in (*LIVE_STATUSES, MeetingStatus.STOPPED):
+            raise_meeting_conflict("template_locked", status=meeting.status.value)
+        template = await self._resolved_template(meeting.user_id, ref, language)
+        assert template is not None  # ref is not None here
+        await self.repo.set_template(meeting.id, ref=str(template.ref), name=template.name)
+
+    async def _resolved_template(
+        self, user_id: uuid.UUID, ref: str | None, language: str | None
+    ) -> ResolvedTemplate | None:
+        """A template reference the user may use, or ``None`` when none was given."""
+        if ref is None:
+            return None
+        return await MeetingTemplateService(self.db).resolve(user_id, ref, language)
+
+    async def detail(
+        self, user_id: uuid.UUID, meeting_id: uuid.UUID, *, include_transcript: bool
+    ) -> MeetingDetailResponse:
+        """The page projection, with the exact count of minutes derived from it."""
+        meeting = await self._owned(meeting_id, user_id)
+        derived = await self.repo.count_derived(meeting_id)
+        return self.to_detail(meeting, include_transcript=include_transcript, derived_count=derived)
 
     async def _owned(self, meeting_id: uuid.UUID, user_id: uuid.UUID) -> Meeting:
         meeting = await self.repo.get_for_user(meeting_id, user_id)

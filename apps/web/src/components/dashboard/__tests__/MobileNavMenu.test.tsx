@@ -12,7 +12,8 @@
  *    in that corner, and an unnamed one is a dead end for a screen reader.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { Disc } from 'lucide-react';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { DASHBOARD_DESTINATIONS, destinationPath, visibleDestinations } from '@/lib/dashboard-nav';
@@ -172,3 +173,49 @@ describe('MobileNavMenu — instance-gated destinations (ADR-258)', () => {
   });
 });
 
+describe('MobileNavMenu — the recorder entry (ADR-259)', () => {
+  it('renders the action as a menu item after the destinations and runs it', async () => {
+    const onSelect = vi.fn();
+    const { user } = renderWithProviders(
+      <MobileNavMenu
+        buildHref={buildHref}
+        translate={translate}
+        isActiveRoute={() => false}
+        triggerLabel="Menu"
+        action={{ label: 'meetings.header.record', icon: Disc, onSelect }}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    const items = await screen.findAllByRole('menuitem');
+    expect(items.at(-1)).toHaveAccessibleName('meetings.header.record');
+    await user.click(items.at(-1)!);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('turns the trigger red, pulsing, and names the live state', () => {
+    renderWithProviders(
+      <MobileNavMenu
+        buildHref={buildHref}
+        translate={translate}
+        isActiveRoute={() => false}
+        triggerLabel="Menu"
+        action={{
+          label: 'meetings.header.stop',
+          icon: Disc,
+          tone: 'destructive',
+          onSelect: vi.fn(),
+        }}
+        live={{ label: 'meetings.header.live_label' }}
+      />
+    );
+    const trigger = screen.getByRole('button', { name: 'meetings.header.live_label' });
+    expect(trigger).toHaveClass('animate-pulse');
+    expect(screen.queryByRole('button', { name: 'Menu' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the plain trigger and no extra item without an action', async () => {
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(await screen.findAllByRole('menuitem')).toHaveLength(DASHBOARD_DESTINATIONS.length);
+  });
+});

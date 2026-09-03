@@ -4,7 +4,7 @@
 
 **Version** : 5.2
 **Date** : 2026-08-23
-**Application** : LIA v1.39.0
+**Application** : LIA v1.39.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -210,11 +210,11 @@ Reste ce qu'aucun système ne peut deviner. LIA regroupe ce qui s'écrit pareil,
 
 ### 3.13. Une réunion enregistrée, un compte rendu rédigé
 
-Appuie sur **+** dans le chat et ton téléphone ou ton ordinateur devient l'enregistreur de la réunion. Une bannière te suit sur chaque page avec le temps et ce qui a déjà atteint ton serveur ; tu continues à parler avec LIA pendant ce temps — les réponses parlées se mettent simplement en pause pour que le micro n'entende jamais l'assistant. Quand tu arrêtes, LIA transcrit tout et rédige le compte rendu **à ta structure** : l'en-tête est fixe (date, horaires, lieu, participants), le corps est à toi — résumé, sujets, décisions, actions avec responsable et échéance, risques, questions ouvertes, ou les sections que tu définis une fois dans les Réglages et remets au défaut d'un clic.
+Un bouton dans l'en-tête — ou l'entrée « Enregistrer une réunion » du menu sur téléphone — et ton téléphone ou ton ordinateur devient l'enregistreur de la réunion. Une bannière te suit sur chaque page avec le temps et ce qui a déjà atteint ton serveur ; tu continues à parler avec LIA pendant ce temps — les réponses parlées se mettent simplement en pause pour que le micro n'entende jamais l'assistant. Quand tu arrêtes, LIA transcrit tout et rédige le compte rendu **à ta structure** : l'en-tête est fixe (date, horaires, lieu, participants), le corps suit un format que tu choisis parmi trente modèles intégrés — réunions et équipes, transcriptions, analyses de conversation, commercial, technique, rendez-vous personnels, cours — ou que tu construis toi-même, section par section. Et si tu ne choisis rien, LIA lit ce qui a été dit et retient le format qui convient, puis te dit lequel et pourquoi : un point projet et une consultation médicale n'ont pas la même structure.
 
 La vraie vie est prévue, pas excusée. L'audio part en petits segments au fil de la parole, si bien qu'un téléphone verrouillé, une coupure ou un rechargement coûtent des secondes, jamais la réunion : au retour tu reprends, finalises ou abandonnes. Un long silence appelle une question, une durée maximale finalise d'elle-même, et une lacune de l'enregistrement est dite dans le compte rendu — jamais comblée par une supposition. Une voix non nommée reste S2 ; un nom n'apparaît que si l'enregistrement l'établit.
 
-Le compte rendu t'arrive par trois chemins — une carte dans le chat, un PDF, ta propre messagerie — et rejoint un espace de connaissances **Réunions** créé pour toi, pour qu'à des semaines de distance tu puisses simplement demander ce qui a été décidé. Ce que ça a coûté est écrit à côté : la transcription et le compte rendu en deux montants et leur total, comptés comme tout autre échange. Et le moteur de transcription est à ton choix : un distant qui sépare les voix, ou le local qui ne coûte rien et ne quitte jamais ton serveur.
+Le compte rendu t'arrive par trois chemins — une carte dans le chat, un PDF, ta boîte de réception depuis l'adresse de l'application, sans messagerie à connecter — et rejoint un espace de connaissances **Réunions** créé pour toi, pour qu'à des semaines de distance tu puisses simplement demander ce qui a été décidé. Ce que ça a coûté est écrit à côté : la transcription et le compte rendu en deux montants et leur total, comptés comme tout autre échange. Et rien n'est figé : un compte rendu déjà rendu se réécrit dans un autre format depuis la transcription conservée — jusqu'à la transcription complète, nettoyée — soit en remplaçant celui que tu as, soit en produisant un nouveau compte rendu de la même réunion. Le moteur de transcription, lui, reste à ton choix : un distant qui sépare les voix, ou le local qui ne coûte rien et ne quitte jamais ton serveur.
 
 ---
 

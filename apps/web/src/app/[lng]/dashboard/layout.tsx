@@ -19,8 +19,14 @@ import { OnboardingTutorial } from '@/components/onboarding';
 import { CompanionPresence } from '@/components/companion/CompanionPresence';
 import { BroadcastProvider } from '@/lib/broadcast';
 import { BroadcastModal } from '@/components/broadcast';
-import { MobileNavMenu } from '@/components/dashboard/MobileNavMenu';
-import { MeetingRecorderProvider } from '@/components/meetings/MeetingRecorderProvider';
+import {
+  MeetingRecorderBannerSlot,
+  MeetingRecorderProvider,
+} from '@/components/meetings/MeetingRecorderProvider';
+import {
+  MeetingRecorderControl,
+  RecorderAwareMobileNavMenu,
+} from '@/components/meetings/MeetingRecorderControl';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { destinationPath, visibleDestinations } from '@/lib/dashboard-nav';
 import type { DashboardDestination } from '@/lib/dashboard-nav';
@@ -161,57 +167,61 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
       {/* SEO: Prevent search engines and AI bots from indexing authenticated pages */}
       <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
 
-      <div className="min-h-screen bg-background">
-        {/* Admin Broadcast Modal */}
-        <BroadcastModal lng={lng} />
+      {/* ADR-258/259: the recorder lives ABOVE the header so a recording
+          survives navigation and the header's controls can read it. */}
+      <MeetingRecorderProvider lng={lng} enabled={appConfig?.features?.meetings_enabled ?? false}>
+        <div className="min-h-screen bg-background">
+          {/* Admin Broadcast Modal */}
+          <BroadcastModal lng={lng} />
 
-        {/* Navbar - Enhanced Glassmorphism */}
-        <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm">
-          <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            {/* Logo & Navigation. `min-w-0` makes THIS group the one that
+          {/* Navbar - Enhanced Glassmorphism */}
+          <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm">
+            <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+              {/* Logo & Navigation. `min-w-0` makes THIS group the one that
                 yields when the row is tight, so the trailing controls — the
                 logout button in particular — are never pushed off-screen. */}
-            <div className="flex min-w-0 items-center gap-4 xl:gap-8">
-              {/* A2: below `lg` the nav below is hidden, so the logo becomes
+              <div className="flex min-w-0 items-center gap-4 xl:gap-8">
+                {/* A2: below `lg` the nav below is hidden, so the logo becomes
                   the way to every page instead of a dead "go home" link.
                   Two exclusive elements, never one changing role — a link at
                   one width and a button at another cannot announce itself.
                   R01 moved the boundary from `md` to `lg`: with five
                   destinations the fr/de/es/it labels clip between 768 and
                   1024 px (measured by dashboard-header-reachability). */}
-              <div className="lg:hidden">
-                <MobileNavMenu
-                  buildHref={route => buildLocalizedPath(route, pathLng)}
-                  translate={t}
-                  isActiveRoute={isActiveRoute}
-                  triggerLabel={t('common.menu')}
-                  destinations={destinations}
-                />
-              </div>
-              <Link
-                href={buildLocalizedPath('/dashboard', pathLng)}
-                className="hidden shrink-0 items-center gap-2 group lg:flex"
-              >
-                <div className="flex h-10 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md group-hover:shadow-lg transition-all">
-                  <span className="text-sm font-bold text-primary-foreground">LIA</span>
+                <div className="lg:hidden">
+                  <RecorderAwareMobileNavMenu
+                    lng={lng}
+                    buildHref={route => buildLocalizedPath(route, pathLng)}
+                    translate={t}
+                    isActiveRoute={isActiveRoute}
+                    triggerLabel={t('common.menu')}
+                    destinations={destinations}
+                  />
                 </div>
-              </Link>
-              {/* R01: rendered from DASHBOARD_DESTINATIONS — the same table the
+                <Link
+                  href={buildLocalizedPath('/dashboard', pathLng)}
+                  className="hidden shrink-0 items-center gap-2 group lg:flex"
+                >
+                  <div className="flex h-10 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md group-hover:shadow-lg transition-all">
+                    <span className="text-sm font-bold text-primary-foreground">LIA</span>
+                  </div>
+                </Link>
+                {/* R01: rendered from DASHBOARD_DESTINATIONS — the same table the
                   mobile menu maps, as dashboard-nav.ts always claimed. The
                   hand-maintained copy here was the drift this kills. */}
-              <nav className="hidden min-w-0 lg:flex items-center gap-1">
-                {destinations.map(({ segment, labelKey }) => {
-                  const Icon = DESTINATION_ICONS[segment];
-                  return (
-                    <Link
-                      key={segment || 'home'}
-                      href={buildLocalizedPath(destinationPath(segment), pathLng)}
-                      className={navLinkClass(segment)}
-                      aria-current={isActiveRoute(segment) ? 'page' : undefined}
-                      aria-label={t(labelKey)}
-                      title={t(labelKey)}
-                    >
-                      {/* Below `xl` the row shows ICONS only. Six labels are
+                <nav className="hidden min-w-0 lg:flex items-center gap-1">
+                  {destinations.map(({ segment, labelKey }) => {
+                    const Icon = DESTINATION_ICONS[segment];
+                    return (
+                      <Link
+                        key={segment || 'home'}
+                        href={buildLocalizedPath(destinationPath(segment), pathLng)}
+                        className={navLinkClass(segment)}
+                        aria-current={isActiveRoute(segment) ? 'page' : undefined}
+                        aria-label={t(labelKey)}
+                        title={t(labelKey)}
+                      >
+                        {/* Below `xl` the row shows ICONS only. Six labels are
                           163 px wider than five in German (measured in the
                           app's font), and five already clipped between 768 and
                           1024 px — the reason this nav starts at `lg` at all.
@@ -220,80 +230,85 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                           the personality title waits for `2xl`. The label stays
                           the accessible name, so nothing is lost for assistive
                           technology or on hover. */}
-                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="hidden xl:inline">{t(labelKey)}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="hidden xl:inline">{t(labelKey)}</span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
 
-            {/* User Actions. `shrink-0` on the whole group: when the nav and
+              {/* User Actions. `shrink-0` on the whole group: when the nav and
                 the control labels show together the row used to overflow —
                 silently, because the root is `overflow-x: hidden`. Since R01
                 the nav needs `lg`, so the tight band moved to 1024–1280 px.
                 Pinned by the header-reachability spec. */}
-            <div className="flex shrink-0 items-center flex-1 lg:flex-none">
-              {/* Icons container - evenly spaced while the logo-menu layout is
+              <div className="flex shrink-0 items-center flex-1 lg:flex-none">
+                {/* Icons container - evenly spaced while the logo-menu layout is
                   active (below `lg` since R01), tighter once the nav is back. */}
-              <div className="flex items-center flex-1 justify-evenly lg:justify-end lg:gap-1 xl:gap-3">
-                <ExecutionModeToggle lng={lng} />
-                <VoiceToggle lng={lng} />
-                {/* Token counters are observation, not action: they only earn
+                <div className="flex items-center flex-1 justify-evenly lg:justify-end lg:gap-1 xl:gap-3">
+                  <ExecutionModeToggle lng={lng} />
+                  {/* ADR-259: record / stop a meeting from any page. Below `lg`
+                    the logo menu carries the same command (no width for a
+                    seventh control on a phone — measured). */}
+                  <div className="hidden lg:block">
+                    <MeetingRecorderControl lng={lng} />
+                  </div>
+                  <VoiceToggle lng={lng} />
+                  {/* Token counters are observation, not action: they only earn
                     their width once the row has room to spare. That moved from
                     `xl` to `2xl` when a SIXTH destination joined the nav —
                     measured at 1280 px in German, the last nav link and the
                     first control overlapped, and the counters are the one
                     element in the row nobody navigates with. */}
-                <div className="hidden 2xl:block">
-                  <TokensDisplayToggle lng={lng} />
+                  <div className="hidden 2xl:block">
+                    <TokensDisplayToggle lng={lng} />
+                  </div>
+                  <ThemeToggle />
+                  <PersonalitySelector />
+                  <LanguageSelector currentLocale={lng} />
                 </div>
-                <ThemeToggle />
-                <PersonalitySelector />
-                <LanguageSelector currentLocale={lng} />
-              </div>
 
-              {/* Logout button — never compressible: signing out must stay
+                {/* Logout button — never compressible: signing out must stay
                   possible at every width. */}
-              <button
-                onClick={logout}
-                className="flex shrink-0 items-center justify-center h-11 w-11 max-[380px]:h-9 max-[380px]:w-9 rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/90 ml-2 xl:ml-3 shadow-sm"
-                title={t('navigation.logout')}
-                aria-label={t('navigation.logout')}
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+                <button
+                  onClick={logout}
+                  className="flex shrink-0 items-center justify-center h-11 w-11 max-[380px]:h-9 max-[380px]:w-9 rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/90 ml-2 xl:ml-3 shadow-sm"
+                  title={t('navigation.logout')}
+                  aria-label={t('navigation.logout')}
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* OAuth connector health: the persistent banner renders HERE, under
+          {/* OAuth connector health: the persistent banner renders HERE, under
             the sticky header and above the page, while the modal it ships
             with is portalled and unaffected by this position. */}
-        <ConnectorHealthAlert lng={lng} />
+          <ConnectorHealthAlert lng={lng} />
 
-        {/* Main Content - Reduced top spacing, no bottom padding for full-page apps */}
-        <main className="w-full max-w-7xl mx-auto pt-4 pb-0 px-4 sm:px-6 lg:px-8">
-          <MeetingRecorderProvider
-            lng={lng}
-            enabled={appConfig?.features?.meetings_enabled ?? false}
-          >
+          {/* Main Content - Reduced top spacing, no bottom padding for full-page apps */}
+          <main className="w-full max-w-7xl mx-auto pt-4 pb-0 px-4 sm:px-6 lg:px-8">
+            {/* The recording banner: sticky under the header, on every page, so
+              the capture can always be seen and stopped (ADR-259). */}
+            <MeetingRecorderBannerSlot lng={lng} />
             {children}
-          </MeetingRecorderProvider>
-        </main>
+          </main>
 
-        {/* Onboarding Tutorial */}
-        {showOnboarding && (
-          <OnboardingTutorial
-            lng={lng}
-            open={showOnboarding}
-            onComplete={handleOnboardingComplete}
-          />
-        )}
+          {/* Onboarding Tutorial */}
+          {showOnboarding && (
+            <OnboardingTutorial
+              lng={lng}
+              open={showOnboarding}
+              onComplete={handleOnboardingComplete}
+            />
+          )}
 
-        {/* Floating companion — follows across dashboard pages, hidden on chat */}
-        <CompanionPresence isAuthenticated={!!user} />
-      </div>
+          {/* Floating companion — follows across dashboard pages, hidden on chat */}
+          <CompanionPresence isAuthenticated={!!user} />
+        </div>
+      </MeetingRecorderProvider>
     </BroadcastProvider>
   );
 }

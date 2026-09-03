@@ -1,4 +1,4 @@
-# Réunions — enregistrement et comptes rendus structurés (ADR-258)
+# Réunions — enregistrement et comptes rendus structurés (ADR-258, bibliothèque de modèles ADR-259)
 
 > Décision : [ADR-258](../architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md).
 > Spécification et mesures : `docs/superpowers/specs/2026-09-02-meeting-recording-and-minutes-design.md`.
@@ -19,12 +19,21 @@ l'envoie par e-mail si demandé et le propose en PDF.
 | `audio_store.py` | un fichier par séquence (4 workers), assemblage puis normalisation Opus par ffmpeg sous le plafond distant |
 | `engine.py` | `resolve_engine` : slot admin → ordre de repli → moteur local ; rien ne touche le réseau |
 | `transcription.py` | fichier entier chez ElevenLabs/OpenAI, ou blocs PCM de 600 s dans le Whisper local sans plafond ; un modèle sans tarif administré stocke un coût `null`, jamais `0.0` |
-| `synthesis.py` | un appel structuré sur le slot `meeting_synthesis`, condensation par parties si la fenêtre déborde, `repair_report` |
+| `synthesis.py` | un appel structuré sur le slot `meeting_synthesis`, condensation par parties si la fenêtre déborde, `repair_report` ; les sections `transcript` sont réécrites AVANT par `transcript_rewrite.py` |
+| `template_ref.py` | `TemplateRef` : `builtin:<clé>` ou `user:<uuid>` — l'identité d'un modèle partout (réunion, préférence, requêtes), jamais une ligne |
+| `template_catalogue/` | les 30 modèles intégrés en sept catégories, assertions de complétude au démarrage (ADR-085) ; leurs noms, descriptions et titres de sections ×6 langues dans `core/i18n_meeting_templates.py` |
+| `template_service.py` | bibliothèque (intégrés + lignes de l'utilisateur), résolution d'un ref, création (ou duplication d'un intégré), modification, suppression ; plafond `meetings_max_user_templates` publié |
+| `template_bulk.py` | lots de modèles : `POST /meetings/templates/bulk-duplicate` (ajouter des intégrés à « Mes modèles », nom numéroté « (2) » si déjà possédé) et `bulk-delete` (chaque ref fait ou ignoré avec un code ; `preference_reset` dit si le format par défaut est revenu à l'automatique) |
+| `template_resolution.py` | UNE précédence : ref de la réunion → défaut de la préférence → choix du modèle parmi les candidats auto-sélectionnables sur un extrait de transcription (seuil de confiance) → intégré par défaut ; chaque issue comptée (`meeting_template_selection_total`) |
+| `transcript_rewrite.py` | la section `transcript` réécrite par parties sous le budget de sortie effectif du slot ; un index manquant scinde la partie, une réponse trop courte est retentée une fois |
+| `regeneration.py` | régénération durable (bail, étape) sur le ref DE LA RÉUNION ; `clear_stale_regenerations` libère un bail expiré |
+| `reformat.py` | `POST /meetings/{id}/reformat` : `replace` (réécrit en place) ou `new` (nouvelle ligne pointant la source, indexée comme son propre document) |
+| `bulk.py` | `POST /meetings/bulk-delete` : chaque id supprimé ou ignoré avec un code (`meeting_in_progress`, `meeting_not_found`, `delete_failed`) |
 | `render.py` | UN sérialiseur : Markdown (espace RAG), contenu sectionné (PDF via ADR-226), HTML (e-mail) |
 | `indexing.py` | espace trouvé par RÔLE (`rag_spaces.kind='meetings'`), un document RAG par réunion réécrit en place — et supprimé (morceaux, ligne, fichier) avec la réunion : l'espace est une projection, jamais une seconde copie |
 | `processing.py` | le job : claim → normalisation → transcription → enrichissement → synthèse → `ready` → index/notification/e-mail/purge (ces effets sont gardés : un échec après `ready` est journalisé, jamais requalifié en échec de la réunion) |
 | `enrichment.py` | événement d'agenda chevauchant (indice, jamais un fait) et libellé du lieu, en mode meilleur effort |
-| `delivery.py` | PDF et e-mail via le connecteur e-mail actif de l'utilisateur |
+| `delivery.py` | PDF, et e-mail envoyé par la plateforme (`APPLICATION_SMTP_FROM`, `EmailService` hors boucle d'événements) à l'adresse du compte — sujet « Compte rendu de réunion · Titre » |
 | `reapers.py` | enregistrements muets → `interrupted`, baux expirés → `stopped`, orphelins relancés, audio conservé purgé |
 
 Réglages : `apps/api/src/core/config/meetings.py` (`MEETINGS_*`, voir `.env.example` §87).
@@ -73,11 +82,14 @@ alors qu'une clé OpenAI était disponible.
 | File d'envoi ordonnée, reprise, hors-ligne | `lib/meetings/segment-uploader.ts` |
 | Garde du silence, verrou d'écran | `lib/meetings/silence-watchdog.ts`, `lib/wake-lock.ts` |
 | Store (persisté pour Reprendre / Finaliser / Abandonner) | `stores/meetingRecorderStore.ts` |
-| Fournisseur + bannière dans la mise en page du tableau de bord | `components/meetings/MeetingRecorderProvider.tsx`, `MeetingRecordingBanner.tsx` |
-| Entrée du composeur (menu du bouton « + », 44 px sur téléphone) | `components/chat/ChatInput.tsx` (`meetingsEnabled`) |
+| Fournisseur (enveloppe toute la mise en page) + bannière collante en tête de `<main>`, qui publie sa hauteur mesurée (`--meeting-banner-h`) pour que la coque du chat la soustraie | `components/meetings/MeetingRecorderProvider.tsx` (`MeetingRecorderBannerSlot`), `MeetingRecordingBanner.tsx` |
+| Démarrer / arrêter : bascule dans l'en-tête sur ordinateur (`aria-pressed`, disque qui pulse), entrée dynamique du menu du logo sur téléphone dont le déclencheur pulse en rouge pendant la capture ; le « + » du composeur est redevenu un sélecteur de fichiers | `components/meetings/MeetingRecorderControl.tsx`, `components/dashboard/MobileNavMenu.tsx` (`action`, `live`) |
+| Format choisi pendant l'enregistrement (enregistré sur la réunion, mémorisé dans le store) | `MeetingRecordingBanner.tsx` (`FormatSelect`), `components/meetings/TemplateSelect.tsx` |
 | Destination « Réunions » de l'en-tête (entre Relations et Alertes, seulement si l'instance active la fonction) | `lib/dashboard-nav.ts` (`visibleDestinations`), `app/[lng]/dashboard/layout.tsx`, `components/dashboard/MobileNavMenu.tsx` |
-| Pages | `app/[lng]/dashboard/meetings/`, `[id]/` |
-| Section de réglages (préférences, modèle, réunions récentes) | `components/settings/MeetingsSettings.tsx` (jeton `meetings`) |
+| Pages : liste (sélection + suppression groupée, barre d'outils Enregistrer / Modèles), détail (format, changement de format, comptes rendus dérivés), bibliothèque de modèles | `app/[lng]/dashboard/meetings/`, `[id]/`, `templates/` |
+| Bibliothèque : « Mes modèles » puis « Modèles intégrés », catégories repliées par défaut avec leur icône, sélection et barre par section (ajouter à mes modèles / supprimer en lot), aperçu, formulaire (création, édition — jamais à la duplication) | `components/meetings/MeetingTemplateLibrary.tsx`, `templateCategoryIcons.tsx`, `MeetingTemplatePreview.tsx`, `MeetingTemplateForm.tsx`, `MeetingTemplateEditor.tsx`, `ui/selection-bar.tsx` |
+| Détail : « Changer le format… » (remplacer / nouveau compte rendu), panneau d'attente d'une ligne sans compte rendu, fait « Format » et liens de filiation | `components/meetings/ReformatDialog.tsx`, `MeetingPendingPanel.tsx`, `MeetingDetailLinks.tsx` |
+| Section de réglages (préférences dont le format par défaut, lien vers la bibliothèque, réunions récentes) | `components/settings/MeetingsSettings.tsx` (jeton `meetings`) |
 | Carte du chat « compte rendu prêt » | `components/meetings/MeetingMinutesCard.tsx` (`proactive_meeting`) |
 
 Le PWA : le verrou d'écran est demandé pendant la capture et la bannière rappelle de garder
@@ -98,6 +110,23 @@ Trois règles du recorder qui ne sont pas des détails :
 - **Le contexte React ne publie que l'état grossier** (`MeetingRecorderContextValue`) : le niveau
   du vumètre et les compteurs changent plusieurs fois par seconde et n'appartiennent qu'à la
   bannière ; le composeur ne se re-rend pas à cette cadence pendant deux heures de réunion (testé).
+
+## Modèles de compte rendu (ADR-259)
+
+- **Un modèle a une identité** (`TemplateRef`), une catégorie et une origine : les 30 intégrés
+  vivent dans le code (`template_catalogue/`) et leurs mots dans une donnée i18n ; les modèles de
+  l'utilisateur sont des lignes `meeting_templates` (plafond publié). Un intégré se prévisualise et se
+  duplique ; une ligne se modifie et se supprime (la préférence qui la désignait revient à l'automatique
+  dans la même transaction).
+- **Le format est choisi une fois, à un seul endroit** (`decide_template`) et la réunion dit lequel :
+  `template_ref`, `template_name`, `template_selection` (`auto` / `user` / `preference`) et la raison
+  du modèle quand il a choisi. Les modèles de transcription ne sont **jamais** choisis automatiquement.
+- **Changer le format** réécrit depuis la transcription conservée : en place (régénération durable) ou
+  en **nouveau compte rendu** (`source_meeting_id`, document RAG propre). On ne parle jamais de copie :
+  la transcription est la même, le compte rendu non.
+- **La section `transcript`** est réécrite par parties sous le budget de sortie effectif du slot
+  `meeting_synthesis` (lu en base, jamais supposé) ; le dialogue prévient qu'elle est longue et facturée
+  comme une réunion entière.
 
 ## Ce que la réunion coûte, et où ça se voit
 

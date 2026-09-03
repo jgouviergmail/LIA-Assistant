@@ -1029,7 +1029,7 @@ après un local vert — d'où `ci:fast`.
 Gates bloquants sur `main` :
 
 - [ ] Toutes les suites passent (unit, agents, intégration, E2E)
-- [ ] Couverture backend >= **68 %** (source de vérité : `apps/api/pyproject.toml`)
+- [ ] Couverture backend >= **69 %** (source de vérité : `apps/api/pyproject.toml`)
 - [ ] Seuils de couverture frontend par fichier (`apps/web/vitest.config.ts`)
 - [ ] Ruff, Black, MyPy strict, ESLint, `tsc --noEmit` non incrémental
 - [ ] Ratchets shrink-only : a11y, react-hooks, complexité (front et back), dette MyPy, taille de fichiers

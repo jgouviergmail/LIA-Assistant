@@ -815,11 +815,13 @@ export default function ChatPage() {
           flex column, so it degrades to the old behaviour rather than to none.
 
           `--connector-banner-h` is the height of the connector-health banner
-          the dashboard layout may insert ABOVE this shell; it defaults to 0px,
+          the dashboard layout may insert ABOVE this shell, and
+          `--meeting-banner-h` the height of the sticky recording banner
+          (ADR-259) placed above the page content; each defaults to 0px,
           so this arithmetic is unchanged whenever no banner is mounted. Without
           it, a broken connector would push the composer below the fold — the
           constant above cannot know about a block added after it was written. */}
-      <div className="flex h-[calc(100vh-5.25rem-var(--connector-banner-h,0px))] supports-[height:100dvh]:h-[calc(100dvh-5.25rem-var(--connector-banner-h,0px))] gap-4">
+      <div className="flex h-[calc(100vh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px))] supports-[height:100dvh]:h-[calc(100dvh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px))] gap-4">
         {/* Main Chat Area */}
         <div
           className={`flex flex-col flex-1 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden ${showDebugPanel ? 'max-w-[calc(100%-420px)]' : ''}`}

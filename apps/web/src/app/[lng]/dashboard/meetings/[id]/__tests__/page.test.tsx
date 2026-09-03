@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   patch: vi.fn(),
   resetReport: vi.fn(),
   regenerate: vi.fn(),
+  reformat: vi.fn(),
   retry: vi.fn(),
   email: vi.fn(),
   deleteTranscript: vi.fn(),
@@ -28,6 +29,30 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock('@/hooks/useMeetings', () => ({
   useMeeting: () => ({ ...state, error: null }),
+}));
+vi.mock('@/hooks/useMeetingTemplates', () => ({
+  useMeetingTemplates: () => ({
+    templates: [
+      {
+        ref: 'builtin:default_minutes',
+        name: 'Meeting minutes',
+        description: null,
+        category: 'meeting',
+        builtin: true,
+        sections_count: 6,
+        auto_selectable: true,
+      },
+    ],
+    maxUserTemplates: 50,
+    isLoading: false,
+    isSaving: false,
+    error: null,
+    refetch: vi.fn(),
+    load: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  }),
 }));
 vi.mock('@/hooks/useLanguageParam', () => ({ useLanguageParam: () => 'en' }));
 const push = vi.fn();
@@ -63,6 +88,7 @@ function report(over: Partial<MeetingReport> = {}): MeetingReport {
         bullets: [],
         topics: [],
         action_items: [],
+        transcript: [],
       },
       {
         key: 'action_items',
@@ -71,7 +97,10 @@ function report(over: Partial<MeetingReport> = {}): MeetingReport {
         paragraph: null,
         bullets: [],
         topics: [],
-        action_items: [{ description: 'Préparer la bascule', owner: 'Marc', due_date: '2026-09-09' }],
+        action_items: [
+          { description: 'Préparer la bascule', owner: 'Marc', due_date: '2026-09-09' },
+        ],
+        transcript: [],
       },
     ],
     ...over,
@@ -118,6 +147,12 @@ function detail(over: Partial<MeetingDetail> = {}): MeetingDetail {
     email_sent_at: null,
     last_error_code: null,
     last_error_message: null,
+    template_ref: null,
+    template_name: null,
+    template_selection: null,
+    template_selection_reason: null,
+    source_meeting_id: null,
+    derived_count: 0,
     transcript: null,
     ...over,
   };
@@ -139,6 +174,12 @@ beforeEach(() => {
   state.patch.mockResolvedValue(detail());
   state.resetReport.mockResolvedValue(detail());
   state.regenerate.mockResolvedValue(undefined);
+  state.reformat.mockResolvedValue({
+    id: 'm9',
+    status: 'ready',
+    stage: 'synthesizing',
+    source_meeting_id: 'm1',
+  });
   state.retry.mockResolvedValue(undefined);
   state.email.mockResolvedValue(detail());
   state.deleteTranscript.mockResolvedValue(detail({ has_transcript: false }));
@@ -274,15 +315,15 @@ describe('MeetingPage — READY minutes', () => {
     ).toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('emails the minutes and reports the server refusal code', async () => {
+  it('emails the minutes and reports the relay refusal code', async () => {
     const { ApiError } = await import('@/lib/api-client');
     state.email.mockRejectedValueOnce(
-      new ApiError('refused', 409, { detail: { code: 'email_connector_missing' } })
+      new ApiError('refused', 502, { detail: { code: 'email_send_failed' } })
     );
     const { user } = renderWithProviders(<MeetingPage params={params} />);
     await user.click(screen.getByRole('button', { name: 'meetings.detail.email' }));
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('meetings.errors.email_connector_missing')
+      expect(toast.error).toHaveBeenCalledWith('meetings.errors.email_send_failed')
     );
   });
 
@@ -315,3 +356,66 @@ describe('MeetingPage — cost fact', () => {
   });
 });
 
+describe('MeetingPage — format and derived minutes (ADR-259)', () => {
+  const formatted = () =>
+    detail({
+      template_ref: 'builtin:default_minutes',
+      template_name: 'Meeting minutes',
+      template_selection: 'auto',
+      template_selection_reason: 'A project status with decisions.',
+    });
+
+  it('states the format, how it was chosen and why', () => {
+    state.meeting = formatted();
+    renderWithProviders(<MeetingPage params={params} />);
+    expect(screen.getByText('meetings.detail.format')).toBeInTheDocument();
+    expect(screen.getByText('Meeting minutes')).toBeInTheDocument();
+    expect(screen.getByText('meetings.detail.format_selection.auto')).toBeInTheDocument();
+    expect(screen.getByText('A project status with decisions.')).toBeInTheDocument();
+  });
+
+  it('opens the format dialog and, on new minutes, goes to the new row', async () => {
+    state.meeting = formatted();
+    const { user } = renderWithProviders(<MeetingPage params={params} />);
+    await user.click(screen.getByRole('button', { name: 'meetings.detail.change_format' }));
+    const dialog = await screen.findByRole('dialog', { name: 'meetings.detail.reformat.title' });
+    expect(dialog).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'meetings.detail.reformat.mode_new' }));
+    await user.click(screen.getByRole('button', { name: 'meetings.detail.reformat.submit' }));
+    await waitFor(() =>
+      expect(state.reformat).toHaveBeenCalledWith({
+        template_ref: 'builtin:default_minutes',
+        mode: 'new',
+      })
+    );
+    expect(toast.success).toHaveBeenCalledWith('meetings.detail.reformat.started_new');
+    expect(push).toHaveBeenCalledWith('/dashboard/meetings/m9');
+  });
+
+  it('links the source transcript and counts the minutes derived from this one', async () => {
+    state.meeting = detail({ source_meeting_id: 'm0', derived_count: 2 });
+    const { user } = renderWithProviders(<MeetingPage params={params} />);
+    expect(screen.getByText('meetings.detail.derived_count')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'meetings.detail.derived_from' }));
+    expect(push).toHaveBeenCalledWith('/dashboard/meetings/m0');
+  });
+
+  it('shows the pending panel for READY minutes not written yet, and the retry after a failure', async () => {
+    state.meeting = detail({ stage: 'synthesizing', report: null, template_ref: 'builtin:x' });
+    renderWithProviders(<MeetingPage params={params} />);
+    expect(screen.getByText('meetings.detail.pending_title')).toBeInTheDocument();
+    expect(screen.queryByText('meetings.detail.minutes_title')).not.toBeInTheDocument();
+
+    state.meeting = detail({
+      report: null,
+      last_error_code: 'synthesis_failed',
+      template_ref: 'builtin:x',
+    });
+    const { user } = renderWithProviders(<MeetingPage params={params} />);
+    await user.click(screen.getByRole('button', { name: 'meetings.detail.try_again' }));
+    await waitFor(() =>
+      expect(state.reformat).toHaveBeenCalledWith({ template_ref: 'builtin:x', mode: 'replace' })
+    );
+    expect(toast.success).toHaveBeenCalledWith('meetings.detail.reformat.started_replace');
+  });
+});

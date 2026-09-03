@@ -210,6 +210,9 @@ PromptName = Literal[
     # read of this store, no agents import — same cycle break as telephony/documents).
     "meeting_synthesis_prompt",
     "meeting_condense_prompt",
+    # Template library (ADR-259): automatic template choice and part-by-part rewrite.
+    "meeting_template_selection_prompt",
+    "meeting_transcript_rewrite_prompt",
 ]
 
 

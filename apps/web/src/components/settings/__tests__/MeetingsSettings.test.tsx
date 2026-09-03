@@ -1,12 +1,14 @@
 /**
- * The meetings settings section: gated on the instance flag, preferences saved
- * only when dirty, the template editable and restorable, recent meetings linked.
+ * The meetings settings section (ADR-258, library ADR-259): gated on the
+ * instance flag, preferences saved only when dirty — the default minutes
+ * format among them — the library reachable from a summary block, recent
+ * meetings linked.
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import type { MeetingPreferences, MeetingSummary, MeetingTemplate } from '@/types/meetings';
+import type { MeetingPreferences, MeetingSummary, MeetingTemplateSummary } from '@/types/meetings';
 
 const flags = vi.hoisted(() => ({ enabled: true, loading: false }));
 vi.mock('@/hooks/useAppConfig', () => ({
@@ -31,20 +33,23 @@ vi.mock('@/hooks/useMeetingPreferences', () => ({
   }),
 }));
 
-const tpl = vi.hoisted(() => ({
-  save: vi.fn(),
-  reset: vi.fn(),
-  value: null as MeetingTemplate | null,
+const library = vi.hoisted(() => ({
+  templates: [] as MeetingTemplateSummary[],
+  maxUserTemplates: 50,
+  isLoading: false,
 }));
-vi.mock('@/hooks/useMeetingTemplate', () => ({
-  useMeetingTemplate: () => ({
-    template: tpl.value,
-    isLoading: tpl.value === null,
+vi.mock('@/hooks/useMeetingTemplates', () => ({
+  useMeetingTemplates: () => ({
+    templates: library.templates,
+    maxUserTemplates: library.maxUserTemplates,
+    isLoading: library.isLoading,
     isSaving: false,
     error: null,
     refetch: vi.fn(),
-    save: tpl.save,
-    reset: tpl.reset,
+    load: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
   }),
 }));
 
@@ -57,6 +62,8 @@ vi.mock('@/hooks/useMeetings', () => ({
     isUnavailable: false,
     error: null,
     refetch: vi.fn(),
+    isDeleting: false,
+    bulkDelete: vi.fn(),
   }),
 }));
 
@@ -69,22 +76,28 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { MeetingsSettings } from '../MeetingsSettings';
 
-function preferences(): MeetingPreferences {
+function preferences(over: Partial<MeetingPreferences> = {}): MeetingPreferences {
   return {
     stt_engine: 'auto',
     language: 'auto',
     auto_email: false,
     keep_audio_hours: 0,
+    default_template_ref: null,
     keep_audio_hours_max: 168,
+    ...over,
   };
 }
 
-function template(): MeetingTemplate {
+function summary(over: Partial<MeetingTemplateSummary> = {}): MeetingTemplateSummary {
   return {
-    id: null,
-    name: 'Default minutes',
-    is_builtin_default: true,
-    sections: [{ key: 'summary', label: 'Summary', instruction: 'Prose.', kind: 'paragraph' }],
+    ref: 'builtin:default_minutes',
+    name: 'Meeting minutes',
+    description: null,
+    category: 'meeting',
+    builtin: true,
+    sections_count: 6,
+    auto_selectable: true,
+    ...over,
   };
 }
 
@@ -94,9 +107,12 @@ beforeEach(() => {
   flags.loading = false;
   prefs.value = preferences();
   prefs.save.mockResolvedValue(preferences());
-  tpl.value = template();
-  tpl.save.mockResolvedValue(template());
-  tpl.reset.mockResolvedValue(template());
+  library.templates = [
+    summary(),
+    summary({ ref: 'builtin:daily_standup', name: 'Daily' }),
+    summary({ ref: 'user:1', name: 'Mine', category: 'custom', builtin: false }),
+  ];
+  library.isLoading = false;
   list.meetings = [];
   list.total = 0;
 });
@@ -108,18 +124,29 @@ describe('MeetingsSettings', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows the section with its three blocks and the default template badge', () => {
+  it('shows the section with its three blocks and the library summary', () => {
     renderWithProviders(<MeetingsSettings lng="en" />);
     expect(screen.getByRole('heading', { name: 'settings.meetings.title' })).toBeInTheDocument();
     expect(screen.getByText('meetings.settings.preferences_title')).toBeInTheDocument();
-    expect(screen.getByText('meetings.settings.template_title')).toBeInTheDocument();
-    expect(screen.getByText('meetings.settings.template_builtin_badge')).toBeInTheDocument();
+    expect(screen.getByText('meetings.settings.templates_title')).toBeInTheDocument();
+    // The count states the user's own templates (one here), never the built-ins.
+    expect(screen.getByText('meetings.settings.templates_count')).toBeInTheDocument();
     expect(screen.getByText('meetings.settings.no_meetings')).toBeInTheDocument();
   });
 
-  it('saves the preferences only once something changed', async () => {
+  it('offers the default minutes format, automatic first, and names the chosen one', () => {
+    prefs.value = preferences({ default_template_ref: 'builtin:daily_standup' });
+    renderWithProviders(<MeetingsSettings lng="en" />);
+    const trigger = screen.getByRole('combobox', {
+      name: 'meetings.settings.default_template_label',
+    });
+    expect(trigger).toHaveTextContent('Daily');
+    expect(screen.getByText('meetings.settings.default_template_hint')).toBeInTheDocument();
+  });
+
+  it('saves the preferences only once something changed, the default format included', async () => {
     const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
-    const [savePrefs] = screen.getAllByRole('button', { name: 'common.save' });
+    const savePrefs = screen.getByRole('button', { name: 'common.save' });
     expect(savePrefs).toHaveAttribute('aria-disabled', 'true');
     await user.click(savePrefs);
     expect(prefs.save).not.toHaveBeenCalled();
@@ -132,6 +159,7 @@ describe('MeetingsSettings', () => {
       language: 'auto',
       auto_email: true,
       keep_audio_hours: 0,
+      default_template_ref: null,
     });
   });
 
@@ -143,18 +171,10 @@ describe('MeetingsSettings', () => {
     expect(hours).toHaveValue(168);
   });
 
-  it('saves an edited template and restores the default', async () => {
+  it('opens the library page from the templates block', async () => {
     const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
-    const name = screen.getByLabelText('meetings.settings.template_name_label');
-    await user.type(name, ' v2');
-    const [, saveTemplate] = screen.getAllByRole('button', { name: 'common.save' });
-    await user.click(saveTemplate);
-    expect(tpl.save).toHaveBeenCalledWith({
-      name: 'Default minutes v2',
-      sections: template().sections,
-    });
-    await user.click(screen.getByRole('button', { name: 'meetings.settings.reset_template' }));
-    expect(tpl.reset).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'meetings.settings.manage_templates' }));
+    expect(push).toHaveBeenCalledWith('/dashboard/meetings/templates');
   });
 
   it('links each recent meeting to its page', async () => {
@@ -173,6 +193,10 @@ describe('MeetingsSettings', () => {
         stt_provider: 'elevenlabs',
         total_cost_eur: null,
         last_error_code: null,
+        template_ref: null,
+        template_name: null,
+        template_selection: null,
+        source_meeting_id: null,
       },
     ];
     list.total = 1;

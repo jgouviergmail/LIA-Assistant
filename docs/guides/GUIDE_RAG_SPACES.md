@@ -50,6 +50,7 @@ All settings are in `src/core/config/rag_spaces.py` with defaults in `src/core/c
 | `rag_spaces_max_file_size_mb` | `20` | Max upload size |
 | `rag_spaces_max_spaces_per_user` | `10` | Max spaces per user |
 | `rag_spaces_max_docs_per_space` | `50` | Max documents per space |
+| `rag_spaces_archive_max_mb` | `200` | Max total size of one archive download (ADR-259) |
 | `rag_spaces_max_chunks_per_document` | `500` | Max chunks per document |
 | `rag_spaces_chunk_size` | `1000` | Target chunk size (chars) |
 | `rag_spaces_chunk_overlap` | `200` | Overlap between chunks (chars) |
@@ -346,6 +347,10 @@ System spaces can be reindexed independently of user spaces via `POST /rag-space
 | `POST` | `/rag-spaces/{id}/documents` | User | Upload document (multipart) |
 | `DELETE` | `/rag-spaces/{id}/documents/{doc_id}` | User | Delete document |
 | `GET` | `/rag-spaces/{id}/documents/{doc_id}/status` | User | Processing status |
+| `GET` | `/rag-spaces/{id}/documents/{doc_id}/download` | User | The stored file, named after the upload (ADR-259) |
+| `GET` | `/rag-spaces/{id}/documents/archive?ids=a,b` | User | One zip of the selection (original names, `_missing.txt` for files gone); 413 `archive_too_large` |
+| `POST` | `/rag-spaces/{id}/documents/move` | User | `{ids, target_space_id}` → `{done, skipped: [{id, code}]}`; row + chunks + file; 409 `reindex_in_progress` |
+| `POST` | `/rag-spaces/{id}/documents/bulk-delete` | User | `{ids}` → `{done, skipped}` |
 | `POST` | `/rag-spaces/admin/reindex` | Admin | Trigger user space reindexation |
 | `GET` | `/rag-spaces/admin/reindex/status` | Admin | User reindex progress |
 | `GET` | `/rag-spaces/admin/system/list` | Admin | List system spaces |
@@ -370,7 +375,10 @@ System spaces can be reindexed independently of user spaces via `POST /rag-space
 | `EditSpaceDialog` | Pre-filled edit dialog |
 | `DeleteSpaceConfirm` | AlertDialog confirmation |
 | `DocumentUploadZone` | Drag-and-drop (desktop) / button (mobile) |
-| `DocumentRow` | Document info, status badge, delete action |
+| `DocumentRow` | Named checkbox, document info, status badge, `RowActions` (download link, move, delete) |
+| `DocumentsSection` | The rows with their selection, the bar, the move dialog and the confirmed bulk delete (ADR-259) |
+| `DocumentSelectionBar` | Count, select-all, archive link of the selection, move, delete (on the shared `ui/selection-bar`) |
+| `MoveDocumentsDialog` | The other spaces with their counts; submit refused until one is chosen |
 | `DocumentProcessingStatus` | Status badge (processing/ready/error/reindexing) |
 | `SpaceActivationToggle` | Switch toggle |
 | `ActiveSpacesIndicator` | Chat header badge showing active space count |
@@ -382,7 +390,7 @@ System spaces can be reindexed independently of user spaces via `POST /rag-space
 - `useSpaces()`: Full CRUD with optimistic updates
 - `useSpaceDetail(id)`: Single space with documents
 - `useActiveSpaces()`: Lightweight hook for chat indicator
-- `useSpaceDocuments()`: Upload (XHR with progress), delete, status polling
+- `useSpaceDocuments()`: Upload (XHR with progress), delete, status polling, move and bulk-delete batches, download/archive links
 
 ---
 

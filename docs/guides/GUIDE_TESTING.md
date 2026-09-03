@@ -2057,7 +2057,7 @@ async def test_with_mocked_llm_call():
 ```toml
 # pyproject.toml
 [tool.pytest.ini_options]
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=68"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=69"
 ```
 
 **Rapports générés** :
@@ -2126,7 +2126,7 @@ Règles :
 ### Exécuter Coverage
 
 ```bash
-# Coverage complète (applique le gate --cov-fail-under=68)
+# Coverage complète (applique le gate --cov-fail-under=69)
 cd apps/api
 pytest --cov=src --cov-report=term-missing --cov-report=html
 
@@ -2172,7 +2172,7 @@ Une cible non atteinte se discute en revue ; le plancher, lui, rougit la CI.
 
 Le rapport XML est uploadé vers Codecov par le job `test-backend`
 (`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est le
-`--cov-fail-under=68` porté par `task test:backend:unit:coverage`, que ce job
+`--cov-fail-under=69` porté par `task test:backend:unit:coverage`, que ce job
 appelle (voir la doctrine ratchet ci-dessus). Pour le reproduire en local,
 lancer cette tâche — et non `test:backend:unit:fast`, qui troque la couverture
 contre le parallélisme.

@@ -23,6 +23,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
+from src.domains.rag_spaces.document_access import (
+    document_file_path,
+    owned_document,
+)
 from src.domains.rag_spaces.models import RAGDocument, RAGDocumentStatus, RAGDriveSource, RAGSpace
 from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
@@ -72,16 +76,6 @@ def raise_space_not_found(space_id: uuid.UUID) -> NoReturn:
         detail="RAG space not found",
         log_event="rag_space_not_found",
         space_id=str(space_id),
-    )
-
-
-def raise_document_not_found(document_id: uuid.UUID) -> NoReturn:
-    """Raise 404 when document is not found."""
-    raise BaseAPIException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Document not found",
-        log_event="rag_document_not_found",
-        document_id=str(document_id),
     )
 
 
@@ -467,12 +461,7 @@ class RAGSpaceService:
         user_id: uuid.UUID,
     ) -> None:
         """Delete a document with its chunks and physical file."""
-        # Verify space ownership
-        await self.get_space(space_id, user_id)
-
-        document = await self.doc_repo.get_by_id(document_id)
-        if not document or document.space_id != space_id or document.user_id != user_id:
-            raise_document_not_found(document_id)
+        document = await owned_document(self, space_id, document_id, user_id)
 
         # DB operations in a single transaction: chunks + document record
         await self.chunk_repo.delete_by_document(document_id)
@@ -480,12 +469,7 @@ class RAGSpaceService:
         await self.db.commit()
 
         # Physical file cleaned up AFTER successful DB commit (best-effort)
-        file_path = (
-            Path(settings.rag_spaces_storage_path)
-            / str(user_id)
-            / str(space_id)
-            / document.filename
-        )
+        file_path = document_file_path(document)
         if file_path.exists():
             os.remove(file_path)
 
@@ -505,13 +489,7 @@ class RAGSpaceService:
         user_id: uuid.UUID,
     ) -> RAGDocument:
         """Get document processing status with ownership verification."""
-        await self.get_space(space_id, user_id)
-
-        document = await self.doc_repo.get_by_id(document_id)
-        if not document or document.space_id != space_id or document.user_id != user_id:
-            raise_document_not_found(document_id)
-
-        return document
+        return await owned_document(self, space_id, document_id, user_id)
 
     # ========================================================================
     # Drive Sources

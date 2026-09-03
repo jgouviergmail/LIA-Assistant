@@ -21,7 +21,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import structlog
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
@@ -34,7 +33,7 @@ from src.core.constants import (
 )
 from src.core.i18n_meetings import get_header_label
 from src.core.llm_config_helper import get_effective_context_window, get_llm_config_for_agent
-from src.domains.meetings.prompts import load_meeting_prompt
+from src.domains.meetings.prompts import build_messages, load_meeting_prompt
 from src.domains.meetings.render import format_duration
 from src.domains.meetings.schemas import (
     ActionItem,
@@ -44,8 +43,10 @@ from src.domains.meetings.schemas import (
     SectionKind,
     TemplateSection,
     TopicItem,
+    TranscriptLine,
     TranscriptTurn,
 )
+from src.domains.meetings.transcript_rewrite import rewrite_for_template
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
@@ -187,11 +188,16 @@ def render_context(context: SynthesisContext) -> str:
 
 
 def render_template(sections: Sequence[TemplateSection]) -> str:
-    """The TEMPLATE block: one line per section, every field the model needs."""
+    """The TEMPLATE block: one line per section the single call must fill.
+
+    Transcript sections are rewritten part by part (``transcript_rewrite``),
+    never by this call: they are not shown to it, so it cannot try.
+    """
     return "\n".join(
         f"- key={section.key} | kind={section.kind.value} | label={section.label}\n"
         f"  instruction: {section.instruction}"
         for section in sections
+        if section.kind is not SectionKind.TRANSCRIPT
     )
 
 
@@ -293,11 +299,20 @@ def _repair_actions(section: ReportSection, raw: SynthesizedSection) -> None:
     ]
 
 
+def _repair_transcript(section: ReportSection, raw: SynthesizedSection) -> None:
+    """A transcript section is never filled by the single call: it is rewritten
+    part by part (``transcript_rewrite``) and injected by key in ``repair_report``.
+    Whatever the model put under this key is ignored on purpose."""
+    del raw
+    section.transcript = []
+
+
 _REPAIRERS: dict[SectionKind, Callable[[ReportSection, SynthesizedSection], None]] = {
     SectionKind.PARAGRAPH: _repair_paragraph,
     SectionKind.BULLETS: _repair_bullets,
     SectionKind.TOPICS: _repair_topics,
     SectionKind.ACTION_ITEMS: _repair_actions,
+    SectionKind.TRANSCRIPT: _repair_transcript,
 }
 # Boot-time completeness (ADR-085): a new kind without a repairer refuses to import.
 assert set(_REPAIRERS) == set(SectionKind), "_REPAIRERS must cover every SectionKind"
@@ -339,6 +354,7 @@ def repair_report(
     *,
     speaker_labels: Sequence[str],
     language: str,
+    rewritten: dict[str, list[TranscriptLine]] | None = None,
 ) -> MeetingReport:
     """Fold the model's answer into the strict report, template first.
 
@@ -349,12 +365,17 @@ def repair_report(
             the model invented for a label that never spoke is dropped, and a
             label that spoke but the model forgot is added unnamed.
         language: Minutes language (the localized fallback title).
+        rewritten: Transcript sections rewritten part by part, by key
+            (ADR-259); a transcript section without an entry stays empty.
 
     Returns:
         A report with exactly the template's sections, in the template's order.
     """
     by_key = {section.key: section for section in minutes.sections}
     sections = [_repair_section(section, by_key.get(section.key)) for section in template]
+    for section in sections:
+        if section.kind is SectionKind.TRANSCRIPT:
+            section.transcript = list((rewritten or {}).get(section.key, []))
     title = minutes.title.strip() or get_header_label("minutes", language)
     return MeetingReport(
         title=_clip(title, 200),
@@ -368,10 +389,6 @@ def repair_report(
 # ----------------------------------------------------------------------------
 
 
-def _messages(system: str, human: str) -> list[BaseMessage]:
-    return [SystemMessage(content=system), HumanMessage(content=human)]
-
-
 async def _condense(parts: Sequence[str], *, provider: str, capture: TokenCaptureHandler) -> str:
     """Condense every transcript part into notes, in order."""
     system = load_meeting_prompt("meeting_condense_prompt")
@@ -381,7 +398,7 @@ async def _condense(parts: Sequence[str], *, provider: str, capture: TokenCaptur
         human = f"TRANSCRIPT PART {index}/{len(parts)}:\n{part}"
         answer = await get_structured_output_with_retry(
             llm,
-            _messages(system, human),
+            build_messages(system, human),
             CondensedNotes,
             provider=provider,
             node_name=f"{MEETINGS_LLM_TYPE}_condense",
@@ -395,6 +412,8 @@ async def synthesize_minutes(
     turns: Sequence[TranscriptTurn],
     template: Sequence[TemplateSection],
     context: SynthesisContext,
+    *,
+    capture: TokenCaptureHandler | None = None,
 ) -> SynthesisResult:
     """Produce the minutes for ``turns`` following ``template``.
 
@@ -402,6 +421,8 @@ async def synthesize_minutes(
         turns: The transcript.
         template: The user's sections (snapshotted by the caller).
         context: Facts about the recording.
+        capture: A token capture already carrying earlier passes of the same
+            meeting (the template selection, ADR-259); a fresh one otherwise.
 
     Returns:
         The strict report, the token usage and whether a condense pass ran.
@@ -411,7 +432,11 @@ async def synthesize_minutes(
     """
     config = get_llm_config_for_agent(settings, MEETINGS_LLM_TYPE)
     provider, model = str(config.provider), str(config.model)
-    capture = TokenCaptureHandler()
+    capture = capture if capture is not None else TokenCaptureHandler()
+
+    # Transcript sections are rewritten part by part BEFORE the single call,
+    # which then fills the other sections and the header (title, participants).
+    rewritten = await rewrite_for_template(turns, template, provider=provider, capture=capture)
 
     transcript = render_transcript(turns)
     speaker_labels: list[str] = []
@@ -438,14 +463,18 @@ async def synthesize_minutes(
     )
     minutes = await get_structured_output_with_retry(
         get_llm(MEETINGS_LLM_TYPE),
-        _messages(load_meeting_prompt("meeting_synthesis_prompt"), human),
+        build_messages(load_meeting_prompt("meeting_synthesis_prompt"), human),
         SynthesizedMinutes,
         provider=provider,
         node_name=MEETINGS_LLM_TYPE,
         config=RunnableConfig(callbacks=[capture]),
     )
     report = repair_report(
-        minutes, template, speaker_labels=speaker_labels, language=context.language
+        minutes,
+        template,
+        speaker_labels=speaker_labels,
+        language=context.language,
+        rewritten=rewritten,
     )
     usage = SynthesisUsage(
         tokens_in=capture.tokens_in,
