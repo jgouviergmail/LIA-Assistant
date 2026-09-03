@@ -456,7 +456,9 @@ ${summary}`
     await authenticate();
     await mockApi(spaceDetailData);
     await page.goto('/en/dashboard/spaces/00000000-0000-4000-8000-00000000s001');
-    await expect(page.getByText('spec.pdf')).toBeVisible();
+    // The row is named after its document, and so is the checkbox that selects
+    // it (ADR-259) — a bare text match would find both, so wait on the row.
+    await expect(page.getByRole('listitem', { name: 'spec.pdf' })).toBeVisible();
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard/spaces/detail');
     expect(blocking, `axe violations on space detail:\n${summary}`).toHaveLength(0);
