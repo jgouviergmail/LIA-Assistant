@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 4.7
+**Version**: 4.8
 **Date**: 2026-08-23
-**Application**: LIA v1.42.0
+**Application**: LIA v1.42.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 535 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 262 ADRs, ~22,775 pytest-collected tests across 1,349 files, native observability, 6-level HITL |
+| Production reliability | 263 ADRs, ~24,053 pytest-collected tests across 1,452 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -84,10 +84,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 22,775 collected by pytest across 1,349 test files + 6,983 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 24,053 collected by pytest across 1,452 test files + 7,305 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 262 |
+| ADRs (Architecture Decision Records) | 263 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1351,7 +1351,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-262 ADRs in MADR format document the major architectural decisions. Some representative examples:
+263 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1490,7 +1490,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 262 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~24,042 tests across 1,451 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 263 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~24,053 tests across 1,452 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1501,6 +1501,8 @@ The Activity page is a **pure read-model**: parallel fetchers (one session per s
 ## 31. Expressive eyes: a character driven by signals
 
 The chat's eyes widget (ADR-240) is built on a single principle: **no new signal, no new cost**. A pure engine — decision tables with injected RNG and clocks — derives one of twenty expressions from a priority chain (error > HITL question > voice > interaction > per-turn reaction > notification > typing > inactivity > mood × hour) fed entirely by machinery the app already had: the chat state machine, the SSE execution steps (thinking vs tool search), the HITL card, the voice state machine and the psyche engine. The per-answer reaction reads the emotional self-report the model already attaches to its own turn, with a strictly language-neutral heuristic fallback (punctuation, emoji, structure — fullwidth Chinese included). Rendering is declarative — an expression attribute, CSS custom properties, and an animation sheet where eyelids are **pure geometric morphs** (anchored vertical compression, per-eye rotation, radius shaping): no clipping anywhere, so every intermediate state stays a smooth curve. The life between events — blinks, gaze saccades, mood-weighted gestures, day-dream micro-scenes, rare slapstick — lives in owned-timer schedulers that pause when the tab is hidden or the widget minimized, and freeze under `prefers-reduced-motion`. The six selectable looks share this one skeleton: a generic registry where adding a gaze costs one id, one scoped CSS sheet and six locale entries — completeness is a test, not a convention.
+
+The face lives between two answers, and that life is a rig, not a stylesheet (ADR-252, ADR-264). A TypeScript runtime computes every channel each frame — analytic springs, additive loops, tapes of keys — and publishes the result as `--rig-*` custom properties the sheet only reads: a stylesheet never declares one and never puts a transition on a value that changes sixty times a second. The brow has an arch and stays faintly present at rest; one breath carries the mass, the brows and the mouth width on the same period; the gaze lifts the brows and a blink dips them, coupled in the rig as **absolute contributions rather than increments**, because the idle fast path only rewrites the channels a loop rides — an increment there would drift for the whole session, which a test pins by comparing twenty thousand small steps against one. Speech has phrases (an envelope through the closure, an opening bounded in the unit interval) and brows that punctuate on an irregular pattern. The mouth has a life of its own — relative mimics at a random cadence, scheduled by the rig — and ten short sketches on a resting face, dropped by any expression change with the face exactly where it was, checked against a twin rig. The randomness comes from a separate seeded stream, never `Math.random`, so the widget tests stay deterministic; the moving hold is a pixel budget in the tests — visible at rest, under two pixels, exactly zero on a focused face. The same widget greets visitors on the public home page: no account, one position per surface, the capsule look forced there while the chat keeps the user's own style — and the style picker's previews switch that life off, because a preview compares silhouettes.
 
 ---
 
@@ -1603,4 +1605,4 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 **Every paid unit is accounted, and shown.** A meeting spends audio at the transcription engine and tokens at the synthesis model, condense passes and rebuilds included; both reach the platform's books the way every exchange does — the audio through the remote-speech statistics, the tokens under a `run_id` the archived chat message carries, so history joins the token log exactly as for any proactive notification. The row keeps the minutes' own spend so the page states the exact total with its breakdown, the card states the two units and their sum, and a model without an administered price yields `null`: an unknown price is not a free one. The same honesty runs through the minutes themselves — a gap is stated, never bridged; an unnamed speaker stays S2; a proposal left open is not a decision.
 
 **The minutes format became a library, and the choice has one place.** Thirty built-in templates live in the code, their words in an i18n data module, and a boot-time assertion refuses to start if a name is missing in one of the six languages: what a validator can reject, the catalogue cannot ship. A template is named by a reference — `builtin:<key>` or `user:<uuid>` — that meetings, preferences and requests exchange instead of a row, so a built-in needs no database row and a deleted template leaves a reference whose readers know to fall back on the stored snapshot. The choice follows **one precedence**: the reference carried by the meeting, then the preference's default, then the language model reading a transcript excerpt and choosing above a confidence floor, then the built-in default; every outcome is counted and written on the row with the reason stated, so the page shows a fact rather than a reconstruction. A fifth section kind hands back the transcript itself: it does not fit in one answer — the synthesis slot outputs at most eight thousand tokens — so it is rewritten part by part, each bounded by the effective output window, a missing index splitting the part once and a suspiciously short answer retried once. Rewriting minutes already written borrows the durable regeneration when it replaces, and creates a derived row pointing at its source when it produces new minutes — never a copy: the transcript is the same, the minutes are not. The same concern for order governs knowledge-space documents: since `rag_chunks.space_id` is denormalized and read by retrieval, a move writes the row and its chunks, commits, **then** moves the file; a rename that fails reverts both and reports it for that document alone, and a batch never stops for one item — every id comes back done or skipped with its code.
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 262 ADRs, and the changelog (v1.0 to v1.42.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 263 ADRs, and the changelog (v1.0 to v1.42.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

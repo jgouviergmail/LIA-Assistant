@@ -428,6 +428,9 @@ export type IdleGesture =
   | 'bounce' // happy little hop (lively signature)
   | 'perk' // quick attention scale-flick
   | 'brow' // asymmetric single-brow raise (awake families only)
+  | 'lip-press' // the lips pull in for a beat — a thought swallowed ("hm")
+  | 'corner-tug' // one corner of the mouth flickers, the brow above it agrees
+  | 'brow-twitch' // both brows lift and arch for a beat — something crossed the mind
   | 'flicker' // a mini mood scene (ponder, interest, daydream — see IDLE_FLICKERS)
   | SillyGesture;
 
@@ -476,27 +479,42 @@ export function idleFamilyFor(expression: EyeExpression): IdleMoodFamily {
 
 /** Per-family gesture weights — the personality table. */
 const FAMILY_GESTURE_WEIGHTS: Record<IdleMoodFamily, ReadonlyArray<[IdleGesture, number]>> = {
+  // Each family sums to 1, and the ORDER is load-bearing: the widget tests
+  // drive the idle life with a pinned RNG and read the pick back from the
+  // DOM (0.6 is a tilt, 0.95 a flicker on `calm`). A weight moved here is a
+  // test failing three files away — the engine test pins those picks.
+  // Owner feedback 2026-09-05 on the running widget: the eyes played a beat
+  // every few seconds while the mouth and the brows only breathed. Roughly a
+  // third of every awake family's picks now carry the FACE — either a beat of
+  // its own (brow, brow-twitch, lip-press, corner-tug) or an eye beat with
+  // secondary action on the brows and the mouth (perk, squint, tilt).
   lively: [
-    ['saccade', 0.3],
+    ['saccade', 0.24],
     ['glance', 0.12],
     ['perk', 0.1],
-    ['bounce', 0.11],
-    ['half-blink', 0.08],
+    ['bounce', 0.1],
+    ['half-blink', 0.06],
     ['tilt', 0.08],
-    ['squint', 0.07],
+    ['squint', 0.06],
     ['brow', 0.06],
+    ['lip-press', 0.02],
+    ['corner-tug', 0.04],
     ['flicker', 0.08],
+    ['brow-twitch', 0.04],
   ],
   calm: [
-    ['saccade', 0.36],
-    ['glance', 0.15],
-    ['half-blink', 0.08],
-    ['tilt', 0.08],
-    ['squint', 0.07],
-    ['slow-blink', 0.08],
-    ['perk', 0.05],
-    ['brow', 0.05],
-    ['flicker', 0.08],
+    ['saccade', 0.3],
+    ['glance', 0.21],
+    ['half-blink', 0.06],
+    ['tilt', 0.1],
+    ['squint', 0.05],
+    ['slow-blink', 0.06],
+    ['perk', 0.04],
+    ['brow', 0.04],
+    ['lip-press', 0.01],
+    ['corner-tug', 0.02],
+    ['flicker', 0.07],
+    ['brow-twitch', 0.04],
   ],
   drowsy: [
     ['slow-blink', 0.38],
@@ -551,6 +569,9 @@ export const GESTURE_DURATION_MS: Record<
   bounce: 780,
   perk: 600,
   brow: 700,
+  'lip-press': 420,
+  'corner-tug': 640,
+  'brow-twitch': 560,
   swap: 1800,
   bump: 1550,
   spin: 1200,

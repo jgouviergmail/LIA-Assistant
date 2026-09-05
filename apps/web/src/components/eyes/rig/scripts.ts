@@ -20,7 +20,13 @@
  * arrivals play once and hand their channels back.
  */
 
-import type { Tape } from '@/components/eyes/rig/tape';
+import {
+  absolute as absoluteBeat,
+  bothSides,
+  relative,
+  type Keys,
+} from '@/components/eyes/rig/choreo';
+import type { Tape, TapeKey } from '@/components/eyes/rig/tape';
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 import type { EyeExpression } from '@/components/eyes/expression-engine';
 
@@ -50,66 +56,100 @@ function searchTape(channel: 'gazeX' | 'gazeY', values: readonly number[]): Tape
 }
 
 /**
- * Looping behaviour for a state, or nothing.
+ * The brows punctuate speech.
  *
- * The rig owns these for exactly as long as the expression lasts: they are
- * re-resolved on every pose change, so a search pattern can never outlive the
- * search.
+ * A talking face raises its brows on the stresses, not on a beat: four raises
+ * over a cycle no two of which are the same distance apart, each held for
+ * about a syllable, both brows with the right one trailing. Between two
+ * raises the tape hands the brow back to the pose (a relative 0), so a brow
+ * beat from elsewhere — a gesture, an accent — still wins over it.
  */
-export function resolvePatterns(expression: EyeExpression): readonly Tape[] {
-  if (expression !== 'searching') return [];
-  return [searchTape('gazeX', SEARCH_X), searchTape('gazeY', SEARCH_Y)];
+const SPEECH_BROW_RAISES = [400, 1900, 2700, 4300] as const;
+const SPEECH_BROW_HOLD_MS = 260;
+const SPEECH_CYCLE_MS = 5200;
+const SPEECH_BROW_LIFT_EM = -0.035;
+const SPEECH_BROW_ARCH = 0.22;
+const SPEECH_BROW_SPRING: SpringConfig = { frequency: 3.4, damping: 0.6 };
+
+function speechBrowKeys(value: number, delayMs: number): TapeKey[] {
+  return SPEECH_BROW_RAISES.flatMap(at => [
+    { atMs: at + delayMs, value },
+    { atMs: at + delayMs + SPEECH_BROW_HOLD_MS, value: 0 },
+  ]);
 }
 
-/** A relative beat on one channel — an offset from wherever the pose sits. */
-function beat(
-  channel: Tape['channel'],
-  keys: readonly (readonly [number, number])[],
-  durationMs: number,
-  spring?: SpringConfig
-): Tape {
+function speechBrowTape(channel: Tape['channel'], value: number, delayMs: number): Tape {
   return {
     channel,
-    keys: keys.map(([atMs, value]) => ({ atMs, value })),
-    durationMs,
-    spring,
+    keys: speechBrowKeys(value, delayMs),
+    durationMs: SPEECH_CYCLE_MS,
+    spring: SPEECH_BROW_SPRING,
     relative: true,
   };
 }
 
-/** The same relative beat on BOTH brows, the right one trailing slightly —
- * two brows that move as one bar read as a mechanism, not as a face. */
-function brows(
-  keys: readonly (readonly [number, number])[],
-  durationMs: number,
-  spring?: SpringConfig,
-  trailMs = 40
-): Tape[] {
+function speechBrowTapes(): Tape[] {
+  const trail = 40;
+  const right = 0.92;
   return [
-    beat('browYL', keys, durationMs, spring),
-    beat(
-      'browYR',
-      keys.map(([atMs, value]) => [atMs + trailMs, value * 0.92] as const),
-      durationMs + trailMs,
-      spring
-    ),
+    speechBrowTape('browYL', SPEECH_BROW_LIFT_EM, 0),
+    speechBrowTape('browYR', SPEECH_BROW_LIFT_EM * right, trail),
+    speechBrowTape('browArcL', SPEECH_BROW_ARCH, 0),
+    speechBrowTape('browArcR', SPEECH_BROW_ARCH * right, trail),
   ];
 }
+
+/**
+ * Looping behaviour for a state, or nothing.
+ *
+ * The rig owns these for exactly as long as the expression lasts: they are
+ * re-resolved on every pose change, so a search pattern can never outlive the
+ * search, and the speech brows stop with the speech.
+ */
+export function resolvePatterns(expression: EyeExpression): readonly Tape[] {
+  switch (expression) {
+    case 'searching':
+      return [searchTape('gazeX', SEARCH_X), searchTape('gazeY', SEARCH_Y)];
+    case 'speaking':
+      return speechBrowTapes();
+    default:
+      return [];
+  }
+}
+
+/** A relative beat on one channel — an offset from wherever the pose sits
+ * (the shared vocabulary of `choreo.ts`). */
+function beat(
+  channel: Tape['channel'],
+  keys: Keys,
+  durationMs: number,
+  spring?: SpringConfig
+): Tape {
+  return relative(channel, keys, durationMs, spring);
+}
+
+/** Both brows raised or lowered, the right one trailing a hair. */
+function brows(keys: Keys, durationMs: number, spring?: SpringConfig): Tape[] {
+  return bothSides('browY', keys, durationMs, spring);
+}
+
+/** Both brows arched or flattened. */
+function arches(keys: Keys, durationMs: number, spring?: SpringConfig): Tape[] {
+  return bothSides('browArc', keys, durationMs, spring);
+}
+
+/** A yawn opens slower than a startle and closes on its own weight. */
+const YAWN: SpringConfig = { frequency: 2.4, damping: 1 };
 
 /** An absolute beat — for channels whose rest value IS the reference (the
  * mass, the head tilt). */
 function absolute(
   channel: Tape['channel'],
-  keys: readonly (readonly [number, number])[],
+  keys: Keys,
   durationMs: number,
   spring?: SpringConfig
 ): Tape {
-  return {
-    channel,
-    keys: keys.map(([atMs, value]) => ({ atMs, value })),
-    durationMs,
-    spring,
-  };
+  return absoluteBeat(channel, keys, durationMs, spring);
 }
 
 const SNAP: SpringConfig = { frequency: 5, damping: 0.9 };
@@ -135,6 +175,14 @@ export const ARRIVAL_SCRIPTS: Partial<Record<EyeExpression, readonly Tape[]>> = 
       330
     ),
     ...brows([[60, -0.03]], 420),
+    ...arches(
+      [
+        [60, 0.2],
+        [230, 0],
+      ],
+      420,
+      GRIN
+    ),
     // The smile SNAPS past its own target and settles back into it. A
     // mouth that merely arrives at a curve is a diagram of a smile.
     beat(
@@ -160,6 +208,16 @@ export const ARRIVAL_SCRIPTS: Partial<Record<EyeExpression, readonly Tape[]>> = 
       SNAP
     ),
     ...brows([[0, -0.04]], 320, SNAP),
+    // The arch flies past its pose before anything else has moved: the
+    // brows are the first thing a startle does.
+    ...arches(
+      [
+        [0, 0.3],
+        [120, 0],
+      ],
+      320,
+      SNAP
+    ),
     // The jaw drops: it overshoots the open pose, then closes onto it.
     absolute(
       'mouthOpen',
@@ -175,6 +233,14 @@ export const ARRIVAL_SCRIPTS: Partial<Record<EyeExpression, readonly Tape[]>> = 
   excited: [
     absolute('mass', [[0, 1.07]], 220),
     ...brows([[0, -0.03]], 300),
+    ...arches(
+      [
+        [0, 0.25],
+        [180, 0],
+      ],
+      400,
+      GRIN
+    ),
     beat(
       'mouthCurve',
       [
@@ -269,10 +335,16 @@ export const ARRIVAL_SCRIPTS: Partial<Record<EyeExpression, readonly Tape[]>> = 
     // The frown deepens AFTER the eyes have fallen. Grief is sequential;
     // everything landing together is a mask being swapped.
     beat('mouthCurve', [[220, -0.14]], 900, SWELL),
+    // ...and the brows sink last of all, with the frown.
+    ...brows([[240, 0.02]], 900, SWELL),
   ],
 
   /** Tenderness swells rather than lands. */
-  tender: [absolute('mass', [[0, 1.025]], 620, SWELL), beat('mouthCurve', [[0, 0.1]], 620, SWELL)],
+  tender: [
+    absolute('mass', [[0, 1.025]], 620, SWELL),
+    beat('mouthCurve', [[0, 0.1]], 620, SWELL),
+    ...arches([[0, 0.12]], 620, SWELL),
+  ],
 
   /** The quizzical head tilt — the single most legible "oh?" a face owns, and
    * it costs one channel. */
@@ -289,6 +361,17 @@ export const ARRIVAL_SCRIPTS: Partial<Record<EyeExpression, readonly Tape[]>> = 
     // The corner lifts a beat after the head does — the smirk is the
     // punctuation, and punctuation comes last.
     beat('mouthSkew', [[70, 0.16]], 620, GRIN),
+    // The ONE raised brow overshoots — the other stays put, or the question
+    // becomes a surprise.
+    beat(
+      'browYL',
+      [
+        [70, -0.03],
+        [300, 0],
+      ],
+      520,
+      { frequency: 2.6, damping: 0.6 }
+    ),
   ],
 
   /** A thought leans the other way, and slower. */
@@ -299,6 +382,29 @@ export const ARRIVAL_SCRIPTS: Partial<Record<EyeExpression, readonly Tape[]>> = 
 
   /** Attention perks up. */
   attentive: [absolute('mass', [[0, 1.04]], 240)],
+
+  /** Tiredness arrives on a yawn: the mouth opens wide and closes on its own
+   * weight, the inner brows lifting with it. The pose itself has a closed
+   * mouth — the yawn is the entrance, not the state. */
+  tired: [
+    absolute(
+      'mouthOpen',
+      [
+        [120, 0.55],
+        [620, 0.02],
+      ],
+      900,
+      YAWN
+    ),
+    ...brows(
+      [
+        [120, -0.03],
+        [620, 0],
+      ],
+      900,
+      YAWN
+    ),
+  ],
 
   /** Searching leans in before it starts looking. */
   searching: [absolute('massY', [[0, -0.015]], 420, SNAP)],

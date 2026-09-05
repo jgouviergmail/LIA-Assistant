@@ -17,6 +17,7 @@ import { TechSection } from '@/components/landing/TechSection';
 import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
 import { ChangelogSection } from '@/components/landing/ChangelogSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
+import { LandingEyes } from '@/components/landing/LandingEyes';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosDay } from '@/components/landing/cosmic/CosmosDay';
@@ -30,7 +31,6 @@ import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 interface HomePageProps {
   params: Promise<{ lng: string }>;
 }
-
 
 function buildLangUrl(path: string, lng: Language): string {
   return localizedUrl(getSiteOrigin(), path, lng);
@@ -173,6 +173,10 @@ export default async function HomePage({ params }: HomePageProps) {
         <ScrollScrub targetId="changelog" />
 
         <LandingFooter lng={lng} />
+
+        {/* LIA's eyes: fixed to the viewport, draggable, on their own
+            position slot (ADR-240, landing surface). */}
+        <LandingEyes />
       </div>
     </>
   );

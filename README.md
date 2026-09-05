@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.42.0</strong> — <strong>The unified record is the account holder's too.</strong> Article 12 of the EU AI Act asks for one machine-readable record of what an AI system did; LIA has produced it for administrators since the registers shipped. The person those records are <em>about</em> had only the per-register exports, so assembling their own file meant downloading five documents and correlating them by hand — exactly the work the extraction exists to remove. <code>GET /effects/export/article12</code> narrows it to one account <strong>by construction</strong>: the route declares no account parameter at all, so the scope is the session rather than a default a query string could override. It is the same contract as the administrator's — same columns, same exclusions, same pseudonymisation, the caller's own identifier included — which is what makes the file safe to attach to a portability request or a complaint without editing it first. The five reads behind it now live in one shared module, so a sixth record joins both surfaces at once and neither audience can end up seeing a record the other does not. The landing page also gains a <strong>standards strip</strong> — GDPR, AI Act, MCP, Agent Plugins, OWASP, WebAuthn, OpenTelemetry, WCAG — and its guides stop narrating releases: STORY's proof section stated nineteen delivery cycles one by one, and now states once what they all argued. — 5 September 2026.
+  <strong>Version 1.42.1</strong> — <strong>A face that lives between two answers.</strong> The avatar's eyes already blinked, glanced and dozed; its brows and mouth stood still between two answers, and a face whose lower half never moves reads as a mask — measured in a browser at rest: half a pixel of mouth motion, none on the brows. ADR-264 gives the brow an arch and a faint presence at rest, carries the mass, the brows and the mouth width on <strong>one breath</strong>, and couples the gaze and the blink to the brows inside the rig — written as absolute contributions, never increments, because the idle fast path only rewrites what a loop rides and an increment there drifts for the whole session. The mouth gains a life of its own: nine relative mimics at an unhurried random cadence, drawn from a separate seeded stream so the widget tests stay deterministic, and ten short sketches on a resting face — a fly, a sneeze, a yawn, hiccups — dropped by any expression change with the face exactly where it was. The same character now greets visitors on the <strong>public home page</strong>, in the capsule look, fixed while the page scrolls and draggable, with a position of its own that never moves the chat's — no account needed. The style picker's previews switch that life off: a preview compares silhouettes. — 5 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **31,000+** automated tests | **262** ADRs                                                           |
-| **245** versions shipped  | **6 languages**, parity enforced in CI  | **535** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **31,000+** automated tests | **263** ADRs                                                           |
+| **246** versions shipped  | **6 languages**, parity enforced in CI  | **535** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -227,6 +227,14 @@ The result is measured, not proclaimed:
 - **Global Injection**: Behavioral directives injected via template variables into all user-facing text generation (response, notifications, reminders, voice) within semantic XML blocks (`<InnerState purpose="tone-calibration">`)
 - **Safety Guardrail**: Explicit instruction prevents the LLM from projecting its own emotional state onto the user
 - **Self-Report**: Zero-cost emotion tracking via hidden `<psyche_eval/>` tag — no additional LLM call
+
+### Expressive Eyes — A Living Face ([ADR-240](docs/architecture/ADR-240-expressive-eyes-widget.md), [ADR-252](docs/architecture/ADR-252-Expressive-Eyes-Animation-Rig.md), [ADR-264](docs/architecture/ADR-264-Living-Brows-And-Mouth.md))
+
+- **Zero new signals**: a pure decision-table engine derives one of twenty expressions from the chat state machine, the SSE execution steps, the HITL card, the voice state machine and the psyche engine — no extra LLM call, no new endpoint
+- **Answers the register, not the mood**: the response model declares the tone of what it just wrote ([ADR-253](docs/architecture/ADR-253-Per-Turn-Expressivity-Annotation.md)), and the face plays it — twelve distinct faces, only two of them smile; a technical answer keeps a focused face
+- **Motion lives in a rig**: a TypeScript runtime (analytic springs, additive loops, key tapes) publishes `--rig-*` custom properties that the stylesheet only reads; every coupling is written as an absolute contribution, never an increment, and a test compares 20,000 small steps against one to prove nothing drifts
+- **Brows and a mouth that live**: an arched brow present at rest, one breath for the whole face, the gaze and the blink coupled to the brows, speech phrases, nine mouth mimics at an unhurried random cadence, ten 3–5 s sketches every 45–120 s on a resting face — dropped by any expression change, the face exactly where it was
+- **Six looks, two surfaces**: six selectable styles with live previews in Settings (previews keep the breath and nothing else); the same widget greets visitors on the public home page — capsule look, fixed on scroll, draggable, a position of its own, no account — and `prefers-reduced-motion` freezes it into static poses
 
 ### Voice: Input & Output
 
@@ -587,6 +595,7 @@ LIA is fully translated in **6 languages**: English, French, German, Spanish, It
 - **SEO & OpenGraph**: dynamically generated OG image, per-locale hreflang, JsonLd (WebSite, Organization, SoftwareApplication, breadcrumbs), `llms.txt` for AI crawlers
 - **Public-route guard**: the 401 handler's public-page list is pinned by a filesystem-completeness test — a new public page missing from the list fails CI instead of ejecting anonymous visitors to /login
 - **Authenticated redirect**: automatic redirect to dashboard if already logged in
+- **The character on the home page**: LIA's expressive face greets visitors in the capsule look — fixed while the page scrolls, draggable, its position kept apart from the chat's, no account needed
 
 ---
 
@@ -1014,7 +1023,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-262 ADR files (ADR-001 through ADR-263 — ADR-008 has no separate file) documenting major architectural decisions:
+263 ADR files (ADR-001 through ADR-264 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

@@ -37,6 +37,15 @@ describe('EyesStyleSettings', () => {
     }
   });
 
+  it('keeps the previews COMPARABLE: no mimic, no sketch on a preview', () => {
+    // A preview exists to compare silhouettes; a sneeze mid-comparison is
+    // not a comparison. The breath and the hold stay — they are the pose.
+    render(<EyesStyleSettings lng="en" />);
+    const previews = document.querySelectorAll('.lia-eyes');
+    expect(previews.length).toBeGreaterThan(0);
+    previews.forEach(preview => expect(preview).toHaveAttribute('data-life', 'off'));
+  });
+
   it('selecting a style persists it through the widget store', () => {
     render(<EyesStyleSettings lng="en" />);
     expect(useEyesWidgetStore.getState().style).toBe(DEFAULT_EYE_STYLE);

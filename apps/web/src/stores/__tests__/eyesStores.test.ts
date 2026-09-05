@@ -150,16 +150,37 @@ describe('eyesWidgetStore', () => {
     expect(useEyesWidgetStore.getState().position).toEqual({ xPct: 33.3, yPct: 66.6 });
   });
 
+  it('keeps a position PER SURFACE — the landing spot never becomes the chat spot', () => {
+    // The chat clamps its widget off the Delete button through its dock; the
+    // landing has no dock, and its visitor may have no account. A spot
+    // dragged on one must not move the other.
+    useEyesWidgetStore.getState().setLandingPosition({ xPct: 80, yPct: 90 });
+    expect(useEyesWidgetStore.getState().landingPosition).toEqual({ xPct: 80, yPct: 90 });
+    expect(useEyesWidgetStore.getState().position).toBeNull();
+    useEyesWidgetStore.getState().setPosition({ xPct: 10, yPct: 20 });
+    expect(useEyesWidgetStore.getState().landingPosition).toEqual({ xPct: 80, yPct: 90 });
+    expect(useEyesWidgetStore.getState().position).toEqual({ xPct: 10, yPct: 20 });
+  });
+
+  it('clamps the landing position to the viewport and persists it', () => {
+    useEyesWidgetStore.getState().setLandingPosition({ xPct: 140, yPct: -5 });
+    expect(useEyesWidgetStore.getState().landingPosition).toEqual({ xPct: 100, yPct: 0 });
+    const persisted = JSON.parse(localStorage.getItem(EYES_WIDGET_PREFS_KEY) ?? '{}');
+    expect(persisted.state.landingPosition).toEqual({ xPct: 100, yPct: 0 });
+  });
+
   it('reset restores defaults (including position)', () => {
     const s = useEyesWidgetStore.getState();
     s.setVisible(false);
     s.setSize('lg');
     s.setPosition({ xPct: 10, yPct: 10 });
+    s.setLandingPosition({ xPct: 90, yPct: 90 });
     useEyesWidgetStore.getState().reset();
     const after = useEyesWidgetStore.getState();
     expect(after.visible).toBe(true);
     expect(after.size).toBe('auto');
     expect(after.position).toBeNull();
+    expect(after.landingPosition).toBeNull();
   });
 
   it('setStyle applies a registry style and ignores an unknown one', () => {

@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 4.7
+**Version**: 4.8
 **Datum**: 2026-08-23
-**Application**: LIA v1.42.0
+**Application**: LIA v1.42.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 535 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 262 ADRs, ~22.775 von pytest gesammelte Tests in 1.349 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 263 ADRs, ~24.053 von pytest gesammelte Tests in 1.452 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -84,10 +84,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 22.775 von pytest über 1.349 Testdateien gesammelt + 6.983 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 24.053 von pytest über 1.452 Testdateien gesammelt + 7.305 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 262 |
+| ADRs (Architecture Decision Records) | 263 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1357,7 +1357,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-262 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+263 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1463,7 +1463,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 262 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~24.042 Tests in 1.349 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 263 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~24.053 Tests in 1.452 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1474,6 +1474,8 @@ Die Aktivitätsseite ist ein **reines Read-Model**: parallele Fetcher (eine Sess
 ## 31. Ausdrucksstarke Augen: eine von Signalen gesteuerte Figur
 
 Das Augen-Widget des Chats (ADR-240) beruht auf einem einzigen Prinzip: **kein neues Signal, keine neuen Kosten**. Eine reine Engine — Entscheidungstabellen mit injiziertem RNG und injizierten Uhren — leitet einen von zwanzig Ausdrücken aus einer Prioritätskette ab (Fehler > HITL-Frage > Stimme > Interaktion > Reaktion des Zuges > Benachrichtigung > Tippen > Inaktivität > Stimmung × Uhrzeit), gespeist ausschließlich aus vorhandener Maschinerie: Chat-Zustandsmaschine, SSE-Ausführungsschritte (Nachdenken vs. Tool-Suche), HITL-Karte, Sprach-Zustandsmaschine und Psyche-Engine. Die Reaktion auf jede Antwort liest den emotionalen Selbstbericht, den das Modell seinem eigenen Zug bereits anhängt, mit einem streng sprachneutralen heuristischen Fallback (Interpunktion, Emojis, Struktur — chinesische Vollbreite eingeschlossen). Das Rendering ist deklarativ — ein Ausdrucksattribut, CSS-Variablen und ein Animationsblatt, in dem Augenlider **reine geometrische Morphs** sind (verankerte vertikale Kompression, Rotation pro Auge, Radienformung): nirgendwo Clipping, jeder Zwischenzustand bleibt eine glatte Kurve. Das Leben zwischen den Ereignissen — Blinzeln, Blicksakkaden, stimmungsgewichtete Gesten, Tagtraum-Miniszenen, seltener Slapstick — lebt in Schedulern mit eigenen Timern, pausiert bei verstecktem Tab oder minimiertem Widget und erstarrt unter `prefers-reduced-motion`. Die sechs wählbaren Looks teilen dieses eine Skelett: ein generisches Register, in dem ein neuer Blick eine id, ein gescoptes CSS-Blatt und sechs Locale-Einträge kostet — Vollständigkeit ist ein Test, keine Konvention.
+
+Das Gesicht lebt zwischen zwei Antworten, und dieses Leben ist ein Rig, kein Stylesheet (ADR-252, ADR-264). Eine TypeScript-Laufzeit berechnet jeden Kanal in jedem Frame — analytische Federn, additive Schleifen, Bänder aus Keys — und veröffentlicht das Ergebnis als `--rig-*`-Eigenschaften, die das Stylesheet nur liest: Ein Stylesheet deklariert nie eine davon und legt nie eine Transition auf einen Wert, der sich sechzigmal pro Sekunde ändert. Die Braue hat einen Bogen und bleibt in Ruhe leicht präsent; ein einziger Atem trägt die Masse, die Brauen und die Mundbreite auf derselben Periode; der Blick hebt die Brauen und ein Blinzeln senkt sie, im Rig gekoppelt als **absolute Beiträge statt Inkremente**, weil der schnelle Ruhepfad nur die Kanäle neu schreibt, auf denen eine Schleife reitet — ein Inkrement würde dort die ganze Sitzung lang driften, was ein Test festhält, indem er zwanzigtausend kleine Schritte mit einem einzigen vergleicht. Sprache hat Phrasen (eine Hüllkurve durch den Schluss, eine Öffnung, die im Einheitsintervall bleibt) und Brauen, die in unregelmäßigem Muster interpunktieren. Der Mund hat ein Eigenleben — relative Mimiken in zufälliger Kadenz, vom Rig geplant — und zehn kurze Szenen auf einem ruhenden Gesicht, von jedem Ausdruckswechsel abgebrochen, das Gesicht genau dort, wo es war, gegen ein Zwillings-Rig geprüft. Der Zufall stammt aus einem separaten, geseedeten Strom, nie aus `Math.random`, damit die Widget-Tests deterministisch bleiben; das lebendige Halten ist in den Tests ein Pixel-Budget — in Ruhe sichtbar, unter zwei Pixeln, exakt null auf einem konzentrierten Gesicht. Dasselbe Widget begrüßt Besucher auf der öffentlichen Startseite: kein Konto, eine Position pro Oberfläche, der Kapsel-Look dort erzwungen, während der Chat den Stil des Nutzers behält — und die Vorschauen des Stilwählers schalten dieses Leben ab, denn eine Vorschau vergleicht Silhouetten.
 
 ---
 
@@ -1576,4 +1578,4 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 **Jede bezahlte Einheit wird verbucht und gezeigt.** Eine Besprechung verbraucht Audio bei der Transkriptions-Engine und Tokens beim Synthesemodell, Verdichtungsläufe und Neuaufbauten eingeschlossen; beides erreicht die Bücher der Plattform wie jeder Austausch — das Audio über die Statistik der entfernten Spracherkennung, die Tokens unter einer `run_id`, die die archivierte Chat-Nachricht trägt, sodass die Historie genau wie bei jeder proaktiven Benachrichtigung mit dem Token-Protokoll verknüpft wird. Die Zeile behält die eigene Ausgabe des Protokolls, damit die Seite die exakte Summe mit ihrer Aufschlüsselung nennt, die Karte nennt beide Einheiten und ihre Summe, und ein Modell ohne verwalteten Preis liefert `null`: Ein unbekannter Preis ist kein kostenloser. Dieselbe Ehrlichkeit durchzieht das Protokoll selbst — eine Lücke wird benannt, nie überbrückt; eine unbenannte Stimme bleibt S2; ein offen gebliebener Vorschlag ist keine Entscheidung.
 
 **Das Protokollformat wurde zu einer Bibliothek, und die Wahl hat einen einzigen Ort.** Dreißig integrierte Vorlagen leben im Code, ihre Wörter in einem i18n-Datenmodul, und eine Zusicherung beim Start verweigert den Bootvorgang, wenn ein Name in einer der sechs Sprachen fehlt: Was ein Validator ablehnen kann, darf der Katalog nicht ausliefern. Eine Vorlage wird durch eine Referenz benannt — `builtin:<Schlüssel>` oder `user:<uuid>` —, die Besprechungen, Einstellungen und Anfragen anstelle einer Zeile austauschen, sodass eine integrierte Vorlage keine Datenbankzeile braucht und eine gelöschte Vorlage eine Referenz hinterlässt, deren Leser auf den gespeicherten Schnappschuss zurückfallen. Die Wahl folgt **einer Rangfolge**: die von der Besprechung getragene Referenz, dann der Standard der Einstellung, dann das Sprachmodell, das einen Transkriptauszug liest und oberhalb einer Vertrauensschwelle wählt, dann die integrierte Standardvorlage; jedes Ergebnis wird gezählt und mit der genannten Begründung auf die Zeile geschrieben, sodass die Seite eine Tatsache zeigt und keine Rekonstruktion. Eine fünfte Abschnittsart gibt das Transkript selbst zurück: Es passt nicht in eine Antwort — der Synthese-Slot gibt höchstens achttausend Token aus —, also wird es Teil für Teil neu geschrieben, jeder durch das effektive Ausgabefenster begrenzt, wobei ein fehlender Index den Teil einmal aufspaltet und eine verdächtig kurze Antwort einmal wiederholt wird. Ein bereits geschriebenes Protokoll neu zu schreiben nutzt beim Ersetzen die dauerhafte Regeneration und legt beim neuen Protokoll eine abgeleitete Zeile an, die auf ihre Quelle zeigt — nie eine Kopie: Das Transkript ist dasselbe, das Protokoll nicht. Dieselbe Sorge um die Reihenfolge regiert die Dokumente der Wissensbereiche: Da `rag_chunks.space_id` denormalisiert ist und von der Suche gelesen wird, schreibt ein Verschieben die Zeile und ihre Abschnitte, committet, **dann** verschiebt es die Datei; ein fehlgeschlagenes Umbenennen macht beides rückgängig und meldet es nur für dieses Dokument, und ein Stapel hält nie für ein Element an — jede Kennung kommt erledigt oder übersprungen mit ihrem Code zurück.
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 262 ADRs und des Changelogs (v1.0 bis v1.42.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 263 ADRs und des Changelogs (v1.0 bis v1.42.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

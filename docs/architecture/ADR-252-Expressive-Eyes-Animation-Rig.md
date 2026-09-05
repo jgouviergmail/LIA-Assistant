@@ -108,12 +108,14 @@ sleeping with its eyes 8 % open — caught by a test, not by reading.
 ### 4. Two organs, opt-in per style
 
 The **brow** is a real element with its own height, tilt and presence, sitting
-outside the lid layer (a blink must not clip a brow). It is **invisible on a
-neutral face**: it appears only when it has something to say, so no style pays
-for it at rest while every style that wants one gets the most legible emotional
-cue a face owns. Lowered inner ends scowl; raised ones grieve — a grammar the
-tests enforce across all twenty expressions rather than trusting twenty
-hand-written recipes.
+outside the lid layer (a blink must not clip a brow). As first shipped it was
+**invisible on a neutral face**, appearing only when it had something to say.
+**Amended by ADR-264 (2026-09-05)**: it is now faintly present at rest and
+carries an arch of its own, because a brow that only exists once an emotion
+lands has nothing to do for most of the session and fades in instead of
+moving. Lowered inner ends scowl; raised ones grieve — a grammar the tests
+enforce across all twenty expressions rather than trusting twenty hand-written
+recipes.
 
 The **pupil** sits inside the shape, so the lids cover it like everything else,
 and travels *further* than the eye does — that difference is what reads as
@@ -138,8 +140,9 @@ from grief to delight through a line, instead of cutting between two drawings.
 The direction is HELD through that crossing, exactly like the stretch axis, or
 a mouth resting near zero would flicker on numerical noise.
 
-**It is never absent.** The brow may be — a calm face has no marked brows — but
-a face that GROWS a mouth in order to smile is a face with a defect. It is
+**It is never absent.** The brow was, at the time (a calm face had no marked
+brows — reversed by ADR-264), but a face that GROWS a mouth in order to smile
+is a face with a defect. It is
 quiet at rest instead: a short line, barely curved upward, because a dead
 straight one under two eyes reads as stern.
 

@@ -130,6 +130,15 @@ describe('ExpressiveEyes — declared state', () => {
     ).toBe(true);
   });
 
+  it('lives on its own by default, and declares it when the host turns that off', () => {
+    const { container, rerender } = render(
+      <ExpressiveEyes expression="neutral" gaze={null} size="md" />
+    );
+    expect(container.querySelector('.lia-eyes')).not.toHaveAttribute('data-life');
+    rerender(<ExpressiveEyes expression="neutral" gaze={null} size="md" life={false} />);
+    expect(container.querySelector('.lia-eyes')).toHaveAttribute('data-life', 'off');
+  });
+
   it('accepts an extra className for the host to position it', () => {
     const { container } = render(
       <ExpressiveEyes expression="neutral" gaze={null} size="md" className="extra" />

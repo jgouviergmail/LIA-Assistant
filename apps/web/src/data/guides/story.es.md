@@ -2,9 +2,9 @@
 
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
-**Versión**: 1.8
+**Versión**: 1.9
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.42.0
+**Aplicación**: LIA v1.42.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 44 dominios funcionales | **580.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **29.700+** |
-| Decisiones de arquitectura documentadas (ADR) | **262** |
-| Versiones entregadas a ritmo regular | **245** |
+| Tests automatizados, ejecutados en cada commit y entrega | **31.300+** |
+| Decisiones de arquitectura documentadas (ADR) | **263** |
+| Versiones entregadas a ritmo regular | **246** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -31,7 +31,7 @@ Convicción de experiencia: el desarrollo asistido por IA es industrializable ho
 
 La IA generativa transforma a la vez lo que los equipos producen y la forma en que lo producen. Sobre ambos temas, no quería fundar mis convicciones en los discursos del mercado: elegí confrontarme con la realidad completa de un sistema de IA en producción — los costes, los riesgos, la explotación, la deuda — y con la realidad del desarrollo asistido por IA, practicándolos hasta el final.
 
-El terreno de ejercicio: LIA, un asistente de IA conversacional multiagente — correo, agenda, contactos y archivos en Google, Apple y Microsoft, interfaz de voz en tiempo real, memoria a largo plazo, búsqueda documental — autoalojado y multilingüe.
+El terreno de ejercicio: LIA, un asistente de IA conversacional multiagente — correo, agenda, contactos y archivos en Google, Apple y Microsoft, interfaz de voz en tiempo real, memoria a largo plazo, búsqueda documental, un personaje animado que lo encarna — autoalojado y multilingüe.
 
 Las restricciones eran voluntarias: solo, fuera del tiempo profesional, presupuesto de hardware mínimo, y la IA como único desarrollador. Este proyecto no mide por tanto una velocidad individual; mide lo que una dirección exigente obtiene de una IA correctamente encuadrada.
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 262 documentadas:
+Tres decisiones estructurantes, entre las 263 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -103,9 +103,3 @@ Lo que esta experiencia cambia en una práctica de dirección:
 - **Un directivo que practica arbitra mejor.** Hacer o mandar hacer, deuda aceptable o no, promesa de proveedor creíble o no — estas decisiones ganan en acierto cuando se ha probado la materia. Este proyecto es una forma de mantener esa proximidad con el terreno.
 
 *Proyecto personal, llevado a cabo fuera de toda actividad profesional. Cifras procedentes de la auditoría técnica de julio de 2026 — tests ejecutados, mediciones efectuadas sobre el código, hallazgos contraverificados. Repositorio: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
-
-Después el asistente aprendió a mostrar su propio trabajo: una página de Actividad que recoge todo lo que hace por sí mismo, reglas aprendidas que se pueden leer y corregir, una memoria que fecha sus recuerdos y archiva sin borrar, una voz que respira con su ánimo. La autonomía creció exactamente como exigía la filosofía del proyecto: dentro del marco, bajo la mirada del usuario.
-
-Luego el asistente cupo en el bolsillo sin mudarse de casa. Una app por tienda, cliente del servidor que cada cual ejecuta: inicio de sesión por el navegador real del teléfono porque el incrustado se rechaza, notificaciones que llegan del propio proyecto del usuario o pasan por un relé construido para no saber nada, y un banco que conduce la app real escena por escena — encontró tres defectos vivos que el compilador había bendecido. La tesis de la soberanía sobrevivió al contacto con las tiendas: los datos siguen teniendo una sola casa.
-
-Después el proyecto volvió la medición contra sí mismo. Prometía catorce estados de ánimo y entregaba una proyección que dejaba cinco fuera de alcance — los ajustes capaces de corregirlo habían esperado un año, deliberadamente apagados, a que el uso real dijera si hacían falta. Emitía cientos de métricas sin poder decir cuáles veía realmente un humano; ahora una métrica que no llega a ningún panel hace fallar la compilación. Y su propio despliegue terminaba con un error que una instrucción escrita pedía ignorar — una instrucción así no es un apaño, es el defecto trasladado a la prosa. Tres contadores, tres promesas, tres mediciones. Lo que un sistema dice de sí mismo vale exactamente lo que ha comprobado.

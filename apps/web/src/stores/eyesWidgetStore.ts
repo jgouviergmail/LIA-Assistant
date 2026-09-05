@@ -31,14 +31,24 @@ export interface EyesPosition {
   yPct: number;
 }
 
+/**
+ * Where the widget is mounted. The chat docks it in its header and clamps it
+ * off the Delete button; the landing (public, often visited without an
+ * account) has neither, so a spot dragged there must not become the chat's
+ * spot — each surface keeps its own position, everything else is shared.
+ */
+export type EyesSurface = 'chat' | 'landing';
+
 export interface EyesWidgetStore {
   /** Whether the widget renders (false → restore dot only). */
   visible: boolean;
   size: EyesSizeSetting;
   /** Selected look, from the eye-style registry. */
   style: EyeStyleId;
-  /** Custom position, or null for the default docked spot. */
+  /** Custom position on the chat, or null for the default docked spot. */
   position: EyesPosition | null;
+  /** Custom position on the landing, or null for its default corner. */
+  landingPosition: EyesPosition | null;
 
   setVisible: (visible: boolean) => void;
   setSize: (size: EyesSizeSetting) => void;
@@ -46,6 +56,7 @@ export interface EyesWidgetStore {
   /** Invalid ids (stale persisted value after a style removal) are ignored. */
   setStyle: (style: EyeStyleId) => void;
   setPosition: (position: EyesPosition) => void;
+  setLandingPosition: (position: EyesPosition) => void;
   reset: () => void;
 }
 
@@ -54,7 +65,12 @@ const DEFAULTS = {
   size: 'auto' as EyesSizeSetting,
   style: DEFAULT_EYE_STYLE,
   position: null as EyesPosition | null,
+  landingPosition: null as EyesPosition | null,
 };
+
+function clampPosition(position: EyesPosition): EyesPosition {
+  return { xPct: clampPct(position.xPct), yPct: clampPct(position.yPct) };
+}
 
 function clampPct(value: number): number {
   return Math.min(100, Math.max(0, value));
@@ -83,8 +99,9 @@ export const useEyesWidgetStore = create<EyesWidgetStore>()(
         if (isValidEyeStyle(style)) set({ style });
       },
 
-      setPosition: position =>
-        set({ position: { xPct: clampPct(position.xPct), yPct: clampPct(position.yPct) } }),
+      setPosition: position => set({ position: clampPosition(position) }),
+
+      setLandingPosition: position => set({ landingPosition: clampPosition(position) }),
 
       reset: () => set(DEFAULTS),
     }),
@@ -95,6 +112,7 @@ export const useEyesWidgetStore = create<EyesWidgetStore>()(
         size: s.size,
         style: s.style,
         position: s.position,
+        landingPosition: s.landingPosition,
       }),
       // A persisted style that no longer exists in the registry falls back to
       // the default instead of rendering an unstyled widget.

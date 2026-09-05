@@ -36,6 +36,7 @@ import { useEyesDrag, type EyesDrag } from '@/components/eyes/useEyesDrag';
 import { useEyesParallax } from '@/components/eyes/useEyesParallax';
 import {
   useEyesWidgetStore,
+  type EyesSurface,
   type EyesSize,
   type EyesSizeSetting,
   type EyesPosition,
@@ -59,8 +60,13 @@ const hydrationSubscribe = () => () => {};
 /** On touch screens the tap-summoned toolbar hides itself after this long. */
 const TOOLBAR_TAP_HIDE_MS = 4000;
 
-/** Fallback corner when the composer anchor is not in the DOM. */
-const FALLBACK_ANCHOR_CLASSES = 'bottom-32 right-6';
+/** Fallback corner per surface: above the composer on the chat (the dock
+ * measures the header; this is what shows before it has); the bottom-right
+ * corner on the landing, which has no dock at all. */
+const FALLBACK_ANCHOR_CLASSES: Record<EyesSurface, string> = {
+  chat: 'bottom-32 right-6',
+  landing: 'bottom-6 right-6',
+};
 
 /** 'auto' resolves responsively: discreet on phones, present on desktop. */
 function resolveEyesSize(setting: EyesSizeSetting, isDesktop: boolean): EyesSize {
@@ -164,8 +170,8 @@ function EyesToolbar(props: {
   );
 }
 
-/** Minimized state: a 12 px dot on a 44 px target near the composer. */
-function EyesRestoreDot(props: { label: string; onShow: () => void }) {
+/** Minimized state: a 12 px dot on a 44 px target in the surface's corner. */
+function EyesRestoreDot(props: { label: string; onShow: () => void; surface: EyesSurface }) {
   return (
     <button
       type="button"
@@ -173,7 +179,7 @@ function EyesRestoreDot(props: { label: string; onShow: () => void }) {
       aria-label={props.label}
       className={cn(
         'group fixed z-30 flex h-11 w-11 items-end justify-end',
-        FALLBACK_ANCHOR_CLASSES
+        FALLBACK_ANCHOR_CLASSES[props.surface]
       )}
     >
       <span className="h-3 w-3 rounded-full bg-primary/60 shadow-md ring-2 ring-background transition-colors group-hover:bg-primary" />
@@ -181,7 +187,16 @@ function EyesRestoreDot(props: { label: string; onShow: () => void }) {
   );
 }
 
-export type EyesWidgetProps = EyesBehaviorProps;
+export type EyesWidgetProps = EyesBehaviorProps & {
+  /** Where the widget lives — the chat (default) or the public landing.
+   * Decides the persisted position slot, the dock and the fallback corner;
+   * the face, its life and its preferences are the same everywhere. */
+  surface?: EyesSurface;
+  /** Force a look for this mount, ignoring the persisted preference — the
+   * landing shows the capsules to every visitor; the chat keeps the user's
+   * own choice. */
+  styleId?: EyeStyleId;
+};
 
 /**
  * Memoized on purpose: the chat page re-renders on every streamed token
@@ -190,10 +205,20 @@ export type EyesWidgetProps = EyesBehaviorProps;
  */
 export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   const { t } = useTranslation();
-  const { visible, size, style: eyeStyle, position, setVisible, cycleSize } = useEyesWidgetStore();
+  const surface = props.surface ?? 'chat';
+  const { visible, size, style: preferredStyle, setVisible, cycleSize } = useEyesWidgetStore();
+  const eyeStyle = props.styleId ?? preferredStyle;
+  const position = useEyesWidgetStore(s =>
+    surface === 'landing' ? s.landingPosition : s.position
+  );
   // A minimized widget keeps its hook mounted (Rules of Hooks) but the whole
   // live machinery off — the restore dot must cost nothing.
-  const behavior = useEyesBehavior({ ...props, enabled: visible });
+  const behavior = useEyesBehavior({
+    chatStatus: props.chatStatus,
+    streamPhase: props.streamPhase,
+    hitlAwaiting: props.hitlAwaiting,
+    enabled: visible,
+  });
 
   // Client-only gate: the chat page is SSR'd once — defer to avoid any
   // hydration mismatch. useSyncExternalStore (server snapshot false, client
@@ -205,13 +230,14 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   );
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const drag = useEyesDrag(rootRef);
+  const drag = useEyesDrag(rootRef, surface);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const resolvedSize = resolveEyesSize(size, isDesktop);
 
   // Default docked spot: centered between the header's left cluster and the
-  // delete button. Only measured while no custom position is stored.
-  const anchorEnabled = visible && !position && !drag.dragPos;
+  // delete button. Only measured while no custom position is stored — and
+  // only on the chat: the landing has no dock, its default is a corner.
+  const anchorEnabled = surface === 'chat' && visible && !position && !drag.dragPos;
   const anchorPos = useEyesAnchor(rootRef, anchorEnabled);
 
   // Desktop cursor parallax — gated, expiring (see useEyesParallax).
@@ -245,7 +271,9 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   if (!mounted) return null;
 
   if (!visible) {
-    return <EyesRestoreDot label={t('eyes.restore')} onShow={() => setVisible(true)} />;
+    return (
+      <EyesRestoreDot label={t('eyes.restore')} onShow={() => setVisible(true)} surface={surface} />
+    );
   }
 
   const resolved = resolveGaze(behavior, gazeFree ? parallax : null);
@@ -270,7 +298,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
         // No stored position and the composer anchor not measured yet →
         // CSS fallback corner above the input area.
-        !drag.dragPos && !position && !anchorPos && FALLBACK_ANCHOR_CLASSES
+        !drag.dragPos && !position && !anchorPos && FALLBACK_ANCHOR_CLASSES[surface]
       )}
     >
       <ExpressiveEyes

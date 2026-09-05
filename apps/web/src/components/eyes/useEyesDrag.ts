@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
-import { useEyesWidgetStore } from '@/stores/eyesWidgetStore';
+import { useEyesWidgetStore, type EyesSurface } from '@/stores/eyesWidgetStore';
 
 /** Pointer travel below this stays a click (enables the dblclick wink). */
 export const DRAG_THRESHOLD_PX = 5;
@@ -53,9 +53,17 @@ export interface EyesDrag {
   wasRecentDrag: () => boolean;
 }
 
-export function useEyesDrag(rootRef: RefObject<HTMLDivElement | null>): EyesDrag {
-  const position = useEyesWidgetStore(s => s.position);
-  const setPosition = useEyesWidgetStore(s => s.setPosition);
+export function useEyesDrag(
+  rootRef: RefObject<HTMLDivElement | null>,
+  surface: EyesSurface = 'chat'
+): EyesDrag {
+  // Each surface keeps its own spot (see `EyesSurface`).
+  const position = useEyesWidgetStore(s =>
+    surface === 'landing' ? s.landingPosition : s.position
+  );
+  const setPosition = useEyesWidgetStore(s =>
+    surface === 'landing' ? s.setLandingPosition : s.setPosition
+  );
 
   const [dragPos, setDragPos] = useState<PixelPosition | null>(null);
   const lastDragEndRef = useRef(0);

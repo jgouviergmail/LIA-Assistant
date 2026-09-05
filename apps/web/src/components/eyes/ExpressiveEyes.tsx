@@ -55,6 +55,9 @@ export interface ExpressiveEyesProps {
   idleFamily?: IdleMoodFamily;
   /** How forcefully the pose lands, from how the answer was written. */
   emphasis?: number;
+  /** Whether the face lives on its own (mimics, sketches). Default true;
+   * a preview turns it off to stay comparable. */
+  life?: boolean;
   className?: string;
 }
 
@@ -109,6 +112,7 @@ function resolved(props: ExpressiveEyesProps) {
     styleId: props.styleId ?? DEFAULT_EYE_STYLE,
     idleFamily: props.idleFamily ?? 'calm',
     emphasis: props.emphasis ?? 1,
+    life: props.life ?? true,
     gazeX: clampGazeAxis(props.gaze?.x ?? 0),
     gazeY: clampGazeAxis(props.gaze?.y ?? 0),
   };
@@ -126,6 +130,7 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
     blinking: view.blinking,
     gesture: view.gesture,
     emphasis: view.emphasis,
+    life: view.life,
   });
 
   return (
@@ -140,6 +145,7 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
       data-gaze-x={view.gazeX}
       data-gaze-y={view.gazeY}
       data-gaze-ms={gazeDurationMs}
+      data-life={view.life ? undefined : 'off'}
       className={cn('lia-eyes', `lia-eyes--${size}`, className)}
     >
       <EyesEmote emote={view.emote} leaving={view.emoteLeaving} />

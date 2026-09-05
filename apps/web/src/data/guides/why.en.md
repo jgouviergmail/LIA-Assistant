@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 5.2
+**Version**: 5.3
 **Date**: 2026-08-23
-**Application**: LIA v1.42.0
+**Application**: LIA v1.42.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -394,6 +394,8 @@ And a promise like that is worth exactly what the measurement behind it is worth
 This inner life has a face: the mood emoji animates on the current reply, the colored ring pulses when the mood shifts, and the milestones of your relationship are celebrated with a discreet wink.
 
 And that face has to tell the truth about the answer, not about the mood of the moment. It used to pick its expression from the inner life's dominant emotion — but that is a **trait**: it moves slowly, which is the point of it. Measured across fourteen consecutive turns, it named the same emotion on thirteen of them. So the face smiled as much after an error as after good news. LIA now states the **register** of what she has just written, and the face plays that one: a technical explanation keeps a focused look, a failure reads as a failure. A trait colours a resting presence; it should never answer for a single moment.
+
+And between two answers, that face does not switch off. The brows have an arch and stay present at rest, one breath carries the whole face, the gaze lifts the brows and a blink dips them; the mouth plays small mimics at an irregular, unhurried pace, and now and then, on a resting face, a short sketch — a fly to follow, a sneeze, a yawn. None of it costs a model call: it is animation in the sense the studios mean it — a character you believe alive because it breathes when nobody is watching. That same face greets visitors on the home page, before any account.
 
 And this presence follows you: outside the chat, a floating companion keeps LIA at your side across the whole dashboard — at rest, at work, or carrying a notification.
 

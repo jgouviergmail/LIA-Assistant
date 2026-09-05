@@ -597,6 +597,8 @@ The old fact is **superseded, not silently erased**. When you correct something 
 ## Can I change the look of the expressive eyes?
 Yes. **Settings > Personalization > Eyes style** offers several visual styles for the animated eyes shown on the chat page — each card renders a **live preview** of the style (neutral and joyful) so you pick by seeing, not by name.
 
-**🎨 One style, every behavior:** whichever look you choose, the eyes keep the same expressions, reactions and idle life; only the shapes change.
+**🎨 One style, every behavior:** whichever look you choose, the eyes keep the same expressions, reactions and idle life — breath, brows, mouth mimics and sketches; only the shapes change.
+
+**🎚️ Previews stay calm:** each card keeps the breath and the resting hold but plays no mimic or sketch, so you compare silhouettes rather than moods. The public home page always shows the capsule look; your choice applies to the chat.
 
 **💾 Remembered on this device:** the choice is stored locally in your browser, alongside the widget's position, size and visibility.

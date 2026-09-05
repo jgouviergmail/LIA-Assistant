@@ -81,9 +81,10 @@ function settleMask(): void {
  * animation loop now, so fifteen simulated minutes are roughly 27 000
  * animation frames. Measured 2026-08-31 with coverage instrumentation, this
  * file run on its own: 2.8-3.2 s each — the same order as the suite's
- * documented worst case (~3.3 s, the settings mega-forms). They exceed the
- * 15 s default only in the FULL parallel run, where this repository measures a
- * ~5x stretch.
+ * documented worst case (~3.3 s, the settings mega-forms). Re-measured
+ * 2026-09-05 after ADR-264 (two more channels, the brows riding every idle
+ * frame): 3.4-4.0 s each, same conditions. They exceed the 15 s default only
+ * in the FULL parallel run, where this repository measures a ~5x stretch.
  *
  * That is the cost of simulating a quarter of an hour of animation, not a slow
  * test: the same fifteen minutes cost about 0.01 % of a CPU in a browser. Four
@@ -219,6 +220,82 @@ describe('EyesWidget — chrome & preferences', () => {
     fireEvent.pointerMove(group, { pointerId: 2, clientX: 160, clientY: 140 });
     fireEvent.pointerUp(group, { pointerId: 2, clientX: 160, clientY: 140 });
     expect(useEyesWidgetStore.getState().position).not.toBeNull();
+  });
+});
+
+describe('EyesWidget — the landing surface', () => {
+  function renderOnLanding(): ReturnType<typeof render> {
+    const result = render(
+      <EyesWidget surface="landing" chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />
+    );
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    return result;
+  }
+
+  it('rests in the bottom-right corner, fixed to the viewport, with no dock to measure', () => {
+    renderOnLanding();
+    const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+    expect(group.className).toContain('fixed');
+    expect(group.className).toContain('bottom-6');
+    expect(group.className).toContain('right-6');
+    // No inline dock position: the landing has no header anchors.
+    expect(group.style.left).toBe('');
+    expect(group.style.top).toBe('');
+  });
+
+  it('writes a drag to the LANDING slot and leaves the chat slot untouched', () => {
+    renderOnLanding();
+    const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+    fireEvent.pointerDown(group, { pointerId: 9, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(group, { pointerId: 9, clientX: 170, clientY: 150 });
+    fireEvent.pointerUp(group, { pointerId: 9, clientX: 170, clientY: 150 });
+    expect(useEyesWidgetStore.getState().landingPosition).not.toBeNull();
+    expect(useEyesWidgetStore.getState().position).toBeNull();
+    // ...and the widget now sits at that percentage, still fixed.
+    expect(group.style.left).toMatch(/%$/);
+    expect(group.className).toContain('fixed');
+  });
+
+  it('reads the landing slot, not the chat one, when both are stored', () => {
+    useEyesWidgetStore.getState().setPosition({ xPct: 10, yPct: 20 });
+    useEyesWidgetStore.getState().setLandingPosition({ xPct: 70, yPct: 80 });
+    renderOnLanding();
+    const group = screen.getByRole('group', { name: 'eyes.widget_label' });
+    expect(group.style.left).toBe('70%');
+    expect(group.style.top).toBe('80%');
+  });
+
+  it('lets the mount FORCE a look over the persisted preference', () => {
+    useEyesWidgetStore.getState().setStyle('billes');
+    render(
+      <EyesWidget
+        surface="landing"
+        styleId="capsules"
+        chatStatus="idle"
+        streamPhase="answer"
+        hitlAwaiting={false}
+      />
+    );
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    const eyes = screen
+      .getByRole('group', { name: 'eyes.widget_label' })
+      .querySelector('.lia-eyes');
+    expect(eyes).toHaveAttribute('data-style', 'capsules');
+    // The preference itself is untouched: the chat keeps the marbles.
+    expect(useEyesWidgetStore.getState().style).toBe('billes');
+  });
+
+  it('minimises into the landing corner and restores from it', () => {
+    renderOnLanding();
+    fireEvent.click(screen.getByRole('button', { name: 'eyes.minimize' }));
+    const dot = screen.getByRole('button', { name: 'eyes.restore' });
+    expect(dot.className).toContain('bottom-6');
+    fireEvent.click(dot);
+    expect(screen.getByRole('group', { name: 'eyes.widget_label' })).toBeInTheDocument();
   });
 });
 

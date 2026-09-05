@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.1] - 2026-09-05
+
+**Les yeux vivaient ; le reste du visage attendait.** Entre deux réponses, l'avatar clignait, regardait ailleurs, s'endormait — et ses sourcils et sa bouche restaient à leur pose, comme dessinés une fois pour toutes. Mesuré dans un navigateur sur le visage au repos : 0,47 px de mouvement pour la bouche, zéro pour les sourcils, pendant que les yeux respiraient. Un personnage dont seule la moitié du visage vit se lit comme un masque.
+
+**Le mouvement appartient au rig, pas à la feuille de style.** ADR-264 amende ADR-252 : le sourcil gagne une arche et une présence discrète au repos ; une seule respiration porte la masse, les sourcils et la largeur de la bouche sur la même période ; le regard soulève les sourcils et un clignement les abaisse — couplés dans le rig, écrits en valeurs **absolues**, jamais en incréments, parce que le chemin rapide d'inactivité ne réécrit que les canaux qu'une boucle emprunte et qu'un `+=` y dérive toute la session (un test compare vingt mille petits pas à un seul). L'aléa de cette vie vient d'un flux semé séparé : un tirage sur `Math.random` à la construction décalait les séquences épinglées par les tests du widget.
+
+### Added
+
+- **Des sourcils et une bouche vivants** (ADR-264) : arche du sourcil (`browArc`), sourcils présents au repos, respiration commune à tout le visage, couplages regard → sourcils et clignement → sourcils, phrases de parole (une enveloppe à travers la fermeture, une ouverture bornée dans [0, 1]) et des sourcils qui ponctuent la parole sur un motif irrégulier.
+- **Une vie propre de la bouche** (`rig/life.ts`) : neuf mimiques relatives — sourire en coin, hoquet de surprise, moue, « hmm », rictus, bouche en cœur, rire retenu, frémissement, claquement — tirées à une cadence de 6 à 14 s (une rafale une fois sur dix), ordonnancées par le rig avec attaque, maintien et relâchement, et une encre de sourcils qui accompagne chaque mimique.
+- **Dix saynètes de 3 à 5 s** (`rig/sketches.ts`) sur un visage au repos, toutes les 45 à 120 s : la mouche, le double regard, l'éternuement, le bâillement-étirement, le hoquet, coucou, le vertige, l'assoupissement qui sursaute, le groove des sourcils, le regard soupçonneux. Priorité `tapes > saynète > motifs > base` ; tout changement d'expression interrompt la saynète et le visage est exactement là où il était, vérifié contre un rig jumeau.
+- **Trois gestes d'inactivité** — pression des lèvres, coin tiré, tressaillement de sourcil — et les battements existants portent désormais le visage : un « perk » lève les sourcils, un plissement les fronce, une inclinaison esquisse un sourire en coin. Chaque geste joue à une taille tirée entre 0,85 et 1,15.
+- **L'avatar sur la page d'accueil** (`LandingEyes`, ADR-240 §5) : chargé en `next/dynamic` sans SSR, apparence en capsules imposée, **une position par surface** (`landingPosition` dans le store) — un emplacement glissé sur l'accueil ne déplace jamais celui du chat —, aucun compte requis, petit et masquable sur téléphone.
+- **Une 57e carte « Encore + »** : le visage qui vit entre deux réponses, avec sa scène — sourcils, yeux et bouche sur une même respiration.
+
+### Changed
+
+- **Les aperçus du sélecteur de style ne vivent plus** (`life={false}`) : un aperçu compare des silhouettes, et un éternuement en pleine comparaison n'en est pas une. La respiration et le maintien au repos restent.
+- **Le rythme est calibré aux standards de l'animation** : après deux retours de relecture (« trop statique », puis « des tics nerveux »), les mimiques passent de rafales à une cadence de 6 à 14 s, et chaque bande a une attaque, un maintien et un relâchement remis à la dynamique de l'expression.
+- Les modules qui écrivent des bandes partagent `rig/choreo.ts` (`relative`, `absolute`, `bothSides`, `mirrored`, `scaleTapes`) ; `gestures.ts`, `scripts.ts` et `life.ts` n'ont plus chacun leur copie.
+- Le sourcil est dessiné comme une bande courbe dont la courbure suit `--rig-brow-arc` ; les rayons bas de la bouche suivent `--rig-mouth-arc`.
+- **STORY ne raconte plus ses cycles après sa signature** : trois paragraphes de chronique subsistaient après la note finale, dans les six langues — retirés. Le terrain d'exercice nomme le personnage animé ; HOW §31 et WHY §7.2 décrivent la vie du visage au présent.
+- La puce du chapitre 2 de la page d'accueil dit que le visage vit entre deux réponses ; en allemand elle disait « ton visage » (« Dein Gesicht ») pour « son visage » — corrigé.
+
+### Fixed
+
+- **Un `+=` sur un canal dérivé dérivait toute la session** : les contributions dérivées des sourcils sont écrites en valeurs absolues depuis le ressort et l'offset des boucles.
+- Des planchers de sortie empêchent une bouche de largeur nulle et un œil aplati au-delà de la limite (`MOUTH_WIDTH_FLOOR`, `EYE_SQUASH_FLOOR`) ; l'ouverture de la bouche est bornée dans [0, 1].
+- Un `-0` sortait des clés miroir des bandes (`mirrored`) — replié en `+ 0`.
+
+### Tests
+
+- Nouveaux : `life.test.ts` (budget en pixels : maintien mobile sous 2 px au repos, 3 px en travail, 0 sur `focused`), `mouth-life.test.ts`, `sketches.test.ts`, `choreo.test.ts`, `LandingEyes.test.tsx` ; `runtime.test.ts` compare 20 000 petits pas à un seul sur `neutral`, `sleep` et `thinking`.
+- Preuves navigateur (harnais hermétique + Docker) : matrice 20 expressions × 6 styles, bandes gelées des mimiques et des saynètes, échantillonnage du rythme, position fixe au défilement et vrai glissement sur l'accueil.
+- 583 fichiers, 7 305 tests frontend ; couverture 78,62 / 73,89 / 75,84 / 79,35 (planchers inchangés).
+
 ## [1.42.0] - 2026-09-05
 
 **L'extraction unifiée n'était offerte qu'aux administrateurs.** La personne que les enregistrements CONCERNENT n'avait que les exports par registre : composer son propre fichier article 12 supposait de télécharger cinq documents et de les corréler à la main — exactement le travail que l'extraction existe pour éviter.

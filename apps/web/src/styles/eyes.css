@@ -97,7 +97,8 @@
   --blink: var(--rig-blink-l, 0);
   --brow-y: var(--rig-brow-y-l, 0em);
   --brow-rot: var(--rig-brow-rot-l, 0deg);
-  --brow-a: var(--rig-brow-a-l, 0);
+  --brow-a: var(--rig-brow-a-l, 0.5);
+  --brow-arc: var(--rig-brow-arc-l, 0.12);
   --pupil: var(--rig-pupil-l, 1);
   --r-top: var(--rig-r-top-l, 0.28em);
   --r-bot: var(--rig-r-bot-l, 0.28em);
@@ -119,7 +120,8 @@
   --blink: var(--rig-blink-r, 0);
   --brow-y: var(--rig-brow-y-r, 0em);
   --brow-rot: var(--rig-brow-rot-r, 0deg);
-  --brow-a: var(--rig-brow-a-r, 0);
+  --brow-a: var(--rig-brow-a-r, 0.5);
+  --brow-arc: var(--rig-brow-arc-r, 0.12);
   --pupil: var(--rig-pupil-r, 1);
   --r-top: var(--rig-r-top-r, 0.28em);
   --r-bot: var(--rig-r-bot-r, 0.28em);
@@ -312,8 +314,14 @@
     calc(10% + (1 - var(--rig-mouth-arc, 0)) * 40%);
   border-top-right-radius: calc(12% + (1 - var(--rig-mouth-arc, 0)) * 38%)
     calc(10% + (1 - var(--rig-mouth-arc, 0)) * 40%);
-  border-bottom-left-radius: calc(50% + var(--mouth-lean) * 26%) 100%;
-  border-bottom-right-radius: calc(50% - var(--mouth-lean) * 26%) 100%;
+  /* The vertical radius follows the arc, so the pair normalises to 50/50 at
+     the flat crossing (a fixed 100% gave 33/67 there, and the mirror swapped
+     the rounder end of a 3 px bar in plain view) and to the same 9/91 at a
+     full grin. */
+  border-bottom-left-radius: calc(50% + var(--mouth-lean) * 26%)
+    calc(50% + var(--rig-mouth-arc, 0) * 50%);
+  border-bottom-right-radius: calc(50% - var(--mouth-lean) * 26%)
+    calc(50% + var(--rig-mouth-arc, 0) * 50%);
 
   scale: calc(1 + var(--rig-mouth-arc, 0) * 0.13) var(--rig-mouth-flip, 1);
   /* The CORNERS: one lifts, the other drops. Leaning rather than rotating
@@ -363,19 +371,37 @@
 }
 
 /* The BROW — an organ, not a decoration.
-   It is invisible on a neutral face (`browA` rests at 0) and appears only
-   when it has something to say, so no style pays for it at rest while every
-   style that wants one gets the single most legible emotional cue a face
-   owns. It sits OUTSIDE the lid layer: a brow is above the lid, and a blink
-   must not clip it. */
+   Faintly present on a neutral face (`browA` rests at 0.5) and committed the
+   moment it has something to say: a brow that only appears with an emotion
+   has nothing to do between two of them, and it fades in instead of moving.
+   It sits OUTSIDE the lid layer: a brow is above the lid, and a blink must
+   not clip it.
+
+   It is a CURVED BAND, drawn the way the mouth is: one element, a border
+   and no fill. The rig's `browArc` is a unitless curvature — at 0 the box is
+   exactly its own thickness and the border fills it (a rounded bar); as the
+   arc grows the box rises, the top corners round into a semi-ellipse and
+   the top border becomes an arch, while thin side borders keep its legs from
+   tapering to nothing. Bounded here because the rig may push an arc past 1
+   (exaggeration) or under 0 (anticipation), and a radius can be neither. */
 .lia-eye-brow {
+  --brow-curve: min(1, max(0, var(--brow-arc)));
   position: absolute;
   bottom: 100%;
   left: 50%;
+  box-sizing: border-box;
   width: calc(var(--eye-w, 1.3em) * 0.72);
-  height: 0.13em;
-  border-radius: 0.08em;
-  background: var(--eyes-color);
+  height: calc(0.13em + var(--brow-curve) * 0.14em);
+  background: transparent;
+  border: 0 solid var(--eyes-color);
+  border-top-width: 0.13em;
+  border-left-width: calc(var(--brow-curve) * 0.06em);
+  border-right-width: calc(var(--brow-curve) * 0.06em);
+  border-radius: calc(0.065em + var(--brow-curve) * (50% - 0.065em))
+    calc(0.065em + var(--brow-curve) * (50% - 0.065em)) calc((1 - var(--brow-curve)) * 0.065em)
+    calc((1 - var(--brow-curve)) * 0.065em) / calc(50% + var(--brow-curve) * 50%)
+    calc(50% + var(--brow-curve) * 50%) calc(50% - var(--brow-curve) * 50%)
+    calc(50% - var(--brow-curve) * 50%);
   translate: -50% calc(-0.06em + var(--brow-y));
   rotate: var(--brow-rot);
   opacity: calc(var(--brow-a) * var(--has-brow));
@@ -425,17 +451,18 @@
    the middle of its expression.
 
    Every length below is in the emote's OWN em (font-size: 0.6em), so
-   `margin-bottom: 1.05em` is 0.63em of the widget — comfortably above the
-   0.15em a raised brow reaches. The tail is a rotated square: two of its
-   borders draw the point, and its opaque fill hides the bubble's own border
-   where the two meet.
+   `margin-bottom: 1.25em` is 0.75em of the widget — above what the highest
+   brow reaches at its most exaggerated, arch included (the guard computes
+   it from this sheet and the pose table). The tail is a rotated square: two
+   of its borders draw the point, and its opaque fill hides the bubble's own
+   border where the two meet.
    ============================================================================= */
 
 .lia-emote {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  margin-bottom: 1.05em;
+  margin-bottom: 1.25em;
   translate: -50% 0;
   display: flex;
   align-items: center;

@@ -17,7 +17,14 @@
 
 import { useEffect, useRef } from 'react';
 
-import { blinkTapes, tapesForGesture } from '@/components/eyes/rig/gestures';
+import {
+  blinkTapes,
+  GESTURE_SCALE_MIN,
+  GESTURE_SCALE_SPAN,
+  scaleGestureTapes,
+  tapesForGesture,
+} from '@/components/eyes/rig/gestures';
+import { createLifeRandom } from '@/components/eyes/rig/life';
 import { createRigWriter } from '@/components/eyes/rig/apply';
 import {
   releaseFrames,
@@ -37,6 +44,10 @@ import type {
 
 /** Settling time (99 %) of a critically damped spring, in seconds. */
 const CRITICAL_SETTLE_FACTOR = 1.057;
+
+/** Mount counter salting the life seed — module-level on purpose, it is a
+ * counter and not state. */
+let lifeSalt = 0;
 
 /** A gaze travel time expressed as a spring: a saccade JUMPS (high frequency),
  * an eased return glides. Damping stays just under 1 — an eye landing on a
@@ -59,6 +70,14 @@ export interface UseEyesRigOptions {
   gesture?: IdleGesture | null;
   /** How forcefully the pose should land (1 = as authored). */
   emphasis?: number;
+  /**
+   * Whether the face lives on its own — mimics and sketches drawn from a
+   * private entropy stream, gestures at a drawn size. On by default; the
+   * style picker's previews turn it off, because a preview is there to
+   * compare silhouettes and a sneeze mid-comparison is not a comparison.
+   * The breath and the moving hold stay: they are the pose, not a beat.
+   */
+  life?: boolean;
 }
 
 /**
@@ -77,26 +96,36 @@ export function useEyesRig(options: UseEyesRigOptions) {
     blinking = false,
     gesture = null,
     emphasis = 1,
+    life = true,
   } = options;
 
   const elementRef = useRef<HTMLSpanElement | null>(null);
   const rigRef = useRef<EyeRig | null>(null);
+  const lifeRandomRef = useRef<(() => number) | null>(null);
   const wakeRef = useRef<(() => void) | null>(null);
   // Props the loop must read without re-creating itself.
-  const initialRef = useRef({ expression, styleId, family });
+  const initialRef = useRef({ pose: { expression, styleId, family }, life });
 
   // --- The loop. Declared first so every sync effect below finds a live rig.
   useEffect(() => {
     const element = elementRef.current;
     if (!element) return;
 
+    // The life's own stream, seeded once per mount (a salt keeps twelve
+    // previews mounted in the same millisecond from miming in unison). It
+    // never touches `Math.random`: the widget tests pin that one with exact
+    // once-sequences, and a draw at construction would shift them all.
+    lifeRandomRef.current = initialRef.current.life
+      ? createLifeRandom(Date.now() + lifeSalt++ * 7919)
+      : null;
     const rig = createEyeRig({
-      initial: initialRef.current,
+      initial: initialRef.current.pose,
       reducedMotion: prefersReducedMotion(),
       // The one caller that hands the rig real entropy: two angers must never
       // land at exactly the same speed. Tests build rigs without it and stay
       // perfectly deterministic.
       random: Math.random,
+      lifeRandom: lifeRandomRef.current ?? undefined,
     });
     const writer = createRigWriter(element);
     rigRef.current = rig;
@@ -162,12 +191,16 @@ export function useEyesRig(options: UseEyesRigOptions) {
     wakeRef.current?.();
   }, [blinking]);
 
-  // --- Gestures: each new one plays its beats once.
+  // --- Gestures: each new one plays its beats once, at a size drawn for the
+  // occasion — the same beat twice at the same size is a mechanism, and this
+  // hook is the one caller that carries entropy (the rig itself stays pure).
   useEffect(() => {
     if (!gesture) return;
     const tapes = tapesForGesture(gesture);
     if (tapes.length === 0) return;
-    rigRef.current?.play(...tapes);
+    const draw = lifeRandomRef.current;
+    const scale = draw ? GESTURE_SCALE_MIN + draw() * GESTURE_SCALE_SPAN : 1;
+    rigRef.current?.play(...scaleGestureTapes(tapes, scale));
     wakeRef.current?.();
   }, [gesture]);
 

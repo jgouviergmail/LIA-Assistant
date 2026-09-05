@@ -37,16 +37,33 @@ function innerEndDrop(expression: EyeExpression): { left: number; right: number 
 }
 
 describe('the brow', () => {
-  it('is absent from a neutral face, and from a sleeping one', () => {
-    expect(resolvePose('neutral', 'cozmo').browAL).toBe(0);
-    expect(resolvePose('sleep', 'cozmo').browAL).toBe(0);
+  it('is PRESENT at rest, faintly — a face with no brows cannot act between two emotions', () => {
+    // ADR-264 reverses ADR-252 here. Ten of the fourteen psyche moods idle on
+    // `neutral`; a brow that only exists once an emotion lands has nothing to
+    // do for most of the session, and it APPEARS (a fade) instead of MOVING.
+    const rest = CHANNELS.browAL.rest;
+    expect(rest).toBeGreaterThan(0.3);
+    expect(rest).toBeLessThan(0.7);
+    expect(resolvePose('neutral', 'cozmo').browAL).toBe(rest);
   });
 
-  it('shows up for every expression that has something to say', () => {
-    const silent = EYE_EXPRESSIONS.filter(
-      expression => resolvePose(expression, 'cozmo').browAL === 0
-    );
-    expect(silent).toEqual(['neutral', 'sleep']);
+  it('commits harder for every expression that has something to say', () => {
+    const rest = CHANNELS.browAL.rest;
+    const relaxed = new Set(['neutral', 'sleepy', 'sleep', 'bored', 'tired']);
+    EYE_EXPRESSIONS.forEach(expression => {
+      const presence = resolvePose(expression, 'cozmo').browAL;
+      expect({ expression, ok: relaxed.has(expression) ? presence > 0 : presence > rest }).toEqual({
+        expression,
+        ok: true,
+      });
+    });
+  });
+
+  it('relaxes as the face falls asleep, and never vanishes', () => {
+    const rest = CHANNELS.browAL.rest;
+    expect(resolvePose('sleepy', 'cozmo').browAL).toBeLessThan(rest);
+    expect(resolvePose('sleep', 'cozmo').browAL).toBeLessThan(rest);
+    expect(resolvePose('sleep', 'cozmo').browAL).toBeGreaterThan(0);
   });
 
   it('mirrors between the eyes, except where the asymmetry IS the message', () => {
@@ -103,6 +120,82 @@ describe('the brow', () => {
     // Height and tilt are willed motion, so they anticipate and exaggerate.
     expect(CHANNELS.browYL.group).toBe('pose');
     expect(CHANNELS.browRotL.group).toBe('pose');
+  });
+});
+
+describe('the arch', () => {
+  const arcOf = (expression: EyeExpression) => resolvePose(expression, 'cozmo').browArcL;
+
+  it('is a channel of its own: a bar can tilt, only an arch can wonder', () => {
+    expect(CHANNELS.browArcL.group).toBe('pose');
+    expect(CHANNELS.browArcL.unit).toBe('num');
+    expect(CHANNELS.browArcL.rest).toBeGreaterThan(0);
+    expect(CHANNELS.browArcL.rest).toBeLessThan(0.2);
+  });
+
+  it('stays within what the stylesheet can draw, on every expression', () => {
+    EYE_EXPRESSIONS.forEach(expression => {
+      const pose = resolvePose(expression, 'cozmo');
+      expect({ expression, inRange: pose.browArcL >= 0 && pose.browArcL <= 1 }).toEqual({
+        expression,
+        inRange: true,
+      });
+      expect({ expression, inRange: pose.browArcR >= 0 && pose.browArcR <= 1 }).toEqual({
+        expression,
+        inRange: true,
+      });
+    });
+  });
+
+  it('arches highest for surprise — the whole brow flies', () => {
+    const arcs = EYE_EXPRESSIONS.map(arcOf);
+    expect(arcOf('surprise')).toBe(Math.max(...arcs));
+    expect(arcOf('surprise')).toBeGreaterThan(0.7);
+  });
+
+  it('flattens outright for the scowls: a pressed brow has no curve', () => {
+    (['anger', 'focused', 'bored'] as const).forEach(expression => {
+      expect({ expression, arc: arcOf(expression) }).toEqual({ expression, arc: 0 });
+    });
+  });
+
+  it('curves gently for what is pleasant', () => {
+    (['joy', 'excited', 'tender', 'attentive'] as const).forEach(expression => {
+      expect({ expression, curved: arcOf(expression) > CHANNELS.browArcL.rest }).toEqual({
+        expression,
+        curved: true,
+      });
+    });
+  });
+
+  it('breaks the symmetry ONE way for a question and a thought', () => {
+    (['question', 'thinking', 'wink'] as const).forEach(expression => {
+      const pose = resolvePose(expression, 'cozmo');
+      expect({ expression, oneUp: pose.browArcL > pose.browArcR }).toEqual({
+        expression,
+        oneUp: true,
+      });
+    });
+  });
+
+  it('mirrors between the eyes everywhere else', () => {
+    EYE_EXPRESSIONS.forEach(expression => {
+      if (ASYMMETRIC.has(expression)) return;
+      const pose = resolvePose(expression, 'cozmo');
+      expect({ expression, arcL: pose.browArcL }).toEqual({ expression, arcL: pose.browArcR });
+    });
+  });
+
+  it('is DRAWN as a curved band the way the mouth is: one element, a border, no radius trick', () => {
+    const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
+    const rule = block.slice(0, block.indexOf('\n}'));
+    // The curvature is bounded in the sheet: exaggeration may push an arc past
+    // 1 and anticipation may pull it under 0, and neither must reach a radius.
+    expect(rule).toMatch(/--brow-curve:\s*min\(1, max\(0, var\(--brow-arc\)\)\)/);
+    expect(rule).toContain('border-top-width: 0.13em');
+    expect(rule).toContain('background: transparent');
+    // At arc 0 the box is exactly its own thickness: the resting pill.
+    expect(rule).toMatch(/height:\s*calc\(0\.13em \+ var\(--brow-curve\) \* [\d.]+em\)/);
   });
 });
 

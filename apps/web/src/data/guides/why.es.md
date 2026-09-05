@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versión**: 5.2
+**Versión**: 5.3
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.42.0
+**Aplicación**: LIA v1.42.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -394,6 +394,8 @@ Y una promesa así vale exactamente lo que vale la medición que la sostiene. Se
 Esta vida interior tiene rostro: el emoji de humor se anima en la respuesta actual, el anillo de color late cuando el humor cambia, y los hitos de tu relación se celebran con un guiño discreto.
 
 Y ese rostro debe decir la verdad sobre la respuesta, no sobre el humor del momento. Elegía su expresión a partir de la emoción dominante de la vida interior — pero esa es un **rasgo**: se mueve despacio, y ese es justamente su sentido. Medida a lo largo de catorce turnos consecutivos, nombraba la misma emoción en trece de ellos. El rostro sonreía por igual tras un error que tras una buena noticia. Ahora LIA indica ella misma el **registro** de lo que acaba de escribir, y el rostro interpreta ese: una explicación técnica conserva un aire concentrado, un fallo se lee como un fallo. Un rasgo tiñe una presencia en reposo; nunca debe responder por un instante.
+
+Y entre dos respuestas, ese rostro no se apaga. Las cejas tienen un arco y siguen presentes en reposo, una sola respiración lleva todo el rostro, la mirada levanta las cejas y un parpadeo las baja; la boca juega pequeñas muecas a un ritmo irregular y sin prisa, y de vez en cuando, sobre un rostro en reposo, una breve escena — una mosca que seguir, un estornudo, un bostezo. Nada de esto cuesta una llamada al modelo: es animación en el sentido en que la entienden los estudios — un personaje que crees vivo porque respira cuando nadie lo mira. Ese mismo rostro recibe a los visitantes en la página de inicio, antes de cualquier cuenta.
 
 Y esta presencia te sigue: fuera del chat, un acompañante flotante mantiene a LIA a tu lado por todo el panel — en reposo, trabajando o con una notificación.
 

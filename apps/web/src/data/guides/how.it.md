@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 4.7
+**Versione**: 4.8
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.42.0
+**Applicazione**: LIA v1.42.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 535 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 262 ADRs, ~24.042 test raccolti da pytest in 1.349 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 263 ADRs, ~24.053 test raccolti da pytest in 1.452 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -84,10 +84,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | 22.775 raccolti da pytest su 1.349 file di test + 6.983 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | 24.053 raccolti da pytest su 1.452 file di test + 7.305 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 262 |
+| ADR (Architecture Decision Record) | 263 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1359,7 +1359,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-262 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+263 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1465,7 +1465,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 262 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~24.042 test in 1.349 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 263 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~24.053 test in 1.452 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1476,6 +1476,8 @@ La pagina Attività è un **read-model puro**: fetcher paralleli (una sessione p
 ## 31. Occhi espressivi: un personaggio guidato dai segnali
 
 Il widget degli occhi della chat (ADR-240) poggia su un unico principio: **nessun segnale nuovo, nessun costo nuovo**. Un motore puro — tabelle di decisione con RNG e orologi iniettati — deriva una di venti espressioni da una catena di priorità (errore > domanda HITL > voce > interazione > reazione del turno > notifica > digitazione > inattività > umore × ora) alimentata esclusivamente dalla macchina esistente: la macchina a stati della chat, i passi di esecuzione SSE (riflessione vs. ricerca di strumenti), la scheda HITL, la macchina vocale e il motore psicologico. La reazione a ogni risposta legge l'autovalutazione emotiva che il modello allega già al proprio turno, con un ripiego euristico rigorosamente neutro rispetto alla lingua (punteggiatura, emoji, struttura — larghezza piena cinese inclusa). Il rendering è dichiarativo — un attributo di espressione, variabili CSS e un foglio di animazione dove le palpebre sono **morph geometrici puri** (compressione verticale ancorata, rotazione per occhio, modellazione dei raggi): nessun clipping da nessuna parte, ogni stato intermedio resta una curva liscia. La vita tra gli eventi — battiti di ciglia, saccadi dello sguardo, gesti ponderati per umore, microscene di fantasticheria, raro slapstick — vive in scheduler con timer propri, in pausa quando la scheda è nascosta o il widget ridotto, congelati sotto `prefers-reduced-motion`. I sei stili selezionabili condividono questo unico scheletro: un registro generico dove aggiungere uno sguardo costa un id, un foglio CSS con scope e sei voci di locale — la completezza è un test, non una convenzione.
+
+Il volto vive tra due risposte, e quella vita è un rig, non un foglio di stile (ADR-252, ADR-264). Un runtime TypeScript calcola ogni canale a ogni fotogramma — molle analitiche, loop additivi, nastri di chiavi — e pubblica il risultato come proprietà personalizzate `--rig-*` che il foglio si limita a leggere: un foglio di stile non ne dichiara mai una e non mette mai una transizione su un valore che cambia sessanta volte al secondo. Il sopracciglio ha un arco e resta discretamente presente a riposo; un solo respiro porta la massa, le sopracciglia e la larghezza della bocca sullo stesso periodo; lo sguardo solleva le sopracciglia e un battito di ciglia le abbassa, accoppiati nel rig come **contributi assoluti e non incrementi**, perché il percorso rapido di riposo riscrive solo i canali che un loop percorre — un incremento lì deriverebbe per tutta la sessione, cosa che un test inchioda confrontando ventimila piccoli passi con uno solo. Il parlato ha frasi (un inviluppo attraverso la chiusura, un'apertura limitata all'intervallo unitario) e sopracciglia che punteggiano su uno schema irregolare. La bocca ha una vita propria — mimiche relative a cadenza casuale, programmate dal rig — e dieci brevi scenette su un volto a riposo, interrotte da qualsiasi cambio di espressione con il volto esattamente dov'era, verificato contro un rig gemello. Il caso viene da un flusso seminato a parte, mai da `Math.random`, così i test del widget restano deterministici; la tenuta viva è un budget in pixel nei test — visibile a riposo, sotto i due pixel, esattamente zero su un volto concentrato. Lo stesso widget accoglie i visitatori nella pagina iniziale pubblica: nessun account, una posizione per superficie, l'aspetto a capsule imposto lì mentre la chat conserva lo stile dell'utente — e le anteprime del selettore di stile spengono quella vita, perché un'anteprima confronta sagome.
 
 ---
 
@@ -1578,4 +1580,4 @@ Il volto del compagno sceglieva la propria espressione di fine turno dall'emozio
 **Ogni unità pagata è contabilizzata, e mostrata.** Una riunione spende audio presso il motore di trascrizione e token presso il modello di sintesi, passaggi di condensazione e ricostruzioni compresi; entrambi raggiungono i registri della piattaforma come ogni scambio — l'audio tramite le statistiche del riconoscimento remoto, i token sotto un `run_id` che il messaggio archiviato porta, così la cronologia si unisce al registro dei token esattamente come per ogni notifica proattiva. La riga conserva la spesa propria del verbale perché la pagina dichiari il totale esatto con la sua scomposizione, la scheda dichiara le due unità e la loro somma, e un modello senza tariffa amministrata restituisce `null`: un prezzo sconosciuto non è un prezzo gratuito. La stessa onestà attraversa il verbale stesso — una lacuna è dichiarata, mai colmata; un interlocutore senza nome resta S2; una proposta rimasta aperta non è una decisione.
 
 **Il formato del verbale è diventato una libreria, e la scelta ha un solo luogo.** Trenta modelli integrati vivono nel codice, le loro parole in un modulo di dati i18n, e un'asserzione all'avvio rifiuta di partire se manca un nome in una delle sei lingue: ciò che un validatore può rifiutare, il catalogo non può consegnarlo. Un modello è designato da un riferimento — `builtin:<chiave>` o `user:<uuid>` — che riunioni, preferenze e richieste si scambiano al posto di una riga, così un modello integrato non ha bisogno di esistere in banca dati e un modello eliminato lascia un riferimento i cui lettori sanno ripiegare sull'istantanea conservata. La scelta segue **una sola precedenza**: il riferimento portato dalla riunione, poi il predefinito della preferenza, poi il modello linguistico che legge un estratto della trascrizione e sceglie sopra una soglia di confidenza, poi il modello integrato predefinito; ogni esito è contato e scritto sulla riga con la ragione enunciata, così la pagina mostra un fatto e non una ricostruzione. Una quinta specie di sezione restituisce la trascrizione stessa: non entra in una sola risposta — lo slot di sintesi emette al massimo ottomila token — quindi viene riscritta per parti, ciascuna limitata dalla finestra di uscita effettiva, un indice mancante divide la parte una volta e una risposta sospettosamente corta viene ritentata una volta. Riscrivere un verbale già redatto prende in prestito la rigenerazione durevole quando sostituisce, e crea una riga derivata che punta alla sua origine quando produce un nuovo verbale — mai una copia: la trascrizione è la stessa, il verbale no. La stessa cura per l'ordine governa i documenti degli spazi di conoscenza: poiché `rag_chunks.space_id` è denormalizzato e letto dalla ricerca, uno spostamento scrive la riga e i suoi frammenti, conferma, **poi** sposta il file; una rinomina fallita riporta indietro entrambi e lo segnala per quel solo documento, e un lotto non si ferma mai per un elemento — ogni identificatore torna fatto o ignorato con il suo codice.
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 262 ADRs e del changelog (da v1.0 a v1.42.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 263 ADRs e del changelog (da v1.0 a v1.42.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

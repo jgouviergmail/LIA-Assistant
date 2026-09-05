@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest';
 import { ARRIVAL_SCRIPTS, resolvePatterns } from '@/components/eyes/rig/scripts';
 import { createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
 import { blinkTapes } from '@/components/eyes/rig/gestures';
+import { resolvePose } from '@/components/eyes/rig/poses';
 import { CHANNELS, type ChannelKey } from '@/components/eyes/rig/channels';
 import { tapeDurationMs } from '@/components/eyes/rig/tape';
 import { EYE_EXPRESSIONS, type EyeExpression } from '@/components/eyes/expression-engine';
@@ -114,10 +115,112 @@ describe('the search pattern', () => {
     expect(Math.max(...closure)).toBeGreaterThan(0.7);
   });
 
-  it('gives no pattern to any other expression', () => {
-    EYE_EXPRESSIONS.filter(expression => expression !== 'searching').forEach(expression => {
+  it('gives no pattern to any expression that neither searches nor speaks', () => {
+    EYE_EXPRESSIONS.filter(
+      expression => expression !== 'searching' && expression !== 'speaking'
+    ).forEach(expression => {
       expect(resolvePatterns(expression)).toHaveLength(0);
     });
+  });
+});
+
+describe('the speech brows', () => {
+  it('punctuate the speech: both brows, height and arch, the right one trailing', () => {
+    const tapes = resolvePatterns('speaking');
+    const channels = tapes.map(tape => tape.channel).sort();
+    expect(channels).toEqual(['browArcL', 'browArcR', 'browYL', 'browYR']);
+    tapes.forEach(tape => expect(tape.relative).toBe(true));
+    const left = tapes.find(tape => tape.channel === 'browYL')!;
+    const right = tapes.find(tape => tape.channel === 'browYR')!;
+    expect(right.keys[0].atMs).toBeGreaterThan(left.keys[0].atMs);
+  });
+
+  it('never fall on a beat: the raises are irregularly spaced', () => {
+    const left = resolvePatterns('speaking').find(tape => tape.channel === 'browYL')!;
+    const raises = left.keys.filter(key => key.value < 0).map(key => key.atMs);
+    expect(raises.length).toBeGreaterThanOrEqual(3);
+    const gaps = raises.slice(1).map((at, index) => at - raises[index]);
+    expect(new Set(gaps).size).toBe(gaps.length);
+  });
+
+  it('actually RAISE the brows several times per cycle, and hand them back between', () => {
+    const rig = createEyeRig();
+    rig.setPose({ expression: 'speaking', styleId: 'cozmo', family: 'calm' });
+    const pose = resolvePose('speaking', 'cozmo').browYL;
+    // Past the arrival, one full cycle of the pattern.
+    trace(rig, 'browYL', 60);
+    const cycle = trace(rig, 'browYL', 330);
+    // Count the distinct dips below the pose: a raise is negative travel.
+    let raises = 0;
+    let inRaise = false;
+    for (const value of cycle) {
+      const raised = value < pose - 0.015;
+      if (raised && !inRaise) raises += 1;
+      inRaise = raised;
+    }
+    expect(raises).toBeGreaterThanOrEqual(3);
+    // ...and between two raises the brow rests near its pose (the breath
+    // aside — speaking does not breathe, so this is exact).
+    expect(cycle.some(value => Math.abs(value - pose) < 0.004)).toBe(true);
+  });
+
+  it('are dropped the moment speaking ends', () => {
+    const rig = createEyeRig();
+    rig.setPose({ expression: 'speaking', styleId: 'cozmo', family: 'calm' });
+    trace(rig, 'browYL', 40);
+    rig.setPose({ expression: 'neutral', styleId: 'cozmo', family: 'calm' });
+    expect(resolvePatterns('neutral')).toHaveLength(0);
+    trace(rig, 'browYL', 200);
+    expect(rig.isAwake()).toBe(true); // it breathes
+    expect(Math.abs(rig.values().browYL)).toBeLessThan(0.02);
+  });
+});
+
+describe('arrival choreography — brows and mouth', () => {
+  it('SURPRISE flings the arch past its pose before it settles', () => {
+    const rig = createEyeRig();
+    rig.setPose({ expression: 'surprise', styleId: 'cozmo', family: 'calm' });
+    const arc = trace(rig, 'browArcL', 30);
+    expect(Math.max(...arc)).toBeGreaterThan(resolvePose('surprise', 'cozmo').browArcL + 0.05);
+    trace(rig, 'browArcL', 200);
+    expect(rig.values().browArcL).toBeCloseTo(resolvePose('surprise', 'cozmo').browArcL, 2);
+  });
+
+  it('SADNESS lets the brows sink AFTER the mass has fallen', () => {
+    const sad = ARRIVAL_SCRIPTS.sad ?? [];
+    const brows = sad.filter(tape => tape.channel.startsWith('browY'));
+    const mass = sad.find(tape => tape.channel === 'mass')!;
+    expect(brows).toHaveLength(2);
+    brows.forEach(tape => {
+      expect(tape.keys[0].atMs).toBeGreaterThan(mass.keys[0].atMs);
+      // Sinking: positive travel is DOWN.
+      expect(tape.keys[0].value).toBeGreaterThan(0);
+    });
+  });
+
+  it('a QUESTION overshoots the one raised brow, not both', () => {
+    const question = ARRIVAL_SCRIPTS.question ?? [];
+    const brows = question.filter(tape => tape.channel.startsWith('browY'));
+    expect(brows.map(tape => tape.channel)).toEqual(['browYL']);
+    expect(brows[0].keys[0].value).toBeLessThan(0);
+  });
+
+  it('TIRED yawns: the mouth opens wide and closes again within the entrance', () => {
+    const rig = createEyeRig();
+    rig.setPose({ expression: 'tired', styleId: 'cozmo', family: 'calm' });
+    const opening = trace(rig, 'mouthOpen', 90);
+    expect(Math.max(...opening)).toBeGreaterThan(0.3);
+    expect(rig.values().mouthOpen).toBeLessThan(0.06);
+    // The pose itself has a closed mouth: the yawn was the entrance.
+    expect(resolvePose('tired', 'cozmo').mouthOpen).toBe(0);
+  });
+
+  it('keeps every brow entrance RELATIVE — a beat never yanks a posed brow to a fixed height', () => {
+    Object.values(ARRIVAL_SCRIPTS).forEach(tapes =>
+      (tapes ?? [])
+        .filter(tape => tape.channel.startsWith('brow'))
+        .forEach(tape => expect(tape.relative).toBe(true))
+    );
   });
 });
 

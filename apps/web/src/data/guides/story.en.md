@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 1.8
+**Version**: 1.9
 **Date**: 2026-08-23
-**Application**: LIA v1.42.0
+**Application**: LIA v1.42.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 44 functional domains | **580,000** |
-| Automated tests, run on every commit and release | **29,700+** |
-| Documented architecture decisions (ADR) | **262** |
-| Versions shipped at a steady pace | **245** |
+| Automated tests, run on every commit and release | **31,300+** |
+| Documented architecture decisions (ADR) | **263** |
+| Versions shipped at a steady pace | **246** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -31,7 +31,7 @@ Conviction from experience: AI-assisted development can be industrialized today.
 
 Generative AI transforms both what teams produce and how they produce it. On both topics, I did not want to base my convictions on market narratives: I chose to face the full reality of an AI system in production — costs, risks, operations, debt — and the reality of AI-assisted development, by practicing them end to end.
 
-The training ground: LIA, a multi-agent conversational AI assistant — mail, calendar, contacts and files across Google, Apple and Microsoft, real-time voice interface, long-term memory, document search — self-hosted and multilingual.
+The training ground: LIA, a multi-agent conversational AI assistant — mail, calendar, contacts and files across Google, Apple and Microsoft, real-time voice interface, long-term memory, document search, an animated character that embodies it — self-hosted and multilingual.
 
 The constraints were deliberate: alone, outside professional hours, minimal hardware budget, and the AI as the only developer. This project therefore does not measure individual velocity; it measures what demanding direction obtains from a properly framed AI.
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 262 documented:
+Three structural decisions, among the 263 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -103,9 +103,3 @@ What this experience changes in a management practice:
 - **A leader who practices arbitrates better.** Build or buy, acceptable debt or not, credible vendor promise or not — these decisions gain accuracy when you have worked the material yourself. This project is a way of maintaining that proximity to the field.
 
 *Personal project, carried out outside any professional activity. Figures from the July 2026 technical audit — tests executed, measurements taken on the code, findings cross-checked. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
-
-Then the assistant learned to show its own work: an Activity page listing everything it does on its own, learned rules you can read and correct, a memory that dates its recollections and archives without erasing, a voice that breathes with its mood. Autonomy grew exactly as the project's philosophy demanded: inside the frame, under the user's gaze.
-
-Then the assistant fit into a pocket without moving out of its home. One app per store, a client for whichever server its user runs: sign-in through the phone's real browser because the embedded one is refused, notifications that either come from the user's own project or pass through a relay built to know nothing, and a bench that drives the real app scene by scene — which found three live defects the compiler had blessed. The sovereignty thesis survived contact with the app stores: the data still has one home.
-
-Then the project turned the measurement on itself. It had promised fourteen moods and shipped a mapping that left five of them unreachable — the knobs to fix it had waited a year, deliberately switched off, until real usage could say whether they were needed. It had emitted hundreds of metrics and could not say which of them any human could actually see; now a metric that reaches no dashboard fails the build. And its own deployment ended on an error the operator had been told, in writing, to disregard — an instruction like that is not a workaround, it is the defect moved into prose. Three counters, three claims, three measurements. What a system says about itself is worth exactly what it has checked.

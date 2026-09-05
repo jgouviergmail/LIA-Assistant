@@ -75,8 +75,14 @@ export function EyesStyleSettings({ lng }: EyesStyleSettingsProps) {
 
             {/* Live previews: the widget's own CSS animates them. */}
             <div className="flex shrink-0 flex-col items-center gap-1" aria-hidden="true">
-              <ExpressiveEyes styleId={id} expression="neutral" gaze={null} size="sm" />
-              <ExpressiveEyes styleId={id} expression="joy" gaze={null} size="sm" />
+              <ExpressiveEyes
+                styleId={id}
+                expression="neutral"
+                gaze={null}
+                size="sm"
+                life={false}
+              />
+              <ExpressiveEyes styleId={id} expression="joy" gaze={null} size="sm" life={false} />
             </div>
 
             <div className="min-w-0 flex-1 space-y-1">

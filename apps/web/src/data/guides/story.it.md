@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 1.8
+**Versione**: 1.9
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.42.0
+**Applicazione**: LIA v1.42.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 44 domini funzionali | **580.000** |
-| Test automatizzati, eseguiti a ogni commit e rilascio | **29.700+** |
-| Decisioni di architettura documentate (ADR) | **262** |
-| Versioni rilasciate a ritmo regolare | **245** |
+| Test automatizzati, eseguiti a ogni commit e rilascio | **31.300+** |
+| Decisioni di architettura documentate (ADR) | **263** |
+| Versioni rilasciate a ritmo regolare | **246** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -31,7 +31,7 @@ Convinzione maturata con l'esperienza: lo sviluppo assistito dall'IA è industri
 
 L'IA generativa trasforma sia ciò che i team producono sia il modo in cui lo producono. Su entrambi i temi, non volevo fondare le mie convinzioni sui discorsi del mercato: ho scelto di confrontarmi con la realtà completa di un sistema di IA in produzione — i costi, i rischi, l'esercizio, il debito — e con la realtà dello sviluppo assistito dall'IA, praticandoli fino in fondo.
 
-Il terreno di esercizio: LIA, un assistente IA conversazionale multi-agente — mail, agenda, contatti e file su Google, Apple e Microsoft, interfaccia vocale in tempo reale, memoria a lungo termine, ricerca documentale — self-hosted e multilingue.
+Il terreno di esercizio: LIA, un assistente IA conversazionale multi-agente — mail, agenda, contatti e file su Google, Apple e Microsoft, interfaccia vocale in tempo reale, memoria a lungo termine, ricerca documentale, un personaggio animato che lo incarna — self-hosted e multilingue.
 
 I vincoli erano voluti: da solo, fuori dall'orario professionale, budget hardware minimo, e l'IA come unico sviluppatore. Questo progetto non misura quindi una velocità individuale; misura ciò che una direzione esigente ottiene da un'IA correttamente inquadrata.
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 262 documentate:
+Tre decisioni strutturanti, tra le 263 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -103,9 +103,3 @@ Ciò che questa esperienza cambia in una pratica di direzione:
 - **Un dirigente che pratica arbitra meglio.** Fare o far fare, debito accettabile o no, promessa del fornitore credibile o no — queste decisioni guadagnano in giustezza quando si è messa alla prova la materia. Questo progetto è un modo di mantenere questa vicinanza al terreno.
 
 *Progetto personale, condotto al di fuori di ogni attività professionale. Cifre provenienti dall'audit tecnico di luglio 2026 — test eseguiti, misurazioni effettuate sul codice, rilievi contro-verificati. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
-
-Poi l'assistente ha imparato a mostrare il proprio lavoro: una pagina Attività che elenca tutto ciò che fa da solo, regole apprese che si possono leggere e correggere, una memoria che data i suoi ricordi e archivia senza cancellare, una voce che respira con il suo umore. L'autonomia è cresciuta esattamente come voleva la filosofia del progetto: dentro la cornice, sotto lo sguardo dell'utente.
-
-Poi l'assistente è entrato in tasca senza lasciare la sua casa. Un'app per store, client del server che ciascuno fa girare: accesso tramite il vero browser del telefono perché quello incorporato viene rifiutato, notifiche che arrivano dal progetto dell'utente o passano per un relè costruito per non sapere nulla, e un banco che guida l'app vera scena per scena — ha trovato tre difetti vivi che il compilatore aveva benedetto. La tesi della sovranità è sopravvissuta al contatto con gli store: i dati hanno ancora una sola casa.
-
-Poi il progetto ha rivolto la misura contro se stesso. Prometteva quattordici stati d'umore e consegnava una proiezione che ne lasciava cinque irraggiungibili — le impostazioni capaci di correggerlo avevano atteso un anno, deliberatamente spente, che l'uso reale dicesse se servivano. Emetteva centinaia di metriche senza poter dire quali un umano vedesse davvero; ora una metrica che non raggiunge alcuna dashboard fa fallire la build. E il suo stesso deployment finiva su un errore che un'istruzione scritta chiedeva di ignorare — un'istruzione simile non è un rimedio, è il difetto spostato nella prosa. Tre contatori, tre promesse, tre misure. Ciò che un sistema dice di sé vale esattamente quanto ha verificato.

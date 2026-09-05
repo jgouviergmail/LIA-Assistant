@@ -19,7 +19,9 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { POSES, resolveLoops, resolvePose } from '@/components/eyes/rig/poses';
+import { POSES, exaggeratePose, resolveLoops, resolvePose } from '@/components/eyes/rig/poses';
+import { FAMILY_DYNAMICS } from '@/components/eyes/rig/dynamics';
+import { AMPLITUDE_MAX } from '@/components/eyes/tone';
 import { createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
 import { ARRIVAL_SCRIPTS } from '@/components/eyes/rig/scripts';
 import { CHANNELS, type ChannelKey } from '@/components/eyes/rig/channels';
@@ -158,7 +160,11 @@ describe('speaking', () => {
   it('does not tick: the flap is two incommensurable components', () => {
     // One sine on a mouth is unmistakable once you watch it — it is a metronome
     // with lips.
-    const flap = resolveLoops('speaking', 'calm').filter(loop => loop.channel === 'mouthOpen');
+    // The FLAP is the syllable-rate part; the slower phrase envelope rides the
+    // same channel and is tested on its own below.
+    const flap = resolveLoops('speaking', 'calm').filter(
+      loop => loop.channel === 'mouthOpen' && loop.periodMs < 2000
+    );
     expect(flap).toHaveLength(2);
     expect(flap[0].periodMs).not.toBe(flap[1].periodMs);
     expect(flap[0].periodMs % flap[1].periodMs).not.toBe(0);
@@ -178,12 +184,49 @@ describe('speaking', () => {
     expect(fastest).toBeLessThan(400);
   });
 
-  it('never flaps a mouth that is not speaking', () => {
+  it('never flaps a mouth that is not speaking — a sleeper breathes, it does not talk', () => {
     EYE_EXPRESSIONS.filter(expression => expression !== 'speaking').forEach(expression => {
-      expect(resolveLoops(expression, 'calm').some(loop => loop.channel === 'mouthOpen')).toBe(
-        false
-      );
+      resolveLoops(expression, 'calm')
+        .filter(loop => loop.channel === 'mouthOpen')
+        .forEach(loop =>
+          expect({ expression, slowBreath: loop.periodMs > 2000 }).toEqual({
+            expression,
+            slowBreath: true,
+          })
+        );
     });
+  });
+
+  it('has PHRASES: the mouth closes for a beat between them', () => {
+    // Three incommensurable sines never close a mouth: the flap merely gets
+    // quieter and louder. Speech stops. A slow envelope brings the flap to
+    // the closure (the rig bounds the opening at 0) for a stretch long enough
+    // to read as a pause, then the mouth picks up again.
+    const rig = createEyeRig();
+    rig.setPose({ expression: 'speaking', styleId: 'cozmo', family: 'calm' });
+    trace(rig, 'mouthOpen', 60);
+    const opening = trace(rig, 'mouthOpen', 1250); // 20 s
+    let longestClosedMs = 0;
+    let run = 0;
+    for (const value of opening) {
+      run = value <= 1e-6 ? run + 16 : 0;
+      longestClosedMs = Math.max(longestClosedMs, run);
+    }
+    expect(longestClosedMs).toBeGreaterThanOrEqual(96);
+    const closedShare = opening.filter(value => value <= 1e-6).length / opening.length;
+    expect(closedShare).toBeGreaterThan(0.03);
+    expect(closedShare).toBeLessThan(0.35);
+    // ...and it still talks, at a size the face can hold.
+    expect(Math.max(...opening)).toBeGreaterThan(0.3);
+    expect(Math.max(...opening)).toBeLessThan(0.55);
+  });
+
+  it('paces the phrases on a clock no syllable divides', () => {
+    const slow = resolveLoops('speaking', 'calm').filter(
+      loop => loop.channel === 'mouthOpen' && loop.periodMs > 2000
+    );
+    expect(slow.length).toBeGreaterThanOrEqual(1);
+    slow.forEach(loop => expect(loop.amplitude).toBeLessThan(0));
   });
 });
 
@@ -202,16 +245,36 @@ describe('drawing', () => {
 });
 
 describe('the speech bubble', () => {
+  /** The brow's thickness and the extra height a full arch adds, both from
+   * its `height: calc(...)` — the arch grows the box UPWARDS, so it reaches
+   * as high as a raise does. */
+  function browHeightsEm(): { thickness: number; arch: number } {
+    const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
+    const match = block
+      .slice(0, block.indexOf('}'))
+      .match(/height:\s*calc\(([\d.]+)em \+ var\(--brow-curve\) \* ([\d.]+)em\)/);
+    if (!match) throw new Error('no brow height');
+    return { thickness: Number(match[1]), arch: Number(match[2]) };
+  }
+
   /** How far a raised brow reaches above the widget's own top edge, in the
-   * widget's em — computed, not remembered. */
+   * widget's em — computed, not remembered, and at the LOUDEST the face can
+   * be: the pose exaggerated by the widest amplitude a register can earn
+   * times the liveliest mood family. The previous guard measured the pose as
+   * authored, which is not what a `surprised` answer at full intensity draws. */
   function browReachEm(): number {
     const base = browBaseOffset();
-    const height = cssLength('.lia-eye-brow {', 'height');
+    const { thickness, arch } = browHeightsEm();
     const padding = cssLength('.lia-eyes-gaze {', 'padding');
-    const highest = Math.max(
-      ...EYE_EXPRESSIONS.map(e => Math.abs(Math.min(0, resolvePose(e, 'cozmo').browYL)))
-    );
-    return base + highest + height - padding;
+    const loudest = AMPLITUDE_MAX * FAMILY_DYNAMICS.lively.amplitude;
+    const neutral = resolvePose('neutral', 'cozmo');
+    const reach = EYE_EXPRESSIONS.map(e => {
+      const pose = exaggeratePose(neutral, resolvePose(e, 'cozmo'), loudest);
+      const raise = Math.abs(Math.min(0, pose.browYL));
+      const curve = Math.min(1, Math.max(0, pose.browArcL));
+      return raise + curve * arch;
+    });
+    return base + Math.max(...reach) + thickness - padding;
   }
 
   /** Where the tail's point sits, in the widget's em. The bubble's lengths are
@@ -292,7 +355,10 @@ describe('the mouth arrives', () => {
     // riding the curve by +/-0.03 once the beat is over (a resting mouth is
     // never quite still).
     trace(rig, 'mouthArc', 160);
-    expect(Math.abs(rig.values().mouthArc - settled)).toBeLessThan(0.03 + 1e-3);
+    const hold = resolveLoops('joy', 'calm')
+      .filter(loop => loop.channel === 'mouthCurve')
+      .reduce((sum, loop) => sum + Math.abs(loop.amplitude), 0);
+    expect(Math.abs(rig.values().mouthArc - settled)).toBeLessThan(hold + 1e-3);
   });
 
   it('drops the jaw PAST the open pose on a startle', () => {
@@ -392,6 +458,20 @@ describe('the mouth is a solid shape, not a stroke', () => {
     expect(BLOCK).toContain('calc(50% - var(--mouth-lean) * 26%)');
     // 3. It SPREADS as it curves: a big smile is wide and shallow, not a bowl.
     expect(BLOCK).toContain('calc(1 + var(--rig-mouth-arc, 0) * 0.13)');
+  });
+
+  it('is SYMMETRIC at the flat crossing, so the mirror is invisible there', () => {
+    // The shape is turned over when the curve changes sign. With a fixed 100%
+    // vertical radius on the bottom corners, CSS normalises the pair to
+    // 33%/67% at arc 0 — computed, not guessed — and the flip visibly swaps
+    // the rounder end of a 3 px bar. Tying the bottom radius to the arc gives
+    // 50%/50% at the crossing and the same 9%/91% at a full grin.
+    expect(BLOCK).toContain(
+      'border-bottom-left-radius: calc(50% + var(--mouth-lean) * 26%)\n    calc(50% + var(--rig-mouth-arc, 0) * 50%)'
+    );
+    expect(BLOCK).toContain(
+      'border-bottom-right-radius: calc(50% - var(--mouth-lean) * 26%)\n    calc(50% + var(--rig-mouth-arc, 0) * 50%)'
+    );
   });
 
   it('derives the lean ONCE, so the tilt and the asymmetry can never disagree', () => {

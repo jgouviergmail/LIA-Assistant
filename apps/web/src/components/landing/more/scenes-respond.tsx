@@ -502,9 +502,77 @@ function ExpressiveEyesScene({ active }: SceneProps) {
   );
 }
 
+type LivingPhase = 'rest' | 'perk' | 'sulk' | 'yawn';
+const LIVING_STEPS: readonly TimelineStep<LivingPhase>[] = [
+  { at: 0, state: 'rest' },
+  { at: 900, state: 'perk' },
+  { at: 2000, state: 'sulk' },
+  { at: 3100, state: 'yawn' },
+  { at: 4300, state: 'rest' },
+];
+
+/** One brow of the living-face micro-demo: faintly present at rest, arched on a perk, knitted on a sulk. */
+function MiniBrow({ phase, right }: { phase: LivingPhase; right?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'block h-[3px] w-4 rounded-full bg-primary/50',
+        'transition-all duration-500 ease-out',
+        phase === 'perk' && '-translate-y-1 bg-primary/80',
+        phase === 'sulk' && (right ? '-rotate-12 translate-y-px' : 'rotate-12 translate-y-px'),
+        phase === 'yawn' && '-translate-y-0.5 bg-primary/70'
+      )}
+    />
+  );
+}
+
+/** The mouth of the living-face micro-demo: a resting line, a grin, a pout, a yawn. */
+function MiniLivingMouth({ phase }: { phase: LivingPhase }) {
+  return (
+    <span
+      className={cn(
+        'block bg-primary shadow-[0_0_6px] shadow-primary/40',
+        'transition-all duration-500 ease-out',
+        phase === 'rest' && 'h-[3px] w-3 rounded-full',
+        phase === 'perk' && 'h-1.5 w-5 rounded-t-[2px] rounded-b-[8px]',
+        phase === 'sulk' && 'h-1.5 w-3.5 rotate-6 rounded-t-[8px] rounded-b-[2px]',
+        phase === 'yawn' && 'h-4 w-3.5 rounded-[7px]'
+      )}
+    />
+  );
+}
+
+/** Between two answers the face lives on its own: brows, eyes and mouth on one breath. */
+function LivingFaceScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(LIVING_STEPS, { active });
+  const eye = cn(
+    'block h-4 w-5 rounded-[5px] bg-primary shadow-[0_0_8px] shadow-primary/40',
+    'transition-all duration-500 ease-out',
+    phase === 'perk' && 'h-5 -translate-y-0.5',
+    phase === 'sulk' && 'h-3',
+    phase === 'yawn' && 'h-1.5 translate-y-0.5'
+  );
+  return (
+    <div className={cn(STAGE, 'items-center justify-center')}>
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex items-center gap-3">
+          <MiniBrow phase={phase} />
+          <MiniBrow phase={phase} right />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={eye} />
+          <span className={eye} />
+        </div>
+        <MiniLivingMouth phase={phase} />
+      </div>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   provenance_why: ProvenanceWhyScene,
   expressive_eyes: ExpressiveEyesScene,
+  living_face: LivingFaceScene,
   followup_chips: FollowupChipsScene,
   scroll_return: ScrollReturnScene,
   bubble_actions: BubbleActionsScene,

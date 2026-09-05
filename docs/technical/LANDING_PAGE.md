@@ -83,6 +83,7 @@ Tout vit dans `apps/web/src/components/landing/`, la couche editoriale dans `lan
 | `LandingCarousel` | Client | Carrousel partage des deux onglets. Cadre au ratio de l'actif (`7/8` captures, `43/24` slides — plus de letterbox), fond ambiant = copie floutee de l'image servie en 32 px (elle sert aussi de placeholder progressif), fleches **toujours visibles** (elles etaient `opacity-0` hors `:hover` — invisibles au tactile, audit F038), rail de vignettes a scroll-snap recentre sur l'active, clavier ←/→/Home/End + swipe, legende `aria-live` (region vivante), plein ecran optionnel (`zoomable`, reserve aux captures). |
 | `CtaSection` | Server | CTA final : bulle LIA (le personnage a le dernier mot) + copy voix du produit. |
 | `LandingHeader` / `LandingFooter` / `AuthRedirect` / `FadeInOnScroll` / `AnimatedCounter` | — | Inchanges (ancre header → `#features`). |
+| `LandingEyes` | Client | Le personnage sur la page publique (ADR-240 §5, ADR-264) : `EyesWidget` charge en `next/dynamic` sans SSR, surface `landing`, apparence en capsules imposee, position propre (`landingPosition`, jamais celle du chat), fixe au defilement et deplacable, petit et masquable sur telephone, aucun compte requis — ses trois signaux de chat sont au repos et tout ce que le visage fait de lui-meme (respiration, gestes, mimiques, saynetes) se joue sur une expression au repos. Monte apres `LandingFooter`. |
 
 Sections supprimees par la refonte (contenu re-home, pas perdu) : `ProofSection` (→ transparence + TechSection),
 `HowItWorksSection` (demonstre en direct par le hero ; cles i18n conservees pour le HowTo JsonLd), `FeaturesSection`
@@ -201,7 +202,7 @@ routes de previsualisation `/cosmos/*` qui ont servi a l'arbitrage ont ete **sup
 ### `/more` — « Encore + », les petites attentions UX
 
 `app/[lng]/more/page.tsx` (serveur : metadonnees ×6, BreadcrumbJsonLd, header/footer publics) rend
-`components/landing/more/MoreContent` : 33 micro-attentions animees en 6 sections « moments » (ecrire, repondre,
+`components/landing/more/MoreContent` : 57 micro-attentions animees en 6 sections « moments » (ecrire, repondre,
 imprevus, chercher, quotidien, invisibles), un cran sous les 36 fiches majeures — jamais en doublon (garde de
 disjonction). Chaque carte porte une scene decorative (`aria-hidden`) pilotee par `useLoopedTimeline` (timers purs,
 jamais `animationend` — jsdom ne le delivre pas), active uniquement dans le viewport ET hors pause : le bouton

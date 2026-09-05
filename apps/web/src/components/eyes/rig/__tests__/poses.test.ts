@@ -267,6 +267,84 @@ describe('resolveLoops', () => {
     expect(resolveLoops('sleep', 'drowsy').some(loop => loop.channel === 'gazeX')).toBe(false);
   });
 
+  it('breathes with the WHOLE face: the brows and the mouth ride the breath, on its clock', () => {
+    // One breath through everything, or it is three organs twitching on
+    // three timers. The brows lift on the inhale (negative = up, in step with
+    // the mass growing), the mouth widens a hair, each on the SAME period as
+    // the mass, a touch behind it.
+    (['lively', 'calm', 'drowsy'] as const).forEach(family => {
+      const loops = resolveLoops('neutral', family);
+      const breath = loops.find(loop => loop.channel === 'mass')!;
+      const browL = loops.find(loop => loop.channel === 'browYL');
+      const browR = loops.find(loop => loop.channel === 'browYR');
+      const width = loops.find(loop => loop.channel === 'mouthW');
+      expect({
+        family,
+        browL: browL?.periodMs,
+        browR: browR?.periodMs,
+        width: width?.periodMs,
+      }).toEqual({
+        family,
+        browL: breath.periodMs,
+        browR: breath.periodMs,
+        width: breath.periodMs,
+      });
+      expect(browL!.amplitude).toBeLessThan(0);
+      expect(width!.amplitude).toBeGreaterThan(0);
+      // Behind the mass, never ahead of it: what follows the breath waits for
+      // it. A loop's phase ADVANCES its wave, so a lag is a phase just under
+      // a full turn — measured as the fraction of a turn the mass leads by.
+      const lag = (loop: { phase: number }) => (((breath.phase - loop.phase) % 1) + 1) % 1;
+      expect(lag(browL!)).toBeGreaterThan(0);
+      expect(lag(browL!)).toBeLessThan(0.1);
+      expect(lag(browR!)).toBeGreaterThan(lag(browL!));
+      expect(lag(width!)).toBeGreaterThan(0);
+      expect(lag(width!)).toBeLessThan(0.1);
+    });
+  });
+
+  it('breathes the brows less when drowsy and more when lively, like the mass', () => {
+    const amplitude = (family: 'lively' | 'calm' | 'drowsy') =>
+      Math.abs(resolveLoops('neutral', family).find(loop => loop.channel === 'browYL')!.amplitude);
+    expect(amplitude('drowsy')).toBeLessThan(amplitude('calm'));
+    expect(amplitude('calm')).toBeLessThan(amplitude('lively'));
+  });
+
+  it('gives the brows NO drift of their own — a brow that wanders is a tremor', () => {
+    // The breath is the only slow motion a resting brow gets. Anything else
+    // on it must be a beat with a beginning and an end.
+    resolveLoops('neutral', 'calm')
+      .filter(loop => loop.channel.startsWith('brow'))
+      .forEach(loop => expect(loop.channel.startsWith('browY')).toBe(true));
+    expect(resolveLoops('neutral', 'calm').some(loop => loop.channel.startsWith('browRot'))).toBe(
+      false
+    );
+  });
+
+  it('CHEWS on a thought: the corners and the width work while thinking', () => {
+    const thinking = resolveLoops('thinking', 'calm');
+    const skew = thinking.filter(loop => loop.channel === 'mouthSkew');
+    const width = thinking.filter(loop => loop.channel === 'mouthW');
+    // The resting drift on the corners plus a quicker, visible chew.
+    expect(skew.length).toBeGreaterThanOrEqual(2);
+    expect(Math.min(...skew.map(loop => loop.periodMs))).toBeLessThan(3000);
+    // The width works too: one more component than the breath alone gives a
+    // resting face, and a visible one.
+    const restingWidth = resolveLoops('neutral', 'calm').filter(loop => loop.channel === 'mouthW');
+    expect(width.length).toBe(restingWidth.length + 1);
+    expect(Math.max(...width.map(loop => Math.abs(loop.amplitude)))).toBeGreaterThanOrEqual(0.02);
+    // ...and it still breathes.
+    expect(thinking.some(loop => loop.channel === 'mass')).toBe(true);
+  });
+
+  it('breathes through a sleeping mouth, on the sleeper own slow clock', () => {
+    const sleep = resolveLoops('sleep', 'drowsy');
+    const mouth = sleep.find(loop => loop.channel === 'mouthOpen');
+    const eyes = sleep.find(loop => loop.channel === 'syL');
+    expect(mouth).toBeDefined();
+    expect(mouth!.periodMs).toBe(eyes!.periodMs);
+  });
+
   it('only ever loops real channels, with a positive period', () => {
     EYE_EXPRESSIONS.forEach(expression => {
       (['lively', 'calm', 'drowsy'] as const).forEach(family => {

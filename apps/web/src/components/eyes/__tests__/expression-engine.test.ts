@@ -458,6 +458,63 @@ describe('idle gesture scheduling', () => {
     expect(gesturesFor('drowsy').has('brow')).toBe(false);
   });
 
+  it('the mouth beats belong to the awake families only, and are rare', () => {
+    const gesturesFor = (family: 'lively' | 'calm' | 'drowsy') => {
+      const seen = new Set<string>();
+      for (let r = 0; r < 1; r += 0.0025) seen.add(pickIdleGesture(() => r, family));
+      return seen;
+    };
+    for (const beat of ['lip-press', 'corner-tug', 'brow-twitch'] as const) {
+      expect(gesturesFor('lively').has(beat), beat).toBe(true);
+      expect(gesturesFor('calm').has(beat), beat).toBe(true);
+      expect(gesturesFor('drowsy').has(beat), beat).toBe(false);
+      expect(GESTURE_DURATION_MS[beat]).toBeGreaterThan(250);
+      expect(GESTURE_DURATION_MS[beat]).toBeLessThan(700);
+    }
+  });
+
+  it('gives the FACE about a third of every awake family picks', () => {
+    // Owner feedback on the running widget (2026-09-05): the eyes played a beat
+    // every few seconds while the mouth and the brows only breathed. The beats
+    // that move them — their own, or an eye beat carrying them — must be a
+    // real share of the idle life, not a rarity.
+    const FACE_BEATS = new Set([
+      'brow',
+      'brow-twitch',
+      'lip-press',
+      'corner-tug',
+      'perk',
+      'squint',
+      'tilt',
+    ]);
+    for (const family of ['lively', 'calm'] as const) {
+      let face = 0;
+      const draws = 1000;
+      for (let index = 0; index < draws; index += 1) {
+        if (FACE_BEATS.has(pickIdleGesture(() => (index + 0.5) / draws, family))) face += 1;
+      }
+      // A lively face carries its brows on more of its beats than a calm one.
+      expect({ family, enough: face / draws >= 0.28, sane: face / draws <= 0.42 }).toEqual({
+        family,
+        enough: true,
+        sane: true,
+      });
+    }
+  });
+
+  it('keeps the calm picks the widget tests pin — the weights sum to one and stay ordered', () => {
+    // The widget specs drive the idle life with a pinned RNG and read the
+    // gesture back from the DOM: 0.6 must stay a tilt and 0.95 a flicker, or
+    // a weight edit here fails a test three files away for no visible reason.
+    expect(pickIdleGesture(() => 0, 'calm')).toBe('saccade');
+    expect(pickIdleGesture(() => 0.5, 'calm')).toBe('glance');
+    expect(pickIdleGesture(() => 0.6, 'calm')).toBe('tilt');
+    expect(pickIdleGesture(() => 0.7, 'calm')).toBe('squint');
+    expect(pickIdleGesture(() => 0.9, 'calm')).toBe('flicker');
+    expect(pickIdleGesture(() => 0.95, 'calm')).toBe('flicker');
+    expect(pickIdleGesture(() => 0, 'lively')).toBe('saccade');
+  });
+
   it('silly beats are rare, RNG-gated, and picked from the whole silly set', () => {
     expect(isSillyTime(() => 0)).toBe(true);
     expect(isSillyTime(() => SILLY_PROBABILITY)).toBe(false);

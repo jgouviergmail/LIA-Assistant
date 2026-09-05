@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 5.2
+**Version**: 5.3
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.42.0
+**Anwendung**: LIA v1.42.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -394,6 +394,8 @@ Und ein solches Versprechen ist genau so viel wert wie die Messung dahinter. Vie
 Dieses Innenleben hat ein Gesicht: Das Stimmungs-Emoji animiert sich auf der aktuellen Antwort, der farbige Ring pulsiert, wenn die Stimmung kippt, und die Meilensteine deiner Beziehung werden mit einem dezenten Augenzwinkern gefeiert.
 
 Und dieses Gesicht muss die Wahrheit über die Antwort sagen, nicht über die augenblickliche Stimmung. Es wählte seinen Ausdruck aus der dominanten Emotion des Innenlebens — doch die ist ein **Merkmal**: sie bewegt sich langsam, und genau darum geht es. Über vierzehn aufeinanderfolgende Züge gemessen, nannte sie in dreizehn Fällen dieselbe Emotion. Das Gesicht lächelte also nach einem Fehler ebenso wie nach einer guten Nachricht. Jetzt gibt LIA selbst das **Register** dessen an, was sie gerade geschrieben hat, und das Gesicht spielt dieses: eine technische Erklärung behält einen konzentrierten Ausdruck, ein Fehlschlag liest sich als Fehlschlag. Ein Merkmal färbt eine ruhende Präsenz; es darf nie für einen Augenblick antworten.
+
+Und zwischen zwei Antworten schaltet dieses Gesicht nicht ab. Die Brauen haben einen Bogen und bleiben in Ruhe präsent, ein einziger Atem trägt das ganze Gesicht, der Blick hebt die Brauen und ein Blinzeln senkt sie; der Mund spielt kleine Mimiken in unregelmäßigem, gemächlichem Rhythmus, und ab und zu, auf einem ruhenden Gesicht, eine kurze Szene — eine Fliege zum Verfolgen, ein Niesen, ein Gähnen. Nichts davon kostet einen Modellaufruf: Es ist Animation in dem Sinn, wie die Studios sie verstehen — eine Figur, die man für lebendig hält, weil sie atmet, wenn niemand hinsieht. Dasselbe Gesicht begrüßt Besucher auf der Startseite, vor jedem Konto.
 
 Und diese Präsenz folgt dir: Außerhalb des Chats hält ein schwebender Begleiter LIA im gesamten Dashboard an deiner Seite — ruhend, arbeitend oder mit einer Benachrichtigung.
 

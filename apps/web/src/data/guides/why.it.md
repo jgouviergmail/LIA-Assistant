@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 5.2
+**Versione**: 5.3
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.42.0
+**Applicazione**: LIA v1.42.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -394,6 +394,8 @@ E una promessa del genere vale esattamente quanto vale la misura che la sostiene
 Questa vita interiore ha un volto: l'emoji dell'umore si anima sulla risposta corrente, l'anello colorato pulsa quando l'umore cambia, e le tappe della tua relazione vengono celebrate con un discreto occhiolino.
 
 E quel volto deve dire la verità sulla risposta, non sull'umore del momento. Sceglieva la propria espressione dall'emozione dominante della vita interiore — ma quella è un **tratto**: si muove lentamente, ed è proprio il suo scopo. Misurata su quattordici turni consecutivi, nominava la stessa emozione in tredici di essi. Il volto sorrideva dunque tanto dopo un errore quanto dopo una buona notizia. Ora è LIA stessa a dichiarare il **registro** di ciò che ha appena scritto, e il volto interpreta quello: una spiegazione tecnica mantiene un'aria concentrata, un fallimento si legge come un fallimento. Un tratto colora una presenza a riposo; non deve mai rispondere di un istante.
+
+E tra due risposte, quel volto non si spegne. Le sopracciglia hanno un arco e restano presenti a riposo, un solo respiro porta tutto il volto, lo sguardo solleva le sopracciglia e un battito di ciglia le abbassa; la bocca gioca piccole mimiche a un ritmo irregolare e senza fretta, e ogni tanto, su un volto a riposo, una breve scenetta — una mosca da seguire, uno starnuto, uno sbadiglio. Niente di tutto questo costa una chiamata al modello: è animazione nel senso in cui la intendono gli studi — un personaggio che credi vivo perché respira quando nessuno lo guarda. Quello stesso volto accoglie i visitatori nella pagina iniziale, prima di qualsiasi account.
 
 E questa presenza ti segue: fuori dalla chat, un compagno fluttuante tiene LIA al tuo fianco in tutta la dashboard — a riposo, al lavoro o con una notifica.
 

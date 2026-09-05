@@ -8,7 +8,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
+import {
+  BROW_BLINK_DIP_EM,
+  BROW_GAZE_LIFT_EM,
+  createEyeRig,
+  type EyeRig,
+} from '@/components/eyes/rig/runtime';
+import { blinkTapes } from '@/components/eyes/rig/gestures';
 import { resolveLoops, resolvePose } from '@/components/eyes/rig/poses';
 import {
   CHANNEL_KEYS,
@@ -444,6 +450,100 @@ describe('reduced motion is honoured on EVERY entry point', () => {
     trace(rig, 'gazeX', 60);
     expect(rig.values().gazeX).toBe(0);
     expect(rig.isAwake()).toBe(false);
+  });
+});
+
+describe('secondary couplings — what the brows and the mouth do because of the rest', () => {
+  /** A rig on `focused`: no breath, no drift, so any brow motion is a coupling. */
+  function stillRig(): EyeRig {
+    return createEyeRig({
+      initial: { expression: 'focused', styleId: 'cozmo', family: 'calm' },
+    });
+  }
+
+  it('lifts the brows when the eyes look UP, and relaxes them looking down', () => {
+    const rest = resolvePose('focused', 'cozmo').browYL;
+    const up = stillRig();
+    up.setGaze({ x: 0, y: -1 });
+    trace(up, 'browYL', 200);
+    expect(up.values().browYL).toBeCloseTo(rest - BROW_GAZE_LIFT_EM, 3);
+
+    const down = stillRig();
+    down.setGaze({ x: 0, y: 1 });
+    trace(down, 'browYL', 200);
+    expect(down.values().browYL).toBeCloseTo(rest + BROW_GAZE_LIFT_EM, 3);
+  });
+
+  it('pulls each brow down with ITS lid on a blink, and the rebound lifts it', () => {
+    const rig = stillRig();
+    const rest = resolvePose('focused', 'cozmo').browYL;
+    rig.play(...blinkTapes());
+    const whole = trace(rig, 'browYL', 40);
+    // Closure: the brow rides down with the lid (positive = lower).
+    expect(Math.max(...whole)).toBeGreaterThan(rest + 0.5 * BROW_BLINK_DIP_EM);
+    // Reopening overshoot: the lid goes slightly negative, the brow lifts.
+    expect(Math.min(...whole)).toBeLessThan(rest);
+    // ...and it comes home once the blink is over.
+    trace(rig, 'browYL', 200);
+    expect(rig.values().browYL).toBeCloseTo(rest, 3);
+  });
+
+  it('couples the RIGHT brow to the right lid — the trailing eye trails its brow too', () => {
+    const rig = stillRig();
+    rig.play(...blinkTapes());
+    // The right lid closes 70 ms after the left: on the first frames only the
+    // left brow has started to dip.
+    trace(rig, 'browYL', 2);
+    expect(rig.values().browYL).toBeGreaterThan(resolvePose('focused', 'cozmo').browYL);
+    expect(rig.values().browYR).toBe(resolvePose('focused', 'cozmo').browYR);
+  });
+
+  it('never ACCUMULATES on the idle path — twenty thousand small steps equal one big one', () => {
+    // A coupling written as `output += …` would be added again on every idle
+    // frame, since the idle path only rewrites the channels a loop rides.
+    // Two rigs, the same simulated time, one taken in 16 ms frames and one in
+    // a single step: every published channel must agree.
+    // Three resting states, chosen for what their loops leave UNRIDDEN on
+    // the idle path: a breathing face (gaze ridden), a sleeper (loops, but
+    // no gaze loop — the gaze output is never rewritten there) and a thought.
+    const frames = 20_000;
+    (
+      [
+        ['neutral', 'calm'],
+        ['sleep', 'drowsy'],
+        ['thinking', 'calm'],
+      ] as const
+    ).forEach(([expression, family]) => {
+      const stepped = createEyeRig({ initial: { expression, styleId: 'cozmo', family } });
+      for (let frame = 0; frame < frames; frame += 1) stepped.step(FRAME_MS);
+      const jumped = createEyeRig({ initial: { expression, styleId: 'cozmo', family } });
+      jumped.step(frames * FRAME_MS);
+      CHANNEL_KEYS.forEach(key => {
+        expect({ expression, key, value: stepped.values()[key] }).toEqual({
+          expression,
+          key,
+          value: expect.closeTo(jumped.values()[key], 6),
+        });
+      });
+    });
+  });
+
+  it('bounds the mouth opening to what the mouth can draw, whatever the loops add', () => {
+    const rig = createEyeRig();
+    rig.setPose({ expression: 'speaking', styleId: 'cozmo', family: 'lively' });
+    const opening = trace(rig, 'mouthOpen', 1200);
+    expect(Math.min(...opening)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...opening)).toBeLessThanOrEqual(1);
+  });
+
+  it('keeps the couplings under reduced motion honest: a still face, exactly on its pose', () => {
+    const rig = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+      reducedMotion: true,
+    });
+    trace(rig, 'browYL', 50);
+    expect(rig.values().browYL).toBe(resolvePose('neutral', 'cozmo').browYL);
+    expect(rig.values().mouthOpen).toBe(0);
   });
 });
 

@@ -50,6 +50,19 @@ import {
   type Tape,
 } from '@/components/eyes/rig/tape';
 import { ARRIVAL_SCRIPTS, resolvePatterns } from '@/components/eyes/rig/scripts';
+import {
+  drawMouthLifeDelayMs,
+  drawMouthMimic,
+  MOUTH_LIFE_EXPRESSIONS,
+} from '@/components/eyes/rig/life';
+import {
+  drawSketchDelayMs,
+  pickSketch,
+  SKETCH_EXPRESSIONS,
+  SKETCH_MOUTH_GRACE_MS,
+  sketchDurationMs,
+  sketchTapes,
+} from '@/components/eyes/rig/sketches';
 import { DEFAULT_EYE_STYLE, type EyeStyleId } from '@/components/eyes/eye-styles';
 import { clampGazeAxis } from '@/components/eyes/expression-engine';
 import type { EyeExpression, Gaze, IdleMoodFamily } from '@/components/eyes/expression-engine';
@@ -119,6 +132,36 @@ const GAZE_EM_PER_UNIT_Y = 0.12;
  * held — the same treatment as the stretch axis, for the same reason. */
 const MOUTH_FLIP_EPSILON = 0.02;
 
+/**
+ * Secondary couplings — what the brows do BECAUSE of the rest of the face.
+ *
+ * Looking up lifts the brows and looking down relaxes them (the eye and the
+ * brow share a muscle sheet, and every animator draws it), and a blink drags
+ * each brow down with ITS lid, so the reopening rebound lifts it back. Both
+ * are contributions on the OUTPUT, like the arc: they perturb no spring, need
+ * no channel, and vanish the moment their cause does.
+ *
+ * They live here and not in the stylesheet on purpose. A coupling is motion,
+ * and the boundary rule gives motion to the rig; written as a `calc()` it
+ * would be a constant nothing can read, invisible to every frame test and to
+ * the bubble guard that has to know how high a brow can reach.
+ */
+export const BROW_GAZE_LIFT_EM = 0.03;
+export const BROW_BLINK_DIP_EM = 0.03;
+
+/** The narrowest a mouth is drawn, as a fraction of the style span. */
+export const MOUTH_WIDTH_FLOOR = 0.2;
+
+/**
+ * The flattest an eye is drawn by a BEAT. A grin squashes the eyes into
+ * happy arcs; on a pose that is already a dome (joy squashes to 0.55) the
+ * same offset would close them past a sliver. A tenth is the closed happy
+ * eye of the cartoons, and it stays under the deepest folded lid a squash
+ * style draws (a `sleep` on `anneaux` flattens to 0.14), so no pose is
+ * ever clipped by it.
+ */
+export const EYE_SQUASH_FLOOR = 0.1;
+
 interface ActiveTape {
   readonly tape: Tape;
   elapsedMs: number;
@@ -133,6 +176,16 @@ export interface EyeRig {
   setGaze(gaze: Gaze | null, spring?: SpringConfig): void;
   /** Play one or more one-shot beats. Ignored under reduced motion. */
   play(...tapes: readonly Tape[]): void;
+  /**
+   * Play a SKETCH — a whole scene of tapes (`rig/sketches.ts`). Replaces any
+   * sketch in progress, stands the face's own life aside for its duration,
+   * and is dropped by the next expression change. Ignored under reduced
+   * motion. The rig draws its own sketches from `lifeRandom`; this is the
+   * door for the host, the harness and the tests.
+   */
+  playSketch(tapes: readonly Tape[]): void;
+  /** True while a sketch is on. */
+  isPerforming(): boolean;
   /** Advance the simulation. Returns whether anything is still moving. */
   step(dtMs: number): boolean;
   /** Live view of the current channel values — read it, never retain it. */
@@ -161,6 +214,15 @@ export interface RigOptions {
    * wants); the React binding is the one caller that passes a real source.
    */
   readonly random?: () => number;
+  /**
+   * Entropy for the mouth's OWN life (`rig/life.ts`): which mimic, when,
+   * which side, what size. A separate stream from `random` on purpose — the
+   * host seeds it once per mount, so a life that draws at construction can
+   * never shift the pinned `Math.random` sequences the widget tests read.
+   * Omitted, the mouth has no life of its own and the rig stays exactly as
+   * still as its loops make it.
+   */
+  readonly lifeRandom?: () => number;
 }
 
 /** How much an arrival's pace may vary, either way. Small on purpose: this
@@ -176,6 +238,7 @@ const DEFAULT_POSE: RigPose = {
 export function createEyeRig(options: RigOptions = {}): EyeRig {
   const pose: RigPose = { ...DEFAULT_POSE, ...options.initial };
   const random = options.random;
+  const lifeRandom = options.lifeRandom;
   let reducedMotion = options.reducedMotion ?? false;
   let arrivalPace = 1;
 
@@ -227,6 +290,12 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * saccades). Re-resolved on every pose change, so a pattern can never
    * outlive the state that asked for it. */
   let patterns: ActiveTape[] = startPatterns(pose.expression);
+  /** The sketch in progress — one scene of tapes, outranked by one-shot
+   * beats and outranking the state's patterns. Dropped on any expression
+   * change. */
+  let sketch: ActiveTape[] = [];
+  /** When the current sketch ends on the rig clock (0 when none). */
+  let sketchUntilMs = 0;
   let clockMs = 0;
 
   /** Last stretch axis, held while the eyes are too slow for it to mean
@@ -244,6 +313,48 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * the stretch axis is: a mouth resting near zero would otherwise flicker
    * between a smile and a frown on numerical noise. */
   let mouthFlip = 1;
+
+  /**
+   * When the mouth's own life next plays a mimic, on the rig clock — only
+   * ever set when the rig has an entropy source (see `rig/life.ts`). A rig
+   * without one is exactly as still as it was, which is what every test
+   * wants, and what the pixel budget of the moving hold is measured on.
+   */
+  let mouthLifeAtMs = lifeRandom ? drawMouthLifeDelayMs(lifeRandom) : Number.POSITIVE_INFINITY;
+  /** When the next SKETCH may start — same stream, far longer band. */
+  let sketchAtMs = lifeRandom ? drawSketchDelayMs(lifeRandom) : Number.POSITIVE_INFINITY;
+
+  /** Play the next mimic if its time has come; reschedule either way. Runs
+   * on BOTH step paths: a resting face is on the idle path by definition.
+   * A sketch in progress holds it: two things acting on one face at once
+   * read as two characters. */
+  function tickMouthLife(): void {
+    if (!lifeRandom || reducedMotion || clockMs < mouthLifeAtMs) return;
+    if (clockMs < sketchUntilMs) return;
+    mouthLifeAtMs = clockMs + drawMouthLifeDelayMs(lifeRandom);
+    if (!MOUTH_LIFE_EXPRESSIONS.has(expression)) return;
+    for (const tape of drawMouthMimic(lifeRandom).tapes) tapes.push({ tape, elapsedMs: 0 });
+    lastSettling = true;
+  }
+
+  /** Start a scene: the tapes, the curtain time, and the face's own life
+   * stood aside until a breath after the end. */
+  function playSketch(list: readonly Tape[]): void {
+    if (reducedMotion || list.length === 0) return;
+    sketch = list.map(tape => ({ tape, elapsedMs: 0 }));
+    sketchUntilMs = clockMs + sketchDurationMs(list);
+    mouthLifeAtMs = Math.max(mouthLifeAtMs, sketchUntilMs + SKETCH_MOUTH_GRACE_MS);
+    lastSettling = true;
+  }
+
+  /** Draw and play the next sketch if its time has come — only on a
+   * resting face, never over a scene already on. */
+  function tickSketchLife(): void {
+    if (!lifeRandom || reducedMotion || clockMs < sketchAtMs) return;
+    sketchAtMs = clockMs + drawSketchDelayMs(lifeRandom);
+    if (!SKETCH_EXPRESSIONS.has(expression) || sketch.length > 0) return;
+    playSketch(sketchTapes(pickSketch(lifeRandom)));
+  }
 
   // Derive the computed channels once, before anyone can read them: the
   // constructor copies POSE targets into the output, and a derived channel
@@ -287,6 +398,8 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   function targetFor(key: ChannelKey): number {
     const beat = tapeTargetIn(tapes, key);
     if (beat !== null) return beat;
+    const scene = tapeTargetIn(sketch, key);
+    if (scene !== null) return scene;
     const pattern = tapeTargetIn(patterns, key);
     if (pattern !== null) return pattern;
     return baseTargetFor(key);
@@ -329,7 +442,8 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   }
 
   function springFor(key: ChannelKey): SpringConfig {
-    const beatSpring = tapeSpringIn(tapes, key) ?? tapeSpringIn(patterns, key);
+    const beatSpring =
+      tapeSpringIn(tapes, key) ?? tapeSpringIn(sketch, key) ?? tapeSpringIn(patterns, key);
     if (beatSpring) return beatSpring;
     const group = CHANNELS[key].group;
     return gazeSpring && group === 'gaze' ? gazeSpring : activeDynamics[group];
@@ -368,8 +482,28 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     writeDerived();
   }
 
-  /** The channels computed FROM the motion rather than sprung. Cheap, and
-   * shared by both step paths. */
+  /** What the loops add to one channel right now — zero under reduced
+   * motion, where no loop runs at all. */
+  function loopOffsetFor(key: ChannelKey): number {
+    if (reducedMotion) return 0;
+    const riding = loopsByChannel.get(key);
+    if (!riding) return 0;
+    let offset = 0;
+    for (const loop of riding) offset += loopValue(loop, clockMs);
+    return offset;
+  }
+
+  /**
+   * The channels computed FROM the motion rather than sprung. Cheap, and
+   * shared by both step paths.
+   *
+   * Every contribution here is written as an ABSOLUTE value from the spring
+   * and the loops, never as `output[key] += …`: the idle path only rewrites
+   * the channels a loop rides, so an increment on anything else would be
+   * added again on every quiet frame and drift, silently, for the whole
+   * session. Pinned by a test that compares twenty thousand small steps
+   * against one big one.
+   */
   function writeDerived(): void {
     const vx = springs.gazeX.velocity;
     const vy = springs.gazeY.velocity;
@@ -396,6 +530,31 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     output.mouthArc = Math.min(1, Math.abs(curve));
     if (Math.abs(curve) > MOUTH_FLIP_EPSILON) mouthFlip = curve > 0 ? 1 : -1;
     output.mouthFlip = mouthFlip;
+
+    // The opening is bounded to what the mouth can draw: the speech envelope
+    // deliberately drives the flap THROUGH the closure to make a pause, and a
+    // negative opening would shrink the bar under its own ink.
+    output.mouthOpen = Math.min(1, Math.max(0, output.mouthOpen));
+    // ...and the width keeps a floor: a pucker scaled up on an already narrow
+    // mouth must stay a small mouth, never a dot or a negative span.
+    output.mouthW = Math.max(MOUTH_WIDTH_FLOOR, output.mouthW);
+    output.syL = Math.max(EYE_SQUASH_FLOOR, output.syL);
+    output.syR = Math.max(EYE_SQUASH_FLOOR, output.syR);
+
+    // The brows follow the gaze and their own lid. Absolute, from the spring
+    // (see above): the gaze read here is the OUTPUT gaze, arc included, so a
+    // horizontal saccade lifts the brows a hair mid-travel — as it should.
+    const gazeLift = output.gazeY * BROW_GAZE_LIFT_EM;
+    output.browYL =
+      springs.browYL.value +
+      loopOffsetFor('browYL') +
+      gazeLift +
+      springs.blinkL.value * BROW_BLINK_DIP_EM;
+    output.browYR =
+      springs.browYR.value +
+      loopOffsetFor('browYR') +
+      gazeLift +
+      springs.blinkR.value * BROW_BLINK_DIP_EM;
   }
 
   /**
@@ -432,6 +591,11 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       for (const active of tapes) active.elapsedMs += dtMs;
       tapes = tapes.filter(active => active.elapsedMs <= tapeDurationMs(active.tape));
     }
+    if (sketch.length > 0) {
+      for (const active of sketch) active.elapsedMs += dtMs;
+      sketch = sketch.filter(active => active.elapsedMs <= tapeDurationMs(active.tape));
+      if (sketch.length === 0) sketchUntilMs = 0;
+    }
     for (const active of patterns) {
       const cycle = tapeDurationMs(active.tape);
       active.elapsedMs = cycle > 0 ? (active.elapsedMs + dtMs) % cycle : 0;
@@ -466,6 +630,8 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
 
   function settle(): void {
     tapes = [];
+    sketch = [];
+    sketchUntilMs = 0;
     patterns = [];
     for (const key of CHANNEL_KEYS) {
       springs[key] = { value: targetFor(key), velocity: 0 };
@@ -499,7 +665,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     if (reducedMotion) return false;
     // A pattern is a state that keeps MOVING: a search jumping between
     // fixations needs full frames, or its saccades land late.
-    if (tapes.length > 0 || patterns.length > 0) return true;
+    if (tapes.length > 0 || sketch.length > 0 || patterns.length > 0) return true;
     for (const key of CHANNEL_KEYS) {
       if (isDerived(key)) continue;
       if (!isSpringAtRest(springs[key], targetFor(key))) return true;
@@ -529,7 +695,14 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     // half-played idle flourish reads as two characters arguing; the beats
     // are dropped so the reflex owns the face outright.
     if (DYNAMICS_FOR_EXPRESSION[next.expression] === 'reflex') tapes = [];
+    // A sketch never plays over a new state: the curtain falls with the
+    // change, and the channels ease home on the arrival's own dynamics.
+    sketch = [];
+    sketchUntilMs = 0;
     expression = next.expression;
+    // The mouth's life starts over with the state: a mimic must never land
+    // on top of an entrance, and a face that just changed has said enough.
+    if (lifeRandom) mouthLifeAtMs = clockMs + drawMouthLifeDelayMs(lifeRandom);
     // Each arrival gets its own pace, so the same emotion twice is never
     // the same performance twice.
     arrivalPace = random ? 1 + (random() - 0.5) * ARRIVAL_JITTER : 1;
@@ -594,12 +767,26 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       lastSettling = next.length > 0;
     },
 
+    playSketch,
+
+    isPerforming: () => sketch.length > 0,
+
     step(dtMs: number): boolean {
       if (dtMs > 0) {
+        // The face's lives are checked before the path is chosen: a mimic
+        // or a sketch that starts is a beat, and a beat takes the full path.
+        tickSketchLife();
+        tickMouthLife();
         // Nothing has moved since the last step and nothing is playing: take
         // the cheap path. `lastSettling` is set true by every mutation, so
         // this can never skip a frame that had something to do.
-        if (!lastSettling && !reducedMotion && tapes.length === 0 && patterns.length === 0) {
+        if (
+          !lastSettling &&
+          !reducedMotion &&
+          tapes.length === 0 &&
+          sketch.length === 0 &&
+          patterns.length === 0
+        ) {
           stepIdle(dtMs);
           return loops.length > 0;
         }

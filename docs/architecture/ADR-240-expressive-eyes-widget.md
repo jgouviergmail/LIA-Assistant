@@ -63,6 +63,29 @@ data, no consent record. Hiding the widget leaves a restore dot (the
 CompanionPresence doctrine: never fully gone) and shuts down the entire
 live machinery.
 
+### 5. Surfaces — the same widget on the public landing (amended 2026-09-05)
+
+The widget is mounted on the landing too (`LandingEyes`, loaded with
+`next/dynamic` and `ssr: false` so the rig is never on the first page's
+critical path), because a visitor who has not signed in is the one person the
+character should charm. Nothing structural was needed: the root was already
+fixed to the viewport, the position already persisted as viewport
+percentages and re-clamped on resize, and the widget needs no account — its
+three chat signals sit at rest, the psyche store defaults to disabled (the
+graceful degradation of §1), and everything the face does on its own since
+ADR-264 (breath, gestures, mimics, sketches) plays on a resting expression.
+
+One decision, the owner's: **a position is kept per surface**
+(`EyesSurface`: `chat` | `landing`, `position` and `landingPosition` in the
+store). The chat docks its widget between two header anchors and clamps it
+off the Delete button; the landing has no dock and its default is a corner
+(`bottom-6 right-6`). A spot dragged on the landing must not become the
+chat's spot. Size and visibility stay shared — they are the character's
+preferences, not the page's. The LOOK is the one exception: the landing
+forces the capsules (`styleId` on the widget, an owner choice) because a
+visitor has no preference yet and the page has a face to present, while the
+chat keeps the user's own style untouched.
+
 ## Consequences
 
 - The chat page passes three props (`chatStatus` — newly exposed by

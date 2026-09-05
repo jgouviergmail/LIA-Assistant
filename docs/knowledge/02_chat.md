@@ -419,11 +419,16 @@ while LIA thinks, scan side to side while it searches, and play the **register**
 of each answer — LIA states whether what she has just written is warm, assured,
 factual, apologetic, curious or concerned, and the face plays it, mouth
 included. Twelve distinct expressions, only two of which smile: a technical
-answer keeps a focused face. Left alone they blink, glance around, doze off, and
-occasionally pull a prank.
+answer keeps a focused face. Left alone, the whole face lives on: the brows keep
+a faint arch and follow the gaze, one breath carries eyes, brows and mouth, the
+mouth plays small mimics at an unhurried pace, and every minute or two a short
+sketch plays — a fly to follow, a sneeze, a yawn, hiccups. Any change of
+expression drops it on the spot.
 
 **Make them yours:** drag them anywhere (arrow keys work too, and they never
 drift from where you put them), tap them on mobile to reveal the size and hide
 buttons, or dismiss them to a small restore dot. Six visual styles are available
-in **Settings > Personalization > Eyes style**, with live previews. Under
-reduced-motion system settings the eyes stay still.
+in **Settings > Personalization > Eyes style**, with live previews. The same
+face greets visitors on the public home page, in the capsule look, with a spot
+of its own that never moves the chat's. Under reduced-motion system settings
+the eyes stay still.

@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 5.2
+**Version** : 5.3
 **Date** : 2026-08-23
-**Application** : LIA v1.42.0
+**Application** : LIA v1.42.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -394,6 +394,8 @@ Et une promesse pareille ne vaut que ce que vaut la mesure qui la soutient. Quat
 Cette vie intérieure a un visage : l'émoji d'humeur s'anime sur la réponse en cours, l'anneau coloré pulse quand l'humeur bascule, et les grands caps de ta relation sont célébrés d'un clin d'œil discret.
 
 Et ce visage doit dire la vérité sur la réponse, pas sur l'humeur du moment. Il choisissait son expression dans l'émotion dominante de la vie intérieure — or celle-ci est un **trait** : elle bouge lentement, c'est sa raison d'être. Mesurée sur quatorze tours consécutifs, elle nommait la même émotion sur treize d'entre eux. Le visage souriait donc autant après une erreur qu'après une bonne nouvelle. Désormais, LIA indique elle-même le **registre** de ce qu'elle vient d'écrire, et le visage joue celui-là : une explication technique garde un air concentré, un échec se lit comme un échec. Un trait colore une présence au repos ; il ne doit jamais répondre d'un instant.
+
+Et entre deux réponses, ce visage ne s'éteint pas. Les sourcils ont une arche et restent présents au repos, une seule respiration porte tout le visage, le regard soulève les sourcils et un clignement les abaisse ; la bouche joue de petites mimiques à un rythme irrégulier et sans hâte, et de temps en temps, sur un visage au repos, une courte saynète — une mouche à suivre, un éternuement, un bâillement. Rien de tout cela ne coûte un appel de modèle : c'est de l'animation, au sens où l'entendent les studios — un personnage qu'on croit vivant parce qu'il respire quand personne ne le regarde. Ce même visage accueille les visiteurs sur la page d'accueil, avant tout compte.
 
 Et cette présence te suit : hors du chat, un compagnon flottant garde LIA à tes côtés sur tout le tableau de bord — au repos, au travail, ou porteur d'une notification.
 

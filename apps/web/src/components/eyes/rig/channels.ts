@@ -179,16 +179,25 @@ const EYE_SPECS = {
   lidR: { rest: 0, unit: 'em', group: 'lid', precision: 3, snap: false },
   /** Blink closure, 0 (open) to 1 (shut) — composes with the sustained lids. */
   blink: { rest: 0, unit: 'num', group: 'blink', precision: 3, snap: false },
-  /** The brow, an organ of its own — height above the eye, tilt, and how
-   * PRESENT it is. A neutral face shows none: a brow that is always there
-   * changes the silhouette of every style, whereas a brow that appears only
-   * when it has something to say costs nothing at rest and doubles the
-   * expressive range the moment it does. Height and tilt are `pose` (they
-   * are willed, so they anticipate and exaggerate); presence is `aura`
-   * (it follows). */
+  /** The brow, an organ of its own — height above the eye, tilt, curvature
+   * and how PRESENT it is. Height, tilt and curvature are `pose` (they are
+   * willed, so they anticipate and exaggerate); presence is `aura` (it
+   * follows).
+   *
+   * It is PRESENT at rest, faintly (ADR-264, reversing ADR-252). Ten of the
+   * fourteen psyche moods idle on `neutral`, so a brow that only exists once
+   * an emotion lands has nothing to do for most of the session — and when
+   * an emotion does land it APPEARS, on a fade, rather than moving. A faint
+   * resting brow is what the breath, the gaze coupling and the idle beats
+   * have to act on. */
   browY: { rest: 0, unit: 'em', group: 'pose', precision: 3, snap: false },
   browRot: { rest: 0, unit: 'deg', group: 'pose', precision: 2, snap: false },
-  browA: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  browA: { rest: 0.5, unit: 'num', group: 'aura', precision: 3, snap: false },
+  /** How much the brow CURVES, 0 (a bar) to 1 (a full arch) — unitless for
+   * the same reason `mouthArc` is: the stylesheet needs it as a height AND
+   * as a radius ratio. A bar can only tilt; an arch can wonder, and the
+   * difference between the two is most of what a brow says. */
+  browArc: { rest: 0.12, unit: 'num', group: 'pose', precision: 3, snap: false },
   /** Pupil dilation. Its own group because it is SECONDARY action: the
    * pupil reacts to the emotion, a beat after the face does. */
   pupil: { rest: 1, unit: 'num', group: 'organ', precision: 3, snap: false },

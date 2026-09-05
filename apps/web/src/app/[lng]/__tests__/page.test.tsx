@@ -63,6 +63,9 @@ vi.mock('@/components/landing/LandingFooter', () => ({
 vi.mock('@/components/landing/cosmic/CosmosHero', () => ({
   CosmosHero: () => <div data-testid="cosmos-hero" />,
 }));
+vi.mock('@/components/landing/LandingEyes', () => ({
+  LandingEyes: () => <div data-testid="landing-eyes" />,
+}));
 
 import HomePage, { generateMetadata } from '../page';
 
@@ -94,6 +97,10 @@ describe('HomePage (cosmos landing)', () => {
       return Array.prototype.indexOf.call(container.querySelectorAll('[data-testid]'), el);
     });
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+
+    // LIA's eyes ride the landing too — after the footer in the tree (they
+    // are fixed to the viewport, so the order only matters for the DOM).
+    expect(screen.getByTestId('landing-eyes')).toBeInTheDocument();
 
     // Ghost words: chapters get theirs via the additive prop, transparency
     // receives an explicit GhostWord node.

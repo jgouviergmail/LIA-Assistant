@@ -1,5 +1,5 @@
 /**
- * Smoke matrix over the 26 /more scenes — one contract for all:
+ * Smoke matrix over every /more scene — one contract for all:
  *  - inert when active=false (no timer scheduled: out-of-view cards and the
  *    WCAG 2.2.2 pause really stop the work);
  *  - a full cycle (and one loop) under fake timers runs without throwing;
