@@ -4572,9 +4572,9 @@ truststore==0.10.4 ; sys_platform != 'emscripten' \
     #   -c requirements.lock.txt
     #   httpcore2
     #   httpx2
-types-pyasn1==0.6.0.20250914 \
-    --hash=sha256:236102553b76c938953037b7ae93d11d395d9413b7f2f8083d3b19d740f7eda6 \
-    --hash=sha256:68ffeef3c28e1ed120b8b81a242f238f137543e68d466d84a97edcf3e4203b5b
+types-pyasn1==0.6.0.20260724 \
+    --hash=sha256:00b9324c1ce8167ec1dc503018cc7d4f190f5770dd3e9a365e897e290e0532db \
+    --hash=sha256:487987e4492ce2e1ba6f0048f025165383c49d5d16a345ae5dfe7d44045b7910
     # via types-python-jose
 types-python-jose==3.5.0.20260408 \
     --hash=sha256:3f8dccdc327bfffea7a81084ea1cea722fa499f13c1d04f7978b491dd36e0cf1 \
