@@ -1303,18 +1303,26 @@ LLM_PROVIDERS: dict[str, str] = {
 #   recur).
 # - ``native``: the SDK carries usage without being asked (Anthropic
 #   message_delta events, Gemini usage_metadata).
-# - ``excluded``: deliberately NOT requested. Ollama runs locally and its
-#   price rows are seeded at 0 and inactive; Perplexity runs on the end
+# - ``excluded``: deliberately NOT requested. Perplexity runs on the end
 #   user's own key — requesting usage there would bill LIA for spend it does
-#   not carry. Do NOT "complete" these entries.
+#   not carry. Do NOT "complete" this entry.
+#
+# Ollama LEFT the excluded group on 2026-09-05 (ADR-220 amendment, ADR-267).
+# It runs locally and its price rows are 0, but a streamed call whose usage
+# never arrives completes WITHOUT usage, and ``LLMCallsWithoutUsage``
+# (threshold zero, by design) fired on every turn of a streamed slot
+# configured on Ollama — a false alert for a spend that exists and is simply
+# free. The native client (``langchain-ollama``) carries ``prompt_eval_count``
+# / ``eval_count`` on every response, streamed or not, so the ledger receives
+# exact token counts at 0 EUR instead of a hole.
 PROVIDER_USAGE_CAPABILITIES: dict[str, str] = {
     "openai": "stream_usage_flag",
     "qwen": "stream_usage_flag",
     "deepseek": "stream_usage_flag",
     "anthropic": "native",
     "gemini": "native",
+    "ollama": "native",
     "perplexity": "excluded",
-    "ollama": "excluded",
 }
 
 # ============================================================================

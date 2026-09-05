@@ -7,20 +7,32 @@ real capabilities (tools, vision, thinking) via ``/api/tags`` + ``/api/show``.
 Includes TTL-based in-memory caching and graceful degradation.
 
 Used by the LLM config admin endpoint to populate the model dropdown
-when Ollama is selected as provider.
+when Ollama is selected as provider, and -- since ADR-267 -- to feed the
+discovered layer of :class:`ModelCapabilitiesCache`: what the server says a tag
+can do (tools, vision, thinking, context length) is what the runtime believes,
+because a tag's NAME says nothing about it and the seed's static rows are
+guesses. The refresh runs at boot and on every provider-key reload.
 """
 
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from dataclasses import dataclass, field
 
 import httpx
 
 from src.core.config import settings
-from src.core.constants import OLLAMA_MODEL_CACHE_TTL_SECONDS
+from src.core.constants import (
+    CAPABILITY_PROVENANCE_DISCOVERED,
+    OLLAMA_DISCOVERED_MAX_OUTPUT_TOKENS,
+    OLLAMA_MODEL_CACHE_TTL_SECONDS,
+    OLLAMA_NUM_CTX_DEFAULT_CAP,
+)
+from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+from src.infrastructure.llm.model_profiles import ModelProfile
+from src.infrastructure.llm.providers.ollama_urls import ollama_native_root, resolve_ollama_url
+from src.infrastructure.llm.reasoning.profiles import ollama_declared_ladder
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -45,6 +57,10 @@ class OllamaModelInfo:
     size: str | None = None  # e.g. "8B", "70B"
     family: str | None = None  # e.g. "llama", "qwen3"
     capabilities: list[str] = field(default_factory=list)  # e.g. ["completion", "tools"]
+    #: The model's maximum context, from ``model_info.<arch>.context_length``.
+    #: What the server ALLOCATES may be smaller (VRAM-based default) unless
+    #: LIA asks for ``num_ctx`` explicitly (``settings.ollama_num_ctx``).
+    context_length: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -68,24 +84,18 @@ def clear_ollama_model_cache() -> None:
 
 
 def _resolve_ollama_base_url() -> str | None:
-    """Resolve the Ollama root URL from DB cache or environment.
+    """Resolve the Ollama NATIVE API root from the DB cache or the environment.
 
-    The stored URL typically ends with ``/v1`` (OpenAI-compat format).
-    This function strips that suffix to reach the native Ollama API.
+    The stored value may carry the ``/v1`` suffix of the OpenAI-compatible API
+    or not (both shapes have been typed by operators); the shared reader in
+    ``ollama_urls`` derives the root the native API answers at. Kept as a
+    module-level function so the discovery tests can patch the source of the URL.
 
     Returns:
         Root URL (e.g. ``http://host.docker.internal:11434``) or ``None``.
     """
-    from src.domains.llm_config.cache import LLMConfigOverrideCache
-
-    raw_url = LLMConfigOverrideCache.get_api_key("ollama")
-    if not raw_url:
-        raw_url = os.environ.get("OLLAMA_BASE_URL")
-    if not raw_url:
-        return None
-
-    # Strip trailing /v1 (OpenAI-compat suffix) to get native API root
-    return raw_url.rstrip("/").removesuffix("/v1")
+    raw_url = resolve_ollama_url()
+    return ollama_native_root(raw_url) if raw_url else None
 
 
 # ---------------------------------------------------------------------------
@@ -97,12 +107,14 @@ async def _fetch_model_capabilities(
     client: httpx.AsyncClient,
     base_url: str,
     model_name: str,
-) -> list[str]:
-    """Fetch capabilities for a single model via ``POST /api/show``.
+) -> tuple[list[str], int | None]:
+    """Fetch one model's capabilities and context length via ``POST /api/show``.
 
     Returns:
-        List of capability strings (e.g. ["completion", "tools", "vision"]),
-        or empty list on error.
+        ``(capabilities, context_length)`` -- e.g. ``(["completion", "tools",
+        "thinking"], 262144)``. The context length is the architecture's
+        ``<arch>.context_length`` entry of ``model_info`` when present. Both
+        degrade to ``([], None)`` on error, per model (isolation).
     """
     try:
         response = await client.post(
@@ -111,14 +123,20 @@ async def _fetch_model_capabilities(
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("capabilities", [])
-    except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc:
+        capabilities = list(data.get("capabilities") or [])
+        context_length: int | None = None
+        for key, value in (data.get("model_info") or {}).items():
+            if key.endswith(".context_length") and isinstance(value, int) and value > 0:
+                context_length = value
+                break
+        return capabilities, context_length
+    except (httpx.HTTPError, KeyError, ValueError, TypeError, AttributeError) as exc:
         logger.debug(
             "ollama_show_error",
             model=model_name,
             error=str(exc),
         )
-        return []
+        return [], None
 
 
 # ---------------------------------------------------------------------------
@@ -200,13 +218,16 @@ async def discover_ollama_models() -> list[OllamaModelInfo]:
 
         # Build final model list
         models: list[OllamaModelInfo] = []
-        for (name, size, family, _), caps in zip(entries, all_capabilities, strict=True):
+        for (name, size, family, _), (caps, context_length) in zip(
+            entries, all_capabilities, strict=True
+        ):
             models.append(
                 OllamaModelInfo(
                     name=name,
                     size=size,
                     family=family,
                     capabilities=caps,
+                    context_length=context_length,
                 )
             )
 
@@ -226,3 +247,102 @@ async def discover_ollama_models() -> list[OllamaModelInfo]:
     except (KeyError, ValueError, TypeError) as exc:
         logger.warning("ollama_discovery_parse_error", base_url=base_url, error=str(exc))
         return []
+
+
+# ---------------------------------------------------------------------------
+# Discovered profiles (ADR-267): the server is the authority on its own models
+# ---------------------------------------------------------------------------
+
+
+def build_discovered_profile(info: OllamaModelInfo) -> ModelProfile:
+    """Turn what ``/api/show`` said about a tag into the runtime's profile.
+
+    - ``thinking`` in the capabilities is the ONLY source of the reasoning
+      ladder: the full Ollama ladder for a thinking model, ``("none",)`` for the
+      others -- ``think=false`` is accepted by every model, a positive level is
+      refused by a model that cannot think. An undeclared ladder would make the
+      tag unknown to the reasoning resolution, so one is always declared here.
+    - Structured output is native for every model (``format`` is grammar-
+      constrained on the server), tools and vision are what the server says.
+    - The two OpenAI penalties are not expressible through ``langchain-ollama``:
+      declared unsupported so the admin UI hides the fields it cannot honour.
+    - The context window is the ``num_ctx`` LIA will REQUEST on every call and
+      account with (compaction threshold, ReAct budget): ``ollama_num_ctx`` when
+      set, else the model's own maximum capped by ``OLLAMA_NUM_CTX_DEFAULT_CAP``.
+      Requesting it is what makes the server's allocation and LIA's arithmetic
+      agree; left to itself the server picks a VRAM tier (4k under 24 GiB) and
+      truncates the beginning of a longer prompt in silence.
+
+    Args:
+        info: One discovered model.
+
+    Returns:
+        The profile, provenance ``discovered``, never written to the database.
+    """
+    caps = set(info.capabilities)
+    is_embedding = "embedding" in caps and "completion" not in caps
+    thinking = "thinking" in caps
+    return ModelProfile(
+        max_input_tokens=requested_num_ctx(info.context_length),
+        max_output_tokens=OLLAMA_DISCOVERED_MAX_OUTPUT_TOKENS,
+        supports_structured_output=not is_embedding,
+        supports_tool_calling="tools" in caps,
+        supports_strict_mode=False,
+        supports_streaming=True,
+        supports_vision="vision" in caps,
+        supports_temperature=True,
+        supports_top_p=True,
+        supports_frequency_penalty=False,
+        supports_presence_penalty=False,
+        is_reasoning_model=thinking,
+        model_id=info.name,
+        kind="embedding" if is_embedding else "chat",
+        reasoning_enum_values=list(ollama_declared_ladder(thinking)),
+        reasoning_doc_i18n_key=None,
+        capability_provenance=CAPABILITY_PROVENANCE_DISCOVERED,
+        metadata={
+            "pricing_source": "capabilities_cache",
+            "ollama_family": info.family,
+            "ollama_size": info.size,
+            "ollama_context_length": info.context_length,
+        },
+    )
+
+
+def requested_num_ctx(model_context_length: int | None) -> int:
+    """The context window LIA requests from Ollama for a model, and accounts with.
+
+    Args:
+        model_context_length: The model's maximum, from ``/api/show`` (None when
+            the server did not report one).
+
+    Returns:
+        ``settings.ollama_num_ctx`` when the operator set it; otherwise the
+        model's maximum capped by ``OLLAMA_NUM_CTX_DEFAULT_CAP`` (the cap alone
+        when the maximum is unknown -- the server clamps to the model's real
+        limit and says so).
+    """
+    configured = settings.ollama_num_ctx
+    if configured:
+        return int(configured)
+    if model_context_length and model_context_length > 0:
+        return min(model_context_length, OLLAMA_NUM_CTX_DEFAULT_CAP)
+    return OLLAMA_NUM_CTX_DEFAULT_CAP
+
+
+async def refresh_ollama_capabilities() -> list[OllamaModelInfo]:
+    """Discover the server's models and publish them to the capabilities cache.
+
+    Best-effort by construction: no configured URL or an unreachable server
+    yields an empty discovery, which CLEARS the discovered layer (a tag the
+    server no longer lists must not keep a profile). The runtime then treats
+    Ollama tags as unknown -- exactly the pre-ADR-267 behaviour.
+
+    Returns:
+        The discovered models, so a caller building an admin response does not
+        query the server twice.
+    """
+    discovered = await discover_ollama_models()
+    profiles = {info.name: build_discovered_profile(info) for info in discovered}
+    ModelCapabilitiesCache.merge_discovered("ollama", profiles)
+    return discovered

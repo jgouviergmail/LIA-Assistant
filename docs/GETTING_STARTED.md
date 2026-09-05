@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.42.3
+**Compatibility**: LIA v1.42.4
 
 ## Table of Contents
 
@@ -1183,7 +1183,7 @@ Restore procedure: [runbooks/DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BAC
 LIA drives **54 independently configurable LLM slots** — every pipeline node, domain agent and background task has its own provider/model/parameters. Configuration is resolved as: **code defaults (`LLM_DEFAULTS`) → database overrides** (admin UI), hot-reloaded across workers.
 
 - **Admin UI**: Settings > Administration > LLM Configuration (per-slot provider, model, temperature, max tokens, reasoning effort; provider API keys encrypted at rest).
-- **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs and Edge (voice). Ollama needs only `OLLAMA_BASE_URL`; Perplexity/Qwen base URLs are parameterizable.
+- **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs and Edge (voice). Ollama needs only `OLLAMA_BASE_URL` (the server root; `OLLAMA_NUM_CTX` sets the context window LIA requests and accounts with, ADR-267); Perplexity/Qwen base URLs are parameterizable.
 - Model catalogue and pricing are database-driven: adding a model is an admin operation, no deploy needed.
 
 The tables below show the **effective production configuration** (code defaults merged with the production database overrides) — a battle-tested quality/cost balance you can reproduce as-is. *Reasoning* is the per-slot reasoning-effort setting (`off` = thinking disabled, `—` = non-reasoning model).

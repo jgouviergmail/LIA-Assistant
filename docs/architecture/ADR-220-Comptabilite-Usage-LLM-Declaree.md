@@ -93,3 +93,18 @@ parité des trois environnements).
   silencieux de plusieurs mois.
 - Les gardes sont épinglés : registre ↔ adaptateur, contrat langchain
   installé, tracker HITL, corpus JSON, garde d'écriture cache.
+
+## Amendement (2026-09-05) — Ollama quitte le groupe `excluded`
+
+`excluded` avait deux membres pour deux raisons différentes : Perplexity parce que
+la dépense est celle de l'utilisateur final, Ollama parce que la dépense est nulle.
+Seule la première raison tient. Un appel diffusé dont l'usage n'est jamais demandé
+se termine SANS usage, et l'alerte `LLMCallsWithoutUsage` — seuil zéro, à dessein —
+se déclenche à chaque tour d'un emplacement diffusé configuré sur Ollama : une
+fausse alerte permanente pour une dépense qui existe et vaut simplement 0 €.
+
+Ollama est désormais servi par son client natif (`langchain-ollama`, ADR-267),
+qui porte `prompt_eval_count` / `eval_count` sur CHAQUE réponse, diffusée ou non.
+Ollama passe donc en `native`, comme Anthropic et Gemini : le registre reçoit des
+comptes de jetons exacts à 0 € au lieu d'un trou, l'alerte reste un signal.
+Perplexity reste `excluded`, pour la raison qui était la bonne.

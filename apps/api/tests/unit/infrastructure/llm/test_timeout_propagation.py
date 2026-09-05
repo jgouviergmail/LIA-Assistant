@@ -83,10 +83,14 @@ class TestAdapterAppliesTimeout:
         _apply_settings(mock_settings_module, mock_settings_class)
         mock_init.return_value = MagicMock(spec=BaseChatModel)
 
-        with patch(
-            "src.infrastructure.llm.providers.adapter.ProviderAdapter._create_gemini_llm"
-        ) as mock_gemini:
+        with (
+            patch(
+                "src.infrastructure.llm.providers.adapter.ProviderAdapter._create_gemini_llm"
+            ) as mock_gemini,
+            patch("src.infrastructure.llm.providers.ollama_chat.ChatOllamaTraced") as mock_ollama,
+        ):
             mock_gemini.return_value = MagicMock(spec=BaseChatModel)
+            mock_ollama.return_value = MagicMock(spec=BaseChatModel)
             ProviderAdapter.create_llm(
                 provider=provider,  # type: ignore[arg-type]
                 model=model,
@@ -96,6 +100,10 @@ class TestAdapterAppliesTimeout:
                 llm_type="planner",
                 timeout_seconds=45.0,
             )
+            if provider == "ollama":
+                # ADR-267: the native client carries it to both httpx clients.
+                assert mock_ollama.call_args.kwargs["client_kwargs"]["timeout"] == 45.0
+                return
             target = mock_gemini if provider == "gemini" else mock_init
 
         assert target.call_args.kwargs["timeout"] == 45.0

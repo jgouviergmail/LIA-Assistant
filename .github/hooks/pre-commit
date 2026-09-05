@@ -299,8 +299,27 @@ if [ -n "$PYTHON_FILES" ]; then
         # Extract setting names from .env.example (lines like KEY=value, ignoring comments)
         ENV_KEYS=$(grep -E "^[A-Z_]+=" .env.example | sed 's/=.*//' | sort -u)
 
-        # Search for os.environ / os.getenv references in staged Python files that use new env vars
-        NEW_ENV_REFS=$(echo "$PYTHON_FILES" | xargs grep -ohE '(os\.environ\[|os\.getenv\(|environ\.get\()"?([A-Z_]+)"?' 2>/dev/null | grep -oE '[A-Z][A-Z_]+[A-Z]' | sort -u || true)
+        # Search for os.environ / os.getenv references in staged Python files.
+        # Two shapes reach this scan and only one names a variable directly:
+        #   os.environ.get("OLLAMA_BASE_URL")   -> the literal IS the name
+        #   os.environ.get(OLLAMA_BASE_URL_ENV) -> a CONSTANT holding the name
+        # Reporting the constant's identifier as a missing variable is a false
+        # positive (it aborted a release commit on 2026-09-05); dropping the
+        # unquoted shape instead would go blind to that call. So the identifier
+        # is resolved to the literal the repository declares for it.
+        QUOTED_REFS=$(echo "$PYTHON_FILES" | xargs grep -ohE '(os\.environ\[|os\.getenv\(|environ\.get\()"([A-Z][A-Z_0-9]+)"' 2>/dev/null | grep -oE '"[A-Z][A-Z_0-9]+"' | tr -d '"' | sort -u || true)
+        CONST_REFS=$(echo "$PYTHON_FILES" | xargs grep -ohE '(os\.environ\[|os\.getenv\(|environ\.get\()[A-Z][A-Z_0-9]+' 2>/dev/null | grep -oE '[A-Z][A-Z_0-9]+$' | sort -u || true)
+        RESOLVED_REFS=""
+        for const in $CONST_REFS; do
+            value=$(grep -rhoE "^${const}(: *[A-Za-z]+)? *= *\"[A-Z][A-Z_0-9]+\"" apps/api/src scripts 2>/dev/null | grep -oE '"[A-Z][A-Z_0-9]+"' | tr -d '"' | head -1)
+            if [ -n "$value" ]; then
+                RESOLVED_REFS="$RESOLVED_REFS $value"
+            else
+                # Unresolvable: keep reporting it rather than losing the check.
+                RESOLVED_REFS="$RESOLVED_REFS $const"
+            fi
+        done
+        NEW_ENV_REFS=$(printf '%s\n' $QUOTED_REFS $RESOLVED_REFS | sed '/^$/d' | sort -u)
 
         if [ -n "$NEW_ENV_REFS" ]; then
             MISSING_VARS=""

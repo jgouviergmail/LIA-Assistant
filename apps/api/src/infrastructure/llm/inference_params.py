@@ -16,9 +16,10 @@ already receives it beside the metadata it reads for ``llm_type`` (ADR-244).
 
 Two rules, both established by probing the real adapters rather than the docs:
 
-- **The output cap has three spellings** — ``max_completion_tokens`` (OpenAI),
-  ``max_tokens`` (Anthropic), ``max_output_tokens`` (Google) — and reasoning
-  has three shapes. Storing the provider's spelling would produce a register
+- **The output cap has four spellings** — ``max_completion_tokens`` (OpenAI),
+  ``max_tokens`` (Anthropic), ``max_output_tokens`` (Google), ``num_predict``
+  (Ollama, ADR-267) — and reasoning has four shapes (Ollama's ``think`` is a
+  boolean or a level). Storing the provider's spelling would produce a register
   where one concept wears three names and compares with nothing.
 - **An allowlist, never a dump.** No adapter leaks a credential in its
   invocation parameters today; nothing guarantees the next one will not, and a
@@ -52,6 +53,8 @@ INFERENCE_PARAM_ALLOWLIST: Final[frozenset[str]] = frozenset(
         "max_tokens",
         "max_completion_tokens",
         "max_output_tokens",
+        "num_predict",
+        "num_ctx",
         "frequency_penalty",
         "presence_penalty",
         "stop",
@@ -75,6 +78,7 @@ _OUTPUT_CAP_KEYS: Final[tuple[str, ...]] = (
     "max_output_tokens",
     "max_completion_tokens",
     "max_tokens",
+    "num_predict",
 )
 
 #: What a client calls itself -> what LIA calls it. An unknown family is kept
@@ -191,6 +195,13 @@ def _reasoning(kept: dict[str, Any]) -> tuple[str | None, int | None]:
     if isinstance(reasoning, dict):
         level = level or reasoning.get("effort")
         budget = budget if budget is not None else _integer(reasoning.get("max_tokens"))
+    elif reasoning is False:
+        # Ollama's ``think=false``: thinking switched off, i.e. the ladder's ``none``.
+        level = level or "none"
+    elif isinstance(reasoning, str):
+        # Ollama's ``think=<level>``; ``True`` (server default, depth unknown)
+        # deliberately says nothing rather than inventing a depth.
+        level = level or reasoning
 
     return (str(level) if isinstance(level, str) and level else None), budget
 

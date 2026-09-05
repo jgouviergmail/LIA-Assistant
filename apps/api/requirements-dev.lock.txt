@@ -1504,6 +1504,7 @@ httpx==0.28.1 \
     #   langfuse
     #   langgraph-sdk
     #   langsmith
+    #   ollama
     #   openai
     #   python-telegram-bot
 httpx2==2.10.0 \
@@ -1836,6 +1837,7 @@ langchain-core==1.5.6 \
     #   langchain-anthropic
     #   langchain-deepseek
     #   langchain-google-genai
+    #   langchain-ollama
     #   langchain-openai
     #   langchain-text-splitters
     #   langgraph
@@ -1851,6 +1853,12 @@ langchain-deepseek==1.1.0 \
 langchain-google-genai==4.3.4 \
     --hash=sha256:265655baad05f799fa7b83a030eaca7cee0e32c9ab7de846b80ea7f59c26134e \
     --hash=sha256:618fb0da1b9ba9def5569a8b05cb87e1389de41b8731c802958d09499490d2a5
+    # via
+    #   -c requirements.lock.txt
+    #   -r requirements.txt
+langchain-ollama==1.1.0 \
+    --hash=sha256:43ac83a6eacb0f43855810739794dd55019e0d9b17bdcf3ecb3b1991ac3b59dd \
+    --hash=sha256:f776f56f6782ae4da7692579b94a6575906118318d1023b455d7207f9d059811
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
@@ -2733,6 +2741,13 @@ odfpy==1.4.1 \
     # via
     #   -c requirements.lock.txt
     #   -r requirements.txt
+ollama==0.6.2 \
+    --hash=sha256:3ad7daab28e5a973445c36a73882a3ef698c2ebb00e21e308652741577509f7d \
+    --hash=sha256:936d55daa684f474364c098611c933626f8d6c7d67065c5b7ae0c477b508b07f
+    # via
+    #   -c requirements.lock.txt
+    #   -r requirements.txt
+    #   langchain-ollama
 openai==2.54.0 \
     --hash=sha256:89089789197ccdb87f173a03145ed1598d00795220c93e96cf712b1cbf5e5f2b \
     --hash=sha256:e3e6f8bc1ba30ddf381ace1a14340eed381cb984a1a59bd0f34b5be3b5d49cfa
@@ -3431,6 +3446,7 @@ pydantic==2.13.4 \
     #   langsmith
     #   mcp
     #   mcp-types
+    #   ollama
     #   openai
     #   pydantic-settings
 pydantic-core==2.46.4 \

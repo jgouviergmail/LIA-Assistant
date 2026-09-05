@@ -309,57 +309,61 @@ def test_create_llm_perplexity_sonar(
 
 
 # ============================================================================
-# Ollama Provider Tests
+# Ollama Provider Tests (native client, ADR-267 -- the detailed matrix lives in
+# test_provider_adapter_ollama_perplexity.py)
 # ============================================================================
 
 
-@patch("src.infrastructure.llm.providers.adapter.init_chat_model")
+@patch("src.infrastructure.llm.providers.ollama_chat.ChatOllamaTraced")
 @patch("src.infrastructure.llm.providers.adapter.settings")
-def test_create_llm_ollama_local(mock_settings_module, mock_init_chat_model, mock_settings_class):
-    """Test Ollama local model creation."""
-    # Configure the patched settings object with attributes from mock_settings_class
+def test_create_llm_ollama_local(mock_settings_module, mock_chat_ollama, mock_settings_class):
+    """Ollama goes through langchain-ollama, never through init_chat_model."""
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
             setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
-    mock_llm = MagicMock(spec=BaseChatModel)
-    mock_init_chat_model.return_value = mock_llm
-
-    ProviderAdapter.create_llm(
-        provider="ollama",
-        model="llama3.2",
-        temperature=0.7,
-        max_tokens=2000,
-        streaming=True,
-        llm_type="response",
-    )
-
-    call_args = mock_init_chat_model.call_args
-    assert call_args.kwargs["model"] == "llama3.2"
-    assert call_args.kwargs["model_provider"] == "openai"  # Ollama uses OpenAI-compatible API
-    assert "base_url" in call_args.kwargs
-    assert call_args.kwargs["base_url"] == "http://localhost:11434/v1"
-
-
-@patch("src.infrastructure.llm.providers.adapter.init_chat_model")
-@patch("src.infrastructure.llm.providers.adapter.settings")
-def test_create_llm_ollama_custom_base_url(
-    mock_settings_module, mock_init_chat_model, mock_settings_class
-):
-    """Test Ollama with custom base URL (remote deployment).
-
-    The Ollama base URL is resolved like an API key: DB cache
-    (LLMConfigOverrideCache) first — override the cache lookup locally.
-    """
-    # Configure the patched settings object with attributes from mock_settings_class
-    for attr in dir(mock_settings_class):
-        if not attr.startswith("_"):
-            setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
-    mock_llm = MagicMock(spec=BaseChatModel)
-    mock_init_chat_model.return_value = mock_llm
+    mock_settings_module.ollama_num_ctx = None
+    mock_chat_ollama.return_value = MagicMock(spec=BaseChatModel)
 
     from src.domains.llm_config.cache import LLMConfigOverrideCache
 
-    custom_keys = {"ollama": "http://ollama-server:11434/v1"}
+    with (
+        patch.object(
+            LLMConfigOverrideCache, "get_api_key", return_value="http://localhost:11434/v1"
+        ),
+        patch("src.infrastructure.llm.providers.adapter.init_chat_model") as init_chat,
+    ):
+        ProviderAdapter.create_llm(
+            provider="ollama",
+            model="llama3.2",
+            temperature=0.7,
+            max_tokens=2000,
+            streaming=True,
+            llm_type="response",
+        )
+
+    init_chat.assert_not_called()
+    kwargs = mock_chat_ollama.call_args.kwargs
+    assert kwargs["model"] == "llama3.2"
+    assert kwargs["base_url"] == "http://localhost:11434"  # the native root, /v1 stripped
+    assert kwargs["num_predict"] == 2000
+    assert kwargs["temperature"] == 0.7
+
+
+@patch("src.infrastructure.llm.providers.ollama_chat.ChatOllamaTraced")
+@patch("src.infrastructure.llm.providers.adapter.settings")
+def test_create_llm_ollama_custom_base_url(
+    mock_settings_module, mock_chat_ollama, mock_settings_class
+):
+    """The Ollama URL is resolved like an API key: DB cache (admin UI) first."""
+    for attr in dir(mock_settings_class):
+        if not attr.startswith("_"):
+            setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
+    mock_settings_module.ollama_num_ctx = None
+    mock_chat_ollama.return_value = MagicMock(spec=BaseChatModel)
+
+    from src.domains.llm_config.cache import LLMConfigOverrideCache
+
+    custom_keys = {"ollama": "http://ollama-server:11434"}
     with patch.object(
         LLMConfigOverrideCache,
         "get_api_key",
@@ -374,8 +378,7 @@ def test_create_llm_ollama_custom_base_url(
             llm_type="hitl_classifier",
         )
 
-    call_args = mock_init_chat_model.call_args
-    assert call_args.kwargs["base_url"] == "http://ollama-server:11434/v1"
+    assert mock_chat_ollama.call_args.kwargs["base_url"] == "http://ollama-server:11434"
 
 
 # ============================================================================
@@ -383,20 +386,24 @@ def test_create_llm_ollama_custom_base_url(
 # ============================================================================
 
 
-@patch("src.infrastructure.llm.providers.adapter.init_chat_model")
+@patch("src.infrastructure.llm.providers.ollama_chat.ChatOllamaTraced")
 @patch("src.infrastructure.llm.providers.adapter.settings")
-def test_load_provider_config_json(mock_settings_module, mock_init_chat_model, mock_settings_class):
+def test_load_provider_config_json(mock_settings_module, mock_chat_ollama, mock_settings_class):
     """Test loading advanced provider config from JSON string.
 
     provider_config flows through the ``provider_config`` kwarg (from
-    LLMAgentConfig) — the adapter no longer reads it from settings.
+    LLMAgentConfig) — the adapter no longer reads it from settings. On Ollama
+    the escape hatch reaches the native client and WINS over the derived
+    parameters (``num_predict`` here beats the slot's ``max_tokens``).
     """
-    # Configure the patched settings object with attributes from mock_settings_class
+    from langchain_ollama.chat_models import ChatOllama as _RealChatOllama
+
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
             setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
-    mock_llm = MagicMock(spec=BaseChatModel)
-    mock_init_chat_model.return_value = mock_llm
+    mock_settings_module.ollama_num_ctx = None
+    mock_chat_ollama.return_value = MagicMock(spec=BaseChatModel)
+    mock_chat_ollama.model_fields = _RealChatOllama.model_fields
 
     ProviderAdapter.create_llm(
         provider="ollama",
@@ -414,8 +421,8 @@ def test_load_provider_config_json(mock_settings_module, mock_init_chat_model, m
         ),
     )
 
-    call_args = mock_init_chat_model.call_args
-    # Verify advanced config was merged
+    call_args = mock_chat_ollama.call_args
+    # Verify advanced config was merged, and that it wins over max_tokens=8000
     assert call_args.kwargs["num_predict"] == 2048
     assert call_args.kwargs["top_k"] == 40
     assert call_args.kwargs["repeat_penalty"] == 1.1

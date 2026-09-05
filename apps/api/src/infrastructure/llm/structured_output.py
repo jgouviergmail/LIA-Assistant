@@ -119,6 +119,30 @@ def _llm_model_id(llm: BaseChatModel) -> str:
     return str(model) if model else "unknown"
 
 
+def native_structured_method(provider: str, use_strict_mode: bool) -> dict[str, Any]:
+    """The ``with_structured_output`` kwargs a provider's native path uses.
+
+    - OpenAI with a strict-compatible schema: ``json_schema`` + ``strict=True``
+      (100 % conformance).
+    - Ollama: ``json_schema`` -- the native ``format`` field, grammar-constrained
+      on the server for every model (ADR-267); the forced-tool mechanism would
+      need ``tool_choice``, which Ollama does not implement.
+    - Everyone else: ``function_calling`` (universal, permissive).
+
+    Args:
+        provider: LIA provider id.
+        use_strict_mode: The verdict of :func:`resolve_strict_mode`.
+
+    Returns:
+        Keyword arguments for ``llm.with_structured_output``.
+    """
+    if use_strict_mode:
+        return {"method": "json_schema", "strict": True}
+    if provider == "ollama":
+        return {"method": "json_schema"}
+    return {"method": "function_calling"}
+
+
 def resolve_strict_mode(
     is_strict_compatible: bool,
     provider: str,
@@ -712,13 +736,11 @@ async def _get_native_structured_output[T: BaseModel](
         # the model answers in text instead of calling the forced tool (prompt
         # conflict — audit D5), the raw AIMessage is available for the
         # text-JSON rescue below instead of an opaque ``None``.
+        method_kwargs = native_structured_method(provider, use_strict_mode)
+
         async def _buffered_invoke() -> Any:
-            raw_structured_llm = (
-                llm.with_structured_output(
-                    schema, method="json_schema", strict=True, include_raw=True
-                )
-                if use_strict_mode
-                else llm.with_structured_output(schema, method="function_calling", include_raw=True)
+            raw_structured_llm = llm.with_structured_output(
+                schema, include_raw=True, **method_kwargs
             )
             bundle = await raw_structured_llm.ainvoke(messages, **invoke_kwargs)
             parsed = bundle.get("parsed") if isinstance(bundle, dict) else bundle
@@ -763,11 +785,7 @@ async def _get_native_structured_output[T: BaseModel](
             from src.infrastructure.llm.reasoning_stream import stream_reasoning_events
 
             # Parsed-only wrapper for the streaming path (astream_events).
-            structured_llm = (
-                llm.with_structured_output(schema, method="json_schema", strict=True)
-                if use_strict_mode
-                else llm.with_structured_output(schema, method="function_calling")
-            )
+            structured_llm = llm.with_structured_output(schema, **method_kwargs)
             result = await stream_reasoning_events(
                 structured_llm,
                 messages,

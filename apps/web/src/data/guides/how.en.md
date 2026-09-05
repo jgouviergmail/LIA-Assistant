@@ -6,7 +6,7 @@
 
 **Version**: 4.9
 **Date**: 2026-08-23
-**Application**: LIA v1.42.3
+**Application**: LIA v1.42.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 537 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 265 ADRs, ~24,053 pytest-collected tests across 1,452 files, native observability, 6-level HITL |
+| Production reliability | 266 ADRs, ~24,454 pytest-collected tests across 1,488 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -84,10 +84,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 24,053 collected by pytest across 1,452 test files + 7,305 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 24,454 collected by pytest across 1,488 test files + 7,404 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 265 |
+| ADRs (Architecture Decision Records) | 266 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -136,9 +136,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | DeepSeek | deepseek-v4-flash, deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Reduced cost, native reasoning |
 | Perplexity | Sonar, Sonar Pro | Search-augmented generation |
 | Qwen | qwen3.5-plus, qwen3.5-flash, qwen3-max | Thinking mode, tools + vision (Alibaba Cloud) |
-| Ollama | Any local model (dynamic discovery) | Zero API cost, self-hosted |
+| Ollama | Any local model (capabilities read from the server) | Native client: controlled thinking, context window, constrained JSON. Zero API cost, self-hosted |
 
 **Why 7 providers?** The choice is not collection for its own sake. It is a resilience strategy: each pipeline node can be assigned to a different provider. If OpenAI raises its prices, the router switches to DeepSeek. If Anthropic has an outage, the response falls back to Gemini. The LLM abstraction (`src/infrastructure/llm/factory.py`) uses the Factory pattern with `init_chat_model()`, overridden by specific adapters (`ResponsesLLM` for the OpenAI Responses API, eligibility by regex `^(gpt-4\.1|gpt-5|o[1-9])`).
+
+**The special case of local models.** Six providers speak a remote API; the seventh runs on your machine, and LIA talks to it through its **native API** (`langchain-ollama`) rather than its OpenAI compatibility layer. The distinction is not cosmetic: the compatibility layer cannot express `think` (switching off the thinking of a model that thinks, or choosing its depth), nor `num_ctx` (the context window, which a local server otherwise picks from its video memory and which silently trims the start of an oversized prompt), nor separate the thinking trace from the answer. And because a model name says nothing about its capabilities, they are **read from the server** (`/api/show`: tools, vision, thinking, context length) and feed both the runtime and the administration screen — so a thinking depth never reaches a model that does not think, which the server would refuse.
 
 ---
 
@@ -1353,7 +1355,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-265 ADRs in MADR format document the major architectural decisions. Some representative examples:
+266 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1492,7 +1494,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 265 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~24,053 tests across 1,452 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 266 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~24,454 tests across 1,488 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1609,4 +1611,4 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 **Every paid unit is accounted, and shown.** A meeting spends audio at the transcription engine and tokens at the synthesis model, condense passes and rebuilds included; both reach the platform's books the way every exchange does — the audio through the remote-speech statistics, the tokens under a `run_id` the archived chat message carries, so history joins the token log exactly as for any proactive notification. The row keeps the minutes' own spend so the page states the exact total with its breakdown, the card states the two units and their sum, and a model without an administered price yields `null`: an unknown price is not a free one. The same honesty runs through the minutes themselves — a gap is stated, never bridged; an unnamed speaker stays S2; a proposal left open is not a decision.
 
 **The minutes format became a library, and the choice has one place.** Thirty built-in templates live in the code, their words in an i18n data module, and a boot-time assertion refuses to start if a name is missing in one of the six languages: what a validator can reject, the catalogue cannot ship. A template is named by a reference — `builtin:<key>` or `user:<uuid>` — that meetings, preferences and requests exchange instead of a row, so a built-in needs no database row and a deleted template leaves a reference whose readers know to fall back on the stored snapshot. The choice follows **one precedence**: the reference carried by the meeting, then the preference's default, then the language model reading a transcript excerpt and choosing above a confidence floor, then the built-in default; every outcome is counted and written on the row with the reason stated, so the page shows a fact rather than a reconstruction. A fifth section kind hands back the transcript itself: it does not fit in one answer — the synthesis slot outputs at most eight thousand tokens — so it is rewritten part by part, each bounded by the effective output window, a missing index splitting the part once and a suspiciously short answer retried once. Rewriting minutes already written borrows the durable regeneration when it replaces, and creates a derived row pointing at its source when it produces new minutes — never a copy: the transcript is the same, the minutes are not. The same concern for order governs knowledge-space documents: since `rag_chunks.space_id` is denormalized and read by retrieval, a move writes the row and its chunks, commits, **then** moves the file; a rename that fails reverts both and reports it for that document alone, and a batch never stops for one item — every id comes back done or skipped with its code.
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 265 ADRs, and the changelog (v1.0 to v1.42.3). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 266 ADRs, and the changelog (v1.0 to v1.42.4). All metrics, versions, and patterns cited are verifiable in the codebase.*

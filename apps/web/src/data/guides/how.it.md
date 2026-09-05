@@ -6,7 +6,7 @@
 
 **Versione**: 4.9
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.42.3
+**Applicazione**: LIA v1.42.4
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 537 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 265 ADRs, ~24.053 test raccolti da pytest in 1.452 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 266 ADRs, ~24.454 test raccolti da pytest in 1.488 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -84,10 +84,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | 24.053 raccolti da pytest su 1.452 file di test + 7.305 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | 24.454 raccolti da pytest su 1.488 file di test + 7.404 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 265 |
+| ADR (Architecture Decision Record) | 266 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -136,9 +136,11 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | DeepSeek | deepseek-v4-flash, deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Costo ridotto, reasoning nativo |
 | Perplexity | Sonar, Sonar Pro | Search-augmented generation |
 | Qwen | qwen3.5-plus, qwen3.5-flash, qwen3-max | Thinking mode, tools + vision (Alibaba Cloud) |
-| Ollama | Qualsiasi modello locale (scoperta dinamica) | Zero costo API, auto-ospitato |
+| Ollama | Qualsiasi modello locale (capacità lette dal server) | Client nativo: ragionamento controllato, finestra di contesto, JSON vincolato. Zero costo API, auto-ospitato |
 
 **Perché 7 provider?** La scelta non è la collezione fine a sé stessa. È una strategia di resilienza: ogni nodo della pipeline può essere assegnato a un provider diverso. Se OpenAI aumenta le tariffe, il router passa a DeepSeek. Se Anthropic ha un'interruzione, la risposta viene dirottata su Gemini. L'astrazione LLM (`src/infrastructure/llm/factory.py`) utilizza il pattern Factory con `init_chat_model()`, sovrascritto da adattatori specifici (`ResponsesLLM` per l'API Responses di OpenAI, eleggibilità tramite regex `^(gpt-4\.1|gpt-5|o[1-9])`).
+
+**Il caso particolare dei modelli locali.** Sei fornitori parlano un'API remota; il settimo gira da te, e LIA gli parla tramite la sua **API nativa** (`langchain-ollama`) invece che con il suo strato di compatibilità OpenAI. La distinzione non è cosmetica: lo strato di compatibilità non sa esprimere `think` (spegnere il ragionamento di un modello che ragiona, o sceglierne la profondità), né `num_ctx` (la finestra di contesto, che un server locale sceglie altrimenti in base alla memoria video e che taglia in silenzio l'inizio di un prompt troppo lungo), né separare la traccia di ragionamento dalla risposta. E poiché il nome di un modello non dice nulla delle sue capacità, queste sono **lette dal server** (`/api/show`: strumenti, visione, ragionamento, lunghezza del contesto) e alimentano sia l'esecuzione sia la schermata di amministrazione — così una profondità di ragionamento non raggiunge mai un modello che non ragiona, cosa che il server rifiuterebbe.
 
 ---
 
@@ -1361,7 +1363,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-265 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+266 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1467,7 +1469,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 265 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~24.053 test in 1.452 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 266 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~24.454 test in 1.488 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1584,4 +1586,4 @@ Il volto del compagno sceglieva la propria espressione di fine turno dall'emozio
 **Ogni unità pagata è contabilizzata, e mostrata.** Una riunione spende audio presso il motore di trascrizione e token presso il modello di sintesi, passaggi di condensazione e ricostruzioni compresi; entrambi raggiungono i registri della piattaforma come ogni scambio — l'audio tramite le statistiche del riconoscimento remoto, i token sotto un `run_id` che il messaggio archiviato porta, così la cronologia si unisce al registro dei token esattamente come per ogni notifica proattiva. La riga conserva la spesa propria del verbale perché la pagina dichiari il totale esatto con la sua scomposizione, la scheda dichiara le due unità e la loro somma, e un modello senza tariffa amministrata restituisce `null`: un prezzo sconosciuto non è un prezzo gratuito. La stessa onestà attraversa il verbale stesso — una lacuna è dichiarata, mai colmata; un interlocutore senza nome resta S2; una proposta rimasta aperta non è una decisione.
 
 **Il formato del verbale è diventato una libreria, e la scelta ha un solo luogo.** Trenta modelli integrati vivono nel codice, le loro parole in un modulo di dati i18n, e un'asserzione all'avvio rifiuta di partire se manca un nome in una delle sei lingue: ciò che un validatore può rifiutare, il catalogo non può consegnarlo. Un modello è designato da un riferimento — `builtin:<chiave>` o `user:<uuid>` — che riunioni, preferenze e richieste si scambiano al posto di una riga, così un modello integrato non ha bisogno di esistere in banca dati e un modello eliminato lascia un riferimento i cui lettori sanno ripiegare sull'istantanea conservata. La scelta segue **una sola precedenza**: il riferimento portato dalla riunione, poi il predefinito della preferenza, poi il modello linguistico che legge un estratto della trascrizione e sceglie sopra una soglia di confidenza, poi il modello integrato predefinito; ogni esito è contato e scritto sulla riga con la ragione enunciata, così la pagina mostra un fatto e non una ricostruzione. Una quinta specie di sezione restituisce la trascrizione stessa: non entra in una sola risposta — lo slot di sintesi emette al massimo ottomila token — quindi viene riscritta per parti, ciascuna limitata dalla finestra di uscita effettiva, un indice mancante divide la parte una volta e una risposta sospettosamente corta viene ritentata una volta. Riscrivere un verbale già redatto prende in prestito la rigenerazione durevole quando sostituisce, e crea una riga derivata che punta alla sua origine quando produce un nuovo verbale — mai una copia: la trascrizione è la stessa, il verbale no. La stessa cura per l'ordine governa i documenti degli spazi di conoscenza: poiché `rag_chunks.space_id` è denormalizzato e letto dalla ricerca, uno spostamento scrive la riga e i suoi frammenti, conferma, **poi** sposta il file; una rinomina fallita riporta indietro entrambi e lo segnala per quel solo documento, e un lotto non si ferma mai per un elemento — ogni identificatore torna fatto o ignorato con il suo codice.
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 265 ADRs e del changelog (da v1.0 a v1.42.3). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 266 ADRs e del changelog (da v1.0 a v1.42.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

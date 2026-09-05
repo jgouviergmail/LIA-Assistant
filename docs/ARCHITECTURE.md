@@ -2067,6 +2067,27 @@ def create_llm(llm_type: str, provider: str) -> BaseChatModel:
     # ...
 ```
 
+**Quatre providers ne passent PAS par `init_chat_model`** (`_create_with_dedicated_client`) :
+DeepSeek et Gemini ont une intégration officielle, les modèles OpenAI éligibles prennent
+l'API Responses pour son cache, et **Ollama a son client natif** depuis
+[ADR-267](architecture/ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md)
+(`providers/ollama_chat.py`, `langchain-ollama`). Le pont OpenAI-compatible d'Ollama ne
+sait exprimer ni `think` (couper la réflexion d'un modèle qui pense, ou en choisir la
+profondeur), ni `num_ctx` (la fenêtre de contexte, qu'un serveur local choisit sinon selon
+sa VRAM et qui tronque le début d'un prompt trop long en silence), ni séparer la trace de
+pensée de la réponse — mesuré en production le 2026-09-05 : douze jetons demandés, douze
+jetons de pensée, réponse vide.
+
+Corollaire côté catalogue : `ModelCapabilitiesCache` gagne une **couche découverte**
+(`merge_discovered`, provenance `discovered`, en mémoire uniquement) alimentée par
+`/api/show`. Elle survit à `load_from_db` (qui remplace `_cache` en bloc), gagne sur une
+ligne de seed homonyme, et se rafraîchit quand l'ADRESSE du serveur change plutôt qu'à
+chaque rechargement de configuration — ce chemin tourne aussi quand un admin enregistre
+n'importe quel emplacement, et la découverte est de l'I/O réseau. La famille de
+raisonnement `ollama` en dérive son échelle PAR MODÈLE (`ladder_from_catalogue`), si bien
+qu'une profondeur positive n'atteint jamais un modèle sans capacité `thinking`, que le
+serveur refuserait en 400.
+
 ### 5. Decorator Pattern (Metrics)
 
 ```python

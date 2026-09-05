@@ -259,6 +259,22 @@ WEB_SEARCH_CACHE_ENABLED_DEFAULT = True  # Enable web search/fetch caching by de
 # Ollama dynamic model discovery
 OLLAMA_MODEL_CACHE_TTL_SECONDS = 60  # In-memory cache for discovered models
 OLLAMA_DISCOVERY_TIMEOUT_SECONDS = 5  # HTTP timeout for Ollama /api/tags + /api/show calls
+# Ollama server URL: ONE variable read by the chat adapter (native API via
+# langchain-ollama, ADR-267) and the discovery (``/api/tags``, ``/api/show``).
+# Both talk to the server ROOT; operators used to type the OpenAI-compatible
+# ``/v1`` suffix, which ``providers/ollama_urls.py`` strips.
+OLLAMA_BASE_URL_ENV = "OLLAMA_BASE_URL"
+OLLAMA_OPENAI_COMPAT_PATH = "/v1"
+# Ollama exposes no output cap per model; the discovered profile declares this
+# one so the admin matrix has a bound to show (the slot's max_tokens is what is
+# actually sent, as num_predict).
+OLLAMA_DISCOVERED_MAX_OUTPUT_TOKENS = 8192
+# The context window LIA requests from Ollama (``num_ctx``) when OLLAMA_NUM_CTX is
+# not set: the model's own maximum (read at discovery), capped here. Ollama's
+# VRAM tiers allocate 4k under 24 GiB and 32k up to 48 GiB; a model asked for
+# more than the VRAM holds is offloaded, never truncated in silence -- and the
+# accounting (compaction threshold, ReAct budget) uses this same number.
+OLLAMA_NUM_CTX_DEFAULT_CAP = 32768
 
 # ============================================================================
 # CONVERSATION COMPACTION (ADR-086)
@@ -2982,6 +2998,9 @@ LLM_INSTANCE_CACHE_MAX_SIZE: int = 64
 CAPABILITY_PROVENANCE_DECLARED = "declared"
 CAPABILITY_PROVENANCE_IMPORTED = "imported"
 CAPABILITY_PROVENANCE_VERIFIED = "verified"
+# In-memory ONLY, never a DB row: the model's own server answered (Ollama
+# ``/api/show``). Trusted like ``imported`` by the context-window reader.
+CAPABILITY_PROVENANCE_DISCOVERED = "discovered"
 
 # --- LLM config defaults ---
 # Updated: 2026-04-08 — Aligned with LLM_DEFAULTS in llm_config/constants.py

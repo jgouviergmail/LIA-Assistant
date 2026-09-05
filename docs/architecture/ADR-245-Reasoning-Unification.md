@@ -202,3 +202,38 @@ intersection, so `("none","high","max") ∩ {"off","high","max"}` produced a lad
 switch back. It worked by rescue, not by design. Migration `e4f5a6b7c8d9` normalises
 those ladders through `intent_from_legacy`, and a guard refuses any seed row declaring
 a level off the ladder.
+
+## Amendment (2026-09-05) — the seam had two branches left
+
+This ADR said `kwargs_for` replaced six per-provider call sites. It had replaced
+five. The Ollama and Perplexity branches of `_prepare_provider_config` never
+popped `reasoning_effort`, so the stored `ReasoningIntent` object itself reached
+`ChatOpenAI(reasoning_effort=...)` and failed Pydantic validation — for ANY stored
+level, `provider_default` included.
+
+Measured in production on 2026-09-05: the `response` slot was moved to
+`ollama / qwen3.8:27b` and every turn died at instantiation. The override row had
+`reasoning_effort = NULL` (the admin widget hides itself on a model whose ladder is
+empty), so the level came from the slot's code DEFAULT through `merge_config` — the
+inheritance this ADR deliberately kept, because the runtime coerces. Twenty-nine of
+the fifty-eight slot defaults carry a non-null intent; none of those slots could
+ever run on Ollama or Perplexity, and the other twenty-nine broke the moment an
+intent was stored.
+
+Three decisions:
+
+1. **Both branches now call the seam**, like the five others. For the sonar
+   reasoning tier the existing `perplexity` renderer runs for the first time. For
+   Ollama the family is `ollama` (ADR-267): its ladder is a vocabulary the discovery
+   declares per model from the server's `thinking` capability — full for a thinking
+   model, `("none",)` for the others, unknown for a tag nobody discovered
+   (`ReasoningProfile.ladder_from_catalogue`). Ollama accepts `think=false` on any
+   model and rejects a positive level on a model without the capability
+   (`server/routes.go`), which is exactly what that shape guarantees.
+2. **A guard drives every member of `ProviderType`** with every storable level
+   (`test_reasoning_seam_guard.py`): no constructor may receive the intent object,
+   and every kwarg must be JSON-serialisable. A new provider must be added to its
+   matrix. Mutation-checked: reinstating the Ollama defect turns thirteen tests red.
+3. **`extra_body` is merged, never assigned** (`_merge_extra_body`): three branches
+   wrote that one kwarg and a plain assignment dropped whatever the
+   `provider_config` escape hatch had put there.

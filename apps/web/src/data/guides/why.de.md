@@ -4,7 +4,7 @@
 
 **Version**: 5.4
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.42.3
+**Anwendung**: LIA v1.42.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -263,6 +263,8 @@ Der Schutz gilt auch für das, was **hereinkommt**. LIA liest täglich Texte, di
 ### 5.2. Sogar ein Raspberry Pi reicht
 
 LIA läuft produktiv auf einem **Raspberry Pi 5** — einem Einplatinencomputer für 80 Euro. 20+ spezialisierte Agenten, ein vollständiger Observability-Stack, ein psychologisches Gedächtnissystem — alles auf einem ARM-Mikroserver. Die Multi-Architektur-Docker-Images (amd64/arm64) ermöglichen den Einsatz auf beliebiger Hardware: Synology NAS, VPS für wenige Euro im Monat, Unternehmensserver oder Kubernetes-Cluster.
+
+Und Souveränität hört nicht bei den Daten auf. **Auch die Modelle können bei dir bleiben**: ein Modell auf deinem Rechner ist ein Modell wie jedes andere, einsetzbar für jede Rolle des Assistenten, mit einer Denktiefe, die sich genau wie bei einem entfernten Modell einstellen lässt. LIA spricht mit ihm in seiner nativen Sprache und fragt deinen Server, was es kann, statt zu raten: was die Oberfläche dir anbietet, ist genau das, was deine Hardware annimmt. Die Abwägung bleibt deine — ein lokales Modell kostet nichts und lässt nichts dein Haus verlassen, ein entferntes antwortet manchmal besser — und sie ändert sich Rolle für Rolle, ohne neues Deployment.
 
 Digitale Souveränität ist kein Vorrecht von Unternehmen mehr — sie ist ein Recht, das allen zugänglich ist.
 

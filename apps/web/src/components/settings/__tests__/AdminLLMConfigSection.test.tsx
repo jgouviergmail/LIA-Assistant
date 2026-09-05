@@ -36,10 +36,13 @@ vi.mock('@/hooks/useLLMConfig', () => ({
   useLLMConfig: () => llmConfigState.current,
 }));
 
+// Dialog-side queries (ollama models, TTS voices): inert by default —
+// voicesData null → voice pickers fall back to free-text inputs. A test may
+// publish a payload for one URL (the live Ollama listing, ADR-267).
+const apiQueryState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
+
 vi.mock('@/hooks/useApiQuery', () => ({
-  // Dialog-side queries (ollama models, TTS voices): inert by default —
-  // voicesData null → voice pickers fall back to free-text inputs.
-  useApiQuery: () => ({ data: null, loading: false }),
+  useApiQuery: (url: string) => apiQueryState.current[url] ?? { data: null, loading: false },
 }));
 
 vi.mock('@/i18n/client', () => ({
@@ -192,6 +195,7 @@ async function openDialog(cardName: string) {
 beforeEach(() => {
   updateConfig.mockReset().mockResolvedValue(undefined);
   resetConfig.mockReset().mockResolvedValue(undefined);
+  apiQueryState.current = {};
 });
 
 // --- cards -------------------------------------------------------------------
@@ -532,5 +536,81 @@ describe('dialog save (structured 422 surfacing)', () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.admin.llmConfig.config.error')
     );
+  });
+});
+
+// --- discovered Ollama models (ADR-267) ----------------------------------------
+// The live listing publishes what the Ollama server declared about each tag:
+// a thinking model carries the full ladder, a plain one `none` alone, and the
+// two OpenAI penalties the native client cannot express are not offered.
+
+const OLLAMA_MODELS_URL = '/admin/llm-config/providers/ollama/models';
+
+const OLLAMA_THINKING: ModelCapabilities = {
+  ...CAPS_FULL,
+  model_id: 'qwen3.8:27b',
+  is_reasoning_model: true,
+  reasoning_family: 'ollama',
+  reasoning_levels: ['none', 'low', 'medium', 'high', 'max'],
+  supports_frequency_penalty: false,
+  supports_presence_penalty: false,
+  cost_input: 0,
+  cost_output: 0,
+};
+
+const OLLAMA_PLAIN: ModelCapabilities = {
+  ...OLLAMA_THINKING,
+  model_id: 'gemma4:26b',
+  is_reasoning_model: false,
+  reasoning_levels: ['none'],
+};
+
+function publishOllamaModels(models: ModelCapabilities[]) {
+  apiQueryState.current[OLLAMA_MODELS_URL] = {
+    data: { models: models.map(m => ({ ...m, size: '27B', family: 'test' })), source: 'live' },
+    loading: false,
+  };
+}
+
+function ollamaConfig(model: string) {
+  return typeConfig('response', 'Response', {
+    effective: { provider: 'ollama', model },
+    defaults: { provider: 'ollama', model },
+  });
+}
+
+describe('discovered Ollama models (ADR-267)', () => {
+  it('offers the reasoning widget with the server-declared ladder on a thinking model', async () => {
+    publishOllamaModels([OLLAMA_THINKING, OLLAMA_PLAIN]);
+    renderSection([ollamaConfig('qwen3.8:27b')]);
+    await openDialog('Response');
+    expect(screen.getByText('settings.admin.llmConfig.fields.reasoningEffort')).toBeTruthy();
+    expect(screen.getByText('settings.admin.llmConfig.ollama.live')).toBeTruthy();
+  });
+
+  it('hides the two penalties the native client cannot express, keeps temperature and top_p', async () => {
+    publishOllamaModels([OLLAMA_THINKING, OLLAMA_PLAIN]);
+    renderSection([ollamaConfig('qwen3.8:27b')]);
+    await openDialog('Response');
+    expect(screen.getAllByRole('slider')).toHaveLength(2);
+    expect(screen.getByText('settings.admin.llmConfig.fields.temperature')).toBeTruthy();
+    expect(screen.queryByText('settings.admin.llmConfig.fields.frequencyPenalty')).toBeNull();
+    expect(screen.queryByText('settings.admin.llmConfig.fields.presencePenalty')).toBeNull();
+  });
+
+  it('still shows the switch-off alone on a model that cannot think', async () => {
+    publishOllamaModels([OLLAMA_THINKING, OLLAMA_PLAIN]);
+    renderSection([ollamaConfig('gemma4:26b')]);
+    await openDialog('Response');
+    // `none` is on the ladder, so the widget is offered — with that single depth.
+    expect(screen.getByText('settings.admin.llmConfig.fields.reasoningEffort')).toBeTruthy();
+  });
+
+  it('offers no reasoning widget at all when the server is unreachable (no declaration)', async () => {
+    apiQueryState.current[OLLAMA_MODELS_URL] = { data: { models: [], source: 'fallback' }, loading: false };
+    renderSection([ollamaConfig('qwen3.8:27b')]);
+    await openDialog('Response');
+    expect(screen.queryByText('settings.admin.llmConfig.fields.reasoningEffort')).toBeNull();
+    expect(screen.getByText('settings.admin.llmConfig.ollama.fallback')).toBeTruthy();
   });
 });

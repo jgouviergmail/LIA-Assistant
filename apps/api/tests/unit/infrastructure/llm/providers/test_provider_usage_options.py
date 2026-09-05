@@ -12,9 +12,12 @@ What must hold:
 - every chat provider declared ``stream_usage_flag`` in
   ``PROVIDER_USAGE_CAPABILITIES`` actually receives ``stream_usage=True`` from
   the adapter — the registry is behavior, not documentation;
-- ``excluded`` providers (ollama: local and free, perplexity: end-user key)
-  deliberately do NOT request usage — a later "completion" of the list would
-  bill LIA for spend it does not carry;
+- the one ``excluded`` provider (perplexity: end-user key) deliberately does
+  NOT request usage — a later "completion" of the list would bill LIA for
+  spend it does not carry. Ollama LEFT this group on 2026-09-05 (ADR-220
+  amendment, ADR-267 -- native client, usage on every response): it runs locally at 0 EUR, but a streamed call whose usage is
+  never asked for raises ``LLMCallsWithoutUsage`` on every turn, for a spend
+  that does exist and is simply free;
 - the registry covers every chat provider (ADR-085 boot assert);
 - the langchain contracts this relies on stay true on the installed packages:
   ``stream_usage=True`` drives ``_should_stream_usage`` (applied only to
@@ -130,7 +133,7 @@ class TestAdapterRequestsUsage:
 
     @pytest.mark.parametrize(
         ("provider", "model"),
-        [("ollama", "llama3.1"), ("perplexity", "sonar-pro")],
+        [("perplexity", "sonar-pro")],
     )
     def test_excluded_providers_do_not_request_usage(
         self,
@@ -140,7 +143,7 @@ class TestAdapterRequestsUsage:
         provider: str,
         model: str,
     ) -> None:
-        """ollama (local, free) and perplexity (end-user key) stay excluded."""
+        """perplexity (end-user key) stays excluded."""
         _apply_settings(mock_settings_module, mock_settings_class)
         mock_init = self._create(provider, model, mock_init)
         kwargs = mock_init.call_args.kwargs
@@ -159,7 +162,6 @@ class TestAdapterRequestsUsage:
         models = {
             "openai": "gpt-4-turbo",
             "qwen": "qwen3.5-plus",
-            "ollama": "llama3.1",
             "perplexity": "sonar-pro",
         }
         for provider, model in models.items():

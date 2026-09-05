@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.42.3</strong> — <strong>A diagnosis that shows its evidence.</strong> Every conversation had been quietly losing its document context: the embedding provider answered <code>500</code> to each search on the knowledge spaces while the same text embedded fine one step earlier, because <code>HumanMessage.text</code> is a <code>str</code> subclass that the provider's client turns into an empty request. ADR-266 normalises the type at the one funnel every embedding goes through. And the automatic incident diagnosis no longer concludes « insufficient evidence » with the answer sitting in the metrics and the logs: each kind of incident declares a recipe, the diagnosis pump collects a bounded evidence pack at the moment of the diagnosis — breakdowns, a sanitized log excerpt, the running build — fail-open source by source, stores it with the verdict and shows it to the administrator. The operations runbooks, written for every alert and never shipped, finally travel with the deployment. — 5 September 2026.
+  <strong>Version 1.42.4</strong> — <strong>Your local models, models like any other.</strong> Ollama was reached through its OpenAI compatibility bridge, and that bridge cannot say what matters: switch off the thinking of a model that thinks, set the context window, separate the thinking trace from the answer. Measured on 5 September 2026: a slot moved to a local model died at instantiation on every turn, and the first fix — the bridge patched — returned an EMPTY answer, twelve tokens asked for and twelve tokens of thinking. LIA now speaks to Ollama in its own language (ADR-267), and the server is the authority on what each of its models can do: capabilities and context length are read from <code>/api/show</code> and feed both the runtime and the administration screen, so a thinking depth never reaches a model that cannot think and the context window LIA accounts with is the one it actually requests. — 5 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **31,600+** automated tests | **265** ADRs                                                           |
-| **248** versions shipped  | **6 languages**, parity enforced in CI  | **537** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **31,600+** automated tests | **266** ADRs                                                           |
+| **249** versions shipped  | **6 languages**, parity enforced in CI  | **537** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -955,6 +955,25 @@ apps/api/src/
 
 **Responsive Design**: Fully optimized for desktop, tablet, and smartphone. Adaptive layouts, touch-friendly interactions, and mobile-first components ensure a seamless experience on any device.
 
+### Local Models as First-Class Models ([ADR-267](docs/architecture/ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md))
+
+Any of the LLM slots can run on a model hosted on your own machine, with no cloud
+account involved. LIA drives Ollama through its **native API** rather than an
+OpenAI compatibility layer, which is what makes the difference:
+
+- **Thinking is controlled, not endured** — the configured depth reaches the server
+  as `think`, including switching it off entirely, and the thinking trace comes back
+  separated from the answer (streamed to the progress panel, as for DeepSeek).
+- **The server declares the capabilities** — tools, vision, thinking and context
+  length are read from `/api/show` and feed both the runtime and the administration
+  screen, so a depth never reaches a model that cannot think, and a control a local
+  model would ignore is not offered.
+- **The context window is requested, not assumed** — `OLLAMA_NUM_CTX`, else the
+  model's own maximum capped at 32768. The same number decides when the history is
+  summarised, so the accounting and the server agree.
+- **Output cap, structured output and usage are native** — `num_predict`, the
+  grammar-constrained `format` field, and token counts on every response.
+
 ### Supported LLM Providers
 
 | Provider   | Models                                                                                                                                          | Use Case                                                                                                                        |
@@ -965,7 +984,7 @@ apps/api/src/
 | DeepSeek   | **deepseek-v4-flash, deepseek-v4-pro** (V4 family — thinking-mode toggle, v1.19.1+), deepseek-chat (V3, legacy), deepseek-reasoner (R1, legacy) | Cost-effective reasoning. V4 supports tools + structured output via JSON-mode fallback when thinking is on.                     |
 | Perplexity | sonar-small/large-128k-online                                                                                                                   | Web-augmented responses. Base URL configurable via `PERPLEXITY_BASE_URL` env var (v1.19.1+).                                    |
 | Qwen       | qwen3-max, qwen3.5-plus, qwen3.5-flash                                                                                                          | Thinking + tools + vision (Alibaba Cloud DashScope). Base URL configurable via `QWEN_BASE_URL` (regional US/CN swap, v1.19.1+). |
-| Ollama     | Any local model (dynamic discovery)                                                                                                             | Zero API cost, self-hosted. Base URL configurable via `OLLAMA_BASE_URL`.                                                        |
+| Ollama     | Any local model (capabilities discovered from the server)                                                                                       | Zero API cost, self-hosted. **Native client** (`langchain-ollama`): thinking control, `num_ctx`, grammar-constrained JSON, usage on every response. `OLLAMA_BASE_URL` (server root) + optional `OLLAMA_NUM_CTX`. |
 
 ### Observability
 
@@ -1025,7 +1044,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-265 ADR files (ADR-001 through ADR-266 — ADR-008 has no separate file) documenting major architectural decisions:
+266 ADR files (ADR-001 through ADR-267 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

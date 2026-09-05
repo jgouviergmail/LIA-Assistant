@@ -141,6 +141,21 @@ def _render_perplexity(level: str, _intent: ReasoningIntent, _max_output: int) -
     return {} if level == _NO_DEPTH else {"reasoning_effort": level}
 
 
+def _render_ollama(level: str, _intent: ReasoningIntent, _max_output: int) -> dict[str, Any]:
+    """``ChatOllama.reasoning``: ``False`` switches thinking off, a level asks for it.
+
+    The ladder coerces to Ollama's own vocabulary before this runs, so only
+    ``none`` and the four server levels arrive. ``provider_default`` sends
+    nothing and the adapter decides from the model's capability whether to make
+    the server default explicit (it must, to surface the trace).
+    """
+    if level == _NO_DEPTH:
+        return {}
+    if level == "none":
+        return {"reasoning": False}
+    return {"reasoning": level}
+
+
 #: Family -> its renderer. A new provider with an unseen shape is one entry and
 #: one small function; no existing family changes. The families deliberately
 #: differ only in the kwargs they emit -- everything upstream (the ladder, the
@@ -154,6 +169,7 @@ _RENDERERS: dict[str, Callable[[str, ReasoningIntent, int], dict[str, Any]]] = {
     "deepseek_toggle": _render_deepseek_toggle,
     "qwen_toggle_budget": _render_qwen_toggle_budget,
     "perplexity": _render_perplexity,
+    "ollama": _render_ollama,
 }
 
 

@@ -35,6 +35,14 @@ class ModelCapabilitiesCache:
     _cache: dict[str, ModelProfile] = {}
     _provider_by_model: dict[str, str] = {}
     _loaded: bool = False
+    #: Profiles read from a model's OWN server at discovery (Ollama ``/api/show``,
+    #: ADR-267). A separate layer on purpose: :meth:`load_from_db` swaps ``_cache``
+    #: wholesale on every catalogue reload and would otherwise wipe them. The
+    #: server is the authority on its own models, so this layer WINS over a
+    #: catalogue row of the same name (the seed carries a few static Ollama
+    #: guesses).
+    _discovered: dict[str, ModelProfile] = {}
+    _discovered_provider: dict[str, str] = {}
 
     @classmethod
     async def load_from_db(cls, db: AsyncSession) -> None:
@@ -91,32 +99,91 @@ class ModelCapabilitiesCache:
         await publish_cache_invalidation(CACHE_NAME_MODEL_CAPABILITIES)
 
     @classmethod
+    def merge_discovered(cls, provider: str, profiles: dict[str, ModelProfile]) -> bool:
+        """Replace the discovered profiles of ``provider`` (atomic swap).
+
+        Called after every discovery run (boot, admin refresh, provider-key
+        reload). An empty mapping clears the provider's layer, so a tag the
+        server no longer lists disappears here too.
+
+        Args:
+            provider: The provider whose server was read.
+            profiles: ``{model_name: profile}`` as the server described them.
+
+        Returns:
+            True when the layer changed. A change drops the LLM instance cache,
+            because capabilities are consulted at instance creation time.
+        """
+        kept = {
+            name: p
+            for name, p in cls._discovered.items()
+            if cls._discovered_provider[name] != provider
+        }
+        kept_provider = {
+            name: prov for name, prov in cls._discovered_provider.items() if prov != provider
+        }
+        new_discovered = {**kept, **profiles}
+        new_provider = {**kept_provider, **dict.fromkeys(profiles, provider)}
+        changed = new_discovered != cls._discovered
+        cls._discovered = new_discovered
+        cls._discovered_provider = new_provider
+        if changed:
+            try:
+                from src.infrastructure.llm.factory import clear_llm_instance_cache
+
+                clear_llm_instance_cache()
+            except Exception:
+                logger.warning("llm_instance_cache_clear_failed", exc_info=True)
+            logger.info(
+                "model_capabilities_discovered_merged",
+                provider=provider,
+                count=len(profiles),
+                reasoning_models=sum(1 for p in profiles.values() if p.is_reasoning_model),
+            )
+        return changed
+
+    @classmethod
+    def has_discovered(cls, provider: str) -> bool:
+        """Whether this provider's server has already described its models.
+
+        Args:
+            provider: The provider id.
+
+        Returns:
+            True when the discovered layer holds at least one of its models.
+        """
+        return any(prov == provider for prov in cls._discovered_provider.values())
+
+    @classmethod
     def get(cls, model_name: str) -> ModelProfile | None:
         """O(1) hot-path lookup. Returns ``None`` for unknown models.
 
-        Callers should fall back to a conservative default profile when
-        ``None`` is returned (cf. :func:`get_model_profile`).
+        A profile the model's own server described (discovered layer) wins over
+        a catalogue row of the same name. Callers should fall back to a
+        conservative default profile when ``None`` is returned (cf.
+        :func:`get_model_profile`).
         """
-        return cls._cache.get(model_name)
+        return cls._discovered.get(model_name) or cls._cache.get(model_name)
 
     @classmethod
     def get_provider(cls, model_name: str) -> str | None:
         """Return the provider string for a known model, or ``None``."""
-        return cls._provider_by_model.get(model_name)
+        return cls._discovered_provider.get(model_name) or cls._provider_by_model.get(model_name)
 
     @classmethod
     def get_models_grouped_by_provider(cls) -> dict[str, list[str]]:
         """Return ``{provider → [model_name, ...]}`` with deterministic order.
 
         Used by ``/llm-config/metadata`` to populate the admin Configuration LLM
-        dropdowns. Each provider's model list is sorted alphabetically.
+        dropdowns. Each provider's model list is sorted alphabetically and
+        includes the discovered layer, deduplicated.
         """
-        grouped: dict[str, list[str]] = {}
+        grouped: dict[str, set[str]] = {}
         for model_name, provider in cls._provider_by_model.items():
-            grouped.setdefault(provider, []).append(model_name)
-        for models in grouped.values():
-            models.sort()
-        return grouped
+            grouped.setdefault(provider, set()).add(model_name)
+        for model_name, provider in cls._discovered_provider.items():
+            grouped.setdefault(provider, set()).add(model_name)
+        return {provider: sorted(models) for provider, models in grouped.items()}
 
     @classmethod
     def is_loaded(cls) -> bool:
@@ -128,6 +195,8 @@ class ModelCapabilitiesCache:
         """Reset cache state (testing only)."""
         cls._cache = {}
         cls._provider_by_model = {}
+        cls._discovered = {}
+        cls._discovered_provider = {}
         cls._loaded = False
 
     @staticmethod

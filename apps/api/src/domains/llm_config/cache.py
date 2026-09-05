@@ -44,6 +44,9 @@ class LLMConfigOverrideCache:
     _overrides: dict[str, dict[str, Any]] = {}  # llm_type → {field: value}
     _provider_keys: dict[str, str] = {}  # provider → decrypted key
     _loaded: bool = False
+    #: The Ollama address the discovered capabilities were read from, so a
+    #: config reload that did not move it does no network I/O (ADR-267).
+    _ollama_refreshed_url: str | None = None
 
     @classmethod
     async def load_from_db(cls, db: AsyncSession) -> None:
@@ -101,6 +104,47 @@ class LLMConfigOverrideCache:
             provider_keys_count=len(provider_keys),
             msg=f"Loaded {len(overrides)} LLM overrides and {len(provider_keys)} provider keys",
         )
+
+        # The Ollama URL travels as a provider key, so this is the one moment
+        # every reader agrees it may have changed: boot, an admin key edit, a
+        # cross-worker invalidation. Refresh what the server says about its
+        # models (ADR-267). Best-effort and bounded by the discovery timeout;
+        # nothing here may fail a config reload.
+        await cls._refresh_ollama_capabilities()
+
+    @classmethod
+    async def _refresh_ollama_capabilities(cls) -> None:
+        """Publish the Ollama server's models to the capabilities cache, if configured.
+
+        Runs only when the ADDRESS changed (or nothing is known yet), never on
+        every config reload: this is network I/O on a path an admin triggers by
+        saving ANY slot, and an unreachable server would make each of those
+        saves wait for the discovery timeout. What a running server holds is
+        refreshed by the admin's own model listing, which discovers on every
+        open (TTL-bounded).
+
+        Never raises: an observability concern must not fail a config reload.
+        """
+        from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+        from src.infrastructure.llm.providers.ollama_urls import resolve_ollama_url
+
+        url = resolve_ollama_url()
+        if url == cls._ollama_refreshed_url and ModelCapabilitiesCache.has_discovered("ollama"):
+            return
+        cls._ollama_refreshed_url = url
+        if not url:
+            # Ollama was removed: drop what its server had declared, so no tag
+            # keeps a profile the runtime would still believe.
+            ModelCapabilitiesCache.merge_discovered("ollama", {})
+            return
+        try:
+            from src.infrastructure.llm.providers.ollama_discovery import (
+                refresh_ollama_capabilities,
+            )
+
+            await refresh_ollama_capabilities()
+        except Exception:
+            logger.warning("ollama_capabilities_refresh_failed", exc_info=True)
 
     @classmethod
     def get_override(cls, llm_type: str) -> dict[str, Any] | None:

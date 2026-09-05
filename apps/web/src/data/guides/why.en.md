@@ -4,7 +4,7 @@
 
 **Version**: 5.4
 **Date**: 2026-08-23
-**Application**: LIA v1.42.3
+**Application**: LIA v1.42.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -263,6 +263,8 @@ The protection covers what comes **in**, too. Every day LIA reads text you did n
 ### 5.2. Even a Raspberry Pi is enough
 
 LIA runs in production on a **Raspberry Pi 5** — a single-board computer costing around $80. 20+ specialized agents, a full observability stack, a psychological memory system, all on a tiny ARM server. Multi-architecture Docker images (amd64/arm64) enable deployment on any hardware: Synology NAS, VPS for a few dollars a month, enterprise server, or Kubernetes cluster.
+
+And sovereignty does not stop at the data. **The models can stay with you too**: a model running on your machine is a model like any other, usable for any of the assistant's roles, with its thinking depth set exactly like a remote one's. LIA speaks to it in its native language and asks your server what it can do rather than guessing: what the interface offers you is exactly what your hardware accepts. The trade-off stays yours — a local model costs nothing and lets nothing leave your home, a remote one sometimes answers better — and it changes role by role, without a redeployment.
 
 Digital sovereignty is no longer an enterprise privilege — it's a right accessible to everyone.
 

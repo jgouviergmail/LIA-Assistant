@@ -100,6 +100,22 @@ which is the guard working as intended.
 Script skills, which execute code, require an extra opt-in overlay because they
 need access to the Docker socket. A generic installation runs without it.
 
+## Can I run it without any cloud AI provider at all?
+
+Yes. Alongside the six remote providers, LIA drives a local **Ollama** server as
+a first-class provider, and every one of its roles can be assigned to a model
+running there. Nothing about that path is a downgrade: LIA talks to Ollama
+through its native API rather than an OpenAI compatibility layer, which is what
+lets it control the thinking of a model that thinks, set the context window it
+also accounts with, ask for structured output, and read the thinking trace apart
+from the answer.
+
+The capabilities of each model are read from your server, not guessed, so the
+administration screen offers exactly what your hardware accepts. The trade-off
+stays yours, role by role: a local model costs nothing and lets no data leave
+your infrastructure, a remote one sometimes answers better — and switching one
+role from the first to the second is a configuration change, not a redeployment.
+
 ## My deployment ended on an error — did it fail?
 Read the closing message rather than the exit code, and since v1.38.0 the message tells you which of six things happened. Only one of them is a failed deployment: the one where the server itself returned a non-zero code, and the driver then points you at the remote log. "Already in progress" means your deployment did not happen at all and nothing changed remotely; "interrupted" means it stopped mid-flight without writing a verdict; "watching budget exhausted" means it is still running and you stopped watching — re-run with a larger `-DeployBudgetSeconds`, or simply wait; "contact lost" means the connection dropped while launching, and the server may have started the work anyway. On all four, do not re-run: the driver would wipe the staging directory under a build still in flight. It prints the three commands that settle the question instead.
 

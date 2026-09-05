@@ -6,7 +6,7 @@
 
 **Versión**: 4.9
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.42.3
+**Aplicación**: LIA v1.42.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 537 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 265 ADRs, ~24.053 tests recogidos por pytest en 1.452 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 266 ADRs, ~24.454 tests recogidos por pytest en 1.488 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -84,10 +84,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 24.053 recopilados por pytest en 1.452 archivos de prueba + 7.305 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 24.454 recopilados por pytest en 1.488 archivos de prueba + 7.404 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 755, de las cuales 32 compartidas mediante conftest |
 | Documentos de documentación | 549 |
-| ADRs (Architecture Decision Records) | 265 |
+| ADRs (Architecture Decision Records) | 266 |
 | Métricas Prometheus | 486 definiciones |
 | Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -136,9 +136,11 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | DeepSeek | deepseek-v4-flash, deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Coste reducido, reasoning nativo |
 | Perplexity | Sonar, Sonar Pro | Search-augmented generation |
 | Qwen | qwen3.5-plus, qwen3.5-flash, qwen3-max | Thinking mode, tools + vision (Alibaba Cloud) |
-| Ollama | Cualquier modelo local (descubrimiento dinámico) | Coste API cero, auto-hospedado |
+| Ollama | Cualquier modelo local (capacidades leídas del servidor) | Cliente nativo: razonamiento controlado, ventana de contexto, JSON restringido. Coste API cero, auto-hospedado |
 
 **¿Por qué 7 providers?** La elección no es la colección por sí misma. Es una estrategia de resiliencia: cada nodo del pipeline puede asignarse a un provider diferente. Si OpenAI aumenta sus tarifas, el router pasa a DeepSeek. Si Anthropic tiene una caída, la respuesta se redirige a Gemini. La abstracción LLM (`src/infrastructure/llm/factory.py`) utiliza el pattern Factory con `init_chat_model()`, sobrecargado por adaptadores específicos (`ResponsesLLM` para la API Responses de OpenAI, elegibilidad por regex `^(gpt-4\.1|gpt-5|o[1-9])`).
+
+**El caso particular de los modelos locales.** Seis proveedores hablan una API remota; el séptimo funciona en tu máquina, y LIA le habla por su **API nativa** (`langchain-ollama`) en lugar de su capa de compatibilidad OpenAI. La distinción no es cosmética: la capa de compatibilidad no sabe expresar `think` (apagar el razonamiento de un modelo que razona, o elegir su profundidad), ni `num_ctx` (la ventana de contexto, que un servidor local elige si no según su memoria de vídeo y que recorta en silencio el principio de un prompt demasiado largo), ni separar la traza de razonamiento de la respuesta. Y como el nombre de un modelo no dice nada de sus capacidades, estas se **leen del servidor** (`/api/show`: herramientas, visión, razonamiento, longitud de contexto) y alimentan tanto la ejecución como la pantalla de administración — así una profundidad de razonamiento nunca llega a un modelo que no razona, lo que el servidor rechazaría.
 
 ---
 
@@ -1359,7 +1361,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-265 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+266 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1465,7 +1467,7 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 265 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~24.053 tests en 1.452 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 266 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~24.454 tests en 1.488 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
@@ -1582,4 +1584,4 @@ El rostro del compañero elegía su expresión de fin de turno a partir de la em
 **Cada unidad pagada se contabiliza y se muestra.** Una reunión gasta audio en el motor de transcripción y tokens en el modelo de síntesis, pasadas de condensación y reconstrucciones incluidas; ambos llegan a los libros de la plataforma como cualquier intercambio — el audio por las estadísticas de voz remota, los tokens bajo un `run_id` que lleva el mensaje archivado, de modo que el historial se une al registro de tokens exactamente como con cualquier notificación proactiva. La fila conserva el gasto propio del acta para que la página indique el total exacto con su desglose, la tarjeta indica las dos unidades y su suma, y un modelo sin precio administrado devuelve `null`: un precio desconocido no es un precio gratuito. La misma honestidad recorre el acta misma — una laguna se declara, nunca se rellena; un interlocutor sin nombre sigue siendo S2; una propuesta que quedó abierta no es una decisión.
 
 **El formato del acta se ha convertido en una biblioteca, y la elección tiene un solo lugar.** Treinta plantillas integradas viven en el código, sus palabras en un módulo de datos i18n, y una aserción al arrancar se niega a iniciar si falta un nombre en alguno de los seis idiomas: lo que un validador puede rechazar, el catálogo no puede entregarlo. Una plantilla se designa por una referencia — `builtin:<clave>` o `user:<uuid>` — que reuniones, preferencias y peticiones intercambian en lugar de una fila, de modo que una integrada no necesita existir en base de datos y una plantilla eliminada deja una referencia cuyos lectores saben replegarse sobre la instantánea conservada. La elección sigue **una sola precedencia**: la referencia que lleva la reunión, luego el valor predeterminado de la preferencia, luego el modelo de lenguaje que lee un extracto de la transcripción y elige por encima de un umbral de confianza, luego la integrada por defecto; cada salida se cuenta y se escribe en la fila con el motivo enunciado, de manera que la página muestra un hecho y no una reconstrucción. Una quinta clase de sección devuelve la transcripción misma: no cabe en una sola respuesta — el slot de síntesis emite como mucho ocho mil tokens —, así que se reescribe por partes, cada una acotada por la ventana de salida efectiva, un índice que falta parte el fragmento una vez y una respuesta sospechosamente corta se reintenta una vez. Reescribir un acta ya redactada toma prestada la regeneración duradera cuando reemplaza, y crea una fila derivada que apunta a su origen cuando produce actas nuevas — nunca una copia: la transcripción es la misma, el acta no. El mismo cuidado por el orden gobierna los documentos de los espacios de conocimientos: como `rag_chunks.space_id` está desnormalizado y lo lee la búsqueda, un movimiento escribe la fila y sus fragmentos, confirma, **y luego** mueve el fichero; un renombrado que falla revierte ambos y lo informa solo para ese documento, y un lote nunca se detiene por un elemento — cada identificador vuelve hecho o ignorado con su código.
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 265 ADRs y del changelog (v1.0 a v1.42.3). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 266 ADRs y del changelog (v1.0 a v1.42.4). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

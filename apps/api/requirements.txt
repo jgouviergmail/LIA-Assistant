@@ -131,6 +131,8 @@ tenacity==9.1.4  # Retry with exponential backoff (used by compaction service)
 langchain-deepseek==1.1.0  # content-block streaming v2. Still patched locally via _deepseek_patched.py: the #37178 reasoning_content round-trip fix is NOT in 1.1.0 (verified against the tag source, 2026-08-16)
 langchain-anthropic==1.5.6  # reasoning tokens in usage_metadata (ADR-220 accounting); Opus 5/Fable 5 model profiles. Requires anthropic>=0.120
 langchain-google-genai==4.3.4  # reasoning_effort standard param; new Gemini request rules. 4.3.0 removed the default temperature — no effect: LIA always passes it explicitly (adapter.py)
+langchain-ollama==1.1.0  # Native Ollama chat (ADR-267): think bool|level, num_ctx, num_predict, format JSON-schema, reasoning_content, usage on every response. Requires langchain-core>=1.2.21 (pinned 1.5.6 satisfies), ollama>=0.6.1
+ollama==0.6.2  # Ollama SDK, floor >=0.6.1 required by langchain-ollama 1.1.0 (no direct SDK import in src/)
 anthropic==0.122.0  # Anthropic SDK, floor >=0.120 required by langchain-anthropic 1.5.6 (no direct SDK import in src/)
 
 # MCP (Model Context Protocol) — evolution F2

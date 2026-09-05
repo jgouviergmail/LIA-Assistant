@@ -31,6 +31,7 @@ FAMILIES: frozenset[str] = frozenset(
         "deepseek_toggle",
         "qwen_toggle_budget",
         "perplexity",
+        "ollama",
         "none",
     }
 )
@@ -53,6 +54,12 @@ class ReasoningProfile:
             that is known.
         source: ``family`` when the ladder is the family's, ``model_refined``
             when the catalogue narrowed it.
+        ladder_from_catalogue: The family's own ladder is only a VOCABULARY;
+            whether a given model reasons at all is known to the catalogue
+            alone (for Ollama, to the model's own server, read at discovery).
+            Without a declared ladder such a model resolves to the unknown
+            family -- no kwarg, no claim -- instead of inheriting depths the
+            rule table cannot vouch for.
     """
 
     family: str
@@ -62,6 +69,7 @@ class ReasoningProfile:
     can_disable: bool
     default_enabled: bool | None
     source: str = "family"
+    ladder_from_catalogue: bool = False
 
 
 #: A rule matched and says this model does not reason. Positive knowledge.
@@ -73,6 +81,24 @@ _NO_REASONING = ReasoningProfile("none", (), False, None, True, False)
 #: identically; the difference matters to the *validator*, which may reject an
 #: operator's level on the first and must never reject it on the second.
 _UNKNOWN_FAMILY = ReasoningProfile("none", (), False, None, True, None, source="unknown")
+
+#: Ollama (ADR-267). The server's ``think`` field accepts a boolean or a level
+#: (``low``/``medium``/``high``/``max``); ``false`` is accepted by every model
+#: while a positive level is refused (400) by a model without the ``thinking``
+#: capability. A tag's name says nothing about that capability -- the server
+#: does, at discovery -- so the ladder is DECLARED per model (full for a
+#: thinking model, ``("none",)`` for the others) and an undeclared tag stays
+#: unknown. ``can_disable`` is True: ``think=false`` is accepted everywhere
+#: (gpt-oss ignores it rather than refusing it).
+_OLLAMA_PROFILE = ReasoningProfile(
+    "ollama",
+    ("none", "low", "medium", "high", "max"),
+    False,
+    None,
+    True,
+    None,
+    ladder_from_catalogue=True,
+)
 
 #: ORDERED rules. A negative entry (``family="none"``) placed before a broad one
 #: wins -- that ordering is what keeps ``gpt-4.1`` and ``gpt-5-chat-latest`` out
@@ -200,7 +226,25 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
         # ``reasoning_effort: "none"``, a value the API does not accept.
         ReasoningProfile("perplexity", ("low", "medium", "high"), False, None, False, True),
     ),
+    # Every Ollama tag: the empty prefix matches any name. The ladder comes
+    # from the server (see ``_OLLAMA_PROFILE``), never from the name.
+    ("ollama", ("",), _OLLAMA_PROFILE),
 ]
+
+
+def ollama_declared_ladder(thinking: bool) -> tuple[str, ...]:
+    """The ladder the discovery declares for an Ollama tag.
+
+    Args:
+        thinking: Whether the server lists the ``thinking`` capability.
+
+    Returns:
+        The full Ollama ladder for a thinking model; ``("none",)`` otherwise,
+        which keeps the tag KNOWN (so the write path can refuse a depth it has
+        no way to honour) while letting ``none`` reach the server, where
+        ``think=false`` is accepted by every model.
+    """
+    return _OLLAMA_PROFILE.levels if thinking else ("none",)
 
 
 def resolve_reasoning_profile(
@@ -239,7 +283,10 @@ def resolve_reasoning_profile(
         return base
 
     if not model_levels:
-        return base
+        # A family whose ladder only the catalogue can vouch for resolves to
+        # UNKNOWN without a declaration: the validator must not reject, the
+        # translator must not send, the UI must not offer.
+        return _UNKNOWN_FAMILY if base.ladder_from_catalogue else base
     declared = set(model_levels)
     narrowed = tuple(level for level in base.levels if level in declared)
     if not narrowed:

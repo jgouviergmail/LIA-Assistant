@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.4] - 2026-09-05
+
+**Les modèles qui tournent sur ta machine deviennent des modèles comme les autres.** Ollama était branché sur son pont de compatibilité OpenAI, et ce pont ne sait pas dire l'essentiel : couper la réflexion d'un modèle qui pense, fixer la fenêtre de contexte, séparer la pensée de la réponse. Mesuré le 2026-09-05 : un emplacement passé sur `qwen3.8:27b` mourait à l'instanciation à chaque tour, et le premier correctif — le pont rafistolé — rendait une réponse VIDE, douze jetons demandés et douze jetons de pensée. LIA parle désormais à Ollama dans sa propre langue, et c'est le serveur qui dit ce que chacun de ses modèles sait faire.
+
+### Added
+
+- **Ollama devient un fournisseur natif** ([ADR-267](docs/architecture/ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md)) : LIA appelle `/api/chat` par `langchain-ollama` au lieu du pont OpenAI-compatible. Ce que le pont ne pouvait pas exprimer arrive enfin — `think` (couper la réflexion ou en choisir la profondeur), `num_ctx` (la fenêtre de contexte), `format` (JSON contraint par grammaire côté serveur), la trace de pensée séparée de la réponse, et l'usage sur chaque réponse.
+- **Le serveur déclare ce que ses modèles savent faire** : une couche DÉCOUVERTE lit `/api/show` (outils, vision, pensée, longueur de contexte) et alimente le runtime ET l'écran d'administration. Elle survit à un rechargement du catalogue, gagne sur une ligne de catalogue homonyme, se rafraîchit quand l'adresse du serveur change et à chaque ouverture de la liste des modèles, et se vide quand le serveur ne répond plus — un modèle qu'il ne liste plus ne garde aucun profil.
+- **Une échelle de réflexion déclarée par modèle** : complète pour un modèle qui pense, « aucune » seule pour les autres, inconnue pour un modèle jamais découvert. Une profondeur positive n'atteint donc jamais un modèle qui ne pense pas — ce que le serveur refuse en 400 — et l'écran d'administration n'offre que ce que l'API accepte.
+- **`OLLAMA_NUM_CTX`** : la fenêtre de contexte que LIA demande et avec laquelle elle compte. Vide, c'est le maximum du modèle plafonné à 32 768. Sans elle, Ollama choisit selon la mémoire vidéo disponible et coupe le début d'un prompt trop long en silence.
+- **`ChatOllamaTraced`** : le client publie ce qu'il envoie, sinon un appel Ollama entrait au registre Article 12 comme un nom de fournisseur et rien d'autre. `num_predict` devient la quatrième orthographe du plafond de sortie et `think` la quatrième forme de la réflexion.
+
+### Fixed
+
+- **N'importe quel emplacement LLM peut tourner sur Ollama** : les branches Ollama et Perplexity de l'adaptateur passaient l'objet de réflexion brut au client OpenAI, qui n'accepte qu'une chaîne — pour tout niveau stocké, y compris « défaut du fournisseur ». Comme 29 des 58 emplacements héritent d'un niveau par défaut, aucun choix d'administrateur ne pouvait l'éviter. Les deux branches passent par la couture unique ([ADR-245](docs/architecture/ADR-245-Reasoning-Unification.md)), et une garde parcourt chaque fournisseur × chaque niveau (`test_reasoning_seam_guard.py`).
+- **La fenêtre de contexte est demandée, plus supposée** : le seuil de compaction lisait 51 200 — le défaut d'un modèle inconnu — face à un serveur qui alloue selon sa mémoire vidéo. Ce que LIA compte est désormais ce qu'elle demande : demandé 32 768, alloué 32 768, compté 32 768.
+- **Le plafond de sortie atteint le serveur** (`num_predict`) : il partait sous un nom que le pont d'Ollama ne lit pas, donc aucune limite n'arrivait.
+- **La trace de pensée ne mange plus la réponse** : elle arrive séparée et se diffuse dans le panneau de progression, comme pour DeepSeek.
+- **L'URL Ollama est la racine du serveur** : le `/v1` hérité du pont est toléré et retiré par un seul lecteur (`providers/ollama_urls.py`), partagé par l'adaptateur et la découverte, qui divergeaient.
+- **Plus de fausse alerte de comptage** : un appel diffusé sur Ollama se terminait sans usage à chaque tour et déclenchait `LLMCallsWithoutUsage` pour une dépense qui existe et vaut 0 €.
+- **`extra_body` est fusionné, jamais assigné** sur les branches Qwen et DeepSeek : Qwen écrasait la valeur de la configuration avancée.
+
+### Changed
+
+- **`PROVIDER_USAGE_CAPABILITIES`** : Ollama passe de `excluded` à `native` ([ADR-220](docs/architecture/ADR-220-Comptabilite-Usage-LLM-Declaree.md) amendé) ; Perplexity reste seul exclu, pour la raison qui était la bonne (clé de l'utilisateur final).
+- **La sortie structurée d'Ollama passe par son champ `format`** et non par un outil forcé, que le serveur n'implémente pas : `native_structured_method` est le seul choix de méthode pour les trois points d'appel.
+- **`langchain-ollama` et `ollama` entrent dans le manifeste runtime** (lockfiles [ADR-112](docs/architecture/ADR-112-Universal-Lockfiles.md)) ; l'image API est reconstruite au déploiement.
+- **L'installateur propose la racine du serveur** pour Ollama, plus le suffixe du pont.
+
+### Tests
+
+- `test_reasoning_seam_guard.py` : 7 fournisseurs × 8 niveaux, aucun constructeur ne reçoit l'objet de réflexion, tout kwarg est sérialisable — la garde qui aurait été rouge depuis la v1.32.0 (mutation-vérifiée : réintroduire le défaut rougit 13 tests).
+- `test_ollama_family.py`, `test_ollama_chat.py`, `test_ollama_urls.py`, `test_ollama_discovered_profiles.py`, `test_model_capabilities_cache_discovered.py`, `test_structured_output_native_method.py`, `test_ollama_capabilities_refresh.py`, `test_provider_adapter_ollama_perplexity.py` : l'échelle par modèle, le client, l'URL, les profils découverts, la couche du cache, la méthode structurée, le rafraîchissement piloté par l'adresse.
+- Frontend : l'écran d'administration offre le widget de réflexion sur un modèle pensant, l'échelle réduite sur un modèle qui ne pense pas, rien du tout quand le serveur est injoignable, et masque les deux pénalités inexprimables.
+- Ratchets tenus sans relèvement : le client Ollama est EXTRAIT dans son module (`providers/ollama_chat.py`) plutôt que de faire grossir l'adaptateur, et les quatre fournisseurs à SDK dédié partagent une seule répartition.
+
 ## [1.42.3] - 2026-09-05
 
 **Chaque tour de chat perdait son contexte RAG, et le diagnostic automatique disait « preuves insuffisantes ».** Mesuré le 2026-09-05 : cinq tours sur cinq sans contexte documentaire, le fournisseur d'embeddings répondant `500 INTERNAL` à chaque requête RAG — parce que `HumanMessage.text` est une SOUS-CLASSE de `str` que le SDK Gemini transforme en requête vide (`"content": {}`) ; le chemin mémoire ne survivait que parce qu'il tranche le texte. Et les quatre derniers diagnostics stockés concluaient tous sans cause, alors que Prometheus et Loki tenaient la réponse (ADR-266).

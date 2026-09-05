@@ -370,7 +370,7 @@ class TestFetchModelCapabilities:
             return_value=_mock_response({"capabilities": ["completion", "tools", "vision"]})
         )
         caps = await _fetch_model_capabilities(mock_client, "http://localhost:11434", "test-model")
-        assert caps == ["completion", "tools", "vision"]
+        assert caps == (["completion", "tools", "vision"], None)
 
     @pytest.mark.asyncio
     async def test_returns_empty_on_error(self):
@@ -378,7 +378,7 @@ class TestFetchModelCapabilities:
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
         caps = await _fetch_model_capabilities(mock_client, "http://localhost:11434", "test-model")
-        assert caps == []
+        assert caps == ([], None)
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_no_capabilities_field(self):
@@ -388,4 +388,4 @@ class TestFetchModelCapabilities:
             return_value=_mock_response({"license": "MIT", "template": "..."})
         )
         caps = await _fetch_model_capabilities(mock_client, "http://localhost:11434", "test-model")
-        assert caps == []
+        assert caps == ([], None)

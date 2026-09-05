@@ -973,6 +973,82 @@ function ClaimBeforeEffectScene({ active, labels }: SceneProps) {
   );
 }
 
+type FitPhase = 'all' | 'picking' | 'narrowed';
+const FIT_STEPS: readonly TimelineStep<FitPhase>[] = [
+  { at: 0, state: 'all' },
+  { at: 1400, state: 'picking' },
+  { at: 2100, state: 'narrowed' },
+];
+
+/**
+ * A local model is chosen, and the panel keeps only what that model accepts:
+ * the thinking ladder shrinks to the depths its server declares, and the
+ * sliders it would ignore leave rather than sit there doing nothing.
+ *
+ * The resting frame is the narrowed one — the honest state is the offer that
+ * matches the model, not the full palette.
+ */
+function LocalModelFitScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(FIT_STEPS, { active });
+  const narrowed = phase === 'narrowed';
+
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-2 rounded-lg border border-border bg-background p-2.5 shadow-sm">
+        <div className="flex items-center gap-1.5">
+          <Server
+            className={cn(
+              'h-3.5 w-3.5 shrink-0 transition-colors duration-300',
+              phase === 'all' ? 'text-muted-foreground' : 'text-primary'
+            )}
+          />
+          <SkeletonLine w="w-1/2" />
+        </div>
+
+        <div className="space-y-1.5 border-t border-border pt-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-medium text-muted-foreground">{labels.thinking}</span>
+            {['a', 'b', 'c'].map((chip, index) => (
+              <span
+                key={chip}
+                aria-hidden="true"
+                className={cn(
+                  'h-2 rounded-full transition-all duration-300 motion-reduce:transition-none',
+                  index === 0 ? 'w-4 bg-primary/70' : 'w-3 bg-muted-foreground/30',
+                  narrowed && index > 0 ? 'w-0 opacity-0' : 'opacity-100'
+                )}
+              />
+            ))}
+          </div>
+
+          {['x', 'y'].map(row => (
+            <div
+              key={row}
+              className={cn(
+                'flex items-center gap-1.5 transition-all duration-300 motion-reduce:transition-none',
+                narrowed ? '-translate-y-0.5 opacity-0' : 'translate-y-0 opacity-100'
+              )}
+            >
+              <SkeletonLine w="w-1/3" className="h-1.5" />
+              <span aria-hidden="true" className="h-1 flex-1 rounded-full bg-muted-foreground/20" />
+            </div>
+          ))}
+
+          <div
+            className={cn(
+              'flex items-center gap-1 transition-opacity duration-300 motion-reduce:transition-none',
+              narrowed ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <span className="text-[9px] text-muted-foreground">{labels.dropped}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   activity_timeline: ActivityTimelineScene,
   claim_before_effect: ClaimBeforeEffectScene,
@@ -991,4 +1067,5 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   a11y_care: A11yCareScene,
   frosted_glass: FrostedGlassScene,
   narrow_screens: NarrowScreensScene,
+  local_model_fit: LocalModelFitScene,
 };

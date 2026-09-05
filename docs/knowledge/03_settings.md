@@ -397,6 +397,37 @@ Quick presets (current month, last month, last 30 days, all time) or custom date
 **🔒 Security:**
 You can only export your own data — it is not possible to access other users' consumption. Administrators have a separate export tool in Settings > Administration with the ability to filter by user.
 
+## Can LIA run on models hosted on my own machine?
+
+Yes, and they are models like any other. Any of LIA's roles — routing,
+planning, answering, an agent — can be given a model served by your own Ollama
+instance, with no cloud account involved. Point **Settings → Administration →
+LLM Configuration** at your server's address (the root, for example
+`http://localhost:11434`; a trailing `/v1` inherited from older setups is
+accepted and ignored) and pick a model per role.
+
+**🔎 The list shows what your server actually declares.** Tools, vision,
+thinking and context length are read from the server itself rather than guessed
+from a model's name, so the screen offers only what the chosen model accepts:
+the thinking depth appears only for a model that thinks, and the sliders it
+would ignore are not shown at all.
+
+**🧠 Thinking is yours to set.** A model that thinks obeys the depth you choose
+— including not thinking at all when you want a quick answer — and its thinking
+comes back separated from the answer, streamed to the progress panel rather
+than eating into the reply.
+
+**📏 The context window is your machine's.** LIA asks your server explicitly for
+a window: the model's own maximum, capped at 32768, or the value of
+`OLLAMA_NUM_CTX` if you set one. That same number decides when a long
+conversation gets summarised, so LIA's accounting and your server agree. Without
+it, Ollama picks a size from the available video memory and silently trims the
+beginning of an oversized prompt.
+
+**💶 What it costs:** nothing. Local calls are recorded in your consumption
+history with exact token counts and a zero amount, so a local model and a remote
+one can be compared on the same page.
+
 ## How does an administrator update the LLM model prices in bulk?
 
 From **Settings → Administration → LLM pricing**, the whole catalogue — every

@@ -163,7 +163,7 @@ to know what survives an erasure must not have to infer it from a data map.
 | The reference database or input data used | Consultations name the capability and its domain | 4 |
 | Integrity of the records themselves | Per-account hash chain, user- and admin-verifiable | 5 |
 | The input data of the request | Pointed at, never copied: `request_message_id` / `response_message_id`, `SET NULL` so a deleted conversation leaves a tombstone | 6 |
-| The parameters of the inference | Read from what was SENT (`invocation_params`), normalised to one vocabulary, plus a digest of everything else allowlisted | 7 |
+| The parameters of the inference | Read from what was SENT (`invocation_params`), normalised to one vocabulary — four spellings of the output cap, four shapes of reasoning, Ollama's native client publishing its own (`ChatOllamaTraced`, ADR-267) — plus a digest of everything else allowlisted | 7 |
 | Situations presenting a risk, and their handling | Refusals and failures were already recorded (lots 1, 4, 6); the four remaining gaps are `stop_reason` and `agent_integrity_events` | 8 |
 | A single machine-readable extraction | `/admin/effects/export/article12` for an operator, `/effects/export/article12` for the account holder — five records, one file, one `lia_record` per line | 9 |
 

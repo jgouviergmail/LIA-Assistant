@@ -136,10 +136,10 @@ description pour les autres (`structuredErrorDetail`,
 | **DeepSeek** (reasoner R1, legacy) | **omis** | **omis** | **omis** | **omis** | — | Pas de tools, cap 64000 |
 | **DeepSeek V4** (`deepseek-v4-flash`, `deepseek-v4-pro`) | 0-2.0⁷ | ✅⁷ | ✅⁷ | ✅⁷ | none/low/medium/high (→ `thinking.type` + `reasoning_effort`) | max_tokens cap 64000. Voir [LLM_PROVIDER_CONSTRAINTS.md §DeepSeek V4](./LLM_PROVIDER_CONSTRAINTS.md) pour le mapping complet et les contraintes structured output |
 | **Perplexity** | 0-2.0 | 0-1.0 | 1.0-2.0³ | -2 à 2 | — | freq_penalty multiplicatif. Base URL paramétrable via `PERPLEXITY_BASE_URL` (v1.19.1+) |
-| **Ollama** | 0-2.0 | 0-1.0 | ~² | ~² | — | Model-dependent. Base URL paramétrable via `OLLAMA_BASE_URL` |
+| **Ollama** | 0-2.0 | 0-1.0 | ✗² | ✗² | none/low/medium/high/max sur un modèle `thinking`, `none` seul sinon (échelle déclarée par le serveur à la découverte, ADR-267) | Client natif `langchain-ollama`. URL racine via `OLLAMA_BASE_URL` ou l'admin (`/v1` toléré) ; `max_tokens` → `num_predict` ; `num_ctx` demandé = fenêtre comptée (`OLLAMA_NUM_CTX`, sinon max du modèle plafonné) ; usage natif |
 
 ¹ reasoning_effort par modèle : o1-mini (non supporté), o1/o3/o4-mini (low/medium/high), gpt-5/5-mini (minimal/low/medium/high), gpt-5.1 (none/low/medium/high), gpt-5.2 (none/minimal/low/medium/high/xhigh)
-² Ollama: freq/pres penalty mappés en interne vers `repeat_penalty`
+² Ollama: `frequency_penalty` et `presence_penalty` ne sont pas exprimables par le client natif (`repeat_penalty` est un autre bouton) — champs masqués dans l'admin, valeurs ignorées (ADR-267)
 ³ Perplexity: `frequency_penalty` utilise une plage multiplicative (1.0=pas de pénalité, 2.0=maximum), différent de l'additive OpenAI
 
 ⁷ DeepSeek V4: temperature/top_p/penalties sont **silencieusement ignorés par l'API** quand thinking est activé (`reasoning_effort != none`). L'adapter les strip localement pour fidélité du log. Avec thinking activé + structured output forcé via `tool_choice` (ce que LangChain `with_structured_output(method="function_calling")` produit), l'API retourne 400 — le dispatch automatique vers JSON-mode fallback dans `structured_output.py` rend cela transparent. Base URL hardcodée via `langchain-deepseek`.

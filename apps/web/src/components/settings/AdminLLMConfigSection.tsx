@@ -157,7 +157,7 @@ function ProviderKeyRow({
                 type={isOllama || showKey ? 'text' : 'password'}
                 value={keyValue}
                 onChange={e => setKeyValue(e.target.value)}
-                placeholder={isOllama ? 'http://localhost:11434/v1' : 'sk-...'}
+                placeholder={isOllama ? 'http://localhost:11434' : 'sk-...'}
                 className="w-48 pr-8 text-xs"
               />
               <button

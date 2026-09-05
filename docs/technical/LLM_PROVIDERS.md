@@ -56,7 +56,7 @@ Chaque composant LLM du pipeline (router, planner, response, agents, etc.) est c
 | **DeepSeek** | `deepseek` | `DEEPSEEK_API_KEY` | `langchain-deepseek` | API compatible OpenAI. Thinking mode via model name |
 | **Gemini** | `gemini` | `GOOGLE_GEMINI_API_KEY` | `langchain-google-genai` | Google AI. Parametrage different des autres |
 | **Qwen** | `qwen` | `QWEN_API_KEY` | `langchain-openai` (compat) | Alibaba Cloud. DashScope OpenAI-compatible API |
-| **Ollama** | `ollama` | _(aucune)_ | `langchain-openai` (compat) | Deploiement local. `OLLAMA_BASE_URL` requis |
+| **Ollama** | `ollama` | _(aucune)_ | `langchain-ollama` (natif, ADR-267) | Deploiement local. `OLLAMA_BASE_URL` requis, `OLLAMA_NUM_CTX` conseillé |
 | **Perplexity** | `perplexity` | `PERPLEXITY_API_KEY` | `langchain-openai` (compat) | Search-augmented. Pas de tools/structured output |
 
 ### Ou vivent les cles API
@@ -76,7 +76,7 @@ Restent dans le `.env` les cles qui servent hors du chat (voir `.env.example`) :
 OPENAI_API_KEY=sk-...                   # embeddings et usages hors chat
 GOOGLE_GEMINI_API_KEY=AI...
 PERPLEXITY_API_KEY=pplx-...
-OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une cle)
+OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une cle) ; avec ou sans /v1
 ```
 
 ---
@@ -201,8 +201,14 @@ Modeles courants (le nom depend de ce qui est installe localement) :
 **Notes Ollama** :
 - Cout : **$0** (execution locale)
 - API key factice (`"ollama"`) injectee automatiquement
-- `OLLAMA_BASE_URL` configure l'endpoint (defaut : `http://localhost:11434`)
-- Les capacites (tools, structured output) dependent du modele choisi
+- **Client natif** (`langchain-ollama`, [ADR-267](../architecture/ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md)) : LIA parle à `/api/chat`, jamais au pont OpenAI-compatible. Le pont ne permettait ni de couper la pensée, ni de fixer la fenêtre de contexte, ni de lire la trace (mesuré : douze jetons demandés, douze jetons de pensée, réponse vide).
+- **URL** : `OLLAMA_BASE_URL` (ou la « clé » Ollama saisie dans l'admin) est la racine du serveur, `http://hote:11434` ; le suffixe `/v1` que le pont exigeait est toléré et retiré (`providers/ollama_urls.py`).
+- **Capacités lues sur le serveur** : `/api/show` déclare `tools`, `vision`, `thinking`, `embedding` et la longueur de contexte maximale de chaque tag ; ces profils forment la couche DÉCOUVERTE de `ModelCapabilitiesCache` (provenance `discovered`, en mémoire) et gagnent sur une ligne de seed du même nom. Elle est rafraîchie quand l'ADRESSE change (boot, modification de la clé, invalidation entre workers) — jamais à chaque sauvegarde admin, qui attendrait le délai de découverte si le serveur était injoignable — et à chaque ouverture de la liste des modèles dans l'admin (cache 60 s). Un tag que le serveur ne liste plus disparaît.
+- **Raisonnement** : la famille `ollama` a une échelle déclarée par modèle — `none/low/medium/high/max` pour un modèle `thinking`, `none` seul pour les autres. `none` → `think=false` (accepté par tout modèle), un niveau → `think=<niveau>` (refusé en 400 par un modèle qui ne pense pas, ce que l'échelle empêche par construction). Sans instruction sur un modèle pensant, le défaut du serveur est rendu explicite (`reasoning=True`) : la trace arrive SÉPARÉE dans `reasoning_content` et le panneau de progression la diffuse, comme pour DeepSeek. Un modèle sans parseur de pensée qui écrit `<think>` dans le contenu n'est pas nettoyé.
+- **Fenêtre de contexte** : ce que LIA compte est ce que LIA demande. `num_ctx` = `OLLAMA_NUM_CTX` si défini, sinon le maximum du modèle plafonné à `OLLAMA_NUM_CTX_DEFAULT_CAP` (32 768) ; envoyé à chaque appel et lu par `get_effective_context_window` (seuil de compaction, budget ReAct). Sans cela, Ollama alloue selon la VRAM (4k sous 24 GiB) et coupe le début du prompt en silence. `ollama ps` (colonne CONTEXT) confirme l'allocation ; un modèle trop grand pour la VRAM est déporté sur CPU, jamais tronqué.
+- **Plafond de sortie** : `max_tokens` du slot → `num_predict`, nativement. **Usage** : `prompt_eval_count`/`eval_count` sur chaque réponse, diffusée ou non (mode `native`, ADR-220 amendé). **Sortie structurée** : champ `format` (JSON-schema, contraint par grammaire côté serveur, tout modèle), `native_structured_method`.
+- **Non exprimable** : `frequency_penalty` et `presence_penalty` (le client natif ne les porte pas ; `repeat_penalty` est un autre bouton) — masqués dans l'admin. Le `provider_config` d'un slot accepte tout champ de `ChatOllama` (`num_ctx`, `keep_alive`, `top_k`, `seed`, `repeat_penalty`…) ; une clé inconnue est signalée et retirée plutôt qu'ignorée en silence.
+- **Capacités et délais** : `tools` (slots agents et ReAct) et `vision` (`vision_analysis`) sont celles du modèle choisi ; le premier appel après cinq minutes d'inactivité recharge le modèle : dimensionner `timeout_seconds` du slot en conséquence. Les tags `*-cloud` apparaissent comme les autres et tournent sur le compte Ollama de l'opérateur.
 - **Dynamic discovery** : l'admin UI liste automatiquement les modeles installes via `GET /api/tags` + `POST /api/show` (capabilities reelles par modele, cache 60s, timeout 5s, fallback sur profils statiques)
 
 ### Perplexity (search-augmented)
@@ -510,7 +516,8 @@ PLANNER_LLM_PROVIDER_CONFIG={"thinking": {"type": "enabled", "budget_tokens": 10
 ### Configuration locale Ollama
 
 ```bash
-OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_BASE_URL=http://localhost:11434   # racine du serveur ; un /v1 hérité est toléré et retiré
+OLLAMA_NUM_CTX=32768                     # optionnel : la fenêtre demandée ET comptée (ADR-267)
 
 RESPONSE_LLM_PROVIDER=ollama
 RESPONSE_LLM_MODEL=llama3.2

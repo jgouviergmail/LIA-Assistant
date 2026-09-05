@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 265 ADR files (ADR-266 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 266 ADR files (ADR-267 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 37 |
 
 ---
@@ -48,7 +48,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (265 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (266 ADR files) |
 
 ### Pour les Product Managers
 
@@ -162,7 +162,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) | Providers LLM, modèles, configuration (Admin UI + .env fallback), compatibilité | ✅ |
+| [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) | Providers LLM, modèles, configuration (Admin UI + .env fallback), compatibilité ; Ollama en client natif aux capacités lues sur le serveur (ADR-267) | ✅ |
 | [LLM_PROVIDER_CONSTRAINTS.md](./technical/LLM_PROVIDER_CONSTRAINTS.md) | Contraintes de paramétrage LLM par provider et par modèle (matrice complète) | ✅ |
 | [PROMPTS.md](./technical/PROMPTS.md) | Système prompts, versioning, unified planner, memory extraction prompt | ✅ |
 | [PLANNER.md](./technical/PLANNER.md) | Planner node, ExecutionPlan DSL, FOR_EACH | ✅ |

@@ -19,7 +19,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.core.config import settings
-from src.core.constants import REASONING_MODELS_PATTERN
+from src.core.constants import OLLAMA_BASE_URL_ENV, REASONING_MODELS_PATTERN
 
 # ADR-245: one seam for every provider. It derives the model's family, narrows
 # the ladder with whatever the catalogue declares, reads the stored value as an
@@ -28,6 +28,7 @@ from src.core.constants import REASONING_MODELS_PATTERN
 from src.core.reasoning_intent import requested_level
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_PROVIDERS
+from src.infrastructure.llm.providers.ollama_urls import ollama_native_root
 from src.infrastructure.llm.providers.responses_adapter import (
     create_responses_llm,
     is_responses_api_eligible,
@@ -46,7 +47,7 @@ _ENV_FALLBACK: dict[str, str] = {
     "deepseek": "DEEPSEEK_API_KEY",
     "perplexity": "PERPLEXITY_API_KEY",
     "gemini": "GOOGLE_GEMINI_API_KEY",
-    "ollama": "OLLAMA_BASE_URL",
+    "ollama": OLLAMA_BASE_URL_ENV,
     "qwen": "QWEN_API_KEY",
 }
 
@@ -105,6 +106,32 @@ def _apply_transport_timeout(kwargs: dict[str, Any], timeout_seconds: float | No
     """
     if timeout_seconds is not None and "timeout" not in kwargs:
         kwargs["timeout"] = timeout_seconds
+
+
+def _merge_extra_body(
+    kwargs: dict[str, Any], addition: dict[str, Any], *, existing_wins: bool = False
+) -> None:
+    """Merge ``addition`` into the client's ``extra_body`` instead of replacing it.
+
+    ``extra_body`` is the one kwarg several sources write to -- the documented
+    ``provider_config`` escape hatch and a family's reasoning translation among
+    them -- and a plain assignment silently drops whatever the other source put
+    there. An empty result leaves the key absent, so a client that received no
+    ``extra_body`` before receives none now.
+
+    Args:
+        kwargs: The constructor kwargs being assembled (mutated in place).
+        addition: Keys to add.
+        existing_wins: When True, a key already present keeps its value (the
+            ``provider_config`` precedence ``timeout`` and ``stream_usage``
+            already have); when False, ``addition`` overrides it.
+    """
+    existing = dict(kwargs.get("extra_body") or {})
+    merged = {**addition, **existing} if existing_wins else {**existing, **addition}
+    if merged:
+        kwargs["extra_body"] = merged
+    else:
+        kwargs.pop("extra_body", None)
 
 
 def _require_api_key(provider: str) -> str:
@@ -232,36 +259,18 @@ class ProviderAdapter:
         # Validate provider/model compatibility
         ProviderAdapter._validate_provider_model(provider, model, llm_type)
 
-        # DeepSeek: Uses official langchain-deepseek integration
-        if provider == "deepseek":
-            return ProviderAdapter._create_deepseek_llm(
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                streaming=streaming,
-                **kwargs,
-            )
-
-        # Gemini: Uses official langchain-google-genai integration
-        if provider == "gemini":
-            return ProviderAdapter._create_gemini_llm(
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                streaming=streaming,
-                **kwargs,
-            )
-
-        # OpenAI Responses API: Use for eligible models (40-80% cache improvement)
-        # Direct application - no feature flag, automatic fallback to Chat Completions
-        if provider == "openai" and is_responses_api_eligible(model):
-            return ProviderAdapter._create_openai_responses_llm(
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                streaming=streaming,
-                **kwargs,
-            )
+        # Providers whose SDK LIA drives directly rather than through
+        # ``init_chat_model`` (see ``_create_with_dedicated_client``).
+        dedicated = ProviderAdapter._create_with_dedicated_client(
+            provider=provider,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            streaming=streaming,
+            kwargs=kwargs,
+        )
+        if dedicated is not None:
+            return dedicated
 
         # Prepare provider-specific configuration
         # Phase 6: Pass streaming flag for stream_options injection (OpenAI)
@@ -334,6 +343,69 @@ class ProviderAdapter:
             raise
 
     @staticmethod
+    def _create_with_dedicated_client(
+        *,
+        provider: ProviderType,
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        streaming: bool,
+        kwargs: dict[str, Any],
+    ) -> BaseChatModel | None:
+        """Build the LLM for a provider LIA drives through its own SDK.
+
+        Four providers are not reached through ``init_chat_model``: DeepSeek and
+        Gemini have official integrations, Ollama a native client whose ``think``
+        / ``num_ctx`` / ``format`` the OpenAI-compatible bridge cannot express
+        (ADR-267), and eligible OpenAI models take the Responses API for its
+        cache behaviour. Kept as ONE dispatch so ``create_llm`` reads as a
+        pipeline rather than a chain of provider special cases.
+
+        Args:
+            provider: Provider type.
+            model: Model identifier.
+            temperature: Temperature parameter.
+            max_tokens: Output cap.
+            streaming: Whether streaming is enabled.
+            kwargs: The remaining provider parameters (consumed by the builders).
+
+        Returns:
+            The client, or None when the provider goes through ``init_chat_model``.
+        """
+        if provider == "deepseek":
+            return ProviderAdapter._create_deepseek_llm(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                streaming=streaming,
+                **kwargs,
+            )
+        if provider == "gemini":
+            return ProviderAdapter._create_gemini_llm(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                streaming=streaming,
+                **kwargs,
+            )
+        if provider == "ollama":
+            return ProviderAdapter._create_ollama_llm(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                **kwargs,
+            )
+        if provider == "openai" and is_responses_api_eligible(model):
+            return ProviderAdapter._create_openai_responses_llm(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                streaming=streaming,
+                **kwargs,
+            )
+        return None
+
+    @staticmethod
     def _create_openai_responses_llm(
         model: str, temperature: float, max_tokens: int, streaming: bool, **kwargs: Any
     ) -> BaseChatModel:
@@ -395,6 +467,56 @@ class ProviderAdapter:
             # ADR-221: the per-slot transport timeout applies here too — the
             # explicit signature would otherwise drop the kwarg silently.
             timeout=kwargs.pop("timeout", None),
+        )
+
+    @staticmethod
+    def _create_ollama_llm(
+        model: str, temperature: float, max_tokens: int, **kwargs: Any
+    ) -> BaseChatModel:
+        """Create an Ollama LLM through the native client (ADR-267).
+
+        Resolves what only the adapter knows -- the credential (the Ollama
+        "key" IS the server URL), the configured context window and what the
+        server said about this tag at discovery -- and hands the rest to
+        ``ollama_chat``, which owns the client. Nothing about the wire format
+        lives here.
+
+        Args:
+            model: Ollama tag (e.g. ``qwen3.8:27b``).
+            temperature: Sampling temperature.
+            max_tokens: Output cap, sent as ``num_predict``.
+            **kwargs: ``top_p``, ``timeout``, ``reasoning_effort`` and the
+                ``provider_config`` escape hatch.
+
+        Returns:
+            A configured ``ChatOllamaTraced`` -- ``ChatOllama`` publishing what
+            it sends, so the Article-12 register reads the call (ADR-263 lot 7).
+
+        Raises:
+            ImportError: If ``langchain-ollama`` is not installed.
+        """
+        try:
+            from src.infrastructure.llm.providers.ollama_chat import create_ollama_llm
+        except ImportError as e:
+            logger.error(
+                "ollama_import_failed",
+                error=str(e),
+                msg="Install langchain-ollama: pip install langchain-ollama",
+            )
+            raise ImportError(
+                "langchain-ollama is not installed. Install it with: pip install langchain-ollama"
+            ) from e
+
+        from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+        return create_ollama_llm(
+            model=model,
+            base_url=ollama_native_root(_require_api_key("ollama")),
+            temperature=temperature,
+            max_tokens=max_tokens,
+            configured_num_ctx=settings.ollama_num_ctx,
+            caps=ModelCapabilitiesCache.get(model),
+            **kwargs,
         )
 
     @staticmethod
@@ -464,10 +586,10 @@ class ProviderAdapter:
         # ever stores one of those, so the translator emits the API shape
         # directly; a level from a stale row is coerced, counted and logged.
         if is_v4:
-            extra_body: dict[str, Any] = dict(kwargs.pop("extra_body", {}))
             v4_kwargs = reasoning_kwargs_for("deepseek", model, reasoning_value)
-            extra_body.update(v4_kwargs.pop("extra_body", {}))
+            _merge_extra_body(kwargs, v4_kwargs.pop("extra_body", {}))
             kwargs.update(v4_kwargs)  # adds top-level reasoning_effort when applicable
+            extra_body: dict[str, Any] = kwargs.get("extra_body") or {}
 
             # When thinking is enabled, sampling params are silently ignored by
             # the API — strip them locally for honesty.
@@ -481,8 +603,6 @@ class ProviderAdapter:
                     api_effort=kwargs.get("reasoning_effort"),
                     msg="V4 thinking enabled — sampling params stripped",
                 )
-            if extra_body:
-                kwargs["extra_body"] = extra_body
 
         # V3 deepseek-reasoner (R1): no sampling parameters supported by the API
         if is_reasoner_v3:
@@ -644,10 +764,13 @@ class ProviderAdapter:
 
         Handles:
         - API key injection per provider
-        - Base URL override for Ollama/Perplexity
-        - Provider name mapping (Ollama/Perplexity use OpenAI SDK)
+        - Base URL override for Perplexity / Qwen
+        - Provider name mapping (Perplexity / Qwen use the OpenAI SDK; Ollama
+          has its own native constructor since ADR-267)
         - Phase 6: Token metadata during streaming (OpenAI stream_options)
         - Phase X: Reasoning model parameter filtering (OpenAI GPT-5/o-series)
+        - ADR-245: EVERY branch routes ``reasoning_effort`` through the one seam
+          (``kwargs_for``); the intent object itself never reaches a client
 
         Args:
             provider: Provider type
@@ -666,16 +789,6 @@ class ProviderAdapter:
         additional_kwargs = kwargs.copy()
         temperature_override = None  # Track if we need to override temperature
 
-        # Ollama: OpenAI-compatible API with custom base_url
-        # Prompt caching: N/A (local inference, no server-side caching)
-        # Usage accounting: deliberately NOT requested (ADR-220 "excluded" —
-        # local and free, price rows seeded at 0 and inactive). Do not add
-        # ``stream_usage`` here: it would ledger spend LIA does not carry.
-        if provider == "ollama":
-            additional_kwargs["base_url"] = _require_api_key("ollama")
-            additional_kwargs["openai_api_key"] = "ollama"  # Dummy key (not used by Ollama)
-            provider_for_init = "openai"
-
         # Perplexity: OpenAI-compatible API with custom base_url
         # Prompt caching: N/A (Perplexity does not expose a caching API)
         # base_url is overridable via PERPLEXITY_BASE_URL env var.
@@ -683,10 +796,24 @@ class ProviderAdapter:
         # runs on the END USER's own key; requesting usage would bill LIA for
         # spend it does not carry, and four sonar models have ACTIVE price
         # rows in the seed).
-        elif provider == "perplexity":
+        if provider == "perplexity":
             additional_kwargs["base_url"] = _get_base_url("perplexity")
             additional_kwargs["openai_api_key"] = _require_api_key("perplexity")
             provider_for_init = "openai"
+
+            # Reasoning: the one seam (ADR-245). The sonar reasoning tier
+            # renders ``reasoning_effort``; every other sonar model resolves to
+            # no family and nothing is sent. Same defect as the Ollama branch
+            # until 2026-09-05: the stored intent object reached the client.
+            reasoning_value = additional_kwargs.pop("reasoning_effort", None)
+            perplexity_reasoning = reasoning_kwargs_for("perplexity", model, reasoning_value)
+            additional_kwargs.update(perplexity_reasoning)
+            if perplexity_reasoning:
+                logger.info(
+                    "perplexity_reasoning_configured",
+                    model=model,
+                    reasoning_effort=perplexity_reasoning.get("reasoning_effort"),
+                )
 
         # Qwen (Alibaba Cloud): OpenAI-compatible API via DashScope
         # Prompt caching: Implicit cache is automatic (≥256 tokens, no flag needed).
@@ -714,7 +841,7 @@ class ProviderAdapter:
             qwen_kwargs = reasoning_kwargs_for("qwen", model, reasoning_value)
             qwen_extra = qwen_kwargs.get("extra_body", {})
             if qwen_extra:
-                additional_kwargs["extra_body"] = qwen_extra
+                _merge_extra_body(additional_kwargs, qwen_extra)
                 logger.info(
                     "qwen_thinking_configured",
                     model=model,

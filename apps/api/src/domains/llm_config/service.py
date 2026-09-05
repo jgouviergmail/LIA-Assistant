@@ -653,36 +653,39 @@ class LLMConfigService:
         :class:`ModelCapabilitiesCache` filtered to ``provider=ollama``.
         """
         from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
-        from src.infrastructure.llm.providers.ollama_discovery import discover_ollama_models
+        from src.infrastructure.llm.providers.ollama_discovery import (
+            build_discovered_profile,
+            refresh_ollama_capabilities,
+        )
 
-        discovered = await discover_ollama_models()
+        # Live: the same discovery feeds the runtime (discovered layer of the
+        # capabilities cache, ADR-267) and this response -- one reading of the
+        # server, so what the admin is offered is what the adapter will do.
+        discovered = await refresh_ollama_capabilities()
 
         if discovered:
-            # Live: capabilities come directly from Ollama /api/show
             models = []
             for info in discovered:
-                caps = info.capabilities
+                profile = build_discovered_profile(info)
                 models.append(
                     OllamaModelCapabilities(
                         model_id=info.name,
-                        kind="chat",  # Ollama models surfaced via /v1/chat are chat
-                        max_output_tokens=8192,  # Ollama doesn't expose this; safe default
-                        supports_tools="tools" in caps,
-                        supports_structured_output="tools"
-                        in caps,  # Tool-capable models support JSON mode
-                        supports_vision="vision" in caps,
-                        is_reasoning_model="thinking" in caps,
-                        # Ollama's OpenAI-compatible bridge accepts the four
-                        # sampling parameters for all chat models.
-                        supports_temperature=True,
-                        supports_top_p=True,
-                        supports_frequency_penalty=True,
-                        supports_presence_penalty=True,
-                        # A discovered tag has no catalogue row: the family
-                        # is resolved from its name alone, and an unknown family
-                        # publishes an empty ladder -- honest, since the
-                        # translator would emit no kwarg for it either.
-                        **LLMConfigService._reasoning_metadata("ollama", None),
+                        kind=profile.kind,
+                        max_output_tokens=profile.max_output_tokens,
+                        supports_tools=profile.supports_tool_calling,
+                        supports_structured_output=profile.supports_structured_output,
+                        supports_vision=profile.supports_vision,
+                        is_reasoning_model=profile.is_reasoning_model,
+                        supports_temperature=profile.supports_temperature,
+                        supports_top_p=profile.supports_top_p,
+                        # Not expressible through langchain-ollama: hidden
+                        # rather than offered and silently dropped.
+                        supports_frequency_penalty=profile.supports_frequency_penalty,
+                        supports_presence_penalty=profile.supports_presence_penalty,
+                        # The ladder the server's ``thinking`` capability
+                        # declares: full for a thinking model, ``none`` alone
+                        # for the others. Same resolution as the runtime.
+                        **LLMConfigService._reasoning_metadata("ollama", profile),
                         cost_input=0.0,  # Local = free
                         cost_output=0.0,
                         size=info.size,
@@ -698,25 +701,25 @@ class LLMConfigService:
         )
         models = []
         for model_id in ollama_model_names:
-            profile = ModelCapabilitiesCache.get(model_id)
-            if profile is None:
+            cached = ModelCapabilitiesCache.get(model_id)
+            if cached is None:
                 continue
             models.append(
                 OllamaModelCapabilities(
                     model_id=model_id,
-                    kind=profile.kind,
-                    max_output_tokens=profile.max_output_tokens,
-                    supports_tools=profile.supports_tool_calling,
-                    supports_structured_output=profile.supports_structured_output,
-                    supports_vision=profile.supports_vision,
-                    is_reasoning_model=profile.is_reasoning_model,
+                    kind=cached.kind,
+                    max_output_tokens=cached.max_output_tokens,
+                    supports_tools=cached.supports_tool_calling,
+                    supports_structured_output=cached.supports_structured_output,
+                    supports_vision=cached.supports_vision,
+                    is_reasoning_model=cached.is_reasoning_model,
                     # Mirror the cache profile so fallback discovery agrees
                     # with the rest of the catalogue.
-                    supports_temperature=profile.supports_temperature,
-                    supports_top_p=profile.supports_top_p,
-                    supports_frequency_penalty=profile.supports_frequency_penalty,
-                    supports_presence_penalty=profile.supports_presence_penalty,
-                    **LLMConfigService._reasoning_metadata("ollama", profile),
+                    supports_temperature=cached.supports_temperature,
+                    supports_top_p=cached.supports_top_p,
+                    supports_frequency_penalty=cached.supports_frequency_penalty,
+                    supports_presence_penalty=cached.supports_presence_penalty,
+                    **LLMConfigService._reasoning_metadata("ollama", cached),
                     cost_input=0.0,  # Ollama is local — free
                     cost_output=0.0,
                     size=None,
