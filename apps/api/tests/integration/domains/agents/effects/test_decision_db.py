@@ -445,16 +445,16 @@ class TestTheTechnicalExportOfTurns:
         self, async_session: AsyncSession, user: User
     ) -> None:
         """The branch, from the route's own value object."""
-        from src.domains.agents.effects.admin_router import _technical_rows, _TechnicalQuery
+        from src.domains.agents.effects.technical_reads import TechnicalQuery, read_register
 
         await DecisionRepository(async_session).record(
             _turn(user, "run-1"), ended_at=_START + timedelta(seconds=1)
         )
         await async_session.flush()
 
-        rows = await _technical_rows(
+        rows = await read_register(
             async_session,
-            _TechnicalQuery(
+            TechnicalQuery(
                 register="decisions",
                 since=None,
                 until=None,

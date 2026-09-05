@@ -12269,6 +12269,12 @@
         "stacked": "Totale {{value}}",
         "average": "Media {{value}}"
       }
+    },
+    "article12": {
+      "title": "Tutto ciò che è registrato su di te, in un solo file",
+      "description": "Le esportazioni qui sopra coprono un registro ciascuna. Questa riunisce tutte e cinque le registrazioni che LIA tiene — i tuoi turni, le azioni, le consultazioni, le chiamate ai modelli e ogni lacuna del registro stesso — in un unico file leggibile da una macchina, come richiede l'articolo 12 del regolamento europeo sull'IA.",
+      "action": "Estrazione unificata",
+      "hint": "JSON Lines, una riga per registrazione. Non porta alcun contenuto e ogni identificatore è sostituito da una maniglia — il tuo compreso — così il file può essere allegato a una richiesta o a un reclamo senza ritoccarlo."
     }
   }
 }

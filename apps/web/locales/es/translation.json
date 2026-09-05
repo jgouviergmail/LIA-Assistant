@@ -12267,6 +12267,12 @@
         "stacked": "Total {{value}}",
         "average": "Promedio {{value}}"
       }
+    },
+    "article12": {
+      "title": "Todo lo registrado sobre ti, en un solo archivo",
+      "description": "Las exportaciones de arriba cubren un diario cada una. Esta reúne los cinco registros que LIA mantiene — tus turnos, las acciones, las consultas, las llamadas a los modelos y cualquier laguna del propio registro — en un único archivo legible por máquina, como espera el artículo 12 del reglamento europeo de IA.",
+      "action": "Extracción unificada",
+      "hint": "JSON Lines, una línea por registro. No contiene contenido alguno y cada identificador se sustituye por un asa — el tuyo incluido — para que el archivo pueda adjuntarse a una solicitud o una reclamación sin retocarlo."
     }
   }
 }

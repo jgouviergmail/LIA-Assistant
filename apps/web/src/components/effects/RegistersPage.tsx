@@ -17,6 +17,7 @@
 import { BarChart3, ClipboardList, Eye, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { Article12ExportCard } from '@/components/effects/Article12ExportCard';
 import { ChainSealCard } from '@/components/effects/ChainSealCard';
 import { RegisterCharts } from '@/components/effects/RegisterCharts';
 import { EffectsJournal } from '@/components/effects/EffectsJournal';
@@ -74,6 +75,11 @@ export function RegistersPage({ lng }: RegistersPageProps) {
           <RegisterCharts />
         </TabsContent>
       </Tabs>
+
+      {/* Below all three and inside none: this file crosses the two journals,
+          the turns, the model calls and the gaps — the same reason the seal
+          card sits above them rather than in a tab. */}
+      <Article12ExportCard />
     </div>
   );
 }

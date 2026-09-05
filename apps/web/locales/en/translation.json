@@ -12268,6 +12268,12 @@
         "stacked": "Total {{value}}",
         "average": "Average {{value}}"
       }
+    },
+    "article12": {
+      "title": "Everything recorded about you, in one file",
+      "description": "The per-register exports above cover one journal each. This one gathers all five records LIA keeps — your turns, the actions, the consultations, the model calls and any gap in the record itself — into a single machine-readable file, as the EU AI Act's Article 12 expects.",
+      "action": "Unified extraction",
+      "hint": "JSON Lines, one line per record. It holds no content and every identifier is replaced by a handle — yours included — so the file can be attached to a request or a complaint without editing it first."
     }
   }
 }

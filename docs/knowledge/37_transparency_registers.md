@@ -41,6 +41,10 @@ Yes, in three formats. **Readable** for a person, **CSV** for a spreadsheet, and
 
 Every export states its period and, when there are more lines than one file may carry, says so and keeps the **most recent** window.
 
+There is a fifth file, below the tabs rather than inside any of them: the **unified extraction**. The three exports above cover one journal each; this one gathers all five records LIA keeps about you — your turns, the actions, the consultations, the model calls and any gap in the record itself — into a single machine-readable file, one line per record.
+
+It is the same file an administrator can produce, narrowed to your account alone: the route it calls takes no account parameter at all, so it can only ever return yours. And it is the same contract, not a lighter version for readers — no content, every identifier replaced by a handle, including yours. That is deliberate: it means you can attach the file to a portability request, a complaint or a bug report without having to edit anything out of it first.
+
 ## How long is it kept, and can I delete it?
 Both registers live as long as your account and are removed with it. They also leave with your account archive, so exporting your data gives you the registers too.
 
@@ -54,4 +58,4 @@ Sealing runs shortly after the fact rather than instantly — the delay is publi
 ## Why does this exist?
 Because an assistant that acts for you should be able to say what it did, and what it looked at to do it. It is also what the European AI Act's Article 12 expects of a system like this: an automatic record over the system's lifetime, covering the period of each use, the data consulted, the people involved in a confirmation, the parameters of each model call, and the situations that presented a risk.
 
-LIA keeps five records in total. Two of them — actions and consultations — are made for you to read. The other three are technical: the turn itself, the parameters actually sent to each model, and the gaps in the record. Administrators can extract all five into a single file.
+LIA keeps five records in total. Two of them — actions and consultations — are made for you to read. The other three are technical: the turn itself, the parameters actually sent to each model, and the gaps in the record. All five can be extracted into a single file — by an administrator across accounts, and by you for your own.

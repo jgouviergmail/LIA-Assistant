@@ -624,6 +624,32 @@ and, on the administrator's cross-account screen, listed the servers one account
 had installed. It collapses to one word now, the rule `treatment_domain` has
 lived by since ADR-255.
 
+### 22. The extraction is the account holder's too (owner ask, 2026-09-05)
+
+Lot 9 built the unified extraction for an operator. The person the records are
+ABOUT had only the per-register exports, so assembling their own Article-12
+file meant downloading five documents and correlating them by hand — the very
+work the extraction exists to remove.
+
+`GET /effects/export/article12` narrows it to one account **by construction**:
+the route declares no account parameter, so the scope is the session and there
+is nothing to tamper with. That is the shape every reader surface already has
+(`/effects/statistics`, `/effects/export`), and it is stronger than a default,
+because a default can be overridden by a parameter somebody adds later.
+
+Nothing was rewritten. The composition, the header and the row builder were
+already shared; what was NOT shared were the five reads, which lived as private
+helpers inside the admin router. They moved to `technical_reads.py` — a reader's
+router importing an admin router is the wrong direction and the kind of
+dependency that turns into an accidental privilege path, while two copies would
+drift the day a sixth record joins. A test pins that neither route grows its own
+dispatch branch, and that the two signatures differ **only** by the scope.
+
+The file obeys the same contract as the operator's: same columns, same
+exclusions, same pseudonymisation — the caller's own identifier included. Their
+own file names them by handle, which is what makes it safe to hand to a lawyer,
+a data protection authority or a bug report without editing it first.
+
 ## Consequences
 
 **What changes for a user (lot 5).** Above the two tabs, a card states how much

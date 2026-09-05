@@ -285,9 +285,10 @@ class TestAHeaderNeverStatesAFilterTheQueryIgnored:
         assert TECHNICAL_SPECS["decisions"].filters == frozenset()
 
     def test_a_filter_a_register_cannot_honour_is_REPORTED(self) -> None:
-        from src.domains.agents.effects.admin_router import _stated_query, _TechnicalQuery
+        from src.domains.agents.effects.admin_router import _stated_query
+        from src.domains.agents.effects.technical_reads import TechnicalQuery
 
-        asked = _TechnicalQuery(
+        asked = TechnicalQuery(
             register="decisions",
             since=None,
             until=None,
@@ -305,9 +306,10 @@ class TestAHeaderNeverStatesAFilterTheQueryIgnored:
         assert stated["ignored_filters"] == ["tool_name"]
 
     def test_a_filter_the_register_HONOURS_is_stated(self) -> None:
-        from src.domains.agents.effects.admin_router import _stated_query, _TechnicalQuery
+        from src.domains.agents.effects.admin_router import _stated_query
+        from src.domains.agents.effects.technical_reads import TechnicalQuery
 
-        asked = _TechnicalQuery(
+        asked = TechnicalQuery(
             register="consultations",
             since=None,
             until=None,
@@ -326,9 +328,10 @@ class TestAHeaderNeverStatesAFilterTheQueryIgnored:
 
     def test_an_unasked_filter_is_never_reported_as_ignored(self) -> None:
         """Listing every inapplicable filter would drown the one that matters."""
-        from src.domains.agents.effects.admin_router import _stated_query, _TechnicalQuery
+        from src.domains.agents.effects.admin_router import _stated_query
+        from src.domains.agents.effects.technical_reads import TechnicalQuery
 
-        asked = _TechnicalQuery(
+        asked = TechnicalQuery(
             register="decisions",
             since=None,
             until=None,
@@ -399,9 +402,9 @@ class TestEverySpecIsREACHABLE:
         silently falls through to whichever branch is last."""
         import inspect
 
-        from src.domains.agents.effects.admin_router import _technical_rows
+        from src.domains.agents.effects.technical_reads import read_register
 
-        source = inspect.getsource(_technical_rows)
+        source = inspect.getsource(read_register)
         for register in self._accepted_registers():
             assert f'"{register}"' in source or register == "consultations", (
                 f"{register} is accepted but has no branch — the dispatch would serve "

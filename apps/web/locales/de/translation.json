@@ -12267,6 +12267,12 @@
         "stacked": "Gesamt {{value}}",
         "average": "Durchschnitt {{value}}"
       }
+    },
+    "article12": {
+      "title": "Alles, was über dich erfasst ist, in einer Datei",
+      "description": "Die Exporte oben decken je ein Journal ab. Diese Datei bündelt alle fünf Aufzeichnungen, die LIA führt — deine Züge, die Aktionen, die Abfragen, die Modellaufrufe und jede Lücke im Register selbst — in einer einzigen maschinenlesbaren Datei, wie es Artikel 12 der EU-KI-Verordnung erwartet.",
+      "action": "Vereinheitlichte Auswertung",
+      "hint": "JSON Lines, eine Zeile je Aufzeichnung. Sie enthält keine Inhalte, und jede Kennung ist durch ein Handle ersetzt — deine eingeschlossen —, damit die Datei einem Antrag oder einer Beschwerde unverändert beigefügt werden kann."
     }
   }
 }

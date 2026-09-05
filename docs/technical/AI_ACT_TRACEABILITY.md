@@ -165,7 +165,7 @@ to know what survives an erasure must not have to infer it from a data map.
 | The input data of the request | Pointed at, never copied: `request_message_id` / `response_message_id`, `SET NULL` so a deleted conversation leaves a tombstone | 6 |
 | The parameters of the inference | Read from what was SENT (`invocation_params`), normalised to one vocabulary, plus a digest of everything else allowlisted | 7 |
 | Situations presenting a risk, and their handling | Refusals and failures were already recorded (lots 1, 4, 6); the four remaining gaps are `stop_reason` and `agent_integrity_events` | 8 |
-| A single machine-readable extraction | `/admin/effects/export/article12` — five records, one file, one `lia_record` per line | 9 |
+| A single machine-readable extraction | `/admin/effects/export/article12` for an operator, `/effects/export/article12` for the account holder — five records, one file, one `lia_record` per line | 9 |
 
 ---
 
@@ -187,6 +187,22 @@ ceiling exists because production runs on a Raspberry Pi 5 — a five-record,
 **A model change stays visible.** Every LLM row stores the model actually used,
 so the record keeps what was current at the time. Nothing resolves a model name
 at read time — that would silently rewrite the past on every reconfiguration.
+
+**The unified extraction is the account holder's too.** The operator's route
+names accounts; the reader's declares **no account parameter at all**, so its
+scope is the session rather than a default a query string could override — the
+same shape as `/effects/statistics` and `/effects/export`. Both call one
+composition and one set of reads (`technical_reads.py`, extracted from the
+admin router the day the second surface appeared): a sixth record joins both
+files at once, and neither audience can end up seeing a record the other does
+not.
+
+It is also the same CONTRACT, not a reader's variant — same columns, same
+exclusions, same pseudonymisation, the caller's own identifier included. That
+is what makes the file safe to attach to a portability request or a complaint
+without editing it first, and it takes no new privacy decision: a second
+contract for the same rows would be a second place for a column to slip from
+« forbidden » to « exported ».
 
 **The charts are the same records, aggregated server-side.** Nothing is counted
 in the browser: a client that downloaded rows to count them would fetch the
@@ -248,6 +264,7 @@ des journaux*.
 | The parameters actually sent to a model | `infrastructure/llm/inference_params.py` |
 | Gaps in the record itself | `domains/agents/effects/integrity.py` |
 | The five records as one file | `domains/agents/effects/article12_export.py` |
+| Reading the five registers, shared by both surfaces | `domains/agents/effects/technical_reads.py` |
 | The series, aggregated in SQL | `domains/agents/effects/statistics.py` |
 | The user's card | `apps/web/src/components/effects/ChainSealCard.tsx` |
 | The administrator's sweep | `apps/web/src/components/settings/AdminChainVerification.tsx` |

@@ -18,7 +18,6 @@ from typing import Any
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.agents.effects.admin_router import _technical_rows, _TechnicalQuery
 from src.domains.agents.effects.article12_export import (
     RECORD_KEY,
     article12_filters,
@@ -31,6 +30,7 @@ from src.domains.agents.effects.decisions import TurnDecision
 from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.integrity_repository import IntegrityRepository
 from src.domains.agents.effects.models import EffectSource, TreatmentOutcome
+from src.domains.agents.effects.technical_reads import TechnicalQuery, read_register
 from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
@@ -152,9 +152,9 @@ async def _extraction(
     """Run the extraction exactly as the route does, and parse it back."""
     extracts = []
     for spec in known_sources():
-        rows = await _technical_rows(
+        rows = await read_register(
             session,
-            _TechnicalQuery(
+            TechnicalQuery(
                 register=spec.slug,
                 since=since,
                 until=until,

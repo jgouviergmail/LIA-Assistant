@@ -210,6 +210,12 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         # memories and journals — read-only, user-scoped, and the settings page
         # that reads it is part of the real product the demonstrator shows.
         "GET /api/v1/effects/export",
+        # The five records about the visitor, in one file. Same scope as the
+        # per-register export beside it — the route declares no account
+        # parameter — and the same contract as the administrator's: no
+        # content, every identifier a handle. Nothing here that the exports
+        # above do not already expose.
+        "GET /api/v1/effects/export/article12",
         "GET /api/v1/effects/journal",
         "GET /api/v1/effects/run/{run_id}",
         "GET /api/v1/effects/treatments/journal",

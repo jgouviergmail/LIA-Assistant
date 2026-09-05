@@ -34,6 +34,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RATE_LIMIT_EFFECTS_READ_PER_MINUTE
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
+from src.domains.agents.effects.article12_export import (
+    article12_filters,
+    extract_of,
+    known_sources,
+    render_article12,
+)
 from src.domains.agents.effects.export_readable import (
     ACTIONS,
     TREATMENTS,
@@ -47,6 +53,7 @@ from src.domains.agents.effects.technical_export import (
     render_jsonl,
     technical_row,
 )
+from src.domains.agents.effects.technical_reads import TechnicalQuery, read_register
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.users.models import User
 
@@ -226,5 +233,74 @@ async def export_register(
             # exactly `limit` rows must be able to tell that more exist.
             "X-Register-Rows": str(len(rows)),
             "X-Register-Truncated": "true" if len(rows) >= limit else "false",
+        },
+    )
+
+
+@router.get(
+    "/article12",
+    dependencies=[Depends(rate_limit_export)],
+    summary="Everything recorded about YOUR activity, in one machine-readable file",
+)
+async def export_article12(
+    since: datetime | None = Query(None, description="Inclusive lower bound"),
+    until: datetime | None = Query(None, description="Exclusive upper bound"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_session),
+) -> Response:
+    """The five records LIA keeps about the caller, composed into one file.
+
+    The same extraction the administrator can run, narrowed to one account —
+    and narrowed by CONSTRUCTION rather than by a default: this route declares
+    no account parameter, so there is nothing to tamper with, exactly as on
+    ``/effects/statistics`` and ``/effects/export``.
+
+    It is also the same CONTRACT, not a reader's variant: the same columns, the
+    same exclusions, the same pseudonymisation, including of the caller's own
+    identifier. That is what makes the file safe to hand to a lawyer, a data
+    protection authority or a bug report without editing it first — and a
+    second contract for the same rows would be a second place for a column to
+    slip from « forbidden » to « exported ».
+
+    Five sources answer five different questions and never add up, so the
+    ceiling applies PER SOURCE and the header states, per source, whether it
+    was reached (ADR-185).
+
+    Args:
+        since: Inclusive lower bound on the period.
+        until: Exclusive upper bound.
+        db: Session.
+        user: The authenticated caller, and the only account covered.
+
+    Returns:
+        The extraction, as a JSON Lines attachment.
+    """
+    from src.core.config import settings
+
+    scope = [user.id]
+    cap = settings.article12_export_max_rows_per_source
+    extracts = []
+    for spec in known_sources():
+        rows = await read_register(
+            db, TechnicalQuery(register=spec.slug, since=since, until=until, user_ids=scope), cap
+        )
+        extracts.append(extract_of(spec, rows, cap=cap))
+
+    lines = sum(len(extract.rows) for extract in extracts)
+    logger.info("article12_self_export_served", sources=len(extracts), lines=lines)
+    stamp = datetime.now(UTC).strftime("%Y%m%d")
+    return Response(
+        content=render_article12(
+            extracts,
+            cap=cap,
+            filters=article12_filters(since=since, until=until, user_ids=scope),
+        ),
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition": f'attachment; filename="lia-article12-{stamp}.jsonl"',
+            "X-Register-Rows": str(lines),
+            "X-Register-Truncated": (
+                "true" if any(extract.capped for extract in extracts) else "false"
+            ),
         },
     )

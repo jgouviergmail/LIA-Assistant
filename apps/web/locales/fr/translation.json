@@ -12273,6 +12273,12 @@
         "stacked": "Total {{value}}",
         "average": "Moyenne {{value}}"
       }
+    },
+    "article12": {
+      "title": "Tout ce qui est enregistré à ton sujet, en un fichier",
+      "description": "Les exports ci-dessus couvrent un journal chacun. Celui-ci rassemble les cinq enregistrements que LIA tient — tes tours, les actions, les consultations, les appels aux modèles et toute lacune du registre lui-même — dans un seul fichier lisible par une machine, comme l'attend l'article 12 du règlement européen sur l'IA.",
+      "action": "Extraction unifiée",
+      "hint": "JSON Lines, une ligne par enregistrement. Il ne porte aucun contenu et chaque identifiant est remplacé par une poignée — le tien compris — pour que le fichier puisse être joint à une demande ou à une réclamation sans avoir à le retoucher."
     }
   }
 }

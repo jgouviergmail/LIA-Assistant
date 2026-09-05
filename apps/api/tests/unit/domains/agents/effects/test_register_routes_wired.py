@@ -27,6 +27,8 @@ class TestBothRegistersAreReachable:
             "/effects/treatments/journal",
             "/effects/treatments/run/{run_id}",
             "/effects/export",
+            # The unified Article-12 extraction, narrowed to the caller.
+            "/effects/export/article12",
             # ADR-263 lot 5: a chain nobody can query proves nothing.
             # ADR-263 lot 9: one extraction over every record.
             "/admin/effects/export/article12",

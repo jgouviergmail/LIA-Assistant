@@ -15,7 +15,6 @@ database operation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
@@ -38,6 +37,7 @@ from src.domains.agents.effects.article12_export import (
     render_article12,
 )
 from src.domains.agents.effects.models import EffectSource, EffectStatus
+from src.domains.agents.effects.technical_reads import TechnicalQuery, read_register
 from src.domains.users.models import AdminAuditLog, User
 
 logger = structlog.get_logger(__name__)
@@ -87,25 +87,6 @@ def _enum_value(value: Any) -> str:
     return str(getattr(value, "value", value))
 
 
-@dataclass(frozen=True)
-class _TechnicalQuery:
-    """What an operator asked the technical export for.
-
-    A value object rather than nine parameters threaded twice: reading the rows
-    and STATING what was asked are two jobs, and they must agree.
-    """
-
-    register: str
-    since: datetime | None
-    until: datetime | None
-    user_ids: list[UUID] | None
-    tool_name: str | None
-    mutation_policy: str | None
-    status: Any
-    source: Any
-    execution_mode: str | None
-
-
 #: Every filter a register MIGHT be asked for beyond the period and the account
 #: list. Which of them a given register actually honours is declared on its
 #: ``TechnicalSpec``; a request naming one it cannot is REPORTED in the header
@@ -120,83 +101,7 @@ _OPTIONAL_FILTERS: tuple[str, ...] = (
 )
 
 
-async def _technical_rows(db: AsyncSession, asked: _TechnicalQuery, cap: int) -> list[Any]:
-    """Read one register's rows for a technical export.
-
-    Args:
-        db: Session.
-        asked: What the operator asked for.
-        cap: Row ceiling, published in the header by the caller.
-
-    Returns:
-        The matching rows, oldest first.
-    """
-    if asked.register == "actions":
-        from src.domains.agents.effects.repository import EffectLedgerRepository
-
-        return list(
-            await EffectLedgerRepository(db).list_for_export(
-                since=asked.since,
-                until=asked.until,
-                user_ids=asked.user_ids,
-                tool_name=asked.tool_name,
-                mutation_policy=asked.mutation_policy,
-                status=asked.status,
-                source=asked.source,
-                execution_mode=asked.execution_mode,
-                limit=cap,
-            )
-        )
-    if asked.register == "integrity":
-        from src.domains.agents.effects.integrity_repository import IntegrityRepository
-
-        return list(
-            await IntegrityRepository(db).list_for_export(
-                since=asked.since,
-                until=asked.until,
-                user_ids=asked.user_ids,
-                limit=cap,
-            )
-        )
-
-    if asked.register == "inference":
-        from src.domains.chat.repository import ChatRepository
-
-        return list(
-            await ChatRepository(db).list_inference_for_export(
-                since=asked.since,
-                until=asked.until,
-                user_ids=asked.user_ids,
-                limit=cap,
-            )
-        )
-
-    if asked.register == "decisions":
-        from src.domains.agents.effects.decision_repository import DecisionRepository
-
-        return list(
-            await DecisionRepository(db).list_for_export(
-                since=asked.since,
-                until=asked.until,
-                user_ids=asked.user_ids,
-                limit=cap,
-            )
-        )
-
-    from src.domains.agents.effects.treatment_repository import TreatmentRepository
-
-    return list(
-        await TreatmentRepository(db).list_for_export(
-            since=asked.since,
-            until=asked.until,
-            user_ids=asked.user_ids,
-            tool_name=asked.tool_name,
-            limit=cap,
-        )
-    )
-
-
-def _stated_query(asked: _TechnicalQuery) -> dict[str, Any]:
+def _stated_query(asked: TechnicalQuery) -> dict[str, Any]:
     """What the file SAYS was asked of it.
 
     Args:
@@ -297,7 +202,7 @@ async def export_technical(
     status, source, execution_mode = _given(status), _given(source), _given(execution_mode)
     scope = _given(user_ids)
 
-    asked = _TechnicalQuery(
+    asked = TechnicalQuery(
         register=which,
         since=since,
         until=until,
@@ -308,7 +213,7 @@ async def export_technical(
         source=source,
         execution_mode=execution_mode,
     )
-    rows = await _technical_rows(db, asked, cap)
+    rows = await read_register(db, asked, cap)
     filters = _stated_query(asked)
     content = render_jsonl(
         [technical_row(row, spec) for row in rows],
@@ -657,9 +562,9 @@ async def export_article12(
     filters = article12_filters(since=since, until=until, user_ids=user_ids)
     extracts = []
     for spec in known_sources():
-        rows = await _technical_rows(
+        rows = await read_register(
             db,
-            _TechnicalQuery(
+            TechnicalQuery(
                 register=spec.slug,
                 since=since,
                 until=until,
