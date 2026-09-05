@@ -9669,19 +9669,23 @@
       "privacy_link": "Unsere Datenschutzerklärung lesen",
       "data_control": {
         "title": "Datenkontrolle",
-        "description": "Deine Daten bleiben privat. Keine Weitergabe an Dritte, isolierte Sitzungen, strikt begrenzter Zugriff. „Meine Geräte“ zeigt jede aktive Sitzung und widerruft jede davon sofort. Tägliche automatische Backups mit getesteter Wiederherstellung."
+        "description": "Deine Daten bleiben privat: keine Weitergabe an Dritte, isolierte Sitzungen, Zugriff nur auf das Nötige. « Meine Geräte » listet jede aktive Sitzung und widerruft sie sofort. Tägliche automatische Sicherungen, mit einer tatsächlich getesteten Wiederherstellung."
       },
       "bff": {
         "title": "Sichere Architektur",
-        "description": "BFF-Pattern mit HTTP-only-Cookies, Redis-Sitzungen, Tokens nie im Frontend. WebAuthn-Passkeys und TOTP-Zweifaktor; sensible Aktionen sind durch Step-up-Reauthentifizierung geschützt. Strikte Content-Security-Policy und OWASP-Top-10-Schutz. Die Abschottung reicht bis in die Bereitstellung: Der Container, der die Oberfläche ausliefert, erhält keines der Plattformgeheimnisse und ist nur über den Tunnel erreichbar, nie aus dem lokalen Netz. Fremder Code läuft isoliert — Wegwerfcontainer, ohne Socket, ohne Netzwerk — und jede Administrationsaufgabe wird vor dem Start bestätigt."
+        "description": "Ein BFF-Muster mit HTTP-only-Cookies und Redis-Sitzungen: Tokens erreichen das Frontend nie. Passkeys und TOTP als zweiter Faktor, mit erneuter Anmeldung vor sensiblen Aktionen. Strikte CSP, OWASP-Top-10-Abdeckung und Fremdcode in einem Wegwerf-Container ohne Socket und ohne Netz."
       },
       "encryption": {
         "title": "Verschlüsselung",
-        "description": "Fernet-verschlüsselte Anmeldedaten, bcrypt-Passwörter, OAuth-Tokens gesichert mit verteilten Redis-Locks."
+        "description": "Zugangsdaten mit Fernet verschlüsselt, Passwörter mit bcrypt gehasht, OAuth-Tokens durch verteilte Redis-Sperren geschützt — und der Container der Oberfläche erhält keines der Plattform-Geheimnisse."
       },
       "gdpr": {
         "title": "DSGVO-konform",
-        "description": "Automatische PII-Filterung, Pseudonymisierung, Datenminimierung. Vollständiger Kontoexport — lesbares Markdown, strukturiertes JSON und deine Dateien — mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Zwei Register halten fest, was LIA für dich getan und welche Fähigkeiten sie abgefragt hat, wie es Artikel 12 der EU-KI-Verordnung erwartet: lesbar, exportierbar, mit deinem Konto gelöscht."
+        "description": "Automatische PII-Filterung, Pseudonymisierung, Datenminimierung. Vollständiger Kontoexport — lesbares Markdown, strukturiertes JSON und deine Dateien — mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Zwei Register halten fest, was LIA getan und was sie abgefragt hat, wie es Artikel 12 der KI-Verordnung erwartet."
+      },
+      "standards": {
+        "title": "Eingehaltene Normen und Standards",
+        "note": "Offene Standards statt eines eigenen Protokolls: Was LIA spricht, kann ein anderes Werkzeug auch sprechen — und was sie zusagt, lässt sich an einem Text prüfen, den andere geschrieben haben."
       }
     },
     "tech": {
@@ -9954,14 +9958,14 @@
       "c6": {
         "bubble": "Soll ich das an Marie weitergeben? Deine Assistentin sagt es ihr in ihren eigenen Worten.",
         "title": "LIA verbindet dich mit deinen Menschen",
-        "sub": "LIA ist ein geteilter Server: Die Menschen, die dir wichtig sind, können ihren eigenen Assistenten auf derselben Instanz haben — und die Assistenten sprechen miteinander.",
+        "sub": "Ein geteilter Server: Deine Nächsten bekommen einen eigenen Assistenten — und die Assistenten reden.",
         "b1_t": "Nachrichten, von Assistent zu Assistent.",
-        "b1_d": "Sag „sag Marie…“: Du bestätigst den genauen Wortlaut, dann übermittelt IHR Assistent die Nachricht mit eigener Stimme und Persönlichkeit und nennt dich — und deiner bestätigt dir die Zustellung.",
+        "b1_d": "Sag „sag Marie…“: Du gibst den Wortlaut frei, IHR Assistent überbringt ihn in eigener Stimme und bestätigt.",
         "b2_t": "Gewählte Freigaben, nur lesend.",
-        "b2_d": "Öffne pro Verbindung deine Kalender-Verfügbarkeit oder deine Aufgabentitel — nichts standardmäßig, beide Richtungen sichtbar, jeder Zugriff neu geprüft und protokolliert, jederzeit widerrufbar.",
+        "b2_d": "Pro Verbindung Verfügbarkeit oder Aufgabentitel öffnen — nichts als Vorgabe, jederzeit widerrufbar.",
         "b3_t": "Schutz durch Konstruktion.",
-        "b3_d": "Die Auffindbarkeit ist freiwillig und nur über den exakten Namen möglich; Blockieren ist lautlos; ein Unbekannter, eine Ablehnung und eine Blockierung erhalten die byte-identische Antwort — niemand kann ausforschen, wer existiert.",
-        "how": "eine kanonische Paar-Zeile pro Verbindung, Claim-once-Zustandsübergänge, ein HITL-Entwurf vor jeder Weiterleitung, Zustellung durch den Assistenten des Empfängers (seine Persönlichkeit, sein Gedächtnis) und ein bei jedem Lesen neu validiertes Zugriffsprotokoll.",
+        "b3_d": "Auffindbarkeit ist freiwillig und nur über den exakten Namen; Fremde, Absage und Sperre erhalten dieselbe Antwort.",
+        "how": "eine kanonische Zeile je Verbindung, einmalig beanspruchte Übergänge, ein HITL-Entwurf vor jeder Weitergabe, Zustellung durch den Assistenten der Empfängerin und ein bei jedem Lesen neu geprüftes Zugriffsprotokoll.",
         "catalog_hint": "Auffindbarkeit, Lebenszyklus, Weiterleitung, Freigaben und Anti-Belästigungs-Design im Detail.",
         "s_chip": "Verbindungen",
         "s_user": "Sag Marie, dass ich die Kinder heute Abend abhole.",

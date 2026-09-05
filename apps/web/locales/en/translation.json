@@ -9749,19 +9749,23 @@
       "privacy_link": "Read our privacy policy",
       "data_control": {
         "title": "Data control",
-        "description": "Your data stays private. No third-party sharing, isolated sessions, access strictly limited to what is needed. \"My devices\" shows every live session and revokes any of them instantly. Automatic daily backups with a tested restore procedure."
+        "description": "Your data stays private: no third-party sharing, isolated sessions, access limited to what is needed. « My devices » lists every live session and revokes any of them instantly. Daily automatic backups, with a restore procedure that has been tested."
       },
       "bff": {
         "title": "Secure architecture",
-        "description": "BFF pattern with HTTP-only cookies, Redis sessions, tokens never exposed to the frontend. WebAuthn passkeys and TOTP second factor; sensitive actions are gated by step-up re-authentication. Strict Content-Security-Policy and OWASP Top 10 protection. The compartmentation reaches the deployment: the container serving the interface receives none of the platform's secrets, and is reachable only through the tunnel, never from the local network. Third-party code runs isolated — throwaway container, no socket, no network — and every administration task is confirmed before it leaves."
+        "description": "A BFF pattern with HTTP-only cookies and Redis sessions: tokens are never exposed to the frontend. Passkeys and a TOTP second factor, with step-up re-authentication before sensitive actions. Strict CSP, OWASP Top 10 coverage, and third-party code running in a throwaway container with no socket and no network."
       },
       "encryption": {
         "title": "Encryption",
-        "description": "Fernet-encrypted credentials, bcrypt passwords, OAuth tokens secured with distributed Redis locks."
+        "description": "Credentials encrypted with Fernet, passwords hashed with bcrypt, OAuth tokens protected by distributed Redis locks — and the interface container receives none of the platform's secrets."
       },
       "gdpr": {
         "title": "GDPR compliant",
-        "description": "Automatic PII filtering, pseudonymization, data minimization. Full-account export — readable Markdown, structured JSON and your files — with secret material unexportable by construction. Two registers record what LIA did for you and which capabilities it consulted, as the EU AI Act's Article 12 expects: readable, exportable, deleted with your account."
+        "description": "Automatic PII filtering, pseudonymisation, data minimisation. Full-account export — readable Markdown, structured JSON and your files — with secret material unexportable by construction. Two registers record what LIA did and what it consulted, as the AI Act's Article 12 expects."
+      },
+      "standards": {
+        "title": "Standards and regulations followed",
+        "note": "Open standards rather than a private protocol: what LIA speaks, another tool can speak too — and what it promises can be checked against a text somebody else wrote."
       }
     },
     "tech": {
@@ -10034,14 +10038,14 @@
       "c6": {
         "bubble": "Want me to pass that on to Marie? Her assistant will put it in her words.",
         "title": "LIA connects you to your people",
-        "sub": "LIA is a shared server: the people you care about can have their own assistant on the same instance — and the assistants talk to each other.",
+        "sub": "A shared server: the people you care about get their own assistant — and the assistants talk.",
         "b1_t": "Messages, assistant to assistant.",
-        "b1_d": "Say “tell Marie…”: you approve the exact wording, then HER assistant delivers it in its own voice and personality, naming you — and yours confirms the delivery.",
+        "b1_d": "Say “tell Marie…”: you approve the wording, HER assistant delivers it in its own voice and confirms.",
         "b2_t": "Chosen, read-only shares.",
-        "b2_d": "Per connection, open your calendar availability or your task titles — nothing by default, both directions visible, every access re-checked and journaled, revocable anytime.",
+        "b2_d": "Per connection, open your availability or your task titles — nothing by default, revocable anytime.",
         "b3_t": "Protection by construction.",
-        "b3_d": "Discovery is opt-in and exact-name only; blocking is silent; a stranger, a decline and a block get the byte-identical answer — nobody can probe who exists.",
-        "how": "one canonical pair row per connection, claim-once state transitions, an HITL draft before any relay, delivery through the recipient's own assistant (their personality and memory), and an access log re-validated at every read.",
+        "b3_d": "Discovery is opt-in and exact-name only; a stranger, a decline and a block get the same answer.",
+        "how": "one canonical row per connection, claim-once transitions, an HITL draft before any relay, delivery through the recipient's own assistant, and an access log re-validated at every read.",
         "catalog_hint": "Discovery, lifecycle, relay, shares and anti-harassment design in detail.",
         "s_chip": "Connections",
         "s_user": "Tell Marie I'll pick the kids up tonight.",

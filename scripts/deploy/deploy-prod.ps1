@@ -519,8 +519,20 @@ if (Get-Command rsync -ErrorAction SilentlyContinue) {
     $rsyncMode = "native"
     Write-Info "rsync natif detecte - utilisation pour transfert resilient"
 } elseif (Get-Command wsl -ErrorAction SilentlyContinue) {
-    # Verifier si rsync est disponible dans WSL
-    $wslRsyncCheck = wsl which rsync 2>$null
+    # Verifier si rsync est disponible dans WSL.
+    # `2>$null` ne suffit pas: sous $ErrorActionPreference = "Stop", TOUTE
+    # ecriture sur stderr par une commande native devient une erreur
+    # terminante. `wsl` en produit une de simple diagnostic ("Failed to start
+    # the systemd user session"), et le deploiement s'arretait la alors que
+    # `wsl which rsync` renvoyait /usr/bin/rsync avec le code 0 (mesure
+    # 2026-09-05). Meme garde que Invoke-WithRetry plus haut.
+    $prevErrorActionWsl = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $wslRsyncCheck = wsl which rsync 2>$null
+    } finally {
+        $ErrorActionPreference = $prevErrorActionWsl
+    }
     if ($wslRsyncCheck) {
         # Presence is not reachability: WSL runs behind its own NAT and can
         # have NO route to a LAN host Windows reaches perfectly well (measured
@@ -528,7 +540,13 @@ if (Get-Command rsync -ErrorAction SilentlyContinue) {
         # worked throughout). Choosing this transport on `which rsync` alone
         # selected one that could not connect, and the deployment carried on
         # against an EMPTY staging directory.
-        $wslReach = wsl bash -c "timeout 8 bash -c '</dev/tcp/$SshHost/$SshPort' 2>/dev/null && echo reachable" 2>$null
+        $prevErrorActionReach = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            $wslReach = wsl bash -c "timeout 8 bash -c '</dev/tcp/$SshHost/$SshPort' 2>/dev/null && echo reachable" 2>$null
+        } finally {
+            $ErrorActionPreference = $prevErrorActionReach
+        }
         if ($wslReach -match "reachable") {
             $rsyncMode = "wsl"
             Write-Info "rsync WSL detecte, hote joignable depuis WSL - transfert resilient"
@@ -636,10 +654,21 @@ if (-not $DryRun) {
         if (-not $entries) {
             throw "Le dossier $ProdDir est vide: rien a transferer"
         }
-        $quoted = ($entries | ForEach-Object { "`"$($_.FullName)`"" }) -join " "
         Write-Info "  $($entries.Count) entrees a transferer (dotfiles inclus)"
-        $scpCmd = "scp -P $SshPort $SshOptionsStr -r -C $quoted `"${sshTarget}:~/$StagingDir/`""
-        Invoke-WithRetry -Command $scpCmd -OperationName "SCP fichiers" -MaxAttempts 5
+        # ONE session per entry, not one session for all 18. A single scp
+        # carrying the whole tree was reset by the peer mid-transfer (measured
+        # 2026-09-05: `Read from remote host: Connection reset by peer`, then
+        # `dest open ".../apps/web/tsconfig.json": No such file or directory`
+        # on the retry -- the missing directory was a CONSEQUENCE of the drop,
+        # not its cause). Per entry, a reset costs one entry instead of the
+        # transfer, the retry above actually helps, and the log names what
+        # failed rather than reporting a single opaque exit code.
+        $index = 0
+        foreach ($entry in $entries) {
+            $index++
+            $scpCmd = "scp -P $SshPort $SshOptionsStr -r -C `"$($entry.FullName)`" `"${sshTarget}:~/$StagingDir/`""
+            Invoke-WithRetry -Command $scpCmd -OperationName "SCP $($entry.Name) ($index/$($entries.Count))" -MaxAttempts 5
+        }
         Write-Success "Fichiers copies avec scp"
     }
 

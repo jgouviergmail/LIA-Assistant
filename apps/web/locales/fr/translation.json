@@ -9675,19 +9675,23 @@
       "privacy_link": "Lire notre politique de confidentialité",
       "data_control": {
         "title": "Contrôle des données",
-        "description": "Tes données restent privées. Aucun partage avec des tiers, sessions isolées, accès strictement limité au nécessaire. « Mes appareils » montre chaque session active et en révoque n’importe laquelle instantanément. Sauvegarde automatique chaque jour, avec une procédure de restauration testée."
+        "description": "Tes données restent privées : aucun partage tiers, sessions isolées, accès limité au nécessaire. « Mes appareils » liste chaque session active et en révoque une instantanément. Sauvegardes automatiques quotidiennes, avec une procédure de restauration réellement testée."
       },
       "bff": {
         "title": "Architecture sécurisée",
-        "description": "Pattern BFF avec cookies HTTP-only, sessions Redis, tokens jamais exposés au frontend. Passkeys WebAuthn et double facteur TOTP ; les actions sensibles sont gardées par une re-authentification step-up. Content-Security-Policy stricte et protection OWASP Top 10. Le cloisonnement va jusqu'au déploiement : le conteneur qui sert l'interface ne reçoit aucun secret de la plateforme, et il n'est joignable que par le tunnel, jamais depuis le réseau local. Le code tiers s'exécute isolé — conteneur jetable, sans socket, sans réseau — et toute tâche d'administration est confirmée avant de partir."
+        "description": "Un patron BFF avec cookies HTTP-only et sessions Redis : les jetons ne sont jamais exposés au frontend. Clés d'accès et second facteur TOTP, avec ré-authentification avant toute action sensible. CSP stricte, couverture OWASP Top 10, et code tiers exécuté dans un conteneur jetable sans socket ni réseau."
       },
       "encryption": {
         "title": "Chiffrement",
-        "description": "Credentials chiffrés Fernet, mots de passe bcrypt, tokens OAuth sécurisés avec verrous distribués Redis."
+        "description": "Identifiants chiffrés par Fernet, mots de passe hachés par bcrypt, jetons OAuth protégés par verrous Redis distribués — et le conteneur qui sert l'interface ne reçoit aucun secret de la plateforme."
       },
       "gdpr": {
         "title": "Conforme RGPD",
-        "description": "Filtrage PII automatique, pseudonymisation, minimisation des données. Export complet du compte — Markdown lisible, JSON structuré et tes fichiers — avec le matériel secret inexportable par construction. Deux registres consignent ce que LIA a fait pour toi et les capacités qu'elle a consultées, comme l'attend l'article 12 du règlement européen sur l'IA : lisibles, exportables, supprimés avec ton compte."
+        "description": "Filtrage PII automatique, pseudonymisation, minimisation des données. Export complet du compte — Markdown lisible, JSON structuré et tes fichiers — avec le matériel secret inexportable par construction. Deux registres consignent ce que LIA a fait et ce qu'elle a consulté, comme l'attend l'article 12 de l'IA Act."
+      },
+      "standards": {
+        "title": "Normes et standards respectés",
+        "note": "Des standards ouverts plutôt qu'un protocole maison : ce que LIA parle, un autre outil peut le parler — et ce qu'elle promet se vérifie contre un texte écrit par d'autres."
       }
     },
     "tech": {
@@ -9960,14 +9964,14 @@
       "c6": {
         "bubble": "Je transmets à Marie ? Son assistante le lui dira avec ses mots à elle.",
         "title": "LIA te relie à tes proches",
-        "sub": "LIA est un serveur partagé : les personnes qui comptent pour toi peuvent avoir leur propre assistant sur la même instance — et les assistants se parlent entre eux.",
+        "sub": "Un serveur partagé : tes proches ont leur propre assistant — et les assistants se parlent.",
         "b1_t": "Des messages, d’assistant à assistant.",
-        "b1_d": "Dis « dis à Marie… » : tu valides la formulation exacte, puis SON assistant le lui remet avec sa voix et sa personnalité, en te nommant — et le tien te confirme la remise.",
+        "b1_d": "Dis « préviens Marie… » : tu valides la formulation, SON assistant la délivre à sa façon et confirme.",
         "b2_t": "Des partages choisis, en lecture seule.",
-        "b2_d": "Par connexion, ouvre tes disponibilités de calendrier ou les titres de tes tâches — rien par défaut, les deux sens visibles, chaque accès re-vérifié et journalisé, révocable à tout moment.",
+        "b2_d": "Par connexion, ouvre tes disponibilités ou tes titres de tâches — rien par défaut, révocable à tout moment.",
         "b3_t": "Une protection par construction.",
-        "b3_d": "La découverte est volontaire et sur nom exact uniquement ; le blocage est silencieux ; un inconnu, un refus et un blocage reçoivent la réponse identique octet pour octet — personne ne peut sonder qui existe.",
-        "how": "une ligne de paire canonique par connexion, des transitions d’état claim-once, un brouillon HITL avant tout relais, une livraison par l’assistant du destinataire (sa personnalité, sa mémoire), et un journal d’accès re-validé à chaque lecture.",
+        "b3_d": "La découverte est volontaire et au nom exact ; un inconnu, un refus et un blocage reçoivent la même réponse.",
+        "how": "une ligne canonique par connexion, des transitions revendiquées une fois, un brouillon HITL avant tout relais, une remise par l'assistant du destinataire, et un journal d'accès revalidé à chaque lecture.",
         "catalog_hint": "Découverte, cycle de vie, relais, partages et conception anti-harcèlement en détail.",
         "s_chip": "Connexions",
         "s_user": "Dis à Marie que je récupère les enfants ce soir.",
