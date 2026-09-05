@@ -284,6 +284,7 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/reminders",
         "DELETE /api/v1/reminders/{reminder_id}",
         "GET /api/v1/scheduled-actions",
+        "GET /api/v1/scheduled-actions/week",
         "POST /api/v1/scheduled-actions",
         "DELETE /api/v1/scheduled-actions/{action_id}",
         "PATCH /api/v1/scheduled-actions/{action_id}",

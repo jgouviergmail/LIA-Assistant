@@ -32,6 +32,7 @@ def _meeting(
         audio_path=None,
         audio_purged_at=None,
         rag_document_id=None,
+        lease_expires_at=None,
     )
 
 
@@ -163,7 +164,7 @@ class TestDelete:
         rag_service.delete_document.assert_awaited_once_with(
             document.space_id, document.id, meeting.user_id
         )
-        service.repo.delete.assert_awaited_once_with(meeting)
+        service.repo.delete_unless_leased.assert_awaited_once_with(meeting.id)
         service.store.purge_meeting.assert_awaited_once_with(meeting.user_id, meeting.id)
 
     async def test_a_meeting_without_projection_deletes_nothing_in_the_space(
@@ -176,15 +177,44 @@ class TestDelete:
         monkeypatch.setattr("src.domains.rag_spaces.service.RAGSpaceService", rag_service)
         await service.delete(meeting.user_id, meeting.id)
         rag_service.assert_not_called()
-        service.repo.delete.assert_awaited_once_with(meeting)
+        service.repo.delete_unless_leased.assert_awaited_once_with(meeting.id)
 
-    async def test_a_processing_meeting_cannot_be_deleted(self, service: MeetingService) -> None:
+    async def test_a_processing_meeting_with_a_live_lease_cannot_be_deleted(
+        self, service: MeetingService
+    ) -> None:
+        from datetime import UTC, datetime, timedelta
+
         meeting = _meeting(MeetingStatus.PROCESSING)
+        meeting.lease_expires_at = datetime.now(UTC) + timedelta(minutes=5)
         service.repo.get_for_user.return_value = meeting
         with pytest.raises(BaseAPIException) as exc:
             await service.delete(meeting.user_id, meeting.id)
         assert _code(exc) == "meeting_in_progress"
-        service.repo.delete.assert_not_awaited()
+        service.repo.delete_unless_leased.assert_not_awaited()
+
+    async def test_a_processing_meeting_whose_worker_is_gone_can_be_deleted(
+        self, service: MeetingService
+    ) -> None:
+        """Never blocked: an expired lease is nobody's work — the database decides."""
+        meeting = _meeting(MeetingStatus.PROCESSING)  # lease_expires_at=None: no worker
+        service.repo.get_for_user.return_value = meeting
+        service.repo.delete_unless_leased.return_value = True
+        service.store.purge_meeting = AsyncMock()
+        await service.delete(meeting.user_id, meeting.id)
+        service.repo.delete_unless_leased.assert_awaited_once_with(meeting.id)
+        service.store.purge_meeting.assert_awaited_once()
+
+    async def test_a_delete_that_loses_the_race_against_a_claim_is_a_conflict(
+        self, service: MeetingService
+    ) -> None:
+        meeting = _meeting(MeetingStatus.STOPPED)
+        service.repo.get_for_user.return_value = meeting
+        service.repo.delete_unless_leased.return_value = False
+        service.store.purge_meeting = AsyncMock()
+        with pytest.raises(BaseAPIException) as exc:
+            await service.delete(meeting.user_id, meeting.id)
+        assert _code(exc) == "meeting_in_progress"
+        service.store.purge_meeting.assert_not_awaited()
 
 
 # ---------------------------------------------------------------- ADR-259: the meeting's template

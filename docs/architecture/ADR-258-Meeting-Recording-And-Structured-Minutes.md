@@ -179,6 +179,39 @@ never a zero: an unknown price is not a free one (ADR-185).
   template choice (the announced library — the schema already carries
   `template_snapshot` and `is_default` for it).
 
+## Amendment 2026-09-05 — a meeting is never lost, its owner never blocked
+
+A 33-second production meeting was transcribed, its synthesis failed, and the
+row stayed `processing` for two hours, re-driven every fifteen minutes. Three
+defects hid behind one symptom, and the amendment closes each with a rule:
+
+- **Every transition persists, and is proven on a real database.** A bare enum
+  member as a `case()` result is bound as `NullType`: the VALUE reaches a column
+  that stores the NAME, `RETURNING` cannot read it back, the transaction rolls
+  back. Literals carry the column's type, an AST guard refuses a bare `case()`
+  under `src/`, and every repository transition now runs against PostgreSQL in
+  `tests/integration/domains/meetings/`. The unit tests mocked the repository;
+  the statement had never been executed.
+- **The job resumes from what it acquired.** Each stage checkpoints its result
+  on the claimed row inside the lease-renewal statement (normalized audio, then
+  the encrypted transcript with its `stt_*` facts); a claim reads the
+  checkpoints before spending anything again, and a meeting with no audio
+  anywhere is dead-lettered as `audio_unavailable` instead of burning its retry
+  budget on ffmpeg. Retention purges the audio of `ready` meetings only: a
+  `failed` meeting keeps its audio until its owner deletes it — the retry needs
+  it.
+- **Nobody is blocked on a dead worker.** A `processing` row under no live
+  lease is requeued by the reaper, or dead-lettered as `worker_lost` when its
+  budget is spent, and can be deleted meanwhile (`delete_unless_leased`, the
+  database clock decides). The detail publishes `attempts`, `max_attempts` and
+  `worker_stale`; the page shows the attempt of the budget, the previous
+  attempt's reason, and a delete when the worker is gone.
+- **A valid answer is never thrown away.** The trigger was a model writing
+  `null` on a defaulted list; the model-facing shapes accept it, the native
+  structured-output path defaults nulls generically before giving up on a tool
+  call (`llm/tool_call_rescue.py`), reads the `parsing_error` it discarded and
+  names the real reason. A background task that fails now logs its traceback.
+
 ## Verification
 
 `tests/unit/domains/meetings/` (models, templates and i18n parity, audio
@@ -193,6 +226,12 @@ whole recorder lifecycle under fakes including the server-side cap and the
 cross-device resume) and the component tests of the banner, the composer
 entry, the provider's coarse context, the editors, the read-only minutes
 view, the settings section, the list and detail pages and the minutes card.
+
+The 2026-09-05 amendment adds `tests/integration/domains/meetings/test_repository_jobs.py`
+(every transition on real PostgreSQL, the incident replayed), the resume suite
+(`test_processing_resume.py`), the statement-level binds (`test_repository_statements.py`),
+the AST guard, the null-tolerance and tool-call rescue suites, and the processing
+panel's attempt/stale states in the frontend.
 
 The feature was then driven end to end against the dev containers through its
 HTTP contract (design spec §8.1): PCM and Opus sources, the OpenAI engine

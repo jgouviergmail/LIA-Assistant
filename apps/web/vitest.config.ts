@@ -68,6 +68,11 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-09-05 after the meeting job resilience
+        // amendment (ADR-258: the processing panel's attempt/stale states, the
+        // shared error label; ~5 new tests): statements 78.73 / branches 73.99 /
+        // functions 76.02 / lines 79.46. `functions` rises 73 -> 74
+        // (floor(measured - 2)); the other three axes stay put.
         // Global floor — re-measured 2026-09-04 after the transparency
         // registers (ADR-263 lot 4: the shared register hook and body, the
         // consultation journal with its day sections and its fold, the two
@@ -329,9 +334,17 @@ export default defineConfig({
         // statements 78.07 / branches 73.38 / functions 75.25 / lines 78.82.
         // Raised 75/70/72/76 -> 76/71/73/76 (floor(measured - 2) per axis —
         // lines stays at 76, its margin being 2.82).
+        // Global floor — re-measured 2026-09-05 after the routines' week view
+        // (ADR-265: the chronological numbering and grid helpers, the week
+        // query and first-load flag in the hook, the memoised grid with its
+        // five chip states, and the section's rank, fold and navigation —
+        // ~90 new tests):
+        // statements 78.72 / branches 74.00 / functions 75.99 / lines 79.45.
+        // Raised 76/71/73/77 -> 76/72/73/77 (floor(measured - 2) per axis —
+        // branches alone crosses an integer step this time).
         statements: 76,
-        branches: 71,
-        functions: 73,
+        branches: 72,
+        functions: 74,
         lines: 77,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {

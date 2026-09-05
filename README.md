@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.42.1</strong> — <strong>A face that lives between two answers.</strong> The avatar's eyes already blinked, glanced and dozed; its brows and mouth stood still between two answers, and a face whose lower half never moves reads as a mask — measured in a browser at rest: half a pixel of mouth motion, none on the brows. ADR-264 gives the brow an arch and a faint presence at rest, carries the mass, the brows and the mouth width on <strong>one breath</strong>, and couples the gaze and the blink to the brows inside the rig — written as absolute contributions, never increments, because the idle fast path only rewrites what a loop rides and an increment there drifts for the whole session. The mouth gains a life of its own: nine relative mimics at an unhurried random cadence, drawn from a separate seeded stream so the widget tests stay deterministic, and ten short sketches on a resting face — a fly, a sneeze, a yawn, hiccups — dropped by any expression change with the face exactly where it was. The same character now greets visitors on the <strong>public home page</strong>, in the capsule look, fixed while the page scrolls and draggable, with a position of its own that never moves the chat's — no account needed. The style picker's previews switch that life off: a preview compares silhouettes. — 5 September 2026.
+  <strong>Version 1.42.2</strong> — <strong>Your week of routines, at a glance.</strong> The routines page listed its cards in the order the scheduler would fire them next, an order that moved every day, and gave no picture of the week. ADR-265 sorts them by the time of day they run, numbers them, and draws a grid above the list — hours down, days across — where each cell of the current week says what happened: executed, failed, proposed and waiting for approval, paused. A colour is a claim, so it comes from a run history the executor writes at the result, never from a guess about a clock, and the browser never re-reads the cron: the week is computed server-side and painted. Three defects fell on the way — a list that blinked away on every refresh, a paused routine waking up on the old time zone, and a scheduler that skipped a whole day for a midnight routine in six zones. And a meeting whose minutes failed no longer stays « processing » for hours: the job resumes from what it already acquired, a lost worker never blocks its owner, and every transition is proven on a real database. — 5 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **31,000+** automated tests | **263** ADRs                                                           |
-| **246** versions shipped  | **6 languages**, parity enforced in CI  | **535** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **31,000+** automated tests | **264** ADRs                                                           |
+| **247** versions shipped  | **6 languages**, parity enforced in CI  | **535** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -477,7 +477,9 @@ One published app per store, a client for **any** self-hosted LIA server: the We
 - **Retry logic**: Automatic retries on failure with back-off
 - **Auto-disable**: Automatic deactivation after N consecutive failures
 - **Multi-channel integration**: Result notifications via FCM, SSE, and Telegram
-- **Feature flag**: `SCHEDULED_ACTIONS_ENABLED=true` to enable
+- **Week view** ([ADR-265](./docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md)): a grid above the list — hours down, days across — routines numbered in trigger order, each cell of the current week coloured from a run history the executor writes at the result (executed, failed, proposed, paused); a real table, one tab stop, arrow keys walk it, the week computed server-side by the scheduler's own cron engine
+- **Run history**: `scheduled_action_runs`, one row per tick with its served slot and outcome, bounded retention purged inside the executor's tick
+- **Always on**: no feature flag — the router is included unconditionally
 
 ### Sub-Agents (F6)
 
@@ -769,7 +771,6 @@ MCP_ENABLED=false              # Admin MCP servers
 MCP_USER_ENABLED=false         # Per-user MCP (requires MCP_ENABLED)
 CHANNELS_ENABLED=false         # Multi-channel messaging (Telegram)
 HEARTBEAT_ENABLED=false        # Autonomous proactive notifications
-SCHEDULED_ACTIONS_ENABLED=false # Recurring scheduled actions
 SUB_AGENTS_ENABLED=false       # Persistent specialized sub-agents
 SKILLS_ENABLED=false           # Skills system (agentskills.io standard)
 RAG_SPACES_ENABLED=true        # RAG Knowledge Spaces (document upload & retrieval)
@@ -1023,7 +1024,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-263 ADR files (ADR-001 through ADR-264 — ADR-008 has no separate file) documenting major architectural decisions:
+264 ADR files (ADR-001 through ADR-265 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

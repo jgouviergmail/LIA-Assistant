@@ -2,8 +2,9 @@
 
 - ``meetings_job_reaper``: marks silent recordings ``interrupted`` (the client is
   gone), returns processing jobs whose lease expired to ``stopped`` (the worker
-  died) and re-drives ``stopped`` meetings nobody claimed (the fire-and-forget
-  died before the claim). Every transition is a conditional UPDATE in the
+  died) — or dead-letters them when the retry budget is already spent — and
+  re-drives ``stopped`` meetings nobody claimed (the fire-and-forget died
+  before the claim). Every transition is a conditional UPDATE in the
   repository; this module only decides WHEN.
 - ``meetings_audio_retention_reaper``: purges the audio of terminal meetings
   past their retention (or immediately when the user keeps nothing).
@@ -22,7 +23,10 @@ from src.core.config import settings
 from src.domains.meetings.audio_store import MeetingAudioStore
 from src.domains.meetings.repository import MeetingRepository
 from src.infrastructure.database.session import get_db_context
-from src.infrastructure.observability.metrics_meetings import meeting_reaper_transitions_total
+from src.infrastructure.observability.metrics_meetings import (
+    meeting_reaper_transitions_total,
+    meetings_total,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +43,9 @@ async def meetings_job_reaper() -> None:
         interrupted = await repo.interrupt_stale_recordings(
             settings.meetings_recording_stale_minutes
         )
-        requeued = await repo.requeue_expired_leases()
+        requeued, dead_lettered = await repo.requeue_expired_leases(
+            settings.meetings_job_max_attempts
+        )
         # ADR-259: a regeneration is a fire-and-forget without a lease; a hard
         # kill leaves the stage set. Past the lease TTL nobody is working on it.
         cleared = await repo.clear_stale_regenerations(settings.meetings_job_lease_ttl_seconds)
@@ -52,6 +58,9 @@ async def meetings_job_reaper() -> None:
         meeting_reaper_transitions_total.labels(outcome="interrupted").inc(interrupted)
     if requeued:
         meeting_reaper_transitions_total.labels(outcome="requeued").inc(requeued)
+    if dead_lettered:
+        meeting_reaper_transitions_total.labels(outcome="dead_lettered").inc(dead_lettered)
+        meetings_total.labels(status="failed").inc(dead_lettered)
     if cleared:
         meeting_reaper_transitions_total.labels(outcome="regeneration_cleared").inc(cleared)
     if orphans:
@@ -60,11 +69,12 @@ async def meetings_job_reaper() -> None:
         for meeting_id in orphans:
             launch_processing(meeting_id)
         meeting_reaper_transitions_total.labels(outcome="redriven").inc(len(orphans))
-    if interrupted or requeued or cleared or orphans:
+    if interrupted or requeued or dead_lettered or cleared or orphans:
         logger.info(
             "meetings_reaped",
             interrupted=interrupted,
             requeued=requeued,
+            dead_lettered=dead_lettered,
             regeneration_cleared=cleared,
             redriven=len(orphans),
         )

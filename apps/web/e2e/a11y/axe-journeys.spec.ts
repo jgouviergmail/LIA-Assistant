@@ -227,8 +227,105 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               schedule_display: '',
               next_occurrences: ['2026-10-24T06:00:00Z', '2026-10-26T07:00:00Z'],
             },
+            // A paused routine and a condition routine, so the grey chip, the
+            // ringed chip and the amber/red/green states below all reach the
+            // contrast scan (ADR-265) — five colours, none of them measured
+            // before this journey drew them.
+            {
+              id: '00000000-0000-4000-8000-00000000ac02',
+              user_id: '00000000-0000-4000-8000-000000000001',
+              title: 'Veille en pause',
+              action_prompt: 'Cherche les actualités IA',
+              days_of_week: [1, 3, 5],
+              trigger_hour: 19,
+              trigger_minute: 30,
+              user_timezone: 'Europe/Paris',
+              trigger_kind: 'time',
+              condition_config: null,
+              requires_approval: false,
+              next_trigger_at: '2026-10-26T18:30:00Z',
+              is_enabled: false,
+              status: 'active',
+              last_executed_at: null,
+              execution_count: 0,
+              consecutive_failures: 0,
+              last_error: null,
+              created_at: '2026-08-01T10:00:00Z',
+              updated_at: '2026-08-01T10:00:00Z',
+              schedule_display: '',
+              next_occurrences: [],
+            },
+            {
+              id: '00000000-0000-4000-8000-00000000ac03',
+              user_id: '00000000-0000-4000-8000-000000000001',
+              title: 'Factures en retard',
+              action_prompt: 'Signale les factures en retard',
+              days_of_week: [2, 4],
+              trigger_hour: 8,
+              trigger_minute: 0,
+              user_timezone: 'Europe/Paris',
+              trigger_kind: 'condition',
+              condition_config: { type: 'task_overdue' },
+              requires_approval: true,
+              next_trigger_at: '2026-10-27T07:00:00Z',
+              is_enabled: true,
+              status: 'active',
+              last_executed_at: null,
+              execution_count: 0,
+              consecutive_failures: 0,
+              last_error: null,
+              created_at: '2026-08-01T10:00:00Z',
+              updated_at: '2026-08-01T10:00:00Z',
+              schedule_display: '',
+              next_occurrences: ['2026-10-27T07:00:00Z'],
+            },
           ],
-          total: 1,
+          total: 3,
+        },
+      },
+      // Registered AFTER the list glob on purpose: Playwright consults routes
+      // in LIFO order, and `**\/scheduled-actions**` would otherwise answer
+      // `/week` with the list payload, which the hook reads as "unavailable".
+      {
+        url: '**/api/v1/scheduled-actions/week**',
+        json: {
+          actions: [
+            {
+              id: '00000000-0000-4000-8000-00000000ac01',
+              timezone: 'Europe/Paris',
+              week_start: '2026-10-19',
+              today: 5,
+              cells: [
+                { day: 1, date: '2026-10-19', slot_at: '2026-10-19T06:00:00Z', outcome: 'success', run_at: '2026-10-19T06:00:04Z', error: null, manual: false },
+                { day: 2, date: '2026-10-20', slot_at: '2026-10-20T06:00:00Z', outcome: 'failure', run_at: '2026-10-20T06:00:03Z', error: 'TimeoutError: Execution timed out after 300s', manual: false },
+                { day: 3, date: '2026-10-21', slot_at: '2026-10-21T06:00:00Z', outcome: 'success', run_at: '2026-10-21T06:00:05Z', error: null, manual: false },
+                { day: 4, date: '2026-10-22', slot_at: '2026-10-22T06:00:00Z', outcome: 'skipped_hitl', run_at: '2026-10-22T06:00:02Z', error: null, manual: false },
+                { day: 5, date: '2026-10-23', slot_at: '2026-10-23T06:00:00Z', outcome: 'success', run_at: '2026-10-23T06:00:04Z', error: null, manual: false },
+              ],
+            },
+            {
+              id: '00000000-0000-4000-8000-00000000ac02',
+              timezone: 'Europe/Paris',
+              week_start: '2026-10-19',
+              today: 5,
+              cells: [
+                { day: 1, date: '2026-10-19', slot_at: '2026-10-19T17:30:00Z', outcome: null, run_at: null, error: null, manual: null },
+                { day: 3, date: '2026-10-21', slot_at: '2026-10-21T17:30:00Z', outcome: null, run_at: null, error: null, manual: null },
+                { day: 5, date: '2026-10-23', slot_at: '2026-10-23T17:30:00Z', outcome: null, run_at: null, error: null, manual: null },
+              ],
+            },
+            {
+              id: '00000000-0000-4000-8000-00000000ac03',
+              timezone: 'Europe/Paris',
+              week_start: '2026-10-19',
+              today: 5,
+              cells: [
+                { day: 2, date: '2026-10-20', slot_at: '2026-10-20T06:00:00Z', outcome: 'proposed', run_at: '2026-10-20T06:00:01Z', error: null, manual: false },
+                { day: 4, date: '2026-10-22', slot_at: '2026-10-22T06:00:00Z', outcome: 'skipped_condition', run_at: '2026-10-22T06:00:01Z', error: null, manual: false },
+              ],
+            },
+          ],
+          generated_at: '2026-10-23T10:00:00Z',
         },
       },
     ]);
@@ -239,7 +336,11 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     // is the next run, zone-stamped). Open it: the scan then covers the folded
     // content too, and the marker must actually be on screen, or this scans a
     // page that happens not to contain the thing it was written for.
-    await page.locator('summary').filter({ hasText: 'Details' }).first().click();
+    // The card is addressed by its title, not by position: the list sorts by
+    // trigger time (ADR-265), and the first card is now the 08:00 condition
+    // routine, whose upcoming runs straddle no clock change.
+    const morningCard = page.locator('[data-routine-card]').filter({ hasText: 'Revue du matin' });
+    await morningCard.locator('summary').filter({ hasText: 'Details' }).click();
     await expect(page.getByText('(clocks change)', { exact: false }).first()).toBeVisible();
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard/settings#routines');

@@ -60,6 +60,8 @@ function hook(over: Partial<ScheduledHook> = {}) {
     actions: [],
     total: 0,
     loading: false,
+    initialLoading: false,
+    week: null,
     createAction: vi.fn(),
     updateAction: vi.fn(),
     deleteAction: vi.fn(),
@@ -73,9 +75,7 @@ function hook(over: Partial<ScheduledHook> = {}) {
 }
 
 function render() {
-  return renderWithProviders(
-    <ScheduledActionsSettings lng="en" />
-  );
+  return renderWithProviders(<ScheduledActionsSettings lng="en" />);
 }
 
 type User = ReturnType<typeof render>['user'];
@@ -95,10 +95,25 @@ const saveButton = () => screen.getByRole('button', { name: SAVE });
 beforeEach(() => vi.clearAllMocks());
 
 describe('ScheduledActionsSettings — list states', () => {
-  it('shows a loading spinner while actions load', () => {
-    useScheduledActions.mockReturnValue(hook({ loading: true }));
+  it('shows a loading spinner on the FIRST load only', () => {
+    useScheduledActions.mockReturnValue(hook({ loading: true, initialLoading: true }));
     render();
     expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('keeps the cards mounted and marks the region busy while a poll refreshes them', () => {
+    // A poll raises `loading` every 30 s. Swapping the cards for a spinner
+    // then would unmount them — open disclosures, grid fold and keyboard
+    // focus with them (measured: every card blinked away twice a minute).
+    useScheduledActions.mockReturnValue(
+      hook({ loading: true, initialLoading: false, actions: [action()], total: 1 })
+    );
+    const { container } = render();
+    expect(screen.getByText('Morning brief')).toBeInTheDocument();
+    // The spinner is the status named by the loading key; the grid's own
+    // "states unavailable" line is a status too, and must not be mistaken for it.
+    expect(screen.queryByRole('status', { name: 'common.loading' })).not.toBeInTheDocument();
+    expect(container.querySelector('[data-routines-region]')).toHaveAttribute('aria-busy', 'true');
   });
 
   it('explains how to get started once the (empty) list has loaded', () => {
@@ -373,9 +388,7 @@ describe('ScheduledActionsSettings — duplication', () => {
     // personal/professional): everything is copied, only the title is marked.
     useScheduledActions.mockReturnValue(
       hook({
-        actions: [
-          action({ days_of_week: [6, 7], trigger_hour: 19, trigger_minute: 30 }),
-        ],
+        actions: [action({ days_of_week: [6, 7], trigger_hour: 19, trigger_minute: 30 })],
       })
     );
     const { user } = render();
@@ -399,9 +412,7 @@ describe('ScheduledActionsSettings — duplication', () => {
   it('creates a NEW routine on save — it never edits the source', async () => {
     const createAction = vi.fn().mockResolvedValue(action());
     const updateAction = vi.fn();
-    useScheduledActions.mockReturnValue(
-      hook({ actions: [action()], createAction, updateAction })
-    );
+    useScheduledActions.mockReturnValue(hook({ actions: [action()], createAction, updateAction }));
     const { user } = render();
     await openDuplicate(user);
 
@@ -565,5 +576,66 @@ describe('where the keyboard lands once a routine is deleted', () => {
       // — which is precisely when a row-based anchor would vanish too.
       expect(document.activeElement).toHaveAttribute('data-routines-region');
     });
+  });
+});
+
+describe('ScheduledActionsSettings — chronological order and rank (ADR-265)', () => {
+  const morning = action({ id: 'm', title: 'Morning', trigger_hour: 8 });
+  const evening = action({ id: 'e', title: 'Evening', trigger_hour: 19, trigger_minute: 30 });
+  const dawn = action({ id: 'd', title: 'Dawn', trigger_hour: 6, is_enabled: false });
+
+  it('lists the cards by trigger time, not in the order the API returned them', () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [evening, morning, dawn], total: 3 }));
+    render();
+
+    const titles = screen.getAllByText(/^(Dawn|Morning|Evening)$/).map(node => node.textContent);
+    expect(titles).toEqual(['Dawn', 'Morning', 'Evening']);
+  });
+
+  it('numbers every card in that order, a paused routine included', () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [evening, morning, dawn], total: 3 }));
+    const { container } = render();
+
+    const cards = [...container.querySelectorAll('[data-routine-card]')];
+    expect(cards.map(card => card.getAttribute('data-routine-card'))).toEqual(['d', 'm', 'e']);
+    expect(cards.map(card => card.querySelector('[data-tone]')?.textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
+    expect(cards[0]?.querySelector('[data-tone]')).toHaveAttribute('data-tone', 'paused');
+    expect(cards[1]?.querySelector('[data-tone]')).toHaveAttribute('data-tone', 'idle');
+  });
+
+  it('draws the week above the list, open on arrival', () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [morning], total: 1 }));
+    render();
+
+    const fold = screen.getByText('scheduled_actions.timeline.title').closest('details');
+    expect(fold).toHaveAttribute('open');
+    expect(screen.getByRole('table')).toBeInTheDocument();
+  });
+
+  it('draws no week while the list is empty', () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [], total: 0 }));
+    render();
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('takes the reader to the card when a chip of the grid is activated', async () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [morning, evening], total: 2 }));
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const { user } = render();
+
+    // The grid names its chips by rank; the second chip is the evening routine.
+    const chips = screen.getAllByRole('button', { name: 'scheduled_actions.timeline.chip_aria' });
+    await user.click(chips[chips.length - 1] as HTMLElement);
+
+    const card = document.getElementById('routine-card-e');
+    expect(card).not.toBeNull();
+    expect(document.activeElement).toBe(card);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 });

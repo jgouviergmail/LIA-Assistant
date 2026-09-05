@@ -4,7 +4,7 @@
 
 **Version**: 5.3
 **Date**: 2026-08-23
-**Application**: LIA v1.42.1
+**Application**: LIA v1.42.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -68,7 +68,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Personal journals**: configure introspection extraction after each conversation and periodic consolidation review
 - **Interests**: define your favorite topics, configure notification frequency, time slots and sources (Perplexity, Brave, Wikipedia, AI reflection)
 - **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
-- **Scheduled actions**: create recurring automations executed by the assistant
+- **Scheduled actions**: create recurring automations executed by the assistant, and read your week at a glance — every routine at its hour on its days, every cell coloured by what really happened
 - **Skills**: enable/disable expert competencies in a gallery with previews, create your own personal Skills, or install one from an https URL (server-validated)
 - **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats) or sync a Google Drive folder — automatic indexing with hybrid search — or follow a Gmail label, so the conversations you label become documents you can question weeks later, and removing the label removes the document
 - **Consumption export**: download your LLM and API consumption data in CSV

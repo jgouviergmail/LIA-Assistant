@@ -76,6 +76,11 @@ from src.infrastructure.llm.strict_schema import (  # noqa: F401  (re-export)
     _has_type_indicator,
     _schema_has_additional_properties,
 )
+from src.infrastructure.llm.tool_call_rescue import (
+    rejection_reason,
+    rescue_tool_call,
+    validate_with_defaulted_nulls,
+)
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_langgraph import (
     llm_reasoning_stream_double_call_total,
@@ -555,7 +560,7 @@ def _rescue_structured_from_text[T: BaseModel](
         return None
 
     try:
-        instance = schema.model_validate(json.loads(payload_text))
+        instance, _defaulted = validate_with_defaulted_nulls(schema, json.loads(payload_text))
     except json.JSONDecodeError, ValidationError:
         return None
 
@@ -720,16 +725,37 @@ async def _get_native_structured_output[T: BaseModel](
             if isinstance(parsed, schema):
                 return parsed
             raw_message = bundle.get("raw") if isinstance(bundle, dict) else None
+            parsing_error = bundle.get("parsing_error") if isinstance(bundle, dict) else None
+            # A tool call rejected for its nulls is a complete answer spelled
+            # « absent » where the schema has a default (2026-09-05): default
+            # them, generically, before giving up on the call.
+            defaulted, dropped = rescue_tool_call(raw_message, schema)
+            if defaulted is not None:
+                logger.warning(
+                    "structured_output_nulls_defaulted",
+                    provider=provider,
+                    schema=schema_name,
+                    defaulted=dropped,
+                )
+                return defaulted
             rescued = _rescue_structured_from_text(raw_message, schema, provider, schema_name)
             if rescued is not None:
                 return rescued
             raw_text = coerce_content_to_text(getattr(raw_message, "content", None) or "")
+            reason = rejection_reason(raw_message, parsing_error)
+            logger.warning(
+                "structured_output_tool_call_rejected",
+                provider=provider,
+                schema=schema_name,
+                reason=reason,
+            )
             raise StructuredOutputError(
                 f"Native structured output returned no parsable payload for {schema_name} "
-                f"(no tool call, text rescue failed)",
+                f"({reason})",
                 provider=provider,
                 schema_name=schema_name,
                 raw_output=raw_text[:2000] or None,
+                original_error=parsing_error if isinstance(parsing_error, Exception) else None,
             )
 
         result: Any

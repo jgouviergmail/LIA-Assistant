@@ -26,8 +26,12 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from src.core.config import settings
+from src.domains.scheduled_actions.models import ScheduledRunOutcome
 from src.domains.users.schemas import UserProfile
 from src.infrastructure.scheduler.scheduled_action_executor import execute_single_action
+
+#: The harness routine is due at 06:00Z (08:00 Paris); the tick starts 5 s later.
+NOW = datetime(2026, 8, 3, 6, 0, 5, tzinfo=UTC)
 
 
 class _AsyncCM:
@@ -68,6 +72,10 @@ class _Env:
     agent_service: MagicMock
     fcm: MagicMock
     redis: MagicMock
+    db: MagicMock
+    repo: MagicMock
+    run_repo: MagicMock
+    calls: list[str]
 
 
 @contextmanager
@@ -83,6 +91,7 @@ def _executor_env(
 
     action = MagicMock()
     action.id = action_id
+    action.user_id = user_id
     action.action_prompt = "Summarize my unread emails"
     action.title = "Morning briefing"
     # N-07: explicit defaults — a bare MagicMock would autovivify
@@ -121,12 +130,30 @@ def _executor_env(
         updated_at=datetime(2026, 7, 1, tzinfo=UTC),
     )
 
+    # The order of the durable writes matters: the run row must be flushed
+    # BEFORE the commit that makes the routine's own marking durable.
+    calls: list[str] = []
+
+    async def _commit() -> None:
+        calls.append("commit")
+
     db = MagicMock()
-    db.commit = AsyncMock()
+    db.commit = AsyncMock(side_effect=_commit)
+    db.begin_nested = MagicMock(return_value=_AsyncCM(None))
+    db.get = AsyncMock(return_value=SimpleNamespace(id=user_id))
 
     repo = MagicMock()
     repo.get_by_id = AsyncMock(return_value=action)
     repo.mark_execution_success = AsyncMock()
+    repo.mark_execution_failure = AsyncMock()
+    repo.reschedule = AsyncMock()
+
+    async def _record(**_kwargs: Any) -> str:
+        calls.append("record")
+        return "row"
+
+    run_repo = MagicMock()
+    run_repo.record = AsyncMock(side_effect=_record)
 
     user_service = MagicMock()
     user_service.get_user_by_id = AsyncMock(return_value=user)
@@ -154,6 +181,7 @@ def _executor_env(
             ("src.domains.conversations.service.ConversationService", conv_service),
             ("src.domains.agents.api.service.AgentService", agent_service),
             ("src.domains.notifications.service.FCMNotificationService", fcm),
+            ("src.domains.scheduled_actions.runs.ScheduledActionRunRepository", run_repo),
         ):
             stack.enter_context(patch(target, return_value=replacement))
 
@@ -172,6 +200,19 @@ def _executor_env(
         stack.enter_context(
             patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=redis))
         )
+        stack.enter_context(
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor.now_utc", return_value=NOW
+            )
+        )
+        # A retry sleeps for real otherwise; the delay is not what is under test.
+        stack.enter_context(
+            patch(
+                "src.infrastructure.scheduler.scheduled_action_executor"
+                ".SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS",
+                0,
+            )
+        )
 
         yield _Env(
             action_id=action_id,
@@ -180,6 +221,10 @@ def _executor_env(
             agent_service=agent_service,
             fcm=fcm,
             redis=redis,
+            db=db,
+            repo=repo,
+            run_repo=run_repo,
+            calls=calls,
         )
 
 
@@ -365,3 +410,209 @@ async def test_process_scheduled_actions_uses_no_redis_lock():
     assert stats["success"] == 1
     exec_mock.assert_awaited_once()
     redis_factory.assert_not_called()
+
+
+# =============================================================================
+# Run history (ADR-265): one row per exit, before the commit, never a gate
+# =============================================================================
+
+
+def _recorded(env: _Env) -> dict[str, Any]:
+    env.run_repo.record.assert_awaited_once()
+    return env.run_repo.record.await_args.kwargs
+
+
+def _raising_stream(exc: BaseException):
+    """A stream that raises before yielding anything."""
+
+    async def _stream(*_args: Any, **_kwargs: Any):
+        raise exc
+        yield  # pragma: no cover — makes this an async generator
+
+    return _stream
+
+
+class TestRunHistory:
+    @pytest.mark.asyncio
+    async def test_a_success_is_recorded_for_its_due_slot_before_the_commit(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "hello")]) as env:
+            await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            recorded = _recorded(env)
+            assert recorded["outcome"] is ScheduledRunOutcome.SUCCESS
+            assert recorded["scheduled_action_id"] == env.action_id
+            assert recorded["user_id"] == env.user_id
+            assert recorded["slot_at"] == env.action.next_trigger_at
+            assert recorded["started_at"] == NOW
+            assert (recorded["attempts"], recorded["manual"], recorded["error"]) == (
+                1,
+                False,
+                None,
+            )
+            # Flushed inside the routine's transaction, before its commit.
+            assert env.calls.index("record") < env.calls.index("commit")
+
+    @pytest.mark.asyncio
+    async def test_a_manual_run_after_the_slot_is_marked_manual_and_serves_it(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "hello")]) as env:
+            # Nothing due until tomorrow: the user pressed "Test now" at 08:00:05.
+            env.action.next_trigger_at = datetime(2026, 8, 4, 6, 0, tzinfo=UTC)
+            await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            recorded = _recorded(env)
+            assert recorded["manual"] is True
+            assert recorded["slot_at"] == datetime(2026, 8, 3, 6, 0, tzinfo=UTC)
+
+    @pytest.mark.asyncio
+    async def test_a_final_failure_is_recorded_with_its_attempts_and_error(self) -> None:
+        with _executor_env(chunks=[]) as env:
+            env.agent_service.stream_chat_response = Mock(
+                side_effect=_raising_stream(ConnectionError("provider down"))
+            )
+            await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            env.repo.mark_execution_failure.assert_awaited_once()
+            recorded = _recorded(env)
+            assert recorded["outcome"] is ScheduledRunOutcome.FAILURE
+            assert recorded["attempts"] == 2  # one retry on a transient error
+            assert "provider down" in recorded["error"]
+            assert env.calls.index("record") < env.calls.index("commit")
+
+    @pytest.mark.asyncio
+    async def test_a_non_retryable_failure_counts_one_attempt(self) -> None:
+        with _executor_env(chunks=[]) as env:
+            env.agent_service.stream_chat_response = Mock(
+                side_effect=_raising_stream(RuntimeError("HITL interrupt"))
+            )
+            await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            recorded = _recorded(env)
+            assert recorded["outcome"] is ScheduledRunOutcome.FAILURE
+            assert recorded["attempts"] == 1
+
+    @pytest.mark.asyncio
+    async def test_a_condition_not_met_is_recorded_as_skipped_and_runs_nothing(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.action.trigger_kind = "condition"
+            env.action.condition_config = {"type": "task_overdue"}
+            verdict = SimpleNamespace(met=False, fingerprint=None, note=None)
+            with patch(
+                "src.infrastructure.scheduler.condition_evaluators.evaluate_condition",
+                AsyncMock(return_value=verdict),
+            ):
+                result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            assert result == ""
+            env.agent_service.stream_chat_response.assert_not_called()
+            recorded = _recorded(env)
+            assert recorded["outcome"] is ScheduledRunOutcome.SKIPPED_CONDITION
+            assert recorded["attempts"] == 0
+            assert recorded["slot_at"] == env.action.next_trigger_at
+            assert env.calls.index("record") < env.calls.index("commit")
+
+    @pytest.mark.asyncio
+    async def test_a_proposal_is_recorded_as_proposed(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.action.requires_approval = True
+            with patch(
+                "src.infrastructure.scheduler.scheduled_action_executor"
+                "._send_approval_notification",
+                AsyncMock(),
+            ) as notify:
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            notify.assert_awaited_once()
+            env.agent_service.stream_chat_response.assert_not_called()
+            recorded = _recorded(env)
+            assert recorded["outcome"] is ScheduledRunOutcome.PROPOSED
+            assert recorded["attempts"] == 0
+
+    @pytest.mark.asyncio
+    async def test_a_pending_hitl_is_recorded_as_skipped(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            env.agent_service.graph.aget_state = AsyncMock(
+                return_value=SimpleNamespace(tasks=[SimpleNamespace(interrupts=["pending"])])
+            )
+            await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            env.agent_service.stream_chat_response.assert_not_called()
+            recorded = _recorded(env)
+            assert recorded["outcome"] is ScheduledRunOutcome.SKIPPED_HITL
+            assert recorded["attempts"] == 0
+
+    @pytest.mark.asyncio
+    async def test_a_failed_history_write_never_costs_the_routine_its_marking(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "hello")]) as env:
+            env.run_repo.record = AsyncMock(side_effect=RuntimeError("history down"))
+            result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            assert result == "hello"
+            env.repo.mark_execution_success.assert_awaited_once()
+            assert "commit" in env.calls
+
+
+class TestRetentionPurge:
+    @pytest.mark.asyncio
+    async def test_the_tick_purges_history_older_than_the_retention(self) -> None:
+        from src.infrastructure.scheduler import scheduled_action_executor as mod
+
+        mock_db = AsyncMock()
+        repo = MagicMock()
+        repo.recover_stale_executing = AsyncMock(return_value=0)
+        repo.get_and_lock_due_actions = AsyncMock(return_value=[])
+        run_repo = MagicMock()
+        run_repo.purge_older_than = AsyncMock(return_value=3)
+
+        with (
+            patch(
+                "src.infrastructure.database.session.get_db_context",
+                return_value=_AsyncCM(mock_db),
+            ),
+            patch(
+                "src.domains.scheduled_actions.repository.ScheduledActionRepository",
+                return_value=repo,
+            ),
+            patch(
+                "src.domains.scheduled_actions.run_repository.ScheduledActionRunRepository",
+                return_value=run_repo,
+            ),
+            patch.object(mod, "now_utc", return_value=NOW),
+        ):
+            stats = await mod.process_scheduled_actions()
+
+        assert stats["runs_purged"] == 3
+        from datetime import timedelta
+
+        run_repo.purge_older_than.assert_awaited_once_with(
+            NOW - timedelta(days=settings.scheduled_actions_runs_retention_days)
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_failed_purge_never_fails_the_tick(self) -> None:
+        from src.infrastructure.scheduler import scheduled_action_executor as mod
+
+        mock_db = AsyncMock()
+        repo = MagicMock()
+        repo.recover_stale_executing = AsyncMock(return_value=0)
+        repo.get_and_lock_due_actions = AsyncMock(return_value=[])
+        run_repo = MagicMock()
+        run_repo.purge_older_than = AsyncMock(side_effect=RuntimeError("locked"))
+
+        with (
+            patch(
+                "src.infrastructure.database.session.get_db_context",
+                return_value=_AsyncCM(mock_db),
+            ),
+            patch(
+                "src.domains.scheduled_actions.repository.ScheduledActionRepository",
+                return_value=repo,
+            ),
+            patch(
+                "src.domains.scheduled_actions.run_repository.ScheduledActionRunRepository",
+                return_value=run_repo,
+            ),
+        ):
+            stats = await mod.process_scheduled_actions()
+
+        assert stats["runs_purged"] == 0
+        assert stats["processed"] == 0

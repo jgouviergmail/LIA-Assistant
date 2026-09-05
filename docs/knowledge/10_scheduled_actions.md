@@ -43,6 +43,30 @@ You can test an action **immediately** without waiting for the scheduled time:
 • Verify the instruction produces the expected result
 • Adjust the prompt if needed before the first scheduled execution
 
+## How do I read the week view?
+Above the list, the **Week view** draws your routines on a grid: hours down, days across (Monday first), in the time zone named beside it.
+
+**🔢 Numbers:**
+• Routines are listed by trigger time and numbered in that order; the same number sits on the card and on the grid
+• A paused routine keeps its number; creating or rescheduling one renumbers the later ones
+
+**🎨 Colours of this week:**
+• White: not executed (not yet due, or nothing ran)
+• Green: executed
+• Red: failed
+• Amber: proposed, waiting for your approval in the chat
+• Grey: the routine is paused
+• A ring marks a routine whose condition is checked at that time; a routine running right now pulses
+
+**🔁 Reset:**
+• The colours cover the current week only and start over every Monday
+• Changing a routine's days or time clears its colours: they belong to the old slots
+• Pressing **Test** after today's slot recolours that slot; pressing it before does not
+
+**⌨️ Navigation:**
+• Click a number on the grid to jump to the routine's card
+• The grid is one tab stop: the arrow keys walk it
+
 ## What happens in case of error?
 LIA handles errors robustly:
 

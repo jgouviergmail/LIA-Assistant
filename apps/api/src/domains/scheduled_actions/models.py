@@ -20,11 +20,13 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.infrastructure.database.models import BaseModel
+from src.infrastructure.database.models import BaseModel, UUIDMixin
+from src.infrastructure.database.session import Base
 
 if TYPE_CHECKING:
     from src.domains.users.models import User
@@ -222,4 +224,112 @@ class ScheduledAction(BaseModel):
         return (
             f"<ScheduledAction(id={self.id}, title='{self.title}', "
             f"status={self.status}, next={self.next_trigger_at})>"
+        )
+
+
+class ScheduledRunOutcome(str, Enum):
+    """How one tick of a routine ended (ADR-265).
+
+    Five values, one per exit of the executor, so the weekly timeline can say
+    WHY a cell is not green rather than leaving a silent blank: the two skips
+    and the proposal happen BEFORE the pipeline runs and count no execution.
+    """
+
+    SUCCESS = "success"  # The pipeline answered.
+    FAILURE = "failure"  # Every attempt failed (error kept on the row).
+    SKIPPED_CONDITION = "skipped_condition"  # Condition not met, or the same fact again.
+    PROPOSED = "proposed"  # Propose-first: notified, waiting for the user's click.
+    SKIPPED_HITL = "skipped_hitl"  # A HITL interrupt was pending on the conversation.
+
+
+class ScheduledActionRun(Base, UUIDMixin):
+    """One tick of a routine, written AT ITS RESULT (ADR-265).
+
+    Intentionally without ``TimestampMixin``: a run row is never updated — it is
+    inserted once, from the executor's explicit outcome, in the same
+    transaction as ``mark_execution_success`` / ``mark_execution_failure``.
+    A crash mid-run therefore leaves NO row, which is the truth: nothing was
+    delivered. The weekly timeline colours a cell from the run whose
+    ``slot_at`` EQUALS the week's instant for that day — a schedule change
+    moves the instants, so old runs stop matching by construction.
+
+    Retention is bounded (``scheduled_actions_runs_retention_days``), purged
+    inside the executor's own tick. SQL ``comment=`` mirrors the migration
+    EXACTLY (the replay check compares them).
+    """
+
+    __tablename__ = "scheduled_action_runs"
+
+    scheduled_action_id: Mapped[UUID] = mapped_column(
+        ForeignKey("scheduled_actions.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="The routine. Dies with it.",
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="Whose routine — denormalised for the week read and the export.",
+    )
+    slot_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="The scheduled instant this run served (UTC); NULL = a rehearsal.",
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="When the tick started (UTC).",
+    )
+    ended_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="When the outcome was known (UTC).",
+    )
+    outcome: Mapped[ScheduledRunOutcome] = mapped_column(
+        # A VARCHAR storing the VALUES with a real CHECK, never a native
+        # enum type, so adding a value stays an ordinary migration. `create_constraint`
+        # is explicit because SQLAlchemy 2 defaults it to False — measured on
+        # the dev database 2026-09-05, the register tables carry no CHECK at
+        # all despite saying so; this one is proven by an integration test.
+        SAEnum(
+            ScheduledRunOutcome,
+            native_enum=False,
+            length=20,
+            create_constraint=True,
+            values_callable=lambda enum_cls: [m.value for m in enum_cls],
+        ),
+        nullable=False,
+        comment="success | failure | skipped_condition | proposed | skipped_hitl",
+    )
+    attempts: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        default=1,
+        comment="Pipeline attempts made (retries included); 0 when it never ran.",
+    )
+    manual: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="True = started by the user (Test now), not by a due slot.",
+    )
+    error: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Last error message of a FAILURE, truncated.",
+    )
+
+    __table_args__ = (
+        # The week read: one routine, its instants.
+        Index("ix_scheduled_action_runs_action_slot", "scheduled_action_id", "slot_at"),
+        # The export and any per-account listing.
+        Index("ix_scheduled_action_runs_user_started", "user_id", "started_at"),
+        # The retention purge, which knows no account.
+        Index("ix_scheduled_action_runs_started", "started_at"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<ScheduledActionRun(action={self.scheduled_action_id}, "
+            f"slot={self.slot_at}, outcome={self.outcome})>"
         )

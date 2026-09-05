@@ -354,6 +354,13 @@ export interface MeetingDetail {
   email_sent_at: string | null;
   last_error_code: string | null;
   last_error_message: string | null;
+  /** Claims spent on the current retry budget (1 on a first attempt). */
+  attempts: number;
+  /** Claims the budget allows before the meeting is dead-lettered (server constraint). */
+  max_attempts: number;
+  /** `processing` under no live lease: the worker stopped responding; the reaper
+   * requeues or dead-letters the job, and the meeting may be deleted meanwhile. */
+  worker_stale: boolean;
   template_ref: string | null;
   template_name: string | null;
   template_selection: TemplateSelection | null;

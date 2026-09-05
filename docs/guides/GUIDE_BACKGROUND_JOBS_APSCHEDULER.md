@@ -38,7 +38,7 @@
 | `interest_cleanup` | Cron | 3:00 AM UTC | Nettoyage centres d'interet dormants | Toujours |
 | `unverified_account_cleanup` | Cron | 5:00 AM UTC | Suppression comptes non verifies | Toujours |
 | `reminder_notification` | Interval | Toutes les minutes | Traitement rappels dus | `FCM_ENABLED` |
-| `scheduled_action_executor` | Interval | Toutes les 60s | Execution actions planifiees utilisateur | Toujours |
+| `scheduled_action_executor` | Interval | Toutes les 60s | Execution actions planifiees utilisateur (etape 0 : purge de l'historique `scheduled_action_runs` au-dela de la retention, ADR-265) | Toujours |
 | `token_refresh` | Interval | 15 min | Renouvellement proactif tokens OAuth | Toujours |
 | `interest_notification` | Interval | 15 min | Notifications centres d'interet | Toujours |
 | `heartbeat_notification` | Interval | Configurable (30 min) | Notifications proactives LLM-driven | `HEARTBEAT_ENABLED` |

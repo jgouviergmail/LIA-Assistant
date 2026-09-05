@@ -519,6 +519,21 @@ class MeetingDetailResponse(BaseModel):
     email_sent_at: datetime | None = None
     last_error_code: str | None = None
     last_error_message: str | None = None
+    attempts: int = Field(default=0, description="Claims spent on the current retry budget.")
+    max_attempts: int = Field(
+        default=0,
+        description=(
+            "Claims the budget allows before the meeting is dead-lettered "
+            "(published because it is enforced)."
+        ),
+    )
+    worker_stale: bool = Field(
+        default=False,
+        description=(
+            "True while `processing` under no live lease: the worker stopped responding, "
+            "the reaper requeues or dead-letters the job, and the meeting may be deleted."
+        ),
+    )
     template_ref: str | None = None
     template_name: str | None = None
     template_selection: TemplateSelection | None = None

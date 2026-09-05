@@ -88,6 +88,19 @@ def raise_meeting_not_found(meeting_id: uuid.UUID) -> NoReturn:
     )
 
 
+def worker_stale(meeting: Meeting) -> bool:
+    """A ``processing`` row nobody is working on: its lease is absent or past.
+
+    The reaper applies the same predicate on the database clock; this reading
+    serves the page and the delete pre-check, where a few seconds of skew move
+    a button, never a transition (the transition itself is conditional in SQL).
+    """
+    if meeting.status is not MeetingStatus.PROCESSING:
+        return False
+    lease = meeting.lease_expires_at
+    return lease is None or lease < datetime.now(UTC)
+
+
 def raise_meeting_conflict(code: str, **extra: Any) -> NoReturn:
     """409 with a stable code the client explains (already recording, not live, gaps…)."""
     raise BaseAPIException(
@@ -495,6 +508,9 @@ class MeetingService:
             email_sent_at=meeting.email_sent_at,
             last_error_code=meeting.last_error_code,
             last_error_message=meeting.last_error_message,
+            attempts=meeting.attempts,
+            max_attempts=settings.meetings_job_max_attempts,
+            worker_stale=worker_stale(meeting),
             template_ref=meeting.template_ref,
             template_name=meeting.template_name,
             template_selection=_selection_or_none(meeting.template_selection),
@@ -594,11 +610,14 @@ class MeetingService:
         runtime proof found three such orphans behind three deleted meetings).
         """
         meeting = await self._owned(meeting_id, user_id)
-        if meeting.status is MeetingStatus.PROCESSING:
+        if meeting.status is MeetingStatus.PROCESSING and not worker_stale(meeting):
             raise_meeting_conflict("meeting_in_progress", status=meeting.status.value)
         was_live = meeting.status in LIVE_STATUSES
         await self._delete_projection(meeting)
-        await self.repo.delete(meeting)
+        # The database decides with its own clock: a claim that raced this
+        # delete keeps the row (a processing row never has a projection yet).
+        if not await self.repo.delete_unless_leased(meeting_id):
+            raise_meeting_conflict("meeting_in_progress", status=meeting.status.value)
         await self.db.commit()
         await self.store.purge_meeting(user_id, meeting_id)
         meetings_total.labels(status="discarded" if was_live else "deleted").inc()

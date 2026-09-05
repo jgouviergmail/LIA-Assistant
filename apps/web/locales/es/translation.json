@@ -3530,7 +3530,7 @@
         "interests": "temas, gustos, materias, curiosidad, preferencias, historial, notificaciones recientes, procedencia, por qué, peso, explicación, decaimiento, fuente, exportar",
         "peer-connections": "contactos, amigos, familia, red, compartir calendario, disponibilidad, bloquear, descubrir usuarios, conectar, mi nombre, copiar mi nombre, solicitud de conexión, historial de accesos, transmitir mensaje, usuarios bloqueados, allegados, red social, peer, descubrimiento, visibilidad, compartir mi dirección, email visible, mi correo, resumen 360, solicitudes",
         "heartbeat": "proactivo, espontáneo, iniciativa, contacto, mensajes autónomos, temas de las notificaciones, fuentes, historial, notificaciones recientes, prioridad, urgencia, alta, media, baja, color, meteorología, frecuencia, franja horaria, propuestas, ofertas, rutina perdida, despertar por push, reaccionar a un correo, reaccionar a una invitación, disparador",
-        "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado",
+        "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado, vista semanal, cronología, cuadrícula semanal",
         "journals": "diario, bitácora, retrato, reflexiones, notas, procedencia, por qué, fuente, señal, origen, corregir, configuración, consolidación, exportar",
         "health-metrics": "frecuencia cardíaca, pasos, sueño, iPhone, Apple Salud, forma física, actividad",
         "skills": "habilidades, capacidades, competencias, plugins, extensiones",
@@ -4387,7 +4387,7 @@
         },
         "scheduledActions": {
           "title": "📅 Acciones Programadas",
-          "description": "Acciones recurrentes que la asistente ejecuta sola: elige los días y la hora, adjunta una instrucción y LIA la ejecuta. Los resultados se archivan en la conversación y se te envían, con desactivación automática tras cinco fallos seguidos. La notificación lleva el mismo texto final archivado, aplanado a texto plano antes de truncarse."
+          "description": "Acciones recurrentes que la asistente ejecuta sola: elige los días y la hora, adjunta una instrucción y LIA la ejecuta. Los resultados se archivan en la conversación y se te envían, con desactivación automática tras cinco fallos seguidos. La notificación lleva el mismo texto final archivado, aplanado a texto plano antes de truncarse. Una vista semanal las dibuja, horas hacia abajo y días a lo ancho, numeradas en el orden en que se disparan; cada celda de la semana en curso se colorea por lo que pasó — ejecutada, con error, propuesta, en pausa — desde un historial escrito al resultado."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4407,7 +4407,7 @@
         },
         "heartbeatAutonome": {
           "title": "💓 Heartbeat Autónomo",
-          "description": "Notificaciones proactivas construidas desde once fuentes agregadas en vivo, en dos tiempos: un modelo económico decide si hay que hablar, y luego el mensaje se reescribe con la personalidad activa. Los temas rotan sobre una muestra variada de intereses con una ventana antirrepetición — el mismo tema nunca vuelve día tras día — y una notificación sobre un interés va a buscar hechos reales con fuentes pinchables. Un interruptor por fuente — estar conectado a un servicio y ser interrumpido por él son dos decisiones distintas — y una fuente caída se cuenta y se fecha en vez de faltar en silencio. Una notificación push puede ahora desencadenar una decisión en minutos."
+          "description": "Notificaciones proactivas construidas desde once fuentes en vivo, en dos tiempos: un modelo económico decide si hay que hablar, y luego el mensaje se reescribe con la personalidad activa. Los temas rotan con una ventana antirrepetición, y una notificación sobre un interés va a buscar hechos reales con fuentes pinchables. Un interruptor por fuente — estar conectado a un servicio y ser interrumpido por él son dos decisiones — una fuente caída se cuenta y se fecha en vez de faltar en silencio, y una notificación push puede desencadenar una decisión en minutos."
         },
         "webFetch": {
           "title": "🌐 Web Fetch Inteligente",
@@ -4547,7 +4547,7 @@
         },
         "meetings": {
           "title": "🎙️ Actas de reunión",
-          "description": "Un botón en la cabecera — o la entrada «Grabar una reunión» del menú en el móvil — y el aparato se convierte en grabadora: el audio sale en pequeños segmentos mientras se habla, de modo que un fallo o un corte cuestan segundos, nunca la reunión. Al detener, el servidor ensambla la grabación y recorre su cadena de motores hasta que uno transcribe. El formato del acta se elige entre treinta plantillas integradas leyendo lo que se dijo, salvo que impongas el tuyo; la reunión indica el formato utilizado y por qué. Un acta ya redactada se reescribe en otro formato — hasta la transcripción completa — en el sitio o como documento nuevo. Lo que costó se dice en dos importes y un total, y una laguna se anuncia, nunca se rellena."
+          "description": "Un botón en la cabecera — en el móvil, una entrada del menú — y el aparato se convierte en grabadora: el audio sale en pequeños segmentos mientras se habla, de modo que un fallo cuesta segundos, nunca la reunión. Al detener, el servidor ensambla la grabación y recorre su cadena de motores hasta que uno transcribe. El formato del acta se elige entre treinta plantillas según lo que se dijo, salvo que impongas el tuyo, y se indica con su motivo; un acta se reescribe en otro formato, hasta la transcripción completa. Lo que costó se dice en dos importes y un total, y una laguna se anuncia, nunca se rellena."
         },
         "transparencyRegisters": {
           "title": "📋 Registros de acciones y consultas",
@@ -4560,6 +4560,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_42_2": {
+          "title": "v1.42.2 — 📅 Tu semana de rutinas, de un vistazo",
+          "date": "Septiembre 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📅 Una vista semanal encima de tus rutinas</b> — las horas hacia abajo, los días a lo ancho: cada rutina se sitúa a su hora en sus días, numerada en el orden en que se dispara, con el mismo número en su tarjeta. Cada celda de la semana en curso dice qué pasó: blanco no ejecutada, verde ejecutada, rojo con error, ámbar propuesta y a la espera de tu aprobación, gris en pausa. Una rutina que comprueba una condición lleva un anillo; una en ejecución late. Pulsa un número para ir a su tarjeta; las flechas recorren la cuadrícula. Los colores empiezan de nuevo cada lunes y se borran cuando cambias los días o la hora de una rutina.",
+            "i2": "<b>🎙️ Una reunión nunca se pierde, su propietario nunca queda bloqueado</b> — una reunión cuya acta fallaba se quedaba « en proceso » durante horas. El procesamiento ahora retoma donde estaba (audio normalizado, luego transcripción) en vez de volver a pagar el motor; una reunión cuyo trabajador desapareció vuelve a la cola, o se marca como fallida con su motivo, y puedes borrarla mientras tanto. El detalle muestra el intento sobre el presupuesto y el motivo del intento anterior.",
+            "i3": "<b>🛠️ Rutinas que cumplen su palabra</b> — la lista ya no parpadea en cada actualización (tus paneles abiertos siguen abiertos); una rutina pausada durante un cambio de zona horaria se despierta ahora con tu nuevo reloj; y una rutina programada a medianoche en una zona cuyo reloj salta a medianoche ya no se salta ese día."
+          }
+        },
         "v1_42_1": {
           "title": "v1.42.1 — 🎭 Un rostro que vive entre dos respuestas",
           "date": "Septiembre 2026",
@@ -7566,7 +7576,7 @@
       "scheduled_actions": {
         "title": "Acciones programadas",
         "description": "Automatice tareas recurrentes con LIA",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "¿Qué es una acción programada?",
@@ -7595,6 +7605,10 @@
           "q7": {
             "question": "¿Puedo crear automatizaciones directamente desde el chat? (v1.25.13)",
             "answer": "Sí — en una frase: «hazme una revista de prensa de IA los días laborables a las 8». LIA valida la planificación y muestra una <strong>tarjeta de confirmación</strong> (título, días, hora, instrucción); nada se crea antes de tu acuerdo. También puedes <strong>listar</strong> tus automatizaciones («¿cuáles son mis automatizaciones?») y <strong>pausar/reactivar</strong> una en lenguaje natural.<br><br><strong>💡 Extra:</strong> si pides lo mismo a la misma hora varios días distintos, LIA puede proponer espontáneamente: «¿Quieres que lo convierta en una automatización recurrente?» (detección determinista, una sugerencia máx. al mes por patrón, desactivado por defecto — <code>RECURRENCE_SUGGESTION_ENABLED</code>).<br><br>Eliminar una automatización sigue siendo una acción de Ajustes."
+          },
+          "q8": {
+            "question": "¿Cómo leo la vista semanal? (v1.42.2)",
+            "answer": "Encima de la lista, la <strong>Vista semanal</strong> dibuja tus rutinas en una cuadrícula: las horas hacia abajo, los días a lo ancho (lunes primero), en la zona horaria indicada al lado. Las rutinas se listan por hora de disparo y se <strong>numeran</strong> en ese orden — el mismo número en la tarjeta y en la cuadrícula; una rutina en pausa conserva su número, crear o reprogramar una renumera las siguientes.<br><br><strong>🎨 Los colores de esta semana:</strong> blanco no ejecutada (aún no vence, o nada se ejecutó), verde ejecutada, rojo con error, ámbar propuesta y a la espera de tu aprobación en el chat, gris en pausa. Un anillo marca una rutina cuya condición se comprueba a esa hora; una rutina en ejecución late.<br><br><strong>🔁 Reinicio:</strong> los colores cubren solo la semana en curso y empiezan de nuevo cada lunes; cambiar los días o la hora de una rutina los borra, porque pertenecían a las franjas antiguas. Pulsar <strong>Probar</strong> después de la franja de hoy la recolorea; antes, no.<br><br><strong>⌨️ Navegación:</strong> pulsa un número para ir a la tarjeta de la rutina; la cuadrícula es una sola parada de tabulación y las flechas la recorren."
           }
         }
       },
@@ -8421,6 +8435,10 @@
       "mail_label_source": {
         "title": "Una etiqueta, y ya está dentro",
         "desc": "Pon una etiqueta de Gmail a una conversación: se convierte en documento del espacio. Quita la etiqueta y el documento se va."
+      },
+      "week_grid": {
+        "title": "Tu semana, en una cuadrícula",
+        "desc": "Horas hacia abajo, días a lo ancho: cada rutina se sitúa a su hora, numerada en el orden en que se dispara. Una celda se vuelve verde cuando se ejecutó, roja cuando falló, ámbar mientras te espera — y empieza de nuevo el lunes."
       }
     },
     "scenes": {
@@ -9340,7 +9358,32 @@
       "custom": "{{days}} a las {{time}}"
     },
     "next_run": "Próxima ejecución",
-    "next_evaluation": "Próxima evaluación"
+    "next_evaluation": "Próxima evaluación",
+    "number_aria": "Rutina {{n}}",
+    "timeline": {
+      "title": "Vista semanal",
+      "description": "Tus rutinas por día y hora, con los resultados de esta semana",
+      "caption": "Planificación semanal de tus rutinas, horas en {{zone}}",
+      "hours_in_zone": "Horas en {{zone}}",
+      "zones_mixed": "Rutinas en varias zonas horarias: cada ficha se sitúa a la hora local de su propia zona",
+      "hour_header": "Hora",
+      "today": "Hoy",
+      "unavailable": "Los estados de ejecución de esta semana no están disponibles. La planificación sigue visible.",
+      "chip_aria": "{{n}}, {{title}}, {{time}}, {{state}}",
+      "condition_kind": "Condición comprobada a esta hora",
+      "run_at": "Ejecutada {{when}}",
+      "legend_title": "Leyenda",
+      "state": {
+        "idle": "No ejecutada",
+        "success": "Ejecutada",
+        "failure": "Con error",
+        "proposed": "Propuesta, a la espera de tu aprobación",
+        "paused": "En pausa",
+        "skipped_condition": "Condición no cumplida",
+        "skipped_hitl": "Omitida, había una aprobación pendiente en el chat",
+        "executing": "En ejecución"
+      }
+    }
   },
   "landing": {
     "meta": {
@@ -9527,7 +9570,7 @@
       },
       "reminders_scheduling": {
         "title": "Recordatorios y automatizaciones",
-        "description": "Programa recordatorios en lenguaje natural (\"Recuérdame mañana a las 9 llamar a María\"). Planifica acciones recurrentes automáticas (resumen de emails del lunes, clima matutino...). Un recordatorio que vence con tu cuota alcanzada vuelve a la cola: nunca se pierde. Las rutinas ahora pueden esperar una condición — una tarea que vence, un correo que coincide, un cambio de tiempo, un documento añadido, un evento que se acerca — y proponer antes de actuar si lo prefieres."
+        "description": "Programa recordatorios en lenguaje natural (\"Recuérdame mañana a las 9 llamar a María\"). Planifica acciones recurrentes automáticas (resumen de emails del lunes, clima matutino...). Un recordatorio que vence con tu cuota alcanzada vuelve a la cola: nunca se pierde. Las rutinas ahora pueden esperar una condición — una tarea que vence, un correo que coincide, un cambio de tiempo, un documento añadido, un evento que se acerca — y proponer antes de actuar si lo prefieres. Una vista semanal despliega las rutinas, horas hacia abajo y días a lo ancho, cada celda de la semana en curso coloreada por lo que pasó."
       },
       "memory": {
         "title": "Memoria contextual",
@@ -11787,6 +11830,9 @@
       "cost": "Coste",
       "progress_title": "Preparando el acta",
       "processing_hint": "Puede tardar unos minutos en una reunión larga. Te avisaremos en el chat cuando el acta esté lista.",
+      "attempt_of": "Intento {{attempt}} de {{max}}",
+      "previous_attempt": "Intento anterior:",
+      "worker_stale_hint": "El procesamiento dejó de responder. Se reanudará automáticamente; también puedes eliminar la reunión.",
       "failed_title": "No se pudo producir el acta",
       "minutes_title": "Acta",
       "edited_badge": "Editada",
@@ -11967,6 +12013,7 @@
       "unknown": "Error desconocido ({{code}})",
       "usage_limit": "Has alcanzado tu límite de uso.",
       "user_missing": "La cuenta ya no existe.",
+      "worker_lost": "El procesamiento dejó de responder y no quedaba ningún intento.",
       "template_locked": "El formato no puede cambiar mientras se redactan las actas.",
       "template_not_found": "Esta plantilla ya no existe.",
       "template_readonly": "Una plantilla integrada no se puede modificar; duplíquela primero.",

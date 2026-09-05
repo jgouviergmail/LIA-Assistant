@@ -120,7 +120,7 @@ export default function MeetingPage({ params }: MeetingPageProps) {
         onOpenMeeting={target => router.push(`/dashboard/meetings/${target}`)}
       />
 
-      {inFlight(meeting) && <ProcessingPanel lng={lng} meeting={meeting} />}
+      {inFlight(meeting) && <ProcessingPanel lng={lng} meeting={meeting} actions={actions} />}
       {meeting.status === 'failed' && <FailedPanel lng={lng} meeting={meeting} actions={actions} />}
       {meeting.status === 'ready' && report === null && (
         <MeetingPendingPanel lng={lng} meeting={meeting} actions={actions} />

@@ -308,6 +308,11 @@ services:
       # Use named volumes for node_modules and .next to avoid conflicts with host
       - web_node_modules:/monorepo/apps/web/node_modules
       - web_next_build:/monorepo/apps/web/.next
+      # The tone vocabulary guard (`components/eyes/__tests__/tone.test.ts`)
+      # reads the backend's closed vocabulary through `../api/...`, as it does
+      # on a full checkout in CI. Without this one read-only mount the guard
+      # fails here with ENOENT rather than measuring anything (2026-09-05).
+      - ./apps/api/src/domains/agents/expressivity:/monorepo/apps/api/src/domains/agents/expressivity:ro
       # Shared SSL certificates from ssl-init (covers configured SSL_DOMAIN)
       - ssl_certs:/certs:ro
     # Enable HTTPS with ssl-init certificates (covers nip.io domain for LAN access)

@@ -4,6 +4,7 @@ Scheduled Actions Pydantic v2 schemas.
 Input/output models for the scheduled actions CRUD API.
 """
 
+from datetime import date as calendar_date
 from datetime import datetime
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
     CONDITION_TYPE_MAIL_MATCH,
     CONDITION_TYPES,
+    ScheduledRunOutcome,
     TriggerKind,
 )
 from src.domains.scheduled_actions.schedule_helpers import (
@@ -259,3 +261,49 @@ class ScheduledActionListResponse(BaseModel):
 
     scheduled_actions: list[ScheduledActionResponse]
     total: int
+
+
+# =============================================================================
+# The current week (ADR-265)
+# =============================================================================
+
+
+class ScheduledActionWeekCell(BaseModel):
+    """One configured day of the current week for one routine."""
+
+    day: int = Field(..., ge=1, le=7, description="ISO weekday in the routine's zone.")
+    date: calendar_date = Field(..., description="The local calendar date.")
+    slot_at: datetime = Field(..., description="The instant the routine fires at (UTC).")
+    outcome: ScheduledRunOutcome | None = Field(
+        None,
+        description=(
+            "How the LAST run serving this slot ended; null = no run served it "
+            "(not yet due, or the tick never happened)."
+        ),
+    )
+    run_at: datetime | None = Field(None, description="When that run started (UTC).")
+    error: str | None = Field(None, description="Its error message, for a failure.")
+    manual: bool | None = Field(None, description="Whether the user started that run.")
+
+
+class ScheduledActionWeek(BaseModel):
+    """The current week of one routine, drawn by the client cell by cell."""
+
+    id: UUID = Field(..., description="The routine.")
+    timezone: str = Field(..., description="The zone the days and the week are read in.")
+    week_start: calendar_date = Field(..., description="The local Monday.")
+    today: int = Field(..., ge=1, le=7, description="ISO weekday of now, in that zone.")
+    cells: list[ScheduledActionWeekCell] = Field(
+        default_factory=list, description="One per configured day, Monday first."
+    )
+
+
+class ScheduledActionWeekResponse(BaseModel):
+    """Every routine's current week — the facts the timeline colours from.
+
+    Computed server-side from the same cron engine that arms the runs, so the
+    browser never re-reads a schedule; it only paints.
+    """
+
+    actions: list[ScheduledActionWeek]
+    generated_at: datetime = Field(..., description="When this was computed (UTC).")

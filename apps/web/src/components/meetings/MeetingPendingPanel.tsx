@@ -10,7 +10,10 @@
 import { RefreshCw, Trash2 } from 'lucide-react';
 
 import { MeetingProgress } from '@/components/meetings/MeetingProgress';
-import type { MeetingActions } from '@/components/meetings/useMeetingActions';
+import {
+  type MeetingActions,
+  meetingErrorLabel,
+} from '@/components/meetings/useMeetingActions';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -49,11 +52,7 @@ export function MeetingPendingPanel({ lng, meeting, actions }: MeetingPendingPan
         {t('meetings.detail.pending_failed_title')}
       </h2>
       {meeting.last_error_code && (
-        <p className="mt-1 text-sm">
-          {t(`meetings.errors.${meeting.last_error_code}`, {
-            defaultValue: t('meetings.errors.unknown', { code: meeting.last_error_code }),
-          })}
-        </p>
+        <p className="mt-1 text-sm">{meetingErrorLabel(t, meeting.last_error_code)}</p>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         {templateRef !== null && (

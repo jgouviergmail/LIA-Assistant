@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { CalendarClock, Copy, Info, Plus, Trash2, Pencil, Play, Clock } from 'lucide-react';
+import {
+  CalendarClock,
+  CalendarRange,
+  Clock,
+  Copy,
+  Info,
+  Pencil,
+  Play,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +50,8 @@ import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { RoutineNumberChip } from '@/components/settings/RoutineNumberChip';
+import { ScheduledActionsTimeline } from '@/components/settings/ScheduledActionsTimeline';
 import {
   useScheduledActions,
   type ConditionConfig,
@@ -51,7 +63,7 @@ import {
 } from '@/hooks/useScheduledActions';
 import { renderOccurrences } from '@/lib/occurrences';
 import { scheduleShape } from '@/lib/schedule-label';
-import { duplicateTitle } from '@/lib/scheduled-actions';
+import { duplicateTitle, numberByTriggerTime, routineCardId } from '@/lib/scheduled-actions';
 import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
 import { toast } from 'sonner';
 
@@ -277,6 +289,8 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     actions,
     total,
     loading,
+    initialLoading,
+    week,
     createAction,
     updateAction,
     deleteAction,
@@ -293,6 +307,22 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
   const [editingAction, setEditingAction] = useState<ScheduledAction | null>(null);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+
+  // Chronological order and rank (ADR-265): computed at the display, from
+  // whatever order the API returned — the hub, the briefing and the
+  // automation tool read that order and must keep it.
+  const numbered = useMemo(() => numberByTriggerTime(actions, intlLocale), [actions, intlLocale]);
+
+  // A chip on the grid takes the reader to the card: scrolled into view and
+  // FOCUSED, so the keyboard lands on the routine rather than staying on
+  // the grid the reader just left. `scrollIntoView` is absent in jsdom.
+  const handleSelectFromTimeline = useCallback((actionId: string) => {
+    const card = document.getElementById(routineCardId(actionId));
+    if (!card) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    card.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    card.focus({ preventScroll: true });
+  }, []);
 
   // Day labels for the current language
   const dayLabels = useMemo(() => {
@@ -684,7 +714,13 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           page. `-1` adds no tab stop — it only makes this container a legal
           destination for a deliberate `.focus()`, and it outlives every row,
           the empty state included. */}
-      <div ref={regionRef} tabIndex={-1} data-routines-region className="focus:outline-none">
+      <div
+        ref={regionRef}
+        tabIndex={-1}
+        data-routines-region
+        aria-busy={loading}
+        className="focus:outline-none"
+      >
         {/* Header with count and add button */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">
@@ -696,15 +732,17 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           </Button>
         </div>
 
-        {/* Loading */}
-        {loading && (
+        {/* The FIRST load only. A poll raises `loading` again every 30 s, and
+            swapping the cards for a spinner then would unmount them — the open
+            disclosures, the grid fold and the keyboard focus with them. */}
+        {initialLoading && (
           <div className="flex justify-center py-8">
             <LoadingSpinner className="h-6 w-6" />
           </div>
         )}
 
         {/* Empty state */}
-        {!loading && actions.length === 0 && (
+        {!initialLoading && actions.length === 0 && (
           <EmptyState
             icon={CalendarClock}
             title={t('scheduled_actions.empty')}
@@ -712,14 +750,50 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           />
         )}
 
-        {/* Action cards */}
-        {!loading && actions.length > 0 && (
+        {/* The week, hours down and days across (ADR-265): open on arrival,
+            because it is what the reader came to see; foldable, because a
+            24-row grid above a long list is a wall on a phone. */}
+        {!initialLoading && numbered.length > 0 && (
+          <SettingsDisclosure
+            icon={CalendarRange}
+            title={t('scheduled_actions.timeline.title')}
+            description={t('scheduled_actions.timeline.description')}
+            badge={total}
+            defaultOpen
+            className="mb-4"
+          >
+            <ScheduledActionsTimeline
+              lng={lng}
+              numbered={numbered}
+              week={week}
+              onSelect={handleSelectFromTimeline}
+            />
+          </SettingsDisclosure>
+        )}
+
+        {/* Action cards, in trigger-time order, each carrying its rank */}
+        {!initialLoading && numbered.length > 0 && (
           <div className="space-y-3">
-            {actions.map(action => (
-              <div key={action.id} className="rounded-lg border bg-card p-4 space-y-1.5">
-                {/* Row 1: Title + Status + Actions + Toggle */}
+            {numbered.map(({ action, number }) => (
+              <div
+                key={action.id}
+                id={routineCardId(action.id)}
+                tabIndex={-1}
+                data-routine-card={action.id}
+                className="rounded-lg border bg-card p-4 space-y-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {/* Row 1: Rank + Title + Status + Actions + Toggle */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <RoutineNumberChip
+                      number={number}
+                      tone={action.is_enabled ? 'idle' : 'paused'}
+                      kind={action.trigger_kind ?? 'time'}
+                      className="shrink-0"
+                    />
+                    <span className="sr-only">
+                      {t('scheduled_actions.number_aria', { n: number })}
+                    </span>
                     <span className="font-medium truncate">{action.title}</span>
                     <Badge variant={getStatusBadgeVariant(action)} className="shrink-0">
                       {getStatusLabel(action)}

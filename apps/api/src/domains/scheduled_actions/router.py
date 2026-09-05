@@ -13,6 +13,7 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_scheduled_action_already_executing
 from src.core.session_dependencies import get_current_active_session
+from src.core.time_utils import now_utc
 from src.domains.scheduled_actions.models import (
     ScheduledAction as ScheduledActionModel,
 )
@@ -24,6 +25,9 @@ from src.domains.scheduled_actions.schemas import (
     ScheduledActionListResponse,
     ScheduledActionResponse,
     ScheduledActionUpdate,
+    ScheduledActionWeek,
+    ScheduledActionWeekCell,
+    ScheduledActionWeekResponse,
 )
 from src.domains.scheduled_actions.service import ScheduledActionService
 from src.domains.users.models import User
@@ -68,6 +72,54 @@ async def list_scheduled_actions(
     return ScheduledActionListResponse(
         scheduled_actions=[_action_to_response(a) for a in actions],
         total=len(actions),
+    )
+
+
+# =============================================================================
+# The current week (ADR-265)
+# =============================================================================
+
+
+# Declared BEFORE any `/{action_id}` route: a literal segment must be matched
+# before a path parameter, or `week` is parsed as a UUID and answers 422.
+@router.get(
+    "/week",
+    response_model=ScheduledActionWeekResponse,
+    summary="Current week of the scheduled actions",
+    description=(
+        "For every routine, the instants it fires at this week and how the run "
+        "serving each one ended. Computed from the scheduler's own cron engine."
+    ),
+)
+async def week_scheduled_actions(
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ScheduledActionWeekResponse:
+    """The current week of every routine of the current user."""
+    weeks = await ScheduledActionService(db).week_for_user(user.id)
+    return ScheduledActionWeekResponse(
+        actions=[
+            ScheduledActionWeek(
+                id=week.action_id,
+                timezone=week.timezone,
+                week_start=week.week_start,
+                today=week.today,
+                cells=[
+                    ScheduledActionWeekCell(
+                        day=cell.day,
+                        date=cell.date,
+                        slot_at=cell.slot_at,
+                        outcome=cell.outcome,
+                        run_at=cell.run_at,
+                        error=cell.error,
+                        manual=cell.manual,
+                    )
+                    for cell in week.cells
+                ],
+            )
+            for week in weeks
+        ],
+        generated_at=now_utc(),
     )
 
 

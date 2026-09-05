@@ -48,24 +48,17 @@ def compute_next_trigger_utc(
         >>> compute_next_trigger_utc([1, 3, 5], 19, 30, "Europe/Paris")
         datetime(2026, 2, 28, 18, 30, tzinfo=UTC)  # Next Mon/Wed/Fri at 19:30 Paris
     """
-    day_of_week_str = ",".join(DAY_NAMES[d] for d in sorted(days_of_week))
-    trigger = CronTrigger(
-        day_of_week=day_of_week_str,
-        hour=hour,
-        minute=minute,
-        timezone=ZoneInfo(user_timezone),
-    )
+    tz = ZoneInfo(user_timezone)
+    trigger = _cron(days_of_week, hour, minute, tz)
     reference = after or now_utc()
-    next_fire = trigger.get_next_fire_time(None, reference)
+    next_fire = _next_fire(trigger, days_of_week, hour, minute, tz, reference)
     if next_fire is None:
         # Should never happen with valid inputs, but handle gracefully
         raise ValueError(
             f"Could not compute next trigger for days={days_of_week}, "
             f"hour={hour}, minute={minute}, tz={user_timezone}"
         )
-    # CronTrigger returns fire time in the trigger's timezone — convert to UTC
-    result: datetime = next_fire.astimezone(UTC)
-    return result
+    return next_fire
 
 
 def _cron(days_of_week: list[int], hour: int, minute: int, tz: ZoneInfo) -> CronTrigger:
@@ -76,6 +69,86 @@ def _cron(days_of_week: list[int], hour: int, minute: int, tz: ZoneInfo) -> Cron
         minute=minute,
         timezone=tz,
     )
+
+
+#: How far :func:`_skipped_gap_run` looks for a day the cron jumped over. The
+#: schedule is weekly, so a skipped day is always within the next seven.
+_GAP_LOOKAHEAD_DAYS = 7
+
+
+def _skipped_gap_run(
+    days_of_week: list[int],
+    hour: int,
+    minute: int,
+    tz: ZoneInfo,
+    reference: datetime,
+    fired: datetime | None,
+) -> datetime | None:
+    """The run the cron SKIPPED because its wall-clock time fell in a midnight gap.
+
+    APScheduler shifts a non-existent wall-clock time forward by the gap —
+    02:30 on the spring-forward day fires at 03:30 — except when the gap opens
+    at 00:00, where it skips the whole local day. Measured on 3.11.2 over every
+    IANA zone and every 2026 transition: 2 112 slots shifted, 72 skipped, all
+    72 in the 00:00-00:59 hour of the six zones that change their clocks at
+    midnight (Santiago, Havana, Cairo, Beirut, …).
+
+    The repair applies the SAME rule everywhere: a run on its own day, at the
+    first instant that exists. ``fold=0`` on a non-existent wall-clock time
+    resolves to the pre-transition offset, whose instant is exactly the
+    post-gap time — the shift APScheduler already performs elsewhere.
+
+    Args:
+        days_of_week: ISO weekdays (1=Monday..7=Sunday).
+        hour: Wall-clock hour in ``tz``.
+        minute: Wall-clock minute.
+        tz: The routine's zone.
+        reference: Runs at or before this instant (UTC) do not count.
+        fired: What the cron proposed; ``None`` when it proposed nothing.
+
+    Returns:
+        The earliest skipped run strictly after ``reference``, or ``None`` when
+        the cron skipped nothing.
+    """
+    configured = set(days_of_week)
+    first_day = reference.astimezone(tz).date()
+    last_day = (
+        fired.astimezone(tz).date() - timedelta(days=1)
+        if fired is not None
+        else first_day + timedelta(days=_GAP_LOOKAHEAD_DAYS)
+    )
+    day = first_day
+    while day <= last_day:
+        if day.isoweekday() in configured:
+            wall_clock = datetime.combine(day, time(hour, minute), tzinfo=tz).replace(fold=0)
+            instant = wall_clock.astimezone(UTC)
+            # A wall-clock time that survives the round trip exists; the cron
+            # handled it itself. One that does not is inside a gap.
+            exists = instant.astimezone(tz).replace(tzinfo=None) == wall_clock.replace(tzinfo=None)
+            if not exists and instant > reference:
+                return instant
+        day += timedelta(days=1)
+    return None
+
+
+def _next_fire(
+    trigger: CronTrigger,
+    days_of_week: list[int],
+    hour: int,
+    minute: int,
+    tz: ZoneInfo,
+    reference: datetime,
+) -> datetime | None:
+    """The next run strictly after ``reference`` (UTC), midnight gaps repaired.
+
+    The ONLY reader of ``CronTrigger.get_next_fire_time`` in this module: every
+    public helper goes through it, so the repair cannot apply to the listing
+    and not to the re-arm.
+    """
+    fired = trigger.get_next_fire_time(None, reference)
+    fired_utc = fired.astimezone(UTC) if fired is not None else None
+    skipped = _skipped_gap_run(days_of_week, hour, minute, tz, reference, fired_utc)
+    return skipped if skipped is not None else fired_utc
 
 
 def compute_next_triggers_utc(
@@ -131,10 +204,9 @@ def compute_next_triggers_utc(
     for _ in range(count * 3):
         if len(runs) == count:
             break
-        fired = trigger.get_next_fire_time(None, reference)
-        if fired is None:
+        instant = _next_fire(trigger, days_of_week, hour, minute, tz, reference)
+        if instant is None:
             break
-        instant = fired.astimezone(UTC)
         reference = instant + timedelta(microseconds=1)
         local_day = instant.astimezone(tz).date()
         if local_day in seen_days:
@@ -189,19 +261,18 @@ def compute_next_trigger_after_execution(
     executed_day = executed_at.astimezone(tz).date()
 
     start = max(executed_at, now or now_utc()) + timedelta(microseconds=1)
-    fired = trigger.get_next_fire_time(None, start)
-    if fired is not None and fired.astimezone(UTC).astimezone(tz).date() == executed_day:
+    fired = _next_fire(trigger, days_of_week, hour, minute, tz, start)
+    if fired is not None and fired.astimezone(tz).date() == executed_day:
         # The repeated hour: skip to the start of the next local day.
         tomorrow = datetime.combine(executed_day + timedelta(days=1), time(0, 0), tzinfo=tz)
-        fired = trigger.get_next_fire_time(None, tomorrow)
+        fired = _next_fire(trigger, days_of_week, hour, minute, tz, tomorrow.astimezone(UTC))
 
     if fired is None:
         raise ValueError(
             f"Could not re-arm days={days_of_week}, hour={hour}, "
             f"minute={minute}, tz={user_timezone}"
         )
-    result: datetime = fired.astimezone(UTC)
-    return result
+    return fired
 
 
 def compute_rearm_trigger(
@@ -244,6 +315,132 @@ def compute_rearm_trigger(
             days_of_week, hour, minute, user_timezone, executed_at=due_at, now=reference
         )
     return compute_next_trigger_utc(days_of_week, hour, minute, user_timezone, after=reference)
+
+
+def week_start(tz: ZoneInfo, *, now: datetime | None = None) -> date:
+    """The local Monday of the ISO week containing ``now``.
+
+    Args:
+        tz: The routine's zone — the week is the ROUTINE's week, not the
+            server's, which may still be on Sunday when Auckland is on Monday.
+        now: Reference instant (UTC). Defaults to now.
+
+    Returns:
+        The Monday, as a local calendar date.
+    """
+    local_today = (now or now_utc()).astimezone(tz).date()
+    return local_today - timedelta(days=local_today.isoweekday() - 1)
+
+
+def _local_day_start(day: date, tz: ZoneInfo) -> datetime:
+    """The instant just BEFORE local midnight of ``day``, so a 00:00 slot counts."""
+    midnight = datetime.combine(day, time(0, 0), tzinfo=tz).replace(fold=0)
+    return midnight.astimezone(UTC) - timedelta(microseconds=1)
+
+
+def week_slots(
+    days_of_week: list[int],
+    hour: int,
+    minute: int,
+    user_timezone: str,
+    *,
+    now: datetime | None = None,
+) -> list[datetime]:
+    """The instants a routine fires at during the ISO week containing ``now``.
+
+    Past days included: the weekly timeline colours every cell of the current
+    week, the ones already served and the ones still to come, and it colours
+    them by EQUALITY with a run's ``slot_at`` — so these must be the very
+    instants the executor armed, produced by the same engine and the same
+    de-duplication (:func:`compute_next_triggers_utc`).
+
+    Args:
+        days_of_week: ISO weekdays (1=Monday..7=Sunday).
+        hour: Hour of execution (0-23) in the user's timezone.
+        minute: Minute of execution (0-59).
+        user_timezone: IANA timezone.
+        now: Reference instant (UTC). Defaults to now.
+
+    Returns:
+        One UTC instant per configured day of the week, strictly increasing.
+    """
+    tz = ZoneInfo(user_timezone)
+    monday = week_start(tz, now=now)
+    next_monday = monday + timedelta(days=7)
+    runs = compute_next_triggers_utc(
+        days_of_week, hour, minute, user_timezone, count=7, after=_local_day_start(monday, tz)
+    )
+    return [run for run in runs if run.astimezone(tz).date() < next_monday]
+
+
+def local_day_slot(
+    days_of_week: list[int],
+    hour: int,
+    minute: int,
+    user_timezone: str,
+    *,
+    day: date,
+) -> datetime | None:
+    """The instant a routine fires at on ONE local day, or ``None`` if it does not.
+
+    Same engine and same reference shape as :func:`week_slots` (the instant
+    before local midnight), so the two agree on every day — including the
+    repeated hour of the fall-back, where both keep the FIRST occurrence.
+
+    Args:
+        days_of_week: ISO weekdays (1=Monday..7=Sunday).
+        hour: Hour of execution (0-23) in the user's timezone.
+        minute: Minute of execution (0-59).
+        user_timezone: IANA timezone.
+        day: The local calendar day.
+
+    Returns:
+        The UTC instant, or ``None`` when ``day`` is not a configured weekday.
+    """
+    tz = ZoneInfo(user_timezone)
+    runs = compute_next_triggers_utc(
+        days_of_week, hour, minute, user_timezone, count=1, after=_local_day_start(day, tz)
+    )
+    if not runs or runs[0].astimezone(tz).date() != day:
+        return None
+    return runs[0]
+
+
+def served_slot(
+    days_of_week: list[int],
+    hour: int,
+    minute: int,
+    user_timezone: str,
+    *,
+    due_at: datetime,
+    now: datetime,
+) -> datetime | None:
+    """Which slot a run that starts now serves — the cell it will colour.
+
+    A DUE run (``due_at <= now``, the same test :func:`compute_rearm_trigger`
+    applies) serves its due instant. A MANUAL run serves the day's slot only
+    when that slot has already passed: a "Test now" at 07:00 of an 08:00
+    routine is a rehearsal, not the day's execution, and a test on a day the
+    routine does not run serves nothing.
+
+    Args:
+        days_of_week: ISO weekdays (1=Monday..7=Sunday).
+        hour: Hour of execution (0-23) in the user's timezone.
+        minute: Minute of execution (0-59).
+        user_timezone: IANA timezone.
+        due_at: The routine's pending due instant when the run started (UTC).
+        now: When the run started (UTC).
+
+    Returns:
+        The served UTC instant, or ``None`` for a rehearsal.
+    """
+    if due_at <= now:
+        return due_at
+    tz = ZoneInfo(user_timezone)
+    slot = local_day_slot(days_of_week, hour, minute, user_timezone, day=now.astimezone(tz).date())
+    if slot is None or slot > now:
+        return None
+    return slot
 
 
 def validate_days_of_week(days: list[int]) -> bool:

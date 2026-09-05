@@ -3530,7 +3530,7 @@
         "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen, Verlauf, letzte Benachrichtigungen, Herkunft, warum, Gewicht, Erklärung, Abklingen, Quelle, exportieren",
         "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer, Nahestehende, soziales Netzwerk, Peer, Auffindbarkeit, Entdeckung, meine Adresse teilen, E-Mail sichtbar, meine E-Mail, 360°-Überblick, Sichtbarkeit, Anfragen",
         "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten, Benachrichtigungsthemen, Quellen, Verlauf, letzte Benachrichtigungen, Priorität, Dringlichkeit, hoch, mittel, niedrig, Farbe, Wetter, Frequenz, Zeitfenster, Vorschläge, Angebote, verpasste Routine, push-weckruf, auf eine e-mail reagieren, auf eine einladung reagieren, auslöser",
-        "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant",
+        "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant, Wochenansicht, Zeitleiste, Wochenraster",
         "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren, Konfiguration, Konsolidierung, exportieren",
         "health-metrics": "Herzfrequenz, Schritte, Schlaf, iPhone, Apple Health, Fitness, Aktivität",
         "skills": "Fähigkeiten, Kompetenzen, Skills, Plugins, Erweiterungen",
@@ -4387,7 +4387,7 @@
         },
         "scheduledActions": {
           "title": "📅 Geplante Aktionen",
-          "description": "Wiederkehrende Aktionen, die die Assistentin allein ausführt: Tage und Uhrzeit wählen, eine Anweisung anhängen, und LIA führt sie aus. Ergebnisse landen im Gesprächsarchiv und werden dir gepusht, mit automatischer Abschaltung nach fünf Fehlschlägen in Folge. Die Benachrichtigung trägt denselben archivierten Endtext, vor dem Kürzen zu reinem Text geglättet."
+          "description": "Wiederkehrende Aktionen, die die Assistentin allein ausführt: Tage und Uhrzeit wählen, eine Anweisung anhängen, und LIA führt sie aus. Ergebnisse landen im Gesprächsarchiv und werden dir gepusht, mit automatischer Abschaltung nach fünf Fehlschlägen in Folge. Die Benachrichtigung trägt denselben archivierten Endtext, vor dem Kürzen zu reinem Text geglättet. Eine Wochenansicht zeichnet sie, Stunden nach unten und Tage nach rechts, nummeriert in Auslösereihenfolge; jede Zelle der laufenden Woche ist nach dem gefärbt, was geschah — ausgeführt, fehlgeschlagen, vorgeschlagen, pausiert — aus einer beim Ergebnis geschriebenen Historie."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4407,7 +4407,7 @@
         },
         "heartbeatAutonome": {
           "title": "💓 Autonomer Heartbeat",
-          "description": "Proaktive Benachrichtigungen aus elf live zusammengeführten Quellen, in zwei Schritten: Ein günstiges Modell entscheidet, ob überhaupt gesprochen wird, dann wird die Nachricht in der aktiven Persönlichkeit umgeschrieben. Die Themen rotieren über eine breite Interessenauswahl mit Wiederholungssperre — dasselbe Thema kommt nie Tag für Tag zurück — und eine Benachrichtigung zu einem Interesse holt echte Fakten mit klickbaren Quellen. Ein Schalter je Quelle — mit einem Dienst verbunden zu sein und von ihm unterbrochen zu werden sind zwei Entscheidungen — und eine ausgefallene Quelle wird gezählt und datiert statt still zu fehlen. Eine Push-Benachrichtigung kann nun binnen Minuten eine Entscheidung auslösen."
+          "description": "Proaktive Benachrichtigungen aus elf Live-Quellen, in zwei Schritten: Ein günstiges Modell entscheidet, ob überhaupt gesprochen wird, dann wird die Nachricht in der aktiven Persönlichkeit umgeschrieben. Die Themen rotieren mit Wiederholungssperre, und eine Benachrichtigung zu einem Interesse holt echte Fakten mit klickbaren Quellen. Ein Schalter je Quelle — mit einem Dienst verbunden zu sein und von ihm unterbrochen zu werden sind zwei Entscheidungen — eine ausgefallene Quelle wird gezählt und datiert statt still zu fehlen, und ein Push löst binnen Minuten eine Entscheidung aus."
         },
         "webFetch": {
           "title": "🌐 Intelligenter Web Fetch",
@@ -4547,7 +4547,7 @@
         },
         "meetings": {
           "title": "🎙️ Besprechungsprotokolle",
-          "description": "Eine Schaltfläche in der Kopfzeile — oder der Eintrag „Besprechung aufnehmen“ im Telefonmenü — und das Gerät wird zum Aufnahmegerät: Der Ton geht in kleinen Abschnitten hinaus, sodass ein Absturz oder ein Verbindungsabbruch Sekunden kostet, nie die Besprechung. Beim Stopp fügt der Server die Aufnahme zusammen und geht seine Maschinenkette durch, bis eine transkribiert. Das Protokollformat wird aus dreißig Vorlagen gewählt, indem gelesen wird, was gesagt wurde — sofern du keines vorgibst; die Besprechung nennt es und den Grund. Ein fertiges Protokoll lässt sich in einem anderen Format neu schreiben, bis zum vollen Transkript, vor Ort oder als neues Dokument. Die Kosten stehen als zwei Beträge und eine Summe da, eine Lücke wird genannt, nie gefüllt."
+          "description": "Eine Schaltfläche in der Kopfzeile — am Telefon ein Menüeintrag — und das Gerät wird zum Aufnahmegerät: Der Ton geht in kleinen Abschnitten hinaus, sodass ein Absturz Sekunden kostet, nie die Besprechung. Beim Stopp fügt der Server die Aufnahme zusammen und geht seine Maschinenkette durch, bis eine transkribiert. Das Protokollformat wird aus dreißig Vorlagen nach dem Gesagten gewählt — sofern du keines vorgibst — und mit Begründung genannt; ein Protokoll lässt sich in einem anderen Format neu schreiben, bis zum vollen Transkript. Die Kosten stehen als zwei Beträge und eine Summe da, eine Lücke wird genannt, nie gefüllt."
         },
         "transparencyRegisters": {
           "title": "📋 Register für Aktionen und Abfragen",
@@ -4560,6 +4560,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_42_2": {
+          "title": "v1.42.2 — 📅 Deine Routinen-Woche auf einen Blick",
+          "date": "September 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📅 Eine Wochenansicht über deinen Routinen</b> — Stunden nach unten, Tage nach rechts: jede Routine steht zu ihrer Uhrzeit an ihren Tagen, nummeriert in der Reihenfolge, in der sie auslöst, mit derselben Nummer auf ihrer Karte. Jede Zelle der laufenden Woche sagt, was passiert ist: weiß nicht ausgeführt, grün ausgeführt, rot fehlgeschlagen, bernstein vorgeschlagen und wartet auf deine Freigabe, grau pausiert. Eine Routine, die eine Bedingung prüft, trägt einen Ring; eine gerade laufende pulsiert. Ein Klick auf eine Nummer springt zur Karte; die Pfeiltasten wandern durch das Raster. Die Farben beginnen jeden Montag neu und werden gelöscht, wenn du Tage oder Uhrzeit einer Routine änderst.",
+            "i2": "<b>🎙️ Ein Meeting geht nie verloren, sein Besitzer wird nie blockiert</b> — ein Meeting, dessen Protokoll scheiterte, blieb stundenlang « in Bearbeitung ». Die Verarbeitung setzt jetzt dort fort, wo sie war (normalisiertes Audio, dann Transkript), statt die Engine erneut zu bezahlen; ein Meeting, dessen Worker verschwunden ist, wird neu eingereiht oder mit seinem Grund als fehlgeschlagen markiert, und du kannst es währenddessen löschen. Die Detailansicht zeigt den Versuch im Budget und den Grund des vorigen Versuchs.",
+            "i3": "<b>🛠️ Routinen, die Wort halten</b> — die Liste blinkt bei einer Aktualisierung nicht mehr weg (deine geöffneten Bereiche bleiben offen); eine Routine, die während eines Zeitzonenwechsels pausiert war, wacht jetzt auf deiner neuen Uhr auf; und eine um Mitternacht geplante Routine in einer Zone, deren Uhr um Mitternacht springt, lässt diesen Tag nicht mehr aus."
+          }
+        },
         "v1_42_1": {
           "title": "v1.42.1 — 🎭 Ein Gesicht, das zwischen zwei Antworten lebt",
           "date": "September 2026",
@@ -7566,7 +7576,7 @@
       "scheduled_actions": {
         "title": "Geplante Aktionen",
         "description": "Automatisiere wiederkehrende Aufgaben mit LIA",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Was ist eine geplante Aktion?",
@@ -7595,6 +7605,10 @@
           "q7": {
             "question": "Kann ich Automatisierungen direkt aus dem Chat erstellen? (v1.25.13)",
             "answer": "Ja — in einem Satz: „mach mir werktags um 8 Uhr eine KI-Presseschau“. LIA validiert den Zeitplan und zeigt eine <strong>Bestätigungskarte</strong> (Titel, Tage, Uhrzeit, Anweisung); nichts wird vor deiner Zustimmung angelegt. Du kannst deine Automatisierungen auch <strong>auflisten</strong> („was sind meine Automatisierungen?“) und in natürlicher Sprache <strong>pausieren/reaktivieren</strong>.<br><br><strong>💡 Bonus:</strong> wenn du an mehreren Tagen zur gleichen Stunde dasselbe fragst, kann LIA spontan vorschlagen: „Soll ich daraus eine wiederkehrende Automatisierung machen?“ (deterministische Erkennung, höchstens ein Vorschlag pro Monat und Muster, standardmäßig aus — <code>RECURRENCE_SUGGESTION_ENABLED</code>).<br><br>Das Löschen einer Automatisierung bleibt eine Einstellungs-Aktion."
+          },
+          "q8": {
+            "question": "Wie lese ich die Wochenansicht? (v1.42.2)",
+            "answer": "Über der Liste zeichnet die <strong>Wochenansicht</strong> deine Routinen auf ein Raster: Stunden nach unten, Tage nach rechts (Montag zuerst), in der daneben genannten Zeitzone. Die Routinen sind nach Auslösezeit sortiert und in dieser Reihenfolge <strong>nummeriert</strong> — dieselbe Nummer steht auf der Karte und im Raster; eine pausierte Routine behält ihre Nummer, eine neue oder umgeplante nummeriert die späteren neu.<br><br><strong>🎨 Die Farben dieser Woche:</strong> weiß nicht ausgeführt (noch nicht fällig, oder nichts lief), grün ausgeführt, rot fehlgeschlagen, bernstein vorgeschlagen und wartet im Chat auf deine Freigabe, grau pausiert. Ein Ring markiert eine Routine, deren Bedingung zu dieser Uhrzeit geprüft wird; eine gerade laufende Routine pulsiert.<br><br><strong>🔁 Zurücksetzen:</strong> die Farben gelten nur für die laufende Woche und beginnen jeden Montag neu; änderst du Tage oder Uhrzeit einer Routine, werden sie gelöscht, denn sie gehörten zu den alten Zeitfenstern. <strong>Testen</strong> nach dem heutigen Zeitfenster färbt es neu; davor nicht.<br><br><strong>⌨️ Navigation:</strong> ein Klick auf eine Nummer springt zur Karte der Routine; das Raster ist ein einziger Tab-Stopp, die Pfeiltasten wandern hindurch."
           }
         }
       },
@@ -8421,6 +8435,10 @@
       "mail_label_source": {
         "title": "Ein Label, und es ist drin",
         "desc": "Vergeben Sie ein Gmail-Label an eine Konversation: Sie wird zum Dokument des Raums. Label entfernt, Dokument weg."
+      },
+      "week_grid": {
+        "title": "Ihre Woche, im Raster",
+        "desc": "Stunden nach unten, Tage nach rechts: jede Routine steht zu ihrer Uhrzeit, nummeriert in Auslösereihenfolge. Eine Zelle wird grün, wenn sie lief, rot, wenn sie scheiterte, bernstein, solange sie auf Sie wartet — und beginnt am Montag neu."
       }
     },
     "scenes": {
@@ -9340,7 +9358,32 @@
       "custom": "{{days}} um {{time}}"
     },
     "next_run": "Nächste Ausführung",
-    "next_evaluation": "Nächste Auswertung"
+    "next_evaluation": "Nächste Auswertung",
+    "number_aria": "Routine {{n}}",
+    "timeline": {
+      "title": "Wochenansicht",
+      "description": "Ihre Routinen nach Tag und Uhrzeit, mit den Ergebnissen dieser Woche",
+      "caption": "Wochenplan Ihrer Routinen, Uhrzeiten in {{zone}}",
+      "hours_in_zone": "Uhrzeiten in {{zone}}",
+      "zones_mixed": "Routinen in mehreren Zeitzonen: jeder Chip steht zur Ortszeit seiner eigenen Zone",
+      "hour_header": "Uhrzeit",
+      "today": "Heute",
+      "unavailable": "Die Ausführungsstatus dieser Woche sind nicht verfügbar. Der Zeitplan wird weiterhin angezeigt.",
+      "chip_aria": "{{n}}, {{title}}, {{time}}, {{state}}",
+      "condition_kind": "Bedingung wird zu dieser Uhrzeit geprüft",
+      "run_at": "Ausgeführt {{when}}",
+      "legend_title": "Legende",
+      "state": {
+        "idle": "Nicht ausgeführt",
+        "success": "Ausgeführt",
+        "failure": "Fehlgeschlagen",
+        "proposed": "Vorgeschlagen, wartet auf Ihre Freigabe",
+        "paused": "Pausiert",
+        "skipped_condition": "Bedingung nicht erfüllt",
+        "skipped_hitl": "Übersprungen, im Chat stand eine Freigabe aus",
+        "executing": "Läuft gerade"
+      }
+    }
   },
   "landing": {
     "meta": {
@@ -9527,7 +9570,7 @@
       },
       "reminders_scheduling": {
         "title": "Erinnerungen & Automatisierungen",
-        "description": "Plane Erinnerungen in natürlicher Sprache (\"Erinnere mich morgen um 9 Uhr Marie anzurufen\"). Plane wiederkehrende automatische Aktionen (E-Mail-Zusammenfassung am Montag, Morgenwetter...). Eine Erinnerung, die fällig wird, während dein Kontingent erreicht ist, kehrt in die Warteschlange zurück — sie geht nie verloren. Routinen können jetzt auf eine Bedingung warten — eine Aufgabe wird überfällig, eine passende Mail kommt an, das Wetter schlägt um, ein Dokument wird hinzugefügt, ein Termin naht — und auf Wunsch vorschlagen, bevor sie handeln."
+        "description": "Plane Erinnerungen in natürlicher Sprache (\"Erinnere mich morgen um 9 Uhr Marie anzurufen\"). Plane wiederkehrende automatische Aktionen (E-Mail-Zusammenfassung am Montag, Morgenwetter...). Eine Erinnerung, die fällig wird, während dein Kontingent erreicht ist, kehrt in die Warteschlange zurück — sie geht nie verloren. Routinen können jetzt auf eine Bedingung warten — eine Aufgabe wird überfällig, eine passende Mail kommt an, das Wetter schlägt um, ein Dokument wird hinzugefügt, ein Termin naht — und auf Wunsch vorschlagen, bevor sie handeln. Eine Wochenansicht breitet die Routinen aus, Stunden nach unten und Tage nach rechts, jede Zelle der laufenden Woche nach dem gefärbt, was geschah."
       },
       "memory": {
         "title": "Kontextuelles Gedächtnis",
@@ -11787,6 +11830,9 @@
       "cost": "Kosten",
       "progress_title": "Protokoll wird erstellt",
       "processing_hint": "Bei einer langen Besprechung kann das einige Minuten dauern. Du wirst im Chat benachrichtigt, wenn das Protokoll fertig ist.",
+      "attempt_of": "Versuch {{attempt}} von {{max}}",
+      "previous_attempt": "Vorheriger Versuch:",
+      "worker_stale_hint": "Die Verarbeitung antwortet nicht mehr. Sie wird automatisch wieder aufgenommen; du kannst die Besprechung auch löschen.",
       "failed_title": "Das Protokoll konnte nicht erstellt werden",
       "minutes_title": "Protokoll",
       "edited_badge": "Bearbeitet",
@@ -11967,6 +12013,7 @@
       "unknown": "Unbekannter Fehler ({{code}})",
       "usage_limit": "Dein Nutzungslimit ist erreicht.",
       "user_missing": "Das Konto existiert nicht mehr.",
+      "worker_lost": "Die Verarbeitung hat aufgehört zu antworten, und es blieb kein Versuch mehr übrig.",
       "template_locked": "Das Format kann nicht geändert werden, während das Protokoll geschrieben wird.",
       "template_not_found": "Diese Vorlage existiert nicht mehr.",
       "template_readonly": "Eine integrierte Vorlage kann nicht geändert werden; duplizieren Sie sie zuerst.",

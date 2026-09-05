@@ -90,10 +90,13 @@ def safe_fire_and_forget(
         if t.cancelled():
             logger.debug("background_task_cancelled", task_name=name or "unnamed")
         elif t.exception():
+            # The traceback travels with the event: a one-line ``str(exc)`` hid
+            # the origin of a repository failure for a whole diagnosis (2026-09-05).
             logger.error(
                 "background_task_failed",
                 task_name=name or "unnamed",
                 error=str(t.exception()),
+                exc_info=t.exception(),
             )
         else:
             logger.debug("background_task_completed", task_name=name or "unnamed")

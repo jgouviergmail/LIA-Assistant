@@ -16,7 +16,7 @@ import type { UseMeetingReturn } from '@/hooks/useMeetings';
 import { meetingErrorCode } from '@/lib/meetings/api';
 import type { MeetingReformatRequest, MeetingReport } from '@/types/meetings';
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export interface MeetingActionDeps {
   t: Translate;
@@ -40,12 +40,15 @@ export interface MeetingActions {
   remove: () => Promise<void>;
 }
 
+/** The user-facing sentence behind a stable meeting error code (unknown codes stay readable). */
+export function meetingErrorLabel(t: Translate, code: string): string {
+  return t(`meetings.errors.${code}`, { defaultValue: t('meetings.errors.unknown', { code }) });
+}
+
 /** A server refusal as the user reads it, or the fallback. */
 export function describeFailure(t: Translate, error: unknown, fallbackKey: string): string {
   const code = meetingErrorCode(error);
-  return code
-    ? t(`meetings.errors.${code}`, { defaultValue: t('meetings.errors.unknown', { code }) })
-    : t(fallbackKey);
+  return code ? meetingErrorLabel(t, code) : t(fallbackKey);
 }
 
 export function useMeetingActions(

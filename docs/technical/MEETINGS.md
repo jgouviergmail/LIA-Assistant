@@ -34,7 +34,7 @@ l'envoie par e-mail si demandé et le propose en PDF.
 | `processing.py` | le job : claim → normalisation → transcription → enrichissement → synthèse → `ready` → index/notification/e-mail/purge (ces effets sont gardés : un échec après `ready` est journalisé, jamais requalifié en échec de la réunion) |
 | `enrichment.py` | événement d'agenda chevauchant (indice, jamais un fait) et libellé du lieu, en mode meilleur effort |
 | `delivery.py` | PDF, et e-mail envoyé par la plateforme (`APPLICATION_SMTP_FROM`, `EmailService` hors boucle d'événements) à l'adresse du compte — sujet « Compte rendu de réunion · Titre » |
-| `reapers.py` | enregistrements muets → `interrupted`, baux expirés → `stopped`, orphelins relancés, audio conservé purgé |
+| `reapers.py` | enregistrements muets → `interrupted`, baux expirés → `stopped` (ou `failed` + `worker_lost` quand le budget est épuisé), orphelins relancés, audio des réunions `ready` purgé après rétention |
 
 Réglages : `apps/api/src/core/config/meetings.py` (`MEETINGS_*`, voir `.env.example` §87).
 Prompts : `prompts/v1/meeting_synthesis_prompt.txt`, `prompts/v1/meeting_condense_prompt.txt`.
@@ -53,9 +53,36 @@ stateDiagram-v2
     stopped --> processing : claim (bail + heartbeat)
     processing --> ready : complete
     processing --> stopped : échec transitoire (budget de tentatives)
+    processing --> stopped : bail expiré, budget restant (reaper)
     processing --> failed : échec permanent
+    processing --> failed : bail expiré, budget épuisé (reaper, worker_lost)
     failed --> stopped : POST /retry (audio encore présent)
 ```
+
+**Le job reprend là où il en était** (amendement du 2026-09-05). Chaque étape acquise est
+écrite sur la ligne réclamée, dans la même instruction conditionnelle que le battement de
+bail (`MeetingRepository.heartbeat(values=…)`) : l'audio normalisé (`audio_path`, durée,
+lacunes) après ffmpeg, la transcription chiffrée et ses champs `stt_*` après le moteur. Un
+claim relit ces points de contrôle avant de dépenser à nouveau : le fichier Opus est réutilisé
+tant qu'il existe, la transcription tant que l'utilisateur ne l'a pas supprimée, et une
+réunion sans audio nulle part est classée `audio_unavailable` (permanent) plutôt que de
+brûler son budget sur ffmpeg. Une synthèse qui échoue ne repaie donc jamais le moteur.
+
+**Personne n'est bloqué.** Une ligne `processing` dont le bail est absent ou expiré n'est le
+travail de personne : le reaper la remet en file (`stopped`) s'il reste des tentatives, ou la
+classe `failed` avec `worker_lost` sinon — et son propriétaire peut la supprimer entre-temps
+(`delete_unless_leased`, l'horloge de la base décide). Le détail publie `attempts`,
+`max_attempts` (borne énoncée parce qu'appliquée, ADR-184) et `worker_stale`. La rétention
+ne purge que l'audio des réunions `ready` : l'audio d'une réunion `failed` est ce dont un
+retry a besoin, il reste jusqu'à la suppression de la réunion.
+
+**Toute transition est typée et prouvée en base.** Un membre d'enum nu comme résultat d'un
+`case()` est lié en `NullType` : la VALEUR part en base où la colonne stocke le NOM, le
+`RETURNING` ne relit rien, la transaction est annulée et la réunion reste `processing` à vie
+(mesuré en production le 2026-09-05, re-drive toutes les 15 minutes). Les littéraux portent
+le type de la colonne (`_status_literal`), une garde AST refuse tout `case()` nu dans `src/`
+(`tests/unit/test_no_bare_enum_in_sql_case_guard.py`), et chaque transition du repository
+s'exécute sur PostgreSQL réel (`tests/integration/domains/meetings/test_repository_jobs.py`).
 
 ### Chaîne de moteurs
 

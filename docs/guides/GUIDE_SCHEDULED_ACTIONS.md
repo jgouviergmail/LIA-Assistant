@@ -48,6 +48,10 @@ Les **Reminders** sont des rappels ponctuels (one-shot) crees via le langage nat
 
 Les **Scheduled Actions** sont des taches recurrentes configurees via l'UI Settings. Elles persistent et se reprogramment automatiquement apres chaque execution.
 
+### La page des routines (ADR-265)
+
+Les cartes sont triees a l'affichage par heure de declenchement (heure, minute, titre en tri linguistique, id) et NUMEROTEES dans cet ordre ; l'ordre de l'API (`next_trigger_at`) n'est pas modifie, le hub, le briefing et l'outil d'automatisation en dependent. Une routine en pause garde son rang ; une creation ou un changement d'horaire renumerote. Au-dessus de la liste, une grille heures × jours (`ScheduledActionsTimeline`, une vraie `<table>`) place chaque routine a son heure murale sur ses jours, et colore chaque cellule de la semaine en cours depuis `GET /scheduled-actions/week` : blanc non executee, vert executee, rouge en erreur, ambre proposee en attente d'accord, gris en pause ; anneau pour une routine conditionnelle, pulsation pendant une execution. Une puce est un bouton nomme « rang, titre, heure, etat » qui amene et focalise la carte. Quand la lecture de la semaine echoue, la grille se dessine quand meme, toutes puces blanches, et le dit. Le spinner ne s'affiche qu'au PREMIER chargement (`initialLoading`) ; un sondage marque la region `aria-busy` sans demonter les cartes.
+
 ---
 
 ## 2. Architecture
@@ -81,8 +85,11 @@ Les **Scheduled Actions** sont des taches recurrentes configurees via l'UI Setti
 | `domains/scheduled_actions/schemas.py` | Pydantic v2 : `ScheduledActionCreate`, `Update`, `Response`, `ListResponse` |
 | `domains/scheduled_actions/repository.py` | `BaseRepository` + requetes scheduler (`FOR UPDATE SKIP LOCKED`, recovery) |
 | `domains/scheduled_actions/service.py` | CRUD + toggle + recalcul timezone cascade |
-| `domains/scheduled_actions/router.py` | 6 endpoints FastAPI |
-| `domains/scheduled_actions/schedule_helpers.py` | `compute_next_trigger_utc()` via APScheduler `CronTrigger` |
+| `domains/scheduled_actions/router.py` | 7 endpoints FastAPI (`/week` declare AVANT `/{action_id}`) |
+| `domains/scheduled_actions/schedule_helpers.py` | `compute_next_trigger_utc()` via APScheduler `CronTrigger`, `week_slots()` / `local_day_slot()` / `served_slot()` (ADR-265), reparation du trou d'heure d'ete ouvert a minuit (`_next_fire`) |
+| `domains/scheduled_actions/run_repository.py` | Historique des executions `scheduled_action_runs` : insertion au resultat, lecture par semaine, purge par age (ADR-265) |
+| `domains/scheduled_actions/runs.py` | `record_run()` : une ligne par sortie de l'executeur, dans un SAVEPOINT, jamais fatale |
+| `domains/scheduled_actions/week.py` | Pliage pur de la semaine en cours : une cellule = le DERNIER run dont `slot_at` est EGAL a l'instant du creneau |
 | `infrastructure/scheduler/scheduled_action_executor.py` | Job scheduler `process_scheduled_actions()` + `execute_single_action()` |
 
 ### Modele de donnees
@@ -108,6 +115,21 @@ scheduled_actions
 ```
 
 **Index partiel** (hot path du scheduler) : `ix_scheduled_actions_due` sur `next_trigger_at WHERE is_enabled=true AND status='active'`
+
+```
+scheduled_action_runs (ADR-265)
++-- id (UUID, PK)
++-- scheduled_action_id (UUID, FK scheduled_actions.id CASCADE)
++-- user_id (UUID, FK users.id CASCADE)
++-- slot_at (DateTime TZ, nullable) -- le creneau SERVI ; NULL = repetition (Tester avant l'heure)
++-- started_at, ended_at (DateTime TZ, UTC)
++-- outcome (VARCHAR 20 + CHECK reel : success|failure|skipped_condition|proposed|skipped_hitl)
++-- attempts (SmallInteger) -- 0 quand le pipeline n'a pas tourne
++-- manual (Boolean) -- lance par l'utilisateur
++-- error (Text, nullable, tronquee)
+```
+
+Une ligne par tick, ecrite AU RESULTAT dans la meme transaction que `mark_execution_success` / `mark_execution_failure`, jamais avant : un crash en cours de run ne laisse aucune ligne. Un run du est rattache a son instant du ; un « Tester » lance APRES le creneau du jour le sert (et le recolore), lance avant il ne sert rien. Retention bornee par `SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS`, purgee a l'etape 0 de chaque tick de l'executeur, dans sa propre session.
 
 ### Statuts (`ScheduledActionStatus`)
 
@@ -188,6 +210,7 @@ Le router est monte sur le prefixe `/scheduled-actions` dans `apps/api/src/api/v
 | `DELETE` | `/scheduled-actions/{id}` | `204` | Supprimer une action (hard delete) |
 | `PATCH` | `/scheduled-actions/{id}/toggle` | `200` | Toggle `is_enabled` (re-enable reset les compteurs d'erreur) |
 | `POST` | `/scheduled-actions/{id}/execute` | `202` | Execution immediate (fire-and-forget en background task) |
+| `GET` | `/scheduled-actions/week` | `200` | La semaine en cours de chaque routine : ses instants (moteur cron du scheduler, depuis le lundi local de SON fuseau) et l'issue du run qui a servi chacun (ADR-265). Le navigateur ne recalcule rien : il peint. |
 
 ### Exemples de requetes
 
@@ -333,13 +356,17 @@ return next_fire.astimezone(UTC)
 
 ### Changement de timezone utilisateur
 
-Quand un utilisateur modifie son fuseau horaire dans son profil, le service `ScheduledActionService.recalculate_all_for_user()` recalcule le `next_trigger_at` de toutes ses actions actives.
+Quand un utilisateur modifie son fuseau horaire dans son profil, le service `ScheduledActionService.recalculate_all_for_user()` recalcule le `next_trigger_at` et le `user_timezone` de TOUTES ses actions, en pause comprises (ADR-265). Avant, les actions en pause etaient ignorees : elles gardaient l'ancien fuseau, et `toggle` comme `update` re-derivent le declencheur depuis ce fuseau stocke — une routine mise en pause pendant un demenagement se reveillait sur l'ancienne horloge.
 
 Le meme horaire local est preserve (ex: 19:30 reste 19:30) mais la valeur UTC change. Cet appel est declenche depuis `users/service.py` lors de la mise a jour du profil.
 
 ### Piege classique
 
 `CronTrigger.get_next_fire_time()` retourne un datetime dans la timezone du trigger, **pas en UTC**. Oublier `.astimezone(UTC)` provoquera un decalage horaire.
+
+### Piege mesure : le trou d'heure d'ete ouvert a minuit
+
+APScheduler 3.11 decale d'une heure une heure murale inexistante (Paris 02:30 le jour du passage a l'heure d'ete tourne a 03:30) — sauf quand le trou s'ouvre a 00:00, ou il SAUTE la journee entiere. Mesure sur toutes les zones IANA et toutes les transitions 2026 : 2 112 creneaux decales, 72 sautes, tous dans l'heure 00:00-00:59 des six zones qui changent d'heure a minuit (Santiago, La Havane, Le Caire, Beyrouth…). `schedule_helpers._next_fire()` est le SEUL lecteur de `get_next_fire_time` du module : il cherche un jour configure que le cron a enjambe et dont l'heure murale n'existe pas, et rend le premier instant existant de ce jour (`fold=0` sur une heure inexistante resout vers l'instant d'apres le trou). Differentiel : 15 684 resultats identiques au cron brut, 144 corriges, 0 anomalie (`TestMidnightGap`).
 
 ---
 
@@ -446,8 +473,12 @@ Les erreurs FCM et SSE sont loguees mais ne bloquent pas l'execution. L'action e
 
 | Fichier | Couverture |
 |---------|-----------|
-| `tests/unit/domains/scheduled_actions/test_schedule_helpers.py` | 27 tests : `compute_next_trigger_utc` (incl. validation UTC), `validate_days`, `format_display` |
-| `tests/unit/domains/scheduled_actions/test_schemas.py` | 18 tests : validation `Create`/`Update` schemas |
+| `tests/unit/domains/scheduled_actions/test_schedule_helpers.py` | `compute_next_trigger_utc` (incl. validation UTC), `validate_days`, `format_display`, le trou de minuit (`TestMidnightGap`, differentiel contre le cron brut), `week_slots` / `local_day_slot` / `served_slot` |
+| `tests/unit/domains/scheduled_actions/test_schemas.py` | validation `Create`/`Update` schemas |
+| `tests/unit/domains/scheduled_actions/test_occurrences.py` | les prochaines executions, dedoublonnees par jour local |
+| `tests/unit/domains/scheduled_actions/test_runs.py`, `test_run_repository.py`, `test_week.py`, `test_router_week.py`, `test_service.py` | ADR-265 : `record_run` (savepoint, jamais fatale), le repository des runs, le pliage de la semaine, la route `/week` et son ordre, le recalcul de fuseau qui couvre les routines en pause |
+| `tests/unit/infrastructure/scheduler/test_scheduled_action_executor.py` | l'executeur : une ligne d'historique par sortie, AVANT le commit ; la purge a l'etape 0 |
+| `tests/integration/domains/scheduled_actions/test_runs_pg.py` | contre PostgreSQL : CHECK reel sur `outcome`, cascades, lecture par semaine, purge |
 
 ### Lancer les tests
 

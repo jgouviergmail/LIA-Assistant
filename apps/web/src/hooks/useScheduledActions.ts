@@ -97,6 +97,49 @@ export interface ScheduledActionUpdate {
   requires_approval?: boolean;
 }
 
+/** How one tick of a routine ended (mirror of the backend ScheduledRunOutcome). */
+export type ScheduledRunOutcome =
+  | 'success'
+  | 'failure'
+  | 'skipped_condition'
+  | 'proposed'
+  | 'skipped_hitl';
+
+/** One configured day of the current week for one routine (ADR-265). */
+export interface ScheduledActionWeekCell {
+  /** ISO weekday, 1 = Monday … 7 = Sunday, in the routine's zone. */
+  day: number;
+  /** The local calendar date, `YYYY-MM-DD`. */
+  date: string;
+  /** The instant the routine fires at that day (UTC). */
+  slot_at: string;
+  /** How the LAST run serving this slot ended; null = no run served it. */
+  outcome: ScheduledRunOutcome | null;
+  run_at: string | null;
+  error: string | null;
+  manual: boolean | null;
+}
+
+/** The current week of one routine, cell by cell. */
+export interface ScheduledActionWeek {
+  id: string;
+  timezone: string;
+  /** The local Monday, `YYYY-MM-DD`. */
+  week_start: string;
+  /** ISO weekday of now in that zone — the column to highlight. */
+  today: number;
+  cells: ScheduledActionWeekCell[];
+}
+
+/**
+ * Every routine's current week — computed server-side from the scheduler's
+ * own cron engine, so the browser never re-reads a schedule; it only paints.
+ */
+export interface ScheduledActionWeekResponse {
+  actions: ScheduledActionWeek[];
+  generated_at: string;
+}
+
 /**
  * API list response shape.
  */
@@ -106,6 +149,22 @@ export interface ScheduledActionListResponse {
 }
 
 const ENDPOINT = '/scheduled-actions';
+export const WEEK_ENDPOINT = `${ENDPOINT}/week`;
+
+/**
+ * Whether a payload is the week contract.
+ *
+ * A hermetic browser mock answering `**\/scheduled-actions**` with the LIST
+ * payload also answers `/week` with it; a shape that is not the week must
+ * read as "unavailable", never crash the grid or paint from the wrong data.
+ */
+export function isWeekResponse(payload: unknown): payload is ScheduledActionWeekResponse {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    Array.isArray((payload as { actions?: unknown }).actions)
+  );
+}
 
 /**
  * Hook for scheduled actions CRUD operations.
@@ -120,11 +179,25 @@ export function useScheduledActions() {
     setData,
   } = useApiQuery<ScheduledActionListResponse>(ENDPOINT, {
     componentName: 'ScheduledActions',
-    initialData: { scheduled_actions: [], total: 0 },
   });
+
+  // The week states (ADR-265), polled on the same cadence as the list and
+  // refetched after every mutation, since a change moves the slots.
+  const { data: weekData, refetch: refetchWeek } = useApiQuery<ScheduledActionWeekResponse>(
+    WEEK_ENDPOINT,
+    {
+      componentName: 'ScheduledActions',
+    }
+  );
 
   const actions = listData?.scheduled_actions ?? [];
   const total = listData?.total ?? 0;
+  const week = isWeekResponse(weekData) ? weekData : null;
+  // The FIRST load only. `useApiQuery` raises `loading` on every refetch too,
+  // and swapping the section for a spinner then unmounts every card — the
+  // open disclosures, the keyboard focus and the timeline fold with them.
+  // Monotone by construction: `data` is only ever SET, never cleared.
+  const initialLoading = listData === undefined && loading;
 
   // Mutations
   const createMutation = useApiMutation<ScheduledActionCreate, ScheduledAction>({
@@ -165,10 +238,11 @@ export function useScheduledActions() {
             total: prev.total + 1,
           };
         });
+        void refetchWeek();
       }
       return result;
     },
-    [createMutation, setData]
+    [createMutation, setData, refetchWeek]
   );
 
   const updateAction = useCallback(
@@ -183,10 +257,11 @@ export function useScheduledActions() {
             scheduled_actions: prev.scheduled_actions.map(a => (a.id === actionId ? result : a)),
           };
         });
+        void refetchWeek();
       }
       return result;
     },
-    [updateMutation, setData]
+    [updateMutation, setData, refetchWeek]
   );
 
   const deleteAction = useCallback(
@@ -200,8 +275,9 @@ export function useScheduledActions() {
           total: prev.total - 1,
         };
       });
+      void refetchWeek();
     },
-    [deleteMutation, setData]
+    [deleteMutation, setData, refetchWeek]
   );
 
   const toggleAction = useCallback(
@@ -216,10 +292,11 @@ export function useScheduledActions() {
             scheduled_actions: prev.scheduled_actions.map(a => (a.id === actionId ? result : a)),
           };
         });
+        void refetchWeek();
       }
       return result;
     },
-    [toggleMutation, setData]
+    [toggleMutation, setData, refetchWeek]
   );
 
   const executeAction = useCallback(
@@ -252,18 +329,23 @@ export function useScheduledActions() {
   useEffect(() => {
     const interval = setInterval(() => {
       refetch();
+      refetchWeek();
     }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [refetch, intervalMs]);
+  }, [refetch, refetchWeek, intervalMs]);
 
   return {
     // Data
     actions,
     total,
     loading,
+    initialLoading,
     error,
     refetch,
+    /** The current week's states, or null while unknown / unavailable. */
+    week,
+    refetchWeek,
 
     // Mutations
     createAction,

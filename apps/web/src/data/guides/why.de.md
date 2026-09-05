@@ -4,7 +4,7 @@
 
 **Version**: 5.3
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.42.1
+**Anwendung**: LIA v1.42.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -68,7 +68,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Persönliche Journale**: Konfiguriere die Extraktion von Introspektion nach jedem Gespräch und die periodische Konsolidierung
 - **Interessengebiete**: Definiere deine Lieblingsthemen, konfiguriere die Benachrichtigungshäufigkeit, Zeitfenster und Quellen (Perplexity, Brave, Wikipedia, KI-Reflexion)
 - **Proaktive Benachrichtigungen**: Stelle Häufigkeit, Zeitfenster und Kontextquellen ein (Kalender, Wetter, Aufgaben, E-Mails, Interessen, Erinnerungen, Journale)
-- **Geplante Aktionen**: Erstelle wiederkehrende Automatisierungen, die vom Assistenten ausgeführt werden
+- **Geplante Aktionen**: Erstelle wiederkehrende Automatisierungen, die vom Assistenten ausgeführt werden, und lies deine Woche auf einen Blick — jede Routine zu ihrer Uhrzeit an ihren Tagen, jede Zelle nach dem gefärbt, was wirklich geschah
 - **Skills**: Aktiviere/deaktiviere Expertenfähigkeiten in einer Galerie mit Vorschauen, erstelle deine eigenen persönlichen Skills oder installiere eine von einer https-URL (serverseitig validiert)
 - **Wissensbereiche**: Lade deine Dokumente hoch (PDF, Word, Excel, PowerPoint, EPUB, HTML und 15+ Formate) oder synchronisiere einen Google Drive-Ordner — automatische Indexierung mit hybrider Suche — oder einem Gmail-Label folgen, sodass die von Ihnen markierten Konversationen zu Dokumenten werden, die Sie Wochen später befragen können, und das Entfernen des Labels das Dokument entfernt
 - **Verbrauchsexport**: Lade deine LLM- und API-Verbrauchsdaten als CSV herunter

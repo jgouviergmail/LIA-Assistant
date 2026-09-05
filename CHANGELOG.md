@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.2] - 2026-09-05
+
+**La page des routines ne montrait pas la semaine.** Les cartes suivaient l'ordre de la prochaine exécution — un ordre qui bouge chaque jour — et rien ne disait, pour lundi ou pour mercredi, ce qui s'était passé. Une couleur par créneau est une affirmation, et aucune donnée ne la portait : `scheduled_actions` ne garde qu'un `last_executed_at` et un `last_error` sans horodatage, et le registre des tours classe un tour planifié sous l'identifiant de sa conversation, pas de sa routine.
+
+**Et une réunion pouvait rester « en traitement » pendant des heures.** Une synthèse en échec re-conduite toutes les quinze minutes, un membre d'enum nu lié en `NullType` qui annulait la transaction du marquage, un travailleur disparu que rien ne relevait — trois défauts derrière un seul symptôme.
+
+### Added
+
+- **La vue de la semaine des routines** (ADR-265) : une grille au-dessus de la liste, les heures en descendant et les jours en travers, chaque routine à son heure sur ses jours, numérotée dans l'ordre où elle se déclenche — le même numéro sur sa carte. Chaque cellule de la semaine en cours porte l'issue du dernier run qui a servi ce créneau : blanc non exécutée, vert exécutée, rouge en erreur, ambre proposée en attente d'accord, gris en pause ; anneau pour une routine conditionnelle, pulsation pendant une exécution. Une vraie `<table>` (sept en-têtes de colonne, vingt-quatre de ligne, légende nommant le fuseau), des puces `<button>` nommées « rang, titre, heure, état » qui amènent et focalisent la carte, un seul arrêt de tabulation et les flèches pour parcourir la grille. Le titre n'est jamais dupliqué en texte visible.
+- **Un historique des exécutions** (`scheduled_action_runs`) : une ligne par tick, écrite par l'exécuteur AU RÉSULTAT dans la transaction du marquage, jamais avant — cinq issues, une par sortie (`success`, `failure`, `skipped_condition`, `proposed`, `skipped_hitl`), dans un savepoint et jamais bloquante pour la routine. La ligne porte le créneau SERVI : un run dû sert son instant dû, un « Tester » lancé après le créneau du jour le sert, lancé avant ne sert rien. CHECK réel sur l'issue (`create_constraint=True` explicite), rétention par réglage `SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS`, purge à l'étape 0 de chaque tick.
+- **`GET /scheduled-actions/week`** : la semaine en cours de chaque routine, calculée côté serveur avec le moteur cron qui arme les runs, depuis le lundi local de SON fuseau. Une cellule prend le DERNIER run dont `slot_at` est ÉGAL à l'instant du créneau — égalité, jamais fenêtre — d'où la réinitialisation au changement d'horaire et chaque lundi par construction. Déclarée avant `/{action_id}`, ordre épinglé par un test ; ajoutée à la surface publique du démonstrateur.
+- **Les réunions reprennent là où elles en étaient** (amendement ADR-258) : chaque étape acquise est écrite sur la ligne réclamée dans l'instruction de battement de bail — audio normalisé, puis transcription chiffrée — et un claim relit ces points de contrôle avant de dépenser à nouveau ; une réunion sans audio nulle part est classée `audio_unavailable` plutôt que de brûler son budget. Le détail publie `attempts`, `max_attempts` et `worker_stale` ; la page affiche la tentative sur le budget, la raison de la tentative précédente, et une suppression quand le travailleur est parti (`delete_unless_leased`, l'horloge de la base décide).
+- **Une réponse valide n'est plus jetée** : un appel d'outil rejeté pour ses `null` sur des champs à défaut est complété génériquement (`llm/tool_call_rescue.py`) avant d'abandonner, et la `parsing_error` écartée est lue pour nommer la vraie raison. Une tâche de fond qui échoue journalise sa trace complète.
+- **Une 58e carte « Encore + »** : la semaine sur une grille, avec sa scène — les cellules se colorent au fil de la semaine et se vident le lundi.
+
+### Changed
+
+- **Les cartes de routines sont triées à l'affichage** par heure de déclenchement (heure, minute, titre en tri linguistique numérique, identifiant) : l'ordre `next_trigger_at` de l'API ne change pas, le hub, le briefing et l'outil d'automatisation le lisent. Une routine en pause garde son rang.
+- **Le recalcul de fuseau couvre toutes les routines**, en pause comprises : `toggle` et `update` re-dérivent le déclencheur depuis le fuseau stocké, qui est désormais celui de l'utilisateur.
+- **Un rafraîchissement n'est plus un premier chargement** : le hook dérive un `initialLoading` monotone, la section garde ses cartes montées et marque la région `aria-busy` pendant un sondage.
+- **Le reaper des réunions** remet en file une ligne `processing` sans bail vivant, ou la classe `failed` avec `worker_lost` quand le budget est épuisé ; la rétention ne purge que l'audio des réunions `ready`, celui d'une réunion `failed` reste jusqu'à sa suppression.
+- **HOW §16.3, WHY §2.2, la carte « Comment fonctionne LIA », la tuile d'accueil, le lexique de recherche des réglages, la FAQ (q8), le README, le guide technique et le guide API** décrivent la vue de la semaine ; les cartes « Battement autonome » et « Comptes rendus de réunion » ont été resserrées pour que la section tienne sous son plafond.
+
+### Fixed
+
+- **Chaque sondage démontait la liste des routines** (`loading` repasse à `true` à chaque refetch de `useApiQuery`) : spinner et cartes disparues deux fois par minute, tout `<details>` ouvert refermé.
+- **Une routine en pause pendant un changement de fuseau gardait l'ancien fuseau** et se réveillait sur l'ancienne horloge.
+- **APScheduler 3.11.2 sautait la journée entière** d'une routine 00:xx dans un fuseau dont le passage à l'heure d'été s'ouvre à minuit (Santiago, La Havane, Le Caire, Beyrouth…) — mesuré : 72 créneaux sautés sur 2 184, tous dans cette heure. `_next_fire` est l'unique lecteur du cron dans les helpers et rend le premier instant existant du jour sauté ; différentiel sur toutes les zones IANA : 15 684 identiques, 144 corrigés, zéro anomalie.
+- **Toute transition d'une réunion est typée et prouvée en base** : les littéraux portent le type de la colonne (`_status_literal`), une garde AST refuse tout `case()` nu sous `src/`, et chaque transition du repository s'exécute sur PostgreSQL réel — l'incident du 2026-09-05 (33 secondes transcrites, `processing` pendant deux heures) est rejoué.
+
+### Tests
+
+- Backend : `test_schedule_helpers.py` (trou de minuit, différentiel contre le cron brut, `week_slots` / `local_day_slot` / `served_slot`), `test_runs.py`, `test_run_repository.py`, `test_week.py`, `test_router_week.py`, `test_service.py`, dix tests de l'exécuteur (une ligne par sortie, avant le commit, purge à l'étape 0), `tests/integration/domains/scheduled_actions/test_runs_pg.py` (CHECK réel, cascades, lecture, purge) ; réunions : `test_repository_jobs.py` (chaque transition sur PostgreSQL, l'incident rejoué), `test_processing_resume.py`, `test_repository_statements.py`, `test_synthesis_null_tolerance.py`, `test_service_projection.py`, la garde `test_no_bare_enum_in_sql_case_guard.py`.
+- Frontend : `scheduled-actions.test.ts` (tri, numérotation, grille, tons, fuseaux, dates, focus itinérant), `useScheduledActions.test.ts` (semaine, premier chargement, refetch après mutation), `ScheduledActionsTimeline.test.tsx` (table, puces, états, jour courant, indisponibilité, clavier), `ScheduledActionsSettings.test.tsx` (ordre, rangs, repli, navigation, sondage sans démontage) ; parcours axe étendu aux cinq états de puce.
+- Mesuré : backend 24 185 tests collectés sur 1 467 fichiers, frontend 7 382 tests sur 584 fichiers ; couverture frontend 78,72 / 74,00 / 75,99 / 79,45, plancher des branches relevé de 71 à 72.
+
 ## [1.42.1] - 2026-09-05
 
 **Les yeux vivaient ; le reste du visage attendait.** Entre deux réponses, l'avatar clignait, regardait ailleurs, s'endormait — et ses sourcils et sa bouche restaient à leur pose, comme dessinés une fois pour toutes. Mesuré dans un navigateur sur le visage au repos : 0,47 px de mouvement pour la bouche, zéro pour les sourcils, pendant que les yeux respiraient. Un personnage dont seule la moitié du visage vit se lit comme un masque.

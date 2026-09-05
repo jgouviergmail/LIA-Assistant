@@ -4,7 +4,7 @@
 
 **Versione**: 5.3
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.42.1
+**Applicazione**: LIA v1.42.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -68,7 +68,7 @@ Ogni utente ha il proprio spazio di configurazione, organizzato in due schede. U
 - **Diari personali**: configura l'estrazione di riflessioni dopo ogni conversazione e il consolidamento periodico
 - **Interessi**: definisci i tuoi argomenti preferiti, configura la frequenza delle notifiche, le finestre orarie e le fonti (Perplexity, Brave, Wikipedia, ragionamento IA)
 - **Notifiche proattive**: regola frequenza, finestra oraria e fonti di contesto (calendario, meteo, attività, email, interessi, memorie, diari)
-- **Azioni pianificate**: crea automazioni ricorrenti eseguite dall'assistente
+- **Azioni pianificate**: crea automazioni ricorrenti eseguite dall'assistente, e leggi la tua settimana a colpo d'occhio — ogni routine alla sua ora nei suoi giorni, ogni cella colorata da ciò che è davvero successo
 - **Skills**: attiva/disattiva competenze specializzate in una galleria con anteprime, crea le tue Skills personali, o installane una da un URL https (validato lato server)
 - **Spazi di conoscenza**: carica i tuoi documenti (PDF, Word, Excel, PowerPoint, EPUB, HTML e 15+ formati) o sincronizza una cartella di Google Drive — indicizzazione automatica con ricerca ibrida — oppure seguire un'etichetta Gmail, così le conversazioni che etichetti diventano documenti interrogabili settimane dopo, e togliere l'etichetta rimuove il documento
 - **Export dei consumi**: scarica i tuoi dati di consumo LLM e API in CSV

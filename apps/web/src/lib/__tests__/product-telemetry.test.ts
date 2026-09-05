@@ -32,6 +32,9 @@ describe('product-telemetry', () => {
   });
 
   it('is inert when the flag is unset', () => {
+    // Pinned empty: a developer or container environment with the flag on
+    // must not decide what "unset" means for this test (empty == absent).
+    vi.stubEnv('NEXT_PUBLIC_PRODUCT_TELEMETRY', '');
     expect(isTelemetryEnabled()).toBe(false);
     trackProductEvent('landing_view');
     trackSettingsSearch('results');
@@ -93,6 +96,7 @@ describe('product-telemetry', () => {
 
   describe('trackShowroomEvent (credential-less collector)', () => {
     it('is inert when the flag is unset', () => {
+      vi.stubEnv('NEXT_PUBLIC_PRODUCT_TELEMETRY', '');
       trackShowroomEvent('demo_viewed');
       expect(fetchMock).not.toHaveBeenCalled();
     });

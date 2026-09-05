@@ -3557,7 +3557,7 @@
         "interests": "sujets, goûts, thèmes, curiosité, préférences, historique, notifications récentes, provenance, pourquoi, poids, explication, décroissance, source, exporter",
         "peer-connections": "contacts, amis, famille, réseau, partager calendrier, disponibilités, bloquer, découvrir utilisateurs, connecter, mon nom, copier mon nom, demande de connexion, journal des accès, relayer un message, utilisateurs bloqués, proches, réseau social, peer, découverte, se connecter à un proche, partager mon adresse, email visible, mon email, point 360, visibilité, demandes",
         "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes, sujets des notifications, sources, historique, notifications récentes, priorité, urgence, haute, moyenne, basse, couleur, météo, fréquence, plage horaire, propositions, offres, routine manquée, réveil par push, réagir à un e-mail, réagir à une invitation, déclencheur, réveil",
-        "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé",
+        "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé, vue de la semaine, chronologie, grille hebdomadaire",
         "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger, configuration, consolidation, exporter",
         "health-metrics": "fréquence cardiaque, pas, sommeil, iPhone, Apple Santé, forme, activité",
         "skills": "compétences, capacités, aptitudes, plugins, extensions",
@@ -4401,7 +4401,7 @@
         },
         "scheduledActions": {
           "title": "📅 Actions Planifiées",
-          "description": "Des actions récurrentes que l’assistante exécute seule : choisis les jours et l’heure, attache une consigne, et LIA l’exécute. Les résultats sont archivés dans la conversation et poussés vers toi, avec désactivation automatique après cinq échecs consécutifs. La notification porte le texte final effectivement archivé, aplati en texte brut avant troncature."
+          "description": "Des actions récurrentes que l’assistante exécute seule : choisis les jours et l’heure, attache une consigne, et LIA l’exécute. Les résultats sont archivés dans la conversation et poussés vers toi, avec désactivation automatique après cinq échecs consécutifs. La notification porte le texte final effectivement archivé, aplati en texte brut avant troncature. Une vue de la semaine les dessine, heures en descendant et jours en travers, numérotées par ordre de déclenchement, chaque cellule de la semaine colorée par ce qui s'est passé — exécutée, en erreur, proposée, en pause — d'après un historique écrit au résultat."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4421,7 +4421,7 @@
         },
         "heartbeatAutonome": {
           "title": "💓 Heartbeat Autonome",
-          "description": "Des notifications proactives construites depuis onze sources agrégées en direct, en deux temps : un modèle économique décide s’il faut parler, puis le message est réécrit dans la personnalité active. Les sujets tournent sur un échantillon varié d’intérêts avec une fenêtre anti-répétition — le même thème ne revient jamais jour après jour — et une notification portant sur un intérêt va chercher de vrais faits avec des sources cliquables. Un interrupteur par source — être connecté à un service et être interrompu par lui sont deux décisions distinctes — et une source défaillante est comptée et datée plutôt que silencieusement absente. Une notification push peut désormais déclencher une décision en quelques minutes."
+          "description": "Des notifications proactives depuis onze sources en direct, en deux temps : un modèle économique décide s’il faut parler, puis le message est réécrit dans la personnalité active. Les sujets tournent avec une fenêtre anti-répétition, et une notification sur un intérêt va chercher de vrais faits avec sources cliquables. Un interrupteur par source — être connecté à un service et être interrompu par lui sont deux décisions — une source défaillante est comptée et datée, jamais silencieusement absente, et une notification push peut déclencher une décision en minutes."
         },
         "webFetch": {
           "title": "🌐 Web Fetch Intelligent",
@@ -4561,7 +4561,7 @@
         },
         "meetings": {
           "title": "🎙️ Comptes rendus de réunion",
-          "description": "Un bouton dans l'en-tête — ou l'entrée « Enregistrer une réunion » du menu sur téléphone — et l'appareil devient un enregistreur : l'audio part en petits segments au fil de la parole, si bien qu'une coupure coûte des secondes, jamais la réunion. À l'arrêt, le serveur assemble l'enregistrement et parcourt sa chaîne de moteurs jusqu'à ce que l'un transcrive. Le format du compte rendu est choisi parmi trente modèles intégrés en lisant ce qui a été dit, à moins que tu n'imposes le tien ; la réunion affiche le format retenu et pourquoi. Un compte rendu déjà écrit se réécrit dans un autre format — jusqu'à la transcription complète. Ce que ça a coûté est dit en deux montants et un total, et une lacune est annoncée, jamais comblée."
+          "description": "Un bouton dans l'en-tête — sur téléphone, une entrée du menu — et l'appareil devient un enregistreur : l'audio part en petits segments, si bien qu'une coupure coûte des secondes, jamais la réunion. À l'arrêt, le serveur assemble l'enregistrement et parcourt sa chaîne de moteurs jusqu'à ce qu'un transcrive. Le format du compte rendu est choisi parmi trente modèles d'après ce qui a été dit, à moins que tu n'imposes le tien ; un compte rendu se réécrit dans un autre format, jusqu'à la transcription complète. Le coût est dit en deux montants et un total, et une lacune est annoncée, jamais comblée."
         },
         "transparencyRegisters": {
           "title": "📋 Registres des actions et des consultations",
@@ -4574,6 +4574,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_42_2": {
+          "title": "v1.42.2 — 📅 Ta semaine de routines, d'un coup d'œil",
+          "date": "Septembre 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📅 Une vue de la semaine au-dessus de tes routines</b> — les heures en descendant, les jours en travers : chaque routine se place à son heure sur ses jours, numérotée dans l'ordre où elle se déclenche, le même numéro sur sa carte. Chaque cellule de la semaine en cours dit ce qui s'est passé : blanc non exécutée, vert exécutée, rouge en erreur, ambre proposée en attente de ton accord, gris en pause. Une routine qui vérifie une condition porte un anneau ; une routine en cours pulse. Clique un numéro pour rejoindre sa carte ; les flèches parcourent la grille. Les couleurs repartent chaque lundi et s'effacent quand tu changes les jours ou l'heure d'une routine.",
+            "i2": "<b>🎙️ Une réunion n'est jamais perdue, son propriétaire jamais bloqué</b> — une réunion dont le compte rendu échouait restait « en traitement » pendant des heures. Le traitement reprend désormais là où il en était (audio normalisé, puis transcription) au lieu de repayer le moteur ; une réunion dont le travailleur a disparu est remise en file, ou classée en échec avec sa raison, et tu peux la supprimer entre-temps. Le détail affiche la tentative sur le budget et la raison de la tentative précédente.",
+            "i3": "<b>🛠️ Des routines qui tiennent parole</b> — la liste ne clignote plus à chaque rafraîchissement (tes panneaux ouverts restent ouverts) ; une routine mise en pause pendant un changement de fuseau se réveille sur ta nouvelle horloge ; et une routine programmée à minuit dans un fuseau dont l'heure saute à minuit ne saute plus cette journée."
+          }
+        },
         "v1_42_1": {
           "title": "v1.42.1 — 🎭 Un visage qui vit entre deux réponses",
           "date": "Septembre 2026",
@@ -7580,7 +7590,7 @@
       "scheduled_actions": {
         "title": "Actions planifiées",
         "description": "Automatise des tâches récurrentes avec LIA",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Qu'est-ce qu'une action planifiée ?",
@@ -7609,6 +7619,10 @@
           "q7": {
             "question": "Puis-je créer des automatisations directement depuis le chat ? (v1.25.13)",
             "answer": "Oui — en une phrase : « fais-moi une revue de presse IA tous les matins de semaine à 8h ». LIA valide la planification et affiche une <strong>carte de confirmation</strong> (titre, jours, heure, instruction) ; rien n'est créé avant ton accord. Tu peux aussi <strong>lister</strong> tes automatisations (« quelles sont mes automatisations ? ») et en <strong>suspendre/réactiver</strong> une en langage naturel.<br><br><strong>💡 Bonus :</strong> si tu demandes le même genre de chose à la même heure plusieurs jours distincts, LIA peut proposer spontanément : « Veux-tu que j'en fasse une automatisation récurrente ? » (détection déterministe, une suggestion max par mois par motif, désactivé par défaut — <code>RECURRENCE_SUGGESTION_ENABLED</code>).<br><br>La suppression d'une automatisation reste une action des Réglages."
+          },
+          "q8": {
+            "question": "Comment lire la vue de la semaine ? (v1.42.2)",
+            "answer": "Au-dessus de la liste, la <strong>Vue de la semaine</strong> dessine tes routines sur une grille : les heures en descendant, les jours en travers (lundi en premier), dans le fuseau horaire nommé à côté. Les routines sont listées par heure de déclenchement et <strong>numérotées</strong> dans cet ordre — le même numéro sur la carte et sur la grille ; une routine en pause garde son numéro, en créer ou en reprogrammer une renumérote les suivantes.<br><br><strong>🎨 Les couleurs de la semaine :</strong> blanc non exécutée (pas encore due, ou rien n'a tourné), vert exécutée, rouge en erreur, ambre proposée en attente de ton accord dans le chat, gris en pause. Un anneau marque une routine dont la condition est vérifiée à cette heure ; une routine en cours d'exécution pulse.<br><br><strong>🔁 Réinitialisation :</strong> les couleurs ne couvrent que la semaine en cours et repartent chaque lundi ; changer les jours ou l'heure d'une routine les efface, puisqu'elles appartenaient aux anciens créneaux. Appuyer sur <strong>Tester</strong> après le créneau du jour le recolore ; avant, non.<br><br><strong>⌨️ Navigation :</strong> clique un numéro pour rejoindre la carte de la routine ; la grille est un seul arrêt de tabulation et les flèches la parcourent."
           }
         }
       },
@@ -8435,6 +8449,10 @@
       "mail_label_source": {
         "title": "Un libellé, et c’est dedans",
         "desc": "Posez un libellé Gmail sur un fil : il devient un document de l’espace. Retirez le libellé, le document s’en va."
+      },
+      "week_grid": {
+        "title": "Votre semaine, sur une grille",
+        "desc": "Les heures en descendant, les jours en travers : chaque routine se place à son heure, numérotée dans l’ordre où elle se déclenche. Une cellule passe au vert quand elle a tourné, au rouge quand elle a échoué, à l’ambre tant qu’elle vous attend — et repart le lundi."
       }
     },
     "scenes": {
@@ -9346,7 +9364,32 @@
       "custom": "{{days}} à {{time}}"
     },
     "next_run": "Prochaine exécution",
-    "next_evaluation": "Prochaine évaluation"
+    "next_evaluation": "Prochaine évaluation",
+    "number_aria": "Routine {{n}}",
+    "timeline": {
+      "title": "Vue de la semaine",
+      "description": "Vos routines par jour et par heure, avec les résultats de la semaine",
+      "caption": "Planning hebdomadaire de vos routines, heures en {{zone}}",
+      "hours_in_zone": "Heures en {{zone}}",
+      "zones_mixed": "Routines dans plusieurs fuseaux horaires : chaque pastille est placée à l'heure locale de son propre fuseau",
+      "hour_header": "Heure",
+      "today": "Aujourd'hui",
+      "unavailable": "Les états d'exécution de la semaine sont indisponibles. Le planning reste affiché.",
+      "chip_aria": "{{n}}, {{title}}, {{time}}, {{state}}",
+      "condition_kind": "Condition vérifiée à cette heure",
+      "run_at": "Exécutée {{when}}",
+      "legend_title": "Légende",
+      "state": {
+        "idle": "Non exécutée",
+        "success": "Exécutée",
+        "failure": "En erreur",
+        "proposed": "Proposée, en attente de votre accord",
+        "paused": "En pause",
+        "skipped_condition": "Condition non remplie",
+        "skipped_hitl": "Ignorée, une validation était en attente dans le chat",
+        "executing": "En cours d'exécution"
+      }
+    }
   },
   "landing": {
     "meta": {
@@ -9533,7 +9576,7 @@
       },
       "reminders_scheduling": {
         "title": "Rappels & automatisations",
-        "description": "Programme des rappels en langage naturel (\"Rappelle-moi demain à 9h d'appeler Marie\"). Planifie des actions récurrentes automatiques (résumé emails du lundi, météo du matin...). Un rappel qui arrive à échéance alors que ton quota est atteint est remis en file — jamais perdu. Les routines peuvent désormais attendre une condition — une tâche qui passe en retard, un mail qui correspond, la météo qui change, un document ajouté, un événement qui approche — et proposer avant d'agir si tu le souhaites."
+        "description": "Programme des rappels en langage naturel (\"Rappelle-moi demain à 9h d'appeler Marie\"). Planifie des actions récurrentes automatiques (résumé emails du lundi, météo du matin...). Un rappel qui arrive à échéance alors que ton quota est atteint est remis en file — jamais perdu. Les routines peuvent désormais attendre une condition — une tâche qui passe en retard, un mail qui correspond, la météo qui change, un document ajouté, un événement qui approche — et proposer avant d'agir si tu le souhaites. Une vue de la semaine étale les routines, heures en descendant et jours en travers, chaque cellule de la semaine en cours colorée par ce qui s'est passé."
       },
       "memory": {
         "title": "Mémoire contextuelle",
@@ -11793,6 +11836,9 @@
       "cost": "Coût",
       "progress_title": "Préparation du compte rendu",
       "processing_hint": "Cela peut prendre quelques minutes pour une longue réunion. Tu seras prévenu dans le chat quand le compte rendu sera prêt.",
+      "attempt_of": "Tentative {{attempt}} sur {{max}}",
+      "previous_attempt": "Tentative précédente :",
+      "worker_stale_hint": "Le traitement ne répond plus. Il sera repris automatiquement ; tu peux aussi supprimer la réunion.",
       "failed_title": "Le compte rendu n'a pas pu être produit",
       "minutes_title": "Compte rendu",
       "edited_badge": "Modifié",
@@ -11973,6 +12019,7 @@
       "unknown": "Erreur inconnue ({{code}})",
       "usage_limit": "Ta limite d'utilisation est atteinte.",
       "user_missing": "Le compte n'existe plus.",
+      "worker_lost": "Le traitement a cessé de répondre et il ne restait plus de tentative.",
       "template_locked": "Le format ne peut pas changer pendant la rédaction du compte rendu.",
       "template_not_found": "Ce modèle n'existe plus.",
       "template_readonly": "Un modèle intégré ne peut pas être modifié ; dupliquez-le d'abord.",

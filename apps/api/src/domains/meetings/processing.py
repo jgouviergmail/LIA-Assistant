@@ -20,9 +20,11 @@ the reaper to re-drive within the attempt budget; permanent ones dead-letter.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -41,6 +43,14 @@ from src.domains.meetings.audio_store import (
 )
 from src.domains.meetings.engine import ResolvedEngine, resolve_engine
 from src.domains.meetings.enrichment import CalendarMatch, match_calendar_event, place_label
+from src.domains.meetings.error_codes import (
+    ERROR_AUDIO_UNAVAILABLE,
+    ERROR_NO_ENGINE,
+    ERROR_NORMALIZE,
+    ERROR_SYNTHESIS,
+    ERROR_UNEXPECTED,
+    ERROR_USAGE_LIMIT,
+)
 from src.domains.meetings.models import (
     Meeting,
     MeetingAudioFormat,
@@ -63,6 +73,7 @@ from src.domains.meetings.templates import sections_to_json
 from src.domains.meetings.transcription import (
     TranscriptionError,
     TranscriptionOutcome,
+    outcome_from_row,
     transcribe_with_fallback,
 )
 from src.infrastructure.async_utils import safe_fire_and_forget
@@ -79,13 +90,6 @@ from src.infrastructure.observability.metrics_meetings import (
 )
 
 logger = structlog.get_logger(__name__)
-
-#: Error codes stored on the row (``last_error_code``) — the frontend maps them.
-ERROR_USAGE_LIMIT = "usage_limit"
-ERROR_NO_ENGINE = "no_engine_available"
-ERROR_NORMALIZE = "audio_normalize_failed"
-ERROR_SYNTHESIS = "synthesis_failed"
-ERROR_UNEXPECTED = "unexpected"
 
 
 class LeaseLostError(RuntimeError):
@@ -165,12 +169,16 @@ class _Job:
         self.stage_started = time.monotonic()
         self.stage: MeetingStage = MeetingStage.NORMALIZING
 
-    async def heartbeat(self, repo: MeetingRepository) -> None:
+    async def heartbeat(
+        self, repo: MeetingRepository, values: Mapping[str, Any] | None = None
+    ) -> None:
+        """Renew the lease; with ``values``, checkpoint what the stage just acquired."""
         alive = await repo.heartbeat(
             self.meeting_id,
             worker_id=self.worker_id,
             lease_ttl_s=settings.meetings_job_lease_ttl_seconds,
             stage=self.stage,
+            values=values,
         )
         if not alive:
             raise LeaseLostError(f"lease lost on meeting {self.meeting_id}")
@@ -212,6 +220,94 @@ async def _normalize(job: _Job, meeting: Meeting) -> tuple[str, float, int]:
     except AudioStorageError as exc:
         logger.warning("meeting_segments_purge_failed", meeting_id=str(meeting.id), error=str(exc))
     return job.store.relative(path), duration, gaps
+
+
+def _audio_checkpoint(audio_path: str, duration: float, gaps: int) -> dict[str, Any]:
+    """The columns the normalizing stage acquires — checkpointed, then part of completion."""
+    return {"audio_path": audio_path, "audio_duration_seconds": duration, "audio_gaps": gaps}
+
+
+def _transcript_checkpoint(outcome: TranscriptionOutcome) -> dict[str, Any]:
+    """The columns the transcribing stage acquires — checkpointed, then part of completion."""
+    return {
+        "stt_provider": outcome.provider,
+        "stt_model": outcome.model,
+        "stt_detected_language": outcome.language_code,
+        "stt_diarized": outcome.diarized,
+        "stt_audio_seconds": outcome.audio_duration_seconds,
+        "stt_cost_eur": outcome.cost_eur,
+        "transcript_encrypted": encrypt_data(
+            json.dumps([turn.model_dump() for turn in outcome.turns])
+        ),
+        "transcript_deleted_at": None,
+    }
+
+
+async def _acquire_audio(
+    job: _Job, repo: MeetingRepository, meeting: Meeting
+) -> tuple[str, float, int] | None:
+    """The normalized audio: the checkpoint when its file is still there, else ffmpeg.
+
+    A previous attempt purged the segments after normalizing and checkpointed
+    the result; this attempt reuses it. With no checkpointed file AND no
+    segment on disk there is nothing to process and never will be: the meeting
+    is dead-lettered as ``audio_unavailable`` rather than spending its retry
+    budget on ffmpeg over nothing. Returns ``None`` in that case.
+    """
+    if meeting.audio_path:
+        normalized = job.store.absolute(meeting.audio_path)
+        if await asyncio.to_thread(os.path.exists, normalized):
+            return (
+                meeting.audio_path,
+                float(meeting.audio_duration_seconds or 0.0),
+                int(meeting.audio_gaps or 0),
+            )
+    if not await job.store.list_sequences(meeting.user_id, meeting.id):
+        await _fail(repo, job, code=ERROR_AUDIO_UNAVAILABLE, message="", transient=False)
+        return None
+    audio_path, duration, gaps = await _normalize(job, meeting)
+    await job.heartbeat(repo, _audio_checkpoint(audio_path, duration, gaps))
+    return audio_path, duration, gaps
+
+
+async def _acquire_transcript(
+    job: _Job,
+    repo: MeetingRepository,
+    meeting: Meeting,
+    *,
+    engine_preference: MeetingSttEnginePreference,
+    audio_path: str,
+    duration: float,
+    language_hint: str | None,
+) -> TranscriptionOutcome:
+    """The transcription: the checkpoint when the transcript is still there, else the engines.
+
+    The chain is walked at PROCESSING time: a provider whose key is refused
+    hands over to the next engine instead of dead-lettering the meeting. A fresh
+    transcription is checkpointed on the row before the synthesis starts, so a
+    synthesis failure never pays the engine twice.
+    """
+    reused = outcome_from_row(meeting)
+    if reused is not None:
+        return reused
+
+    async def _pulse() -> None:
+        await job.heartbeat(repo)
+
+    outcome = await transcribe_with_fallback(
+        engine_preference,
+        audio_path=job.store.absolute(audio_path),
+        mime_type=normalized_mime_type(meeting.audio_format),
+        duration_seconds=duration,
+        language_hint=language_hint,
+        user_id=meeting.user_id,
+        heartbeat=_pulse,
+    )
+    meeting_stt_audio_seconds_total.labels(provider=outcome.provider.value).inc(
+        outcome.audio_duration_seconds
+    )
+    await job.heartbeat(repo, _transcript_checkpoint(outcome))
+    return outcome
 
 
 async def _enrich(
@@ -270,20 +366,9 @@ def _completion_values(
 ) -> dict[str, Any]:
     report = synthesis.report.model_dump(mode="json")
     return {
-        "audio_path": audio_path,
-        "audio_duration_seconds": duration,
-        "audio_gaps": gaps,
+        **_audio_checkpoint(audio_path, duration, gaps),
+        **_transcript_checkpoint(outcome),
         "keep_audio_until": keep_audio_until,
-        "stt_provider": outcome.provider,
-        "stt_model": outcome.model,
-        "stt_detected_language": outcome.language_code,
-        "stt_diarized": outcome.diarized,
-        "stt_audio_seconds": outcome.audio_duration_seconds,
-        "stt_cost_eur": outcome.cost_eur,
-        "transcript_encrypted": encrypt_data(
-            json.dumps([turn.model_dump() for turn in outcome.turns])
-        ),
-        "transcript_deleted_at": None,
         "calendar_event_id": calendar.event_id if calendar else meeting.calendar_event_id,
         "calendar_provider": calendar.provider if calendar else meeting.calendar_provider,
         "location_label": location_label,
@@ -511,6 +596,23 @@ async def _fail(
     )
 
 
+async def _fail_guarded(
+    repo: MeetingRepository, job: _Job, *, code: str, message: str, transient: bool
+) -> None:
+    """``_fail``, with the transition's own failure logged and counted, never raised.
+
+    The row then stays ``processing`` under its lease and the reaper requeues or
+    dead-letters it once the lease expires: with no working database there is
+    nothing better to do from here, and a coroutine dying with a one-line log
+    is what hid the 2026-09-05 incident.
+    """
+    try:
+        await _fail(repo, job, code=code, message=message, transient=transient)
+    except Exception:  # noqa: BLE001 — a PROCESSING row must never take its worker down
+        meeting_failures_total.labels(reason="transition_failed").inc()
+        logger.exception("meeting_transition_failed", meeting_id=str(job.meeting_id), code=code)
+
+
 async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) -> None:
     """The claimed job, start to ``ready``. Raises for the caller to classify."""
     from src.domains.usage_limits.service import UsageLimitService
@@ -540,29 +642,22 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     # condense passes and the synthesis add up to what the minutes cost.
     capture = TokenCaptureHandler()
 
-    # 1. normalizing
-    audio_path, duration, gaps = await _normalize(job, meeting)
-    await job.heartbeat(repo)
+    # 1. normalizing — reused from the checkpoint when its file is still there
+    acquired = await _acquire_audio(job, repo, meeting)
+    if acquired is None:
+        return
+    audio_path, duration, gaps = acquired
 
-    # 2. transcribing
+    # 2. transcribing — reused from the checkpoint when the transcript is still there
     await job.enter_stage(repo, MeetingStage.TRANSCRIBING)
-
-    async def _pulse() -> None:
-        await job.heartbeat(repo)
-
-    # The chain is walked at PROCESSING time: a provider whose key is refused
-    # hands over to the next engine instead of dead-lettering the meeting.
-    outcome = await transcribe_with_fallback(
-        engine_preference,
-        audio_path=job.store.absolute(audio_path),
-        mime_type=normalized_mime_type(meeting.audio_format),
-        duration_seconds=duration,
+    outcome = await _acquire_transcript(
+        job,
+        repo,
+        meeting,
+        engine_preference=engine_preference,
+        audio_path=audio_path,
+        duration=duration,
         language_hint=_language_hint(preference, meeting),
-        user_id=meeting.user_id,
-        heartbeat=_pulse,
-    )
-    meeting_stt_audio_seconds_total.labels(provider=outcome.provider.value).inc(
-        outcome.audio_duration_seconds
     )
 
     # 3. synthesizing (enrichment first — both are hints for the same call)
@@ -669,11 +764,13 @@ async def process_meeting(meeting_id: UUID) -> None:
         except LeaseLostError as exc:
             logger.warning("meeting_lease_lost", meeting_id=str(meeting_id), error=str(exc))
         except AudioStorageError as exc:
-            await _fail(repo, job, code=ERROR_NORMALIZE, message=str(exc), transient=True)
+            await _fail_guarded(repo, job, code=ERROR_NORMALIZE, message=str(exc), transient=True)
         except TranscriptionError as exc:
-            await _fail(repo, job, code=exc.code, message=exc.message, transient=exc.transient)
+            await _fail_guarded(
+                repo, job, code=exc.code, message=exc.message, transient=exc.transient
+            )
         except StructuredOutputError as exc:
-            await _fail(repo, job, code=ERROR_SYNTHESIS, message=str(exc), transient=True)
+            await _fail_guarded(repo, job, code=ERROR_SYNTHESIS, message=str(exc), transient=True)
         except Exception as exc:  # noqa: BLE001 — a PROCESSING row must never be left hanging
             logger.exception("meeting_processing_unexpected", meeting_id=str(meeting_id))
-            await _fail(repo, job, code=ERROR_UNEXPECTED, message=str(exc), transient=True)
+            await _fail_guarded(repo, job, code=ERROR_UNEXPECTED, message=str(exc), transient=True)

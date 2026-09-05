@@ -36,10 +36,16 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_SESSION_PREFIX,
     SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH,
 )
+from src.core.time_utils import now_utc
 from src.core.user_display import resolve_user_display_name
 
 # CRITICAL: Import model at module level to register with SQLAlchemy metadata
-from src.domains.scheduled_actions.models import ScheduledAction, TriggerKind  # noqa: F401
+from src.domains.scheduled_actions.models import (  # noqa: F401
+    ScheduledAction,
+    ScheduledRunOutcome,
+    TriggerKind,
+)
+from src.domains.scheduled_actions.runs import record_run
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
@@ -191,6 +197,11 @@ async def execute_single_action(
         ):
             return ""
 
+        # ADR-265: the run history needs the instant the tick started and the
+        # slot it was due for, both read BEFORE any branch re-arms the row.
+        started_at = now_utc()
+        due_at = action.next_trigger_at
+
         user_language = user.language or settings.default_language
         user_timezone = user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE
         user_display_name = resolve_user_display_name(user.full_name, user.email)
@@ -222,6 +233,14 @@ async def execute_single_action(
                     due_at=action.next_trigger_at,
                 )
                 await repo.reschedule(action, next_trigger)
+                await record_run(
+                    db,
+                    action,
+                    due_at=due_at,
+                    started_at=started_at,
+                    outcome=ScheduledRunOutcome.SKIPPED_CONDITION,
+                    attempts=0,
+                )
                 await db.commit()
                 logger.info(
                     "scheduled_action_condition_skipped",
@@ -258,6 +277,14 @@ async def execute_single_action(
                 due_at=action.next_trigger_at,
             )
             await repo.reschedule(action, next_trigger, condition_state=new_condition_state)
+            await record_run(
+                db,
+                action,
+                due_at=due_at,
+                started_at=started_at,
+                outcome=ScheduledRunOutcome.PROPOSED,
+                attempts=0,
+            )
             await db.commit()
             logger.info(
                 "scheduled_action_approval_proposed",
@@ -299,6 +326,14 @@ async def execute_single_action(
                     due_at=action.next_trigger_at,
                 )
                 await repo.mark_execution_success(action, next_trigger)
+                await record_run(
+                    db,
+                    action,
+                    due_at=due_at,
+                    started_at=started_at,
+                    outcome=ScheduledRunOutcome.SKIPPED_HITL,
+                    attempts=0,
+                )
                 await db.commit()
                 return ""
         except Exception as guard_err:
@@ -385,6 +420,14 @@ async def execute_single_action(
                 await repo.mark_execution_success(
                     action, next_trigger, condition_state=new_condition_state
                 )
+                await record_run(
+                    db,
+                    action,
+                    due_at=due_at,
+                    started_at=started_at,
+                    outcome=ScheduledRunOutcome.SUCCESS,
+                    attempts=attempt,
+                )
 
                 logger.info(
                     "scheduled_action_executed_success",
@@ -454,6 +497,15 @@ async def execute_single_action(
                 next_trigger,
                 max_consecutive_failures=SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES,
             )
+            await record_run(
+                db,
+                action,
+                due_at=due_at,
+                started_at=started_at,
+                outcome=ScheduledRunOutcome.FAILURE,
+                attempts=attempt,
+                error=error_msg,
+            )
             logger.warning(
                 "scheduled_action_failed_after_retries",
                 action_id=str(action_id),
@@ -519,6 +571,32 @@ async def execute_single_action(
     return response_content
 
 
+async def _purge_run_history() -> int:
+    """Drop run rows older than the retention; best effort, never raises.
+
+    Returns:
+        How many rows went (0 when nothing was old enough or the purge failed).
+    """
+    from datetime import timedelta
+
+    from src.domains.scheduled_actions.run_repository import ScheduledActionRunRepository
+    from src.infrastructure.database.session import get_db_context
+
+    cutoff = now_utc() - timedelta(days=settings.scheduled_actions_runs_retention_days)
+    try:
+        async with get_db_context() as db:
+            purged = await ScheduledActionRunRepository(db).purge_older_than(cutoff)
+            await db.commit()
+            return purged
+    except Exception as exc:
+        logger.warning(
+            "scheduled_action_runs_purge_failed",
+            error=str(exc)[:200],
+            error_type=type(exc).__name__,
+        )
+        return 0
+
+
 async def process_scheduled_actions() -> dict[str, Any]:
     """
     Scheduler job: process all due scheduled actions.
@@ -526,8 +604,10 @@ async def process_scheduled_actions() -> dict[str, Any]:
     Runs every 60s via APScheduler. Pattern:
     1. Recover stale 'executing' actions (crash recovery)
     2. Get and lock due actions (FOR UPDATE SKIP LOCKED)
-    3. Execute each action sequentially
+    3. Execute each action with bounded concurrency
     4. Track metrics
+
+    Step 0, before all of these: purge run-history rows past their retention.
 
     Single execution is guaranteed WITHOUT a Redis SchedulerLock (F003): the
     scheduler runs on a single leader-elected worker (``SchedulerLeaderElector``),
@@ -549,11 +629,18 @@ async def process_scheduled_actions() -> dict[str, Any]:
         "failed": 0,
         "skipped": 0,
         "recovered": 0,
+        "runs_purged": 0,
     }
 
     try:
         from src.domains.scheduled_actions.repository import ScheduledActionRepository
         from src.infrastructure.database.session import get_db_context
+
+        # 0. Retention of the run history (ADR-265): inside this tick rather
+        # than a job of its own — no new interval to jitter, no new lock — in
+        # its OWN session so a failed DELETE cannot poison the batch, and
+        # BEFORE the empty-batch early return, which is the common tick.
+        stats["runs_purged"] = await _purge_run_history()
 
         async with get_db_context() as db:
             repo = ScheduledActionRepository(db)

@@ -32,6 +32,7 @@ describe('TelemetryBootstrap', () => {
   });
 
   it('TrackView stays inert when the flag is off', () => {
+    vi.stubEnv('NEXT_PUBLIC_PRODUCT_TELEMETRY', '');
     vi.stubGlobal('fetch', fetchMock);
     render(<TrackView event="landing_view" />);
     expect(fetchMock).not.toHaveBeenCalled();

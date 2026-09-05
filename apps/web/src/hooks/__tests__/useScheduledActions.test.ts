@@ -31,9 +31,14 @@ import {
   AUTO_REFRESH_INTERVAL_MS,
   EXECUTING_REFRESH_INTERVAL_MS,
 } from '../useScheduledActions';
-import type { ScheduledAction, ScheduledActionListResponse } from '@/hooks/useScheduledActions';
+import type {
+  ScheduledAction,
+  ScheduledActionListResponse,
+  ScheduledActionWeekResponse,
+} from '@/hooks/useScheduledActions';
 
 const ENDPOINT = '/scheduled-actions';
+const WEEK_ENDPOINT = '/scheduled-actions/week';
 
 function action(over: Partial<ScheduledAction> = {}): ScheduledAction {
   return {
@@ -74,14 +79,54 @@ const ORDER = [mutate.create, mutate.update, mutate.remove, mutate.toggle, mutat
 
 const setData = setDataSpy<ScheduledActionListResponse>();
 const refetch = vi.fn();
+const refetchWeek = vi.fn();
+
+function weekPayload(): ScheduledActionWeekResponse {
+  return {
+    actions: [
+      {
+        id: 'a1',
+        timezone: 'Europe/Paris',
+        week_start: '2026-07-20',
+        today: 3,
+        cells: [
+          {
+            day: 1,
+            date: '2026-07-20',
+            slot_at: '2026-07-20T06:00:00Z',
+            outcome: 'success',
+            run_at: '2026-07-20T06:00:04Z',
+            error: null,
+            manual: false,
+          },
+        ],
+      },
+    ],
+    generated_at: '2026-07-22T10:00:00Z',
+  };
+}
 
 function cache(over: Partial<ScheduledActionListResponse> = {}): ScheduledActionListResponse {
   return { scheduled_actions: [action()], total: 1, ...over };
 }
 
 /** Explicit form: `undefined` here really means "no payload yet". */
-function setupWith(data: ScheduledActionListResponse | undefined) {
-  useApiQuery.mockReturnValue(queryResult<ScheduledActionListResponse>({ data, setData, refetch }));
+function setupWith(
+  data: ScheduledActionListResponse | undefined,
+  options: { loading?: boolean; week?: unknown } = {}
+) {
+  // Two queries, one hook: the double answers by endpoint, so the list and
+  // the week never share a payload or a refetch spy.
+  useApiQuery.mockImplementation((endpoint: string) =>
+    endpoint === WEEK_ENDPOINT
+      ? queryResult({ data: options.week, refetch: refetchWeek })
+      : queryResult<ScheduledActionListResponse>({
+          data,
+          loading: options.loading ?? false,
+          setData,
+          refetch,
+        })
+  );
   return renderHook(() => useScheduledActions());
 }
 
@@ -283,10 +328,12 @@ describe('useScheduledActions — auto refresh', () => {
 
     vi.advanceTimersByTime(AUTO_REFRESH_INTERVAL_MS);
     expect(refetch).toHaveBeenCalledTimes(1);
+    expect(refetchWeek).toHaveBeenCalledTimes(1);
 
     unmount();
     vi.advanceTimersByTime(AUTO_REFRESH_INTERVAL_MS * 4);
     expect(refetch).toHaveBeenCalledTimes(1);
+    expect(refetchWeek).toHaveBeenCalledTimes(1);
   });
 
   it('speeds up while a run is executing', () => {
@@ -295,6 +342,7 @@ describe('useScheduledActions — auto refresh', () => {
 
     vi.advanceTimersByTime(EXECUTING_REFRESH_INTERVAL_MS);
     expect(refetch).toHaveBeenCalledTimes(1);
+    expect(refetchWeek).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the resting cadence when nothing is executing', () => {
@@ -303,5 +351,89 @@ describe('useScheduledActions — auto refresh', () => {
 
     vi.advanceTimersByTime(EXECUTING_REFRESH_INTERVAL_MS);
     expect(refetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('useScheduledActions — the week (ADR-265)', () => {
+  it('asks for the week and exposes it when the payload has its shape', () => {
+    const { result } = setupWith(cache(), { week: weekPayload() });
+
+    expect(useApiQuery).toHaveBeenCalledWith(WEEK_ENDPOINT, expect.objectContaining({}));
+    expect(result.current.week?.actions[0]?.cells[0]?.outcome).toBe('success');
+  });
+
+  it('reads a list-shaped answer on /week as unavailable, never as data', () => {
+    // A hermetic mock answering `**\/scheduled-actions**` with the list
+    // payload answers `/week` with it too.
+    const { result } = setupWith(cache(), { week: cache() });
+
+    expect(result.current.week).toBeNull();
+  });
+
+  it('has no week before the first answer', () => {
+    const { result } = setupWith(cache(), { week: undefined });
+    expect(result.current.week).toBeNull();
+  });
+
+  it.each([
+    [
+      'create',
+      async (h: ReturnType<typeof useScheduledActions>) =>
+        h.createAction({
+          title: 't',
+          action_prompt: 'p',
+          days_of_week: [1],
+          trigger_hour: 8,
+          trigger_minute: 0,
+        }),
+    ],
+    [
+      'update',
+      async (h: ReturnType<typeof useScheduledActions>) => h.updateAction('a1', { title: 't' }),
+    ],
+    ['delete', async (h: ReturnType<typeof useScheduledActions>) => h.deleteAction('a1')],
+    ['toggle', async (h: ReturnType<typeof useScheduledActions>) => h.toggleAction('a1')],
+  ])('%s refetches the week, since a change moves the slots', async (_label, run) => {
+    Object.values(mutate).forEach(m => m.mockResolvedValue(action()));
+    const { result } = setup();
+
+    await act(async () => {
+      await run(result.current);
+    });
+
+    expect(refetchWeek).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the week alone when the creation is refused', async () => {
+    mutate.create.mockResolvedValue(undefined);
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.createAction({
+        title: 't',
+        action_prompt: 'p',
+        days_of_week: [1],
+        trigger_hour: 8,
+        trigger_minute: 0,
+      });
+    });
+
+    expect(refetchWeek).not.toHaveBeenCalled();
+  });
+});
+
+describe('useScheduledActions — the first load is not a refresh', () => {
+  it('is loading initially only while nothing has answered yet', () => {
+    const { result } = setupWith(undefined, { loading: true });
+    expect(result.current.initialLoading).toBe(true);
+    expect(result.current.loading).toBe(true);
+  });
+
+  it('is a refresh, not a first load, once a list has answered', () => {
+    // A poll raises `loading` again; the section must not swap its cards for
+    // a spinner on the strength of that.
+    const { result } = setupWith(cache(), { loading: true });
+    expect(result.current.initialLoading).toBe(false);
+    expect(result.current.loading).toBe(true);
   });
 });

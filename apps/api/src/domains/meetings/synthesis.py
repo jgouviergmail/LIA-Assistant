@@ -18,11 +18,12 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import structlog
 from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.core.config import settings
 from src.core.constants import (
@@ -84,6 +85,15 @@ class SynthesizedAction(BaseModel):
     due_date: str | None = Field(default=None, description="Absolute date YYYY-MM-DD, or null.")
 
 
+def _none_as_empty_list(value: Any) -> Any:
+    """``null`` on a list the model had nothing to put in means « none » (2026-09-05).
+
+    A model that fills every property of the tool schema writes ``null`` where
+    a section has no bullets; refusing it threw a complete answer away.
+    """
+    return [] if value is None else value
+
+
 class SynthesizedSection(BaseModel):
     """One template section, filled in the shape its kind asks for."""
 
@@ -95,6 +105,10 @@ class SynthesizedSection(BaseModel):
         default_factory=list, description="For 'action_items'."
     )
 
+    none_lists_as_empty = field_validator("bullets", "topics", "action_items", mode="before")(
+        _none_as_empty_list
+    )
+
 
 class SynthesizedMinutes(BaseModel):
     """The model's answer: header fields + one entry per template section."""
@@ -102,6 +116,10 @@ class SynthesizedMinutes(BaseModel):
     title: str = Field(description="Short, specific meeting title.")
     participants: list[SynthesizedParticipant] = Field(default_factory=list)
     sections: list[SynthesizedSection] = Field(default_factory=list)
+
+    none_lists_as_empty = field_validator("participants", "sections", mode="before")(
+        _none_as_empty_list
+    )
 
 
 class CondensedNotes(BaseModel):

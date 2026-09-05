@@ -8,14 +8,16 @@ clock is the database clock (``now()``) on both sides of every comparison.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import case, func, select, text, update
+from sqlalchemy import case, delete, func, literal, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
+from src.domains.meetings.error_codes import ERROR_WORKER_LOST
 from src.domains.meetings.models import (
     Meeting,
     MeetingIndexState,
@@ -33,6 +35,18 @@ LIVE_STATUSES: tuple[MeetingStatus, ...] = (MeetingStatus.RECORDING, MeetingStat
 def _lease_from_now(ttl_seconds: int) -> Any:
     """``now() + ttl`` as a database expression (single clock)."""
     return func.now() + text(":ttl * interval '1 second'").bindparams(ttl=ttl_seconds)
+
+
+def _status_literal(status: MeetingStatus) -> Any:
+    """``status`` as a bind that carries the column's type.
+
+    A bare enum member inside a SQL expression (``case()``, ``coalesce()``…) is
+    bound as ``NullType``: no bind processor runs, the member's VALUE reaches the
+    database while the ``native_enum=False`` column stores its NAME, and the
+    ``RETURNING`` read fails. Measured in production on 2026-09-05 — the
+    transition rolled back and the meeting stayed ``processing`` for good.
+    """
+    return literal(status, Meeting.status.type)
 
 
 class MeetingRepository(BaseRepository[Meeting]):
@@ -181,9 +195,21 @@ class MeetingRepository(BaseRepository[Meeting]):
         return bool(result.rowcount)  # type: ignore[attr-defined]
 
     async def heartbeat(
-        self, meeting_id: UUID, *, worker_id: str, lease_ttl_s: int, stage: MeetingStage
+        self,
+        meeting_id: UUID,
+        *,
+        worker_id: str,
+        lease_ttl_s: int,
+        stage: MeetingStage,
+        values: Mapping[str, Any] | None = None,
     ) -> bool:
-        """Renew the lease and publish the stage if this worker still holds the job."""
+        """Renew the lease and publish the stage if this worker still holds the job.
+
+        ``values`` is a CHECKPOINT: the columns a stage just acquired (the
+        normalized audio, the transcript). They travel in the same conditional
+        statement as the lease renewal, so a worker that lost the job writes
+        nothing — and a later claim reads them before spending anything again.
+        """
         stmt = (
             update(Meeting)
             .where(
@@ -195,6 +221,7 @@ class MeetingRepository(BaseRepository[Meeting]):
                 lease_expires_at=_lease_from_now(lease_ttl_s),
                 heartbeat_at=func.now(),
                 stage=stage,
+                **dict(values or {}),
             )
             .execution_options(synchronize_session=False)
         )
@@ -239,8 +266,8 @@ class MeetingRepository(BaseRepository[Meeting]):
             .where(Meeting.id == meeting_id, Meeting.status == MeetingStatus.PROCESSING)
             .values(
                 status=case(
-                    (Meeting.attempts >= max_attempts, MeetingStatus.FAILED),
-                    else_=MeetingStatus.STOPPED,
+                    (Meeting.attempts >= max_attempts, _status_literal(MeetingStatus.FAILED)),
+                    else_=_status_literal(MeetingStatus.STOPPED),
                 ),
                 stage=None,
                 lease_expires_at=None,
@@ -304,20 +331,43 @@ class MeetingRepository(BaseRepository[Meeting]):
         await self.db.commit()
         return bool(result.rowcount)  # type: ignore[attr-defined]
 
-    async def requeue_expired_leases(self) -> int:
-        """``processing → stopped`` for jobs whose worker stopped heartbeating."""
+    async def requeue_expired_leases(self, max_attempts: int) -> tuple[int, int]:
+        """Jobs whose worker stopped heartbeating: ``→ stopped``, or ``→ failed`` past the budget.
+
+        ``attempts`` was incremented by the claim the dead worker made: a row that
+        already spent ``max_attempts`` claims is dead-lettered here with
+        ``worker_lost`` rather than re-driven into one more attempt the budget
+        does not have.
+
+        Returns:
+            ``(requeued, dead_lettered)``.
+        """
+        exhausted = Meeting.attempts >= max_attempts
         stmt = (
             update(Meeting)
             .where(
                 Meeting.status == MeetingStatus.PROCESSING,
                 (Meeting.lease_expires_at.is_(None)) | (Meeting.lease_expires_at < func.now()),
             )
-            .values(status=MeetingStatus.STOPPED, stage=None, lease_expires_at=None, worker_id=None)
+            .values(
+                status=case(
+                    (exhausted, _status_literal(MeetingStatus.FAILED)),
+                    else_=_status_literal(MeetingStatus.STOPPED),
+                ),
+                stage=None,
+                lease_expires_at=None,
+                worker_id=None,
+                last_error_code=case((exhausted, ERROR_WORKER_LOST), else_=Meeting.last_error_code),
+                last_error_message=case((exhausted, ""), else_=Meeting.last_error_message),
+            )
+            .returning(Meeting.status)
             .execution_options(synchronize_session=False)
         )
         result = await self.db.execute(stmt)
+        statuses = [row[0] for row in result.all()]
         await self.db.commit()
-        return int(result.rowcount or 0)  # type: ignore[attr-defined]
+        dead_lettered = sum(1 for status in statuses if status is MeetingStatus.FAILED)
+        return len(statuses) - dead_lettered, dead_lettered
 
     async def fetch_stopped_orphans(self, grace_seconds: int, limit: int) -> list[UUID]:
         """Stopped meetings nobody is processing after ``grace_seconds`` — re-drive them.
@@ -540,12 +590,36 @@ class MeetingRepository(BaseRepository[Meeting]):
 
     # --------------------------------------------------------- audio purge
 
+    async def delete_unless_leased(self, meeting_id: UUID) -> bool:
+        """Delete the row unless a worker holds a LIVE lease on it.
+
+        The database clock decides: a ``processing`` row whose lease is absent or
+        past is nobody's work and goes; one under a live lease stays (the caller
+        answers ``meeting_in_progress``). True iff the row was deleted.
+        """
+        stmt = (
+            delete(Meeting)
+            .where(
+                Meeting.id == meeting_id,
+                (Meeting.status != MeetingStatus.PROCESSING)
+                | (Meeting.lease_expires_at.is_(None))
+                | (Meeting.lease_expires_at < func.now()),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        result = await self.db.execute(stmt)
+        return bool(result.rowcount)  # type: ignore[attr-defined]
+
     async def fetch_audio_to_purge(self, limit: int) -> list[Meeting]:
-        """Terminal meetings whose audio outlived its retention."""
+        """READY meetings whose audio outlived its retention.
+
+        A ``failed`` meeting is never offered: its audio is what a retry needs,
+        and it stays until its owner deletes the meeting.
+        """
         result = await self.db.execute(
             select(Meeting)
             .where(
-                Meeting.status.in_((MeetingStatus.READY, MeetingStatus.FAILED)),
+                Meeting.status == MeetingStatus.READY,
                 Meeting.audio_path.is_not(None),
                 Meeting.audio_purged_at.is_(None),
                 (Meeting.keep_audio_until.is_(None)) | (Meeting.keep_audio_until < func.now()),

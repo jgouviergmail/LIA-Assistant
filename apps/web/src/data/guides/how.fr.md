@@ -6,7 +6,7 @@
 
 **Version** : 4.8
 **Date** : 2026-08-23
-**Application** : LIA v1.42.1
+**Application** : LIA v1.42.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 535 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 263 ADRs, ~24 053 tests collectés par pytest sur 1 452 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 264 ADRs, ~24 053 tests collectés par pytest sur 1 452 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -87,7 +87,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | 24 053 collectés par pytest sur 1 452 fichiers de test + 7 305 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 263 |
+| ADRs (Architecture Decision Records) | 264 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -827,6 +827,8 @@ Le même nœud émet aussi jusqu'à 3 **puces de suivi** — de courtes demandes
 
 APScheduler avec leader election Redis (SETNX, TTL 120s, recheck 5s). `FOR UPDATE SKIP LOCKED` pour isolation. Auto-approve des plans (`plan_approved=True` injecté dans le state). Auto-disable après 5 échecs consécutifs. Retry sur erreurs transitoires.
 
+Chaque tick se termine par une ligne dans un **historique des exécutions**, écrite au résultat dans la transaction du marquage — cinq issues, une par sortie de l'exécuteur, dans un savepoint et jamais bloquante pour la routine. La semaine en cours de chaque routine se calcule côté serveur avec le moteur cron qui arme les runs : une cellule prend la dernière exécution dont l'instant servi est **égal** à celui du créneau, jamais une fenêtre de tolérance, si bien qu'un changement d'horaire remet la grille à blanc par construction et que le navigateur ne relit jamais le cron — il peint. Le trou d'heure d'été ouvert à minuit, que le moteur sautait pour toute une journée dans six fuseaux, est réparé en un seul point de lecture, prouvé par un différentiel sur toutes les zones IANA.
+
 ### 16.4. Une notification push qui aboutit à une décision
 
 Les canaux push de Google étaient vivants et fonctionnellement inertes : leur unique consommateur invalidait des caches, si bien qu'une notification achetait de la fraîcheur pour une carte que personne n'avait ouverte. Une notification traitée **met désormais l'utilisateur en file** — `SET NX` par couple (utilisateur, fournisseur), donc une tempête est un seul réveil daté du premier — et le webhook répond toujours 200 sans rien décider. Un court balayage élu leader sert la file sous l'éligibilité **complète** : plage, quota, cooldowns, préférence de source. Seul le lissage « minimum garanti » est contourné, parce qu'un réveil répond à un événement.
@@ -1364,7 +1366,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-263 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+264 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1510,7 +1512,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 263 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~24 053 tests sur 1 452 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 264 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~24 053 tests sur 1 452 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1625,4 +1627,4 @@ Le visage du compagnon choisissait son expression de fin de tour dans l'émotion
 **Chaque unité payante est comptée, et montrée.** Une réunion dépense de l'audio chez le moteur de transcription et des tokens chez le modèle de synthèse, passes de condensation et reconstructions comprises ; les deux rejoignent la comptabilité de la plateforme comme tout échange — l'audio par les statistiques de reconnaissance distante, les tokens sous un `run_id` que le message archivé porte, si bien que l'historique se joint au journal des tokens exactement comme pour toute notification proactive. La ligne garde la dépense propre au compte rendu pour que la page affiche le total exact et sa décomposition, la carte dit les deux unités et leur somme, et un modèle sans tarif administré donne `null` : un prix inconnu n'est pas un prix nul. La même honnêteté traverse le compte rendu lui-même — une lacune est dite, jamais comblée ; un interlocuteur non nommé reste S2 ; une proposition restée ouverte n'est pas une décision.
 
 **Le format du compte rendu est devenu une bibliothèque, et le choix a un seul lieu.** Trente modèles intégrés vivent dans le code, leurs mots dans une donnée i18n, et une assertion au démarrage refuse de booter si un nom manque dans l'une des six langues : ce qu'un validateur peut rejeter, le catalogue ne peut pas le livrer. Un modèle est désigné par une référence — `builtin:<clé>` ou `user:<uuid>` — que réunions, préférences et requêtes échangent à la place d'une ligne, si bien qu'un intégré n'a pas besoin d'exister en base et qu'un modèle supprimé laisse une référence dont les lecteurs savent se replier sur l'instantané conservé. Le choix suit **une seule précédence** : la référence portée par la réunion, puis le défaut de la préférence, puis le modèle de langage qui lit un extrait de transcription et choisit au-dessus d'un seuil de confiance, puis l'intégré par défaut ; chaque issue est comptée et écrite sur la ligne avec la raison énoncée, de sorte que la page affiche un fait et non une reconstruction. Une cinquième sorte de section rend la transcription elle-même : elle ne tient pas dans une réponse — le slot de synthèse sort au plus huit mille tokens — donc elle est réécrite par parties, chacune bornée par la fenêtre de sortie effective, un index manquant scindant la partie une fois et une réponse trop courte étant retentée une fois. Réécrire un compte rendu déjà rendu emprunte la régénération durable quand il s'agit de remplacer, et crée une ligne dérivée pointant sa source quand il s'agit d'un nouveau compte rendu — jamais une copie : la transcription est la même, le compte rendu non. Le même souci d'ordre gouverne les documents des espaces de connaissances : `rag_chunks.space_id` étant dénormalisé et lu par la recherche, un déplacement écrit la ligne et ses morceaux, valide, **puis** déplace le fichier ; un renommage qui échoue remet les deux en arrière et le rapporte pour ce document seul, et un lot ne s'interrompt jamais pour un élément — chaque identifiant revient fait ou ignoré avec son code.
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 263 ADRs, et du changelog (v1.0 à v1.42.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 264 ADRs, et du changelog (v1.0 à v1.42.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -16,7 +16,8 @@ from src.domains.meetings.schemas import MeetingBulkDeleteRequest
 pytestmark = pytest.mark.unit
 
 
-def _service(rows: dict[uuid.UUID, MeetingStatus]) -> MagicMock:
+def _service(rows: dict[uuid.UUID, MeetingStatus], busy: set[uuid.UUID] | None = None) -> MagicMock:
+    """``busy`` rows are PROCESSING under a live lease: the single delete refuses them."""
     svc = MagicMock()
 
     async def _get(user_id: uuid.UUID, meeting_id: uuid.UUID) -> MagicMock:
@@ -24,30 +25,38 @@ def _service(rows: dict[uuid.UUID, MeetingStatus]) -> MagicMock:
             raise BaseAPIException(status_code=404, detail={"code": "meeting_not_found"})
         return MagicMock(id=meeting_id, status=rows[meeting_id])
 
+    async def _delete(user_id: uuid.UUID, meeting_id: uuid.UUID) -> None:
+        if meeting_id in (busy or set()):
+            raise BaseAPIException(status_code=409, detail={"code": "meeting_in_progress"})
+
     svc.get = AsyncMock(side_effect=_get)
-    svc.delete = AsyncMock()
+    svc.delete = AsyncMock(side_effect=_delete)
     return svc
 
 
 async def test_ready_rows_are_deleted_in_flight_and_live_rows_are_skipped_with_a_code() -> None:
-    ready, busy, live, interrupted, foreign = (uuid.uuid4() for _ in range(5))
+    ready, busy, stale, live, interrupted, foreign = (uuid.uuid4() for _ in range(6))
     svc = _service(
         {
             ready: MeetingStatus.READY,
             busy: MeetingStatus.PROCESSING,
+            stale: MeetingStatus.PROCESSING,
             live: MeetingStatus.RECORDING,
             interrupted: MeetingStatus.INTERRUPTED,
-        }
+        },
+        busy={busy},
     )
-    result = await bulk_delete(svc, uuid.uuid4(), [ready, busy, live, interrupted, foreign])
-    assert result.deleted == [ready]
+    result = await bulk_delete(svc, uuid.uuid4(), [ready, busy, stale, live, interrupted, foreign])
+    # A PROCESSING row is the single delete's call (the lease decides), never
+    # skipped on its status alone: ``stale`` has no worker and goes.
+    assert result.deleted == [ready, stale]
     assert [(s.id, s.code) for s in result.skipped] == [
         (busy, "meeting_in_progress"),
         (live, "meeting_in_progress"),
         (interrupted, "meeting_in_progress"),
         (foreign, "meeting_not_found"),
     ]
-    svc.delete.assert_awaited_once()
+    assert svc.delete.await_count == 3
 
 
 async def test_failed_and_stopped_rows_are_deletable() -> None:

@@ -101,6 +101,7 @@ scheduled_actions
 | DELETE | `/scheduled-actions/{id}` | 204 | Supprimer |
 | PATCH | `/scheduled-actions/{id}/toggle` | 200 | Toggle is_enabled |
 | POST | `/scheduled-actions/{id}/execute` | 202 | Tester maintenant (fire-and-forget) |
+| GET | `/scheduled-actions/week` | 200 | La semaine en cours de chaque routine : instants du moteur cron + issue du run qui a servi chaque creneau (ADR-265). Declaree AVANT `/{id}`. |
 
 ### Calcul du prochain declenchement
 
@@ -162,6 +163,10 @@ En cas d'erreur transitoire (`TimeoutError`, `ConnectionError`, `OSError`), l'ex
 
 Apres **5 echecs consecutifs** (`SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES`), l'action est automatiquement desactivee (`is_enabled=False`, `status='error'`). Le re-enable via toggle reset les compteurs et recalcule le prochain declenchement.
 
+### Historique des executions et semaine en cours (ADR-265)
+
+`scheduled_action_runs` : une ligne par tick, ecrite par l'executeur AU RESULTAT dans la transaction du marquage (`runs.py::record_run`, savepoint, jamais bloquante) — cinq issues (`success`, `failure`, `skipped_condition`, `proposed`, `skipped_hitl`) et le creneau SERVI (`served_slot` : un run du sert son instant du, un « Tester » apres le creneau du jour le sert, avant ne sert rien). `GET /scheduled-actions/week` (`week.py::build_week`) calcule les sept instants de la semaine de chaque routine avec `week_slots()` depuis le lundi local de SON fuseau, et une cellule prend le DERNIER run dont `slot_at` est EGAL a l'instant : un changement d'horaire remet la grille a blanc par construction. Retention `SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS` (90 j), purge a l'etape 0 du tick, dans sa propre session, jamais fatale.
+
 ### Recalcul timezone
 
 Quand l'utilisateur modifie son fuseau horaire (dans `users/service.py`), toutes ses actions planifiees actives sont recalculees pour maintenir le meme horaire local avec le nouveau fuseau.
@@ -174,8 +179,11 @@ Quand l'utilisateur modifie son fuseau horaire (dans `users/service.py`), toutes
 
 | Fichier | Description |
 |---------|-------------|
-| `components/settings/ScheduledActionsSettings.tsx` | Section settings complète |
-| `hooks/useScheduledActions.ts` | Hook CRUD avec optimistic updates + auto-refresh |
+| `components/settings/ScheduledActionsSettings.tsx` | Section settings complète : tri chronologique, rangs, grille repliable, cartes |
+| `components/settings/ScheduledActionsTimeline.tsx` | La grille heures × jours (`<table>`, puces `<button>`, focus itinerant, legende, jour courant) — ADR-265 |
+| `components/settings/RoutineNumberChip.tsx` | La puce numerotee partagee par la carte et la grille (cinq tons en jetons du theme) |
+| `lib/scheduled-actions.ts` | Helpers purs : `numberByTriggerTime`, `buildTimelineGrid`, `chipState`, `rovingTarget`, `routineZones`, `weekDates` |
+| `hooks/useScheduledActions.ts` | Hook CRUD avec optimistic updates, auto-refresh, `initialLoading` monotone et la lecture de `/week` refetchee apres chaque mutation |
 
 ### UI
 
@@ -185,7 +193,9 @@ Quand l'utilisateur modifie son fuseau horaire (dans `users/service.py`), toutes
 - Dialog creation/edition avec selection jours + heure
 - Confirmation suppression via AlertDialog
 - Etat vide avec icone et texte explicatif
-- **Auto-refresh** : polling 30s (normal) / 10s (quand une action est en cours d'execution)
+- **Auto-refresh** : polling 30s (normal) / 10s (quand une action est en cours d'execution) — sans demonter les cartes : le spinner ne s'affiche qu'au PREMIER chargement, un sondage marque la region `aria-busy`
+- **Ordre et rangs** : cartes triees par heure de declenchement (heure, minute, titre, id) et numerotees ; une routine en pause garde son rang
+- **Vue de la semaine** : grille repliable (ouverte par defaut), heures en descendant et jours en travers, puce coloree par l'issue du creneau (blanc / vert / rouge / ambre / gris), anneau pour une routine conditionnelle, pulsation pendant une execution, colonne du jour courant, legende, mention du fuseau ; clic ou Entree sur une puce amene et focalise la carte ; la grille est UN arret de tabulation, les fleches la parcourent
 
 ### i18n
 
@@ -219,5 +229,7 @@ Cles `scheduled_actions.*` dans les 6 langues (fr, en, es, de, it, zh).
 
 | Fichier | Tests |
 |---------|-------|
-| `tests/unit/domains/scheduled_actions/test_schedule_helpers.py` | 27 tests : compute_next_trigger_utc (incl. UTC timezone validation), validate_days, format_display |
-| `tests/unit/domains/scheduled_actions/test_schemas.py` | 18 tests : validation Create/Update |
+| `tests/unit/domains/scheduled_actions/test_schedule_helpers.py` | compute_next_trigger_utc (incl. UTC timezone validation), validate_days, format_display, trou de minuit et differentiel contre le cron brut, week_slots / local_day_slot / served_slot |
+| `tests/unit/domains/scheduled_actions/test_schemas.py` | validation Create/Update |
+| `tests/unit/domains/scheduled_actions/test_runs.py`, `test_run_repository.py`, `test_week.py`, `test_router_week.py`, `test_service.py` | ADR-265 : record_run, repository des runs, pliage de la semaine, route /week et son ordre, recalcul de fuseau des routines en pause |
+| `tests/integration/domains/scheduled_actions/test_runs_pg.py` | contre PostgreSQL : CHECK reel sur outcome, cascades, lecture par semaine, purge |

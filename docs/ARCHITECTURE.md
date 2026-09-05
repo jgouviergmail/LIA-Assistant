@@ -3507,9 +3507,12 @@ apps/api/src/domains/scheduled_actions/
 ├── models.py           # ScheduledAction SQLAlchemy + ScheduledActionStatus enum
 ├── repository.py       # CRUD + get_and_lock_due_actions (FOR UPDATE SKIP LOCKED)
 ├── service.py          # CRUD, toggle, timezone recalculation
-├── router.py           # 6 REST API endpoints
+├── router.py           # 7 REST API endpoints (/week declare avant /{id})
 ├── schemas.py          # Pydantic Create/Update/Response/ListResponse
-└── schedule_helpers.py # APScheduler CronTrigger integration (compute_next_trigger_utc)
+├── schedule_helpers.py # APScheduler CronTrigger integration (compute_next_trigger_utc, week_slots, served_slot)
+├── run_repository.py   # Historique des executions scheduled_action_runs (ADR-265)
+├── runs.py             # record_run : une ligne par sortie de l'executeur, dans un savepoint
+└── week.py             # Pliage pur de la semaine en cours (une cellule = le dernier run au slot EGAL)
 
 apps/api/src/infrastructure/scheduler/
 └── scheduled_action_executor.py  # Job scheduler (60s) + execute_single_action
@@ -3525,6 +3528,7 @@ apps/api/src/infrastructure/scheduler/
 | `/scheduled-actions/{id}` | DELETE | Supprimer |
 | `/scheduled-actions/{id}/toggle` | PATCH | Toggle is_enabled |
 | `/scheduled-actions/{id}/execute` | POST | Tester maintenant (fire-and-forget) |
+| `/scheduled-actions/week` | GET | La semaine en cours de chaque routine, instants + issue par creneau (ADR-265) |
 
 > Voir [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) pour la documentation complète.
 

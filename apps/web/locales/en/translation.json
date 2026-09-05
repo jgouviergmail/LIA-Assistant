@@ -3552,7 +3552,7 @@
         "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, provenance, why, weight, explanation, decay, source, export",
         "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview, visibility, requests",
         "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour, weather, frequency, time window, proposals, offers, missed routine, push wake, react to an email, react to an invitation, trigger, wake-up",
-        "scheduled-actions": "cron, schedule, recurring, automation, timer, planned",
+        "scheduled-actions": "cron, schedule, recurring, automation, timer, planned, week view, timeline, weekly grid",
         "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct, configuration, consolidation, export",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
         "skills": "skills, capabilities, abilities, plugins, extensions",
@@ -4396,7 +4396,7 @@
         },
         "scheduledActions": {
           "title": "📅 Scheduled Actions",
-          "description": "Recurring actions the assistant runs on its own: pick the days and the time, attach an instruction, and LIA executes it. Results are archived in the conversation and pushed to you, with auto-disable after five consecutive failures. The notification carries the same final text that was archived, flattened to plain text before truncation."
+          "description": "Recurring actions the assistant runs on its own: pick the days and the time, attach an instruction, and LIA executes it. Results are archived in the conversation and pushed to you, with auto-disable after five consecutive failures. The notification carries the same final text that was archived, flattened to plain text before truncation. A week view draws them hours down and days across, numbered in the order they fire, each cell of the current week coloured by what happened — executed, failed, proposed, paused — from a run history written at the result, never guessed from a clock."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4416,7 +4416,7 @@
         },
         "heartbeatAutonome": {
           "title": "💓 Autonomous Heartbeat",
-          "description": "Proactive notifications built from eleven data sources aggregated live, in two phases: a cheap model decides whether to speak at all, then the message is rewritten in the active personality. Topics rotate through a varied interest sample with an anti-repetition window, so the same theme never returns day after day, and a notification about an interest fetches real facts with clickable sources. One switch per source — being connected to a service and being interrupted by it are two separate decisions — and a source that drops out is counted and timed rather than silently missing. A push notification can now trigger a decision in minutes."
+          "description": "Proactive notifications from eleven live sources, in two phases: a cheap model decides whether to speak at all, then the message is rewritten in the active personality. Topics rotate with an anti-repetition window, and a notification about an interest fetches real facts with clickable sources. One switch per source — being connected to a service and being interrupted by it are two decisions — a dropped source is counted and timed, never silently missing, and a push can trigger a decision in minutes."
         },
         "webFetch": {
           "title": "🌐 Intelligent Web Fetch",
@@ -4556,7 +4556,7 @@
         },
         "meetings": {
           "title": "🎙️ Meeting minutes",
-          "description": "A button in the header — or the “Record a meeting” entry of the phone menu — and the device becomes a recorder: audio leaves in small segments as you speak, so a crash or a lost connection costs seconds, never the meeting. At the stop the server assembles the recording and walks its chain of engines until one transcribes. The minutes format is picked among thirty built-in templates by reading what was said, unless you impose your own; the meeting states which one it used and why. Minutes already written can be rewritten in another format — up to the full transcript — in place or as a new document. The cost is stated as two amounts and a total, and a gap is announced, never filled in."
+          "description": "A button in the header — on the phone, a menu entry — and the device becomes a recorder: audio leaves in small segments as you speak, so a crash costs seconds, never the meeting. At the stop the server assembles the recording and walks its chain of engines until one transcribes. The minutes format is picked among thirty templates from what was said, unless you impose your own; minutes can be rewritten in another format, up to the full transcript. The cost is stated as two amounts and a total, and a gap is announced, never filled in."
         },
         "transparencyRegisters": {
           "title": "📋 Registers of actions and consultations",
@@ -4569,6 +4569,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_42_2": {
+          "title": "v1.42.2 — 📅 Your week of routines, at a glance",
+          "date": "September 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📅 A week view above your routines</b> — hours down, days across: every routine sits at its hour on its days, numbered in the order it fires, with the same number on its card. Each cell of the current week says what happened: white not executed, green executed, red failed, amber proposed and waiting for your approval, grey paused. A routine that checks a condition wears a ring; one running right now pulses. Click a number to jump to its card; the arrow keys walk the grid. The colours start over every Monday and clear when you change a routine's days or time.",
+            "i2": "<b>🎙️ A meeting is never lost, its owner never blocked</b> — a meeting whose minutes failed used to stay « processing » for hours. The job now resumes from what it already acquired (normalised audio, then the transcript) instead of paying the engine again; a meeting whose worker died is requeued, or marked failed with its reason, and you can delete it meanwhile. The detail shows the attempt of the budget and the previous attempt's reason.",
+            "i3": "<b>🛠️ Routines that keep their word</b> — the list no longer blinks away on every refresh (your open panels stay open); a routine paused during a time-zone move now wakes up on your new clock; and a routine scheduled at midnight in a zone whose clocks jump at midnight no longer skips that day."
+          }
+        },
         "v1_42_1": {
           "title": "v1.42.1 — 🎭 A face that lives between two answers",
           "date": "September 2026",
@@ -7575,7 +7585,7 @@
       "scheduled_actions": {
         "title": "Scheduled Actions",
         "description": "Automate recurring tasks with LIA",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "What is a scheduled action?",
@@ -7604,6 +7614,10 @@
           "q7": {
             "question": "Can I create automations directly from the chat? (v1.25.13)",
             "answer": "Yes — in one sentence: « give me an AI press review every weekday at 8am ». LIA validates the schedule and shows a <strong>confirmation card</strong> (title, days, time, instruction); nothing is created until you confirm. You can also <strong>list</strong> your automations (« what are my automations? ») and <strong>pause/resume</strong> one in natural language.<br><br><strong>💡 Bonus:</strong> when you ask the same kind of thing at the same hour on several distinct days, LIA can spontaneously offer: « Want me to turn this into a recurring automation? » (deterministic detection, one suggestion max per month per pattern, off by default — <code>RECURRENCE_SUGGESTION_ENABLED</code>).<br><br>Deleting an automation remains a Settings action."
+          },
+          "q8": {
+            "question": "How do I read the week view? (v1.42.2)",
+            "answer": "Above the list, the <strong>Week view</strong> draws your routines on a grid: hours down, days across (Monday first), in the time zone named beside it. Routines are listed by trigger time and <strong>numbered</strong> in that order — the same number sits on the card and on the grid; a paused routine keeps its number, creating or rescheduling one renumbers the later ones.<br><br><strong>🎨 This week's colours:</strong> white not executed (not yet due, or nothing ran), green executed, red failed, amber proposed and waiting for your approval in the chat, grey paused. A ring marks a routine whose condition is checked at that time; a routine running right now pulses.<br><br><strong>🔁 Reset:</strong> the colours cover the current week only and start over every Monday; changing a routine's days or time clears them, since they belonged to the old slots. Pressing <strong>Test</strong> after today's slot recolours it; before, it does not.<br><br><strong>⌨️ Navigation:</strong> click a number to jump to the routine's card; the grid is one tab stop and the arrow keys walk it."
           }
         }
       },
@@ -8430,6 +8444,10 @@
       "mail_label_source": {
         "title": "A label, and it is in",
         "desc": "Put a Gmail label on a thread: it becomes a document of the space. Take the label off, the document leaves."
+      },
+      "week_grid": {
+        "title": "Your week, on a grid",
+        "desc": "Hours down, days across: every routine sits at its hour, numbered in the order it fires. A cell turns green when it ran, red when it failed, amber while it waits for you — and starts over on Monday."
       }
     },
     "scenes": {
@@ -9420,7 +9438,32 @@
       "custom": "{{days}} at {{time}}"
     },
     "next_run": "Next run",
-    "next_evaluation": "Next evaluation"
+    "next_evaluation": "Next evaluation",
+    "number_aria": "Routine {{n}}",
+    "timeline": {
+      "title": "Week view",
+      "description": "Your routines by day and hour, with this week's outcomes",
+      "caption": "Weekly schedule of your routines, hours in {{zone}}",
+      "hours_in_zone": "Hours in {{zone}}",
+      "zones_mixed": "Routines in several time zones: each chip sits at the wall-clock time of its own zone",
+      "hour_header": "Hour",
+      "today": "Today",
+      "unavailable": "This week's execution states are unavailable. The schedule is still shown.",
+      "chip_aria": "{{n}}, {{title}}, {{time}}, {{state}}",
+      "condition_kind": "Condition checked at this time",
+      "run_at": "Ran {{when}}",
+      "legend_title": "Legend",
+      "state": {
+        "idle": "Not executed",
+        "success": "Executed",
+        "failure": "Failed",
+        "proposed": "Proposed, awaiting your approval",
+        "paused": "Paused",
+        "skipped_condition": "Condition not met",
+        "skipped_hitl": "Skipped, an approval was pending in the chat",
+        "executing": "Running now"
+      }
+    }
   },
   "landing": {
     "meta": {
@@ -9607,7 +9650,7 @@
       },
       "reminders_scheduling": {
         "title": "Reminders & automations",
-        "description": "Schedule reminders in natural language (\"Remind me tomorrow at 9am to call Marie\"). Plan recurring automatic actions (Monday email summary, morning weather...). A reminder that comes due while your quota is reached goes back into the queue — never lost. Routines can now wait for a condition — a task falls overdue, a matching mail arrives, the weather turns, a document is added, an event approaches — and optionally propose before acting."
+        "description": "Schedule reminders in natural language (\"Remind me tomorrow at 9am to call Marie\"). Plan recurring automatic actions (Monday email summary, morning weather...). A reminder that comes due while your quota is reached goes back into the queue — never lost. Routines can now wait for a condition — a task falls overdue, a matching mail arrives, the weather turns, a document is added, an event approaches — and optionally propose before acting. A week view lays the routines out, hours down and days across, each cell of the current week coloured by what happened."
       },
       "memory": {
         "title": "Contextual memory",
@@ -11788,6 +11831,9 @@
       "cost": "Cost",
       "progress_title": "Preparing the minutes",
       "processing_hint": "This can take a few minutes for a long meeting. You will be notified in the chat when the minutes are ready.",
+      "attempt_of": "Attempt {{attempt}} of {{max}}",
+      "previous_attempt": "Previous attempt:",
+      "worker_stale_hint": "The processing stopped responding. It is picked up again automatically; you can also delete the meeting.",
       "failed_title": "The minutes could not be produced",
       "minutes_title": "Minutes",
       "edited_badge": "Edited",
@@ -11968,6 +12014,7 @@
       "unknown": "Unknown error ({{code}})",
       "usage_limit": "Your usage limit is reached.",
       "user_missing": "The account no longer exists.",
+      "worker_lost": "The processing stopped responding and no retry was left.",
       "template_locked": "The format cannot change while the minutes are being written.",
       "template_not_found": "This template no longer exists.",
       "template_readonly": "A built-in template cannot be changed; duplicate it first.",

@@ -369,6 +369,15 @@ TABLE_RULES: dict[str, TableRule] = {
     # ------------------------------------------------------------------
     # Cascade children of purged tables (hard-deleted parents ⇒ FK fires).
     # ------------------------------------------------------------------
+    "scheduled_action_runs": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.FULL,
+        reason=(
+            "One row per tick of a routine (ADR-265): outcome, served slot, "
+            "attempts, error — the user's own execution history, bounded by "
+            "retention. Cascades from scheduled_actions AND users."
+        ),
+    ),
     "rag_drive_sources": TableRule(
         data_class=TableDataClass.USER_CASCADE,
         export=ExportPolicy.FULL,

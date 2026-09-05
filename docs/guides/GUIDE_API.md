@@ -2260,6 +2260,44 @@ Cookie: session_id=xxx
 **Comportement :**
 - L'execution est asynchrone (fire-and-forget)
 - Le resultat apparaitra dans la conversation de l'utilisateur et comme notification
+
+---
+
+### GET /scheduled-actions/week
+
+**La semaine en cours de chaque routine (ADR-265)** — les instants ou elle se declenche cette semaine, calcules par le moteur cron du scheduler depuis le lundi local de SON fuseau, et l'issue du run qui a servi chacun. Declaree AVANT `/{action_id}` : un segment litteral doit etre apparie avant un parametre de chemin.
+
+**Request :**
+
+```http
+GET /api/v1/scheduled-actions/week
+Cookie: session_id=xxx
+```
+
+**Response :** `200 OK`
+
+```json
+{
+  "actions": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "timezone": "Europe/Paris",
+      "week_start": "2026-08-03",
+      "today": 3,
+      "cells": [
+        {"day": 1, "date": "2026-08-03", "slot_at": "2026-08-03T06:00:00Z", "outcome": "success", "run_at": "2026-08-03T06:00:04Z", "error": null, "manual": false},
+        {"day": 3, "date": "2026-08-05", "slot_at": "2026-08-05T06:00:00Z", "outcome": null, "run_at": null, "error": null, "manual": null}
+      ]
+    }
+  ],
+  "generated_at": "2026-08-05T10:00:00Z"
+}
+```
+
+**Comportement :**
+- `outcome` vaut `success`, `failure`, `skipped_condition`, `proposed`, `skipped_hitl`, ou `null` quand aucun run n'a servi ce creneau
+- Une cellule prend le DERNIER run dont `slot_at` est EGAL a l'instant du creneau : un changement d'horaire remet la semaine a blanc par construction
+- Le navigateur ne recalcule rien : il peint
 - Le statut passe a `executing` pour eviter les executions concurrentes
 
 **Errors :**

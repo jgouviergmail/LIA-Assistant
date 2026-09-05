@@ -232,7 +232,8 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         recalculated_triggers: dict[UUID, datetime],
     ) -> int:
         """
-        Batch update timezone and next_trigger_at for all user's enabled actions.
+        Batch update timezone and next_trigger_at for the given user's actions,
+        paused ones included (ADR-265).
 
         Args:
             user_id: User ID.

@@ -19,17 +19,20 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import math
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
 from src.core.constants import MEETINGS_LOCAL_BLOCK_SECONDS
+from src.core.security.utils import decrypt_data
 from src.domains.meetings.engine import ResolvedEngine, resolve_engine
 from src.domains.meetings.models import MeetingSttEnginePreference, MeetingSttProvider
 from src.domains.meetings.schemas import TranscriptTurn
@@ -103,6 +106,38 @@ class TranscriptionOutcome:
 # ----------------------------------------------------------------------------
 # Pure helpers (unit-tested without any engine)
 # ----------------------------------------------------------------------------
+
+
+def outcome_from_row(meeting: Any) -> TranscriptionOutcome | None:
+    """The transcription a previous attempt CHECKPOINTED on the row, or ``None``.
+
+    A claim reads this before calling an engine again: the transcript was paid
+    once. ``None`` when nothing was transcribed yet or when the user deleted the
+    transcript since (``transcript_deleted_at``) — then the audio is transcribed
+    again. The USD figure is not stored on the row, so it comes back ``None``:
+    an absent price is not a zero one (ADR-185).
+
+    Args:
+        meeting: The claimed row (``transcript_encrypted`` and the ``stt_*`` columns).
+    """
+    if not meeting.transcript_encrypted or meeting.transcript_deleted_at is not None:
+        return None
+    raw = json.loads(decrypt_data(meeting.transcript_encrypted))
+    turns = [TranscriptTurn.model_validate(item) for item in raw]
+    provider = MeetingSttProvider(meeting.stt_provider) if meeting.stt_provider else None
+    if provider is None:
+        return None
+    duration = float(meeting.stt_audio_seconds or meeting.audio_duration_seconds or 0.0)
+    return TranscriptionOutcome(
+        turns=turns,
+        language_code=meeting.stt_detected_language,
+        audio_duration_seconds=duration,
+        provider=provider,
+        model=meeting.stt_model,
+        diarized=bool(meeting.stt_diarized),
+        cost_usd=None,
+        cost_eur=meeting.stt_cost_eur,
+    )
 
 
 def speaker_label_map(words: Sequence[TranscriptWord]) -> dict[str, str]:

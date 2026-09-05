@@ -6,7 +6,20 @@
 
 'use client';
 
-import { Star, MessageSquare, CalendarClock, Bell, Check, CheckCircle2, ChevronDown, Circle, EyeOff, FileText, Sparkles, LifeBuoy } from 'lucide-react';
+import {
+  Star,
+  MessageSquare,
+  CalendarClock,
+  Bell,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  EyeOff,
+  FileText,
+  Sparkles,
+  LifeBuoy,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -300,7 +313,6 @@ function CardActionsScene({ active, labels }: SceneProps) {
   );
 }
 
-
 /**
  * Folded settings — the panel is an index you open, not a wall you scroll.
  *
@@ -401,11 +413,92 @@ function AlertsHubScene({ active }: SceneProps) {
   );
 }
 
+type WeekPhase = 'plan' | 'ran' | 'failed' | 'waiting' | 'monday';
+const WEEK_STEPS: readonly TimelineStep<WeekPhase>[] = [
+  { at: 0, state: 'plan' },
+  { at: 900, state: 'ran' },
+  { at: 1800, state: 'failed' },
+  { at: 2700, state: 'waiting' },
+  { at: 3900, state: 'monday' },
+];
+
+/** The chips of the week grid: (column, row, rank) — the rank follows the hour. */
+const WEEK_CHIPS = [
+  { col: 4, row: 0, rank: 1, id: 'a-fri' },
+  { col: 0, row: 1, rank: 2, id: 'b-mon' },
+  { col: 2, row: 1, rank: 2, id: 'b-wed' },
+  { col: 1, row: 2, rank: 3, id: 'c-tue' },
+] as const;
+
+/** What each cell says in each phase: the outcome of the LAST run of its slot. */
+const WEEK_TONE: Record<string, Partial<Record<WeekPhase, 'ran' | 'failed' | 'waiting'>>> = {
+  'b-mon': { ran: 'ran', failed: 'ran', waiting: 'ran' },
+  'c-tue': { failed: 'failed', waiting: 'failed' },
+  'b-wed': { waiting: 'waiting' },
+};
+
+const WEEK_TONE_CLASS = {
+  ran: 'border-success bg-success text-success-foreground',
+  failed: 'border-destructive bg-destructive text-destructive-foreground',
+  waiting: 'border-warning bg-warning text-warning-foreground',
+} as const;
+
+/** Hours down, days across; the cells colour as the week unfolds and blank on Monday. */
+function WeekGridScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(WEEK_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[220px]">
+        <div className="mb-1 grid grid-cols-[1.25rem_repeat(7,1fr)] gap-x-0.5">
+          <span />
+          {Array.from({ length: 7 }, (_, day) => (
+            <SkeletonLine
+              key={day}
+              w="w-3/4"
+              className={cn('mx-auto h-1.5', day === 2 && 'bg-primary/50')}
+            />
+          ))}
+        </div>
+        {Array.from({ length: 3 }, (_, row) => (
+          <div key={row} className="grid grid-cols-[1.25rem_repeat(7,1fr)] gap-x-0.5">
+            <SkeletonLine w="w-3/4" className="my-auto h-1.5" />
+            {Array.from({ length: 7 }, (_, col) => {
+              const chip = WEEK_CHIPS.find(c => c.col === col && c.row === row);
+              const tone = chip ? WEEK_TONE[chip.id]?.[phase] : undefined;
+              return (
+                <div
+                  key={col}
+                  className={cn(
+                    'flex h-6 items-center justify-center border-l border-t border-border/50',
+                    col === 2 && 'bg-primary/5'
+                  )}
+                >
+                  {chip && (
+                    <span
+                      className={cn(
+                        'inline-flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[9px] font-semibold tabular-nums transition-colors duration-500',
+                        tone ? WEEK_TONE_CLASS[tone] : 'border-border bg-background text-foreground'
+                      )}
+                    >
+                      {chip.rank}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
   card_actions: CardActionsScene,
   folded_settings: FoldedSettingsScene,
+  week_grid: WeekGridScene,
   starter_checklist: StarterChecklistScene,
   empty_starters: EmptyStartersScene,
   pwa: PwaScene,

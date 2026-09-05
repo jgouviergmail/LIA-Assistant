@@ -121,6 +121,27 @@ class TestProcessMeeting:
             assert repo.fail_permanently.await_args.kwargs["code"] == code
             repo.fail_or_retry.assert_not_awaited()
 
+    async def test_a_failing_transition_is_logged_counted_and_never_raised(
+        self, db_context: MagicMock, repo: AsyncMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """2026-09-05: ``_fail`` itself raised and the coroutine died with a one-line log."""
+        from src.infrastructure.observability.metrics_meetings import meeting_failures_total
+
+        repo.claim_stopped.return_value = True
+        repo.get_by_id.return_value = _meeting()
+        repo.fail_or_retry.side_effect = LookupError("'stopped' is not among the enum values")
+        monkeypatch.setattr(
+            processing,
+            "_run",
+            AsyncMock(side_effect=TranscriptionError("provider_timeout", "", transient=True)),
+        )
+        counter = meeting_failures_total.labels(reason="transition_failed")
+        before = counter._value.get()
+
+        await process_meeting(uuid.uuid4())  # must not raise
+
+        assert counter._value.get() == before + 1
+
     async def test_a_lost_lease_writes_no_verdict(
         self, db_context: MagicMock, repo: AsyncMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:

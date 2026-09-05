@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
     SCHEDULED_ACTIONS_MAX_CONCURRENCY,
+    SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS,
     SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES,
 )
 
@@ -35,8 +36,8 @@ class SchedulerSettings(BaseSettings):
         le=1800,
         description=(
             "Per-action wall-clock timeout for the scheduled-actions executor. "
-            "Beyond this, the action is forcibly cancelled and surfaced as "
-            "TIMEOUT in the action_runs audit table. "
+            "Beyond this, the action is forcibly cancelled and recorded as a "
+            "FAILURE in scheduled_action_runs (ADR-265). "
             "Symptom if too low: legitimate actions (long LLM-bound prompts) "
             "fail with TIMEOUT. Symptom if too high: a stuck action keeps a "
             "worker slot busy, delaying subsequent triggers."
@@ -56,6 +57,19 @@ class SchedulerSettings(BaseSettings):
             "actions that were due. Symptom if too high: a batch bursts against "
             "the LLM provider and the connection pool. Set to 1 to restore the "
             "strictly sequential behaviour."
+        ),
+    )
+
+    scheduled_actions_runs_retention_days: int = Field(
+        default=SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS,
+        ge=7,
+        le=3650,
+        description=(
+            "How many days of routine run history (scheduled_action_runs) are "
+            "kept. The weekly timeline reads the current week only; older rows "
+            "are purged at every executor tick. Symptom if too low: the export "
+            "of a user's own execution history is short. Symptom if too high: "
+            "the table grows with every routine of every account."
         ),
     )
 

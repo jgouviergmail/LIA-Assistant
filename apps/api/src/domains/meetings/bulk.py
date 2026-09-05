@@ -20,9 +20,17 @@ from src.domains.meetings.service import MeetingService
 
 logger = structlog.get_logger(__name__)
 
-#: Statuses a bulk delete leaves alone (the single delete refuses PROCESSING
-#: outright and treats a live row as a discard the banner must drive).
-_UNDELETABLE: tuple[MeetingStatus, ...] = (*LIVE_STATUSES, MeetingStatus.PROCESSING)
+#: Statuses a bulk delete leaves alone: a live row is a discard the banner must
+#: drive. A PROCESSING row is the single delete's call — the lease decides,
+#: never the status alone — and its refusal is reported with its own code.
+_UNDELETABLE: tuple[MeetingStatus, ...] = LIVE_STATUSES
+
+
+def _refusal_code(exc: BaseAPIException) -> str:
+    """The stable code a refused single delete carries, or ``delete_failed``."""
+    detail = exc.detail
+    code = detail.get("code") if isinstance(detail, dict) else None
+    return str(code) if code else "delete_failed"
 
 
 async def bulk_delete(
@@ -51,6 +59,9 @@ async def bulk_delete(
             continue
         try:
             await service.delete(user_id, meeting_id)
+        except BaseAPIException as exc:
+            skipped.append(BulkSkipped(id=meeting_id, code=_refusal_code(exc)))
+            continue
         except Exception as exc:  # noqa: BLE001 — one failure must not hide the others
             logger.warning(
                 "meeting_bulk_delete_item_failed",

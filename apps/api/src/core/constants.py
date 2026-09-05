@@ -711,6 +711,10 @@ SCHEDULED_ACTIONS_BATCH_SIZE = 50
 #: whole batch out at once would trade a scheduling delay for a burst against
 #: the LLM provider and the connection pool.
 SCHEDULED_ACTIONS_MAX_CONCURRENCY = 4
+#: How long a routine's run history is kept (ADR-265). The weekly timeline
+#: reads the current week only; the rest is the user's own record, purged inside
+#: the executor's tick rather than by a job of its own.
+SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS = 90
 # Payload cap for the scheduled-action SSE preview. Not an env setting: its only
 # consumer is the frontend toast, which slices to 100 chars — this is headroom,
 # not a user-tunable threshold. The FCM push body uses the real user-facing

@@ -18,8 +18,10 @@ from src.domains.scheduled_actions.models import (
     TriggerKind,
 )
 from src.domains.scheduled_actions.repository import ScheduledActionRepository
+from src.domains.scheduled_actions.run_repository import ScheduledActionRunRepository
 from src.domains.scheduled_actions.schedule_helpers import compute_next_trigger_utc
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate, ScheduledActionUpdate
+from src.domains.scheduled_actions.week import ActionWeek, build_week, week_read_lower_bound
 
 logger = structlog.get_logger(__name__)
 
@@ -30,6 +32,7 @@ class ScheduledActionService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.repository = ScheduledActionRepository(db)
+        self.run_repository = ScheduledActionRunRepository(db)
 
     async def get_with_ownership_check(
         self,
@@ -241,16 +244,46 @@ class ScheduledActionService:
         """List all scheduled actions for a user."""
         return await self.repository.get_all_for_user(user_id)
 
+    async def week_for_user(
+        self, user_id: UUID, *, now: datetime | None = None
+    ) -> list[ActionWeek]:
+        """The current week of every routine of a user (ADR-265).
+
+        Two reads — the routines, then the run rows since the earliest local
+        Monday across their zones — folded by :func:`build_week`, which owns
+        the rule and its tests.
+
+        Args:
+            user_id: Whose routines.
+            now: Reference instant (UTC). Defaults to now.
+
+        Returns:
+            One entry per routine, paused ones included, in list order.
+        """
+        actions = await self.repository.get_all_for_user(user_id)
+        since = week_read_lower_bound(actions, now=now)
+        runs = await self.run_repository.list_since(user_id, since) if since else []
+        return build_week(actions, runs, now=now)
+
     async def recalculate_all_for_user(
         self,
         user_id: UUID,
         new_timezone: str,
     ) -> int:
         """
-        Recalculate all enabled actions for a user after timezone change.
+        Recalculate EVERY action of a user after a timezone change.
 
         The user changed their timezone, so we keep the same local time
         (e.g. 19:30) but recalculate the UTC trigger with the new timezone.
+
+        Paused routines are covered too (ADR-265). Skipping them left their
+        ``user_timezone`` on the OLD zone, and both re-enabling (``toggle``)
+        and editing (``update``) re-derive the trigger from that stored
+        zone: a routine paused across a move woke up on the old clock, and
+        the weekly timeline drew it on a different axis from its siblings.
+        A paused routine's ``next_trigger_at`` is inert until it is
+        re-enabled, so recomputing it costs nothing and keeps the row
+        coherent.
 
         Returns:
             Number of updated actions.
@@ -259,8 +292,6 @@ class ScheduledActionService:
 
         recalculated: dict[UUID, datetime] = {}
         for action in actions:
-            if not action.is_enabled:
-                continue
             next_trigger = compute_next_trigger_utc(
                 days_of_week=action.days_of_week,
                 hour=action.trigger_hour,

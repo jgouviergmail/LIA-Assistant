@@ -25,8 +25,12 @@ import { MeetingProgress } from '@/components/meetings/MeetingProgress';
 import { MeetingReportEditor } from '@/components/meetings/MeetingReportEditor';
 import { MeetingReportView } from '@/components/meetings/MeetingReportView';
 import { MeetingStatusBadge } from '@/components/meetings/MeetingStatusBadge';
+import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import type { MeetingActions } from '@/components/meetings/useMeetingActions';
+import {
+  type MeetingActions,
+  meetingErrorLabel,
+} from '@/components/meetings/useMeetingActions';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -94,8 +98,23 @@ export function MeetingFacts({ lng, meeting }: { lng: Language; meeting: Meeting
   );
 }
 
-export function ProcessingPanel({ lng, meeting }: { lng: Language; meeting: MeetingDetail }) {
+export function ProcessingPanel({
+  lng,
+  meeting,
+  actions,
+}: {
+  lng: Language;
+  meeting: MeetingDetail;
+  actions: MeetingActions;
+}) {
   const { t } = useTranslation(lng);
+  // A retry is visible as soon as a claim was spent or a previous attempt left
+  // its reason (a queued row after a failure, a running second attempt). A row
+  // released without consuming an attempt (usage limit) has a reason but no
+  // claim to count: the reason alone is shown.
+  const spent = meeting.attempts;
+  const previousError = meeting.last_error_code;
+  const retrying = spent > 1 || previousError !== null;
   return (
     <section className="rounded-lg border border-primary/30 bg-primary/5 p-4">
       <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -103,7 +122,38 @@ export function ProcessingPanel({ lng, meeting }: { lng: Language; meeting: Meet
         {t('meetings.detail.progress_title')}
       </h2>
       <MeetingProgress lng={lng} status={meeting.status} stage={meeting.stage} />
-      <p className="mt-2 text-xs text-muted-foreground">{t('meetings.detail.processing_hint')}</p>
+      {retrying && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {spent >= 1 && (
+            <span className="font-medium text-foreground">
+              {t('meetings.detail.attempt_of', { attempt: spent, max: meeting.max_attempts })}
+            </span>
+          )}
+          {previousError !== null && (
+            <>
+              {spent >= 1 && ' · '}
+              <span>{t('meetings.detail.previous_attempt')}</span>{' '}
+              <span>{meetingErrorLabel(t, previousError)}</span>
+            </>
+          )}
+        </p>
+      )}
+      {meeting.worker_stale ? (
+        <div className="mt-3 space-y-3">
+          <Alert variant="warning">{t('meetings.detail.worker_stale_hint')}</Alert>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            onClick={() => void actions.remove()}
+          >
+            <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
+            {t('meetings.detail.delete')}
+          </Button>
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">{t('meetings.detail.processing_hint')}</p>
+      )}
     </section>
   );
 }
@@ -124,11 +174,7 @@ export function FailedPanel({
         {t('meetings.detail.failed_title')}
       </h2>
       {meeting.last_error_code && (
-        <p className="mt-1 text-sm">
-          {t(`meetings.errors.${meeting.last_error_code}`, {
-            defaultValue: t('meetings.errors.unknown', { code: meeting.last_error_code }),
-          })}
-        </p>
+        <p className="mt-1 text-sm">{meetingErrorLabel(t, meeting.last_error_code)}</p>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         {meeting.audio_purged_at === null && (
