@@ -17,9 +17,11 @@ import {
   Eclipse,
   EyeOff,
   FileSpreadsheet,
+  Hourglass,
   Info,
   Map as MapIcon,
   Mic,
+  Send,
   Server,
   Sun,
   Vibrate,
@@ -911,8 +913,69 @@ function OledBlackScene({ active }: SceneProps) {
   );
 }
 
+/**
+ * The register line is written BEFORE the action, and closed only from an
+ * explicit result. The whole craft is in the order — so the scene animates the
+ * order rather than the outcome: the row appears grey while nothing has
+ * happened yet, the action leaves, and only then does the row settle.
+ *
+ * A missing error is never read as a success, which is why the pending row
+ * carries a spinner rather than a hopeful tick.
+ */
+type ClaimPhase = 'idle' | 'claimed' | 'acting' | 'settled';
+const CLAIM_ORDER: readonly ClaimPhase[] = ['idle', 'claimed', 'acting', 'settled'];
+const CLAIM_STEPS: readonly TimelineStep<ClaimPhase>[] = [
+  { at: 0, state: 'idle' },
+  { at: 500, state: 'claimed' },
+  { at: 1500, state: 'acting' },
+  { at: 2600, state: 'settled' },
+];
+
+function ClaimBeforeEffectScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(CLAIM_STEPS, { active });
+  const reached = (p: ClaimPhase) => CLAIM_ORDER.indexOf(phase) >= CLAIM_ORDER.indexOf(p);
+  const settled = phase === 'settled';
+
+  return (
+    <div className={cn(STAGE, 'flex-col items-stretch justify-center gap-2')}>
+      {/* The row: present from the claim on, and only then coloured. */}
+      <div
+        className={cn(
+          'flex items-center gap-1.5 rounded-md border px-2 py-1.5 transition-all duration-500 motion-reduce:transition-none',
+          reached('claimed') ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0',
+          settled ? 'border-success/40 bg-success/10' : 'border-dashed border-border bg-muted/40'
+        )}
+      >
+        {settled ? (
+          <Check className="h-3 w-3 shrink-0 text-success" aria-hidden="true" />
+        ) : (
+          <Hourglass
+            className="h-3 w-3 shrink-0 animate-pulse text-muted-foreground motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+        )}
+        <span className="truncate text-[10px] text-muted-foreground">
+          {settled ? labels.settled : labels.claimed}
+        </span>
+      </div>
+
+      {/* The act itself, between the two states — never before the row. */}
+      <div
+        className={cn(
+          'flex items-center gap-1.5 self-end transition-opacity duration-300 motion-reduce:transition-none',
+          reached('acting') && !settled ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        <span className="text-[10px] text-muted-foreground">{labels.acting}</span>
+        <Send className="h-3 w-3 text-primary" aria-hidden="true" />
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   activity_timeline: ActivityTimelineScene,
+  claim_before_effect: ClaimBeforeEffectScene,
   readable_at_a_glance: ReadableAtAGlanceScene,
   oled_black: OledBlackScene,
   capability_map: CapabilityMapScene,

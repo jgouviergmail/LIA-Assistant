@@ -4569,6 +4569,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_42_0": {
+          "title": "v1.42.0 — 📄 Your own unified record",
+          "date": "September 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📄 One file with everything recorded about you</b> — the exports on each register cover one journal apiece. A new <b>unified extraction</b>, below the tabs of <i>Registers</i>, gathers all five records LIA keeps — your turns, the actions, the consultations, the model calls and any gap in the record itself — into a single machine-readable file, as the EU AI Act's Article 12 expects. It is the same file an administrator can produce, narrowed to your account alone: the route it calls takes no account parameter at all, so it can only ever return yours. And it holds no content, with every identifier replaced by a handle — yours included — so you can attach it to a portability request, a complaint or a bug report without editing anything out of it first.",
+            "i2": "<b>🏅 The standards LIA follows, stated on the home page</b> — under the security section, a strip now names them: GDPR, the AI Act's Article 12, the Model Context Protocol, Agent Plugins, agentskills.io, OWASP Top 10, WebAuthn, OAuth 2.0 with PKCE, OpenTelemetry, Prometheus, Keep a Changelog, semantic versioning and WCAG 2.2 AA. An open standard is what makes a promise checkable against a text somebody else wrote.",
+            "i3": "<b>✨ A new card on « More », and guides that stopped narrating releases</b> — the card shows the small invisible decision inside the registers: the line is written <i>before</i> the action happens, and only turns green when the tool says so out loud. And the Story and Why guides no longer recount past releases one by one; they state what those releases established."
+          }
+        },
         "v1_41_0": {
           "title": "v1.41.0 — 📋 Registers: what LIA did, and what it looked at",
           "date": "September 2026",
@@ -8299,6 +8309,10 @@
         "title": "The work journal",
         "desc": "What LIA does for you in the background — memories learned, routines checked, briefings prepared — appears as a chronological feed on your dashboard. Invisible work, made visible."
       },
+      "claim_before_effect": {
+        "title": "Written before it happens",
+        "desc": "When LIA is about to act for you, the line lands in your register first — pending, uncoloured, committed. Then the action leaves. It only turns green when the tool says so, out loud: a missing error is never read as a success, so nothing can be reported as done on the strength of silence."
+      },
       "widgets_travel": {
         "title": "Your widgets travel",
         "desc": "Maps, charts, mini-apps: they survive reloads and follow you across devices."
@@ -8460,6 +8474,11 @@
         "entry1": "Memory learned",
         "entry2": "Routine checked",
         "entry3": "Briefing ready"
+      },
+      "claim_before_effect": {
+        "claimed": "Send an email — pending",
+        "acting": "sending",
+        "settled": "Send an email — confirmed"
       },
       "peer_actions": {
         "reply": "Reply"

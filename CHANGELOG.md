@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.0] - 2026-09-05
+
+**L'extraction unifiée n'était offerte qu'aux administrateurs.** La personne que les enregistrements CONCERNENT n'avait que les exports par registre : composer son propre fichier article 12 supposait de télécharger cinq documents et de les corréler à la main — exactement le travail que l'extraction existe pour éviter.
+
+**Et les guides racontaient leurs bugs.** STORY « La preuve » avait grossi jusqu'à dix-neuf paragraphes, un par cycle de livraison : 19 646 caractères contre 1 000-3 200 pour toutes les autres sections du même document. Un lecteur qui arrive aujourd'hui n'a pas besoin de la chronique, il a besoin de savoir ce que la méthode établit.
+
+### Added
+
+- **L'extraction unifiée article 12 pour l'utilisateur** (`GET /effects/export/article12`) : les cinq enregistrements le concernant en un seul fichier, sous les onglets et dans aucun — il les traverse tous. La route ne déclare **aucun paramètre de compte** : la portée est la session, pas un défaut qu'un paramètre ajouté plus tard pourrait outrepasser. Le contrat est celui de l'administrateur — mêmes colonnes, mêmes exclusions, même pseudonymisation, l'identifiant du demandeur compris — pour que le fichier se joigne à une demande de portabilité ou à une réclamation sans retouche.
+- **Un bandeau « Normes et standards respectés »** sous la grille de sécurité de la page d'accueil : RGPD, IA Act article 12, MCP, Agent Plugins, agentskills.io, OWASP Top 10, WebAuthn/FIDO2, OAuth 2.0 + PKCE, OpenTelemetry, Prometheus/OpenMetrics, Keep a Changelog, SemVer, WCAG 2.2 AA. Des noms propres, donc dans le code et non dans six fichiers de traduction qui dériveraient.
+- **Une 56e carte « Encore + »** : la ligne du registre est écrite **avant** l'acte, et ne passe au vert que sur un résultat explicite. La scène anime l'ordre, pas l'issue.
+
+### Changed
+
+- **Les cinq lectures des registres sont partagées** (`technical_reads.py`), extraites du routeur d'administration le jour où une seconde surface est apparue : un routeur de lecteur qui importerait un routeur d'administration est le mauvais sens, et deux copies dériveraient le jour où un sixième enregistrement arrive. Une garde refuse qu'une route s'invente son propre aiguillage et vérifie que les deux signatures ne diffèrent QUE par la portée.
+- **STORY, WHY et HOW énoncent des règles, pas la chronique de leurs bugs** : dix-neuf récits de cycle retirés de STORY §6, six de WHY §8.1, et la dernière « leçon » de HOW reformulée en la règle CSS qu'elle portait. Six langues.
+- **La page d'accueil est rééquilibrée** : chapitre 6 ramené dans la bande des cinq autres (1 317 → 1 035 caractères en anglais), et les quatre blocs de sécurité qui allaient de 98 à 582 caractères tiennent maintenant entre 185 et 310 — la carte BFF répétait sa propre compartimentation en trois clauses successives.
+
+### Fixed
+
+- **La numérotation de WHY §6 était dupliquée** : deux 6.4 et deux 6.5, dans les six langues. Un lecteur qui citait « 6.4 » pouvait désigner l'une ou l'autre.
+- **Deux pièges du script de déploiement**, hors périmètre mais bloquants : un avertissement de `wsl` sur stderr devenait une erreur terminante sous `ErrorActionPreference = "Stop"` alors que la commande réussissait ; et le repli scp envoyait les dix-huit entrées en une seule session que le pair réinitialisait — le « No such file or directory » affiché n'était qu'une conséquence de la coupure. Une session par entrée désormais, chacune avec le réessai existant.
+
+### Tests
+
+- Dix unitaires sur la route utilisateur : portée réelle des cinq lectures, absence de paramètre de compte, en-tête, pseudonymisation de son propre identifiant, et partage d'implémentation avec la surface admin.
+- La surface publique du démonstrateur déclare la nouvelle route — sa garde l'a exigé sans qu'on la sollicite.
+- 21 913 unitaires backend, 7 198 frontend (578 fichiers).
+
 ## [1.41.0] - 2026-09-05
 
 **Un assistant qui agit à votre place doit pouvoir dire ce qu'il a fait, et ce qu'il a regardé pour le faire.** Cette version ajoute cette capacité au produit : deux registres tenus automatiquement — les **actions** et les **consultations** — plus trois enregistrements techniques qui complètent la traçabilité attendue par l'article 12 de l'IA Act (le tour lui-même, les paramètres de chaque appel de modèle, et les lacunes du registre). Rien n'est déclaratif : une action est inscrite **avant** d'avoir lieu et close **uniquement** sur un résultat explicite, la porte est installée sur la capacité au moment de son enregistrement, et le démarrage refuse une capacité qui ne déclare pas ce qu'elle doit à l'utilisateur.
@@ -18,7 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Registre des actions et registre des consultations** : une ligne par action (envoi, création, suppression) avec son résultat, sa confirmation et sa politique déclarée ; une ligne par capacité consultée, qui retient **le domaine, jamais la demande**. Deux registres et non une liste filtrée : ils comptent des choses différentes et ne s'additionnent jamais.
 - **Une représentation graphique des registres** (`GET /effects/statistics`, `GET /admin/effects/statistics`) : dix séries, un onglet « Vue d'ensemble » pour l'utilisateur, la même vue pour l'administrateur sur un, plusieurs ou tous les comptes. Chaque figure porte le **total exact** de l'ensemble filtré, y compris ce que le top-12 a replié dans « autre ».
 - **Un export technique pour l'utilisateur**, en plus du lisible et du CSV : le même contrat que celui de l'administrateur, pour qu'un fichier remis à un tiers ne soit pas un format à part.
-- **L'extraction unifiée article 12 pour l'utilisateur** (`GET /effects/export/article12`), sous les onglets et dans aucun : les cinq enregistrements le concernant en un seul fichier. La route ne déclare **aucun paramètre de compte** — la portée est la session, pas un défaut qu'un paramètre pourrait outrepasser — et le contrat est celui de l'administrateur, son propre identifiant pseudonymisé compris, pour que le fichier se transmette sans retouche. Les cinq lectures, jusque-là privées au routeur d'administration, sont extraites dans `technical_reads.py` : une implémentation pour les deux surfaces, et une garde qui refuse qu'une route s'invente son propre aiguillage.
 - **Deux sujets « Sous le capot » sur la page d'accueil** : les registres de transparence, et le vocabulaire commun qui permet à une question de traverser les sources.
 
 ### Changed

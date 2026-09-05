@@ -4574,6 +4574,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_42_0": {
+          "title": "v1.42.0 — 📄 Ton propre relevé unifié",
+          "date": "Septembre 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📄 Un fichier avec tout ce qui est enregistré à ton sujet</b> — les exports de chaque registre couvrent un journal chacun. Une nouvelle <b>extraction unifiée</b>, sous les onglets des <i>Registres</i>, rassemble les cinq enregistrements que LIA tient — tes tours, les actions, les consultations, les appels aux modèles et toute lacune du registre lui-même — dans un seul fichier lisible par une machine, comme l'attend l'article 12 du règlement européen sur l'IA. C'est le fichier qu'un administrateur peut produire, restreint à ton seul compte : la route appelée ne prend aucun paramètre de compte, elle ne peut donc rendre que le tien. Et il ne porte aucun contenu, chaque identifiant étant remplacé par une poignée — le tien compris — pour que tu puisses le joindre à une demande de portabilité, une réclamation ou un rapport de bug sans rien avoir à en retirer.",
+            "i2": "<b>🏅 Les normes que LIA respecte, énoncées sur la page d'accueil</b> — sous la section sécurité, un bandeau les nomme : RGPD, article 12 de l'IA Act, Model Context Protocol, Agent Plugins, agentskills.io, OWASP Top 10, WebAuthn, OAuth 2.0 avec PKCE, OpenTelemetry, Prometheus, Keep a Changelog, versionnage sémantique et WCAG 2.2 AA. Un standard ouvert, c'est une promesse vérifiable contre un texte écrit par d'autres.",
+            "i3": "<b>✨ Une carte de plus sur « Encore + », et des guides qui cessent de raconter les versions</b> — la carte montre la petite décision invisible au cœur des registres : la ligne est écrite <i>avant</i> que l'action ait lieu, et ne passe au vert que si l'outil le dit explicitement. Et les guides Histoire et Pourquoi ne racontent plus les versions passées une par une ; ils énoncent ce que ces versions ont établi."
+          }
+        },
         "v1_41_0": {
           "title": "v1.41.0 — 📋 Registres : ce que LIA a fait, et ce qu'elle a regardé",
           "date": "Septembre 2026",
@@ -8304,6 +8314,10 @@
         "title": "Le journal de bord",
         "desc": "Ce que LIA fait pour vous en coulisses — souvenirs appris, routines vérifiées, briefings préparés — apparaît en fil chronologique sur votre tableau de bord. Le travail invisible, rendu visible."
       },
+      "claim_before_effect": {
+        "title": "Écrit avant d’avoir lieu",
+        "desc": "Quand LIA s’apprête à agir pour vous, la ligne arrive d’abord dans votre registre — en attente, sans couleur, déjà inscrite. Puis l’action part. Elle ne passe au vert que si l’outil le dit explicitement : une erreur absente n’est jamais lue comme un succès, et rien ne peut donc être annoncé comme fait sur la foi d’un silence."
+      },
       "widgets_travel": {
         "title": "Tes widgets voyagent",
         "desc": "Cartes, graphiques, mini-apps : ils survivent au rechargement et te suivent d’un appareil à l’autre."
@@ -8465,6 +8479,11 @@
         "entry1": "Souvenir appris",
         "entry2": "Routine vérifiée",
         "entry3": "Briefing prêt"
+      },
+      "claim_before_effect": {
+        "claimed": "Envoyer un e-mail — en attente",
+        "acting": "envoi",
+        "settled": "Envoyer un e-mail — confirmé"
       },
       "peer_actions": {
         "reply": "Répondre"

@@ -4560,6 +4560,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_42_0": {
+          "title": "v1.42.0 — 📄 Dein eigener vereinheitlichter Nachweis",
+          "date": "September 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>📄 Eine Datei mit allem, was über dich erfasst ist</b> — die Exporte je Register decken jeweils ein Journal ab. Eine neue <b>vereinheitlichte Auswertung</b>, unterhalb der Reiter von <i>Register</i>, bündelt alle fünf Aufzeichnungen, die LIA führt — deine Züge, die Aktionen, die Abfragen, die Modellaufrufe und jede Lücke im Register selbst — in einer maschinenlesbaren Datei, wie es Artikel 12 der EU-KI-Verordnung erwartet. Es ist dieselbe Datei, die ein Administrator erzeugen kann, auf dein Konto allein begrenzt: Die aufgerufene Route nimmt gar keinen Kontoparameter, kann also nur deins liefern. Sie enthält keine Inhalte, jede Kennung ist durch ein Handle ersetzt — deine eingeschlossen —, sodass du sie einem Antrag, einer Beschwerde oder einem Fehlerbericht unverändert beilegen kannst.",
+            "i2": "<b>🏅 Die Standards, denen LIA folgt, auf der Startseite benannt</b> — unter dem Sicherheitsabschnitt nennt sie ein Band: DSGVO, Artikel 12 der KI-Verordnung, Model Context Protocol, Agent Plugins, agentskills.io, OWASP Top 10, WebAuthn, OAuth 2.0 mit PKCE, OpenTelemetry, Prometheus, Keep a Changelog, semantische Versionierung und WCAG 2.2 AA. Ein offener Standard macht ein Versprechen an einem Text prüfbar, den andere geschrieben haben.",
+            "i3": "<b>✨ Eine Karte mehr auf « Mehr », und Anleitungen, die keine Releases mehr erzählen</b> — die Karte zeigt die kleine unsichtbare Entscheidung im Inneren der Register: Die Zeile wird geschrieben, <i>bevor</i> die Aktion geschieht, und wird erst grün, wenn das Werkzeug es ausdrücklich sagt. Und die Anleitungen Geschichte und Warum zählen vergangene Releases nicht mehr einzeln auf; sie sagen, was diese Releases begründet haben."
+          }
+        },
         "v1_41_0": {
           "title": "v1.41.0 — 📋 Register: was LIA getan und was sie angesehen hat",
           "date": "September 2026",
@@ -8290,6 +8300,10 @@
         "title": "Das Arbeitsjournal",
         "desc": "Was LIA im Hintergrund für Sie tut — gelernte Erinnerungen, geprüfte Routinen, vorbereitete Briefings — erscheint als chronologischer Verlauf auf Ihrem Dashboard. Unsichtbare Arbeit, sichtbar gemacht."
       },
+      "claim_before_effect": {
+        "title": "Notiert, bevor es geschieht",
+        "desc": "Wenn LIA für Sie handeln will, erscheint die Zeile zuerst in Ihrem Register — offen, farblos, bereits eingetragen. Dann geht die Aktion hinaus. Grün wird sie erst, wenn das Werkzeug es ausdrücklich sagt: Ein fehlender Fehler gilt nie als Erfolg, und nichts wird auf ein Schweigen hin als erledigt gemeldet."
+      },
       "widgets_travel": {
         "title": "Deine Widgets reisen mit",
         "desc": "Karten, Diagramme, Mini-Apps: Du überstehst jedes Neuladen und folgen dir von Gerät zu Gerät."
@@ -8451,6 +8465,11 @@
         "entry1": "Erinnerung gelernt",
         "entry2": "Routine geprüft",
         "entry3": "Briefing bereit"
+      },
+      "claim_before_effect": {
+        "claimed": "E-Mail senden — offen",
+        "acting": "sendet",
+        "settled": "E-Mail senden — bestätigt"
       },
       "peer_actions": {
         "reply": "Antworten"
