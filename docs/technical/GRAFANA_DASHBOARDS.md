@@ -120,7 +120,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 02 | SLO Tracking | `02-slo-tracking` | lia, slo, reliability | 17 | SLOs API, SLOs agents, SLOs providers LLM, SLOs DB et business |
 | 03 | Infrastructure & Resources | `03-infra-resources` | lia, infra, docker, raspberry-pi | 24 | Systeme hote (RPi), ressources conteneurs, PostgreSQL, Redis |
 | 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency | 17 | Trafic, latence, erreurs, rate limiting |
-| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 48 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees |
+| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 52 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison) |
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug | 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
 | 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration | 61 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121) |
 | 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval | 27 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
@@ -131,7 +131,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat | 26 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261) |
 | 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints | 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
 | 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework | 36 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
-| 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational | 27 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils |
+| 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational | 33 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues) |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo | 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
 | 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge | 35 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation, recuperation de jobs, reindexation Drive ciblee et source libelle Gmail (ADR-261/262) |
 | 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills | 10 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs), skills |

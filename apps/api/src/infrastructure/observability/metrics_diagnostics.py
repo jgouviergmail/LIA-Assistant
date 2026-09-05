@@ -36,3 +36,10 @@ diagnostics_catalogue_miss_total = Counter(
     "Requests for a query the curated catalogue could not serve (escalation signal, spec §3)",
     ["surface"],
 )
+
+diagnostics_context_sources_total = Counter(
+    "diagnostics_context_sources_total",
+    "Evidence sources read for a diagnosis, by source and status (ADR-266): a "
+    "chronically unavailable source is a diagnostician reasoning half-blind",
+    ["source", "status"],
+)

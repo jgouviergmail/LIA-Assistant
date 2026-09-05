@@ -80,6 +80,20 @@ embedding_shaper_outcomes_total = Counter(
     ["model", "outcome"],
 )
 
+#: WHY the provider refused an attempt, classified exactly as the retry
+#: classifies it (`embedding_retry_reason`: `http_<code>`, `message:<marker>`,
+#: an exception class name, or `permanent`). `embedding_api_calls_total` says an
+#: attempt failed and nothing more: on 2026-09-05 the diagnostician had to say
+#: "no error log is provided" while eight attempts had answered `500 INTERNAL`
+#: — the kind lived in Loki only. The label set is bounded by construction: the
+#: retryable status codes, the short marker list, two exception names, and
+#: `permanent`.
+embedding_provider_errors_total = Counter(
+    "embedding_provider_errors_total",
+    "Embedding attempts refused by the provider, by classified reason",
+    ["model", "reason"],
+)
+
 embedding_api_calls_total = Counter(
     "embedding_api_calls_total",
     "Total embedding API calls",

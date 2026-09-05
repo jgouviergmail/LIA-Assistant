@@ -20,6 +20,16 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
+#: The evidence pack (ADR-266) as the pump receives it when a test does not
+#: care about its content — shaped like `collect_diagnosis_context` returns it.
+_CANNED_PACK: dict[str, object] = {
+    "recipe": None,
+    "window_minutes": 30,
+    "runtime": {"version": "test", "commit": "", "build_date": "", "uptime_seconds": 0},
+    "metrics": [],
+    "logs": {"status": "skipped"},
+}
+
 
 class TestThePromptDoesNotHardcodeALanguage:
     def test_it_takes_the_language_as_a_placeholder(self) -> None:
@@ -36,6 +46,17 @@ class TestThePromptDoesNotHardcodeALanguage:
             "The admin panel is localised in six languages; the one string the "
             "model writes must not be the exception."
         )
+
+    def test_it_tells_the_model_how_to_read_the_pack_and_its_blind_spots(self) -> None:
+        """The pack is only useful if the model knows to read it before saying
+        evidence is missing — and knows an unavailable source is not silence."""
+        from src.domains.agents.prompts.prompt_loader import load_prompt
+
+        text = str(load_prompt("diagnostician_prompt")).lower()
+        assert "breakdown metrics" in text
+        assert "recent log lines" in text
+        assert "runtime" in text
+        assert "unavailable" in text
 
     def test_it_still_forbids_inventing_a_cause(self) -> None:
         """The instruction that produced the honest 'insufficient evidence'
@@ -74,27 +95,144 @@ class TestTheEvidencePackCarriesSomethingToReasonFrom:
         )
         assert "5.0" in message and "20.0" in message
 
-    def test_recent_platform_errors_are_quoted_as_DATA(self) -> None:
+    @staticmethod
+    def _context(**over: object) -> dict[str, object]:
+        """A pack shaped exactly like `collect_diagnosis_context` returns it —
+        the 2026-09-05 incident, as the collector would have seen it."""
+        base: dict[str, object] = {
+            "recipe": "EmbeddingOperationsFailing",
+            "window_minutes": 30,
+            "runtime": {
+                "version": "1.42.0",
+                "commit": "d1bc4743f400",
+                "build_date": "2026-09-05T05:59:00Z",
+                "uptime_seconds": 2820,
+                "window_minutes": 30,
+            },
+            "metrics": [
+                {
+                    "query_id": "embedding_failure_rate",
+                    "title": "Embedding failure rate",
+                    "unit": "percent",
+                    "status": "ok",
+                    "error": None,
+                    "series": [{"labels": {}, "value": 25.0}],
+                    "truncated": False,
+                },
+                {
+                    "query_id": "embedding_outcomes_by_result",
+                    "title": "Embedding operations by outcome",
+                    "unit": "count",
+                    "status": "ok",
+                    "error": None,
+                    "series": [
+                        {"labels": {"outcome": "failed"}, "value": 2.0339},
+                        {"labels": {"outcome": "succeeded"}, "value": 6.1017},
+                    ],
+                    "truncated": False,
+                },
+                {
+                    "query_id": "embedding_errors_by_reason",
+                    "title": "Embedding provider refusals by classified reason",
+                    "status": "unavailable",
+                    "error": "circuit_open",
+                    "series": [],
+                    "truncated": False,
+                },
+            ],
+            "logs": {
+                "status": "ok",
+                "service": "api",
+                "lines_read": 12,
+                "lines_kept": 12,
+                "counts": [
+                    {
+                        "event": "gemini_embedding_failed",
+                        "level": "error",
+                        "head": "Error embedding content: 500 INTERNAL. {'error': {'code': 500",
+                        "count": 8,
+                    },
+                    {
+                        "event": "rag_injection_failed",
+                        "level": "warning",
+                        "head": "Max retries (2) exceeded for embedding_embed_query",
+                        "count": 4,
+                    },
+                ],
+                "counts_truncated": False,
+                "samples": [
+                    {
+                        "ts": "2026-09-05T06:10:42+00:00",
+                        "level": "error",
+                        "event": "gemini_embedding_failed",
+                        "operation": "embed_query",
+                        "error": "Error embedding content: 500 INTERNAL.",
+                    }
+                ],
+            },
+        }
+        base.update(over)
+        return base
+
+    def test_the_context_pack_is_rendered_as_quoted_data(self) -> None:
+        """What was in Loki and Prometheus all along reaches the model — and is
+        framed as data, never as instructions it could follow."""
+        from src.domains.diagnostics.diagnosis import _build_human_message
+
+        message = _build_human_message(self._incident(), runbook="", context=self._context())
+
+        # Breakdown: labels and exact values, under the query's title — and the
+        # unit beside a bare value, or "25" cannot be told from 25 seconds.
+        assert "Embedding operations by outcome" in message
+        assert "outcome=failed" in message and "2.0339" in message
+        assert "25 percent" in message
+        # Logs: counts by event with the failure's head, and the sample line.
+        assert "8 × gemini_embedding_failed" in message
+        assert "500 INTERNAL" in message
+        assert "embed_query" in message
+        # Runtime: the build and how long it has been up.
+        assert "1.42.0" in message and "d1bc4743f400" in message and "2820" in message
+        # Every section the model may quote is framed as data.
+        assert message.lower().count("quoted data") >= 4
+
+    def test_an_unavailable_source_is_stated_not_silently_absent(self) -> None:
+        """A blind source and a quiet source are different facts."""
+        from src.domains.diagnostics.diagnosis import _build_human_message
+
+        context = self._context(
+            logs={"status": "unavailable", "service": "api", "error": "transport:ConnectError"}
+        )
+        message = _build_human_message(self._incident(), runbook="", context=context)
+
+        assert "transport:ConnectError" in message
+        assert "circuit_open" in message, "an unavailable metric names its reason too"
+        assert "unavailable" in message.lower()
+
+    def test_a_skipped_log_source_is_said_in_one_line(self) -> None:
         from src.domains.diagnostics.diagnosis import _build_human_message
 
         message = _build_human_message(
-            self._incident(
-                evidence={
-                    "check_id": "x",
-                    "value": 46.0,
-                    "recent_errors": [
-                        {"event": "gemini_embedding_failed", "count": 11},
-                        {"event": "system_rag_injection_failed", "count": 1},
-                    ],
-                }
-            ),
-            runbook="",
+            self._incident(), runbook="", context=self._context(logs={"status": "skipped"})
         )
-        assert "gemini_embedding_failed" in message
-        assert "quoted data" in message.lower(), (
-            "Log excerpts reach a model; they must be framed as data, never as "
-            "instructions it could follow."
+        assert "no log excerpt" in message.lower()
+
+    def test_a_pack_that_could_not_be_collected_is_named_not_mistaken_for_no_recipe(self) -> None:
+        """The collector failing outright leaves `{"status": "unavailable"}`;
+        that must read as a blind pack, not as an incident with no recipe."""
+        from src.domains.diagnostics.diagnosis import _build_human_message
+
+        message = _build_human_message(
+            self._incident(), runbook="", context={"status": "unavailable", "error": "RuntimeError"}
         )
+        assert "UNAVAILABLE" in message and "RuntimeError" in message
+        assert "No evidence recipe" not in message
+
+    def test_no_context_still_produces_a_message(self) -> None:
+        from src.domains.diagnostics.diagnosis import _build_human_message
+
+        message = _build_human_message(self._incident(), runbook="", context=None)
+        assert "Incident:" in message
+        assert "Evidence (quoted data)" in message
 
     def test_an_incident_with_no_extra_evidence_still_produces_a_message(self) -> None:
         """Enrichment is best-effort: a Loki outage must not stop diagnosis."""
@@ -313,6 +451,10 @@ class TestThePumpGeneratesOneVariantPerAdminLanguage:
         monkeypatch.setattr(diag_module, "DiagnosticsRepository", _Repo)
         monkeypatch.setattr(diag_module, "get_cached_cost_usd_eur", lambda *a, **k: (0.01, 0.009))
         monkeypatch.setattr(diag_module.settings, "diagnostics_diagnosis_daily_cost_cap_usd", 1.0)
+        # A unit test never reaches Prometheus or Loki: canned evidence pack.
+        monkeypatch.setattr(
+            diag_module, "collect_diagnosis_context", AsyncMock(return_value=_CANNED_PACK)
+        )
         state["module"] = diag_module
         return state
 
@@ -477,6 +619,9 @@ class TestTheDailyCapGatesEveryCallNotEveryIncident:
         monkeypatch.setattr(diag_module, "get_cached_cost_usd_eur", lambda *a, **k: (0.25, 0.22))
         monkeypatch.setattr(diag_module.settings, "diagnostics_diagnosis_daily_cost_cap_usd", 0.5)
         monkeypatch.setattr(diag_module, "get_redis_cache", AsyncMock())
+        monkeypatch.setattr(
+            diag_module, "collect_diagnosis_context", AsyncMock(return_value=_CANNED_PACK)
+        )
         state["module"] = diag_module
         return state
 

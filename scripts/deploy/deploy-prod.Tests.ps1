@@ -117,6 +117,15 @@ FERNET_KEY=fake-fernet
         # on the behaviour under test.
         New-Item -ItemType Directory (Join-Path $proj "apps/api/locales/fr/LC_MESSAGES") -Force | Out-Null
         Set-Content (Join-Path $proj "apps/api/locales/fr/LC_MESSAGES/messages.mo") "LOCALE_SENTINEL"
+        # Per-alert runbooks: docker-compose.prod.yml mounts ./docs/runbooks
+        # read-only into the API for the self-diagnostics LLM step. Until
+        # 2026-09-05 the bundle never carried them, so the mount was an empty
+        # directory created by Docker and `had_runbook` was false on every
+        # diagnosis ever stored in production. The sandbox ships one so the
+        # bundle test can require it.
+        New-Item -ItemType Directory (Join-Path $proj "docs/runbooks/alerts") -Force | Out-Null
+        Set-Content (Join-Path $proj "docs/runbooks/alerts/ServiceDown.md") "# ServiceDown RUNBOOK_SENTINEL"
+        Set-Content (Join-Path $proj "docs/runbooks/DATABASE_BACKUP_RESTORE.md") "# restore"
         New-Item -ItemType Directory (Join-Path $proj "apps/web/src") -Force | Out-Null
         Set-Content (Join-Path $proj "apps/web/src/page.tsx") "// WEB_SENTINEL"
         Set-Content (Join-Path $proj "apps/web/Dockerfile.prod") "FROM scratch"
@@ -575,6 +584,16 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         (Join-Path $prod "apps/web/src/page.tsx") | Should -Exist
         (Join-Path $prod "apps/api/Dockerfile.prod") | Should -Exist
         (Join-Path $prod "docker-compose.prod.yml") | Should -Exist
+    }
+
+    It "stages the per-alert runbooks the compose file mounts into the API" {
+        # docker-compose.prod.yml: ./docs/runbooks:/app/docs/runbooks:ro. A
+        # bundle without them leaves the diagnostician with `had_runbook=false`
+        # forever — measured on every production diagnosis until 2026-09-05.
+        (Join-Path $prod "docs/runbooks/alerts/ServiceDown.md") | Should -Exist
+        (Join-Path $prod "docs/runbooks/DATABASE_BACKUP_RESTORE.md") | Should -Exist
+        Get-Content (Join-Path $prod "docs/runbooks/alerts/ServiceDown.md") -Raw |
+            Should -Match "RUNBOOK_SENTINEL"
     }
 
     It "generated deploy.sh with the readiness-gate wiring in the right order" {

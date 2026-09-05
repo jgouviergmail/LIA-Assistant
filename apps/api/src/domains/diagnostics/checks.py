@@ -221,16 +221,25 @@ def evidence_for(result: CheckResult) -> dict[str, object]:
     evidence: dict[str, object] = {
         "check_id": result.check_id,
         "value": result.value,
-        "detail": result.detail,
         "status": result.status.value,
         "unit": _UNITS_BY_CHECK_ID.get(result.check_id, ""),
     }
+    # Absent beats blank: an empty detail was quoted back by the diagnostician
+    # as "the detail field is empty" (2026-09-05). Prometheus checks never
+    # carry one; the probes carry the exception class or the target.
+    if result.detail:
+        evidence["detail"] = result.detail
     from src.core.config import settings
 
     check = _PROM_CHECK_BY_ID.get(result.check_id)
     if check is not None:
         evidence["warn"] = getattr(settings, check.warn_setting, None)
         evidence["crit"] = getattr(settings, check.crit_setting, None)
+        # A rate without its period cannot be weighed: 25 % over 30 minutes is
+        # two operations out of eight, and the model asked "over what period".
+        window = check.params.get("window_minutes")
+        if window is not None:
+            evidence["window_minutes"] = int(window)
     return evidence
 
 

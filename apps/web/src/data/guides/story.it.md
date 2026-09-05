@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 1.9
+**Versione**: 2.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.42.2
+**Applicazione**: LIA v1.42.3
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 44 domini funzionali | **580.000** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **31.500+** |
-| Decisioni di architettura documentate (ADR) | **264** |
-| Versioni rilasciate a ritmo regolare | **247** |
+| Decisioni di architettura documentate (ADR) | **265** |
+| Versioni rilasciate a ritmo regolare | **248** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 264 documentate:
+Tre decisioni strutturanti, tra le 265 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -62,7 +62,7 @@ Tre decisioni strutturanti, tra le 264 documentate:
 
 Un sistema che si pilota con gli strumenti:
 
-- **Osservabilità**: ventisei dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 490 metriche; log strutturati centralizzati con filtraggio dei dati personali; tracciamento distribuito end-to-end. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino. E l'assistente legge da sé questa telemetria: autocontrollo periodico, una memoria di incidenti diagnosticati proprio su quelle procedure, risposte che aggirano un guasto noto.
+- **Osservabilità**: ventisei dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 490 metriche; log strutturati centralizzati con filtraggio dei dati personali; tracciamento distribuito end-to-end. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino. E l'assistente legge da sé questa telemetria: autocontrollo periodico, una memoria di incidenti diagnosticati proprio su quelle procedure, risposte che aggirano un guasto noto. E una diagnosi mostra le prove da cui è nata.
 - **Consegna**: deployment containerizzato, migrazioni di schema automatizzate, immagini pubblicate per due architetture hardware (amd64/arm64).
 - **Costi**: infrastruttura frugale per scelta — circa 150 € di hardware, zero licenze, componenti open source dimensionati sul bisogno reale.
 - **Conformità**: sicurezza rivista punto di accesso per punto di accesso; cifratura dei dati personali; ciclo di vita degli account allineato al GDPR.

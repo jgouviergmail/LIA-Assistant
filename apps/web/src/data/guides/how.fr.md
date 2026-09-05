@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 4.8
+**Version** : 4.9
 **Date** : 2026-08-23
-**Application** : LIA v1.42.2
+**Application** : LIA v1.42.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -65,8 +65,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 535 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 264 ADRs, ~24 053 tests collectés par pytest sur 1 452 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 537 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 265 ADRs, ~24 053 tests collectés par pytest sur 1 452 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -87,7 +87,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | 24 053 collectés par pytest sur 1 452 fichiers de test + 7 305 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 264 |
+| ADRs (Architecture Decision Records) | 265 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -950,7 +950,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 535 métriques custom (RED pattern) |
+| Prometheus | 537 métriques custom (RED pattern) |
 | Grafana | 26 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -958,7 +958,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 535 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 537 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1366,7 +1366,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-264 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+265 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1512,7 +1512,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 264 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~24 053 tests sur 1 452 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 265 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~24 053 tests sur 1 452 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1551,6 +1551,8 @@ Jusqu'à l'ADR-247, LIA émettait toute cette observabilité et n'en lisait rien
 **Une panne, un incident.** Le webhook Alertmanager (Bearer, fragments commités, matrice rejouée en CI) et les verdicts critiques convergent vers un incident unique par clé de corrélation — index unique partiel, upsert atomique sous la concurrence webhook-contre-leader. Le diagnostic LLM est ancré sur le runbook de l'alerte, plafonné par un budget quotidien atomique, et ses recommandations restent des propositions : rien ne s'exécute depuis du texte de modèle.
 
 **La connaissance de la panne façonne la réponse.** Un advisor à coût nul sur plateforme saine injecte les capacités dégradées dans la planification (« Brave coupé → Perplexity »), et la synthèse reçoit les échecs du run sous forme typée — code et tête de message, jamais un log brut — avec une directive d'honnêteté : dire ce qui a réussi, ce qui a échoué et pourquoi, sans jamais inventer un diagnostic.
+
+**Le diagnosticien lit ses preuves au moment où il diagnostique.** Une valeur et son seuil font un verdict, pas un diagnostic, et quatre incidents d'affilée l'avaient montré : le modèle répondait « preuves insuffisantes » alors que la ventilation était dans Prometheus et le chemin défaillant dans Loki. Chaque incident déclare désormais une *recette* — les requêtes du catalogue et les événements de journal qui valent d'être lus pour sa clé de corrélation, complétude vérifiée au démarrage — et la pompe de diagnostic collecte le dossier une fois par incident, après la porte budgétaire : séries ventilées, extrait de journal borné filtré par une liste blanche fermée et le nettoyeur de données personnelles, version en cours et durée de fonctionnement. Chaque source dégrade seule : un magasin de journaux injoignable coûte au diagnostic son extrait, jamais le diagnostic, et il est nommé indisponible plutôt que lu comme du silence. Ce que le modèle a vu est stocké avec ce qu'il a écrit et dessiné sous le verdict pour l'administrateur.
 
 ## 34. Calculer au lieu de deviner : un script éphémère dans le bac à sable qui existait déjà
 
@@ -1627,4 +1629,4 @@ Le visage du compagnon choisissait son expression de fin de tour dans l'émotion
 **Chaque unité payante est comptée, et montrée.** Une réunion dépense de l'audio chez le moteur de transcription et des tokens chez le modèle de synthèse, passes de condensation et reconstructions comprises ; les deux rejoignent la comptabilité de la plateforme comme tout échange — l'audio par les statistiques de reconnaissance distante, les tokens sous un `run_id` que le message archivé porte, si bien que l'historique se joint au journal des tokens exactement comme pour toute notification proactive. La ligne garde la dépense propre au compte rendu pour que la page affiche le total exact et sa décomposition, la carte dit les deux unités et leur somme, et un modèle sans tarif administré donne `null` : un prix inconnu n'est pas un prix nul. La même honnêteté traverse le compte rendu lui-même — une lacune est dite, jamais comblée ; un interlocuteur non nommé reste S2 ; une proposition restée ouverte n'est pas une décision.
 
 **Le format du compte rendu est devenu une bibliothèque, et le choix a un seul lieu.** Trente modèles intégrés vivent dans le code, leurs mots dans une donnée i18n, et une assertion au démarrage refuse de booter si un nom manque dans l'une des six langues : ce qu'un validateur peut rejeter, le catalogue ne peut pas le livrer. Un modèle est désigné par une référence — `builtin:<clé>` ou `user:<uuid>` — que réunions, préférences et requêtes échangent à la place d'une ligne, si bien qu'un intégré n'a pas besoin d'exister en base et qu'un modèle supprimé laisse une référence dont les lecteurs savent se replier sur l'instantané conservé. Le choix suit **une seule précédence** : la référence portée par la réunion, puis le défaut de la préférence, puis le modèle de langage qui lit un extrait de transcription et choisit au-dessus d'un seuil de confiance, puis l'intégré par défaut ; chaque issue est comptée et écrite sur la ligne avec la raison énoncée, de sorte que la page affiche un fait et non une reconstruction. Une cinquième sorte de section rend la transcription elle-même : elle ne tient pas dans une réponse — le slot de synthèse sort au plus huit mille tokens — donc elle est réécrite par parties, chacune bornée par la fenêtre de sortie effective, un index manquant scindant la partie une fois et une réponse trop courte étant retentée une fois. Réécrire un compte rendu déjà rendu emprunte la régénération durable quand il s'agit de remplacer, et crée une ligne dérivée pointant sa source quand il s'agit d'un nouveau compte rendu — jamais une copie : la transcription est la même, le compte rendu non. Le même souci d'ordre gouverne les documents des espaces de connaissances : `rag_chunks.space_id` étant dénormalisé et lu par la recherche, un déplacement écrit la ligne et ses morceaux, valide, **puis** déplace le fichier ; un renommage qui échoue remet les deux en arrière et le rapporte pour ce document seul, et un lot ne s'interrompt jamais pour un élément — chaque identifiant revient fait ou ignoré avec son code.
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 264 ADRs, et du changelog (v1.0 à v1.42.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 265 ADRs, et du changelog (v1.0 à v1.42.3). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 5.3
+**Version**: 5.4
 **Date**: 2026-08-23
-**Application**: LIA v1.42.2
+**Application**: LIA v1.42.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -174,6 +174,8 @@ By installing Claude CLI (Claude Code) directly on the server, administrators ca
 
 
 And LIA also watches **itself**: it reads its own telemetry, keeps a history of incidents diagnosed automatically from its operations runbooks, notifies administrators when something critical opens, and gives them a "Platform health" panel in the settings. When an outage is known, it factors it into its answers instead of letting you wait for a timeout.
+
+When it diagnoses one of those incidents, it no longer works from a number alone: it reads the evidence first — how the metric broke down, the recent error lines with the personal data removed, which version has been running for how long — and shows you what it read beside its conclusion, so you can check the diagnosis rather than take it on faith.
 
 ### 3.9. Personal health data
 

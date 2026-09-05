@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.42.2</strong> — <strong>Your week of routines, at a glance.</strong> The routines page listed its cards in the order the scheduler would fire them next, an order that moved every day, and gave no picture of the week. ADR-265 sorts them by the time of day they run, numbers them, and draws a grid above the list — hours down, days across — where each cell of the current week says what happened: executed, failed, proposed and waiting for approval, paused. A colour is a claim, so it comes from a run history the executor writes at the result, never from a guess about a clock, and the browser never re-reads the cron: the week is computed server-side and painted. Three defects fell on the way — a list that blinked away on every refresh, a paused routine waking up on the old time zone, and a scheduler that skipped a whole day for a midnight routine in six zones. And a meeting whose minutes failed no longer stays « processing » for hours: the job resumes from what it already acquired, a lost worker never blocks its owner, and every transition is proven on a real database. — 5 September 2026.
+  <strong>Version 1.42.3</strong> — <strong>A diagnosis that shows its evidence.</strong> Every conversation had been quietly losing its document context: the embedding provider answered <code>500</code> to each search on the knowledge spaces while the same text embedded fine one step earlier, because <code>HumanMessage.text</code> is a <code>str</code> subclass that the provider's client turns into an empty request. ADR-266 normalises the type at the one funnel every embedding goes through. And the automatic incident diagnosis no longer concludes « insufficient evidence » with the answer sitting in the metrics and the logs: each kind of incident declares a recipe, the diagnosis pump collects a bounded evidence pack at the moment of the diagnosis — breakdowns, a sanitized log excerpt, the running build — fail-open source by source, stores it with the verdict and shows it to the administrator. The operations runbooks, written for every alert and never shipped, finally travel with the deployment. — 5 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **31,000+** automated tests | **264** ADRs                                                           |
-| **247** versions shipped  | **6 languages**, parity enforced in CI  | **535** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **31,600+** automated tests | **265** ADRs                                                           |
+| **248** versions shipped  | **6 languages**, parity enforced in CI  | **537** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -379,13 +379,14 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 535 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 537 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
 - **Probes**: liveness (`GET /health`, always 200 while the process serves — what Docker healthchecks poll) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](./docs/architecture/ADR-115-Liveness-Readiness-Probes.md)
 - **Alerting**: a 14-alert vital core (service/DB/Redis down, disk, container OOM, 5xx rate, SSE latency, backup failure, public-endpoint & TLS-certificate probes, chain self-monitoring) evaluated by Prometheus and emailed by a dedicated Alertmanager — unit-tested with `promtool test rules`, every alert linking its runbook — [ADR-119](./docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md)
+- **Self-diagnostics** ([ADR-247](./docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md), [ADR-266](./docs/architecture/ADR-266-Diagnosis-Evidence-At-Diagnosis-Time-And-Exact-Str-Embedding-Inputs.md)): a leader-elected self-check of the golden signals plus direct probes, one incident per outage whichever observer saw it first, and a budget-capped diagnosis written in each administrator's language from an evidence pack collected at diagnosis time — breakdown metrics, a sanitized log excerpt, the running build, the alert's runbook — with every source failing open and what the model read shown under its verdict in Settings › Platform health
 
 ### Cost Tracking & Billing
 
@@ -1024,7 +1025,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-264 ADR files (ADR-001 through ADR-265 — ADR-008 has no separate file) documenting major architectural decisions:
+265 ADR files (ADR-001 through ADR-266 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

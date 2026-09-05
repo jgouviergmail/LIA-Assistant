@@ -2312,6 +2312,41 @@
               "legendFormat": "{{outcome}}"
             }
           ]
+        },
+        {
+          "id": 133,
+          "type": "timeseries",
+          "title": "Embedding Provider Errors by reason",
+          "description": "WHY the provider refused an attempt, classified exactly as the retry classifies it: http_429 is the quota, http_500/503 the provider itself, message:* a transient read from the message when no status code travelled, permanent a refusal that retrying cannot fix (malformed input, invalid key). This is the series the incident diagnosis reads so it never has to say \"no error log is provided\".",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 141
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (model, reason) (rate(embedding_provider_errors_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{model}} — {{reason}}"
+            }
+          ]
         }
       ]
     },

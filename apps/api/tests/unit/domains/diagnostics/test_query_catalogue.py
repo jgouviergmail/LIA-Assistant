@@ -204,3 +204,34 @@ class TestRatioQueriesAreTotal:
         denominator = promql.split("/", 1)[1]
         assert "or vector(0)" in denominator, f"{query_id}: an absent denominator must read 0"
         assert "clamp_min(" in denominator, f"{query_id}: zero traffic must not divide by zero"
+
+
+@pytest.mark.unit
+class TestBreakdownQueriesForTheDiagnosisContext:
+    """The evidence pack (ADR-266) reads WHICH outcome, status, shaper verdict
+    and provider reason moved, not only a ratio: 25 % said nothing about the
+    two failed operations behind it, nor that both were `http_500`."""
+
+    BREAKDOWN_KEYS = (
+        "embedding_outcomes_by_result",
+        "embedding_calls_by_status",
+        "embedding_shaper_by_outcome",
+        "embedding_errors_by_reason",
+    )
+
+    @pytest.mark.parametrize("query_id", BREAKDOWN_KEYS)
+    def test_renders_with_the_requested_window(self, query_id: str) -> None:
+        promql = render_query(query_id, window_minutes=30)
+        assert "[30m]" in promql
+        assert promql.startswith("sum by ("), "a breakdown is a grouped increase, not a ratio"
+        assert "increase(" in promql
+
+    @pytest.mark.parametrize("query_id", BREAKDOWN_KEYS)
+    def test_is_a_count_the_reader_can_add_up(self, query_id: str) -> None:
+        assert QUERY_CATALOGUE[query_id].unit == "count"
+
+    def test_the_reason_breakdown_reads_the_provider_error_counter(self) -> None:
+        """The one series that tells a quota from a provider outage without Loki."""
+        assert QUERY_CATALOGUE["embedding_errors_by_reason"].lia_metrics == (
+            "embedding_provider_errors_total",
+        )

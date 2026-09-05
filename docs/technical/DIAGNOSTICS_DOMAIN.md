@@ -22,6 +22,8 @@ advisor so a known outage shapes the answer instead of a timeout.
 | `domains/diagnostics/webhook_router.py` | `POST /api/v1/internal/diagnostics/alert-webhook` — Bearer shared secret; 404 while the flag is off or the secret unset; firing→open, resolved→resolve; nameless alerts skipped. |
 | `domains/diagnostics/notifications.py` | Superuser fan-out (in-app + push + channels; **no email**), cooldown = one atomic `SET NX EX`, fail-OPEN. Strings in `core/i18n_diagnostics.py` (6 languages, backend-canonical `zh-CN`). |
 | `domains/diagnostics/diagnosis.py` | Budget-capped diagnostician pump. System prompt **injected by the caller** (F009: no diagnostics→agents import), with `{language}` left UNRESOLVED — the pump renders it once per admin language, resolved lazily from `distinct_admin_languages()` and only once a diagnosis is actually going to be produced. Runbook loader sanitizes `^[A-Za-z0-9]{1,64}$`; UTC-day USD budget via `INCRBYFLOAT`, checked before **every** call (one incident now costs one call per language); skipped ⇒ diagnosis stays NULL for retry. Stored shape keeps the first language FLAT plus `by_language`, so every existing reader finds the keys where they were; `diagnosis_for_language` resolves for the reader and never lets `by_language` leave the server. Both sides go through `normalize_language`. |
+| `domains/diagnostics/evidence_recipes.py` | ADR-266. One `EvidenceRecipe` per CORRELATION key (the alertname a check mirrors, else its check id): the catalogue queries and the Loki events worth reading for that incident, a window, and a written reason when a recipe fetches nothing. Boot assert: every check key has a recipe, every query exists, no silent empty recipe; CI adds every alert `prometheus.yml` loads and every event name emitted in `src/`. |
+| `domains/diagnostics/context_collector.py` | ADR-266. Fetches the pack **at diagnosis time**, once per incident, after the budget gate: breakdown series per query, a Loki excerpt filtered client-side on the recipe's events/levels, counted by `(event, level, head)` then sampled, every field allowlisted + capped + PII-sanitised, plus the runtime block (`core/process_info.py`: version, commit, uptime). **Fail-open by source** — Prometheus, Loki or the collector itself failing costs a diagnosis its section, never the diagnosis. Bounds live in `DIAGNOSTICS_CONTEXT_*` constants. |
 | `domains/diagnostics/advisor.py` + `degradation_map.py` | Fail-open O(1) view of degraded capabilities (open incidents cached in Redis + this worker's open breakers). Alternatives come from the declared map only. |
 | `domains/diagnostics/failure_context.py` | Pure extraction of typed failures from `completed_steps` / ReAct ToolMessages (bounded, code + message head only) + the honesty directive builder (template injected). |
 | `domains/diagnostics/service.py` + `router.py` | `build_overview` (ONE implementation, shared by REST and the chat tool) + `/admin/diagnostics/*` under `require_superuser`. |
@@ -77,10 +79,20 @@ no verdict, one scheduler error nobody reads.
   the entrypoint when both URL and secret are set; the composition matrix is
   replayed in CI by `tests/unit/test_alertmanager_webhook_matrix.py`.
 - Runbooks are mounted read-only at `/app/docs/runbooks` (dev + prod compose) for
-  the diagnosis grounding.
-- Subsystem metrics: `diagnostics_checks_total`, `diagnostics_incidents_total`,
+  the diagnosis grounding — and **staged by `prepare-prod.ps1`** since ADR-266:
+  until then the production mount was an empty directory Docker had created,
+  and every stored diagnosis carried `had_runbook=false`. The overview publishes
+  `runbooks_available`, the admin panel states a zero, and the boot validation
+  logs `diagnostics_runbooks_missing` (a warning, never a refusal).
+- Subsystem metrics, all wired in the "Self-Diagnostics" row of dashboard 16:
+  `diagnostics_checks_total`, `diagnostics_incidents_total`,
   `diagnostics_self_check_duration_seconds`, `diagnostics_llm_cost_usd_total`,
-  `diagnostics_catalogue_miss_total` (the free-form-query escalation signal).
+  `diagnostics_catalogue_miss_total` (the free-form-query escalation signal),
+  `diagnostics_context_sources_total` (evidence sources read per diagnosis, by
+  status — a rising `unavailable` is a diagnostician reasoning half-blind).
+- A diagnosis stores the pack it was written from (`diagnosis.context`) and the
+  admin panel renders it under the text ("What the diagnostician read"): a
+  blind source is stated with its reason, never drawn as a zero.
 
 ## Deliberate exclusions (escalation-gated — spec §3)
 

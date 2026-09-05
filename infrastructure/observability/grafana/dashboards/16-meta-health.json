@@ -1423,6 +1423,213 @@
           }
         }
       ]
+    },
+    {
+      "type": "row",
+      "id": 38,
+      "title": "Self-Diagnostics (ADR-247 / ADR-266)",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 88
+      },
+      "panels": [
+        {
+          "id": 39,
+          "title": "Self-check verdicts",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Every self-check tick, by check and verdict. A check stuck on `unknown` is a blind spot (it caps the snapshot at degraded); `critical` opens an incident.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 89
+          },
+          "targets": [
+            {
+              "expr": "sum by (check_id, status) (increase(diagnostics_checks_total{status!=\"ok\"}[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{check_id}} — {{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "0",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 40,
+          "title": "Incidents opened",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Incidents opened by source (alert webhook vs self-check) and severity. One outage converges on ONE incident whichever observer saw it first.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 89
+          },
+          "targets": [
+            {
+              "expr": "sum by (source, severity) (increase(diagnostics_incidents_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{source}} — {{severity}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "0",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 41,
+          "title": "Self-check tick duration (p95)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Engine + persistence + incident sync + diagnosis pump. The evidence collection (ADR-266) runs inside this tick: a source timing out shows here before it shows anywhere else.",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 97
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(diagnostics_self_check_duration_seconds_bucket[$__rate_interval])) by (le))",
+              "legendFormat": "p95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 42,
+          "title": "Diagnosis LLM spend (USD, cumulative)",
+          "type": "stat",
+          "datasource": "$datasource",
+          "description": "Cumulative USD spent on diagnosis LLM calls. The daily cap lives in DIAGNOSTICS_DIAGNOSIS_DAILY_COST_CAP_USD; the evidence pack (ADR-266) roughly triples the tokens of one call.",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 97
+          },
+          "targets": [
+            {
+              "expr": "sum(diagnostics_llm_cost_usd_total) or vector(0)",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "decimals": 4,
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "value",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"]
+            }
+          }
+        },
+        {
+          "id": 43,
+          "title": "Catalogue misses (escalation signal)",
+          "type": "stat",
+          "datasource": "$datasource",
+          "description": "Requests for a query the curated catalogue could not serve, by surface. The measured criterion for offering free-form PromQL/LogQL (spec §3): while this stays at 0, nobody needed it.",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 97
+          },
+          "targets": [
+            {
+              "expr": "sum by (surface) (increase(diagnostics_catalogue_miss_total[$__range])) or vector(0)",
+              "legendFormat": "{{surface}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"]
+            }
+          }
+        },
+        {
+          "id": 44,
+          "title": "Diagnosis evidence sources",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Sources read for each diagnosis, by source and status (ADR-266). A rising `unavailable` means the diagnostician reasons half-blind — check the circuit breaker of that telemetry source first.",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 105
+          },
+          "targets": [
+            {
+              "expr": "sum by (source, status) (increase(diagnostics_context_sources_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{source}} — {{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "0",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        }
+      ]
     }
   ]
 }

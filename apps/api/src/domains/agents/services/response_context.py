@@ -95,7 +95,13 @@ def extract_last_user_message(state: MessagesState) -> str:
     messages: list[Any] = state.get("messages") or []
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage) and msg.content and not is_synthetic_message(msg):
-            return msg.text
+            # `.text` is a `TextAccessor`, a `str` SUBCLASS kept by langchain-core
+            # for the deprecated `.text()` form. Handed raw to google-genai it
+            # became an EMPTY request (2026-09-05: `500 INTERNAL` on every RAG
+            # query). The embedding funnel normalises too; the chokepoint that
+            # names "the user's message" hands out the exact type its five
+            # readers expect.
+            return str(msg.text)
     return ""
 
 

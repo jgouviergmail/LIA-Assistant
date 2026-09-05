@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, RefreshCw, Stethoscope } from 'lucide-react';
+import { Activity, BookX, RefreshCw, Stethoscope } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InfoBox } from '@/components/ui/info-box';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DiagnosisEvidence } from '@/components/settings/DiagnosisEvidence';
 import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import {
@@ -20,23 +21,12 @@ import {
   type DiagnosticsOverview,
 } from '@/hooks/useDiagnostics';
 import { useTranslation } from '@/i18n/client';
+import { unitSuffix } from '@/lib/diagnostics-units';
 import { sameLanguage } from '@/lib/language-match';
 import { healthTone, incidentTone } from '@/lib/status-tone';
 
 import type { BaseSettingsProps } from '@/types/settings';
 import type { TFunction } from 'i18next';
-
-/**
- * Suffix per published unit. An unlisted unit renders bare, never guessed.
- * `ms` keeps a NO-BREAK space so the unit cannot wrap away from its number in
- * the narrow right-hand column.
- */
-const UNIT_SUFFIX: Record<string, string> = {
-  percent: '%',
-  seconds: 's',
-  milliseconds: ' ms',
-  count: '',
-};
 
 /** Exact value with its unit — a shown number is the measured number. */
 function formatCheckValue(check: DiagnosticsCheck): string {
@@ -44,7 +34,7 @@ function formatCheckValue(check: DiagnosticsCheck): string {
     return '—';
   }
   const rounded = Math.round(check.value * 100) / 100;
-  return `${rounded}${UNIT_SUFFIX[check.unit] ?? ''}`;
+  return `${rounded}${unitSuffix(check.unit)}`;
 }
 
 function CheckRow({ check, t }: { check: DiagnosticsCheck; t: TFunction }) {
@@ -92,9 +82,8 @@ function IncidentRow({
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{incident.title}</p>
           <p className="text-xs text-muted-foreground">
-            {incident.correlation_key} ·{' '}
-            {t(`settings.admin.diagnostics.source.${incident.source}`)} ·{' '}
-            <time dateTime={incident.opened_at}>{openedAt.toLocaleString()}</time>
+            {incident.correlation_key} · {t(`settings.admin.diagnostics.source.${incident.source}`)}{' '}
+            · <time dateTime={incident.opened_at}>{openedAt.toLocaleString()}</time>
           </p>
         </div>
         <Badge variant={incidentTone(incident.status, incident.severity)}>
@@ -137,6 +126,7 @@ function IncidentRow({
                 </ul>
               </div>
             ) : null}
+            <DiagnosisEvidence context={detail.data.diagnosis.context} t={t} lng={lng} />
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
@@ -168,9 +158,7 @@ function OverviewHeader({
         {overview?.taken_at ? (
           <span className="text-xs text-muted-foreground">
             {t('settings.admin.diagnostics.lastCheck')}{' '}
-            <time dateTime={overview.taken_at}>
-              {new Date(overview.taken_at).toLocaleString()}
-            </time>
+            <time dateTime={overview.taken_at}>{new Date(overview.taken_at).toLocaleString()}</time>
           </span>
         ) : null}
       </div>
@@ -267,10 +255,12 @@ function AlertsList({ overview, t }: { overview: DiagnosticsOverview | undefined
 
 function IncidentsList({
   list,
+  runbooksAvailable,
   t,
   lng,
 }: {
   list: DiagnosticsIncidentList | undefined;
+  runbooksAvailable: number | undefined;
   t: TFunction;
   lng: string;
 }) {
@@ -280,6 +270,18 @@ function IncidentsList({
         {t('settings.admin.diagnostics.incidentsTitle')}{' '}
         <span className="tabular-nums text-muted-foreground">({list?.total ?? 0})</span>
       </h4>
+      {/* Zero is a deployment defect, stated where its effect is felt: the
+          diagnoses below were produced without their operations procedure.
+          Undefined (older API, first load) says nothing — absence of a count
+          is not an empty mount. */}
+      {runbooksAvailable === 0 ? (
+        <InfoBox variant="warning" role="status">
+          <p className="flex items-start gap-2 text-xs text-yellow-700 dark:text-yellow-400">
+            <BookX className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>{t('settings.admin.diagnostics.runbooksMissing')}</span>
+          </p>
+        </InfoBox>
+      ) : null}
       {list?.items?.length ? (
         <div className="space-y-2">
           {list.items.map(incident => (
@@ -294,7 +296,6 @@ function IncidentsList({
     </div>
   );
 }
-
 
 /**
  * Platform health for administrators (spec 2026-08-27, pillar 6).
@@ -333,7 +334,12 @@ export default function AdminDiagnosticsSection({ lng }: BaseSettingsProps) {
       <ChecksGrid checks={overview.data?.checks} t={t} />
       <DegradationsList degradations={overview.data?.degradations} t={t} />
       <AlertsList overview={overview.data} t={t} />
-      <IncidentsList list={incidents.data} t={t} lng={lng} />
+      <IncidentsList
+        list={incidents.data}
+        runbooksAvailable={overview.data?.runbooks_available}
+        t={t}
+        lng={lng}
+      />
     </div>
   );
 

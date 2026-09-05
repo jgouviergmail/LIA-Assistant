@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.3] - 2026-09-05
+
+**Chaque tour de chat perdait son contexte RAG, et le diagnostic automatique disait « preuves insuffisantes ».** Mesuré le 2026-09-05 : cinq tours sur cinq sans contexte documentaire, le fournisseur d'embeddings répondant `500 INTERNAL` à chaque requête RAG — parce que `HumanMessage.text` est une SOUS-CLASSE de `str` que le SDK Gemini transforme en requête vide (`"content": {}`) ; le chemin mémoire ne survivait que parce qu'il tranche le texte. Et les quatre derniers diagnostics stockés concluaient tous sans cause, alors que Prometheus et Loki tenaient la réponse (ADR-266).
+
+### Fixed
+
+- **Le contexte RAG revient dans chaque tour** : l'entonnoir des embeddings Gemini (`GeminiRetrievalEmbeddings`) coerce chaque entrée en `str` exact — le même objet quand il l'est déjà — et le point d'extraction du dernier message fait de même ; pinné par des tests qui passent le vrai `TextAccessor` et une sous-classe nue au SDK factice. Présent au moins depuis le 8 juillet 2026 (identique sur google-genai 1.67.0 et 2.10.0 sous pydantic 2.13.4), invisible tant qu'aucun espace RAG utilisateur n'était actif.
+- **Les runbooks atteignent enfin la production** : `prepare-prod.ps1` stage `docs/runbooks` à côté de `docs/knowledge` (test Pester sur le bundle) ; jusque-là le montage était un répertoire vide et `had_runbook` valait `false` sur tous les diagnostics. L'API compte les runbooks disponibles, le panneau d'administration dit quand il n'y en a aucun, et le démarrage avertit.
+- **Une évidence sans `detail` vide** : un détail vide était cité par le modèle comme « le champ detail est vide » ; absent vaut mieux que blanc, et la fenêtre de mesure d'un contrôle Prometheus est désormais dans l'évidence.
+- **Le bundle auto-hébergé embarque `docs/runbooks`** (`build_self_host_bundle.py`, test) : un auto-hébergeur avait le même montage vide qu'en production.
+
+### Changed
+
+- **Une seule table de suffixes d'unités** (`lib/diagnostics-units.ts`) pour les lignes de contrôle et le dossier de preuves du panneau Santé de la plateforme ; la durée de fonctionnement s'affiche en unité localisée (`Intl`, `47 min`, `2 h`, `3 j`) sans clé de traduction.
+- **`docs/technical/GRAFANA_DASHBOARDS.md`** : comptes de panneaux des tableaux 05 et 16 réalignés sur les fichiers.
+
+### Added
+
+- **Le dossier de preuves du diagnostic** (ADR-266) : collecté AU MOMENT DU DIAGNOSTIC, une fois par incident après la porte budgétaire, selon une recette déclarée par clé de corrélation (`evidence_recipes.py`, assert au démarrage, test CI sur chaque alerte chargée et chaque événement nommé) — ventilations Prometheus (quatre requêtes de catalogue : issues, statuts, verdicts du régulateur, raisons de refus), extrait Loki borné, filtré côté client, en liste blanche et pseudonymisé, bloc runtime (version, commit, âge du processus). Chaque source dégrade seule : Loki indisponible coûte un extrait, jamais le diagnostic. Le prompt lit le dossier et distingue une source illisible du silence.
+- **« Ce que le diagnosticien a lu »** : le dossier est stocké avec le diagnostic et rendu sous celui-ci dans le panneau d'administration — séries en puces avec leurs valeurs exactes, comptes de journal avec la tête de l'erreur, build et durée de fonctionnement ; une source aveugle est dite avec sa raison, jamais dessinée comme un zéro rassurant. Six langues.
+- **`embedding_provider_errors_total{reason}`** : la NATURE d'un refus fournisseur (`http_429`, `http_500`, `permanent`…), classée par le même code que le réessai, câblée dans le tableau 05.
+- **Une rangée « Self-Diagnostics » dans le tableau 16** : les cinq métriques du sous-système, aveugles depuis ADR-247, y sont câblées, plus les sources de preuves lues par diagnostic ; la baseline de couverture des métriques passe de 56 à 51 entrées.
+- **Une 59e carte « Encore + »** : « Un diagnostic qui montre ses preuves », dans la section « Quand ça se passe mal », avec sa scène — le verdict, puis les preuves qui apparaissent ligne par ligne.
+
 ## [1.42.2] - 2026-09-05
 
 **La page des routines ne montrait pas la semaine.** Les cartes suivaient l'ordre de la prochaine exécution — un ordre qui bouge chaque jour — et rien ne disait, pour lundi ou pour mercredi, ce qui s'était passé. Une couleur par créneau est une affirmation, et aucune donnée ne la portait : `scheduled_actions` ne garde qu'un `last_executed_at` et un `last_error` sans horodatage, et le registre des tours classe un tour planifié sous l'identifiant de sa conversation, pas de sa routine.

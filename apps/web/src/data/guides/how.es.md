@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 4.8
+**Versión**: 4.9
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.42.2
+**Aplicación**: LIA v1.42.3
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -65,8 +65,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 535 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 264 ADRs, ~24.053 tests recogidos por pytest en 1.452 archivos, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 537 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 265 ADRs, ~24.053 tests recogidos por pytest en 1.452 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -87,7 +87,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Tests | 24.053 recopilados por pytest en 1.452 archivos de prueba + 7.305 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 755, de las cuales 32 compartidas mediante conftest |
 | Documentos de documentación | 549 |
-| ADRs (Architecture Decision Records) | 264 |
+| ADRs (Architecture Decision Records) | 265 |
 | Métricas Prometheus | 486 definiciones |
 | Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -949,7 +949,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 535 métricas custom (RED pattern) |
+| Prometheus | 537 métricas custom (RED pattern) |
 | Grafana | 26 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -957,7 +957,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 | Alertmanager | Núcleo de 14 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 535 definidas; las 57 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 537 definidas; las 57 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 
@@ -1359,7 +1359,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-264 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+265 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1465,7 +1465,7 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 264 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~24.053 tests en 1.452 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 265 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~24.053 tests en 1.452 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
@@ -1504,6 +1504,8 @@ Hasta el ADR-247, LIA emitía toda esa observabilidad y no leía nada: instrumen
 **Una avería, un incidente.** El webhook de Alertmanager (Bearer, fragmentos versionados, matriz reproducida en CI) y los veredictos críticos convergen en un único incidente por clave de correlación — índice único parcial, upsert atómico bajo la concurrencia webhook-contra-líder. El diagnóstico LLM se basa en el runbook de la alerta, está limitado por un presupuesto diario atómico, y sus recomendaciones siguen siendo propuestas: nada se ejecuta desde texto de modelo.
 
 **El conocimiento de la avería da forma a la respuesta.** Un advisor de coste cero con plataforma sana inyecta las capacidades degradadas en la planificación («Brave caído → Perplexity»), y la síntesis recibe los fallos del run en forma tipada — código y cabecera del mensaje, nunca un log en bruto — con una directiva de honestidad: decir qué funcionó, qué falló y por qué, sin inventar jamás un diagnóstico.
+
+**El diagnosticador lee sus evidencias en el momento en que diagnostica.** Un valor y su umbral son un veredicto, no un diagnóstico, y cuatro incidentes seguidos lo habían mostrado: el modelo respondía «evidencias insuficientes» mientras el desglose estaba en Prometheus y la ruta que fallaba en Loki. Cada incidente declara ahora una *receta* —las consultas del catálogo y los eventos de registro que merece leer para su clave de correlación, completitud verificada al arrancar— y la bomba de diagnóstico recoge el expediente una vez por incidente, tras la puerta presupuestaria: series desglosadas, un extracto de registro acotado filtrado por una lista blanca cerrada y el limpiador de datos personales, la versión en ejecución y su tiempo activo. Cada fuente se degrada sola: un almacén de registros inalcanzable le cuesta al diagnóstico su extracto, nunca el diagnóstico, y se nombra como no disponible en lugar de leerse como silencio. Lo que el modelo vio se guarda con lo que escribió y se dibuja bajo el veredicto para el administrador.
 
 ## 34. Calcular en vez de adivinar: un script efímero en el entorno aislado que ya existía
 
@@ -1580,4 +1582,4 @@ El rostro del compañero elegía su expresión de fin de turno a partir de la em
 **Cada unidad pagada se contabiliza y se muestra.** Una reunión gasta audio en el motor de transcripción y tokens en el modelo de síntesis, pasadas de condensación y reconstrucciones incluidas; ambos llegan a los libros de la plataforma como cualquier intercambio — el audio por las estadísticas de voz remota, los tokens bajo un `run_id` que lleva el mensaje archivado, de modo que el historial se une al registro de tokens exactamente como con cualquier notificación proactiva. La fila conserva el gasto propio del acta para que la página indique el total exacto con su desglose, la tarjeta indica las dos unidades y su suma, y un modelo sin precio administrado devuelve `null`: un precio desconocido no es un precio gratuito. La misma honestidad recorre el acta misma — una laguna se declara, nunca se rellena; un interlocutor sin nombre sigue siendo S2; una propuesta que quedó abierta no es una decisión.
 
 **El formato del acta se ha convertido en una biblioteca, y la elección tiene un solo lugar.** Treinta plantillas integradas viven en el código, sus palabras en un módulo de datos i18n, y una aserción al arrancar se niega a iniciar si falta un nombre en alguno de los seis idiomas: lo que un validador puede rechazar, el catálogo no puede entregarlo. Una plantilla se designa por una referencia — `builtin:<clave>` o `user:<uuid>` — que reuniones, preferencias y peticiones intercambian en lugar de una fila, de modo que una integrada no necesita existir en base de datos y una plantilla eliminada deja una referencia cuyos lectores saben replegarse sobre la instantánea conservada. La elección sigue **una sola precedencia**: la referencia que lleva la reunión, luego el valor predeterminado de la preferencia, luego el modelo de lenguaje que lee un extracto de la transcripción y elige por encima de un umbral de confianza, luego la integrada por defecto; cada salida se cuenta y se escribe en la fila con el motivo enunciado, de manera que la página muestra un hecho y no una reconstrucción. Una quinta clase de sección devuelve la transcripción misma: no cabe en una sola respuesta — el slot de síntesis emite como mucho ocho mil tokens —, así que se reescribe por partes, cada una acotada por la ventana de salida efectiva, un índice que falta parte el fragmento una vez y una respuesta sospechosamente corta se reintenta una vez. Reescribir un acta ya redactada toma prestada la regeneración duradera cuando reemplaza, y crea una fila derivada que apunta a su origen cuando produce actas nuevas — nunca una copia: la transcripción es la misma, el acta no. El mismo cuidado por el orden gobierna los documentos de los espacios de conocimientos: como `rag_chunks.space_id` está desnormalizado y lo lee la búsqueda, un movimiento escribe la fila y sus fragmentos, confirma, **y luego** mueve el fichero; un renombrado que falla revierte ambos y lo informa solo para ese documento, y un lote nunca se detiene por un elemento — cada identificador vuelve hecho o ignorado con su código.
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 264 ADRs y del changelog (v1.0 a v1.42.2). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 265 ADRs y del changelog (v1.0 a v1.42.3). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

@@ -5662,6 +5662,17 @@ DIAGNOSTICS_DIAGNOSIS_MAX_ACTIONS_DEFAULT = 5
 DIAGNOSTICS_RUNBOOKS_DIR_DEFAULT = "docs/runbooks/alerts"
 DIAGNOSTICS_RUNBOOK_MAX_CHARS_DEFAULT = 6000
 
+# Diagnosis evidence pack (ADR-266): what the diagnostician reads besides the
+# check's own numbers, fetched AT DIAGNOSIS time and bounded by construction so
+# the prompt, the JSONB row and the Loki load stay small whatever the incident.
+DIAGNOSTICS_CONTEXT_WINDOW_MINUTES = 30
+DIAGNOSTICS_CONTEXT_LOG_LINES = 50
+DIAGNOSTICS_CONTEXT_LOG_SAMPLES = 5
+DIAGNOSTICS_CONTEXT_TOP_COUNTS = 10
+DIAGNOSTICS_CONTEXT_FIELD_MAX_CHARS = 160
+DIAGNOSTICS_CONTEXT_HEAD_CHARS = 80
+DIAGNOSTICS_CONTEXT_MAX_SERIES = 12
+
 # Read-only tools; the ceiling exists to bound telemetry-backend load, not cost.
 DIAGNOSTICS_RATE_LIMIT_CALLS_DEFAULT = 20
 DIAGNOSTICS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60

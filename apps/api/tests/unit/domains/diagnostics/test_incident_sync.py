@@ -115,10 +115,12 @@ class TestEvidenceReachesTheIncident:
             [_result("embedding_failure_rate", CheckStatus.CRITICAL)],
         )
         evidence = repo.opened[0]["evidence"]
-        # The three original fields are still there — nothing regressed.
+        # The original fields are still there — nothing regressed. The empty
+        # detail is the one exception: an empty string was quoted back by the
+        # model as "the detail is empty" (2026-09-05), so absence beats blank.
         assert evidence["check_id"] == "embedding_failure_rate"
         assert evidence["value"] == 1.0
-        assert "detail" in evidence
+        assert "detail" not in evidence
         # ...and the value can now be JUDGED: a number, its unit, its verdict
         # and the two levels it was compared against.
         assert evidence["status"] == CheckStatus.CRITICAL.value
@@ -138,3 +140,40 @@ class TestEvidenceReachesTheIncident:
         assert evidence["check_id"] == "database"
         assert evidence["status"] == CheckStatus.CRITICAL.value
         assert "warn" not in evidence and "crit" not in evidence
+
+
+@pytest.mark.unit
+class TestEvidenceNamesItsWindowAndKeepsOnlyRealDetail:
+    """Two things the 2026-09-05 diagnosis asked for and could not get: over
+    WHAT period the rate was measured, and a detail that said something."""
+
+    async def test_a_prometheus_check_states_its_measurement_window(self) -> None:
+        repo = _FakeRepo()
+        await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("embedding_failure_rate", CheckStatus.CRITICAL)],
+        )
+        evidence = repo.opened[0]["evidence"]
+        assert evidence["window_minutes"] == 30
+
+    async def test_an_in_process_check_has_no_window_to_state(self) -> None:
+        repo = _FakeRepo()
+        await incident_sync.sync_incidents_from_results(
+            repo,  # type: ignore[arg-type]
+            [_result("database", CheckStatus.CRITICAL)],
+        )
+        assert "window_minutes" not in repo.opened[0]["evidence"]
+
+    async def test_a_real_detail_is_kept(self) -> None:
+        repo = _FakeRepo()
+        result = CheckResult(
+            check_id="platform_egress",
+            status=CheckStatus.CRITICAL,
+            value=None,
+            detail="api.openai.com:443 unreachable (TimeoutError)",
+            alertname=None,
+        )
+        await incident_sync.sync_incidents_from_results(repo, [result])  # type: ignore[arg-type]
+        assert repo.opened[0]["evidence"]["detail"] == (
+            "api.openai.com:443 unreachable (TimeoutError)"
+        )

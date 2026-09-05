@@ -87,6 +87,20 @@ A few failures spread over many minutes is a rate problem (raise the quota, or
 lower `EMBEDDING_RATE_LIMIT_MAX_CALLS` so the shaper queues more). Several in
 one minute is a burst problem (see §4).
 
+**Is it `500 INTERNAL` on `embed_query` only, while `aembed_documents` and
+the memory embedding of the same text succeed?** Then the provider is not
+failing — the request is empty. Measured 2026-09-05: a `str` SUBCLASS
+(`HumanMessage.text` is one) reaches google-genai, whose request model turns
+it into an empty `Content` (`"content": {}` on the wire) and the provider
+answers `500`. The funnel now coerces every input to an exact `str`
+(ADR-266); if this pattern reappears, a new caller is bypassing
+`GeminiRetrievalEmbeddings`. The breakdown to look at:
+```promql
+sum by (reason) (increase(embedding_provider_errors_total[30m]))
+```
+`http_500` climbing while `http_429` stays flat, with every failure on one
+caller (`rag_injection_failed` in Loki), is this case.
+
 **Did something else change?** A new proactive job, a new user, a reindex.
 `rag_system_indexation_total` and the scheduler log lines around the burst.
 

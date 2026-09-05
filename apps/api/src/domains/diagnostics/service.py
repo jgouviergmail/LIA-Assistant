@@ -18,6 +18,7 @@ from src.core.config import settings
 from src.core.constants import REDIS_KEY_DIAGNOSTICS_OVERVIEW_CACHE
 from src.domains.diagnostics.advisor import get_active_degradations
 from src.domains.diagnostics.checks import with_units
+from src.domains.diagnostics.diagnosis import count_runbooks
 from src.domains.diagnostics.repository import DiagnosticsRepository
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.telemetry.alertmanager import AlertmanagerClient
@@ -66,6 +67,9 @@ async def build_overview(db: AsyncSession) -> dict[str, Any]:
             for alert in alerts_result.alerts[:_MAX_EMBEDDED_ALERTS]
         ],
         "total_active_alerts": len(alerts_result.alerts),
+        # The diagnostician's grounding. Zero is a deployment defect the panel
+        # must STATE: for weeks the mount was empty and nothing said so.
+        "runbooks_available": count_runbooks(),
         "degradations": [
             {
                 "capability": d.capability,

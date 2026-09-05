@@ -9,17 +9,20 @@
 
 import {
   AlertTriangle,
+  BarChart3,
   Bell,
   Check,
   Clock,
   Disc,
-  Play,
   FileWarning,
   Image as ImageIcon,
+  Package,
   PencilLine,
+  Play,
   RefreshCw,
   RotateCcw,
   RotateCw,
+  ScrollText,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -360,8 +363,63 @@ function MeetingBannerScene({ active, labels }: SceneProps) {
   );
 }
 
+type EvidencePhase = 'verdict' | 'metrics' | 'logs' | 'build' | 'settle';
+const EVIDENCE_STEPS: readonly TimelineStep<EvidencePhase>[] = [
+  { at: 0, state: 'verdict' },
+  { at: 700, state: 'metrics' },
+  { at: 1400, state: 'logs' },
+  { at: 2100, state: 'build' },
+  { at: 2800, state: 'settle' },
+];
+const EVIDENCE_ORDER: readonly EvidencePhase[] = ['verdict', 'metrics', 'logs', 'build', 'settle'];
+
+/** Under a diagnosis, the evidence it was written from appears row by row: the
+ * metric breakdown, the recent error lines, the running build. */
+function DiagnosisEvidenceScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(EVIDENCE_STEPS, { active });
+  const reached = (step: EvidencePhase) =>
+    EVIDENCE_ORDER.indexOf(phase) >= EVIDENCE_ORDER.indexOf(step);
+  const row = (visible: boolean) =>
+    cn(
+      'flex items-center gap-1.5 transition-all duration-300',
+      visible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+    );
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[220px] space-y-2 rounded-lg border border-border bg-background p-2.5 shadow-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+          <SkeletonLine w="w-2/3" />
+        </div>
+        <div className="space-y-1.5 border-t border-border pt-2">
+          <div className={row(reached('metrics'))}>
+            <BarChart3 className="h-3 w-3 shrink-0 text-primary" />
+            <MiniChip className="px-1.5 py-0.5">
+              <SkeletonLine w="w-6" className="h-1.5" />
+            </MiniChip>
+            <MiniChip pressed className="px-1.5 py-0.5">
+              <SkeletonLine w="w-4" className="h-1.5 bg-primary/40" />
+            </MiniChip>
+          </div>
+          <div className={row(reached('logs'))}>
+            <ScrollText className="h-3 w-3 shrink-0 text-primary" />
+            <span className="text-[9px] font-medium tabular-nums text-foreground">×8</span>
+            <SkeletonLine w="w-3/5" />
+          </div>
+          <div className={row(reached('build'))}>
+            <Package className="h-3 w-3 shrink-0 text-primary" />
+            <SkeletonLine w="w-1/3" />
+            <SkeletonLine w="w-1/5" className="bg-muted-foreground/30" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   meeting_banner: MeetingBannerScene,
+  diagnosis_evidence: DiagnosisEvidenceScene,
   actionable_errors: ActionableErrorsScene,
   retry_turn: RetryTurnScene,
   honest_freshness: HonestFreshnessScene,

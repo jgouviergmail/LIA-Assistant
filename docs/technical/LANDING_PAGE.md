@@ -202,7 +202,7 @@ routes de previsualisation `/cosmos/*` qui ont servi a l'arbitrage ont ete **sup
 ### `/more` — « Encore + », les petites attentions UX
 
 `app/[lng]/more/page.tsx` (serveur : metadonnees ×6, BreadcrumbJsonLd, header/footer publics) rend
-`components/landing/more/MoreContent` : 57 micro-attentions animees en 6 sections « moments » (ecrire, repondre,
+`components/landing/more/MoreContent` : 59 micro-attentions animees en 6 sections « moments » (ecrire, repondre,
 imprevus, chercher, quotidien, invisibles), un cran sous les 36 fiches majeures — jamais en doublon (garde de
 disjonction). Chaque carte porte une scene decorative (`aria-hidden`) pilotee par `useLoopedTimeline` (timers purs,
 jamais `animationend` — jsdom ne le delivre pas), active uniquement dans le viewport ET hors pause : le bouton

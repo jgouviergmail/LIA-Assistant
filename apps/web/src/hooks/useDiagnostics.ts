@@ -48,6 +48,8 @@ export interface DiagnosticsOverview {
   active_alerts: DiagnosticsAlert[];
   total_active_alerts: number;
   degradations: DiagnosticsDegradation[];
+  /** Per-alert runbooks the API can hand to the diagnostician; 0 = the mount is empty. */
+  runbooks_available: number;
   overall?: 'ok' | 'degraded' | 'critical' | 'unknown';
   taken_at?: string;
   checks?: DiagnosticsCheck[];
@@ -67,6 +69,59 @@ export interface DiagnosticsIncident {
   has_diagnosis: boolean;
 }
 
+/** One catalogue query of the evidence pack: its series, or why it is blind. */
+export interface DiagnosisContextMetric {
+  query_id: string;
+  title: string;
+  /** The catalogue's unit (`percent`, `seconds`, `count`…); absent on older rows. */
+  unit?: string;
+  status: 'ok' | 'unavailable';
+  error?: string | null;
+  series: Array<{ labels: Record<string, string>; value: number }>;
+  truncated: boolean;
+}
+
+/** One distinct failing line of the log excerpt, with how often it occurred. */
+export interface DiagnosisContextLogCount {
+  event: string;
+  level: string;
+  head: string;
+  count: number;
+}
+
+/** The log excerpt of the evidence pack, or the reason there is none. */
+export interface DiagnosisContextLogs {
+  status: 'ok' | 'unavailable' | 'skipped';
+  service?: string;
+  error?: string | null;
+  lines_read?: number;
+  lines_kept?: number;
+  counts?: DiagnosisContextLogCount[];
+  counts_truncated?: boolean;
+  samples?: Array<Record<string, unknown>>;
+}
+
+/**
+ * What the diagnostician read besides the check's own numbers (ADR-266):
+ * collected at diagnosis time, stored with the diagnosis so an administrator can
+ * check the text against its evidence. A pack that could not be collected at
+ * all carries `status: 'unavailable'` and nothing else.
+ */
+export interface DiagnosisContext {
+  recipe?: string | null;
+  window_minutes?: number;
+  runtime?: {
+    version?: string;
+    commit?: string;
+    build_date?: string;
+    uptime_seconds?: number;
+  };
+  metrics?: DiagnosisContextMetric[];
+  logs?: DiagnosisContextLogs;
+  status?: 'unavailable';
+  error?: string;
+}
+
 /** Incident detail with evidence and the stored diagnosis. */
 export interface DiagnosticsIncidentDetail extends DiagnosticsIncident {
   evidence: Record<string, unknown>;
@@ -79,6 +134,8 @@ export interface DiagnosticsIncidentDetail extends DiagnosticsIncident {
     model?: string;
     cost_usd?: number;
     diagnosed_at?: string;
+    /** The evidence pack the text was written from (absent on rows older than ADR-266). */
+    context?: DiagnosisContext;
   } | null;
   action_log: Array<Record<string, unknown>>;
 }

@@ -20,6 +20,7 @@ from src.core.bootstrap import (
     validate_tool_call_run_limits,
     validate_tool_error_codes,
 )
+from src.core.config import settings
 
 logger = structlog.get_logger(__name__)
 
@@ -115,12 +116,32 @@ def _validate_diagnostics_registries() -> None:
     try:
         from src.domains.diagnostics.checks import assert_check_registry_completeness
         from src.domains.diagnostics.engine import assert_probe_coverage
+        from src.domains.diagnostics.evidence_recipes import (
+            assert_evidence_recipes_completeness,
+        )
 
         assert_check_registry_completeness()
         assert_probe_coverage()
+        # ADR-266: every incident a check can open has a declared evidence
+        # recipe, and a recipe names only queries the catalogue serves.
+        assert_evidence_recipes_completeness()
     except AssertionError as exc:
         logger.error("diagnostics_check_registry_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Diagnostics check registry incomplete: {exc}") from exc
+
+    # A WARNING, never a refusal: a diagnosis without its runbook is weaker, not
+    # wrong, and a self-hoster must not be locked out for a missing mount.
+    # Production ran for weeks with the mount point present and EMPTY (the
+    # bundle never staged docs/runbooks) and nothing said so — every stored
+    # diagnosis carried had_runbook=false (measured 2026-09-05).
+    if getattr(settings, "diagnostics_enabled", False):
+        from src.domains.diagnostics.diagnosis import count_runbooks
+
+        if count_runbooks() == 0:
+            logger.warning(
+                "diagnostics_runbooks_missing",
+                path=settings.diagnostics_runbooks_dir,
+            )
 
 
 def run_failfast_validations() -> None:

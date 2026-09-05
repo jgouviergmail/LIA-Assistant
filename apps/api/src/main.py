@@ -15,6 +15,11 @@ from fastapi.responses import JSONResponse
 
 from src.api.health import health_router
 from src.api.v1.routes import api_router
+
+# Imported for its side effect: the boot timestamp the diagnosis evidence pack
+# reports as "uptime" (ADR-266) is taken when THIS module loads, not when the
+# first incident happens to import it.
+from src.core import process_info  # noqa: F401  (boot stamp, see module docstring)
 from src.core.bootstrap import log_event_loop_configuration, log_rate_limiting_status
 from src.core.config import settings
 from src.core.constants import API_VERSION

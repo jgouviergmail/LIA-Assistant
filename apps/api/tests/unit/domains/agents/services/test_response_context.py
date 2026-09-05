@@ -350,3 +350,39 @@ class TestPeerContextInjectionFailsSoft:
         )
 
         assert bundle.peer_context == ""
+
+
+@pytest.mark.unit
+class TestExtractLastUserMessageIsAPlainStr:
+    """``HumanMessage.text`` is a ``TextAccessor``, a ``str`` SUBCLASS.
+
+    What this function returns fans out to five consumers; one of them, the RAG
+    query, handed it to a SDK that turns a subclass into an empty request
+    (measured 2026-09-05: ``500 INTERNAL`` on every turn). The embedding funnel
+    now normalises on its own, but the chokepoint that names "the user's
+    message" must not hand out a type its readers do not expect either.
+    """
+
+    def test_str_content_is_returned_as_an_exact_str(self) -> None:
+        from langchain_core.messages import HumanMessage
+
+        state: Any = {"messages": [HumanMessage(content="où en est le rapport ?")]}
+
+        result = rc.extract_last_user_message(state)
+
+        assert type(result) is str
+        assert result == "où en est le rapport ?"
+
+    def test_block_content_is_flattened_to_an_exact_str(self) -> None:
+        from langchain_core.messages import HumanMessage
+
+        state: Any = {
+            "messages": [
+                HumanMessage(content=[{"type": "text", "text": "a"}, {"type": "text", "text": "b"}])
+            ]
+        }
+
+        result = rc.extract_last_user_message(state)
+
+        assert type(result) is str
+        assert result == "ab"

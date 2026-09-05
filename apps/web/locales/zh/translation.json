@@ -2335,6 +2335,17 @@
         "recommendedActions": "建议操作",
         "noDiagnosisYet": "暂无诊断——下一个自检周期将生成诊断（在预算允许的情况下）。",
         "otherLanguage": "暂无您所用语言的版本，显示已生成的版本。",
+        "runbooksMissing": "API 容器中未挂载任何告警运行手册：诊断在没有运维程序的情况下生成。请检查部署包（docs/runbooks）。",
+        "contextTitle": "诊断器读取的内容",
+        "contextRuntime": "构建 {{version}}（{{commit}}），已运行 {{uptime}} · 证据窗口 {{window}} 分钟",
+        "contextMetrics": "细分指标",
+        "contextLogs": "最近的日志行",
+        "contextLogsRead": "已读取 {{read}} 行，保留 {{kept}} 行",
+        "contextUnavailable": "不可用（{{error}}）",
+        "contextSkipped": "此事件未读取任何日志摘录。",
+        "contextNoSeries": "无序列（每个标签均为零）",
+        "contextTruncated": "更多，已截断",
+        "contextPackUnavailable": "无法收集证据包（{{error}}）；诊断仅根据事件本身撰写。",
         "status": {
           "ok": "正常",
           "degraded": "降级",
@@ -3561,7 +3572,7 @@
         "admin-public-demo-link": "演示, 公开链接, 展示, 分享",
         "debug-settings": "调试, 诊断, 日志, 面板, 令牌跟踪",
         "eyes-style": "眼睛, 头像, 动画, 样式, 目光, 伙伴, cozmo, 脸, 嘴巴, 眉毛, 表情, 小戏, 胶囊",
-        "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络 向量 嵌入 配额 记忆 语言",
+        "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络 向量 嵌入 配额 记忆 语言 运行手册 证据 日志 诊断 版本",
         "meetings": "会议, 录音, 纪要, 转写, 报告, 麦克风, 笔记, 摘要, 行动项, 模板, 模板库, 纪要格式, 默认格式, 自动格式, 更改格式, 章节, 指令, 纪要邮件",
         "admin-registers": "记录, 透明度, 操作, 查阅, 导出, 日志, 审计, 管理，图表，统计，数字，总览"
       },
@@ -4534,7 +4545,7 @@
         },
         "selfDiagnostics": {
           "title": "🩺 自我诊断与事件记忆",
-          "description": "LIA 通过永不让请求失败的客户端读取自身遥测：任何故障都会成为一个「不可用」的类型化结果。周期性自检评估核心信号并直接探测依赖，记录精确数值；告警与关键判定汇聚为同一问题的唯一事件，由受预算约束的模型诊断——它会拿到实际被越过的阈值，并以每位管理员各自的语言书写。管理员可查看健康面板、通知与只读聊天工具；已知故障还会塑造回答：受损能力在规划阶段即被绕开，失败步骤依据类型化错误码解释，绝不暴露原始日志。"
+          "description": "LIA 通过从不让请求失败的客户端读取自身遥测：任何故障都变成类型化的「不可用」结果。周期性自检评估黄金信号并直接探测依赖；告警与严重判定汇聚为每个问题一个事件，由预算受限的模型诊断——它先读取一份有界的证据包（指标细分、脱敏的日志摘录、正在运行的版本）和该告警的运行手册，再在结论下方展示它读到的内容。已知故障会影响回答：规划时绕开受损能力，失败步骤用类型化错误码解释，绝不用原始日志。"
         },
         "ephemeralScripts": {
           "title": "🧮 算出来的答案，而不是猜出来的",
@@ -4555,6 +4566,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_42_3": {
+          "title": "v1.42.3 — 🔎 会展示证据的诊断",
+          "date": "2026 年 9 月",
+          "count": "3",
+          "items": {
+            "i1": "<b>📚 你的文档回到每一次回答中</b> — 数周以来，每次对话都在无声中丢失文档上下文：嵌入服务商拒绝了对你知识空间的每一次检索，而同一段文本在前一步却能正常嵌入。原因是服务商客户端边界上的一个数据类型，而不是你的文档；已在每次嵌入都经过的唯一入口修复。",
+            "i2": "<b>🩺 诊断器先读证据，再下结论</b> — 事件诊断过去常以「证据不足」收尾，而答案就在指标和日志里。现在它会收到一份在诊断时收集的有界证据包——细分指标、脱敏的日志摘录、正在运行的版本及其运行时长——设置 › 平台健康会在每条诊断下方展示「诊断器读取的内容」。无法访问的来源会被明确指出，绝不被当作沉默。",
+            "i3": "<b>📖 运维手册终于随部署一起交付</b> — 诊断器以每条告警的书面流程为依据；生产环境却一直运行在空的手册目录上，且无人知晓。现在部署包会包含它们，面板会在未挂载任何手册时提示，API 也会在启动时告警。"
+          }
+        },
         "v1_42_2": {
           "title": "v1.42.2 — 📅 一眼看清你这一周的例程",
           "date": "2026 年 9 月",
@@ -6977,7 +6998,7 @@
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "23",
+        "count": "24",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -7070,6 +7091,10 @@
           "q23": {
             "question": "阅读 LIA 会计入它学习的作息吗？（v1.40.0）",
             "answer": "会，只要管理员启用了该功能。LIA 学习的作息此前只看得见你<em>输入</em>的内容，这会低估以阅读为主的用户。<br><br><strong>什么算作在场：</strong><br>• 打开应用（每小时最多计一次）<br>• 对通知点 👍 或 👎——这是明确的动作<br><br><strong>什么永远不算：</strong>LIA <em>发给</em>你的通知。它自己的活动不是你的活动，把它计入等于让助手向自己学习。<br><br>一切在<strong>设置 › 习惯</strong>中依然可见、可撤销：你各时段的热力图、真正被观察到的天数，以及一键暂停、屏蔽或全部忘记。"
+          },
+          "q24": {
+            "question": "平台诊断器在诊断事件之前会读取什么？",
+            "answer": "不久前还只有事件本身：一项检查、一个数值、它的阈值。诊断也这样说——「证据不足」。<br><br><strong>现在它在诊断时读取：</strong><br>• <strong>细分指标</strong>——在事件窗口内，哪个结果、状态或拒绝原因发生了变化，变化多少<br>• <strong>有界的日志摘录</strong>——按事件计数的最近错误行，已去除个人数据<br>• <strong>正在运行的版本</strong>及其运行时长，让最近的部署一目了然<br>• <strong>为该告警编写的运维手册</strong><br><br><strong>每个来源各自独立：</strong>若日志存储无法访问，诊断会说明该部分不可用，而不是假装什么都没发生。<br><br>在<strong>设置 › 平台健康</strong>的每条诊断下方，「诊断器读取的内容」会完整展示这份证据包，管理员可以据此核对结论。"
           }
         }
       },
@@ -8434,6 +8459,10 @@
       "week_grid": {
         "title": "你的一周，铺在网格上",
         "desc": "纵向是小时，横向是星期：每条例程落在它的时间上，按触发顺序编号。格子在执行后变绿，失败时变红，等待你确认时变琥珀色——每周一重新开始。"
+      },
+      "diagnosis_evidence": {
+        "title": "会展示证据的诊断",
+        "desc": "在事件诊断下方，管理员能看到模型读到的内容：指标细分、最近的错误行、正在运行的版本。无法访问的来源会被指明，绝不画成零。"
       }
     },
     "scenes": {
@@ -10480,9 +10509,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "535个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
+        "title": "537个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：473指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 535个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 537个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -11082,7 +11111,7 @@
   "story": {
     "meta": {
       "title": "故事 — 指挥一个会写代码的AI | LIA",
-      "description": "LIA 是如何构建的：约 100% 的代码由 AI 在人类指导下编写，31,000+ 个测试，262 份架构决策记录，技术审计得分 8.3/10。完整的实践复盘。"
+      "description": "LIA 是如何构建的：约 100% 的代码由 AI 在人类指导下编写，31,600+ 个测试，265 份架构决策记录，技术审计得分 8.3/10。完整的实践复盘。"
     },
     "breadcrumb": "经验报告",
     "hero": {

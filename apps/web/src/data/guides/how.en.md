@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 4.8
+**Version**: 4.9
 **Date**: 2026-08-23
-**Application**: LIA v1.42.2
+**Application**: LIA v1.42.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -65,8 +65,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 535 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 264 ADRs, ~24,053 pytest-collected tests across 1,452 files, native observability, 6-level HITL |
+| Full transparency | 537 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 265 ADRs, ~24,053 pytest-collected tests across 1,452 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -87,7 +87,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 24,053 collected by pytest across 1,452 test files + 7,305 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 264 |
+| ADRs (Architecture Decision Records) | 265 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -947,7 +947,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 535 custom metrics (RED pattern) |
+| Prometheus | 537 custom metrics (RED pattern) |
 | Grafana | 26 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -955,7 +955,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 535 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 537 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1353,7 +1353,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-264 ADRs in MADR format document the major architectural decisions. Some representative examples:
+265 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1492,7 +1492,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 264 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~24,053 tests across 1,452 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 265 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~24,053 tests across 1,452 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1531,6 +1531,8 @@ Until ADR-247, LIA emitted all that observability and read none of it: instrumen
 **One outage, one incident.** The Alertmanager webhook (Bearer, committed fragments, matrix replayed in CI) and critical verdicts converge into a single incident per correlation key — partial unique index, atomic upsert under webhook-versus-leader concurrency. The LLM diagnosis is grounded on the alert's runbook, capped by an atomic daily budget, and its recommendations stay proposals: nothing executes from model text.
 
 **Knowledge of the outage shapes the answer.** A zero-cost-when-healthy advisor injects degraded capabilities into planning ("Brave down → Perplexity"), and synthesis receives the run's failures in typed form — code and message head, never a raw log — with an honesty directive: say what succeeded, what failed and why, and never invent a diagnosis.
+
+**The diagnostician reads its evidence at the moment it diagnoses.** A value and its threshold are a verdict, not a diagnosis, and four incidents in a row had shown it: the model answered « insufficient evidence » while the breakdown sat in Prometheus and the failing path in Loki. Each incident now declares a *recipe* — the catalogue queries and the log events worth reading for its correlation key, asserted complete at boot — and the diagnosis pump collects the pack once per incident, after the budget gate: breakdown series, a bounded log excerpt filtered through a closed allowlist and the personal-data sanitizer, the running build and its uptime. Every source degrades on its own: an unreachable log store costs the diagnosis its excerpt, never the diagnosis, and is named as unavailable rather than read as silence. What the model saw is stored with what it wrote and drawn under the verdict for the administrator.
 
 ## 34. Computing instead of guessing: an ephemeral script in the sandbox that already existed
 
@@ -1607,4 +1609,4 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 **Every paid unit is accounted, and shown.** A meeting spends audio at the transcription engine and tokens at the synthesis model, condense passes and rebuilds included; both reach the platform's books the way every exchange does — the audio through the remote-speech statistics, the tokens under a `run_id` the archived chat message carries, so history joins the token log exactly as for any proactive notification. The row keeps the minutes' own spend so the page states the exact total with its breakdown, the card states the two units and their sum, and a model without an administered price yields `null`: an unknown price is not a free one. The same honesty runs through the minutes themselves — a gap is stated, never bridged; an unnamed speaker stays S2; a proposal left open is not a decision.
 
 **The minutes format became a library, and the choice has one place.** Thirty built-in templates live in the code, their words in an i18n data module, and a boot-time assertion refuses to start if a name is missing in one of the six languages: what a validator can reject, the catalogue cannot ship. A template is named by a reference — `builtin:<key>` or `user:<uuid>` — that meetings, preferences and requests exchange instead of a row, so a built-in needs no database row and a deleted template leaves a reference whose readers know to fall back on the stored snapshot. The choice follows **one precedence**: the reference carried by the meeting, then the preference's default, then the language model reading a transcript excerpt and choosing above a confidence floor, then the built-in default; every outcome is counted and written on the row with the reason stated, so the page shows a fact rather than a reconstruction. A fifth section kind hands back the transcript itself: it does not fit in one answer — the synthesis slot outputs at most eight thousand tokens — so it is rewritten part by part, each bounded by the effective output window, a missing index splitting the part once and a suspiciously short answer retried once. Rewriting minutes already written borrows the durable regeneration when it replaces, and creates a derived row pointing at its source when it produces new minutes — never a copy: the transcript is the same, the minutes are not. The same concern for order governs knowledge-space documents: since `rag_chunks.space_id` is denormalized and read by retrieval, a move writes the row and its chunks, commits, **then** moves the file; a rename that fails reverts both and reports it for that document alone, and a batch never stops for one item — every id comes back done or skipped with its code.
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 264 ADRs, and the changelog (v1.0 to v1.42.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 265 ADRs, and the changelog (v1.0 to v1.42.3). All metrics, versions, and patterns cited are verifiable in the codebase.*

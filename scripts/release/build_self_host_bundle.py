@@ -38,6 +38,10 @@ BUNDLE_DIRS: tuple[str, ...] = (
     "infrastructure/observability",
     "data/skills/system",
     "docs/knowledge",
+    # Per-alert runbooks: docker-compose.prod.yml mounts ./docs/runbooks read-only
+    # into the API for the diagnostician (ADR-266). Without them the mount is an
+    # empty directory and every diagnosis carries had_runbook=false.
+    "docs/runbooks",
 )
 
 #: Sub-paths excluded from the production bundle (tests never ship).

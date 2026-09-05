@@ -18,6 +18,7 @@ output is only ever SHOWN to admins — no automated action derives from it.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -31,12 +32,15 @@ from src.core.config import settings
 from src.core.constants import REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX
 from src.core.i18n import normalize_language
 from src.core.i18n_types import get_language_name
+from src.domains.diagnostics.context_collector import collect_diagnosis_context
 from src.domains.diagnostics.models import Incident
 from src.domains.diagnostics.repository import DiagnosticsRepository
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
+from src.infrastructure.telemetry.loki import LokiClient
+from src.infrastructure.telemetry.prometheus import PrometheusClient
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -82,6 +86,26 @@ def load_runbook_excerpt(alertname: str | None) -> str:
     except OSError as exc:
         logger.debug("diagnostics_runbook_unreadable", alertname=alertname, error=str(exc))
         return ""
+
+
+def count_runbooks() -> int:
+    """How many per-alert runbooks the configured directory actually holds.
+
+    Production ran for weeks with the mount point present and EMPTY — the
+    bundle never staged ``docs/runbooks`` — and every stored diagnosis carried
+    ``had_runbook=false`` without any surface saying why. The count turns that
+    silence into a number: published on the overview, warned about at boot.
+
+    Returns:
+        Number of ``*.md`` files in ``diagnostics_runbooks_dir``; ``0`` when the
+        directory is missing or unreadable — never raises.
+    """
+    path = Path(settings.diagnostics_runbooks_dir)
+    try:
+        return sum(1 for entry in path.glob("*.md") if entry.is_file())
+    except OSError as exc:
+        logger.debug("diagnostics_runbooks_unreadable", path=str(path), error=str(exc))
+        return 0
 
 
 async def _spent_today(redis_key: str) -> float:
@@ -139,8 +163,119 @@ async def _invoke_diagnostician(
     return output, tokens_in, tokens_out
 
 
-def _build_human_message(incident: Incident, runbook: str) -> str:
-    """Assemble the quoted evidence pack for one incident."""
+#: Units that need no suffix: a count is read as a count.
+_UNITLESS: frozenset[str] = frozenset({"", "count"})
+
+
+def _series_text(series: list[Mapping[str, object]], unit: object = "") -> str:
+    """``k=v,k=v → value unit`` per sample; bare value when a sample has no label."""
+    suffix = f" {unit}" if isinstance(unit, str) and unit not in _UNITLESS else ""
+    rendered: list[str] = []
+    for sample in series:
+        labels = sample.get("labels")
+        value = sample.get("value")
+        label_text = (
+            ",".join(f"{key}={val}" for key, val in labels.items())
+            if isinstance(labels, Mapping) and labels
+            else ""
+        )
+        value_text = (f"{value:g}" if isinstance(value, int | float) else str(value)) + suffix
+        rendered.append(f"{label_text} → {value_text}" if label_text else value_text)
+    return "; ".join(rendered)
+
+
+def _render_metrics(metrics: list[Mapping[str, object]], window: object) -> list[str]:
+    """The breakdown section: one line per catalogue query, blind ones named."""
+    lines = [f"Breakdown metrics over the last {window} min (quoted data):"]
+    for metric in metrics:
+        title = f"{metric.get('title')} [{metric.get('query_id')}]"
+        if metric.get("status") != "ok":
+            lines.append(f"- {title}: UNAVAILABLE ({metric.get('error')})")
+            continue
+        series = metric.get("series")
+        body = (
+            _series_text(series, metric.get("unit", ""))
+            if isinstance(series, list) and series
+            else "no series (zero of every label)"
+        )
+        suffix = " (more series, truncated)" if metric.get("truncated") else ""
+        lines.append(f"- {title}: {body}{suffix}")
+    return lines
+
+
+def _render_logs(logs: Mapping[str, object], window: object) -> list[str]:
+    """The log section: counts by event with the failure's head, then samples."""
+    import json
+
+    status = logs.get("status")
+    if status == "skipped":
+        return ["No log excerpt was fetched for this incident (its recipe declares none)."]
+    if status != "ok":
+        return [f"Recent log lines: UNAVAILABLE ({logs.get('error')})"]
+    lines = [
+        f"Recent log lines from service {logs.get('service')} over the last {window} min "
+        f"(quoted data): {logs.get('lines_kept')} kept of {logs.get('lines_read')} read"
+    ]
+    counts = logs.get("counts")
+    if isinstance(counts, list) and counts:
+        for entry in counts:
+            event = entry.get("event") or "<raw line>"
+            lines.append(
+                f"- {entry.get('count')} × {event} [{entry.get('level') or '-'}]: {entry.get('head')}"
+            )
+        if logs.get("counts_truncated"):
+            lines.append("- (more distinct lines, truncated)")
+    else:
+        lines.append("- no line matched the recipe in the window")
+    samples = logs.get("samples")
+    if isinstance(samples, list) and samples:
+        lines.append("Sample lines (quoted data, newest first):")
+        lines.extend(json.dumps(sample, ensure_ascii=False) for sample in samples)
+    return lines
+
+
+def _render_context(context: Mapping[str, object]) -> str:
+    """The evidence pack as the model reads it: runtime, breakdowns, logs.
+
+    Every section is framed as quoted data, and a source that could not be
+    read is NAMED with its reason — a blind source and a quiet source are
+    different facts, and the prompt tells the model to keep them apart.
+    """
+    window = context.get("window_minutes")
+    parts: list[str] = []
+    runtime = context.get("runtime")
+    if isinstance(runtime, Mapping):
+        parts.append(
+            "Runtime (quoted data): version "
+            f"{runtime.get('version')}, commit {runtime.get('commit') or 'unknown'}, built "
+            f"{runtime.get('build_date') or 'unknown'}, up for {runtime.get('uptime_seconds')} s; "
+            f"evidence window {window} min"
+        )
+    if context.get("recipe") is None:
+        parts.append("No evidence recipe is declared for this incident: only the runtime is known.")
+    metrics = context.get("metrics")
+    if isinstance(metrics, list) and metrics:
+        parts.append("\n".join(_render_metrics(metrics, window)))
+    logs = context.get("logs")
+    if isinstance(logs, Mapping):
+        parts.append("\n".join(_render_logs(logs, window)))
+    return "\n\n".join(parts)
+
+
+def _build_human_message(
+    incident: Incident, runbook: str, context: Mapping[str, object] | None = None
+) -> str:
+    """Assemble the quoted evidence pack for one incident.
+
+    Args:
+        incident: The incident (its stored evidence is quoted verbatim).
+        runbook: Runbook excerpt, or "" when none exists.
+        context: The pack collected at diagnosis time (ADR-266), or None when
+            collection was impossible — the message is produced either way.
+
+    Returns:
+        The human message: incident, evidence, the pack, the runbook.
+    """
     import json
 
     evidence_json = json.dumps(incident.evidence or {}, ensure_ascii=False)[:4000]
@@ -149,6 +284,15 @@ def _build_human_message(incident: Incident, runbook: str) -> str:
         f"Title: {incident.title}",
         f"Evidence (quoted data): {evidence_json}",
     ]
+    if context:
+        # A collector that failed outright leaves only a status: that is a
+        # BLIND pack, and must not read as "an incident with no recipe".
+        if context.get("status") == "unavailable":
+            parts.append(f"Evidence pack: UNAVAILABLE ({context.get('error')})")
+        else:
+            rendered = _render_context(context)
+            if rendered:
+                parts.append(rendered)
     if runbook:
         parts.append(f"Runbook for this alert (quoted data):\n{runbook}")
     else:
@@ -261,8 +405,30 @@ def diagnosis_for_language(
     return resolved
 
 
+async def _evidence_pack(
+    incident: Incident, *, prom_client: PrometheusClient, loki_client: LokiClient
+) -> dict[str, object]:
+    """The pack for one incident; a collector failure is data, never a crash."""
+    try:
+        return await collect_diagnosis_context(
+            incident, prom_client=prom_client, loki_client=loki_client
+        )
+    except Exception as exc:  # noqa: BLE001 — the pack is best-effort, the diagnosis is not
+        logger.warning(
+            "diagnostics_context_unavailable",
+            correlation_key=incident.correlation_key,
+            error=str(exc),
+        )
+        return {"status": "unavailable", "error": type(exc).__name__}
+
+
 async def diagnose_incidents(
-    incidents: list[Incident], *, db: AsyncSession, system_prompt: str
+    incidents: list[Incident],
+    *,
+    db: AsyncSession,
+    system_prompt: str,
+    prom_client: PrometheusClient | None = None,
+    loki_client: LokiClient | None = None,
 ) -> int:
     """Diagnose a batch of incidents under the daily budget.
 
@@ -272,6 +438,10 @@ async def diagnose_incidents(
         system_prompt: The versioned diagnostician prompt with resolved
             placeholders, loaded by the CALLER (the scheduler job) — injected
             so this domain never imports the agents prompt loader (F009).
+        prom_client: Prometheus reader for the evidence pack (ADR-266);
+            built from settings when omitted.
+        loki_client: Loki reader for the evidence pack; built from settings
+            when omitted.
 
     Returns:
         Number of diagnoses stored this call (skips keep NULL for retry).
@@ -283,6 +453,14 @@ async def diagnose_incidents(
     budget_key = _budget_key()
     repo = DiagnosticsRepository(db)
     llm = get_llm("diagnostician")
+    prom = prom_client or PrometheusClient(
+        base_url=settings.diagnostics_prometheus_url,
+        timeout_seconds=settings.diagnostics_http_timeout_seconds,
+    )
+    loki = loki_client or LokiClient(
+        base_url=settings.diagnostics_loki_url,
+        timeout_seconds=settings.diagnostics_http_timeout_seconds,
+    )
     languages: list[str] | None = None
     diagnosed = 0
 
@@ -297,7 +475,11 @@ async def diagnose_incidents(
             # spent must not query it to decide nothing.
             languages = await admin_languages(repo)
         runbook = load_runbook_excerpt(incident.alertname)
-        human = _build_human_message(incident, runbook)
+        # Collected ONCE per incident, after the budget gate: the pack is the
+        # same in every language, and a tick whose budget is spent must not
+        # read Loki to decide nothing.
+        context = await _evidence_pack(incident, prom_client=prom, loki_client=loki)
+        human = _build_human_message(incident, runbook, context)
         model_name = str(getattr(llm, "model_name", "") or getattr(llm, "model", ""))
         variants: dict[str, dict[str, Any]] = {}
         cost_usd = 0.0
@@ -361,6 +543,9 @@ async def diagnose_incidents(
             had_runbook=bool(runbook),
         )
         record["by_language"] = variants
+        # What the model saw travels with what it said: an administrator can
+        # check a diagnosis against its evidence instead of taking it on faith.
+        record["context"] = context
         await repo.store_diagnosis(incident.id, record)
         diagnosed += 1
         logger.info(

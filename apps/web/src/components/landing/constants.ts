@@ -80,6 +80,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-09-05 (v1.42.3): backend 24 263 collected over `tests/`
+ *   (sum of the per-file counts of `pytest --collect-only -q`, 1 473 files) +
+ *   frontend 7 397 (`vitest list` on the HOST, 586 files) = 31 660 -> 31600.
  *   Re-measured 2026-09-05 (v1.42.0): backend 24 053 collected over `tests/`
  *   (sum of the per-file counts of `pytest --collect-only -q`, 1 452 files) +
  *   frontend 7 198 (`vitest list` on the HOST, 578 files) = 31 251 -> 31000,
@@ -294,11 +297,11 @@ export const LANDING_STATS = {
   tools: 108,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 535,
+  metrics: 537,
   uiLanguages: 6,
-  tests: 31000,
-  adrs: 264,
-  releases: 247,
+  tests: 31600,
+  adrs: 265,
+  releases: 248,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

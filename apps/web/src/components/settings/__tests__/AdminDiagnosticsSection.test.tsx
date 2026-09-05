@@ -37,10 +37,7 @@ vi.mock('@/hooks/useDiagnostics', async () => {
 });
 
 import AdminDiagnosticsSection from '@/components/settings/AdminDiagnosticsSection';
-import type {
-  DiagnosticsIncident,
-  DiagnosticsOverview,
-} from '@/hooks/useDiagnostics';
+import type { DiagnosticsIncident, DiagnosticsOverview } from '@/hooks/useDiagnostics';
 
 function overview(overrides: Partial<DiagnosticsOverview> = {}): DiagnosticsOverview {
   return {
@@ -61,6 +58,7 @@ function overview(overrides: Partial<DiagnosticsOverview> = {}): DiagnosticsOver
     ],
     overall: 'degraded',
     taken_at: '2026-08-28T10:00:00Z',
+    runbooks_available: 40,
     checks: [
       {
         check_id: 'api_error_rate',
@@ -168,9 +166,7 @@ describe('AdminDiagnosticsSection', () => {
   it('first load shows a skeleton; a refresh of populated content does not unmount', () => {
     wire({ overviewData: undefined, overviewLoading: true });
     const { rerender } = render(<AdminDiagnosticsSection lng="en" />);
-    expect(
-      screen.queryByText('settings.admin.diagnostics.checksTitle')
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('settings.admin.diagnostics.checksTitle')).not.toBeInTheDocument();
 
     // Populated + refetching: content stays mounted, aria-busy announces it.
     wire({ overviewLoading: true });
@@ -206,6 +202,21 @@ describe('AdminDiagnosticsSection', () => {
     render(<AdminDiagnosticsSection lng="en" />);
     expect(screen.getByText('settings.admin.diagnostics.noIncidents')).toBeInTheDocument();
   });
+
+  // Production ran for weeks with an EMPTY runbooks mount (2026-09-05): every
+  // stored diagnosis had `had_runbook=false` and no surface said why. The API
+  // now counts them; zero is stated, a populated mount says nothing.
+  it('states that no runbook is mounted when the API counts zero', () => {
+    wire({ overviewData: overview({ runbooks_available: 0 }) });
+    render(<AdminDiagnosticsSection lng="en" />);
+    expect(screen.getByText('settings.admin.diagnostics.runbooksMissing')).toBeInTheDocument();
+  });
+
+  it('says nothing about runbooks when some are mounted', () => {
+    wire();
+    render(<AdminDiagnosticsSection lng="en" />);
+    expect(screen.queryByText('settings.admin.diagnostics.runbooksMissing')).toBeNull();
+  });
 });
 
 describe('the unit comes from the API, never from the check id', () => {
@@ -214,7 +225,12 @@ describe('the unit comes from the API, never from the check id', () => {
   // 2026-08-28 outage — would have been shown as a percentage. The backend
   // knows the unit and now publishes it (ADR-184).
   beforeEach(() => {
-    incidentsHook.mockReturnValue({ data: { items: [], total: 0 }, loading: false, error: null, refetch: vi.fn() });
+    incidentsHook.mockReturnValue({
+      data: { items: [], total: 0 },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
     detailHook.mockReturnValue({ data: null, loading: false, error: null, refetch: vi.fn() });
   });
 
@@ -243,7 +259,14 @@ describe('the unit comes from the API, never from the check id', () => {
     overviewHook.mockReturnValue({
       data: overview({
         checks: [
-          { check_id: 'database', status: 'ok', value: null, unit: '', detail: '', alertname: null },
+          {
+            check_id: 'database',
+            status: 'ok',
+            value: null,
+            unit: '',
+            detail: '',
+            alertname: null,
+          },
         ],
       }),
       loading: false,
@@ -278,9 +301,7 @@ describe('the language a diagnosis was written in', () => {
     await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
 
     expect(screen.getByText('Redis container stopped')).toBeInTheDocument();
-    expect(
-      screen.queryByText('settings.admin.diagnostics.otherLanguage')
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('settings.admin.diagnostics.otherLanguage')).not.toBeInTheDocument();
   });
 
   it('flags a diagnosis written in another language, and still shows it', async () => {
@@ -298,9 +319,7 @@ describe('the language a diagnosis was written in', () => {
     render(<AdminDiagnosticsSection lng="zh" />);
     await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
 
-    expect(
-      screen.queryByText('settings.admin.diagnostics.otherLanguage')
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('settings.admin.diagnostics.otherLanguage')).not.toBeInTheDocument();
   });
 
   it('says nothing for a row written before the language stamp existed', async () => {
@@ -313,8 +332,160 @@ describe('the language a diagnosis was written in', () => {
     await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
 
     expect(screen.getByText('Legacy text')).toBeInTheDocument();
+    expect(screen.queryByText('settings.admin.diagnostics.otherLanguage')).not.toBeInTheDocument();
+  });
+});
+
+describe('what the diagnostician read', () => {
+  // ADR-266: the evidence pack is stored WITH the diagnosis, so an admin can
+  // check the text against its evidence instead of taking it on faith. A blind
+  // source is stated as such — never rendered as a reassuring zero.
+  const diagnosisWithContext = (
+    logs: Record<string, unknown> = {
+      status: 'ok',
+      service: 'api',
+      lines_read: 12,
+      lines_kept: 12,
+      counts: [
+        {
+          event: 'gemini_embedding_failed',
+          level: 'error',
+          head: "Error embedding content: 500 INTERNAL. {'error': {'code': 500",
+          count: 8,
+        },
+      ],
+      counts_truncated: false,
+      samples: [],
+    }
+  ) => ({
+    diagnosis: {
+      diagnosis: 'Embedding queries fail on the RAG path',
+      probable_cause: 'The provider answers 500 on every RAG query',
+      recommended_actions: ['Check the RAG query path'],
+      language: 'en',
+      context: {
+        recipe: 'EmbeddingOperationsFailing',
+        window_minutes: 30,
+        runtime: { version: '1.42.0', commit: 'd1bc4743f400', uptime_seconds: 2820 },
+        metrics: [
+          {
+            query_id: 'embedding_failure_rate',
+            title: 'Embedding failure rate',
+            unit: 'percent',
+            status: 'ok',
+            error: null,
+            series: [{ labels: {}, value: 25 }],
+            truncated: false,
+          },
+          {
+            query_id: 'embedding_outcomes_by_result',
+            title: 'Embedding operations by outcome',
+            unit: 'count',
+            status: 'ok',
+            error: null,
+            series: [
+              { labels: { outcome: 'failed' }, value: 2.0339 },
+              { labels: { outcome: 'succeeded' }, value: 6.1017 },
+            ],
+            truncated: false,
+          },
+          {
+            query_id: 'embedding_errors_by_reason',
+            title: 'Embedding provider refusals by classified reason',
+            status: 'unavailable',
+            error: 'circuit_open',
+            series: [],
+            truncated: false,
+          },
+        ],
+        logs,
+      },
+    },
+  });
+
+  async function openEvidence() {
+    await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
+    await userEvent.click(screen.getByText('settings.admin.diagnostics.contextTitle'));
+  }
+
+  it('renders the breakdown series, the log counts and the build', async () => {
+    wire({ detailData: diagnosisWithContext() });
+    render(<AdminDiagnosticsSection lng="en" />);
+    await openEvidence();
+
+    expect(screen.getByText('Embedding operations by outcome')).toBeInTheDocument();
+    expect(screen.getByText('outcome=failed')).toBeInTheDocument();
+    expect(screen.getByText('2.0339')).toBeInTheDocument();
+    // A bare value carries the suffix of its unit, like the check rows do.
+    expect(screen.getByText('25%')).toBeInTheDocument();
+    expect(screen.getByText('gemini_embedding_failed')).toBeInTheDocument();
+    expect(screen.getByText(/500 INTERNAL/)).toBeInTheDocument();
+    expect(screen.getByText('×8')).toBeInTheDocument();
+    expect(screen.getByText('settings.admin.diagnostics.contextRuntime')).toBeInTheDocument();
+  });
+
+  it('states a blind metric instead of a zero', async () => {
+    wire({ detailData: diagnosisWithContext() });
+    render(<AdminDiagnosticsSection lng="en" />);
+    await openEvidence();
+
+    // The unavailable query is listed by title with its reason, not dropped.
     expect(
-      screen.queryByText('settings.admin.diagnostics.otherLanguage')
-    ).not.toBeInTheDocument();
+      screen.getByText('Embedding provider refusals by classified reason')
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('settings.admin.diagnostics.contextUnavailable').length).toBe(1);
+  });
+
+  it('states an unavailable log source with its reason', async () => {
+    wire({
+      detailData: diagnosisWithContext({
+        status: 'unavailable',
+        service: 'api',
+        error: 'transport:ConnectError',
+      }),
+    });
+    render(<AdminDiagnosticsSection lng="en" />);
+    await openEvidence();
+
+    expect(screen.getAllByText('settings.admin.diagnostics.contextUnavailable').length).toBe(2);
+  });
+
+  it('says in one line that no log excerpt was fetched', async () => {
+    wire({ detailData: diagnosisWithContext({ status: 'skipped' }) });
+    render(<AdminDiagnosticsSection lng="en" />);
+    await openEvidence();
+
+    expect(screen.getByText('settings.admin.diagnostics.contextSkipped')).toBeInTheDocument();
+  });
+
+  it('shows no evidence block for a diagnosis stored before the pack existed', async () => {
+    wire({
+      detailData: {
+        diagnosis: { diagnosis: 'Legacy text', probable_cause: 'c', recommended_actions: [] },
+      },
+    });
+    render(<AdminDiagnosticsSection lng="en" />);
+    await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
+
+    expect(screen.queryByText('settings.admin.diagnostics.contextTitle')).not.toBeInTheDocument();
+  });
+
+  it('names a pack that could not be collected at all', async () => {
+    wire({
+      detailData: {
+        diagnosis: {
+          diagnosis: 'text',
+          probable_cause: 'c',
+          recommended_actions: [],
+          context: { status: 'unavailable', error: 'RuntimeError' },
+        },
+      },
+    });
+    render(<AdminDiagnosticsSection lng="en" />);
+    await userEvent.click(screen.getByText('settings.admin.diagnostics.diagnosisTitle'));
+
+    expect(
+      screen.getByText('settings.admin.diagnostics.contextPackUnavailable')
+    ).toBeInTheDocument();
   });
 });

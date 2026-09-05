@@ -31,12 +31,16 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from src.core.config import settings
 from src.core.constants import CJK_SCRIPT_RANGES
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
-from src.infrastructure.llm.embedding_errors import is_transient_embedding_error
+from src.infrastructure.llm.embedding_errors import (
+    embedding_retry_reason,
+    is_transient_embedding_error,
+)
 from src.infrastructure.llm.tracked_embeddings import (
     embedding_api_calls_total,
     embedding_api_latency_seconds,
     embedding_call_outcomes_total,
     embedding_cost_total,
+    embedding_provider_errors_total,
     embedding_shaper_outcomes_total,
     embedding_tokens_consumed_total,
 )
@@ -71,6 +75,56 @@ def _shaper_key(model_name: str) -> str:
 
 
 T = TypeVar("T")
+
+
+def _exact_str(text: str) -> str:
+    """Return ``text`` as an EXACT ``str`` — a subclass instance is copied down.
+
+    The SDK loses the text of a ``str`` SUBCLASS: google-genai validates
+    ``contents`` through a pydantic union in which ``Content``
+    (``from_attributes=True``) precedes ``str``, and a subclass instance is
+    accepted as an attribute-less object — an EMPTY ``Content``. Measured in
+    production on 2026-09-05: ``"content": {}`` on the wire and ``500 INTERNAL``
+    back, on every RAG query of every turn, identical on google-genai 1.67.0 and
+    2.10.0 under pydantic 2.13.4. ``HumanMessage.text`` IS such a subclass
+    (langchain-core's ``TextAccessor``), and the memory path only survived
+    because slicing (``message[:N]``) happens to yield a plain ``str``.
+
+    Normalising here, at the single funnel every Gemini embedding goes through,
+    means no caller can reintroduce the defect by forgetting to slice. An exact
+    ``str`` is returned as the same object: the nominal path costs nothing.
+
+    Args:
+        text: Any ``str`` instance, subclass or not.
+
+    Returns:
+        The same object when it is exactly a ``str``, else a plain ``str`` copy.
+    """
+    return text if type(text) is str else str(text)
+
+
+def _exact_strs(texts: list[str]) -> list[str]:
+    """Apply :func:`_exact_str` to a batch (see there for why it exists)."""
+    return [_exact_str(text) for text in texts]
+
+
+#: Reason label when the classifier finds nothing transient: the provider said
+#: the failure is final (a malformed input, an invalid key).
+_PERMANENT_REASON = "permanent"
+
+
+def _count_provider_error(model_name: str, exc: BaseException) -> None:
+    """Count one refused attempt under the reason the retry classified it with.
+
+    One classification, two readers: what decides whether to retry is exactly
+    what the metric publishes, so a dashboard and a diagnosis can never disagree
+    with the retry about what the provider said.
+    """
+    embedding_api_calls_total.labels(model=model_name, status="error").inc()
+    embedding_provider_errors_total.labels(
+        model=model_name, reason=embedding_retry_reason(exc) or _PERMANENT_REASON
+    ).inc()
+
 
 # Characters belonging to a space-less script, counted one token each.
 _CJK_CHAR = re.compile(f"[{CJK_SCRIPT_RANGES}]")
@@ -183,6 +237,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
         Returns:
             List of embedding vectors.
         """
+        texts = _exact_strs(texts)
         return self._tracked_call(
             lambda: self._client.embed_documents(
                 texts,
@@ -202,6 +257,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
         Returns:
             Embedding vector.
         """
+        text = _exact_str(text)
         return self._tracked_call(
             lambda: self._client.embed_query(
                 text,
@@ -226,6 +282,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
         Returns:
             List of embedding vectors.
         """
+        texts = _exact_strs(texts)
         return await self._async_tracked_call(
             lambda: self._client.aembed_documents(
                 texts,
@@ -246,6 +303,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
         Returns:
             Embedding vector.
         """
+        text = _exact_str(text)
         return await self._async_tracked_call(
             lambda: self._client.aembed_query(
                 text,
@@ -291,7 +349,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
 
             return result
         except Exception as e:
-            embedding_api_calls_total.labels(model=self.model_name, status="error").inc()
+            _count_provider_error(self.model_name, e)
             logger.error("gemini_embedding_failed", model=self.model_name, error=str(e))
             raise
 
@@ -329,7 +387,7 @@ class GeminiRetrievalEmbeddings(Embeddings):
         try:
             result = await factory()
         except Exception as e:
-            embedding_api_calls_total.labels(model=self.model_name, status="error").inc()
+            _count_provider_error(self.model_name, e)
             logger.error("gemini_embedding_failed", model=self.model_name, error=str(e))
             if is_transient_embedding_error(e):
                 raise _TransientEmbeddingError(str(e)) from e

@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 264 ADR files (ADR-265 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 265 ADR files (ADR-266 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 37 |
 
 ---
@@ -48,7 +48,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (264 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (265 ADR files) |
 
 ### Pour les Product Managers
 
@@ -109,7 +109,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
 | [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing — bounded context autonome sans LangGraph (ADR-077) : fetchers `asyncio.gather`, cache Redis par section, endpoints split cards/synthesis | ✅ |
 | [AI_ACT_TRACEABILITY.md](./technical/AI_ACT_TRACEABILITY.md) | Traçabilité (ADR-263, lots 5 à 9) : ce que LIA enregistre, ce que le scellement par compte prouve — et, dit noir sur blanc, ce qu'il ne prouve pas ; la carte de l'article 12 lot par lot, la fenêtre publiée, l'exploitation du notaire | ✅ |
-| [DIAGNOSTICS_DOMAIN.md](./technical/DIAGNOSTICS_DOMAIN.md) | Auto-diagnostic (ADR-247) : lecture Prometheus/Loki/Alertmanager qui ne lève jamais, catalogue de requêtes borné, auto-contrôle leader, mémoire d'incidents, diagnostic LLM budgété, advisor de dégradations sur le chemin de réponse | ✅ |
+| [DIAGNOSTICS_DOMAIN.md](./technical/DIAGNOSTICS_DOMAIN.md) | Auto-diagnostic (ADR-247, ADR-266) : lecture Prometheus/Loki/Alertmanager qui ne lève jamais, catalogue de requêtes borné, auto-contrôle leader, mémoire d'incidents, diagnostic LLM budgété sur un dossier de preuves collecté au moment du diagnostic (recettes par clé de corrélation, échec ouvert source par source), advisor de dégradations sur le chemin de réponse | ✅ |
 | [DEBUG_PANEL_ARCHITECTURE.md](./technical/DEBUG_PANEL_ARCHITECTURE.md) | Debug Panel — flow des métriques de scoring (domaines, outils, intents) pour le tuning des thresholds | ✅ |
 
 ### Agents & Outils

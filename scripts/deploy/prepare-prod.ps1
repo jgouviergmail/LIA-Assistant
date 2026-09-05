@@ -328,6 +328,30 @@ if (Test-Path $knowledgeSrc) {
 }
 
 # ============================================================================
+# Per-alert runbooks for the self-diagnostics LLM step — bind-mounted read-only
+# (docker-compose.prod.yml: ./docs/runbooks:/app/docs/runbooks:ro)
+# ============================================================================
+# Until 2026-09-05 this directory was never staged: Docker created the mount
+# point EMPTY and every diagnosis ever stored in production carried
+# `had_runbook=false` — the one piece of curated operations knowledge the
+# diagnostician had never reached it. Pinned by deploy-prod.Tests.ps1.
+Write-Host "[8b/9] Copie des runbooks (self-diagnostics)..." -ForegroundColor Green
+
+$runbooksSrc = Join-Path $SourceDir "docs\runbooks"
+if (Test-Path $runbooksSrc) {
+    $runbooksDir = Join-Path $OutputDir "docs\runbooks"
+    New-Item -ItemType Directory -Path $runbooksDir -Force | Out-Null
+    Copy-Item "$runbooksSrc\*" -Destination $runbooksDir -Recurse
+    $alertRunbooks = Join-Path $runbooksSrc "alerts"
+    $alertCount = if (Test-Path $alertRunbooks) {
+        (Get-ChildItem $alertRunbooks -File -Filter "*.md").Count
+    } else { 0 }
+    Write-Host "  + docs/runbooks/ ($alertCount alert runbooks)" -ForegroundColor DarkGray
+} else {
+    Write-Host "  ! docs/runbooks/ (non trouve - diagnostics sans runbook en prod)" -ForegroundColor Yellow
+}
+
+# ============================================================================
 # Création du script de déploiement
 # ============================================================================
 Write-Host "[9/9] Creation du script de deploiement..." -ForegroundColor Green

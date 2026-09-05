@@ -167,6 +167,56 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             lia_metrics=("embedding_call_outcomes_total",),
             external_metrics=(),
         ),
+        # The BREAKDOWNS behind the ratio above, for the diagnosis evidence pack
+        # (ADR-266). 25 % said nothing about the two failed operations behind
+        # it, nor that both were `http_500`: a diagnostician reasons from
+        # counts by label, never from a percentage alone. Grouped increases,
+        # deliberately without `or vector(0)`: an absent label means zero of
+        # that label, which the collector writes as an empty series list.
+        NamedQuery(
+            query_id="embedding_outcomes_by_result",
+            title="Embedding operations by outcome",
+            promql_template=(
+                "sum by (outcome) (increase(embedding_call_outcomes_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("embedding_call_outcomes_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="embedding_calls_by_status",
+            title="Embedding provider attempts by status",
+            promql_template=(
+                "sum by (status) (increase(embedding_api_calls_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("embedding_api_calls_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="embedding_shaper_by_outcome",
+            title="Embedding rate-shaper verdicts by outcome",
+            promql_template=(
+                "sum by (outcome) (increase(embedding_shaper_outcomes_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("embedding_shaper_outcomes_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="embedding_errors_by_reason",
+            title="Embedding provider refusals by classified reason",
+            promql_template=(
+                "sum by (reason) (increase(embedding_provider_errors_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("embedding_provider_errors_total",),
+            external_metrics=(),
+        ),
         NamedQuery(
             query_id="llm_errors_by_kind",
             title="LLM API errors by kind",

@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 5.3
+**Version** : 5.4
 **Date** : 2026-08-23
-**Application** : LIA v1.42.2
+**Application** : LIA v1.42.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -174,6 +174,8 @@ En installant Claude CLI (Claude Code) directement sur le serveur, les administr
 
 
 Et LIA se surveille aussi **elle-même** : elle lit sa propre télémétrie, tient un historique d'incidents diagnostiqués automatiquement à partir de ses runbooks d'exploitation, notifie les administrateurs quand quelque chose de critique s'ouvre, et leur offre un panneau « Santé de la plateforme » dans les réglages. Quand une panne est connue, elle en tient compte dans ses réponses au lieu de te laisser attendre un délai d'expiration.
+
+Quand elle diagnostique l'un de ces incidents, elle ne part plus d'un nombre seul : elle lit d'abord les preuves — comment la métrique s'est ventilée, les lignes d'erreur récentes débarrassées des données personnelles, quelle version tourne depuis combien de temps — et te montre ce qu'elle a lu à côté de sa conclusion, pour que tu puisses vérifier le diagnostic plutôt que le croire sur parole.
 
 ### 3.9. Données santé personnelles
 
