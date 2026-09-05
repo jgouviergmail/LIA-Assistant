@@ -540,6 +540,11 @@ Un **Tool Manifest** déclare les **métadonnées** d'un tool : paramètres, per
 **Utilisé par** :
 - **Planner Node** : Charge catalogue filtré par domaine
 - **HITL Classifier** : Évalue si outil nécessite approbation
+- **Garde de complétude au boot** : tout outil hors catégorie `search` déclare
+  sa `mutation_policy` (ADR-263) — `read`, `draft`, `confirm`, `reversible`,
+  `artefact` ou `sandboxed`, les trois dernières avec une raison écrite. Sans
+  elle, l'application refuse de démarrer : voir
+  [AGENT_MANIFEST.md](../technical/AGENT_MANIFEST.md)
 - **Pricing Service** : Calcule coût estimé avant exécution
 
 ### Manifest Schema

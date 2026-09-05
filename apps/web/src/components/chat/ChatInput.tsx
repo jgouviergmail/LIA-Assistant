@@ -3,6 +3,7 @@ import {
   useRef,
   useCallback,
   useEffect,
+  useSyncExternalStore,
   ClipboardEvent,
   KeyboardEvent,
   FormEvent,
@@ -12,7 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
-import { Send, Mic, Plus, Square, ImageUp } from 'lucide-react';
+import { Send, Mic, Plus, Square, ImageUp, Camera, Paperclip } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { isAndroidShell } from '@/lib/native/shell';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -349,35 +357,99 @@ function useSentHistoryNavigation(args: {
  */
 const COMPOSER_ACTION_BUTTON = 'h-12 w-11 shrink-0 self-end p-0 mobile:w-10';
 
+/** Inert subscription for the shell-detection useSyncExternalStore gate. */
+const shellSubscribe = () => () => {};
+
+/**
+ * Whether this render is happening inside the Android shell.
+ *
+ * The server has no shell to detect, so the answer cannot be read during the
+ * first render without making the server's markup and the client's hydration
+ * disagree. Same gate as EyesWidget: a server snapshot of `false` — the browser
+ * branch, which is also the one that degrades correctly should detection never
+ * run — then the client's own answer. `useSyncExternalStore` rather than a
+ * mount effect, because setState-in-an-effect is a ratcheted violation.
+ *
+ * @returns True once the page has confirmed it runs inside a shell.
+ */
+function useInAndroidShell(): boolean {
+  return useSyncExternalStore(
+    shellSubscribe,
+    () => isAndroidShell(),
+    () => false
+  );
+}
+
+/**
+ * The « + » of the composer.
+ *
+ * In a browser — a PWA included — one click opens the file picker, because the
+ * browser's own chooser already offers the camera next to the gallery. The
+ * Android shell gets a menu instead: Capacitor hands the WebView's bare intent
+ * to the system (`fileChooserParams.createIntent()`) without adding the capture
+ * intent a browser adds itself, so whether "Camera" appears at all is left to
+ * the OEM's picker — measured absent on a OneUI 9 device, 2026-09-04. iOS is
+ * excluded on purpose: WKWebView offers "Take Photo" on an image input itself,
+ * and a control the platform already gives is not one to give twice (ADR-246).
+ */
 function ComposerAttachmentsControl({
   t,
   attachmentsEnabled,
   disabled,
   onPickFile,
+  onTakePhoto,
 }: {
   t: (key: string) => string;
   attachmentsEnabled: boolean;
   disabled: boolean;
   onPickFile: () => void;
+  onTakePhoto: () => void;
 }) {
+  const inShell = useInAndroidShell();
   if (!attachmentsEnabled) return null;
+
+  const trigger = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="lg"
+      className={COMPOSER_ACTION_BUTTON}
+      disabled={disabled}
+      onClick={inShell ? undefined : onPickFile}
+      aria-label={t('chat.attachments.add')}
+    >
+      <Plus className="h-5 w-5" aria-hidden="true" />
+    </Button>
+  );
+
+  if (!inShell) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  // The menu closes and restores focus to the trigger; opening the file dialog
+  // in the same tick can be swallowed by that restoration. A task boundary is
+  // enough, and stays inside the transient user activation the picker needs.
+  const defer = (open: () => void) => () => setTimeout(open, 0);
+
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          className={COMPOSER_ACTION_BUTTON}
-          disabled={disabled}
-          onClick={onPickFile}
-          aria-label={t('chat.attachments.add')}
-        >
-          <Plus className="h-5 w-5" aria-hidden="true" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
-    </Tooltip>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onSelect={defer(onPickFile)}>
+          <Paperclip className="mr-2 h-4 w-4" aria-hidden="true" />
+          {t('chat.attachments.attach_file')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={defer(onTakePhoto)}>
+          <Camera className="mr-2 h-4 w-4" aria-hidden="true" />
+          {t('chat.attachments.take_photo')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -438,6 +510,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => window.clearTimeout(timer);
   }, [justSent]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const {
     attachments,
     uploadFile,
@@ -890,12 +963,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onChange={handleFileSelect}
             aria-label={t('chat.attachments.add')}
           />
+          {/* Camera capture — the shell's menu only (see the control). Same
+              `handleFileSelect`: a captured photo is an attachment like any
+              other, so nothing about the upload path is duplicated. */}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileSelect}
+            aria-label={t('chat.attachments.take_photo')}
+          />
           {/* « + »: the file picker (ADR-259) — extracted (CC discipline). */}
           <ComposerAttachmentsControl
             t={t}
             attachmentsEnabled={attachmentsEnabled}
             disabled={disabled || !apiAvailable || isUploading}
             onPickFile={() => fileInputRef.current?.click()}
+            onTakePhoto={() => photoInputRef.current?.click()}
           />
           {/* Positional wrapper (UXR Lot 8): the slash menu floats above the
               textarea, which carries the combobox role itself (ARIA 1.2). */}

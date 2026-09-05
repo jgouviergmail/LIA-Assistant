@@ -43,6 +43,7 @@ from src.domains.agents.constants import (
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_VALIDATION_RESULT,
 )
+from src.domains.agents.orchestration.plan_predicates import approval_is_refused
 from src.domains.agents.orchestration.semantic_validator import (
     PlanSemanticValidator,
     plan_contains_mutation,
@@ -234,7 +235,8 @@ async def semantic_validator_node(
     # Instead, return a valid result and let routing proceed to execution.
     # =========================================================================
     plan_approved = state.get(STATE_KEY_PLAN_APPROVED, False)
-    if plan_approved:
+    # ADR-263: same reading as the router — only an explicit refusal is one.
+    if not approval_is_refused(plan_approved):
         logger.info(
             "semantic_validator_node_plan_approved_skip",
             plan_approved=True,

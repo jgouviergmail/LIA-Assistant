@@ -230,7 +230,9 @@
       "settings_sub": "Connectoren und Einstellungen",
       "relations_sub": "Ihre Kontakte auf einen Blick",
       "capabilities": "Fähigkeiten",
-      "capabilities_sub": "Ihre Konstellation"
+      "capabilities_sub": "Ihre Konstellation",
+      "actions": "Register",
+      "actions_sub": "Was LIA getan und was sie abgerufen hat"
     },
     "briefing": {
       "synthesis_audio_error": "Die Sprachwiedergabe ist fehlgeschlagen — der Sprachanbieter hat kein Audio geliefert. Prüfen Sie die Spracheinstellungen.",
@@ -1046,6 +1048,10 @@
       "important_mails": "Fasse meine wichtigen E-Mails zusammen",
       "close_loop": "Hilf mir, „{{subject}}“ abzuschließen",
       "reminder": "Wo stehe ich bei « {{subject}} »?"
+    },
+    "effects": {
+      "failed": "fehlgeschlagen",
+      "title": "Ausgeführte Aktionen"
     }
   },
   "skill_apps": {
@@ -2346,6 +2352,45 @@
           "scheduler_tick": "Aktivität der Selbstprüfschleife",
           "platform_egress": "Ausgehende Verbindung"
         }
+      },
+      "registers": {
+        "title": "Transparenzregister",
+        "description": "Exportieren, was die Assistentin getan und was sie abgerufen hat — für ein Konto, mehrere oder alle, über einen Zeitraum.",
+        "intro": "Aktionstexte sind standardmäßig MASKIERT. Sie aufzudecken ist eine bewusste Handlung: Jede Aufdeckung schreibt einen Eintrag ins Admin-Protokoll. Das Abrufprotokoll hat nichts zu maskieren — es hält die abgefragte Fähigkeit fest, nie die Anfrage selbst.",
+        "register_label": "Register",
+        "register_actions": "Aktionen",
+        "register_consultations": "Abrufe",
+        "format_label": "Format",
+        "format_markdown": "Lesbar (Markdown)",
+        "format_csv": "Tabelle (CSV)",
+        "format_technical": "Technisch (JSON Lines, pseudonymisiert)",
+        "unmask_label": "Texte aufdecken (protokolliert)",
+        "unmask_hint": "Ohne Wirkung auf Abrufe: Sie tragen keinen Text.",
+        "all_users": "Alle Konten",
+        "export": "Exportieren",
+        "success": "Export heruntergeladen.",
+        "error": "Der Export ist fehlgeschlagen.",
+        "technical_note": "Der technische Export ist immer pseudonymisiert: Kennungen durch Prüfsummen ersetzt, Texte und Ergebnisse werden nie exportiert.",
+        "scope_label": "Betroffene Konten",
+        "verify_title": "Integrität der Register prüfen",
+        "verify_hint_all": "Kein Konto ausgewählt: Die Prüfung durchläuft alle versiegelten Konten.",
+        "verify_hint_selected_one": "1 Konto oben ausgewählt.",
+        "verify_hint_selected_other": "{{count}} Konten oben ausgewählt.",
+        "verify_action": "Prüfen",
+        "verify_running": "Wird geprüft…",
+        "verify_failed": "Die Prüfung wurde nicht abgeschlossen. Es wird kein Ergebnis angezeigt: nichts zu sagen ist besser, als etwas zu behaupten, das niemand geprüft hat.",
+        "verify_all_ok_one": "1 Kette geprüft, unverändert.",
+        "verify_all_ok_other": "{{count}} Ketten geprüft, alle unverändert.",
+        "verify_broken_one": "1 gebrochene Kette. Eine Registerzeile oder ein Versiegelungseintrag wurde außerhalb der Anwendung verändert — behandeln Sie dies als Sicherheitsvorfall (Runbook LedgerChainBroken).",
+        "verify_broken_other": "{{count}} gebrochene Ketten. Eine Registerzeile oder ein Versiegelungseintrag wurde außerhalb der Anwendung verändert — behandeln Sie dies als Sicherheitsvorfall (Runbook LedgerChainBroken).",
+        "verify_partial": "Begrenzter Durchlauf: {{checked}} von {{total}} Konten mit Kette wurden geprüft. Nennen Sie oben Konten, um die übrigen zu prüfen.",
+        "register_decisions": "Entscheidungen (ein Verlauf)",
+        "register_inference": "Inferenzen (ein Aufruf)",
+        "register_integrity": "Integrität (eine Lücke)",
+        "article12_title": "Einheitlicher Auszug (Artikel 12)",
+        "article12_hint": "Alle fünf Aufzeichnungen eines Zeitraums in einer JSON-Lines-Datei: ein Verlauf, eine Aktion, ein Abruf, ein Modellaufruf, eine Lücke im Protokoll. Pseudonymisiert, pro Quelle begrenzt, und der Kopf sagt, ob der Zeitraum vollständig ist.",
+        "article12_export": "Alles exportieren",
+        "charts_title": "Kennzahlen"
       }
     },
     "timezone": {
@@ -3510,7 +3555,8 @@
         "debug-settings": "Debug, Diagnose, Protokolle, Panel, Token-Verfolgung",
         "eyes-style": "Augen, Avatar, Animation, Stil, Blick, Begleiter, Cozmo",
         "admin-diagnostics": "zustand diagnose vorfälle alarme überwachung selbstprüfung plattform status prometheus loki konnektivität ausgehend netzwerk embeddings vektoren kontingent gedächtnis sprache",
-        "meetings": "besprechung, aufnahme, protokoll, transkription, bericht, mikrofon, notizen, zusammenfassung, aktionen, vorlage, vorlagen, vorlagenbibliothek, protokollformat, standardformat, automatisches format, format ändern, abschnitte, anweisungen, protokoll-e-mail"
+        "meetings": "besprechung, aufnahme, protokoll, transkription, bericht, mikrofon, notizen, zusammenfassung, aktionen, vorlage, vorlagen, vorlagenbibliothek, protokollformat, standardformat, automatisches format, format ändern, abschnitte, anweisungen, protokoll-e-mail",
+        "admin-registers": "register, transparenz, aktionen, abrufe, export, protokoll, audit, admin, Diagramme, Statistiken, Zahlen, Überblick"
       }
     },
     "haptics": {
@@ -4502,6 +4548,10 @@
         "meetings": {
           "title": "🎙️ Besprechungsprotokolle",
           "description": "Eine Schaltfläche in der Kopfzeile — oder der Eintrag „Besprechung aufnehmen“ im Telefonmenü — und das Gerät wird zum Aufnahmegerät: Der Ton geht in kleinen Abschnitten hinaus, sodass ein Absturz oder ein Verbindungsabbruch Sekunden kostet, nie die Besprechung. Beim Stopp fügt der Server die Aufnahme zusammen und geht seine Maschinenkette durch, bis eine transkribiert. Das Protokollformat wird aus dreißig Vorlagen gewählt, indem gelesen wird, was gesagt wurde — sofern du keines vorgibst; die Besprechung nennt es und den Grund. Ein fertiges Protokoll lässt sich in einem anderen Format neu schreiben, bis zum vollen Transkript, vor Ort oder als neues Dokument. Die Kosten stehen als zwei Beträge und eine Summe da, eine Lücke wird genannt, nie gefüllt."
+        },
+        "transparencyRegisters": {
+          "title": "📋 Register für Aktionen und Abfragen",
+          "description": "Zwei Register, automatisch geführt und nie vermischt: was LIA für dich <i>getan</i> hat — mit Ergebnis und deiner Bestätigung — und was sie zum Antworten <i>abgefragt</i> hat, festgehalten als Fähigkeit und nie als Suchinhalt. Eine Aktion wird vor ihrer Ausführung eingetragen: Ein Erfolg wird nie aus einem fehlenden Fehler geschlossen. Ein dritter Reiter zeichnet den Zeitraum; alles ist in drei Formaten exportierbar und wird mit deinem Konto gelöscht."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -4510,6 +4560,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_41_0": {
+          "title": "v1.41.0 — 📋 Register: was LIA getan und was sie angesehen hat",
+          "date": "September 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📋 Zwei automatisch geführte Register</b> — die Dashboard-Kachel heißt jetzt <b>Register</b> und beantwortet zwei verschiedene Fragen, die nie vermischt werden. <i>Aktionen</i>: alles, was LIA für dich getan hat — eine gesendete E-Mail, ein angelegter Termin, eine gelöschte Datei — mit Ergebnis und deiner Bestätigung. <i>Abfragen</i>: alles, was sie zum Antworten angesehen hat, festgehalten als Fähigkeit (« dein Kalender »), <b>nie</b> der Suchinhalt. Eine Aktion wird vor ihrer Ausführung eingetragen und nur mit einem ausdrücklichen Ergebnis als erledigt markiert — LIA kann also keinen Erfolg melden, für den sie keinen Beleg hat.",
+            "i2": "<b>📊 Ein neuer Reiter « Überblick » zeichnet den Zeitraum</b> — zehn Diagramme aus denselben Registern: wie deine Züge endeten, Aktionen nach Ergebnis, Abfragen nach Bereich, Aufrufe und Tokens je Modell, mittlere Latenz je Werkzeug und jede Lücke im Register selbst. Neben jedem Diagramm steht die exakte Gesamtzahl des Zeitraums, einschließlich dessen, was die Top 12 unter « andere » zusammengefasst haben — die Balken bleiben prüfbar. Administratoren sehen dieselben Diagramme über ein, mehrere oder alle Konten.",
+            "i3": "<b>📤 Exporte in drei Formaten, auch dem technischen</b> — lesbar, CSV und nun das maschinenlesbare Format, das bisher Administratoren vorbehalten war. Deine Datei ist damit vollständig genug, um sie weiterzugeben. Alles in diesen Registern gehört dir: in der App lesbar, exportierbar und mit deinem Konto gelöscht.",
+            "i4": "<b>🛠️ Ein Export konnte den falschen Zeitraum abdecken</b> — gab es mehr Zeilen, als eine Datei fassen kann, behielt der Export die <b>ältesten</b> statt der neuesten und konnte so monatealte Aktivität zeigen, während er ehrlich meldete, begrenzt zu sein. Ein begrenzter Export behält nun stets das jüngste Fenster und sagt es.",
+            "i5": "<b>🛠️ Zwei Administrationsansichten waren nicht erreichbar</b> — die kontenübergreifenden Diagramme und die kontenübergreifende Integritätsprüfung antworteten auf jede Anfrage mit einem Fehler. Beide funktionieren. Im selben Zug konnte ein bestätigter Entwurf, dessen Aktion bereits ohne Ergebnis erfasst war, als erledigt gemeldet werden: Er sagt nun klar, dass er nicht wiederholt wurde, und bittet dich, vor einem neuen Versuch nachzusehen."
+          }
+        },
         "v1_40_0": {
           "title": "v1.40.0 — 🔔 Drei Schleifen liefen im Stillen",
           "date": "September 2026",
@@ -9619,7 +9681,7 @@
       },
       "gdpr": {
         "title": "DSGVO-konform",
-        "description": "Automatische PII-Filterung, Pseudonymisierung, Datenminimierung. Vollständiger Konto-Export — lesbares Markdown, strukturiertes JSON und deine Dateien — mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Europäische Vorschriften werden eingehalten."
+        "description": "Automatische PII-Filterung, Pseudonymisierung, Datenminimierung. Vollständiger Kontoexport — lesbares Markdown, strukturiertes JSON und deine Dateien — mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Zwei Register halten fest, was LIA für dich getan und welche Fähigkeiten sie abgefragt hat, wie es Artikel 12 der EU-KI-Verordnung erwartet: lesbar, exportierbar, mit deinem Konto gelöscht."
       }
     },
     "tech": {
@@ -9628,20 +9690,20 @@
       "intro": "Kein Chatbot: ein Orchestrierungssystem. Jede Anfrage durchläuft semantisches Routing, einen Planner und parallel ausgeführte Agenten — instrumentiert von Ende zu Ende, vom Token bis zum Euro, mit E-Mail-Alerts bei vitalen Signalen.\n\nHinter der Oberfläche: bayessches Plan-Lernen, semantisches Gedächtnis mit zwei Vektoren, hybride BM25-+-Embeddings-Suche über deinen Dokumenten, eine in PostgreSQL gecheckpointete LangGraph-State-Machine. Alles selbst hostbar — bis hinunter zum Raspberry Pi.\n\nWas sie behauptet, hat sie gelesen: Jede Antwort ist auf die tatsächlich abgerufenen Daten verankert — nie auf die Erinnerung an eine frühere Formulierung — und eine nie erhaltene Information wird als fehlend benannt statt ergänzt.\n\nWas läuft, ist von dem getrennt, was es ausführt: Der Code einer Skill läuft in einem Container für genau einen Aufruf — ohne Socket, ohne Netzwerk, schreibgeschützt — und lässt sich diese Sandbox nicht bauen, läuft gar nichts.",
       "deep_dive_link": "Vollständiger technischer Einblick",
       "langgraph": {
-        "title": "LangGraph",
-        "description": "Agenten-Orchestrierung mit Zustandsgraphen, wellenbasierte Parallelausführung und Bayesianisches Lernen von Planmustern. Eine typisierte semantische Schicht verbindet Daten domänenübergreifend, abgesichert durch eine Ausführungs-Schutzvorrichtung. Jede Iteration eines Sammellaufs behält ihre eigenen Ergebnisse, auch wenn ein Lauf wiederholt wird."
+        "title": "Zwei Wege, eine Anfrage auszuführen",
+        "description": "Eine einfache Anfrage folgt einem Plan: LIA schreibt die Schritte, führt die unabhängigen gemeinsam aus und hält dort an, wo du bestätigst. Eine offene Anfrage wechselt in eine autonome Schleife, die Denken und Handeln abwechselt, bis eine Antwort steht. Den Modus wählst du in der Chat-Kopfzeile: Der geplante Modus braucht ein Vielfaches weniger Tokens, der autonome erkundet weiter. Ein Zug endet, wenn seine Antwort abgeht — LIA kündigt nie Arbeit an, die sie nicht tut."
       },
       "llm_providers": {
-        "title": "7 LLM-Anbieter",
-        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Dynamische Auswahl des besten Modells pro Aufgabentyp."
+        "title": "Sieben Modellanbieter, Ihre Wahl",
+        "description": "OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI und jedes lokale Ollama-Modell: Jede Rolle — Weiterleitung, Planung, Antwort, Bildverständnis, Indexierung — wird getrennt konfiguriert, sodass ein günstiges Modell die mechanischen Schritte übernimmt und ein starkes die Antwort. Was ein Modell wirklich kann, stammt aus einem gepflegten Katalog statt aus Annahmen, und die gewünschte Denktiefe wird in die Sprache jedes Anbieters übersetzt."
       },
       "bayesian": {
-        "title": "Bayesianisches Lernen",
-        "description": "Planungsmuster mit hoher Konfidenz umgehen die semantische Validierung. Interessen folgen einer bayesschen Gewichtung mit zeitlichem Zerfall — doch nichts gelangt hinein ohne eine benannte, zitierte Grundlage, und die Deduplizierung liest auch blockierte Einträge: Ein abgelehntes Thema kann nicht zurückkehren."
+        "title": "Pläne, die mit dem Gebrauch besser werden",
+        "description": "LIA merkt sich, welche Planformen für welche Art von Anfrage funktioniert haben, und verwendet sie wieder — mit einer bayesschen Bewertung, die bei Erfolg steigt und mit der Zeit abklingt, damit eine alte Gewohnheit nie schwerer wiegt als ein jüngerer Fehlschlag. Die Wirkung ist praktisch, nicht magisch: weniger Modellaufrufe, schnellere Antworten, stabileres Verhalten bei dem, was du oft verlangst. Nichts wird zwischen Konten geteilt."
       },
       "hybrid_search": {
         "title": "Hybride Suche",
-        "description": "In deinen Wissensräumen entscheidet die Bedeutung über die Relevanz: Eine einzige Schwelle gilt für die Ähnlichkeit des mehrsprachigen Embeddings, neu kalibriert über alle sechs Sprachen. BM25 behält seine nützliche Rolle — einen exakten Treffer vor einem Fast-Gleichstand nach oben zu holen — aber als begrenzter Bonus, nie als Schiedsrichter: Beide Signale zu vergleichbaren Anteilen zu mischen verwarf jede dritte richtige Antwort, sobald die Sprache der Frage von der der Dokumente abwich. Schriften ohne Wortabstände werden in Zweizeichengruppen zerlegt, sonst zählt ein ganzer chinesischer Satz als ein einziges Wort. Deine Erinnerungen werden stattdessen über eine doppelte semantische Suche gefunden."
+        "description": "In deinen Wissensräumen entscheidet die Bedeutung über Relevanz, nicht das Wort: eine einzige mehrsprachige Ähnlichkeitsschwelle, über die sechs Sprachen nachkalibriert. Die exakte Trefferübereinstimmung behält eine nützliche Rolle — ein wörtliches Vorkommen vor ein Fast-Unentschieden zu holen — aber als begrenzter Bonus, nie als Schiedsrichter: beide Signale gleich zu gewichten verwarf eine von drei richtigen Antworten, sobald die Sprache der Frage von der der Dokumente abwich. Schriften ohne Leerzeichen werden in Zeichenpaare zerlegt, sonst zählt ein ganzer chinesischer Satz als ein Wort."
       },
       "realtime": {
         "title": "Echtzeit-Streaming",
@@ -9652,12 +9714,12 @@
         "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Striktes TypeScript im Frontend, async Python im Backend. Installierbare PWA: 6 lokalisierte Manifeste, System-Teilen in den Chat, Offline-Seite und intelligentes Asset-Caching — API-Antworten werden nie gecacht. Einstellungen lassen sich per Tastatur durchsuchen, in allen sechs Sprachen, ohne Rücksicht auf Groß- und Kleinschreibung, Akzente und typografische Apostrophe. Das Designsystem ist ein von Tests bewachter Vertrag: jedes Farbpaar über fünf Themes in Hell und Dunkel geprüft, ein Ton pro Status, eine Form pro Aktionshöhe."
       },
       "telephony": {
-        "title": "Agentische Telefonie",
-        "description": "Ausgehende Sprachanrufe, geführt von einem zielorientierten Agenten über deinen eigenen ElevenLabs-Connector. Der Datenschutz wird durch Fähigkeiten erzwungen, nicht durch Prompts: Der Anruf-Agent kann nur deine Frei/Gebucht-Verfügbarkeit lesen — nie Titel, Teilnehmer oder Inhalte. Keine Aufzeichnung, das Transkript wird nie gespeichert; nur eine kurze, ablaufende Zusammenfassung wird asynchron über einen signierten, benutzereigenen Webhook zurückgespielt."
+        "title": "LIA am Telefon",
+        "description": "LIA kann anrufen und angerufen werden: Sprache wird transkribiert, eine Antwort gebildet, Text wieder zu Stimme — in derselben Unterhaltung wie der Chat. Sie erreicht dieselben Fähigkeiten — deinen Kalender, deine Kontakte, deine Erinnerungen — und eine bestätigungspflichtige Aktion wird laut erfragt statt still ausgeführt. Ein Anruf hinterlässt in deinen Registern dieselbe Spur wie ein Chat-Zug: Gesprochenes ist nicht weniger nachvollziehbar als Geschriebenes."
       },
       "rich_skills": {
         "title": "Skills mit Frames & Bildern",
-        "description": "SkillScriptOutput-Vertrag (text/frame/image) — gesandboxte Python-Skripte, strikte Sandbox-iframes mit injizierter CSP, Auto-Resize, Theme- und Sprachsync via postMessage. Eine gehärtete Import-Pipeline für jeden Pfad (Uploads, im Chat generierte Skills, https-URL-Installation über den SSRF-Validator): strikte Namensvalidierung, Zip-Expansionslimits, atomare Installation mit Rollback. Galerie mit Vorschauen und deklarierten Ausgabekanälen. Eine Fähigkeit lässt sich auch ändern: vollständige Neuerzeugung unter demselben Namen, dem das Lesen des aktuellen Pakets vorausgeht, bestätigt durch ein aus dem Inhalt abgeleitetes Token, mit serverseitiger Übernahme der Dateien, die der Chat nicht transportieren kann."
+        "description": "Ein Skill ist ein kleines Programm, das LIA für dich schreiben und dann in einer Sandbox ausführen kann. Es antwortet mit Text, einem Bild oder einer eingebetteten Mini-Oberfläche — Formular, Tabelle, Diagramm — isoliert von der Seite und deinem Thema und deiner Sprache folgend. Skills kommen alle denselben Weg, ob hochgeladen, im Chat erzeugt oder über einen Link installiert: strenge Namensprüfung, Größenobergrenzen und eine Installation, die entweder gelingt oder nichts hinterlässt. Ein Skill lässt sich später unter gleichem Namen neu erzeugen — mit deiner Bestätigung."
       },
       "hitl": {
         "title": "Human-in-the-Loop",
@@ -9665,19 +9727,27 @@
       },
       "honest_enrichment": {
         "title": "Ehrliche Anreicherungen",
-        "description": "Ein Anbieter veröffentlicht mitunter eine Kategorie ohne Zahl: Der französische nationale Luftqualitätsindex meldet „Moyen\" ohne numerischen Wert, während Googles universeller Index gegenüber der US-Skala invertiert ist — dort bedeutet 100 ausgezeichnet. Daraus folgen zwei Regeln, durchgesetzt von einem einzigen Renderer, den Wetterkarte und Ortsdetail teilen: Die angezeigte Kategorie ist immer die, die die API veröffentlicht, nie eine aus der Zahl abgeleitete Deutung; und eine Zahl reist nie mit dem Label einer anderen Skala. Existiert nur die Kategorie, steht sie allein. Ein fehlendes Signal ist besser als ein falsches."
+        "description": "Ein Anbieter veröffentlicht mitunter eine Kategorie ohne Zahl: Der französische Luftqualitätsindex meldet « Moyen » ohne Wert, während Googles universeller Index gegenüber der US-Skala invertiert ist — dort bedeutet 100 ausgezeichnet. Daher folgt eine einzige Darstellung, genutzt von der Wetterkarte und der Ortsansicht, zwei Regeln: Gezeigt wird stets die Kategorie, die die Quelle veröffentlicht, nie eine aus der Zahl abgeleitete; und eine Zahl reist nie mit dem Etikett einer anderen Skala. Ein fehlendes Signal ist besser als ein falsches."
+      },
+      "transparency_registers": {
+        "title": "Register für Aktionen und Abfragen",
+        "description": "Zwei Register beantworten zwei verschiedene Fragen und werden nie vermischt: was der Assistent GETAN hat — gesendet, erstellt, gelöscht, mit Ergebnis und deiner Bestätigung — und was er ABGEFRAGT hat, um zu antworten. Eine Abfrage hält die Fähigkeit fest, « dein Kalender », nie den Suchinhalt. Beide gehören dir: in der App lesbar, exportierbar, mit deinem Konto gelöscht. Eine Aktion wird VOR ihrer Ausführung eingetragen und nur mit einem ausdrücklichen Ergebnis abgeschlossen — nichts gilt als erledigt, bloß weil kein Fehler zurückkam."
+      },
+      "semantic_layer": {
+        "title": "Ein gemeinsames Vokabular für Ihre Daten",
+        "description": "Kontakt, E-Mail, Termin, Datei, Ort: Jedes heißt überall gleich — ein gemeinsames Vokabular aus einunddreißig Begriffen statt eines je Integration. Erst das lässt eine Frage die Quellen überschreiten: Die Person in einer E-Mail ist die im Kalender und in deinen Notizen. Die Verbindungen dazwischen sind typisiert und ihre Bedeutung deklariert, sodass der Assistent über Beziehungen schließt, statt aus ähnlichen Namen zu raten — und das Vokabular einer neuen Fähigkeit wird beim Start geprüft, nie erst im Betrieb entdeckt."
       },
       "native_shells": {
         "title": "Native Hüllen & Weck-Relais",
-        "description": "Eine App pro Store, Client für jeden selbst gehosteten Server: Die WebView lädt den Ursprung Ihres Servers über dieselbe httpOnly-Cookie-Sitzung wie das Web. Android spricht zur Laufzeit mit Ihrem eigenen Firebase-Projekt; iOS wird von einem zustandslosen Relais geweckt, dessen Handle DAS versiegelte Geräte-Token IST — nichts gespeichert, ein fester Satz, der echte Inhalt kommt von Ihrem Server. Jede Plattform-Aussage wird von einem Prüfstand gemessen, der die echte App Szene für Szene fährt."
+        "description": "Eine App je Store, Client jedes selbst gehosteten Servers: Die WebView lädt die Herkunft deines Servers mit derselben httpOnly-Cookie-Sitzung wie das Web. Android spricht zur Laufzeit mit deinem eigenen Firebase-Projekt; iOS wird über ein zustandsloses Relais geweckt, dessen Griff das versiegelte Gerätetoken IST — nichts gespeichert, nichts unterwegs lesbar. Teilen und Benachrichtigungen öffnen bestehende Web-Routen, statt die Oberfläche zu verdoppeln."
       },
       "structured_minutes": {
         "title": "Strukturierte Protokolle",
-        "description": "Dreißig Protokollformate leben im Code, ihre Wörter in übersetzten Daten. Eine Vorlage wird durch eine Referenz benannt — integriert oder persönlich —, die Besprechungen, Einstellungen und Anfragen anstelle einer Zeile austauschen: Ein mitgeliefertes Format braucht also keine Datenbankzeile. Die Wahl folgt einer einzigen Rangfolge, vom Explizitesten zum Allgemeinsten, und endet in einem Modellaufruf, der einen Transkriptauszug oberhalb einer Vertrauensschwelle liest; das Ergebnis wird gezählt und mit seiner Begründung auf die Besprechung geschrieben. Das ganze Transkript passt nicht in eine Antwort: Es wird Teil für Teil neu geschrieben, begrenzt durch das effektive Ausgabefenster."
+        "description": "Dreißig Protokollformate liegen LIA bei, vom Beschlussprotokoll bis zur einseitigen Zusammenfassung, und du kannst eigene ergänzen. Das passende wird über das deutlichste verfügbare Signal gewählt: was du verlangt hast, dann die Einstellungen des Termins, dann deine Vorlieben — und andernfalls ein Modell, das einen Ausschnitt liest und sich enthält, statt bei zu geringer Sicherheit zu raten. Welcher Weg entschied, steht am Termin. Ein langes Transkript wird Abschnitt für Abschnitt neu geschrieben: Ein zweistündiges Meeting wird nie beschnitten, damit es in eine Antwort passt."
       },
       "scoped_state": {
-        "title": "Zustand mit deklariertem Geltungsbereich, ereignisgetriebene Entscheidungen",
-        "description": "Jeder gespeicherte Wert erklärt, was er ist — eine Unterhaltung, ein Cache, etwas Gelerntes, etwas Laufendes — und jede Operation liest diese Erklärung statt eines Namensmusters. Eine Unterhaltung zu löschen löscht deshalb eine Unterhaltung: Das Gelernte bleibt, und ein Wert unbekannter Familie wird behalten und gezählt statt erraten. Auf dieser Grundlage hört eine Anbieter-Benachrichtigung auf, ein Cache-Hinweis zu sein, und wird zur Entscheidung: Sie reiht ein Wecken je Nutzer und Anbieter ein — ein Schwall ergibt ein Wecken, datiert vom ersten — und ein kurzer, leader-gewählter Durchgang bedient es unter dem gesamten Regelwerk der Eignung (Zeitfenster, Kontingent, Sperrzeiten, Quellenpräferenz) und übergeht nur die Glättung, die routinemäßige Durchgänge verteilt. Das frisch eingetroffene Material wird vorab gelesen, nie verbraucht, solange die Entscheidung nicht gefallen ist: Ein abgelehntes Wecken lässt die Post genau dort, wo der nächste planmäßige Durchgang sie findet."
+        "title": "Vergessen heißt wirklich vergessen",
+        "description": "Alles, was der Assistent speichert, sagt, was es ist — ein Gespräch, ein Cache, etwas Gelerntes, etwas Laufendes — und jede Operation liest diese Angabe, statt aus einem Namen zu raten. Ein Gespräch zu löschen löscht daher ein Gespräch: Was LIA über dich gelernt hat, bleibt, und was sich nicht eindeutig zuordnen lässt, wird behalten und gezählt statt auf Verdacht gelöscht. Umgekehrt gilt dasselbe: Nur « Alles vergessen » und das Löschen des Kontos entfernen Gelerntes."
       }
     },
     "architecture": {
@@ -10335,9 +10405,9 @@
         "body": "<h2>Privacy by Design</h2><p>LIA ist von Anfang an mit Datenschutz als Grundprinzip konzipiert, nicht als nachträgliche Ergänzung.</p><h2>Symmetrische Fernet-Verschlüsselung</h2><p>Alle sensiblen Daten werden mit <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) über die Funktion <code>encrypt_data()</code> verschlüsselt. Dies umfasst OAuth-Token, Connector-Anmeldedaten, PII und MCP-Server-Anmeldedaten. OAuth-Anmeldedaten werden vor dem Schreiben in die Datenbank verschlüsselt und beim Abrufen on-the-fly entschlüsselt. Die Verschlüsselungsschlüssel werden getrennt von den Daten verwaltet.</p><h2>Minimierung der Datenerhebung</h2><p>LIA erhebt nur die für seinen Betrieb strikt notwendigen Daten:</p><ul><li>Profilinformationen (Name, E-Mail, Präferenzen)</li><li>Konversationsverlauf (verschlüsselt)</li><li>Verbindungs-Token zu Diensten (verschlüsselt)</li><li>Anonymisierte Nutzungsmetriken</li></ul><h2>Löschung und Kaskadierung</h2><p>Die Löschung eines Benutzerkontos löst eine <strong>vollständige Kaskadenlöschung</strong> aus: Connectoren, Konversationen, Einstellungen, Sitzungen, Erinnerungen und alle zugehörigen Daten werden unwiderruflich gelöscht. Keine verwaisten Daten verbleiben in der Datenbank.</p><h2>Sichere Sitzungen und Cookies</h2><p>Die Sitzungs-Cookies sind mit den Attributen <code>HttpOnly</code>, <code>Secure</code> (in Produktion) und <code>SameSite=lax</code> konfiguriert. Die Sitzungsdauer beträgt standardmäßig 7 Tage, erweiterbar auf 30 Tage mit der Option \"Angemeldet bleiben\". Einmal-Token werden nach der ersten Verwendung über eine Redis-Sperrliste ungültig gemacht.</p><h2>Schutz externer Inhalte</h2><p>Inhalte, die aus externen Quellen abgerufen werden (E-Mails, Webseiten, Dokumente), werden vor der Injektion in die Prompts als <code>UNTRUSTED</code> mit konfigurierbarem Wrapping markiert. Das Tool web_fetch ist auf 10 Aufrufe pro 60-Sekunden-Fenster pro Benutzer rate-limitiert, um Missbrauch zu verhindern.</p><h2>PII-Filterung in Logs</h2><p>Das Logging-System wendet die <strong>OWASP Logging Cheat Sheet</strong>-Empfehlungen an, um persönliche Daten automatisch aus den Anwendungslogs zu filtern. Keine sensiblen Daten erscheinen in den Logs.</p><h2>Datenportabilität (v1.9.1)</h2><p>LIA ermöglicht jedem Benutzer den <strong>Export seiner persönlichen Verbrauchsdaten</strong> als CSV über Einstellungen > Funktionen. Drei Exporttypen: LLM-Verbrauch (Tokens und Kosten pro Aufruf), Google-API-Verbrauch und aggregierte Zusammenfassung. Sicherheit: Die <code>user_id</code> wird serverseitig erzwungen — kein Parameter wird offengelegt (IDOR-Schutz).</p><h2>Backups mit bewiesener Wiederherstellung</h2><p>Daten zu schützen heißt auch, sicherzustellen, dass sie Zwischenfälle überstehen. Die Produktionsdatenbank wird jede Nacht automatisch gesichert — mit 7 Tagen, 4 Wochen und 6 Monaten Historie, in einem dedizierten Verzeichnis mit restriktiven Berechtigungen. Und weil ein Backup erst zählt, wenn die Wiederherstellung bewiesen ist, wird die Prozedur real getestet: Der letzte Dump wird in einem Wegwerf-Container wiederhergestellt und mit der Live-Datenbank verglichen (Schemarevision, Zeilenzahlen) — eine Übung, die mit dem Stack ausgeliefert wird.</p>"
       },
       "observability": {
-        "title": "519 Prometheus-Metriken, 26 Grafana-Dashboards und Langfuse-Tracing",
+        "title": "535 Prometheus-Metriken, 26 Grafana-Dashboards und Langfuse-Tracing",
         "excerpt": "LIA bietet Enterprise-Observability mit 473 Metriken, Grafana-Dashboards, LLM-Tracing via Langfuse und E-Mail-Alerting mit Runbooks.",
-        "body": "<h2>Die drei Säulen der Observability</h2><p>LIA implementiert die drei Säulen moderner Observability:</p><ul><li><strong>Metriken</strong> — 519 Prometheus-Metriken für HTTP, Agenten, Token, Kosten, OAuth und Performance</li><li><strong>Logs</strong> — Strukturiertes JSON-Logging via structlog, zentralisiert in Loki mit PII-Filterung</li><li><strong>Traces</strong> — Verteiltes Tracing via OpenTelemetry (Tempo) und LLM-Tracing via Langfuse</li></ul><h2>23 spezialisierte Metrik-Dateien</h2><p>Jede Domäne besitzt ihre eigene deklarative Metrik-Datei. Die 23 Module decken ab: HTTP, Agenten (SSE/Router/LLM/HITL/Planer), Datenbank, LangGraph, Langfuse, Voice, RAG Spaces, OAuth, Channels, Fehler, Sub-Agenten, Redis, Attachments, Browser, Compaction, Briefing, Business, Registry, Heartbeat, Gesundheitsmetriken, Journale, Telefonie und Nutzungslimits. Jede Datei definiert domänenspezifische Prometheus-Counter, Histogramme und Gauges.</p><h2>Definition der Prometheus-Metriken</h2><p>Jede Domäne definiert ihre Metriken deklarativ:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana-Dashboards</h2><p>LIA liefert 26 nummerierte Grafana-Dashboards von 01 bis 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony und briefing. Jedes Dashboard bietet filterbare Ansichten nach Benutzer, Zeitraum und Umgebung. Das 26. ist ein Produkt-Cockpit: validierte Ergebnisse (explizites 👍 oder eine unkorrigiert gebliebene Aktion), Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis — die exakte Zählung lebt in PostgreSQL, und Grafana liest sie über eine auf Aggregat-Views beschränkte Nur-Lese-Rolle.</p><h2>Ziel-KPIs aus dem Quellcode</h2><p>LIA überwacht präzise Indikatoren, die im Quellcode definiert sind: TTFT (Time To First Token) des Streamings, Router-Latenz zwischen 0,1 und 2 Sekunden, Tool-Ausführungsdauer der Agenten zwischen 0,1 und 10 Sekunden, Router-Konfidenz p50 &gt; 0,8, LLM-Kosten pro Anfrage &lt; 0,05€, HTTP-5xx-Fehlerrate &lt; 1%.</p><h2>E-Mail-Alerts mit Runbooks</h2><p>Die Überwachung endet nicht bei Dashboards: Ein Kern aus 14 vitalen Alerts — API, PostgreSQL oder Redis nicht erreichbar, Festplatte, Container-Speicher, 5xx-Fehlerrate, Streaming-Latenz, fehlgeschlagenes nächtliches Backup, nicht erreichbare öffentliche URL, bald ablaufendes TLS-Zertifikat, ausgefallene Ratenbegrenzung — wird kontinuierlich von Prometheus ausgewertet und per E-Mail über Alertmanager zugestellt. Jeder Alert verweist auf sein Runbook (Schritt-für-Schritt-Anleitung), die Schwellenwerte werden pro Umgebung in .env-Dateien gepflegt, und promtool-Unit-Tests garantieren, dass die in Benachrichtigungen angezeigten Schwellenwerte exakt den auslösenden Ausdrücken entsprechen. Eine Blackbox-Sonde testet sogar die gesamte Kette Ende-zu-Ende, vom Cloudflare-Edge bis zum Frontend — genau wie ein Nutzer.</p><h2>Langfuse: Dediziertes LLM-Tracing</h2><p>Die Langfuse-Integration verfügt über 8 dedizierte Metriken zur Verfolgung jedes LLM-Aufrufs: verbrauchte Token (Eingabe/Ausgabe/Cache), Antwortzeit, verwendetes Modell, geschätzte Kosten und Anfrage-Kontext. Dies ermöglicht die Identifizierung ineffizienter Prompts, den Vergleich von LLM-Modellen untereinander und die langfristige Optimierung des Token-Verbrauchs.</p><h2>DevOps Claude CLI: Diagnose in natürlicher Sprache (v1.13.0)</h2><p>Neueste Entwicklung des Observability-Stacks: Administratoren können Server jetzt direkt aus der LIA-Konversation diagnostizieren. Claude Code CLI — im API-Docker-Container installiert — inspiziert autonom Logs, prüft die Container-Gesundheit und analysiert die Ressourcennutzung. Persistente Sitzungen, konfigurierbare Berechtigungen pro Umgebung und Echtzeit-Streaming der Untersuchungsschritte via SSE.</p><h2>Und seit v1.34: der Assistent liest die eigene Telemetrie</h2><p>All das gab es für Menschen; der Assistent selbst las nichts davon. ADR-247 hat diese Schleife geschlossen: Eine periodische Selbstprüfung verdichtet die goldenen Signale plus direkte Sonden zu Zustands-Snapshots mit exakten Werten; Alarme und kritische Verdikte konvergieren zu einem Vorfall pro Ausfall, diagnostiziert von einem budgetgedeckelten, auf den Runbooks gegründeten LLM; Administratoren erhalten ein Plattformzustand-Panel, proaktive Benachrichtigungen und lesende Chat-Werkzeuge. Und ein bekannter Ausfall formt nun die Antworten — beeinträchtigte Fähigkeiten werden bei der Planung umfahren, fehlgeschlagene Schritte aus typisierten Fehlercodes erklärt, nie aus rohen Logs.</p><h2>Ergebnisse zählen, nicht Versuche</h2><p>Ein Zähler musste in v1.38.3 neu gedacht werden. Die Aufrufe zu zählen, die einen Anbieter erreichen, ist die Wahrheit über den Anbieter — und der falsche Nenner, sobald diese Aufrufe wiederholt werden, denn ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. Ein zweiter Zähler erfasst nun eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet, und beantwortet die einzige Frage, auf die ein Betreiber reagiert: Hat der Aufrufer sein Ergebnis bekommen? Ein dritter sagt, was die Ratenglättung mit jedem Versuch tat, denn „das Budget ist zu klein“ und „Redis ist ausgefallen“ sehen in einem Boolean gleich aus und verlangen entgegengesetzte Maßnahmen.</p><p>Die jüngste Lektion betrifft die Wahl dessen, was man misst. Die autonome Schleife zählte ihre Iterationen und ihre Dauer — und nichts für das, was tatsächlich wächst: den Prompt, der dem Modell bei jedem Schritt geliefert wird. Am Produktionscode gemessen sind das 2,3 k Tokens bei der ersten und 112 k bei der neunzigsten Iteration, weil jedes Werkzeugergebnis in dem Gespräch bleibt, das das Modell erneut liest. Zwei Histogramme erfassen nun die gelieferte Größe und ihren Anteil am Kontextfenster des Modells, gespeist vom selben memoisierten Zähler, den der Zustands-Reducer ohnehin pflegt — die Messung kostet auf dem heißen Pfad also nichts. Bewusst wurde keine Kompressionsstrategie mitgeliefert: Ein System, das auf eine nie beobachtete Größe reagiert, optimiert eine Vermutung.</p>"
+        "body": "<h2>Die drei Säulen der Observability</h2><p>LIA implementiert die drei Säulen moderner Observability:</p><ul><li><strong>Metriken</strong> — 535 Prometheus-Metriken für HTTP, Agenten, Token, Kosten, OAuth und Performance</li><li><strong>Logs</strong> — Strukturiertes JSON-Logging via structlog, zentralisiert in Loki mit PII-Filterung</li><li><strong>Traces</strong> — Verteiltes Tracing via OpenTelemetry (Tempo) und LLM-Tracing via Langfuse</li></ul><h2>23 spezialisierte Metrik-Dateien</h2><p>Jede Domäne besitzt ihre eigene deklarative Metrik-Datei. Die 23 Module decken ab: HTTP, Agenten (SSE/Router/LLM/HITL/Planer), Datenbank, LangGraph, Langfuse, Voice, RAG Spaces, OAuth, Channels, Fehler, Sub-Agenten, Redis, Attachments, Browser, Compaction, Briefing, Business, Registry, Heartbeat, Gesundheitsmetriken, Journale, Telefonie und Nutzungslimits. Jede Datei definiert domänenspezifische Prometheus-Counter, Histogramme und Gauges.</p><h2>Definition der Prometheus-Metriken</h2><p>Jede Domäne definiert ihre Metriken deklarativ:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana-Dashboards</h2><p>LIA liefert 26 nummerierte Grafana-Dashboards von 01 bis 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony und briefing. Jedes Dashboard bietet filterbare Ansichten nach Benutzer, Zeitraum und Umgebung. Das 26. ist ein Produkt-Cockpit: validierte Ergebnisse (explizites 👍 oder eine unkorrigiert gebliebene Aktion), Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis — die exakte Zählung lebt in PostgreSQL, und Grafana liest sie über eine auf Aggregat-Views beschränkte Nur-Lese-Rolle.</p><h2>Ziel-KPIs aus dem Quellcode</h2><p>LIA überwacht präzise Indikatoren, die im Quellcode definiert sind: TTFT (Time To First Token) des Streamings, Router-Latenz zwischen 0,1 und 2 Sekunden, Tool-Ausführungsdauer der Agenten zwischen 0,1 und 10 Sekunden, Router-Konfidenz p50 &gt; 0,8, LLM-Kosten pro Anfrage &lt; 0,05€, HTTP-5xx-Fehlerrate &lt; 1%.</p><h2>E-Mail-Alerts mit Runbooks</h2><p>Die Überwachung endet nicht bei Dashboards: Ein Kern aus 14 vitalen Alerts — API, PostgreSQL oder Redis nicht erreichbar, Festplatte, Container-Speicher, 5xx-Fehlerrate, Streaming-Latenz, fehlgeschlagenes nächtliches Backup, nicht erreichbare öffentliche URL, bald ablaufendes TLS-Zertifikat, ausgefallene Ratenbegrenzung — wird kontinuierlich von Prometheus ausgewertet und per E-Mail über Alertmanager zugestellt. Jeder Alert verweist auf sein Runbook (Schritt-für-Schritt-Anleitung), die Schwellenwerte werden pro Umgebung in .env-Dateien gepflegt, und promtool-Unit-Tests garantieren, dass die in Benachrichtigungen angezeigten Schwellenwerte exakt den auslösenden Ausdrücken entsprechen. Eine Blackbox-Sonde testet sogar die gesamte Kette Ende-zu-Ende, vom Cloudflare-Edge bis zum Frontend — genau wie ein Nutzer.</p><h2>Langfuse: Dediziertes LLM-Tracing</h2><p>Die Langfuse-Integration verfügt über 8 dedizierte Metriken zur Verfolgung jedes LLM-Aufrufs: verbrauchte Token (Eingabe/Ausgabe/Cache), Antwortzeit, verwendetes Modell, geschätzte Kosten und Anfrage-Kontext. Dies ermöglicht die Identifizierung ineffizienter Prompts, den Vergleich von LLM-Modellen untereinander und die langfristige Optimierung des Token-Verbrauchs.</p><h2>DevOps Claude CLI: Diagnose in natürlicher Sprache (v1.13.0)</h2><p>Neueste Entwicklung des Observability-Stacks: Administratoren können Server jetzt direkt aus der LIA-Konversation diagnostizieren. Claude Code CLI — im API-Docker-Container installiert — inspiziert autonom Logs, prüft die Container-Gesundheit und analysiert die Ressourcennutzung. Persistente Sitzungen, konfigurierbare Berechtigungen pro Umgebung und Echtzeit-Streaming der Untersuchungsschritte via SSE.</p><h2>Und seit v1.34: der Assistent liest die eigene Telemetrie</h2><p>All das gab es für Menschen; der Assistent selbst las nichts davon. ADR-247 hat diese Schleife geschlossen: Eine periodische Selbstprüfung verdichtet die goldenen Signale plus direkte Sonden zu Zustands-Snapshots mit exakten Werten; Alarme und kritische Verdikte konvergieren zu einem Vorfall pro Ausfall, diagnostiziert von einem budgetgedeckelten, auf den Runbooks gegründeten LLM; Administratoren erhalten ein Plattformzustand-Panel, proaktive Benachrichtigungen und lesende Chat-Werkzeuge. Und ein bekannter Ausfall formt nun die Antworten — beeinträchtigte Fähigkeiten werden bei der Planung umfahren, fehlgeschlagene Schritte aus typisierten Fehlercodes erklärt, nie aus rohen Logs.</p><h2>Ergebnisse zählen, nicht Versuche</h2><p>Ein Zähler musste in v1.38.3 neu gedacht werden. Die Aufrufe zu zählen, die einen Anbieter erreichen, ist die Wahrheit über den Anbieter — und der falsche Nenner, sobald diese Aufrufe wiederholt werden, denn ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. Ein zweiter Zähler erfasst nun eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet, und beantwortet die einzige Frage, auf die ein Betreiber reagiert: Hat der Aufrufer sein Ergebnis bekommen? Ein dritter sagt, was die Ratenglättung mit jedem Versuch tat, denn „das Budget ist zu klein“ und „Redis ist ausgefallen“ sehen in einem Boolean gleich aus und verlangen entgegengesetzte Maßnahmen.</p><p>Die jüngste Lektion betrifft die Wahl dessen, was man misst. Die autonome Schleife zählte ihre Iterationen und ihre Dauer — und nichts für das, was tatsächlich wächst: den Prompt, der dem Modell bei jedem Schritt geliefert wird. Am Produktionscode gemessen sind das 2,3 k Tokens bei der ersten und 112 k bei der neunzigsten Iteration, weil jedes Werkzeugergebnis in dem Gespräch bleibt, das das Modell erneut liest. Zwei Histogramme erfassen nun die gelieferte Größe und ihren Anteil am Kontextfenster des Modells, gespeist vom selben memoisierten Zähler, den der Zustands-Reducer ohnehin pflegt — die Messung kostet auf dem heißen Pfad also nichts. Bewusst wurde keine Kompressionsstrategie mitgeliefert: Ein System, das auf eine nie beobachtete Größe reagiert, optimiert eine Vermutung.</p>"
       },
       "prompt-engineering": {
         "title": "Versioniertes Prompt-System: 78 Prompts als Code verwaltet",
@@ -10937,7 +11007,7 @@
   "story": {
     "meta": {
       "title": "Story — Eine KI führen, die programmiert | LIA",
-      "description": "Wie LIA entstand: ~100 % KI-geschriebener Code unter menschlicher Führung, 26.600+ Tests, 241 ADRs, ein technisches Audit mit 8,3/10. Der vollständige Erfahrungsbericht."
+      "description": "Wie LIA entstand: ~100 % KI-geschriebener Code unter menschlicher Führung, 31.000+ Tests, 262 ADRs, ein technisches Audit mit 8,3/10. Der vollständige Erfahrungsbericht."
     },
     "breadcrumb": "Erfahrungsbericht",
     "hero": {
@@ -11946,6 +12016,252 @@
         "template_limit_reached": "das Vorlagenlimit ist erreicht",
         "duplicate_failed": "konnte nicht hinzugefügt werden",
         "delete_failed": "konnte nicht gelöscht werden"
+      }
+    }
+  },
+  "effects": {
+    "journal": {
+      "description": "Alles, was LIA in Ihrem Namen getan hat, wie aufgezeichnet.",
+      "empty_action": "Zum Chat",
+      "empty_description": "Für Sie ausgeführte Aktionen erscheinen hier.",
+      "empty_filtered_description": "Versuchen Sie einen anderen Status.",
+      "empty_filtered_title": "Keine Aktion passt zu diesem Filter",
+      "empty_title": "Noch nichts geschehen",
+      "error": "Das Aktionsprotokoll konnte nicht geladen werden.",
+      "filter_label": "Nach Status filtern",
+      "load_more": "Mehr laden",
+      "loading": "Aktionsprotokoll wird geladen",
+      "source": {
+        "scheduled": "Geplant",
+        "subagent": "Unteragent",
+        "user": "Auf Ihre Bitte"
+      },
+      "status": {
+        "abandoned": "Abgebrochen",
+        "all": "Alle",
+        "claimed": "Läuft",
+        "failed": "Fehlgeschlagen",
+        "refused": "Abgelehnt",
+        "succeeded": "Erledigt"
+      },
+      "title": "Aktionsprotokoll",
+      "total_one": "{{count}} Aktion",
+      "total_other": "{{count}} Aktionen",
+      "refresh": "Aktualisieren",
+      "retry": "Erneut versuchen"
+    },
+    "labels": {
+      "activate_hue_scene_tool": "Lichtszene „{{target}}“ aktiviert",
+      "activate_skill_tool": "Fähigkeit „{{target}}“ aktiviert",
+      "apply_labels_tool": "Labels auf {{count}} Element(e) angewendet",
+      "browser_task_tool": "Web-Navigation ausgeführt: {{target}}",
+      "complete_task_tool": "Aufgabe „{{target}}“ als erledigt markiert",
+      "control_hue_light_tool": "Licht „{{target}}“ geändert",
+      "control_hue_room_tool": "Beleuchtung im Raum „{{target}}“ geändert",
+      "draft": {
+        "contact": "Kontakt „{{target}}“ erstellt",
+        "contact_delete": "Kontakt „{{target}}“ gelöscht",
+        "contact_update": "Kontakt „{{target}}“ geändert",
+        "devops_task": "Administrationsaufgabe auf „{{target}}“ ausgeführt",
+        "document_append": "Text an das Dokument „{{target}}“ angehängt",
+        "email": "E-Mail an {{recipient}} gesendet",
+        "email_delete": "E-Mail gelöscht: {{target}}",
+        "email_filter": "E-Mail-Filter erstellt",
+        "email_forward": "E-Mail an {{recipient}} weitergeleitet",
+        "email_reply": "Antwort an {{recipient}} gesendet",
+        "event": "Termin „{{target}}“ erstellt",
+        "event_delete": "Termin „{{target}}“ gelöscht",
+        "event_update": "Termin „{{target}}“ geändert",
+        "file_delete": "Datei „{{target}}“ gelöscht",
+        "label_delete": "Label „{{target}}“ gelöscht",
+        "peer_message": "Nachricht an {{recipient}} gesendet",
+        "phone_call": "Anruf an {{recipient}} getätigt",
+        "reminder_delete": "Erinnerung „{{target}}“ gelöscht",
+        "scheduled_action": "Geplante Aktion „{{target}}“ erstellt",
+        "spreadsheet_write": "Tabelle „{{target}}“ aktualisiert",
+        "task": "Aufgabe „{{target}}“ erstellt",
+        "task_delete": "Aufgabe „{{target}}“ gelöscht",
+        "task_update": "Aufgabe „{{target}}“ geändert",
+        "vacation_responder": "Abwesenheitsnotiz eingerichtet"
+      },
+      "edit_image": "Bild bearbeitet: {{target}}",
+      "generate_document": "Dokument „{{target}}“ erzeugt",
+      "generate_image": "Bild erzeugt: {{target}}",
+      "generic": "Aktion „{{tool}}“ ausgeführt",
+      "import_user_skill": "Fähigkeit „{{target}}“ zu Ihrer Bibliothek hinzugefügt",
+      "mcp": "Externes Werkzeug „{{tool}}“ verwendet",
+      "remove_labels_tool": "Labels von {{count}} Element(en) entfernt",
+      "run_python_tool": "Berechnung in der Sandbox ausgeführt",
+      "run_skill_script": "Skript der Fähigkeit „{{target}}“ ausgeführt",
+      "set_current_item": "„{{target}}“ als aktuelles Element des Gesprächs gesetzt",
+      "toggle_scheduled_action_tool": "Geplante Aktion „{{target}}“ aktiviert oder pausiert"
+    },
+    "export": {
+      "group_label": "Dieses Register exportieren",
+      "markdown": "Exportieren (lesbar)",
+      "csv": "Exportieren (CSV)",
+      "technical": "Technisch",
+      "markdown_hint": "Ein Dokument zum Lesen, mit Ihren Formulierungen.",
+      "csv_hint": "Eine Tabelle zum Auszählen, mit Ihren Formulierungen.",
+      "technical_hint": "JSON Lines: dieselben Ereignisse ganz ohne Inhalt, Kennungen pseudonymisiert. Einer Meldung beizulegen, ohne preiszugeben, was gesagt wurde."
+    }
+  },
+  "treatments": {
+    "journal": {
+      "title": "Was LIA abgerufen hat",
+      "description": "Jede während Ihrer Gespräche abgefragte Fähigkeit — nie, was gefragt wurde, nur was abgerufen wurde.",
+      "refresh": "Aktualisieren",
+      "error": "Das Abrufprotokoll konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "total_one": "{{count}} Abruf",
+      "total_other": "{{count}} Abrufe",
+      "filter_label": "Nach Fähigkeit filtern",
+      "all_capabilities": "Alle",
+      "empty_title": "Kein Abruf aufgezeichnet",
+      "empty_description": "Sobald LIA eine Ihrer Datenquellen abfragt, erscheint der Abruf hier.",
+      "empty_filtered_title": "Kein Abruf für diese Fähigkeit",
+      "empty_filtered_description": "Wählen Sie eine andere Fähigkeit oder kehren Sie zur vollständigen Liste zurück.",
+      "empty_action": "Gespräch öffnen",
+      "load_more": "Mehr anzeigen",
+      "duration": "{{ms}} ms",
+      "outcome": {
+        "failed": "Ohne Antwort"
+      },
+      "repeats": "×{{count}}"
+    },
+    "domains": {
+      "automation": "Automatisierungen",
+      "brave": "Brave-Suche",
+      "browser": "Webbrowser",
+      "contact": "Kontakte",
+      "context": "Gesprächskontext",
+      "devops": "Serververwaltung",
+      "document": "Dokumente",
+      "document_generation": "Dokumentenerstellung",
+      "email": "E-Mails",
+      "event": "Kalender",
+      "file": "Dateien",
+      "health": "Gesundheitsdaten",
+      "hue": "Intelligente Beleuchtung",
+      "image_generation": "Bilderzeugung",
+      "mcp": "Externer Server (MCP)",
+      "peer": "Peers",
+      "perplexity": "Perplexity-Suche",
+      "place": "Orte",
+      "python_sandbox": "Isoliertes Python",
+      "query": "Suche in Ihren Daten",
+      "reminder": "Erinnerungen",
+      "route": "Routen",
+      "skill": "Fähigkeiten",
+      "sub_agent": "Sub-Agent",
+      "task": "Aufgaben",
+      "telephony": "Telefonie",
+      "weather": "Wetter",
+      "web_fetch": "Webseite",
+      "web_search": "Websuche",
+      "wikipedia": "Wikipedia",
+      "unknown": "Nicht identifizierte Fähigkeit"
+    }
+  },
+  "registers": {
+    "title": "Transparenzregister",
+    "description": "Zwei getrennte Listen: was LIA getan hat und was sie abgerufen hat. Sie zählen Verschiedenes und lassen sich nicht addieren.",
+    "tab_actions": "Aktionen",
+    "tab_consultations": "Abrufe",
+    "seal": {
+      "loading": "Versiegelungsstatus wird geladen",
+      "disabled": "Die Versiegelung der Protokolle ist auf dieser Instanz nicht aktiviert. Ihre Register bleiben vollständig und lesbar; es fehlt lediglich der Nachweis, dass sie nicht verändert wurden.",
+      "not_yet": "Noch nichts versiegelt",
+      "sealed_until": "Protokolle versiegelt bis {{date}}",
+      "pending_one": "1 Zeile noch nicht versiegelt",
+      "pending_other": "{{count}} Zeilen noch nicht versiegelt",
+      "verify": "Integrität prüfen",
+      "verifying": "Wird geprüft…",
+      "verify_failed": "Die Prüfung wurde nicht abgeschlossen. Es wird kein Ergebnis angezeigt: nichts zu sagen ist besser, als etwas zu behaupten, das niemand geprüft hat.",
+      "verdict_ok_one": "Unverändert: 1 neu berechnete Zeile stimmt mit ihrem Fingerabdruck überein.",
+      "verdict_ok_other": "Unverändert: {{count}} neu berechnete Zeilen stimmen mit ihren Fingerabdrücken überein.",
+      "verdict_broken": "Bruch an Position {{seq}} festgestellt. Eine Registerzeile oder ein Versiegelungseintrag wurde außerhalb der Anwendung verändert. Melden Sie dies der Administration dieser Instanz.",
+      "fingerprint": "Endgültiger Fingerabdruck:"
+    },
+    "tab_overview": "Überblick",
+    "charts": {
+      "loading": "Kennzahlen werden geladen",
+      "empty": "Nichts in diesem Zeitraum.",
+      "error": "Die Kennzahlen konnten nicht berechnet werden.",
+      "activity": {
+        "title": "Aktivität pro Tag",
+        "description": "Ein Gesprächsverlauf je Einheit — die Chronologie, die die übrigen Karten aufschlüsseln.",
+        "legend": "Verlaufe"
+      },
+      "turns_outcome": {
+        "title": "Ausgang der Verläufe",
+        "description": "Ein Verlauf ohne Antwort ist eine Tatsache, keine Lücke."
+      },
+      "turns_mode": {
+        "title": "Ausführungsmodus",
+        "description": "Pipeline oder ReAct: ein Wechsel ändert die Kosten um das 4- bis 8-Fache."
+      },
+      "actions_status": {
+        "title": "Aktionen nach Ergebnis",
+        "description": "Was LIA nach außen getan hat und wie es endete."
+      },
+      "consultations_domain": {
+        "title": "Abrufe nach Bereich",
+        "description": "Was sie zum Antworten abgerufen hat — die Fähigkeit, nie die Anfrage."
+      },
+      "latency": {
+        "title": "Mittlere Latenz je Werkzeug",
+        "description": "Durchschnittliche Ausführungszeit eines Abrufs."
+      },
+      "calls_model": {
+        "title": "Aufrufe je Modell",
+        "description": "Das Modell, das tatsächlich geantwortet hat, nicht das heute konfigurierte."
+      },
+      "calls_node": {
+        "title": "Aufrufe je Graphschritt",
+        "description": "Sub-Agenten und MCP-Server werden zusammengefasst: ihre Namen gehören nicht uns."
+      },
+      "tokens_model": {
+        "title": "Token je Modell",
+        "description": "Eingabe und Ausgabe auf demselben Balken."
+      },
+      "integrity": {
+        "title": "Lücken im Protokoll",
+        "description": "Eine Aktion ohne Zeile, nicht erfasste Abrufe, eine gebrochene Kette.",
+        "empty": "Keine Lücken: das Protokoll ist für diesen Zeitraum vollständig."
+      },
+      "legend": {
+        "turns": "Verlaufe",
+        "actions": "Aktionen",
+        "consultations": "Abrufe",
+        "calls": "Aufrufe",
+        "latency": "Latenz",
+        "prompt_tokens": "Eingabe-Token",
+        "completion_tokens": "Ausgabe-Token",
+        "gaps": "Lucken"
+      },
+      "outcome": {
+        "answered": "Beantwortet",
+        "failed": "Fehlgeschlagen",
+        "interrupted": "Unterbrochen"
+      },
+      "status": {
+        "succeeded": "Erfolgreich",
+        "failed": "Fehlgeschlagen",
+        "refused": "Abgelehnt",
+        "claimed": "Laufend",
+        "abandoned": "Abgebrochen"
+      },
+      "integrity_kind": {
+        "effect_unrecorded": "Nicht erfasste Aktion",
+        "treatments_uncollected": "Nicht erfasste Abrufe",
+        "chain_broken": "Gebrochene Kette",
+        "notary_failed": "Versiegelung fehlgeschlagen"
+      },
+      "badge": {
+        "count": "Gesamt {{value}}",
+        "stacked": "Gesamt {{value}}",
+        "average": "Durchschnitt {{value}}"
       }
     }
   }

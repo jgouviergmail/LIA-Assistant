@@ -70,6 +70,11 @@ _DESCRIPTION = (
 
 delegate_to_sub_agent_catalogue_manifest = ToolManifest(
     name="delegate_to_sub_agent_tool",
+    # ADR-263: the delegation opens a READ-ONLY research loop (its toolset is
+    # whitelisted to search and fetch). It changes nothing in the world, so it
+    # owes no confirmation; hitl_required below still pauses ReAct, because
+    # the loop is expensive — a different question, deliberately kept separate.
+    mutation_policy="read",
     # ADR-256: the sub-agent runs a READ-ONLY tool subset by contract (ADR-083),
     # so the delegation itself mutates nothing.
     tool_category="readonly",

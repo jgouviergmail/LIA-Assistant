@@ -511,6 +511,42 @@ permissions = PermissionProfile(
 )
 ```
 
+### `mutation_policy` — ce que l'outil DOIT à l'utilisateur (ADR-263)
+
+`PermissionProfile.hitl_required` dit si le mode ReAct interrompt AVANT
+l'exécution. Il ne dit pas ce qu'un outil doit à l'utilisateur : mesuré le
+2026-09-03, 13 outils natifs classés « mutation » n'avaient aucune porte de
+confirmation dans aucun des deux modes, et rien ne disait si c'était une
+décision ou un oubli.
+
+`ToolManifest.mutation_policy` le déclare, avec six valeurs :
+
+| Valeur | Ce que l'utilisateur voit | Raison écrite exigée |
+|---|---|---|
+| `read` | rien : l'outil ne change rien | non |
+| `draft` | le brouillon EST la confirmation (`draft_critique`) | non |
+| `confirm` | une carte de confirmation avant exécution, dans les DEUX modes | non |
+| `reversible` | rien : l'outil agit, un appel défait | **oui** |
+| `artefact` | rien : produit un artefact local, aucun effet chez un tiers | **oui** |
+| `sandboxed` | rien : s'exécute dans le conteneur jetable (SEC-001) | **oui** |
+
+Règle propriétaire (2026-09-03) : une confirmation est due par une mutation qui
+**modifie, supprime ou communique vers un tiers** ; jamais par une lecture ; et
+jamais par excès de prudence — une carte inutile est une carte qu'on cesse de
+lire.
+
+`assert_mutation_policy_completeness` refuse le démarrage sur une omission. Seule
+la catégorie `search` est exemptée : elle vient d'un nom explicite
+(`get_`/`search_`/`list_`), alors que `readonly` est le **repli** de l'inférence
+— et c'est là que se trouvaient `claude_server_task_tool`, `run_python_tool` et
+`delegate_to_sub_agent_tool`. Un outil `readonly`/`system` qui ne lit vraiment
+que déclare donc `read` : une affirmation vraie et bon marché, au lieu d'un
+silence hérité.
+
+Un outil MCP tiers ne déclare jamais sa politique : elle est **dérivée** de ce
+que le serveur annonce (`derive_mcp_mutation_policy`), jamais plus permissive
+que la déclaration (ADR-255).
+
 **Classification des données** :
 - `PUBLIC` : Données publiques (ex: météo, taux de change)
 - `INTERNAL` : Données internes non sensibles (ex: status système)

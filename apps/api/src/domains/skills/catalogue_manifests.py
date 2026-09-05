@@ -1,6 +1,9 @@
 """Catalogue manifests for Skills tools (agentskills.io standard)."""
 
 from src.domains.agents.registry.catalogue import (
+    REASON_INTERNAL_CONTEXT,
+    REASON_OWN_LIBRARY,
+    REASON_SANDBOXED_CONTAINER,
     CostProfile,
     OutputFieldSchema,
     ParameterSchema,
@@ -14,6 +17,8 @@ from src.domains.agents.registry.catalogue import (
 
 activate_skill_catalogue_manifest = ToolManifest(
     name="activate_skill_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_INTERNAL_CONTEXT,
     # ADR-256: loads instructions into the turn. It mutates no user data, but
     # the read-only initiative phase must never activate a skill on its own.
     tool_category="system",
@@ -69,6 +74,7 @@ activate_skill_catalogue_manifest = ToolManifest(
 
 read_skill_resource_catalogue_manifest = ToolManifest(
     name="read_skill_resource",
+    mutation_policy="read",
     # ADR-256: reads a bundled resource.
     tool_category="readonly",
     agent="query_agent",
@@ -123,6 +129,8 @@ read_skill_resource_catalogue_manifest = ToolManifest(
 
 import_user_skill_catalogue_manifest = ToolManifest(
     name="import_user_skill",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_OWN_LIBRARY,
     agent="query_agent",
     description=(
         "**Tool: import_user_skill** - Import a generated skill into the user's "
@@ -179,6 +187,8 @@ import_user_skill_catalogue_manifest = ToolManifest(
 
 run_skill_script_catalogue_manifest = ToolManifest(
     name="run_skill_script",
+    mutation_policy="sandboxed",
+    mutation_policy_reason=REASON_SANDBOXED_CONTAINER,
     agent="query_agent",
     description=(
         "**Tool: run_skill_script** - Execute a Python script from a skill.\n"

@@ -257,6 +257,52 @@ describe('chatReducer — STREAM_DONE', () => {
     ]);
   });
 
+  it('carries what the turn PERFORMED onto the live bubble (ADR-263)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: {
+        messageId: 'a-1',
+        metadata: {
+          ...fullMetadata,
+          performed_effects: [
+            {
+              label_key: 'effects.labels.draft.email',
+              values: { recipient: 'Marie' },
+              status: 'succeeded',
+              tool_name: 'draft:email',
+            },
+          ],
+        },
+      },
+    });
+
+    // Same key the archived row uses, so a reload hydrates the same shape...
+    expect(next.messages[0].metadata?.performed_effects).toHaveLength(1);
+    // ...and the typed field is parsed by the ONE parser the history path uses.
+    expect(next.messages[0].performedEffects).toEqual([
+      {
+        labelKey: 'effects.labels.draft.email',
+        values: { recipient: 'Marie' },
+        status: 'succeeded',
+        toolName: 'draft:email',
+      },
+    ]);
+  });
+
+  it('writes no effect field for a turn that changed nothing (ADR-263)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: { ...fullMetadata, performed_effects: [] } },
+    });
+
+    expect(next.messages[0].metadata?.performed_effects).toBeUndefined();
+    expect(next.messages[0].performedEffects).toBeUndefined();
+  });
+
   it('drops an EMPTY chips list instead of writing a hollow field (UXR A2)', () => {
     const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
 
@@ -286,9 +332,7 @@ describe('chatReducer — STREAM_DONE', () => {
       },
     });
 
-    expect(next.messages[0].metadata?.initiative_motivation).toBe(
-      'Parce que tu suis la Formule 1'
-    );
+    expect(next.messages[0].metadata?.initiative_motivation).toBe('Parce que tu suis la Formule 1');
   });
 
   it('drops an absent motivation instead of writing a hollow field (Lot 1-A3)', () => {

@@ -9,6 +9,16 @@ from src.core import constants
 from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
+from src.domains.agents.effects.admin_router import router as effects_admin_router
+from src.domains.agents.effects.chain_router import admin_router as chain_admin_router
+from src.domains.agents.effects.chain_router import router as chain_router
+from src.domains.agents.effects.export_router import router as effects_export_router
+from src.domains.agents.effects.router import router as effects_router
+from src.domains.agents.effects.statistics_router import (
+    admin_router as statistics_admin_router,
+)
+from src.domains.agents.effects.statistics_router import router as statistics_router
+from src.domains.agents.effects.treatments_router import router as treatments_router
 from src.domains.auth.checklist_router import router as checklist_router
 from src.domains.auth.oauth_router import router as oauth_router
 from src.domains.auth.profile_image_router import router as profile_image_router
@@ -63,6 +73,25 @@ api_router.include_router(sessions_router)  # Device sessions "My devices" (D2)
 api_router.include_router(users_router)
 api_router.include_router(connectors_router)
 api_router.include_router(agents_router)
+# The effect register (ADR-263): read-only, user-scoped, always mounted. It is
+# how a user checks what was done for them without taking the executor's word.
+api_router.include_router(effects_router)
+# ADR-263 lot 4: the consultation register is a SECOND list, never a filter
+# on the first — the two count different things and must not be added up.
+api_router.include_router(treatments_router)
+api_router.include_router(effects_export_router)
+# ADR-263 lot 5: proving the two registers were not altered. Always mounted,
+# even when the notary is off — an account with no chain answers « nothing
+# sealed yet » rather than 404, which is the truthful answer either way.
+api_router.include_router(chain_router)
+# The same records as figures: every axis a BOUNDED value, every count an
+# aggregate — a chart never moves the content the registers keep in place.
+api_router.include_router(statistics_router)
+# Superuser-only, read-only: the pseudonymised technical export and the
+# masked cross-account view (every unmasking audited).
+api_router.include_router(effects_admin_router)
+api_router.include_router(chain_admin_router)
+api_router.include_router(statistics_admin_router)
 api_router.include_router(conversations_router)
 api_router.include_router(chat_router)
 # Reminders expose exactly ONE action (cancel by id) — the domain has no

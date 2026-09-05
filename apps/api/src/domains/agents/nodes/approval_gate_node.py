@@ -100,11 +100,17 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
         return result_no_plan
 
     if not validation_result:
+        # ADR-263: the absence of a verdict is not an approval. `None` is the
+        # third value — "nobody looked" — and it changes nothing today: the
+        # router never reads this key and the only reader tests `is True`. What
+        # it buys is that the effect gate can tell an approval from a silence,
+        # instead of reading a True this branch invented.
         logger.warning(
-            "approval_gate_no_validation_result",
-            msg="No validation result, assuming approval not required",
+            "approval_gate_no_verdict",
+            plan_id=getattr(execution_plan, "plan_id", None),
+            msg="No validation result: plan approval left UNKNOWN, not granted",
         )
-        result_no_validation: dict[str, Any] = {STATE_KEY_PLAN_APPROVED: True}
+        result_no_validation: dict[str, Any] = {STATE_KEY_PLAN_APPROVED: None}
         track_state_updates(state, result_no_validation, "approval_gate")
         return result_no_validation
 

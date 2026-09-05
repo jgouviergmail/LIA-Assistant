@@ -24,6 +24,7 @@ _query_desc = (
 
 local_query_engine_catalogue_manifest = ToolManifest(
     name="local_query_engine_tool",
+    mutation_policy="read",
     agent="query_agent",
     description=_query_desc,
     semantic_keywords=[

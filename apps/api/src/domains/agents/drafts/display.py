@@ -344,6 +344,21 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="task",
         verb_past_key="executed",
     ),
+    # ADR-263: a tool whose declared policy demands a confirmation and that
+    # builds no draft of its own — a third-party MCP tool whose server asks for
+    # one. The gate hands the call back as this draft so the user answers the
+    # card both modes already show, and ``execute_tool_call_draft`` replays it.
+    DraftType.TOOL_CALL: DraftDisplayConfig(
+        emoji="🛠",  # 🛠
+        item_label_fields=("tool_label",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("tool_label", "🛠", "tool"),
+            DraftDisplayField("args_summary", "📝", "details"),
+        ),
+        noun_key="action",
+        verb_past_key="executed",
+    ),
     # Peers (A3): sending a relayed message is the email-send class — the
     # draft IS the confirmation, `execute_peer_message_draft` enqueues only
     # once the user has approved.

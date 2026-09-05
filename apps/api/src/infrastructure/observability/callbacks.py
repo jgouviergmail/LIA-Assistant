@@ -20,6 +20,7 @@ from prometheus_client import Counter
 
 from src.core.config import settings
 from src.core.field_names import FIELD_METADATA, FIELD_MODEL_NAME
+from src.infrastructure.llm.inference_params import capture_inference_params
 from src.infrastructure.observability.error_taxonomy import classify_llm_error
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -400,7 +401,12 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         # call in the debug panel, the persisted summary and user statistics.
         self._recorded_llm_run_ids: set[str] = set()
 
-    def _store_call_context(self, run_id: UUID, metadata: dict[str, Any] | None) -> None:
+    def _store_call_context(
+        self,
+        run_id: UUID,
+        metadata: dict[str, Any] | None,
+        invocation_params: dict[str, Any] | None = None,
+    ) -> None:
         """Store per-call context for parallel-safe tracking (DRY helper)."""
         self._last_usage_metadata = None
         md = metadata or {}
@@ -416,6 +422,11 @@ class TokenTrackingCallback(AsyncCallbackHandler):
             # does not map to a slot.
             "llm_type": md.get("llm_type"),
             "start_time": time.time(),
+            # ADR-263 lot 7: the parameters actually SENT. LangChain hands them
+            # to every callback beside this metadata, so the register needs no
+            # plumbing of its own — and reading them HERE is what makes them
+            # survive a later change to llm_config_overrides.
+            "params": capture_inference_params(invocation_params),
         }
 
     async def on_llm_start(
@@ -427,7 +438,9 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Called when LLM starts (legacy text completion models)."""
-        self._store_call_context(run_id, kwargs.get(FIELD_METADATA))
+        self._store_call_context(
+            run_id, kwargs.get(FIELD_METADATA), kwargs.get("invocation_params")
+        )
 
     async def on_chat_model_start(
         self,
@@ -449,7 +462,9 @@ class TokenTrackingCallback(AsyncCallbackHandler):
             tags=tags,
             langgraph_node=(metadata or {}).get("langgraph_node"),
         )
-        self._store_call_context(run_id, metadata)
+        # The path every modern provider actually takes; the legacy
+        # ``on_llm_start`` above captures the same thing for completion models.
+        self._store_call_context(run_id, metadata, kwargs.get("invocation_params"))
 
     async def on_llm_end(
         self,
@@ -568,6 +583,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 started_at=start_time if start_time > 0 else None,
                 llm_type=call_ctx.get("llm_type"),
                 status="success",
+                params=call_ctx.get("params"),
             )
 
             # DEBUG: Confirm tokens recorded
@@ -639,6 +655,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 started_at=start_time if start_time > 0 else None,
                 llm_type=call_ctx.get("llm_type"),
                 status="error",
+                params=call_ctx.get("params"),
                 failure_kind=failure_kind,
             )
         except Exception as exc:  # noqa: BLE001

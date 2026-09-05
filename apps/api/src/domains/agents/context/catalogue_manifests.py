@@ -4,6 +4,7 @@ Optimized for orchestration efficiency.
 """
 
 from src.domains.agents.registry.catalogue import (
+    REASON_INTERNAL_CONTEXT,
     CostProfile,
     DisplayMetadata,
     OutputFieldSchema,
@@ -35,6 +36,7 @@ _resolve_desc = (
 
 resolve_reference_catalogue_manifest = ToolManifest(
     name="resolve_reference",
+    mutation_policy="read",
     agent="context_agent",
     description=_resolve_desc,
     semantic_keywords=[
@@ -100,6 +102,8 @@ resolve_reference_catalogue_manifest = ToolManifest(
 # ============================================================================
 set_current_item_catalogue_manifest = ToolManifest(
     name="set_current_item",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_INTERNAL_CONTEXT,
     agent="context_agent",
     description="**Tool: set_current_item** - Mark item as 'current' for future references.",
     parameters=[
@@ -129,6 +133,7 @@ set_current_item_catalogue_manifest = ToolManifest(
 # ============================================================================
 get_context_state_catalogue_manifest = ToolManifest(
     name="get_context_state",
+    mutation_policy="read",
     agent="context_agent",
     description="**Tool: get_context_state** - DEBUG: Get active context state.",
     parameters=[_DOMAIN_PARAM],
@@ -153,6 +158,7 @@ get_context_state_catalogue_manifest = ToolManifest(
 # ============================================================================
 list_active_domains_catalogue_manifest = ToolManifest(
     name="list_active_domains",
+    mutation_policy="read",
     agent="context_agent",
     description="**Tool: list_active_domains** - DEBUG: List domains with active context.",
     parameters=[],
@@ -183,6 +189,7 @@ _list_desc = (
 
 get_context_list_catalogue_manifest = ToolManifest(
     name="get_context_list",
+    mutation_policy="read",
     agent="context_agent",
     description=_list_desc,
     parameters=[_DOMAIN_PARAM],

@@ -49,6 +49,7 @@ def _cost(latency_ms: int) -> CostProfile:
 
 platform_health_catalogue_manifest = ToolManifest(
     name="platform_health_tool",
+    mutation_policy="read",
     agent=DIAGNOSTICS_AGENT_NAME,
     description=(
         "**Tool: platform_health_tool** - Current platform health (administrators only).\n"
@@ -81,6 +82,7 @@ platform_health_catalogue_manifest = ToolManifest(
 
 platform_metrics_catalogue_manifest = ToolManifest(
     name="platform_metrics_tool",
+    mutation_policy="read",
     agent=DIAGNOSTICS_AGENT_NAME,
     description=(
         "**Tool: platform_metrics_tool** - Run ONE curated platform metric query "
@@ -129,6 +131,7 @@ platform_metrics_catalogue_manifest = ToolManifest(
 
 platform_logs_catalogue_manifest = ToolManifest(
     name="platform_logs_tool",
+    mutation_policy="read",
     agent=DIAGNOSTICS_AGENT_NAME,
     description=(
         "**Tool: platform_logs_tool** - Read bounded platform logs from Loki "
@@ -208,6 +211,7 @@ platform_logs_catalogue_manifest = ToolManifest(
 
 platform_incidents_catalogue_manifest = ToolManifest(
     name="platform_incidents_tool",
+    mutation_policy="read",
     agent=DIAGNOSTICS_AGENT_NAME,
     description=(
         "**Tool: platform_incidents_tool** - List platform incidents or show one with its "

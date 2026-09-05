@@ -54,6 +54,40 @@ def _aware(raw: str, tz: ZoneInfo) -> datetime | None:
     return parsed.replace(tzinfo=tz) if parsed.tzinfo is None else parsed
 
 
+async def _owner_calendar_id(client: Any, user_id: UUID) -> str:
+    """The calendar the owner configured, or ``primary``.
+
+    Deliberately degrading, and deliberately different from the WRITE paths:
+    creating an event in the wrong calendar is a mistake in the world, while
+    reading availability from ``primary`` is the fallback the resolver already
+    documents. Losing the whole answer because a preference could not be read
+    would cost the user their question for nothing.
+
+    Args:
+        client: The calendar client, carrying its connector service and type.
+        user_id: Whose calendar is being read.
+
+    Returns:
+        A calendar id — never empty.
+    """
+    from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
+
+    try:
+        return await resolve_owner_calendar_id(
+            db=client.connector_service.db,
+            client=client,
+            owner_id=user_id,
+            connector_type=client.connector_type,
+        )
+    except Exception as exc:  # noqa: BLE001 - availability survives a bad preference
+        logger.warning(
+            "availability_default_calendar_unresolved",
+            user_id=str(user_id),
+            error_type=type(exc).__name__,
+        )
+        return "primary"
+
+
 class FindAvailabilityTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
     """Compute free calendar slots over a window (freeBusy fast-path)."""
 
@@ -99,10 +133,18 @@ class FindAvailabilityTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         )
         working_hours_only = bool(kwargs.get("working_hours_only", True))
 
+        # The calendar the owner CONFIGURED, not `primary`. Both paths below
+        # used to ask for `primary` unconditionally, so a user whose agenda
+        # lives in a named calendar was reported FREE while booked — the
+        # 2026-07-30 defect `owner_defaults` cites, closed there for a peer's
+        # calendar and never wired for the account's own.
+        calendar_id = await _owner_calendar_id(client, user_id)
+
         if hasattr(client, "query_freebusy"):
             response = await client.query_freebusy(
                 time_min=window_start.astimezone(UTC).isoformat(),
                 time_max=window_end.astimezone(UTC).isoformat(),
+                calendar_ids=[calendar_id],
             )
             busy = busy_intervals_from_freebusy(response)
             source = "freebusy"
@@ -112,7 +154,7 @@ class FindAvailabilityTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
                 time_min=window_start.astimezone(UTC).isoformat(),
                 time_max=window_end.astimezone(UTC).isoformat(),
                 max_results=AVAILABILITY_PROJECTION_MAX_EVENTS,
-                calendar_id="primary",
+                calendar_id=calendar_id,
                 fields=["start", "end"],
             )
             busy = busy_intervals_from_events(result.get("items", []))
@@ -198,7 +240,8 @@ async def find_availability_tool(
     """
     Find free calendar slots in a time window ("find me a 30-min slot Thursday").
 
-    Reads the user's primary calendar busy ranges (never event details) and
+    Reads the busy ranges of the calendar the user configured as their default
+    (never event details, and `primary` when none is set) and
     returns the free gaps of at least the requested duration, clamped to
     working hours unless told otherwise.
 

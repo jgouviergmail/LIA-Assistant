@@ -9,6 +9,7 @@ Created: 2026-03-25
 
 from src.domains.agents.constants import AGENT_IMAGE
 from src.domains.agents.registry.catalogue import (
+    REASON_LOCAL_ARTEFACT,
     AgentManifest,
     CostProfile,
     DisplayMetadata,
@@ -48,6 +49,8 @@ _desc = (
 
 generate_image_catalogue_manifest = ToolManifest(
     name="generate_image",
+    mutation_policy="artefact",
+    mutation_policy_reason=REASON_LOCAL_ARTEFACT,
     agent=AGENT_IMAGE,
     description=_desc,
     semantic_keywords=[
@@ -113,6 +116,8 @@ _edit_desc = (
 
 edit_image_catalogue_manifest = ToolManifest(
     name="edit_image",
+    mutation_policy="artefact",
+    mutation_policy_reason=REASON_LOCAL_ARTEFACT,
     agent=AGENT_IMAGE,
     description=_edit_desc,
     semantic_keywords=[

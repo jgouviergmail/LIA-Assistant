@@ -48,6 +48,9 @@ from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
 )
 from src.domains.agents.drafts.models import DraftAction
+from src.domains.agents.effects.digest import draft_digest
+from src.domains.agents.effects.runtime import EffectAlreadyClaimed
+from src.domains.agents.effects.scope import effect_scope, scope_from_config
 from src.domains.agents.services.draft_executor_registry import ensure_executors_registered
 from src.domains.agents.services.draft_executor_types import (
     EXECUTOR_REGISTRY,
@@ -693,7 +696,24 @@ async def _execute_confirmed_draft(
         # Executor functions have signature: (draft_content, user_id, deps) -> result_dict
         token = _CURRENT_SIDE_CHANNEL_QUEUE.set(run_context.side_channel_queue)
         try:
-            result_data = await executor_fn(draft_content, user_id, deps)
+            # ADR-263: the authority this effect runs under. The user confirmed
+            # THIS draft, so the scope says so and carries the digest of what
+            # they were shown — and ``draft_id`` is the key that makes one
+            # confirmation one execution (measured: it used to make two).
+            with effect_scope(
+                scope_from_config(
+                    config,
+                    idempotency_key=f"draft:{draft_id}",
+                    approved=True,
+                    approval_kind="draft_critique",
+                    approval_ref=draft_id,
+                    draft_digest=draft_digest(draft_content),
+                    # The caller HOLDS the run id; a resume's config does not
+                    # carry one, and guessing filed the effect under the thread.
+                    run_id=run_id,
+                )
+            ):
+                result_data = await executor_fn(draft_content, user_id, deps)
         finally:
             _CURRENT_SIDE_CHANNEL_QUEUE.reset(token)
 
@@ -728,6 +748,34 @@ async def _execute_confirmed_draft(
             draft_type=draft_type,
             action="confirm",
             result_data=result_data,
+            user_language=user_language,
+        )
+
+    except EffectAlreadyClaimed as already:
+        from src.core.i18n_drafts import get_draft_already_claimed_message
+
+        # ADR-263: the same action is on record without a result, so it was not
+        # repeated. That is a failure to report, never a success to invent —
+        # and it is the ONE failure whose sentence the user needs to be exact.
+        registry_drafts_executed_total.labels(
+            draft_type=draft_type,
+            outcome="failed",
+        ).inc()
+
+        logger.warning(
+            "draft_executor_already_claimed",
+            run_id=run_id,
+            draft_id=draft_id,
+            draft_type=draft_type,
+            served_status=already.status,
+        )
+
+        return DraftExecutionResult(
+            success=False,
+            draft_id=draft_id,
+            draft_type=draft_type,
+            action="confirm",
+            error=get_draft_already_claimed_message(user_language),
             user_language=user_language,
         )
 

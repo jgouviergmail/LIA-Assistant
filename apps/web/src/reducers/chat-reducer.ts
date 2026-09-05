@@ -23,6 +23,7 @@
 
 import { ChatState, ChatAction, initialChatState } from '@/types/chat-state';
 import { initialHitlCardState } from '@/types/hitl';
+import { performedEffectsFromMetadata } from '@/lib/performed-effects-hydration';
 import { capTraceSteps } from '@/types/execution-trace';
 import { Message } from '@/types/chat';
 import { generateUUID } from '@/lib/utils';
@@ -89,7 +90,17 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
       ...(metadata.initiative_motivation
         ? { initiative_motivation: metadata.initiative_motivation }
         : {}),
+      // ADR-263: kept under the SAME key the archived row uses, so a reload
+      // hydrates from the same shape the live turn carried.
+      ...(metadata.performed_effects?.length
+        ? { performed_effects: metadata.performed_effects }
+        : {}),
     },
+    // Parsed with the one parser the history path uses: live and reloaded
+    // bubbles cannot disagree about what was done.
+    performedEffects: performedEffectsFromMetadata({
+      performed_effects: metadata.performed_effects,
+    }),
   };
 }
 

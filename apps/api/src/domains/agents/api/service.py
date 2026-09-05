@@ -31,13 +31,25 @@ from src.core.field_names import (
 )
 from src.core.i18n import normalize_language
 from src.domains.agents.api.archive_first import archive_user_message_first
+from src.domains.agents.api.archive_metadata import (
+    build_assistant_metadata,
+    persist_psyche_snapshot,
+    with_performed_effects,
+)
 from src.domains.agents.api.attachments_injection import inject_attachments_into_state
 from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.hitl_pending import extract_decision_type, hitl_stale_chunks
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
-from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
 from src.domains.agents.dependencies import ToolDependencies
+from src.domains.agents.effects.decision_recorder import decision_recorder
+from src.domains.agents.effects.decisions import (
+    note_answered,
+    note_request_message,
+    turn_decision,
+)
+from src.domains.agents.effects.treatment_recorder import treatment_recorder
+from src.domains.agents.effects.turn_summary import performed_effects
 from src.domains.agents.expressivity.turn import attach_tone_to_done
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
@@ -45,10 +57,8 @@ from src.domains.agents.services.orchestration.approval_decision import (
 from src.domains.agents.services.streaming.followup_metadata import (
     pop_followups,
     pop_motivation,
-    with_followup_suggestions,
     with_initiative_motivation,
 )
-from src.domains.agents.services.streaming.trace_capture import with_persisted_trace
 from src.domains.agents.services.streaming.voice_coordinator import (
     VoiceStreamContext,
     VoiceStreamCoordinator,
@@ -753,8 +763,27 @@ class AgentService(
                 ),
                 tracker=tracker,
             )
+            # The turn's own record (ADR-263, lot 6): the spine the two
+            # registers hang off, since both file their rows under this very
+            # ``run_id``. Its outcome starts at ``interrupted`` — a turn that
+            # dies without saying how it ended must never read as answered.
+            turn = turn_decision(
+                run_id=run_id,
+                user_id=user_id,
+                thread_id=str(conversation_id),
+                execution_mode=user_execution_mode,
+                automated=is_automated_source,
+            )
             try:
-                async with tracker:
+                # The consultation register rides alongside the token tracker:
+                # same scope, same guarantee. ``__aexit__`` runs on the normal
+                # path, on an exception and on a cancellation, so a turn that
+                # stops mid-flight still closes its books (ADR-263, lot 4).
+                async with (
+                    tracker,
+                    treatment_recorder(run_id=run_id),
+                    decision_recorder(turn),
+                ):
                     # === Per-user MCP tools setup (evolution F2.1) ===
                     _user_mcp_token = await setup_user_mcp_tools(user_id, db)
 
@@ -861,6 +890,8 @@ class AgentService(
                             stt_kwargs=stt_kwargs,
                             is_automated_source=is_automated_source,
                         )
+                        # POINT at what was asked; never copy it (ADR-263, lot 6).
+                        note_request_message(archived_user_msg_id)
 
                     # === TRACKING: Count user message ===
                     # Count ALL user messages (initial AND HITL responses)
@@ -1075,6 +1106,10 @@ class AgentService(
                     # (user row was archived up-front — count it if it exists)
                     messages_archived = 1 if archived_user_msg_id is not None else 0
                     archived_assistant_msg_id: uuid.UUID | None = None
+                    # ADR-263: read ONCE, used twice — archived with the
+                    # message so it survives a reload, and carried in the done
+                    # chunk so the live bubble states it immediately.
+                    turn_effects = await performed_effects(run_id)
                     # Declared at the level it is READ from (the done-metadata block
                     # below), not inside the archive branch that computes it: an empty
                     # assistant response skips that branch entirely, and reading an
@@ -1240,41 +1275,23 @@ class AgentService(
 
                             # Persist interactive-widget payloads with the message
                             # so they survive a page reload. Without this the
-                            # payload lived ONLY in the browser's React state,
-                            # fed by the live SSE stream: any session that had
-                            # not received it (another device, an F5, a
-                            # conversation reopened later) resolved the sentinel
-                            # to nothing and rendered an error box. Branch-free
-                            # by design — see data_registry/message_widgets.py.
-                            assistant_metadata = with_persisted_widgets(
+                            # Everything the assistant message carries beyond
+                            # its text — widgets, the ⚙ trace, the follow-up
+                            # chips, the provenance line, and what the turn
+                            # actually performed (ADR-263) — is assembled by one
+                            # branch-free chain. It lives in its own module
+                            # because this one is frozen at its size, and each
+                            # enricher returns a NEW dict so a turn's metadata
+                            # can never leak into another's.
+                            assistant_metadata = build_assistant_metadata(
                                 assistant_metadata,
-                                streaming_service.persistable_widgets,
-                                run_id=run_id,
-                            )
-
-                            # Persist the ⚙ execution trace with the message so
-                            # it survives a page reload (ADR-133 V2). i18n keys
-                            # only — labels are re-resolved client-side. Branch-
-                            # free by design — see streaming/trace_capture.py.
-                            assistant_metadata = with_persisted_trace(
-                                assistant_metadata,
-                                streaming_service.trace_capture.snapshot(),
+                                widgets=streaming_service.persistable_widgets,
+                                trace_capture=streaming_service.trace_capture,
                                 duration_ms=int(duration * 1000),
                                 run_id=run_id,
-                            )
-
-                            # UXR Lot 4 (A2): persist the follow-up chips so
-                            # they survive a reload while the answer stays the
-                            # latest. Branch-free enricher (new-dict).
-                            assistant_metadata = with_followup_suggestions(
-                                assistant_metadata,
-                                followup_suggestions,
-                            )
-                            # Lot 1-A3: the provenance line survives a reload
-                            # the same way (branch-free, new-dict).
-                            assistant_metadata = with_initiative_motivation(
-                                assistant_metadata,
-                                initiative_motivation,
+                                followup_suggestions=followup_suggestions,
+                                initiative_motivation=initiative_motivation,
+                                effects=turn_effects,
                             )
 
                             archived_msg = await conv_service.archive_message(
@@ -1286,6 +1303,15 @@ class AgentService(
                             )
                             archived_assistant_msg_id = archived_msg.id
                             messages_archived += 1
+                            # The turn produced an answer, and this is the ONLY
+                            # writer of ``answered`` (ADR-263, lot 6). Here and
+                            # not after the stream: the recorder's __aexit__
+                            # writes the row when the block closes, so a note
+                            # placed later is lost — and it must stay in THIS
+                            # branch, because the HITL branch above stops the
+                            # turn for a human, which is `interrupted`, not an
+                            # answer.
+                            note_answered(archived_assistant_msg_id)
 
                     logger.info(
                         "new_service_architecture_stream_completed",
@@ -1310,40 +1336,17 @@ class AgentService(
 
                 await await_run_id_tasks(run_id, timeout=15.0)
 
-                # === Persist psyche_state into archived assistant message metadata ===
-                # The psyche background task (fire-and-forget) has completed by now.
-                # We peek the summary and patch it into the message so that on page
-                # reload, each message carries its own historical psyche snapshot
-                # instead of falling back to the current (latest) store state.
-                if (
-                    archived_assistant_msg_id
-                    and getattr(settings, "psyche_enabled", False)
-                    and user_psyche_enabled
-                ):
-                    try:
-                        from src.domains.psyche.service import peek_psyche_summary
-
-                        _ps = peek_psyche_summary(run_id)
-                        if _ps:
-                            async with get_db_context() as psyche_patch_db:
-                                await conv_service.patch_message_metadata(
-                                    archived_assistant_msg_id,
-                                    {"psyche_state": _ps},
-                                    psyche_patch_db,
-                                )
-                                await psyche_patch_db.commit()
-                            logger.debug(
-                                "psyche_state_persisted_to_message",
-                                run_id=run_id,
-                                message_id=str(archived_assistant_msg_id),
-                            )
-                    except Exception as ps_err:
-                        logger.warning(
-                            "psyche_state_persist_failed",
-                            run_id=run_id,
-                            error=str(ps_err),
-                            error_type=type(ps_err).__name__,
-                        )
+                # The turn's psyche snapshot, patched onto its archived message
+                # so a reloaded page shows the mood of THAT moment rather than
+                # the current store state. Best-effort, and extracted (ADR-263
+                # lot 6 made this file outgrow its cap; the doctrine is to
+                # extract, never to raise a cap).
+                await persist_psyche_snapshot(
+                    conv_service,
+                    message_id=archived_assistant_msg_id,
+                    run_id=run_id,
+                    user_enabled=user_psyche_enabled,
+                )
 
                 # === Product analytics (ADR-178): record the produced outcome ===
                 # Fire-and-forget, off the SSE hot path. The helper no-ops when
@@ -1566,6 +1569,10 @@ class AgentService(
                     # mirrored in BOTH frontend DoneMetadata types).
                     if followup_suggestions:
                         done_metadata[FIELD_FOLLOWUP_SUGGESTIONS] = followup_suggestions
+                    # ADR-263: the same list the archived message carries, so
+                    # the live bubble and a reload state exactly the same facts.
+                    # Branch-free enricher (new dict), like the three above.
+                    done_metadata = with_performed_effects(done_metadata, turn_effects)
                     # Lot 1-A3: branch-free by design — the enricher no-ops on None.
                     done_metadata = with_initiative_motivation(done_metadata, initiative_motivation)
                     # Resolve includes the Route 3 fallback (activate_skill_tool
@@ -1680,6 +1687,10 @@ class AgentService(
                 await tool_deps.aclose()
 
             except Exception as e:
+                # The turn's outcome is NOT recorded here: by the time this
+                # handler runs, ``decision_recorder.__aexit__`` has already
+                # written the row. It derives the verdict from the exception
+                # itself, which is the only place that can (ADR-263, lot 6).
                 # Cleanup user MCP tools ContextVar on error (evolution F2.1)
                 cleanup_user_mcp_tools(_user_mcp_token)
                 # Cleanup admin MCP disabled ContextVar on error (evolution F2.5)

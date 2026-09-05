@@ -14,6 +14,7 @@ from src.core.constants import (
     TASKS_TOOL_DEFAULT_LIMIT,
 )
 from src.domains.agents.registry.catalogue import (
+    REASON_REOPENED_BY_AN_UPDATE,
     CostProfile,
     DisplayMetadata,
     OutputFieldSchema,
@@ -177,6 +178,7 @@ _create_desc = (
 
 create_task_catalogue_manifest = ToolManifest(
     name="create_task_tool",
+    mutation_policy="draft",
     agent="task_agent",
     description=_create_desc,
     # Discriminant phrases - Task creation
@@ -248,6 +250,8 @@ _complete_desc = "**Tool: complete_task_tool** - Mark task as completed. **REQUI
 
 complete_task_catalogue_manifest = ToolManifest(
     name="complete_task_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_REOPENED_BY_AN_UPDATE,
     agent="task_agent",
     description=_complete_desc,
     # Discriminant phrases - Task completion
@@ -310,6 +314,7 @@ _update_desc = (
 
 update_task_catalogue_manifest = ToolManifest(
     name="update_task_tool",
+    mutation_policy="draft",
     agent="task_agent",
     description=_update_desc,
     # Discriminant phrases - Task modification
@@ -386,6 +391,7 @@ _delete_desc = "**Tool: delete_task_tool** - Delete task. **REQUIRES HITL**. Irr
 
 delete_task_catalogue_manifest = ToolManifest(
     name="delete_task_tool",
+    mutation_policy="draft",
     agent="task_agent",
     description=_delete_desc,
     # Discriminant phrases - Task deletion

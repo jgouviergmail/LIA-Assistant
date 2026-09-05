@@ -784,54 +784,6 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         )
 
 
-# Direct create tool for execute_fn callback
-class CreateTaskDirectTool(ConnectorTool[GoogleTasksClient]):
-    """Create task that executes immediately (for HITL callback)."""
-
-    connector_type = ConnectorType.GOOGLE_TASKS
-    client_class = GoogleTasksClient
-    functional_category = "tasks"
-
-    def __init__(self) -> None:
-        super().__init__(tool_name="create_task_direct_tool", operation="create")
-
-    async def execute_api_call(
-        self,
-        client: GoogleTasksClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute create task API call - business logic only."""
-        title: str = kwargs["title"]
-        notes: str | None = kwargs.get("notes")
-        due: str | None = kwargs.get("due")
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
-
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
-
-        result = await client.create_task(
-            task_list_id=task_list_id,
-            title=title,
-            notes=notes,
-            due=due,
-        )
-
-        logger.info(
-            "task_created_via_tool",
-            user_id=str(user_id),
-            task_id=result.get("id"),
-            title=title,
-        )
-
-        return {
-            "success": True,
-            "task_id": result.get("id"),
-            "title": title,
-            "message": APIMessages.task_created_successfully(title),
-        }
-
-
 _create_task_draft_tool_instance = CreateTaskDraftTool()
 
 
@@ -1199,58 +1151,6 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         )
 
 
-# Direct update tool for execute_fn callback
-class UpdateTaskDirectTool(ConnectorTool[GoogleTasksClient]):
-    """Update task that executes immediately (for HITL callback)."""
-
-    connector_type = ConnectorType.GOOGLE_TASKS
-    client_class = GoogleTasksClient
-    functional_category = "tasks"
-
-    def __init__(self) -> None:
-        super().__init__(tool_name="update_task_direct_tool", operation="update")
-
-    async def execute_api_call(
-        self,
-        client: GoogleTasksClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute update task API call - business logic only."""
-        task_id: str = require_field(kwargs, "task_id")
-        title: str | None = kwargs.get("title")
-        notes: str | None = kwargs.get("notes")
-        due: str | None = kwargs.get("due")
-        status: str | None = kwargs.get("status")
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
-
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
-
-        result = await client.update_task(
-            task_list_id=task_list_id,
-            task_id=task_id,
-            title=title,
-            notes=notes,
-            due=due,
-            status=status,
-        )
-
-        logger.info(
-            "task_updated_via_tool",
-            user_id=str(user_id),
-            task_id=task_id,
-            title=result.get("title"),
-        )
-
-        return {
-            "success": True,
-            "task_id": task_id,
-            "title": result.get("title"),
-            "message": APIMessages.task_updated_successfully(result.get("title", "")),
-        }
-
-
 _update_task_draft_tool_instance = UpdateTaskDraftTool()
 
 
@@ -1378,45 +1278,6 @@ class DeleteTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             source_tool="delete_task_tool",
             user_language=self.get_user_language(),
         )
-
-
-# Direct delete tool for execute_fn callback
-class DeleteTaskDirectTool(ConnectorTool[GoogleTasksClient]):
-    """Delete task that executes immediately (for HITL callback)."""
-
-    connector_type = ConnectorType.GOOGLE_TASKS
-    client_class = GoogleTasksClient
-    functional_category = "tasks"
-
-    def __init__(self) -> None:
-        super().__init__(tool_name="delete_task_direct_tool", operation="delete")
-
-    async def execute_api_call(
-        self,
-        client: GoogleTasksClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute delete task API call - business logic only."""
-        task_id: str = require_field(kwargs, "task_id")
-        task_list_id_input: str = kwargs.get("task_list_id", "@default")
-
-        # BugFix 2025-12-19: Resolve default task list from user preferences
-        task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
-
-        await client.delete_task(task_list_id, task_id)
-
-        logger.info(
-            "task_deleted_via_tool",
-            user_id=str(user_id),
-            task_id=task_id,
-        )
-
-        return {
-            "success": True,
-            "task_id": task_id,
-            "message": APIMessages.task_deleted_successfully(),
-        }
 
 
 _delete_task_draft_tool_instance = DeleteTaskDraftTool()
@@ -1736,13 +1597,10 @@ __all__ = [
     "ListTasksTool",
     "GetTaskDetailsTool",
     "CreateTaskDraftTool",
-    "CreateTaskDirectTool",
     "CompleteTaskTool",
     "ListTaskListsTool",
     "UpdateTaskDraftTool",
-    "UpdateTaskDirectTool",
     "DeleteTaskDraftTool",
-    "DeleteTaskDirectTool",
     # Draft execution
     "execute_task_draft",
     "execute_task_update_draft",

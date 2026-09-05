@@ -25,6 +25,7 @@ _search_desc = (
 
 brave_search_catalogue_manifest = ToolManifest(
     name="brave_search_tool",
+    mutation_policy="read",
     # ADR-256: external search, no user data.
     tool_category="readonly",
     agent="brave_agent",
@@ -112,6 +113,7 @@ _news_desc = (
 
 brave_news_catalogue_manifest = ToolManifest(
     name="brave_news_tool",
+    mutation_policy="read",
     # ADR-256: external search, no user data.
     tool_category="readonly",
     agent="brave_agent",

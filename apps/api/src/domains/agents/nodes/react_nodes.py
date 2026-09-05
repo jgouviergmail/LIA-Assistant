@@ -38,6 +38,7 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
 )
+from src.domains.agents.effects.scope import effect_scope, react_call_scope
 from src.domains.agents.models import MessagesState, count_messages_tokens_cached
 from src.domains.agents.nodes import react_context
 from src.domains.agents.nodes.react_history import (
@@ -801,10 +802,14 @@ async def react_execute_tools_node(
             # but we call tools directly — so we must build ToolRuntime manually.
             # Pattern: parallel_executor._build_tool_runtime()
             injected_args = _build_tool_runtime(wrapper._original_tool, tc_args, config, store)
-            raw_result = await asyncio.wait_for(
-                wrapper._original_tool.coroutine(**injected_args),
-                timeout=tool_timeout,
-            )
+            # ADR-263: the authority. ``tc_id`` is the key that makes one
+            # approval one execution, and ``is_mutation`` is True only past the
+            # interrupt above — so it IS the user's confirmation.
+            with effect_scope(react_call_scope(config, tc_id, approved=is_mutation)):
+                raw_result = await asyncio.wait_for(
+                    wrapper._original_tool.coroutine(**injected_args),
+                    timeout=tool_timeout,
+                )
             # Process through wrapper for string conversion + registry collection
             content = wrapper._process_result(raw_result)
             productive_calls += _is_productive_result(raw_result)

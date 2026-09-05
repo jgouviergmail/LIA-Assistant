@@ -27,7 +27,9 @@ from src.domains.agents.constants import (
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_VALIDATION_RESULT,
 )
+from src.domains.agents.effects.decisions import note_plan, note_stop_reason
 from src.domains.agents.models import MessagesState
+from src.domains.agents.orchestration.plan_predicates import approval_is_refused
 from src.infrastructure.observability.metrics_langgraph import (
     langgraph_conditional_edges_total,
     langgraph_node_transitions_total,
@@ -75,6 +77,10 @@ def route_from_planner(
 
     plan_id = execution_plan.plan_id if execution_plan else None
     step_count = len(execution_plan.steps) if execution_plan and execution_plan.steps else 0
+
+    # ADR-263 lot 6: the turn's record learns how big its plan was. Silent
+    # outside a turn — this function also runs in tests and probes.
+    note_plan(step_count)
 
     # === STEP 0: Check for early clarification (before plan exists) ===
     # If planner set semantic_validation.requires_clarification=True without generating
@@ -293,7 +299,10 @@ def route_from_approval_gate(
         return "planner"
 
     # Case 2: Plan approved - execution
-    if plan_approved:
+    # ADR-263: only an EXPLICIT refusal blocks. ``None`` means no verdict was
+    # produced — the plan runs, exactly as it did when this branch invented a
+    # ``True``; what changed is that the effect gate can now tell the two apart.
+    if not approval_is_refused(plan_approved):
         # LOT 6 FIX: Safety check - block execution of empty plans
         # An empty plan (0 steps) should NEVER be executed
         # This happens when max_iterations bypass kicks in with incomplete clarification
@@ -452,7 +461,9 @@ def route_from_semantic_validator(
     # Without this, semantic_validator would re-detect the same issue → infinite loop.
     # =========================================================================
     plan_approved = state.get(STATE_KEY_PLAN_APPROVED, False)
-    if plan_approved:
+    # ADR-263: unchanged for the clarification path (it sets True explicitly);
+    # ``None`` from a verdict-less gate keeps the pre-ADR-263 behaviour.
+    if not approval_is_refused(plan_approved):
         logger.info(
             "route_from_semantic_validator_plan_approved",
             plan_approved=True,
@@ -846,6 +857,10 @@ def route_from_react_call_model(
 
     iteration_budget = react_iteration_budget(state)
     exit_reason = react_exit_reason(state)
+    # ADR-263 lot 8: the turn's record learns WHY it stopped short, read from
+    # the one predicate that decides it — never recomputed here, which would be
+    # a third opinion on the same question (ADR-248 invariant 2).
+    note_stop_reason(exit_reason)
     if exit_reason == "max_iterations":
         logger.warning(
             "react_max_iterations_reached",

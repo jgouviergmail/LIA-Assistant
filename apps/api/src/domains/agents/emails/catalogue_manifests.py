@@ -12,6 +12,7 @@ from src.core.config import settings
 from src.core.constants import GOOGLE_GMAIL_SCOPES
 from src.core.field_names import FIELD_QUERY
 from src.domains.agents.registry.catalogue import (
+    REASON_ADDITIVE_METADATA,
     CostProfile,
     DisplayMetadata,
     OutputFieldSchema,
@@ -198,6 +199,7 @@ _send_desc = "**Tool: send_email_tool** - Send new email. **REQUIRES HITL**. Irr
 
 send_email_catalogue_manifest = ToolManifest(
     name="send_email_tool",
+    mutation_policy="draft",
     agent="email_agent",
     description=_send_desc,
     semantic_keywords=[
@@ -293,6 +295,7 @@ _reply_desc = (
 
 reply_email_catalogue_manifest = ToolManifest(
     name="reply_email_tool",
+    mutation_policy="draft",
     agent="email_agent",
     description=_reply_desc,
     semantic_keywords=[
@@ -349,6 +352,7 @@ _fwd_desc = "**Tool: forward_email_tool** - Forward email to new recipient. **RE
 
 forward_email_catalogue_manifest = ToolManifest(
     name="forward_email_tool",
+    mutation_policy="draft",
     agent="email_agent",
     description=_fwd_desc,
     semantic_keywords=[
@@ -415,6 +419,7 @@ _del_desc = (
 
 delete_email_catalogue_manifest = ToolManifest(
     name="delete_email_tool",
+    mutation_policy="draft",
     agent="email_agent",
     description=_del_desc,
     semantic_keywords=[
@@ -540,6 +545,7 @@ _create_label_desc = (
 
 create_label_catalogue_manifest = ToolManifest(
     name="create_label_tool",
+    mutation_policy="draft",
     agent="email_agent",
     description=_create_label_desc,
     semantic_keywords=[
@@ -589,6 +595,7 @@ _update_label_desc = (
 
 update_label_catalogue_manifest = ToolManifest(
     name="update_label_tool",
+    mutation_policy="draft",
     agent="email_agent",
     description=_update_label_desc,
     semantic_keywords=[
@@ -643,6 +650,7 @@ _delete_label_desc = (
 
 delete_label_catalogue_manifest = ToolManifest(
     name="delete_label_tool",
+    mutation_policy="draft",
     agent="email_agent",
     description=_delete_label_desc,
     semantic_keywords=[
@@ -703,6 +711,8 @@ _apply_labels_desc = (
 
 apply_labels_catalogue_manifest = ToolManifest(
     name="apply_labels_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_ADDITIVE_METADATA,
     agent="email_agent",
     description=_apply_labels_desc,
     semantic_keywords=[
@@ -789,6 +799,8 @@ _remove_labels_desc = (
 
 remove_labels_catalogue_manifest = ToolManifest(
     name="remove_labels_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_ADDITIVE_METADATA,
     agent="email_agent",
     description=_remove_labels_desc,
     semantic_keywords=[

@@ -346,3 +346,117 @@ groups:
           summary: "Scrape target {{ $labels.job }} is down"
           description: "The {{ $labels.job }} exporter has been unreachable for 10 minutes. Resource and probe alerts relying on it are blind while it is down."
           runbook: "docs/runbooks/alerts/ContainerDown.md"
+
+  # ===== EXECUTION LEDGER (ADR-263) — is the register telling the truth? =====
+  # Both alerts answer the same question from two sides: an effect the system
+  # performed but cannot account for. The ledger exists so nobody has to trust
+  # the executor; an unnoticed gap in it defeats the whole point.
+  - name: core_effect_ledger
+    interval: 30s
+    rules:
+      # A row still CLAIMED means a turn died between claiming an effect and
+      # recording its outcome: the action may or may not have happened, and
+      # nothing will ever say which. DB-backed gauge (Prometheus cannot see
+      # rows), refreshed periodically by the API.
+      - alert: EffectLedgerClaimedOrphans
+        expr: |
+          max(lia_effect_claimed_orphans) > 0
+        for: 15m
+        labels:
+          severity: warning
+          component: effects
+          tier: core
+        annotations:
+          summary: "{{ $value | humanize }} effect(s) stuck in CLAIMED"
+          description: "Effects claimed but never closed for 15 minutes (threshold: 0). A turn died between the claim and its outcome, so the register cannot say whether the action happened."
+          runbook: "docs/runbooks/alerts/EffectLedgerClaimedOrphans.md"
+
+      # The register itself failing, or effects performed with no row at all.
+      # Either way the account of what the assistant did is incomplete.
+      - alert: EffectLedgerUnavailable
+        expr: |
+          (
+            sum(rate(lia_effect_ledger_failures_total[5m]))
+            + sum(rate(lia_effect_unrecorded_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          component: effects
+          tier: core
+        annotations:
+          summary: "The effect ledger is failing to record what the assistant does"
+          description: "{{ $value | printf \"%.3f\" }} ledger failures or unrecorded effects per second over 5 minutes (threshold: 0.01). Confirmed actions are being refused for want of a record, or performed without one."
+          runbook: "docs/runbooks/alerts/EffectLedgerUnavailable.md"
+
+      # No purge job ships with the two transparency registers: the owner's
+      # arbitration is to keep everything until the account is deleted, and to
+      # build a purge the day a MEASUREMENT asks for one. This alert is that
+      # day arriving. It is a disk-space warning, not an incident: nothing is
+      # broken, a decision is due.
+      - alert: TransparencyRegisterGrowth
+        expr: |
+          max by (table) (lia_ledger_bytes) > 2147483648
+        for: 1h
+        labels:
+          severity: warning
+          component: effects
+          tier: core
+        annotations:
+          summary: "Register {{ $labels.table }} holds {{ $value | humanize1024 }}B"
+          description: "The transparency register {{ $labels.table }} occupies more than 2147483648 bytes, indexes included. No purge exists by design; this is the measurement that says whether one is now needed."
+          runbook: "docs/runbooks/alerts/TransparencyRegisterGrowth.md"
+
+      # The register is only trustworthy if it is COMPLETE. A turn consulting
+      # capabilities with no register open means a code path executes the graph
+      # without publishing a collector — the traceability is silently partial,
+      # and nothing else would say so. No threshold file: the acceptable value
+      # is zero, in every environment, and a threshold would invite raising it.
+      - alert: TransparencyRegisterNotOpen
+        expr: |
+          sum(increase(lia_treatments_uncollected_total[15m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: effects
+          tier: core
+        annotations:
+          summary: "Consultations were recorded by nobody"
+          description: "A turn consulted capabilities while no register was open. Some code path runs the agent graph without publishing the collector, so the consultation register is incomplete for those turns — and a register that is quietly partial is worse than none."
+          runbook: "docs/runbooks/alerts/TransparencyRegisterNotOpen.md"
+
+      # ===== SEALING (ADR-263 lot 5) =====
+      # A break is the ONE signal this whole mechanism exists to produce: a
+      # register row or a chain entry was altered outside the application. No
+      # threshold file, for the same reason as TransparencyRegisterNotOpen —
+      # the acceptable value is zero in every environment, and a threshold
+      # would invite raising it after the first false alarm.
+      - alert: LedgerChainBroken
+        expr: |
+          sum(increase(lia_ledger_chain_breaks_total[15m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: effects
+          tier: core
+        annotations:
+          summary: "A transparency register was altered outside the application"
+          description: "The tamper-evident chain stopped verifying. A register row was rewritten or deleted, or a chain entry was. Verify the affected accounts through /admin/effects/chain/verify and treat this as a security event until proven otherwise."
+          runbook: "docs/runbooks/alerts/LedgerChainBroken.md"
+
+      # The notary stalled. Nothing is broken and nothing is lost — the rows
+      # stay pending and the next pass takes them — but every pending row is a
+      # row whose alteration would currently leave no trace, so the WINDOW is
+      # what this watches, never the backlog's size alone.
+      - alert: LedgerNotaryStalled
+        expr: |
+          max(lia_ledger_chain_lag_seconds) > 300
+        for: 10m
+        labels:
+          severity: warning
+          component: effects
+          tier: core
+        annotations:
+          summary: "The oldest unsealed register row is {{ $value | humanizeDuration }} old"
+          description: "The notary has not sealed the registers for longer than 300 seconds. The registers are still complete and readable; what is suspended is the ability to PROVE they were not altered since."
+          runbook: "docs/runbooks/alerts/LedgerNotaryStalled.md"

@@ -538,3 +538,219 @@ tests:
       - eval_time: 40m
         alertname: EmbeddingOperationsFailing
         exp_alerts: []
+
+  # ===== EffectLedgerClaimedOrphans: a row stuck in CLAIMED =====
+  # The gauge is DB-backed and reported as an absolute count, so the series is
+  # a level, not a rate. Production threshold is 0: one orphan is one action
+  # the register cannot account for.
+  - interval: 1m
+    input_series:
+      - series: 'lia_effect_claimed_orphans'
+        values: '0x5 2x20'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: EffectLedgerClaimedOrphans
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: effects
+              tier: core
+            exp_annotations:
+              summary: "2 effect(s) stuck in CLAIMED"
+              description: "Effects claimed but never closed for 15 minutes (threshold: 0). A turn died between the claim and its outcome, so the register cannot say whether the action happened."
+              runbook: "docs/runbooks/alerts/EffectLedgerClaimedOrphans.md"
+
+  # ===== EffectLedgerClaimedOrphans: a healthy ledger stays silent =====
+  # Same timeline, differing only by the value — otherwise the negative case
+  # would assert "no alert" against no data and prove nothing.
+  - interval: 1m
+    input_series:
+      - series: 'lia_effect_claimed_orphans'
+        values: '0x25'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: EffectLedgerClaimedOrphans
+        exp_alerts: []
+
+  # ===== EffectLedgerUnavailable: the register cannot record =====
+  # The two terms are summed on purpose: a `confirm` effect refused for want of
+  # a record and a `reversible` one performed without one are the same incident
+  # seen from either side of the policy split.
+  - interval: 1m
+    input_series:
+      - series: 'lia_effect_ledger_failures_total{operation="claim"}'
+        values: '0+6x30'
+      - series: 'lia_effect_unrecorded_total{policy="reversible",reason="no_claim"}'
+        values: '0+6x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: EffectLedgerUnavailable
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              component: effects
+              tier: core
+            exp_annotations:
+              summary: "The effect ledger is failing to record what the assistant does"
+              description: "0.200 ledger failures or unrecorded effects per second over 5 minutes (threshold: 0.01). Confirmed actions are being refused for want of a record, or performed without one."
+              runbook: "docs/runbooks/alerts/EffectLedgerUnavailable.md"
+
+  # ===== EffectLedgerUnavailable: a healthy register stays silent =====
+  - interval: 1m
+    input_series:
+      - series: 'lia_effect_ledger_failures_total{operation="claim"}'
+        values: '0x30'
+      - series: 'lia_effect_unrecorded_total{policy="reversible",reason="no_claim"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: EffectLedgerUnavailable
+        exp_alerts: []
+
+  # ===== TransparencyRegisterGrowth: a purge becomes a decision =====
+  # The gauge is a LEVEL in bytes, DB-backed, one series per register. The
+  # alert is deliberately per-table (`max by (table)`): the two registers grow
+  # at completely different rates — one row per ACTION versus one row per
+  # CONSULTATION — so a sum would let the busy one hide behind the quiet one.
+  - interval: 5m
+    input_series:
+      - series: 'lia_ledger_bytes{table="agent_treatments"}'
+        values: '1000000x2 3000000000x30'
+      - series: 'lia_ledger_bytes{table="agent_effects"}'
+        values: '1000000x32'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: TransparencyRegisterGrowth
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: effects
+              tier: core
+              table: agent_treatments
+            exp_annotations:
+              summary: "Register agent_treatments holds 2.794GiB"
+              description: "The transparency register agent_treatments occupies more than 2147483648 bytes, indexes included. No purge exists by design; this is the measurement that says whether one is now needed."
+              runbook: "docs/runbooks/alerts/TransparencyRegisterGrowth.md"
+
+  # ===== TransparencyRegisterGrowth: ordinary growth stays silent =====
+  # SAME timeline, differing by the value alone — a negative case built on a
+  # shorter series would assert "no alert" against NO DATA and prove nothing.
+  - interval: 5m
+    input_series:
+      - series: 'lia_ledger_bytes{table="agent_treatments"}'
+        values: '1000000x2 900000000x30'
+      - series: 'lia_ledger_bytes{table="agent_effects"}'
+        values: '1000000x32'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: TransparencyRegisterGrowth
+        exp_alerts: []
+
+  # ===== TransparencyRegisterNotOpen: a register nobody opened =====
+  # The counter only moves when a turn IS running, so any increase means a code
+  # path executes the graph without publishing a collector. There is no
+  # threshold to tune: zero is the value, everywhere.
+  #
+  # The step lands INSIDE the window on purpose: Prometheus 3.0 range selectors
+  # are left-OPEN, so a step sitting exactly on the lower bound is invisible to
+  # `increase` — the first version of this case asserted against 0 for that
+  # reason and would have passed a broken alert.
+  - interval: 1m
+    input_series:
+      - series: 'lia_treatments_uncollected_total{execution_mode="react"}'
+        values: '0x10 5x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: TransparencyRegisterNotOpen
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              component: effects
+              tier: core
+            exp_annotations:
+              summary: "Consultations were recorded by nobody"
+              description: "A turn consulted capabilities while no register was open. Some code path runs the agent graph without publishing the collector, so the consultation register is incomplete for those turns — and a register that is quietly partial is worse than none."
+              runbook: "docs/runbooks/alerts/TransparencyRegisterNotOpen.md"
+
+  # ===== TransparencyRegisterNotOpen: a complete register stays silent =====
+  # SAME timeline, differing by the value alone — a negative case on a shorter
+  # series would assert "no alert" against NO DATA and prove nothing.
+  - interval: 1m
+    input_series:
+      - series: 'lia_treatments_uncollected_total{execution_mode="react"}'
+        values: '0x25'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: TransparencyRegisterNotOpen
+        exp_alerts: []
+
+  # ===== LedgerChainBroken: a register altered outside the application =====
+  # The step lands INSIDE the window for the reason stated above: Prometheus 3.0
+  # range selectors are left-OPEN, so a step sitting exactly on the lower bound
+  # is invisible to `increase`.
+  #
+  # The summary is deliberately value-free: `increase` extrapolates to the
+  # window edges, so asserting a count here would pin an estimate and, worse,
+  # would show an operator a number that is not exact (ADR-185).
+  - interval: 1m
+    input_series:
+      - series: 'lia_ledger_chain_breaks_total{reason="payload"}'
+        values: '0x10 1x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LedgerChainBroken
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              component: effects
+              tier: core
+            exp_annotations:
+              summary: "A transparency register was altered outside the application"
+              description: "The tamper-evident chain stopped verifying. A register row was rewritten or deleted, or a chain entry was. Verify the affected accounts through /admin/effects/chain/verify and treat this as a security event until proven otherwise."
+              runbook: "docs/runbooks/alerts/LedgerChainBroken.md"
+
+  # ===== LedgerChainBroken: a chain that holds stays silent =====
+  # SAME timeline, differing by the value alone.
+  - interval: 1m
+    input_series:
+      - series: 'lia_ledger_chain_breaks_total{reason="payload"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LedgerChainBroken
+        exp_alerts: []
+
+  # ===== LedgerNotaryStalled: the sealing stopped advancing =====
+  # A gauge, not a counter: what is watched is the AGE of the oldest unsealed
+  # row — the width of the window in which a rewrite leaves no trace — never the
+  # backlog's size, which a busy instance can grow while staying healthy.
+  - interval: 1m
+    input_series:
+      - series: 'lia_ledger_chain_lag_seconds'
+        values: '60x5 400x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: LedgerNotaryStalled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: effects
+              tier: core
+            exp_annotations:
+              summary: "The oldest unsealed register row is 6m 40s old"
+              description: "The notary has not sealed the registers for longer than 300 seconds. The registers are still complete and readable; what is suspended is the ability to PROVE they were not altered since."
+              runbook: "docs/runbooks/alerts/LedgerNotaryStalled.md"
+
+  # ===== LedgerNotaryStalled: a notary keeping up stays silent =====
+  # SAME timeline, differing by the value alone. 120 s is what a healthy
+  # instance sits at with the default 60 s period — comfortably under, and
+  # deliberately not zero, so the case proves the threshold and not the absence
+  # of a series.
+  - interval: 1m
+    input_series:
+      - series: 'lia_ledger_chain_lag_seconds'
+        values: '60x5 120x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: LedgerNotaryStalled
+        exp_alerts: []

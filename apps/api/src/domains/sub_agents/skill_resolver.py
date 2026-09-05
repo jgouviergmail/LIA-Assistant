@@ -15,6 +15,8 @@ The previous `build_subagent_system_prompt` and `resolve_skills_context`
 helpers were tied to the removed `SubAgentExecutor` and are gone.
 """
 
+from collections.abc import Callable
+
 import structlog
 
 from src.core.constants import TOOL_NAME_DELEGATE_SUB_AGENT
@@ -26,6 +28,7 @@ def resolve_tools_for_subagent(
     allowed_tools: list[str],
     blocked_tools: list[str],
     all_tools: list,
+    policy_of: Callable[[str], str | None],
 ) -> list:
     """Filter tools based on sub-agent's allowed/blocked configuration.
 
@@ -37,6 +40,11 @@ def resolve_tools_for_subagent(
         blocked_tools: Tool blacklist (caller typically passes
             `SUBAGENT_DEFAULT_BLOCKED_TOOLS`).
         all_tools: Full list of available BaseTool instances.
+        policy_of: Reads a tool's declared ``mutation_policy`` (ADR-263).
+            INJECTED rather than imported: this package must not depend on
+            ``domains.agents``, which already depends on it — a local import
+            would only hide the cycle from the reader, not from the graph.
+            Required on purpose, so no caller can forget the read-only filter.
 
     Returns:
         Filtered list of BaseTool instances.
@@ -63,6 +71,25 @@ def resolve_tools_for_subagent(
         if tool_name in blocked:
             continue
         if allowed and tool_name not in allowed:
+            continue
+        # ADR-263: the read-only guarantee is STRUCTURAL, not a list. The
+        # blocklist above missed four mutating tools (the Hue trio, the browser
+        # agent, the scheduled-action toggle), and the ``.env`` whitelist that
+        # can widen this set is validated for shape only. The declared policy
+        # answers exactly the right question, and doubt closes: a tool with no
+        # declared policy is not proven harmless, so it does not get in either.
+        if policy_of(tool_name) != "read":
+            # An operator who NAMED this tool asked for a capability they are
+            # not getting: that is worth a warning, not a debug line (a lost
+            # capability nobody is told about is the defect ADR-255 measured).
+            if allowed and tool_name in allowed:
+                logger.warning(
+                    "subagent_whitelisted_tool_is_not_read_only",
+                    tool_name=tool_name,
+                    policy=policy_of(tool_name),
+                )
+            else:
+                logger.debug("subagent_tool_filtered_not_read_only", tool_name=tool_name)
             continue
         filtered.append(tool)
 

@@ -70,6 +70,7 @@ from .catalogue import (
     ToolManifest,
     ToolManifestAlreadyRegistered,
     ToolManifestNotFound,
+    requires_user_approval,
 )
 from .domain_exemptions import is_platform_domain
 from .domain_taxonomy import DOMAIN_REGISTRY, is_mcp_domain
@@ -757,7 +758,7 @@ class AgentRegistry:
                                 "tokens": tm.cost.est_tokens_in + tm.cost.est_tokens_out,
                                 "latency_ms": tm.cost.est_latency_ms,
                             },
-                            "requires_approval": tm.permissions.hitl_required,
+                            "requires_approval": requires_user_approval(tm),
                         }
 
                         # Include response_schema if defined (for LLM planner guidance)
@@ -1160,7 +1161,7 @@ class AgentRegistry:
                                 "tokens": tm.cost.est_tokens_in + tm.cost.est_tokens_out,
                                 "latency_ms": tm.cost.est_latency_ms,
                             },
-                            "requires_approval": tm.permissions.hitl_required,
+                            "requires_approval": requires_user_approval(tm),
                         }
 
                         # Include response_schema if defined (same as export_for_prompt)

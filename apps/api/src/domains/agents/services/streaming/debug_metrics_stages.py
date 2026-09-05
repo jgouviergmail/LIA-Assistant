@@ -211,6 +211,33 @@ async def add_interest_detection(
         )
 
 
+async def add_performed_effects(debug_metrics: dict[str, Any], run_id: str) -> None:
+    """Add what the turn actually PERFORMED, read back from the register (ADR-263).
+
+    An async stage rather than a section of ``DebugMetricsBuilder``: that
+    builder does no I/O at all, and a database read inside it would break the
+    property that makes it cheap and testable.
+
+    What an admin sees here is the register's own answer — the same rows the
+    user's action journal shows and the same rows the export carries — so the
+    debug panel cannot disagree with the record.
+
+    Args:
+        debug_metrics: Debug payload mutated in place.
+        run_id: The run whose effects to read.
+    """
+    if not run_id:
+        return
+    from src.domains.agents.effects.turn_summary import performed_effects
+
+    entries = await performed_effects(run_id)
+    debug_metrics["performed_effects"] = {
+        "entries": entries,
+        "count": len(entries),
+        "failed_count": sum(1 for entry in entries if entry.get("status") == "failed"),
+    }
+
+
 def add_memory_detection(debug_metrics: dict[str, Any], run_id: str) -> None:
     """Add the memories extracted from the current message (pop-once cache).
 

@@ -67,6 +67,7 @@ from src.infrastructure.scheduler.scheduled_action_executor import process_sched
 from src.infrastructure.scheduler.token_refresh import refresh_expiring_tokens
 from src.infrastructure.scheduler.unverified_account_cleanup import cleanup_unverified_accounts
 from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
+from src.infrastructure.startup.scheduler_ledger import register_ledger_jobs
 from src.infrastructure.startup.scheduler_meetings import register_meetings_jobs
 from src.infrastructure.startup.scheduler_push import register_push_jobs
 
@@ -721,6 +722,10 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
         # Google push channel sync (lot H) + push-driven heartbeat wake sweep
         # (ADR-261): both live in scheduler_push.py (this file is frozen).
         register_push_jobs(scheduler)
+
+        # The ledger notary (ADR-263 lot 5): lives in scheduler_ledger.py for
+        # the same reason — this file is frozen at its audited size.
+        register_ledger_jobs(scheduler)
 
         # Acquire leadership and start scheduler (or start background re-election).
         # All jobs are registered above — scheduler.start() is called inside the elector.

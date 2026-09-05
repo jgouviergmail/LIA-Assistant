@@ -43,6 +43,17 @@ class TokenUsageRecord(NamedTuple):
     llm_type: str | None = None
     status: str | None = None
     failure_kind: str | None = None
+    # The parameters actually SENT (ADR-263 lot 7). Normalised to one
+    # vocabulary — three providers spell the output cap three ways — and read
+    # from what LangChain hands the callback, which is the only one of LIA's
+    # three answers that survives a later configuration change.
+    provider: str | None = None
+    temperature: float | None = None
+    top_p: float | None = None
+    max_output_tokens: int | None = None
+    reasoning_level: str | None = None
+    reasoning_budget_tokens: int | None = None
+    params_digest: str | None = None
 
 
 class ImageGenerationRecord(NamedTuple):

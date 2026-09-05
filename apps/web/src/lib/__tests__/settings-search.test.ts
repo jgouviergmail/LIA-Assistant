@@ -92,7 +92,7 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 2026-08-27) joined Administration / System.
     // 54 since the meetings section (ADR-258) joined Features / Extensions &
     // Data (2026-09-02).
-    expect(TOKENS).toHaveLength(54);
+    expect(TOKENS).toHaveLength(55);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

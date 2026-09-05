@@ -26,6 +26,7 @@ from src.core.constants import (
     MCP_REFERENCE_TOOL_NAME,
 )
 from src.domains.agents.constants import AGENT_MCP
+from src.domains.agents.registry.catalogue import POLICIES_REQUIRING_REASON
 from src.infrastructure.mcp.json_schema import (
     DEFAULT_TYPE,
     as_property_spec,
@@ -47,6 +48,7 @@ from src.infrastructure.observability.metrics_mcp import (
 if TYPE_CHECKING:
     from src.domains.agents.registry.agent_registry import AgentRegistry
     from src.domains.agents.registry.catalogue import (
+        MutationPolicy,
         ParameterSchema,
         ToolCategory,
         ToolManifest,
@@ -482,6 +484,62 @@ def declares_destructive_tool(annotations: Any) -> bool:
     return declared_tool_category(annotations) == "delete"
 
 
+def derive_mcp_mutation_policy(hitl_required: bool, annotations: Any) -> MutationPolicy | None:
+    """Derive the confirmation a third-party MCP tool owes (ADR-263).
+
+    Never more permissive than what is known, and asymmetric for the same
+    reason as :func:`declared_tool_category`: a declared mutation is acted upon,
+    a declared read-only is not believed.
+
+    - the server's HITL setting is the USER's decision and wins outright;
+    - a declared destructive tool, or one declared "not read-only" with nothing
+      said about destruction (the spec defaults ``destructiveHint`` to true),
+      gets ``confirm``;
+    - one explicitly declared "not read-only AND not destructive" — the spec's
+      "performs only additive updates" — gets ``reversible``;
+    - anything else yields None: no policy is derived, and the name heuristic
+      keeps its job exactly as before.
+
+    Args:
+        hitl_required: Resolved per-server HITL requirement (per-server override
+            or the global ``MCP_HITL_REQUIRED``).
+        annotations: Normalised hints from :func:`extract_tool_annotations`, of
+            any shape — a third party is not obliged to be well-formed.
+
+    Returns:
+        The derived policy, or None when nothing may safely be concluded.
+    """
+    if hitl_required:
+        return "confirm"
+    category = declared_tool_category(annotations)
+    if category == "delete":
+        return "confirm"
+    if category == "update":
+        return "reversible"
+    return None
+
+
+def derive_mcp_mutation_policy_reason(policy: MutationPolicy | None) -> str | None:
+    """The written justification a derived exempting policy owes (ADR-263).
+
+    ``reversible`` skips the confirmation, so the completeness doctrine demands
+    a reason. For a third-party tool the reason is not ours to invent: it is
+    what the SERVER declared, quoted as such.
+
+    Args:
+        policy: The derived policy, or None.
+
+    Returns:
+        The reason for a policy that requires one, else None.
+    """
+    if policy in POLICIES_REQUIRING_REASON:
+        return (
+            "The server declares this tool non-destructive and additive-only "
+            "(MCP annotations); LIA never loosens that declaration."
+        )
+    return None
+
+
 def build_mcp_tool_manifest(
     adapter_name: str,
     agent_name: str,
@@ -523,6 +581,10 @@ def build_mcp_tool_manifest(
         root=input_schema,
     )
 
+    # ADR-263: what this tool owes the user, derived from what the SERVER
+    # declares (never asserted — a third party names its tools as it wants).
+    _derived_policy = derive_mcp_mutation_policy(hitl_required, annotations)
+
     return ToolManifest(
         name=adapter_name,
         agent=agent_name,
@@ -560,6 +622,8 @@ def build_mcp_tool_manifest(
         # A server-declared MUTATION is believed; everything else stays None so
         # the name heuristic keeps deciding, exactly as before.
         tool_category=declared_tool_category(annotations),
+        mutation_policy=_derived_policy,
+        mutation_policy_reason=derive_mcp_mutation_policy_reason(_derived_policy),
     )
 
 
@@ -637,6 +701,12 @@ def build_mcp_react_task_manifest(
             category="tool",
         ),
         tool_category=None,
+        # ADR-263: the iterative tool opens a whole ReAct loop over the
+        # server's toolbox. Its category stays None (the loop is not one
+        # operation), but what it OWES follows the server's HITL setting: with
+        # confirmation on, the loop asks before it starts; without, the tools it
+        # calls carry their own derived policies.
+        mutation_policy="confirm" if hitl_required else None,
     )
 
 

@@ -35,6 +35,26 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+# A lease is renewed and released by its OWNER (ADR-263). ``SET NX`` followed by
+# an unconditional ``EXPIRE``/``DELETE`` is forbidden by the systemic rule, and
+# this module broke it both ways: a demoted worker kept extending the NEW
+# leader's term, and its shutdown deleted a lease it no longer held. Same shape
+# as the active-run lock in ``streaming/run_stream_broker.py`` — one idea of
+# what owning a lease means.
+_RENEW_IF_OWNER_LUA = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('EXPIRE', KEYS[1], ARGV[2])
+end
+return 0
+"""
+
+_RELEASE_IF_OWNER_LUA = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('DEL', KEYS[1])
+end
+return 0
+"""
+
 
 class SchedulerLeaderElector:
     """
@@ -174,7 +194,7 @@ class SchedulerLeaderElector:
             # Lock will expire via TTL anyway
             with suppress(Exception):
                 if self._redis is not None:
-                    await self._redis.delete(self._lock_key)
+                    await self._release_lock()
                     logger.debug(
                         "scheduler_leader_lock_deleted",
                         worker_id=self._worker_id,
@@ -263,9 +283,9 @@ class SchedulerLeaderElector:
             self._elected_at = None
             # Release the lock so re-election loop can retry
             if self._redis is not None:
-                # Lock will expire via TTL
+                # Only if we still own it; otherwise the lease expires on its own.
                 with suppress(Exception):
-                    await self._redis.delete(self._lock_key)
+                    await self._release_lock()
             logger.error(
                 "scheduler_leader_become_leader_failed",
                 worker_id=self._worker_id,
@@ -293,11 +313,43 @@ class SchedulerLeaderElector:
                     error_type=type(exc).__name__,
                 )
 
+    async def _release_lock(self) -> None:
+        """Release the lease, only if this worker still owns it (ADR-263).
+
+        A stale worker's shutdown must not hand the scheduler to whoever asks
+        next: it deletes nothing, and the real leader's lease expires on its own
+        schedule.
+        """
+        if self._redis is None:
+            return
+        released = await self._redis.eval(_RELEASE_IF_OWNER_LUA, 1, self._lock_key, self._worker_id)
+        logger.debug(
+            "scheduler_leader_lock_release",
+            worker_id=self._worker_id,
+            released=bool(released),
+        )
+
     async def _renew_lock(self) -> None:
-        """Renew leader lock TTL. Registered as a scheduler job."""
+        """Renew the lease, only if this worker still owns it (ADR-263).
+
+        A worker that lost leadership stops renewing rather than extending the
+        new leader's term — the failure mode an unconditional ``EXPIRE`` made
+        permanent. Losing the lease also drops the local flag, so the
+        re-election loop can take over honestly.
+        """
         try:
             if self._redis is not None:
-                await self._redis.expire(self._lock_key, self._lock_ttl)
+                renewed = await self._redis.eval(
+                    _RENEW_IF_OWNER_LUA, 1, self._lock_key, self._worker_id, str(self._lock_ttl)
+                )
+                if not renewed:
+                    logger.warning(
+                        "scheduler_leader_lease_lost",
+                        worker_id=self._worker_id,
+                        msg="The lease is held by another worker; renewal stops here.",
+                    )
+                    self._is_leader = False
+                    return
                 logger.debug(
                     "scheduler_leader_lock_renewed",
                     worker_id=self._worker_id,

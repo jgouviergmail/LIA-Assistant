@@ -72,4 +72,20 @@
          gap survived the first measurement. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- Location for the web page's navigator.geolocation, the first source of
+         the location cascade (ADR-219: live > remembered > home). Capacitor's
+         BridgeWebChromeClient answers the WebView prompt by REQUESTING these
+         two; Android refuses a permission the manifest never declared without
+         showing any dialog, so the page reads "denied", the user is never
+         asked, and the permission does not even appear in the app's settings
+         to be repaired. The cascade then falls back to the remembered position
+         silently — which is the failure nobody diagnoses. Same class as the
+         microphone above, measured on a OneUI 9 device 2026-09-04.
+
+         NOT declared, deliberately: CAMERA. Capacitor treats an undeclared
+         CAMERA as "capture supported" and delegates to the camera app, so
+         declaring it would only add a prompt and a failure mode. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>

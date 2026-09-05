@@ -174,7 +174,11 @@ class TestShutdown:
         await elector.shutdown()
 
         mock_scheduler.shutdown.assert_called_once()
-        mock_redis.delete.assert_awaited()
+        # ADR-263: the lease is released CONDITIONALLY, through the ownership
+        # script — an unconditional DELETE handed the scheduler to whoever asked
+        # next when a stale worker shut down.
+        mock_redis.delete.assert_not_awaited()
+        mock_redis.eval.assert_awaited()
 
     @pytest.mark.asyncio
     async def test_shutdown_non_leader_cancels_task(
@@ -242,7 +246,9 @@ class TestErrorHandling:
         await elector.start()
 
         assert elector.is_leader is False
-        mock_redis.delete.assert_awaited()  # Lock released for retry
+        # ADR-263: released only if still owned (conditional script, no DELETE).
+        mock_redis.delete.assert_not_awaited()
+        mock_redis.eval.assert_awaited()
 
     @pytest.mark.asyncio
     async def test_become_leader_error_re_election_continues(
@@ -357,7 +363,11 @@ class TestRenewalAndMisc:
         elector = SchedulerLeaderElector(mock_redis, mock_scheduler)
         await elector._renew_lock()
 
-        mock_redis.expire.assert_awaited_once()
+        # ADR-263: renewal is conditional on ownership, so it goes through the
+        # script rather than an unconditional EXPIRE that extended whatever lock
+        # happened to be there — including the NEW leader's.
+        mock_redis.expire.assert_not_awaited()
+        mock_redis.eval.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_renew_lock_no_redis_is_noop(self, mock_scheduler: MagicMock) -> None:

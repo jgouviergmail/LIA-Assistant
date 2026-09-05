@@ -28,6 +28,7 @@ interface ShellPlugin {
 
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
+  getPlatform?: () => string;
   Plugins?: { LiaShell?: ShellPlugin };
 }
 
@@ -44,6 +45,22 @@ function capacitor(): CapacitorGlobal | undefined {
 export function isNativeShell(): boolean {
   if (typeof window === 'undefined') return false;
   return capacitor()?.isNativePlatform?.() === true;
+}
+
+/**
+ * Whether this page runs inside the ANDROID shell specifically.
+ *
+ * A platform test, not a capability test, and it exists for one reason: the two
+ * shells do not hand the same file chooser to a web page. WKWebView offers
+ * "Take Photo" on any image input by itself, while Capacitor gives Android the
+ * WebView's bare intent, where the camera appears only if the OEM's picker puts
+ * it there — measured absent on OneUI 9. Anything the platform already offers
+ * must not be offered twice (ADR-246).
+ *
+ * @returns True in the Android shell, false in the iOS shell and in browsers.
+ */
+export function isAndroidShell(): boolean {
+  return isNativeShell() && capacitor()?.getPlatform?.() === 'android';
 }
 
 /** Base64url, unpadded — the alphabet RFC 7636 uses and the API validates. */

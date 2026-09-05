@@ -75,6 +75,25 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>LIA uses the microphone for voice input and for recording meetings you choose to transcribe.</string>
 	<!--
+		Same rule as the microphone, for the first source of the location
+		cascade (ADR-219: live > remembered > home). WKWebView surfaces
+		navigator.geolocation only when the host app declares why it wants a
+		position; without this key the page is refused and falls back to the
+		remembered position in silence — the Android side of this gap was
+		measured on a device, this one is its exact counterpart.
+	-->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>LIA uses your position to answer questions about where you are — weather, nearby places, travel times.</string>
+	<!--
+		Required for the "Take Photo" entry WKWebView already offers on any
+		image file input: iOS terminates an application that reaches the camera
+		without stating why. The key is needed for the platform's own picker,
+		not only for the shell's capture path — so it is not optional even
+		though nothing of ours calls the camera directly.
+	-->
+	<key>NSCameraUsageDescription</key>
+	<string>LIA opens the camera only when you choose to take a photo to attach to a message.</string>
+	<!--
 		The way back from the system browser after a provider sign-in.
 
 		A custom scheme, not a Universal Link: Universal Links pin domains at

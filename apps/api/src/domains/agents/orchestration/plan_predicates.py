@@ -64,6 +64,28 @@ CROSS_DOMAIN_CAPABLE_TOOLS = frozenset(
 )
 
 
+def approval_is_refused(plan_approved: Any) -> bool:
+    """Whether the plan approval state REFUSES execution (ADR-263).
+
+    ``plan_approved`` became three-valued when the approval gate stopped
+    reporting ``unknown`` as ``pass``: ``True`` (a verdict was read and the plan
+    may run), ``False`` (an explicit refusal — no plan, or a user cancellation)
+    and ``None`` (nobody looked).
+
+    Only ``False`` refuses. Testing the value for truthiness would make ``None``
+    mean "refused", and a plan with no verdict would stop at the response node
+    instead of executing — a behaviour change ADR-184 forbids, since a
+    validation verdict is not a fact and the router has never read one.
+
+    Args:
+        plan_approved: The state value, of any shape (state survives msgpack).
+
+    Returns:
+        True only for an explicit refusal.
+    """
+    return plan_approved is False
+
+
 def _iter_plan_tools(plan: Any) -> list[str]:
     """List the tool names of a plan, tolerating None / object / dict forms.
 

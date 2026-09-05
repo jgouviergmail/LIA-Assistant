@@ -14,6 +14,7 @@ import json
 import shutil
 import tempfile
 import zipfile
+from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,6 +25,7 @@ import structlog
 from sqlalchemy import or_, select
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_LANGUAGE
 from src.core.security.utils import decrypt_data
 from src.domains.users.models import User
 from src.domains.users.user_data_map import (
@@ -67,6 +69,10 @@ _DECRYPTED_COLUMNS: dict[str, frozenset[str]] = {
     # ADR-258: the meeting transcript rests encrypted (third parties' speech)
     # and leaves the archive readable — it is the user's own record.
     "meetings": frozenset({"transcript_encrypted"}),
+    # ADR-263: the ledger rests encrypted (a label names people, a result can
+    # quote a third party) and leaves the archive readable — portability means
+    # readable data, and these are the user's own actions.
+    "agent_effects": frozenset({"label", "result_payload"}),
 }
 
 # Tables whose rows resolve through a parent (no owner column of their own).
@@ -188,27 +194,186 @@ async def _fetch_user_profile(user_id: UUID) -> dict[str, Any]:
         return exported
 
 
-def _render_markdown(table_name: str, rows: list[dict[str, Any]]) -> str | None:
-    """Human-readable rendering for the narrative domains (spec: dual format)."""
-    if table_name == "conversation_messages":
-        lines = ["# Conversations\n"]
-        for row in rows:
-            role = row.get("role", "?")
-            content = row.get("content") or ""
-            stamp = row.get("created_at", "")
-            lines.append(f"**{role}** ({stamp}):\n\n{content}\n\n---\n")
-        return "\n".join(lines)
-    if table_name == "journal_entries":
-        lines = ["# Journal\n"]
-        for row in rows:
-            lines.append(f"## {row.get('created_at', '')}\n\n{row.get('content', '')}\n")
-        return "\n".join(lines)
-    if table_name == "memories":
-        lines = ["# Memories\n"]
-        for row in rows:
-            lines.append(f"- {row.get('content', '')}\n")
-        return "\n".join(lines)
-    return None
+def _render_conversations(rows: list[dict[str, Any]], language: str) -> str:
+    """The conversation, as it was read."""
+    lines = ["# Conversations\n"]
+    for row in rows:
+        role = row.get("role", "?")
+        content = row.get("content") or ""
+        stamp = row.get("created_at", "")
+        lines.append(f"**{role}** ({stamp}):\n\n{content}\n\n---\n")
+    return "\n".join(lines)
+
+
+def _render_journal(rows: list[dict[str, Any]], language: str) -> str:
+    """The personal journal, newest entries as written."""
+    lines = ["# Journal\n"]
+    for row in rows:
+        lines.append(f"## {row.get('created_at', '')}\n\n{row.get('content', '')}\n")
+    return "\n".join(lines)
+
+
+def _render_memories(rows: list[dict[str, Any]], language: str) -> str:
+    """What LIA remembers, one line each."""
+    lines = ["# Memories\n"]
+    for row in rows:
+        lines.append(f"- {row.get('content', '')}\n")
+    return "\n".join(lines)
+
+
+def _render_effects(rows: list[dict[str, Any]], language: str) -> str:
+    """The action register, in the reader's language (ADR-263).
+
+    The stored label is ``{i18n_key, values}``, never a sentence, so it is
+    rendered HERE — an archive requested in German reads in German about an
+    action taken while the interface was in French.
+
+    Refused and abandoned effects are kept: a register that showed only what
+    succeeded would be an advertisement, not a record.
+    """
+    from src.core.i18n_effects import render_effect_heading, render_effect_label
+
+    lines = [f"# {render_effect_heading(language)}\n"]
+    for row in rows:
+        label = row.get("label")
+        if isinstance(label, str):
+            try:
+                label = json.loads(label)
+            except TypeError, ValueError:
+                label = None
+        sentence = render_effect_label(label, language)
+        status = row.get("status", "?")
+        stamp = row.get("claimed_at", "")
+        marker = {"succeeded": "✓", "failed": "✗", "refused": "⊘"}.get(str(status), "·")
+        lines.append(f"- {marker} {stamp} — {sentence} ({status})")
+    return "\n".join(lines) + "\n"
+
+
+def _render_treatments(rows: list[dict[str, Any]], language: str) -> str:
+    """The consultation register, in the reader's language (ADR-263, lot 4).
+
+    The companion of :func:`_render_effects`, and the one that answers the
+    question a person actually asks: not *what did the assistant do* but *what
+    did it look at*. Its wording is the DOMAIN — "E-mails", never
+    ``get_email_details_tool`` — because a consultation records the capability
+    and nothing of the call. The tool name travels beside it, so the technical
+    half is present without being the half a reader must decode.
+
+    Args:
+        rows: The register's rows, oldest first.
+        language: The reader's language.
+
+    Returns:
+        One markdown line per consultation.
+    """
+    from src.core.i18n_treatments import render_treatment_domain, render_treatment_heading
+    from src.domains.agents.effects.treatment_labels import treatment_domain
+
+    lines = [f"# {render_treatment_heading(language)}\n"]
+    for row in rows:
+        tool_name = str(row.get("tool_name", ""))
+        domain = render_treatment_domain(treatment_domain(tool_name), language)
+        marker = "✓" if row.get("outcome") == "ok" else "✗"
+        duration = row.get("duration_ms")
+        suffix = f" — {duration} ms" if isinstance(duration, int) else ""
+        lines.append(f"- {marker} {row.get('occurred_at', '')} — {domain} ({tool_name}){suffix}")
+    return "\n".join(lines) + "\n"
+
+
+def _render_decisions(rows: list[dict[str, Any]], language: str) -> str:
+    """The turns themselves, in the reader's language (ADR-263, lot 6).
+
+    The archive already carries the conversations; what this adds is what a
+    transcript shows badly — the turns that did NOT end in an answer, and the
+    ones that were stopped for a confirmation and resumed.
+
+    Args:
+        rows: The register's rows, oldest first.
+        language: The reader's language.
+
+    Returns:
+        One markdown line per turn.
+    """
+    from src.core.i18n_treatments import (
+        render_decision_heading,
+        render_decision_outcome,
+        render_stop_reason,
+    )
+
+    lines = [f"# {render_decision_heading(language)}\n"]
+    for row in rows:
+        outcome = render_decision_outcome(str(row.get("outcome", "")), language)
+        stopped = row.get("stop_reason")
+        if stopped:
+            outcome = f"{outcome} ({render_stop_reason(str(stopped), language)})"
+        segments = row.get("segments")
+        resumed = f" ×{segments}" if isinstance(segments, int) and segments > 1 else ""
+        steps = row.get("plan_step_count")
+        plan = f" — {steps}" if isinstance(steps, int) and steps else ""
+        lines.append(
+            f"- {row.get('started_at', '')} — {row.get('execution_mode', '')}"
+            f"{plan} → {outcome}{resumed}"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _render_chain(rows: list[dict[str, Any]], language: str) -> str:
+    """The chain, as an ATTESTATION rather than ten thousand hashes.
+
+    The raw entries travel in the structured half of the archive, where a tool
+    can walk them. What a person needs from them is three facts: how much of
+    their history is sealed, until when, and the one value to write down —
+    comparing that head hash later is what detects a rewrite of the chain AND
+    its rows at once.
+
+    Args:
+        rows: The chain's entries, oldest first.
+        language: The reader's language.
+
+    Returns:
+        A short attestation; hash lines would be noise nobody can act on.
+    """
+    from src.core.i18n_treatments import render_chain_attestation
+
+    return render_chain_attestation(
+        language,
+        entries=len(rows),
+        sealed_until=str(rows[-1].get("occurred_at", "")) if rows else "",
+        head_hash=str(rows[-1].get("entry_hash", "")) if rows else "",
+    )
+
+
+#: table → renderer. A dispatch table rather than an ``if`` cascade, the same
+#: shape ``drafts/preview_renderer`` uses: a fourth branch is where a cascade
+#: starts costing complexity, and every renderer here is one small function.
+_MARKDOWN_RENDERERS: dict[str, Callable[[list[dict[str, Any]], str], str]] = {
+    "conversation_messages": _render_conversations,
+    "journal_entries": _render_journal,
+    "memories": _render_memories,
+    "agent_effects": _render_effects,
+    "agent_treatments": _render_treatments,
+    "agent_decisions": _render_decisions,
+    "ledger_chain": _render_chain,
+}
+
+
+def _render_markdown(
+    table_name: str, rows: list[dict[str, Any]], language: str = DEFAULT_LANGUAGE
+) -> str | None:
+    """Human-readable rendering for the narrative domains (spec: dual format).
+
+    Args:
+        table_name: The exported table.
+        rows: Its rows, already decrypted and redacted.
+        language: The reader's language — only the two registers vary with it
+            (their wording is ours); the other domains export the user's own
+            words unchanged.
+
+    Returns:
+        The markdown, or None for a table with no readable form.
+    """
+    renderer = _MARKDOWN_RENDERERS.get(table_name)
+    return renderer(rows, language) if renderer else None
 
 
 def _copy_user_files(archive: zipfile.ZipFile, user_id: UUID) -> None:
@@ -246,7 +411,9 @@ def _write_archive(
                 f"data/{table_name}.json",
                 json.dumps(rows, indent=2, ensure_ascii=False, default=_json_default),
             )
-            markdown = _render_markdown(table_name, rows)
+            markdown = _render_markdown(
+                table_name, rows, str(profile.get("language") or DEFAULT_LANGUAGE)
+            )
             if markdown is not None:
                 archive.writestr(f"readable/{table_name}.md", markdown)
         _copy_user_files(archive, user_id)

@@ -665,14 +665,23 @@ class TestExecutorRegistry:
         EXECUTOR_REGISTRY.update(original)
 
     def test_register_executor_adds_to_registry(self):
-        """Test that register_executor adds function to registry."""
+        """Registration stores the executor — behind the effect gate (ADR-263).
+
+        The registry no longer holds the raw function: a confirmed draft is
+        where the effect actually happens, so registration installs the gate
+        the same way tool registration does. ``functools.wraps`` keeps the
+        original reachable through ``__wrapped__``, which is what identifies it.
+        """
+        from src.domains.agents.effects.runtime import EFFECT_GATED_ATTR
 
         async def test_executor(content, user_id, deps):
             return {"test": True}
 
         register_executor("test_type", test_executor)
 
-        assert EXECUTOR_REGISTRY["test_type"] is test_executor
+        registered = EXECUTOR_REGISTRY["test_type"]
+        assert registered.__wrapped__ is test_executor
+        assert getattr(registered, EFFECT_GATED_ATTR, False) is True
 
     def test_ensure_executors_registered_populates_registry(self):
         """Test that ensure_executors_registered populates the registry."""

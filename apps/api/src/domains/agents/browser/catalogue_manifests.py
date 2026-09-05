@@ -12,6 +12,7 @@ Pattern: domains/agents/wikipedia/catalogue_manifests.py
 from __future__ import annotations
 
 from src.domains.agents.registry.catalogue import (
+    REASON_USER_VISIBLE_CONTROL,
     CostProfile,
     DisplayMetadata,
     OutputFieldSchema,
@@ -30,6 +31,8 @@ from src.domains.agents.registry.catalogue import (
 
 browser_task_catalogue_manifest = ToolManifest(
     name="browser_task_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_USER_VISIBLE_CONTROL,
     # ADR-256: the description says it clicks elements and FILLS FORMS on
     # third-party sites. Ambiguity resolves to the guarded side.
     tool_category="update",
@@ -99,6 +102,8 @@ browser_task_catalogue_manifest = ToolManifest(
 
 browser_navigate_catalogue_manifest = ToolManifest(
     name="browser_navigate_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_USER_VISIBLE_CONTROL,
     agent="browser_agent",
     description=(
         "Navigate to a specific URL. Used internally by the browser agent. "
@@ -157,6 +162,7 @@ browser_navigate_catalogue_manifest = ToolManifest(
 
 browser_snapshot_catalogue_manifest = ToolManifest(
     name="browser_snapshot_tool",
+    mutation_policy="read",
     agent="browser_agent",
     description=(
         "Get the current page's accessibility tree. "
@@ -206,6 +212,8 @@ browser_snapshot_catalogue_manifest = ToolManifest(
 
 browser_click_catalogue_manifest = ToolManifest(
     name="browser_click_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_USER_VISIBLE_CONTROL,
     agent="browser_agent",
     description="Click an interactive element on the page by its [EN] reference.",
     semantic_keywords=[
@@ -259,6 +267,8 @@ browser_click_catalogue_manifest = ToolManifest(
 
 browser_fill_catalogue_manifest = ToolManifest(
     name="browser_fill_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_USER_VISIBLE_CONTROL,
     agent="browser_agent",
     description="Fill a form field on the page by its [EN] reference with a value.",
     semantic_keywords=[
@@ -319,6 +329,8 @@ browser_fill_catalogue_manifest = ToolManifest(
 
 browser_press_key_catalogue_manifest = ToolManifest(
     name="browser_press_key_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_USER_VISIBLE_CONTROL,
     agent="browser_agent",
     description="Press a keyboard key (Enter, Tab, Escape, Arrow keys, etc.).",
     semantic_keywords=[

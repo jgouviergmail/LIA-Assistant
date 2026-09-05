@@ -164,6 +164,69 @@ TABLE_RULES: dict[str, TableRule] = {
             "each participant gets their own words — and purged on deletion."
         ),
     ),
+    "agent_effects": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Ledger of the external effects performed for this user (ADR-263) — "
+            "their own record of what the assistant did, so it leaves with the "
+            "archive and dies with the account (owner decision, 2026-09-03)."
+        ),
+    ),
+    "agent_treatments": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Register of what the assistant CONSULTED for this user (ADR-263, "
+            "lot 4) — the companion of agent_effects: that one says what was "
+            "done, this one what was read to answer. It carries no argument "
+            "and no label, so nothing here names a third party; it still "
+            "leaves with the archive and dies with the account, because it is "
+            "the user's own record of their assistant's work."
+        ),
+    ),
+    "agent_decisions": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Register of the TURNS themselves (ADR-263, lot 6) — the spine the "
+            "two others hang off: agent_effects says what was done and "
+            "agent_treatments what was read, and both file their rows under a "
+            "run_id that this table gives a meaning to. It POINTS at the "
+            "request and the answer (SET NULL, so deleting a conversation "
+            "leaves a dated tombstone) and copies neither, so it holds no "
+            "content of its own. The user's record of their assistant's work: "
+            "it leaves with the archive and dies with the account."
+        ),
+    ),
+    "agent_integrity_events": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Gaps in the transparency record itself (ADR-263, lot 8): an effect "
+            "performed with no ledger row, a turn whose consultations nobody "
+            "collected, a chain that stopped verifying, a sealing pass rolled "
+            "back. It holds a bounded classification and no content. Exported "
+            "because a user is entitled to know their own record is incomplete, "
+            "and purged with the account like the registers it qualifies. Rows "
+            "that name no account (a detection with no run context) are "
+            "instance-level and stay — they identify nobody."
+        ),
+    ),
+    "ledger_chain": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "The tamper-evident chain over the two registers (ADR-263, lot 5). "
+            "One chain per ACCOUNT, and that is the decision the whole design "
+            "turns on: deleting an account removes a COMPLETE chain instead of "
+            "punching a permanent hole in a shared one, which is how "
+            "inalterability and the right to erasure coexist. It holds digests "
+            "and identifiers only — never content — so exporting it gives the "
+            "user their proof without copying anything the registers already "
+            "carry."
+        ),
+    ),
     "peer_access_log": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,

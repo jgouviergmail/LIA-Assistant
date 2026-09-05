@@ -55,6 +55,7 @@ TELEPHONY_AGENT_MANIFEST = AgentManifest(
 
 place_phone_call_catalogue_manifest = ToolManifest(
     name="place_phone_call_tool",
+    mutation_policy="draft",
     agent="telephony_agent",
     description=(
         "Places an outbound phone call on the user's behalf to pursue a stated objective "

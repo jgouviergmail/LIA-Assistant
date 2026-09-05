@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.40.0</strong> — <strong>Three loops were running in silence</strong>. Google push notifications were arriving and nothing followed; the habit detector had been watching for weeks without ever proposing anything; the proposals inbox stayed empty. One plumbing cause explained all three: <em>starting a new conversation</em> deleted every Redis key carrying the user's id — including the recurrence ledger, the mail reading anchor and the adaptive thresholds. A key now <strong>declares what it is</strong>, and a reset only purges what a conversation created; an unknown family is kept and counted, because keeping a key you do not know costs a cache miss while deleting it can cost weeks of learning. On top of that repair, a processed push notification now <strong>wakes a decision</strong> — under the full eligibility rules, one wake per storm, the mail delta previewed without being consumed so a refused wake leaves the message for the next pass — and a Drive change reindexes exactly the files it touched. Reading LIA now counts as presence for the rhythm it learns: opening the app counts, a thumb on a notification counts, <em>a notification sent never does</em>. And a knowledge space can follow a <strong>Gmail label</strong>: the threads carrying it become documents, and removing the label in Gmail removes the document — indexing a whole mailbox was measured and refused. All three additions ship switched off. — 3 September 2026.
+  <strong>Version 1.41.0</strong> — <strong>An assistant that acts on your behalf must be able to say what it did</strong>, and what it looked at in order to do it. LIA now keeps <strong>two registers</strong>, automatically: one line per <em>action</em> — sent, created, deleted, with its outcome and the confirmation you gave — and one per <em>consultation</em>, which records the capability (« your calendar ») and never what was searched. They are never merged, because they count different things. An action is written down <strong>before</strong> it happens and closed <strong>only</strong> from an explicit result, so nothing is ever reported as done merely because no error came back; the gate is installed on the capability at registration, and start-up refuses a capability that does not declare what it owes the user. Three technical records complete the traceability the EU AI Act's Article 12 expects — the turn itself, the parameters actually sent to each model, and the gaps in the record — and one extraction composes all five into a single machine-readable file. Both registers are yours: readable in the app, <strong>drawn</strong> as ten server-side aggregated series, exportable in three formats including the technical one, and removed with your account. — 5 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **30,000+** automated tests | **261** ADRs                                                           |
-| **243** versions shipped  | **6 languages**, parity enforced in CI  | **519** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **31,000+** automated tests | **262** ADRs                                                           |
+| **244** versions shipped  | **6 languages**, parity enforced in CI  | **535** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -371,7 +371,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 519 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 535 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 26 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -1009,12 +1009,12 @@ apps/api/src/
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (20,549 backend unit tests across 1,199 files)  |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (24,042 backend tests across 1,451 files)       |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-261 ADR files (ADR-001 through ADR-262 — ADR-008 has no separate file) documenting major architectural decisions:
+262 ADR files (ADR-001 through ADR-263 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -1050,7 +1050,7 @@ pytest --cov=src --cov-report=html -v
 | ----------------------- | --------------------------------------------------------------------------------------------- |
 | Total backend tests     | 20,468 collected (`pytest tests/unit tests/agents --collect-only`, 2026-08-27)                |
 | Frontend tests (vitest) | 6,327 across 496 files (+ hermetic Playwright E2E specs incl. axe/dark/zoom)                   |
-| Coverage floor          | 69% backend enforced, 71.37% measured (shrink-only ratchet) · frontend thresholds per glob     |
+| Coverage floor          | 70% backend enforced, 71.37% measured (shrink-only ratchet) · frontend thresholds per glob     |
 | CI Workflows            | 3 (CI, Security, Release)                                                                     |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
@@ -1067,7 +1067,7 @@ Pre-commit (local)              GitHub Actions CI
 ===================             ==================
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy             Fast unit tests + coverage (69%)
+Ruff + Black + MyPy             Fast unit tests + coverage (70%)
 Fast unit tests                 Integration tests (PostgreSQL + Redis)
 Critical pattern detection      Agents suite
 i18n keys sync                  Code Hygiene (i18n, Alembic, lockfiles, patterns)
@@ -1091,7 +1091,7 @@ ESLint + TypeScript check       ────────────────
 | **Branch protection**         | PR required (external contributors), 7 status checks, force push forbidden                                                                                                                                                          |
 | **Dependabot**                | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped                                                                                                                                                                  |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more)                                                                                                                                                                                 |
-| **Coverage threshold**        | 69% enforced in CI, 71.37% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
+| **Coverage threshold**        | 70% enforced in CI, 71.37% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
 | **Documentation gate**        | Every version and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; links, code paths and unreachable documents too       |
 
 ### Workflows

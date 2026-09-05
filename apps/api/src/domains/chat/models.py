@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import (
     BigInteger,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -84,6 +85,46 @@ class TokenUsageLog(BaseModel):
             "The configured slot from LLM_TYPES_REGISTRY. Aggregates group by "
             "this, never by node_name, whose values are unbounded free text"
         ),
+    )
+
+    # The parameters actually SENT (ADR-263, lot 7). Nullable with no backfill,
+    # like the ADR-244 columns above and for the same reason: they describe
+    # calls made after the migration, and inventing history would be worse than
+    # admitting its absence.
+    #
+    # Normalised to ONE vocabulary. Probed on the real adapters: the output cap
+    # is spelled ``max_completion_tokens`` (OpenAI), ``max_tokens`` (Anthropic)
+    # and ``max_output_tokens`` (Google) — storing the provider's spelling would
+    # give one concept three names and compare with nothing.
+    provider: Mapped[str | None] = mapped_column(
+        String(40),
+        nullable=True,
+        comment="Client family that answered, as LIA names it (ADR-263 lot 7)",
+    )
+    temperature: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+        comment="Temperature as SENT; NULL when the call set none — 0.0 is a value",
+    )
+    top_p: Mapped[float | None] = mapped_column(Float, nullable=True, comment="top_p as sent")
+    max_output_tokens: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Output cap as sent, whatever the provider calls it",
+    )
+    reasoning_level: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="ADR-245's ladder vocabulary, never a provider spelling",
+    )
+    reasoning_budget_tokens: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Thinking budget as sent, when one was set"
+    )
+    params_digest: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="Digest over EVERY allowlisted parameter, so « was anything else "
+        "set? » stays answerable when the readable columns cannot say",
     )
 
     __table_args__ = (

@@ -345,8 +345,17 @@ class TestUserMCPToolAdapterUnifiedOutput:
 class TestUserMCPToolAdapterCoroutine:
     """Tests for coroutine property bridge (evolution F2.3)."""
 
-    def test_coroutine_property_returns_arun(self) -> None:
-        """Should return _arun method for parallel_executor direct call path."""
+    def test_coroutine_property_returns_the_gated_call(self) -> None:
+        """Should return the direct call path parallel_executor uses.
+
+        Since ADR-263 that path is the effect-gated call rather than ``_arun``
+        itself: the adapter's ``coroutine`` is a read-only property, so the
+        registry cannot install a gate on it and the adapter gates itself at
+        the single point its three call doors meet. The property still returns
+        ONE object, memoised, and ``_arun`` delegates to that same object.
+        """
+        from src.domains.agents.effects.runtime import EFFECT_GATED_ATTR
+
         adapter = UserMCPToolAdapter.from_discovered_tool(
             server_id=uuid4(),
             user_id=uuid4(),
@@ -355,8 +364,8 @@ class TestUserMCPToolAdapterCoroutine:
             description="Ping",
             input_schema={},
         )
-        # Bound methods create new objects each access, so compare underlying function
-        assert adapter.coroutine.__func__ is adapter._arun.__func__
+        assert getattr(adapter.coroutine, EFFECT_GATED_ATTR, False) is True
+        assert adapter.coroutine is adapter.coroutine, "the gate must be built once"
 
     def test_coroutine_property_hasattr(self) -> None:
         """Should be detected by parallel_executor's hasattr check."""

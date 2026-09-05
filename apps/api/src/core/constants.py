@@ -1101,6 +1101,11 @@ SCHEDULER_JOB_ACCOUNT_EXPORT = "account_export_executor"
 ACCOUNT_EXPORT_EXECUTOR_INTERVAL_SECONDS = 60
 RATE_LIMIT_ACCOUNT_EXPORT_PER_MINUTE = 3  # per-user on export request endpoints
 
+# Effect register (ADR-263): read-only surfaces — the run's effects behind a
+# message, and the action journal. Generous because the debug panel and the
+# journal page both poll a user's own rows; nothing here writes.
+RATE_LIMIT_EFFECTS_READ_PER_MINUTE = 60
+
 # Device sessions (D2): coarse activity tracking + display identifiers
 SESSION_LAST_SEEN_COARSE_SECONDS = 900  # min gap between last_seen_at rewrites (PII-bounded)
 SESSION_DISPLAY_ID_LENGTH = 16  # sha256(session_id) hex prefix shown to the UI (never the raw id)
@@ -5691,3 +5696,75 @@ REDIS_KEY_DIAGNOSTICS_OVERVIEW_CACHE = "diagnostics:overview:v1"
 REDIS_KEY_DIAGNOSTICS_SCHEDULER_TICK = "diagnostics:self_check:last_tick"
 REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX = "diagnostics:diagnosis_cost:"
 REDIS_KEY_DIAGNOSTICS_NOTIFY_PREFIX = "diagnostics:notify:"
+
+
+# =============================================================================
+# Agent effects ledger (ADR-263)
+# =============================================================================
+# One durable row per external effect: claimed before it happens, closed from
+# an explicit result. See domains/agents/effects/.
+
+#: Shape of a ledger row. Bump on every ADDITIVE column so an export — and the
+#: model reading it — never has to guess which columns a row was written with.
+AGENT_EFFECT_SCHEMA_VERSION = 1
+
+#: Default cap on the encrypted tool result kept per row. A tool result can
+#: weigh tens of kilobytes, and a ledger that grows unbounded is a ledger that
+#: gets purged with an axe. Over the cap the payload is cut and the row SAYS so
+#: (``result_truncated``), so a resume re-executes instead of serving a lie.
+AGENT_EFFECT_RESULT_PAYLOAD_MAX_BYTES_DEFAULT = 65_536
+
+#: Past this age, an effect still CLAIMED is an ORPHAN: the turn that claimed it
+#: died before recording its outcome. Well above the longest tool timeout, so a
+#: call merely in flight is never counted as a gap (ADR-263).
+AGENT_EFFECT_CLAIMED_ORPHAN_STALENESS_SECONDS_DEFAULT = 900
+
+#: Rows one technical export may carry. Published in the file's header rather
+#: than applied in silence: an operator who needs more narrows the period.
+AGENT_EFFECT_TECHNICAL_EXPORT_MAX_ROWS_DEFAULT = 5_000
+
+#: Rows PER SOURCE the unified Article-12 extraction may carry (ADR-263 lot 9).
+#: Lower than the per-record cap above, and measured rather than guessed: five
+#: sources at 5 000 rows render a 10,8 MB file with a 33,9 MB peak and 939 ms of
+#: pure serialisation — before the ORM instances behind them — which is a poor
+#: bargain on the Raspberry Pi 5 this project deploys to. At 1 000 the same file
+#: is 2,1 MB, peaks at 6,6 MB and renders in 201 ms. An operator who needs more
+#: narrows the period, and the header SAYS, per source, that it was truncated.
+AGENT_ARTICLE12_EXPORT_MAX_ROWS_PER_SOURCE_DEFAULT = 1_000
+
+# -----------------------------------------------------------------------------
+# Tamper-evident chain over the two registers (ADR-263, lot 5)
+# -----------------------------------------------------------------------------
+# Notarising inside the write path costs 6,0 ms per row against 0,21 ms for the
+# write itself — ×28 on the user's critical path. A background notary pays the
+# same cost out of band; the price is a window, stated below and measured.
+
+#: Feature flag. OFF by default, like every ADR-260/261/262 subsystem: a chain
+#: is an ADDITION to the registers, and an instance must be able to run the
+#: transparency it already has without also running its notary.
+LEDGER_CHAIN_ENABLED_DEFAULT = False
+
+#: How often the notary runs. 60 s is the window inside which a rewrite leaves
+#: no trace; it is the honest cost of not taxing every action, and it is
+#: measured (``lia_ledger_chain_lag_seconds``) rather than assumed.
+LEDGER_CHAIN_INTERVAL_SECONDS_DEFAULT = 60
+
+#: Accounts one pass may serve. A ceiling rather than "all of them", so a
+#: backlog is worked through in bounded ticks instead of one long transaction.
+LEDGER_CHAIN_ACCOUNTS_PER_PASS_DEFAULT = 50
+
+#: Rows one account may contribute to a single pass. Measured: 500 rows chain
+#: in 41 ms, well inside a 60 s tick, and a busier account simply spans ticks.
+LEDGER_CHAIN_ROWS_PER_ACCOUNT_DEFAULT = 500
+
+#: Job id of the notary pass, and the delay before its FIRST run. Short on
+#: purpose: on an instance that has just enabled the flag every register row is
+#: pending, and the operator who turned it on is entitled to see the chains
+#: open rather than to wait a full interval (ADR-178 starvation, same shape).
+SCHEDULER_JOB_LEDGER_NOTARY = "ledger_notary"
+LEDGER_NOTARY_INITIAL_DELAY_SECONDS = 45
+
+#: Links one verification page reads. Verification walks with bounded memory —
+#: a chain has no upper length, and loading one whole is how an audit endpoint
+#: becomes the outage it was meant to detect.
+LEDGER_CHAIN_VERIFY_PAGE_DEFAULT = 1_000

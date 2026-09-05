@@ -656,6 +656,41 @@ CASES: tuple[PreviewCase, ...] = (
         {"server": "staging"},
         language="en",
     ),
+    # ADR-263: a tool whose policy demands a confirmation and that builds no
+    # draft of its own. The card must say WHAT will run and WITH WHAT, because
+    # that is exactly what the user is being asked to allow.
+    PreviewCase(
+        "tool_call_full_fr",
+        DraftType.TOOL_CALL,
+        {
+            "tool_name": "mcp_era_cancel_subscription",
+            "tool_label": "era: cancel subscription",
+            "tool_args": {"plan": "premium", "immediate": True},
+        },
+    ),
+    # A card is read by a human in six languages: no Python spelling (``True``,
+    # ``None``, ``{'k': 'v'}``) and no unbounded value — one argument can carry
+    # an entire email body.
+    PreviewCase(
+        "tool_call_hostile_values_fr",
+        DraftType.TOOL_CALL,
+        {
+            "tool_label": "era: cancel subscription",
+            "tool_args": {
+                "flag": False,
+                "nothing": None,
+                "nested": {"k": "v"},
+                "body": "x" * 200,
+            },
+        },
+    ),
+    # Minimal: no arguments — the details row is omitted like every optional field.
+    PreviewCase(
+        "tool_call_minimal_en",
+        DraftType.TOOL_CALL,
+        {"tool_label": "era: cancel subscription"},
+        language="en",
+    ),
     # Peers (A3): the relayed message is what the sender approves — full text.
     PreviewCase(
         "peer_message_full_fr",
@@ -833,6 +868,9 @@ EXPECTED: dict[str, str] = {
     "scheduled_action_minimal_en": "<br/>**Title**: Daily digest",
     "peer_message_full_fr": "<br/>**Destinataire**: Marie Dupont<br/><br/>**Message**: Demande-lui comment il va",
     "peer_message_minimal_en": "<br/>**Recipient**: Marie Dupont",
+    "tool_call_full_fr": "<br/>**Outil**: era: cancel subscription<br/><br/>**Détails**: plan: premium, immediate: true",
+    "tool_call_hostile_values_fr": '<br/>**Outil**: era: cancel subscription<br/><br/>**Détails**: flag: false, nothing: null, nested: {"k": "v"}, body: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…',
+    "tool_call_minimal_en": "<br/>**Tool**: era: cancel subscription",
     "devops_task_full_fr": "<br/>**Serveur**: prod-rpi5<br/><br/>**Tâche**: Redémarre le conteneur lia-api-prod et vérifie les logs",
     "devops_task_minimal_en": "<br/>**Server**: staging",
     "devops_task_with_context_fr": "<br/>**Serveur**: prod-rpi5<br/><br/>**Tâche**: Vérifie les logs<br/><br/>**Consignes**: reste en lecture seule",

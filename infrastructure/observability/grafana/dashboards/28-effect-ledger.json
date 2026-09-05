@@ -1,0 +1,1455 @@
+{
+  "id": null,
+  "uid": "28-effect-ledger",
+  "title": "28 - Effect ledger",
+  "tags": [
+    "lia",
+    "effects",
+    "adr-263"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1m",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Effets exécutés",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 1,
+      "title": "Effets réclamés (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Every effect claimed before being performed. A labelled counter that never fired exposes no series, hence `or vector(0)`.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_effect_claims_total[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Aboutis (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Claimed effects closed from an explicit successful result.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_effect_outcomes_total{status=\"succeeded\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Échoués (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "The tool ran and reported a failure — the effect is recorded as failed, never as a success.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_effect_outcomes_total{status=\"failed\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Par politique (24 h)",
+      "type": "bargauge",
+      "datasource": "$datasource",
+      "description": "draft = a confirmed draft executing; reversible/artefact/sandboxed = a tool acting; confirm = a third-party MCP tool the user allowed.",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum by (policy) (increase(lia_effect_claims_total[24h])) or vector(0)",
+          "legendFormat": "{{policy}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Par source (24 h)",
+      "type": "bargauge",
+      "datasource": "$datasource",
+      "description": "user = a live turn; scheduled = an unattended run; subagent = a delegated read-only agent (which must never claim an effect).",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum by (source) (increase(lia_effect_claims_total[24h])) or vector(0)",
+          "legendFormat": "{{source}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Effets dans le temps",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Claims should track outcomes. A lasting gap between the two lines means turns are dying between the claim and its result — see the orphan gauge.",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(lia_effect_claims_total[5m])) or vector(0)",
+          "legendFormat": "réclamés",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(lia_effect_outcomes_total{status=\"succeeded\"}[5m])) or vector(0)",
+          "legendFormat": "aboutis",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(lia_effect_outcomes_total{status=\"failed\"}[5m])) or vector(0)",
+          "legendFormat": "échoués",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Ce que la porte a refusé",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      }
+    },
+    {
+      "id": 7,
+      "title": "Refus par raison (24 h)",
+      "type": "bargauge",
+      "datasource": "$datasource",
+      "description": "confirmation_impossible_unattended = a scheduled run tried something needing a human; ledger_unavailable = a confirm policy could not be recorded, so it was not performed.",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "targets": [
+        {
+          "expr": "sum by (reason) (increase(lia_effect_refusals_total[24h])) or vector(0)",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Doublons évités (24 h)",
+      "type": "bargauge",
+      "datasource": "$datasource",
+      "description": "One approval, one execution. `record` = the winner's result was served; `none` = the winner had not written it yet, so the caller was told so rather than handed a null.",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "targets": [
+        {
+          "expr": "sum by (served) (increase(lia_effect_already_performed_total[24h])) or vector(0)",
+          "legendFormat": "{{served}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Santé du registre",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      }
+    },
+    {
+      "id": 9,
+      "title": "Effets NON enregistrés (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Effects performed with no ledger row (ledger down, or no run context named a user). Never silent — but any value above zero means the register is incomplete for that period.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 18
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_effect_unrecorded_total[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Échecs du registre (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "claim/close/refuse operations that failed. Distinct from the health of what they record.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 18
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_effect_ledger_failures_total[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Effets restés CLAIMED",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Rows still CLAIMED past the staleness threshold — a turn that died between claiming and closing. DB-backed gauge, refreshed periodically.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 18
+      },
+      "targets": [
+        {
+          "expr": "max(lia_effect_claimed_orphans) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Refus faute de registre (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "A `confirm` effect refused because it could not be recorded — the owner's rule: what the user had to confirm is recorded or not done.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 18
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_effect_refusals_total{reason=\"ledger_unavailable\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Santé du registre dans le temps",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "All three must sit at zero. Each one means the register is telling less than the truth about what happened.",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(lia_effect_ledger_failures_total[5m])) or vector(0)",
+          "legendFormat": "échecs",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(lia_effect_unrecorded_total[5m])) or vector(0)",
+          "legendFormat": "non enregistrés",
+          "refId": "B"
+        },
+        {
+          "expr": "max(lia_effect_claimed_orphans) or vector(0)",
+          "legendFormat": "orphelins CLAIMED",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "Ce que l'assistante a CONSULTÉ",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "panels": []
+    },
+    {
+      "id": 20,
+      "title": "Consultations par mode d'exécution",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Combien de capacités l'assistante interroge, par mode. La boucle ReAct consulte structurellement plus que le pipeline : elle rappelle un outil à chaque itération. Une pente ReAct très au-dessus du pipeline sur une demande simple est le signal d'une boucle qui tourne (budget ADR-256).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
+      "targets": [
+        {
+          "expr": "sum by (execution_mode) (rate(lia_treatments_total[5m])) or vector(0)",
+          "legendFormat": "{{execution_mode}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "title": "Ce que l'assistante consulte (24 h)",
+      "type": "barchart",
+      "datasource": "$datasource",
+      "description": "Les domaines interrogés, jamais les outils : le libellé vient de notre propre taxonomie (31 noms), donc un serveur MCP tiers ne peut pas élargir la cardinalité — il se replie sur « mcp ».",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
+      "targets": [
+        {
+          "expr": "sum by (domain) (increase(lia_treatments_total[24h])) or vector(0)",
+          "legendFormat": "{{domain}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": 22,
+      "title": "Consultations sans réponse",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Une capacité interrogée qui n'a rien renvoyé. Isolé du reste parce que c'est le seul chiffre de ce registre sur lequel on agit : une source qui échoue en silence dégrade les réponses sans rien casser (ADR-148).",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "targets": [
+        {
+          "expr": "sum by (domain) (rate(lia_treatments_total{outcome=\"failed\"}[10m])) or vector(0)",
+          "legendFormat": "{{domain}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "title": "Consultations PERDUES (aucun registre ouvert)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Un tour tournait, une capacité a été consultée, et AUCUN registre n'était ouvert pour la recevoir. Zéro est la seule valeur acceptable : toute autre veut dire qu'un second point d'entrée exécute le graphe sans publier de collecteur, et que la traçabilité est incomplète sans que rien d'autre ne le dise (ADR-263).",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "targets": [
+        {
+          "expr": "sum by (execution_mode) (increase(lia_treatments_uncollected_total[1h])) or vector(0)",
+          "legendFormat": "{{execution_mode}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "title": "Consultations enregistrées (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Le total que le registre a réellement PERSISTÉ sur 24 h. Il ne bouge pas quand une écriture échoue — c'est alors lia_effect_ledger_failures_total{operation=\"treatments_flush\"} qui monte. Un zéro ici, avec du trafic, veut dire que le registre ne s'écrit plus.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_treatments_total[24h])) or vector(0)",
+          "legendFormat": "consultations",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "Ce que la transparence coûte",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      },
+      "panels": []
+    },
+    {
+      "id": 15,
+      "title": "Volume des registres",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Ce que les deux registres occupent réellement, index compris (pg_total_relation_size). Aucune purge n'est livrée : la rétention va jusqu'à la suppression du compte, et c'est CE chiffre qui décide du jour où une purge devient nécessaire (ADR-263, arbitrage 2026-09-04).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 53
+      },
+      "targets": [
+        {
+          "expr": "lia_ledger_bytes{table=\"agent_effects\"} or vector(0)",
+          "legendFormat": "actions",
+          "refId": "A"
+        },
+        {
+          "expr": "lia_ledger_bytes{table=\"agent_treatments\"} or vector(0)",
+          "legendFormat": "traitements",
+          "refId": "B"
+        },
+        {
+          "expr": "lia_ledger_bytes{table=\"ledger_chain\"} or vector(0)",
+          "legendFormat": "scellement",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 2147483648
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "Lignes des registres (estimation)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Estimation issue de pg_class.reltuples, rafraîchie par ANALYZE — et estimation À DESSEIN : un COUNT(*) à chaque synchronisation parcourrait séquentiellement la plus grosse table du schéma, et la supervision deviendrait la charge qu'elle surveille. La pente compte plus que la valeur absolue.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "targets": [
+        {
+          "expr": "lia_ledger_rows{table=\"agent_effects\"} or vector(0)",
+          "legendFormat": "actions",
+          "refId": "A"
+        },
+        {
+          "expr": "lia_ledger_rows{table=\"agent_treatments\"} or vector(0)",
+          "legendFormat": "traitements",
+          "refId": "B"
+        },
+        {
+          "expr": "lia_ledger_rows{table=\"ledger_chain\"} or vector(0)",
+          "legendFormat": "scellement",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "type": "row",
+      "title": "Scellement des journaux (ADR-263 lot 5)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      }
+    },
+    {
+      "id": 30,
+      "title": "Lignes non scellées",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Lignes de registre que le notaire n'a pas encore scellées. Chacune est une ligne dont une réécriture ne laisserait, pour l'instant, aucune trace. Un petit nombre stable = le notaire suit ; un nombre qui monte = le notaire est arrêté.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 62
+      },
+      "targets": [
+        {
+          "expr": "max(lia_ledger_chain_pending) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 31,
+      "title": "Fenêtre de non-traçabilité",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Âge de la plus ancienne ligne non scellée : la largeur exacte de la fenêtre pendant laquelle une réécriture ne laisse aucune trace. C'est le coût assumé de ne pas taxer chaque action d'un hachage synchrone (mesuré : 6,0 ms contre 0,21 ms, ×28).",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 62
+      },
+      "targets": [
+        {
+          "expr": "max(lia_ledger_chain_lag_seconds) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 900
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 32,
+      "title": "Ruptures détectées (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Ruptures de chaîne OBSERVÉES. Toute valeur au-dessus de zéro signifie qu'une ligne de registre ou une entrée de scellement a été modifiée hors de l'application — c'est LE chiffre pour lequel la chaîne existe.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 62
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_ledger_chain_breaks_total[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 34,
+      "title": "Passes en échec (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Passes annulées pour un compte : course perdue contre un notaire concurrent, ou erreur de base. Le travail reste en attente et le tick suivant le refait — quelques-unes sont normales, un taux qui monte ne l'est pas.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 62
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(lia_ledger_chain_pass_failures_total[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 33,
+      "title": "Entrées de scellement par étape",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Ce que le notaire ajoute, par étape couverte. Une action produit DEUX entrées (sa décision, puis son résultat) : un seul empreinte prise à la réclamation ferait passer chaque clôture légitime pour une altération.",
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 66
+      },
+      "targets": [
+        {
+          "expr": "sum by (kind) (rate(lia_ledger_chain_entries_total[10m])) or vector(0)",
+          "legendFormat": "{{kind}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 35,
+      "type": "row",
+      "title": "Les tours eux-mêmes (ADR-263 lot 6)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 73
+      }
+    },
+    {
+      "id": 36,
+      "title": "Tours par issue",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Une ligne par TOUR : la colonne vertébrale à laquelle les deux autres registres se rattachent. « interrompu » est la valeur qui compte — un tour arrêté pour une confirmation, ou abandonné, est un fait, et c'est précisément celui qu'un fil de conversation montre mal.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(lia_decisions_total[10m])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 37,
+      "title": "Tours par mode d'exécution",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Le même compteur, lu par mode. Un basculement massif vers ReAct change le coût d'un tour d'un facteur 4 à 8 : c'est ici qu'il se voit avant la facture.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 74
+      },
+      "targets": [
+        {
+          "expr": "sum by (execution_mode) (rate(lia_decisions_total[10m])) or vector(0)",
+          "legendFormat": "{{execution_mode}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 3,
+          "noValue": "0",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    }
+  ]
+}

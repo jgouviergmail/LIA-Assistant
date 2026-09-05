@@ -238,7 +238,9 @@
       "settings_sub": "Connectors and preferences",
       "relations_sub": "Your contacts at a glance",
       "capabilities": "Capabilities",
-      "capabilities_sub": "Your constellation"
+      "capabilities_sub": "Your constellation",
+      "actions": "Registers",
+      "actions_sub": "What LIA did, and what it looked at"
     },
     "briefing": {
       "synthesis_audio_error": "The voice playback failed — the speech provider did not return audio. Check the voice settings.",
@@ -1068,6 +1070,10 @@
       "important_mails": "Summarise my important emails",
       "close_loop": "Help me close “{{subject}}”",
       "reminder": "Remind me about « {{subject}} »"
+    },
+    "effects": {
+      "failed": "failed",
+      "title": "Actions performed"
     }
   },
   "skill_apps": {
@@ -2528,6 +2534,45 @@
           "scheduler_tick": "Self-check loop liveness",
           "platform_egress": "Outbound connectivity"
         }
+      },
+      "registers": {
+        "title": "Transparency registers",
+        "description": "Extract what the assistant did and what it consulted, for one account, several, or all of them, over a period.",
+        "intro": "Action wordings are MASKED by default. Revealing them is a deliberate act: every unmasking writes an entry in the admin audit log. The consultation register has nothing to mask — it records the capability queried, never what was asked.",
+        "register_label": "Register",
+        "register_actions": "Actions",
+        "register_consultations": "Consultations",
+        "format_label": "Format",
+        "format_markdown": "Readable (Markdown)",
+        "format_csv": "Spreadsheet (CSV)",
+        "format_technical": "Technical (JSON Lines, pseudonymised)",
+        "unmask_label": "Reveal the wordings (audited)",
+        "unmask_hint": "No effect on consultations: they carry no wording.",
+        "all_users": "All accounts",
+        "export": "Export",
+        "success": "Export downloaded.",
+        "error": "The export failed.",
+        "technical_note": "The technical export is always pseudonymised: identifiers replaced by digests, wordings and results never exported.",
+        "scope_label": "Accounts covered",
+        "verify_title": "Verify the registers' integrity",
+        "verify_hint_all": "No account selected: the verification will sweep every sealed account.",
+        "verify_hint_selected_one": "1 account selected above.",
+        "verify_hint_selected_other": "{{count}} accounts selected above.",
+        "verify_action": "Verify",
+        "verify_running": "Verifying…",
+        "verify_failed": "The verification did not complete. No result is shown: saying nothing is better than claiming something nobody checked.",
+        "verify_all_ok_one": "1 chain verified, intact.",
+        "verify_all_ok_other": "{{count}} chains verified, all intact.",
+        "verify_broken_one": "1 broken chain. A register row or a sealing entry was altered outside the application — treat this as a security event (runbook LedgerChainBroken).",
+        "verify_broken_other": "{{count}} broken chains. A register row or a sealing entry was altered outside the application — treat this as a security event (runbook LedgerChainBroken).",
+        "verify_partial": "Bounded sweep: {{checked}} of {{total}} accounts holding a chain were verified. Name accounts above to verify the rest.",
+        "register_decisions": "Decisions (one turn)",
+        "register_inference": "Inference (one call)",
+        "register_integrity": "Integrity (one gap)",
+        "article12_title": "Unified extraction (Article 12)",
+        "article12_hint": "All five records of a period in one JSON Lines file: a turn, an effect, a consultation, a model call, a gap in the record. Pseudonymised, capped per source, and the header says whether the period is complete.",
+        "article12_export": "Export everything",
+        "charts_title": "Figures"
       }
     },
     "language": {
@@ -3532,7 +3577,8 @@
         "debug-settings": "debug, diagnostics, logs, panel, token tracking",
         "eyes-style": "eyes, avatar, animation, style, gaze, companion, cozmo",
         "admin-diagnostics": "health diagnostics incidents alerts monitoring self-check platform status prometheus loki connectivity egress outbound network embeddings vectors quota memory language",
-        "meetings": "meeting, recording, minutes, transcription, report, microphone, notes, summary, actions, template, templates, template library, minutes format, default format, automatic format, change the format, sections, instructions, minutes email"
+        "meetings": "meeting, recording, minutes, transcription, report, microphone, notes, summary, actions, template, templates, template library, minutes format, default format, automatic format, change the format, sections, instructions, minutes email",
+        "admin-registers": "registers, transparency, actions, consultations, export, journal, audit, admin, charts, statistics, figures, overview"
       }
     },
     "haptics": {
@@ -4442,7 +4488,7 @@
         },
         "reactMode": {
           "title": "⚡ ReAct Execution Mode",
-          "description": "The alternative to the pipeline: the assistant reasons step by step — calling a tool, reading the result, deciding what comes next — through four dedicated nodes with native approval support. The pipeline stays the default and costs 4 to 8× fewer tokens; you switch from the chat header. Each turn starts from a clean data registry, and the agent is told to fetch an exact value rather than recall an approximation. Three guardrails frame the loop: its deadline is measured on compute time, so waiting for your approval no longer eats into it, and a tool re-called identically is refused, then ends the turn. And tool time has its own budget, separate from reasoning."
+          "description": "The alternative to the pipeline: the assistant reasons step by step — calling a tool, reading the result, deciding what comes next — through four dedicated nodes with native approval support. The pipeline stays the default and costs 4 to 8× fewer tokens; you switch from the chat header. Each turn starts from a clean data registry, and the agent is told to fetch an exact value rather than recall an approximation. Three guardrails frame the loop: its deadline is measured on compute time, so waiting for your approval no longer eats into it; a tool re-called identically is refused and ends the turn; and tool time has its own budget."
         },
         "proactiveInitiative": {
           "title": "🎯 Proactive Initiative",
@@ -4502,7 +4548,7 @@
         },
         "selfDiagnostics": {
           "title": "🩺 Self-diagnostics & incident memory",
-          "description": "LIA reads its own telemetry through clients that never fail a request: every outage becomes a typed “unavailable” result. A periodic self-check evaluates the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per problem, diagnosed by a budget-capped model that is handed the threshold the value actually crossed, and writes in each administrator's own language. Administrators get a health panel, notifications and read-only chat tools — and a known outage shapes the answers: degraded capabilities are routed around at planning time, and a failed step is explained from typed error codes, never raw logs."
+          "description": "LIA reads its own telemetry through clients that never fail a request: every outage becomes a typed “unavailable” result. A periodic self-check evaluates the golden signals and probes dependencies directly, with exact values; alerts and critical verdicts converge into one incident per problem, diagnosed by a budget-capped model handed the threshold the value actually crossed, writing in each administrator's own language. A known outage then shapes the answers: degraded capabilities are routed around at planning time, and a failed step is explained from typed error codes, never raw logs."
         },
         "ephemeralScripts": {
           "title": "🧮 Computed answers, not guessed ones",
@@ -4511,6 +4557,10 @@
         "meetings": {
           "title": "🎙️ Meeting minutes",
           "description": "A button in the header — or the “Record a meeting” entry of the phone menu — and the device becomes a recorder: audio leaves in small segments as you speak, so a crash or a lost connection costs seconds, never the meeting. At the stop the server assembles the recording and walks its chain of engines until one transcribes. The minutes format is picked among thirty built-in templates by reading what was said, unless you impose your own; the meeting states which one it used and why. Minutes already written can be rewritten in another format — up to the full transcript — in place or as a new document. The cost is stated as two amounts and a total, and a gap is announced, never filled in."
+        },
+        "transparencyRegisters": {
+          "title": "📋 Registers of actions and consultations",
+          "description": "Two registers, kept automatically and never mixed: what LIA <i>did</i> for you — with its outcome and your confirmation — and what it <i>consulted</i> to answer, recorded as the capability and never as what was searched. An action is written down before it happens, so a success is never inferred from a missing error. A third tab draws the period; everything exports in three formats and is deleted with your account."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -4519,6 +4569,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_41_0": {
+          "title": "v1.41.0 — 📋 Registers: what LIA did, and what it looked at",
+          "date": "September 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📋 Two registers, kept automatically</b> — the dashboard tile is now called <b>Registers</b>, and it answers two different questions that are never mixed together. <i>Actions</i>: everything LIA did on your behalf — an email sent, an event created, a file deleted — with its outcome and the confirmation you gave. <i>Consultations</i>: everything it looked at to answer you, recorded as the capability (« your calendar »), <b>never</b> what was searched. An action is written down before it happens and marked done only on an explicit result, so LIA can never report a success it has no proof of.",
+            "i2": "<b>📊 A new « Overview » tab draws the period</b> — ten charts built from those same registers: how your turns ended, actions by outcome, consultations by domain, calls and tokens per model, average latency per tool, and any gap in the record itself. Every chart carries the exact total of the whole period beside it, including what the top-12 folded into « other », so the bars can always be checked. Administrators get the same charts over one, several or every account.",
+            "i3": "<b>📤 Exports in three formats, including the technical one</b> — readable, CSV, and now the machine-readable format previously reserved for administrators. Your file is therefore complete enough to hand to someone else. Everything in these registers is yours: readable in the app, exportable, and deleted with your account.",
+            "i4": "<b>🛠️ An export could cover the wrong period</b> — when there were more rows than one file may carry, the export kept the <b>oldest</b> ones instead of the most recent, so it could show months-old activity while honestly announcing that it was capped. A capped export now always keeps the most recent window and says so.",
+            "i5": "<b>🛠️ Two administrator screens were unreachable</b> — the cross-account charts and the cross-account integrity check answered an error to every request. Both work now. In the same pass, a confirmed draft whose action was already on record without a result could be reported as done: it now says clearly that it was not retried, and asks you to check before trying again."
+          }
+        },
         "v1_40_0": {
           "title": "v1.40.0 — 🔔 Three loops were running in silence",
           "date": "September 2026",
@@ -9699,7 +9761,7 @@
       },
       "gdpr": {
         "title": "GDPR compliant",
-        "description": "Automatic PII filtering, pseudonymization, data minimization. Full-account export — readable Markdown, structured JSON and your files — with secret material unexportable by construction. European regulations respected."
+        "description": "Automatic PII filtering, pseudonymization, data minimization. Full-account export — readable Markdown, structured JSON and your files — with secret material unexportable by construction. Two registers record what LIA did for you and which capabilities it consulted, as the EU AI Act's Article 12 expects: readable, exportable, deleted with your account."
       }
     },
     "tech": {
@@ -9708,20 +9770,20 @@
       "intro": "Not a chatbot: an orchestration system. Every request flows through semantic routing, a planner and agents executed in parallel — instrumented end to end, from token to euro, with email alerts on vital signals.\n\nBehind the interface: Bayesian plan learning, dual-vector semantic memory, hybrid BM25 + embeddings search over your documents, a LangGraph state machine checkpointed in PostgreSQL. All of it self-hostable — down to a Raspberry Pi.\n\nWhat it states, it read: every answer is anchored on the data actually retrieved — never on the memory of an earlier phrasing — and information that was never obtained is announced as missing rather than filled in.\n\nWhat runs is isolated from what runs it: a skill's code executes in a container created for a single call — no socket, no network, read-only — and if that sandbox cannot be built, nothing runs at all.",
       "deep_dive_link": "Full technical deep dive",
       "langgraph": {
-        "title": "LangGraph",
-        "description": "Agent orchestration with state graphs, wave-based parallel execution, and Bayesian plan pattern learning. A typed semantic layer connects data across domains, under an execution guardrail. Each iteration of a bulk run keeps its own results, including when a run is replayed."
+        "title": "Two ways to carry out a request",
+        "description": "A simple request follows a plan: LIA writes the steps, runs the independent ones together, and stops at the point where you confirm. An open-ended one switches to an autonomous loop that alternates thinking and acting until it has an answer. You choose the mode in the chat header; the plan mode uses several times fewer tokens, the autonomous one explores further. A turn ends when its answer is sent — LIA never announces work it will not do."
       },
       "llm_providers": {
-        "title": "7 LLM providers",
-        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Dynamic selection of the best model per task type."
+        "title": "Seven model providers, your choice",
+        "description": "OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI and any local Ollama model: each role — routing, planning, answering, vision, embedding — is configured separately, so a cheap model handles the mechanical steps and a strong one the answer. What each model can actually do is read from a curated catalogue rather than assumed, and the depth of reasoning you ask for is translated into whatever each provider understands."
       },
       "bayesian": {
-        "title": "Bayesian learning",
-        "description": "High-confidence planning patterns bypass semantic validation. Interests follow a Bayesian weight with temporal decay — but nothing enters it without a named ground quoted from the user, and deduplication reads blocked rows too, so a refused subject cannot return."
+        "title": "Plans that improve with use",
+        "description": "LIA remembers which plan shapes worked for which kind of request and reuses them, with a Bayesian score that rises with success and decays over time so an old habit never outweighs a recent failure. The effect is practical rather than magical: fewer model calls, faster answers, and steadier behaviour on the requests you make often. Nothing is shared between accounts — the learning is yours and disappears with your data."
       },
       "hybrid_search": {
         "title": "Hybrid search",
-        "description": "Across your knowledge spaces, relevance is decided on meaning: a single threshold gates the multilingual embedding similarity, recalibrated over the six languages. BM25 keeps its useful role — surfacing an exact term over a near-tie — but as a bounded bonus, never as the arbiter: blending both signals in comparable shares discarded one correct answer in three as soon as the question's language drifted from the documents'. Space-less scripts are split into character bigrams, without which a whole Chinese sentence counts as a single word. Your memories are retrieved by a dual semantic search instead."
+        "description": "In your knowledge spaces, relevance is decided on meaning rather than on words: a single multilingual similarity threshold, recalibrated across the six languages. Exact-term matching keeps a useful role — bringing a literal occurrence ahead of a near-tie — but only as a bounded bonus, never as the judge: weighting both signals equally threw away one correct answer in three as soon as the question's language differed from the documents'. Scripts written without spaces are cut into character pairs, without which a whole Chinese sentence counts as one word."
       },
       "realtime": {
         "title": "Real-time streaming",
@@ -9732,12 +9794,12 @@
         "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Strict TypeScript on the frontend, async Python on the backend. Installable PWA: 6 localized manifests, OS share into chat, offline page and smart asset caching — API responses are never cached. Settings are searchable from the keyboard, in all six languages, ignoring case, accents and typographic apostrophes. The design system is a contract kept by tests: every colour pair checked across five themes in light and dark, one tone per status, one shape per action altitude."
       },
       "telephony": {
-        "title": "Agentic telephony",
-        "description": "Outbound voice calls handled by a goal-directed agent through your own ElevenLabs connector. Data protection is enforced by capability, not by prompt: the call agent can only read free/busy availability — never event titles, attendees or content. No recording, the transcript is never stored; only a short, expiring summary is reinjected asynchronously through a signed per-user webhook."
+        "title": "LIA on the phone",
+        "description": "LIA can call and be called: speech to text, an answer, text back to speech, in the same conversation as the chat. It reaches the same capabilities — your calendar, your contacts, your reminders — and an action that would need confirmation is asked out loud rather than performed silently. A call leaves the same trace as a chat turn in your registers, so nothing done by voice is less accountable than something typed."
       },
       "rich_skills": {
         "title": "Skills with frames & images",
-        "description": "SkillScriptOutput contract (text/frame/image) — sandboxed Python scripts, strict sandbox iframes with injected CSP, auto-resize, theme + locale sync via postMessage. One hardened import pipeline for every path (uploads, chat-generated skills, https URL install through the SSRF validator): strict name validation, zip-expansion caps, atomic install with rollback. Gallery with previews and declared output channels. A skill can also be modified: full regeneration under the same name, preceded by reading the current package, confirmed by a content-derived token, with server-side carry-over of the files chat cannot transport."
+        "description": "A skill is a small program LIA can write for you and then run in a sandbox. It can answer with text, an image, or a whole miniature interface embedded in the conversation — a form, a table, a chart — isolated from the page and following your theme and language. Skills arrive the same way whether uploaded, generated in the chat, or installed from a link: one hardened path, checked names and size limits, and an install that either completes or leaves nothing behind. A skill can be regenerated later under the same name, with your confirmation."
       },
       "hitl": {
         "title": "Human-in-the-Loop",
@@ -9745,7 +9807,15 @@
       },
       "honest_enrichment": {
         "title": "Honest enrichments",
-        "description": "A provider sometimes publishes a category with no number: the French national air-quality index reads \"Moyen\" with no numeric value, while Google's universal index is inverted against the US scale — there, 100 means excellent. Two rules follow, enforced by a single renderer shared between the weather card and a place's details: the category shown is always the one the API publishes, never an interpretation derived from the number; and a figure never travels with a label from another scale. When only the category exists, it stands alone. An absent signal beats a false one."
+        "description": "A provider sometimes publishes a category with no number: the French air-quality index reads « Moyen » with no value, while Google's universal index is inverted against the US scale — there, 100 means excellent. So one shared renderer, used by the weather card and by a place's details, follows two rules: the category shown is always the one the source publishes, never one deduced from a number; and a figure never travels with a label from another scale. An absent signal beats a false one."
+      },
+      "transparency_registers": {
+        "title": "Registers of actions and consultations",
+        "description": "Two registers answer two different questions and are never merged: what the assistant DID — sent, created, deleted, with the outcome and the confirmation you gave — and what it CONSULTED to answer you. A consultation records the capability, « your calendar », never what was searched. Both are yours: readable in the app, exportable, removed with your account. An action is written down BEFORE it happens and closed only from an explicit result, so nothing is ever reported as done merely because no error came back."
+      },
+      "semantic_layer": {
+        "title": "One vocabulary across your data",
+        "description": "A contact, an email, an event, a file, a place: each is named the same way everywhere — one shared vocabulary of thirty-one terms rather than one per integration. That is what lets a question cross sources, so the person in an email is the person in the calendar and in your notes. The links between them are typed and their meaning declared, so the assistant reasons about relations instead of guessing from a similar name — and the vocabulary a new capability introduces is checked at start-up, never discovered in use."
       },
       "native_shells": {
         "title": "Native Shells & Wake Relay",
@@ -9753,11 +9823,11 @@
       },
       "structured_minutes": {
         "title": "Structured minutes",
-        "description": "Thirty minutes formats live in the code, their words in translated data. A template is named by a reference — built-in or personal — that meetings, preferences and requests exchange instead of a row: a shipped format therefore needs no database row. The choice follows one precedence, from the most explicit to the most general, ending in a model call that reads a transcript excerpt above a confidence floor; the outcome is counted and written on the meeting with its reason. Handing back the whole transcript does not fit in one answer: it is rewritten part by part, each bounded by the slot's effective output window."
+        "description": "Thirty minutes formats ship with LIA, from a decision log to a one-page summary, and you can add your own. The right one is chosen by the clearest signal available: what you asked for, then the meeting's own settings, then your preferences — and, failing all three, a model that reads an excerpt and abstains rather than guessing when it is not confident enough. Which route decided is written on the meeting. A long transcript is rewritten section by section, so a two-hour meeting is never truncated to fit one answer."
       },
       "scoped_state": {
-        "title": "Scoped state, event-driven decisions",
-        "description": "Every stored value declares what it is — a conversation, a cache, something learned, something running — and each operation reads that declaration instead of a name pattern. Clearing a conversation therefore clears a conversation: what was learned stays, and a value whose family is unknown is kept and counted rather than guessed. On that foundation, a provider notification stops being a cache hint and becomes a decision: it queues one wake per user and provider, so a burst is one wake dated by the first, and a short leader-elected pass serves it under the whole eligibility rulebook — window, quota, cooldowns, source preference — bypassing only the smoothing that exists to spread routine passes. The freshly arrived material is previewed, never consumed, until that decision is actually taken: a refused wake leaves the mail exactly where the next scheduled pass will find it."
+        "title": "Forgetting really means forgetting",
+        "description": "Everything the assistant stores says what it is — a conversation, a cache, something learned, something running — and every operation reads that declaration rather than guessing from a name. So clearing a conversation clears a conversation: what LIA learned about you stays, and anything whose nature is unclear is kept and counted rather than deleted on a hunch. The same rule governs the other direction: only « Forget everything » and deleting your account remove what was learned."
       }
     },
     "architecture": {
@@ -10415,9 +10485,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>PII filtering in logs</h2><p>The logging system applies <strong>OWASP Logging Cheat Sheet</strong> recommendations to automatically filter personal data from application logs. No sensitive data appears in logs.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>Protecting data also means making sure it survives incidents. The production database is backed up automatically every night, with 7 days, 4 weeks and 6 months of history kept, in a dedicated directory with restrictive permissions. And because a backup only counts once a restore has been proven, the procedure is tested for real: the latest dump is restored into a disposable container and compared against the live database (schema revision, row counts) — a drill that ships with the stack.</p>"
       },
       "observability": {
-        "title": "519 Prometheus Metrics, 26 Grafana Dashboards, and Langfuse Tracing",
+        "title": "535 Prometheus Metrics, 26 Grafana Dashboards, and Langfuse Tracing",
         "excerpt": "LIA offers enterprise-grade observability with 473 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 519 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana dashboards</h2><p>LIA provides 26 Grafana dashboards numbered 01 to 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, and briefing. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 535 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26 Grafana dashboards</h2><p>LIA provides 26 Grafana dashboards numbered 01 to 26: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, and briefing. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 78 Prompts Managed as Code",
@@ -10938,7 +11008,7 @@
   "story": {
     "meta": {
       "title": "Story — Directing an AI That Codes | LIA",
-      "description": "How LIA was built: ~100% AI-written code under human direction, 26,600+ tests, 241 ADRs, an 8.3/10 technical audit. The complete field report."
+      "description": "How LIA was built: ~100% AI-written code under human direction, 31,000+ tests, 262 ADRs, an 8.3/10 technical audit. The complete field report."
     },
     "breadcrumb": "Story",
     "hero": {
@@ -11947,6 +12017,252 @@
         "template_limit_reached": "the limit of templates is reached",
         "duplicate_failed": "could not be added",
         "delete_failed": "could not be deleted"
+      }
+    }
+  },
+  "effects": {
+    "journal": {
+      "description": "Everything LIA did on your behalf, as it was recorded.",
+      "empty_action": "Go to the chat",
+      "empty_description": "Actions LIA performs for you will be listed here.",
+      "empty_filtered_description": "Try another status.",
+      "empty_filtered_title": "No action matches this filter",
+      "empty_title": "Nothing has been done yet",
+      "error": "The action journal could not be loaded.",
+      "filter_label": "Filter by status",
+      "load_more": "Load more",
+      "loading": "Loading your action journal",
+      "source": {
+        "scheduled": "Scheduled",
+        "subagent": "Sub-agent",
+        "user": "You asked"
+      },
+      "status": {
+        "abandoned": "Interrupted",
+        "all": "All",
+        "claimed": "In progress",
+        "failed": "Failed",
+        "refused": "Refused",
+        "succeeded": "Done"
+      },
+      "title": "Action journal",
+      "total_one": "{{count}} action",
+      "total_other": "{{count}} actions",
+      "refresh": "Refresh",
+      "retry": "Retry"
+    },
+    "labels": {
+      "activate_hue_scene_tool": "Activated the “{{target}}” light scene",
+      "activate_skill_tool": "Activated the “{{target}}” skill",
+      "apply_labels_tool": "Applied labels to {{count}} item(s)",
+      "browser_task_tool": "Browsed the web: {{target}}",
+      "complete_task_tool": "Marked the task “{{target}}” as done",
+      "control_hue_light_tool": "Changed the “{{target}}” light",
+      "control_hue_room_tool": "Changed the lighting in “{{target}}”",
+      "draft": {
+        "contact": "Created the contact “{{target}}”",
+        "contact_delete": "Deleted the contact “{{target}}”",
+        "contact_update": "Updated the contact “{{target}}”",
+        "devops_task": "Ran an administration task on “{{target}}”",
+        "document_append": "Appended text to the document “{{target}}”",
+        "email": "Sent an email to {{recipient}}",
+        "email_delete": "Deleted an email: {{target}}",
+        "email_filter": "Created a mail filter",
+        "email_forward": "Forwarded an email to {{recipient}}",
+        "email_reply": "Replied to {{recipient}}",
+        "event": "Created the event “{{target}}”",
+        "event_delete": "Deleted the event “{{target}}”",
+        "event_update": "Updated the event “{{target}}”",
+        "file_delete": "Deleted the file “{{target}}”",
+        "label_delete": "Deleted the label “{{target}}”",
+        "peer_message": "Sent a message to {{recipient}}",
+        "phone_call": "Placed a call to {{recipient}}",
+        "reminder_delete": "Deleted the reminder “{{target}}”",
+        "scheduled_action": "Created the scheduled action “{{target}}”",
+        "spreadsheet_write": "Wrote to the spreadsheet “{{target}}”",
+        "task": "Created the task “{{target}}”",
+        "task_delete": "Deleted the task “{{target}}”",
+        "task_update": "Updated the task “{{target}}”",
+        "vacation_responder": "Set the vacation responder"
+      },
+      "edit_image": "Edited an image: {{target}}",
+      "generate_document": "Generated the document “{{target}}”",
+      "generate_image": "Generated an image: {{target}}",
+      "generic": "Ran the “{{tool}}” action",
+      "import_user_skill": "Added the “{{target}}” skill to your library",
+      "mcp": "Used the external tool “{{tool}}”",
+      "remove_labels_tool": "Removed labels from {{count}} item(s)",
+      "run_python_tool": "Ran a computation in the sandbox",
+      "run_skill_script": "Ran the “{{target}}” skill script",
+      "set_current_item": "Set “{{target}}” as the conversation's current item",
+      "toggle_scheduled_action_tool": "Enabled or paused the scheduled action “{{target}}”"
+    },
+    "export": {
+      "group_label": "Export this register",
+      "markdown": "Export (readable)",
+      "csv": "Export (CSV)",
+      "technical": "Technical",
+      "markdown_hint": "A document to read, with your own wordings.",
+      "csv_hint": "A spreadsheet to count, with your own wordings.",
+      "technical_hint": "JSON Lines: the same events with no content at all, identifiers pseudonymised. To attach to a report without disclosing what was said."
+    }
+  },
+  "treatments": {
+    "journal": {
+      "title": "What LIA looked at",
+      "description": "Every capability queried during your exchanges — never what was asked, only what was consulted.",
+      "refresh": "Refresh",
+      "error": "The consultation register could not be loaded.",
+      "retry": "Try again",
+      "total_one": "{{count}} consultation",
+      "total_other": "{{count}} consultations",
+      "filter_label": "Filter by capability",
+      "all_capabilities": "All",
+      "empty_title": "No consultation recorded",
+      "empty_description": "As soon as LIA queries one of your data sources, the consultation will appear here.",
+      "empty_filtered_title": "No consultation for this capability",
+      "empty_filtered_description": "Pick another capability or go back to the full list.",
+      "empty_action": "Open a conversation",
+      "load_more": "Show more",
+      "duration": "{{ms}} ms",
+      "outcome": {
+        "failed": "No answer"
+      },
+      "repeats": "×{{count}}"
+    },
+    "domains": {
+      "automation": "Automations",
+      "brave": "Brave search",
+      "browser": "Web browser",
+      "contact": "Contacts",
+      "context": "Conversation context",
+      "devops": "Server administration",
+      "document": "Documents",
+      "document_generation": "Document generation",
+      "email": "Emails",
+      "event": "Calendar",
+      "file": "Files",
+      "health": "Health data",
+      "hue": "Smart lighting",
+      "image_generation": "Image generation",
+      "mcp": "External server (MCP)",
+      "peer": "Peers",
+      "perplexity": "Perplexity search",
+      "place": "Places",
+      "python_sandbox": "Sandboxed Python",
+      "query": "Search in your data",
+      "reminder": "Reminders",
+      "route": "Routes",
+      "skill": "Skills",
+      "sub_agent": "Sub-agent",
+      "task": "Tasks",
+      "telephony": "Telephony",
+      "weather": "Weather",
+      "web_fetch": "Web page",
+      "web_search": "Web search",
+      "wikipedia": "Wikipedia",
+      "unknown": "Unidentified capability"
+    }
+  },
+  "registers": {
+    "title": "Transparency registers",
+    "description": "Two separate lists: what LIA did, and what it looked at. They count different things and do not add up.",
+    "tab_actions": "Actions",
+    "tab_consultations": "Consultations",
+    "seal": {
+      "loading": "Loading the sealing status",
+      "disabled": "Register sealing is not enabled on this instance. Your registers stay complete and readable; what is missing is the proof that they were not altered.",
+      "not_yet": "Nothing sealed yet",
+      "sealed_until": "Journals sealed up to {{date}}",
+      "pending_one": "1 row not sealed yet",
+      "pending_other": "{{count}} rows not sealed yet",
+      "verify": "Verify integrity",
+      "verifying": "Verifying…",
+      "verify_failed": "The verification did not complete. No verdict is shown: saying nothing is better than claiming something nobody checked.",
+      "verdict_ok_one": "Intact: 1 recomputed row matches its fingerprint.",
+      "verdict_ok_other": "Intact: {{count}} recomputed rows match their fingerprints.",
+      "verdict_broken": "Break detected at position {{seq}}. A register row or a sealing entry was altered outside the application. Report this to the administrator of this instance.",
+      "fingerprint": "Final fingerprint:"
+    },
+    "tab_overview": "Overview",
+    "charts": {
+      "loading": "Loading the figures",
+      "empty": "Nothing in this period.",
+      "error": "The figures could not be computed.",
+      "activity": {
+        "title": "Activity per day",
+        "description": "One conversation turn per unit — the chronology the other cards break down.",
+        "legend": "Turns"
+      },
+      "turns_outcome": {
+        "title": "How turns ended",
+        "description": "A turn that did not answer is a fact, not an absence."
+      },
+      "turns_mode": {
+        "title": "Execution mode",
+        "description": "Pipeline or ReAct: a shift changes a turn's cost by a factor of 4 to 8."
+      },
+      "actions_status": {
+        "title": "Actions by outcome",
+        "description": "What LIA did outside, and how it ended."
+      },
+      "consultations_domain": {
+        "title": "Consultations by domain",
+        "description": "What it looked at to answer — the capability, never the request."
+      },
+      "latency": {
+        "title": "Average latency per tool",
+        "description": "Mean execution time of one consultation."
+      },
+      "calls_model": {
+        "title": "Calls per model",
+        "description": "The model that actually answered, not the one configured today."
+      },
+      "calls_node": {
+        "title": "Calls per graph step",
+        "description": "Sub-agents and MCP servers are grouped: their names are not ours to publish."
+      },
+      "tokens_model": {
+        "title": "Tokens per model",
+        "description": "Input and output on the same bar."
+      },
+      "integrity": {
+        "title": "Gaps in the record",
+        "description": "An effect with no row, uncollected consultations, a broken chain.",
+        "empty": "No gaps: the record is complete for this period."
+      },
+      "legend": {
+        "turns": "Turns",
+        "actions": "Actions",
+        "consultations": "Consultations",
+        "calls": "Calls",
+        "latency": "Latency",
+        "prompt_tokens": "Input tokens",
+        "completion_tokens": "Output tokens",
+        "gaps": "Gaps"
+      },
+      "outcome": {
+        "answered": "Answered",
+        "failed": "Failed",
+        "interrupted": "Interrupted"
+      },
+      "status": {
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "refused": "Refused",
+        "claimed": "In flight",
+        "abandoned": "Abandoned"
+      },
+      "integrity_kind": {
+        "effect_unrecorded": "Unrecorded effect",
+        "treatments_uncollected": "Uncollected consultations",
+        "chain_broken": "Broken chain",
+        "notary_failed": "Notary pass failed"
+      },
+      "badge": {
+        "count": "Total {{value}}",
+        "stacked": "Total {{value}}",
+        "average": "Average {{value}}"
       }
     }
   }

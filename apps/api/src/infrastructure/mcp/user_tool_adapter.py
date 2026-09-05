@@ -20,7 +20,7 @@ from uuid import UUID
 
 import structlog
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from src.core.config import settings
 from src.core.constants import MCP_USER_TOOL_NAME_PREFIX
@@ -33,6 +33,7 @@ from src.domains.agents.data_registry.models import (
     generate_registry_id,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool
 from src.infrastructure.mcp.tool_adapter import build_args_schema
 from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
 from src.infrastructure.observability.metrics_mcp import (
@@ -116,7 +117,7 @@ def _derive_collection_key(tool_name: str) -> str:
     return key
 
 
-class UserMCPToolAdapter(BaseTool):
+class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
     """
     LangChain BaseTool adapter for per-user MCP tools.
 
@@ -127,6 +128,8 @@ class UserMCPToolAdapter(BaseTool):
     """
 
     name: str = ""
+    # ADR-263: memoises the gated call built by ``EffectGatedMCPTool``.
+    _gated_call: Callable[..., Awaitable[Any]] | None = PrivateAttr(default=None)
     description: str = ""
     server_id: UUID = Field(default=UUID(int=0))
     user_id: UUID = Field(default=UUID(int=0))
@@ -177,16 +180,7 @@ class UserMCPToolAdapter(BaseTool):
             annotations=annotations,
         )
 
-    @property
-    def coroutine(self) -> Callable[..., Awaitable[Any]]:
-        """Expose _arun for parallel_executor's direct call path.
-
-        Without this, BaseTool subclasses fall to ainvoke() which stringifies
-        the result via ToolMessage(content=str(result)), losing UnifiedToolOutput.
-        """
-        return self._arun
-
-    async def _arun(self, **kwargs: Any) -> UnifiedToolOutput:
+    async def _call_server(self, **kwargs: Any) -> UnifiedToolOutput:
         """
         Execute the user MCP tool via the pool.
 

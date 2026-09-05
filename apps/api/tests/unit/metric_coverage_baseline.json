@@ -30,7 +30,6 @@
     "langfuse_agent_handoffs",
     "langfuse_prompt_version_usage",
     "langfuse_subgraph_invocations",
-    "langfuse_tool_calls",
     "llm_agent_unmapped_total",
     "llm_capability_mismatch_total",
     "llm_reasoning_coerced_total",

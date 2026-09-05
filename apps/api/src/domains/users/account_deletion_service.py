@@ -110,6 +110,25 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("interest_notifications"),
         by_user("user_broadcast_reads"),
         by_user("conversation_audit_log"),
+        # ADR-263: the effect ledger. It CASCADES from users, but the account
+        # deletion scrubs the user row rather than deleting it, so the cascade
+        # never fires — the explicit DELETE is what actually purges it, and it
+        # is also what makes the count honest (same reason as
+        # conversation_messages above). Group 1: a row may reference another
+        # effect through retry_of.
+        by_user("agent_effects"),
+        by_user("agent_treatments"),
+        # ADR-263 lot 6: the turns. Group 1 like its two neighbours — its
+        # message references are SET NULL, so it never blocks and never
+        # cascades the conversation away with itself.
+        by_user("agent_decisions"),
+        # ADR-263 lot 8: the gaps that named this account. The ones that named
+        # nobody stay — they identify nobody and they are the instance's record.
+        by_user("agent_integrity_events"),
+        # ADR-263 lot 5: the chain, before the rows it covers. Deleting a whole
+        # chain is not tampering — it is the erasure the per-account design
+        # exists to make possible, and it leaves no gap in anyone else's.
+        by_user("ledger_chain"),
         (
             "conversation_messages",
             delete(conversation_messages).where(

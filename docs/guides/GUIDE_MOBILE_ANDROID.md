@@ -204,6 +204,28 @@ it is load-bearing on iOS, which has no service worker at all.
 It offers a retry that **rebuilds the bridge** (reloading would reload the local
 page) and a way to forget the stored server.
 
+### The launcher icon is ours, in every form Android asks for
+
+Until 2026-09 the APK shipped **Capacitor's own logo** — the overlay simply had
+no icon, so the template's placeholder survived all the way to a device. What is
+there now is the PWA icon (`apps/web/public/icon-512.png`) rebuilt as layers, so
+the app on the home screen is the one users already know from the web:
+
+| Resource | Why it exists |
+|---|---|
+| `mipmap-anydpi-v26/ic_launcher{,_round}.xml` | The adaptive declaration: background, foreground, monochrome |
+| `drawable/ic_launcher_background.xml` | The brand gradient, `#2C4BDB → #6D3DEA`, measured out of the source rather than picked again |
+| `mipmap-*/ic_launcher_foreground.png` | The white disc, at 62.5 % of the 108dp canvas — its own share in the source, and inside the 66dp safe zone |
+| `mipmap-*/ic_launcher_monochrome.png` | Android 13 themed icons: a solid disc with the wordmark knocked out, because the system paints the opaque pixels |
+| `mipmap-*/ic_launcher{,_round}.png` | Pre-Oreo devices, which apply no mask |
+
+Two layers rather than one raster is what lets the launcher's own mask shape the
+icon — a superellipse on OneUI, a circle elsewhere — instead of framing it in a
+white container. The legacy rasters carry the disc at **86 %** of the tile, not
+the 62.5 % of the adaptive canvas: there the launcher crops to the central 72dp,
+so the disc already fills 94 % of what is seen. Using one number for both would
+show a visibly smaller mark depending on the Android version.
+
 ### Deployment constraint to document for users
 
 On **iOS**, WebKit's ITP blocks cross-**site** cookies, so an instance whose API

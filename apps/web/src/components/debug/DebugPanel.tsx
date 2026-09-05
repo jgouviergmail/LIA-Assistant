@@ -66,8 +66,9 @@ import {
   HitlSection,
   VoiceSection,
   CompactionSection,
+  PerformedEffectsSection,
 } from './components/sections';
-import { Repeat2, UserCheck, Volume2, Archive, Image as ImageIcon } from 'lucide-react';
+import { Repeat2, UserCheck, Volume2, Archive, ListChecks, Image as ImageIcon } from 'lucide-react';
 
 import { DEFAULT_OPEN_SECTIONS } from './utils/constants';
 
@@ -219,7 +220,10 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
     {
       label: '4 · Execution',
       sections: [
-        { value: 'execution_waves', node: <ExecutionWavesSection data={metrics.execution_waves} /> },
+        {
+          value: 'execution_waves',
+          node: <ExecutionWavesSection data={metrics.execution_waves} />,
+        },
         { value: 'execution', node: <ExecutionSection data={metrics.execution_timeline} /> },
         {
           value: 'react_execution',
@@ -276,7 +280,10 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
     {
       label: '5 · Response context',
       sections: [
-        { value: 'memory-injection', node: <MemoryInjectionSection data={metrics.memory_injection} /> },
+        {
+          value: 'memory-injection',
+          node: <MemoryInjectionSection data={metrics.memory_injection} />,
+        },
         { value: 'rag-injection', node: <RAGInjectionSection data={metrics.rag_injection} /> },
         {
           value: 'knowledge-enrichment',
@@ -296,7 +303,10 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
     {
       label: '6 · Background extraction',
       sections: [
-        { value: 'memory-detection', node: <MemoryDetectionSection data={metrics.memory_detection} /> },
+        {
+          value: 'memory-detection',
+          node: <MemoryDetectionSection data={metrics.memory_detection} />,
+        },
         {
           value: 'journal-extraction',
           node: <JournalExtractionSection data={metrics.journal_extraction} />,
@@ -305,7 +315,10 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
           value: 'open-loop-extraction',
           node: <OpenLoopExtractionSection data={metrics.open_loop_extraction} />,
         },
-        { value: 'interest-profile', node: <InterestProfileSection data={metrics.interest_profile} /> },
+        {
+          value: 'interest-profile',
+          node: <InterestProfileSection data={metrics.interest_profile} />,
+        },
       ],
     },
     {
@@ -329,6 +342,18 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
               title="Voice Synthesis"
               icon={Volume2}
               message="No paid speech synthesis on this turn."
+            />
+          ),
+        },
+        {
+          value: 'performed_effects',
+          node: <PerformedEffectsSection data={metrics.performed_effects} />,
+          idleNode: (
+            <EmptySection
+              value="performed_effects"
+              title="Performed Effects"
+              icon={ListChecks}
+              message="This turn changed nothing in the outside world."
             />
           ),
         },

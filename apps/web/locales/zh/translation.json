@@ -230,7 +230,9 @@
       "settings_sub": "连接器和首选项",
       "relations_sub": "一览您的联系人",
       "capabilities": "能力",
-      "capabilities_sub": "你的星座"
+      "capabilities_sub": "你的星座",
+      "actions": "登记册",
+      "actions_sub": "LIA 做过什么，以及查阅过什么"
     },
     "briefing": {
       "synthesis_audio_error": "语音播放失败——语音服务未返回音频。请检查语音设置。",
@@ -1054,6 +1056,10 @@
       "important_mails": "总结我的重要邮件",
       "close_loop": "帮我完成「{{subject}}」",
       "reminder": "「{{subject}}」进展如何？"
+    },
+    "effects": {
+      "failed": "失败",
+      "title": "已执行的操作"
     }
   },
   "skill_apps": {
@@ -2354,6 +2360,45 @@
           "scheduler_tick": "自检循环活跃度",
           "platform_egress": "对外连接"
         }
+      },
+      "registers": {
+        "title": "透明度记录",
+        "description": "导出助手做过什么、查阅过什么——可选择一个、多个或全部账户，以及一个时间段。",
+        "intro": "操作的措辞默认被遮蔽。揭示它们是一个有意的动作：每次揭示都会在管理审计日志中留下一条记录。查阅记录没有可遮蔽的内容——它记录被调用的能力，而非你问了什么。",
+        "register_label": "记录",
+        "register_actions": "操作",
+        "register_consultations": "查阅",
+        "format_label": "格式",
+        "format_markdown": "可读（Markdown）",
+        "format_csv": "表格（CSV）",
+        "format_technical": "技术（JSON Lines，已假名化）",
+        "unmask_label": "揭示措辞（会被记录）",
+        "unmask_hint": "对查阅记录无影响：它们不含措辞。",
+        "all_users": "全部账户",
+        "export": "导出",
+        "success": "导出已下载。",
+        "error": "导出失败。",
+        "technical_note": "技术导出始终经过假名化：标识符以摘要替代，措辞与结果从不导出。",
+        "scope_label": "涉及的账户",
+        "verify_title": "验证登记册的完整性",
+        "verify_hint_all": "未选择账户：验证将遍历所有已封存的账户。",
+        "verify_hint_selected_one": "上方已选择 {{count}} 个账户。",
+        "verify_hint_selected_other": "上方已选择 {{count}} 个账户。",
+        "verify_action": "验证",
+        "verify_running": "正在验证……",
+        "verify_failed": "验证未完成。不显示任何结果：与其断言未经核实的事，不如什么都不说。",
+        "verify_all_ok_one": "已验证 {{count}} 条链，完好无损。",
+        "verify_all_ok_other": "已验证 {{count}} 条链，全部完好无损。",
+        "verify_broken_one": "{{count}} 条链已断裂。某条登记行或某条封存记录在应用之外被修改——请按安全事件处理（运行手册 LedgerChainBroken）。",
+        "verify_broken_other": "{{count}} 条链已断裂。某条登记行或某条封存记录在应用之外被修改——请按安全事件处理（运行手册 LedgerChainBroken）。",
+        "verify_partial": "有界扫描：已验证 {{checked}} 个账户，共 {{total}} 个拥有链的账户。请在上方指定账户以验证其余部分。",
+        "register_decisions": "决策（每个对话轮次）",
+        "register_inference": "推理（每次调用）",
+        "register_integrity": "完整性（每处缺口）",
+        "article12_title": "统一导出（第 12 条）",
+        "article12_hint": "一个时间段的五类记录汇于一个 JSON Lines 文件：一个对话轮次、一次操作、一次查阅、一次模型调用、一处记录缺口。已假名化，按来源设上限，文件头会说明该时间段是否完整。",
+        "article12_export": "全部导出",
+        "charts_title": "图表"
       }
     },
     "timezone": {
@@ -3517,7 +3562,8 @@
         "debug-settings": "调试, 诊断, 日志, 面板, 令牌跟踪",
         "eyes-style": "眼睛, 头像, 动画, 样式, 目光, 伙伴, cozmo",
         "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络 向量 嵌入 配额 记忆 语言",
-        "meetings": "会议, 录音, 纪要, 转写, 报告, 麦克风, 笔记, 摘要, 行动项, 模板, 模板库, 纪要格式, 默认格式, 自动格式, 更改格式, 章节, 指令, 纪要邮件"
+        "meetings": "会议, 录音, 纪要, 转写, 报告, 麦克风, 笔记, 摘要, 行动项, 模板, 模板库, 纪要格式, 默认格式, 自动格式, 更改格式, 章节, 指令, 纪要邮件",
+        "admin-registers": "记录, 透明度, 操作, 查阅, 导出, 日志, 审计, 管理，图表，统计，数字，总览"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -4497,6 +4543,10 @@
         "meetings": {
           "title": "🎙️ 会议纪要",
           "description": "页头的一个按钮——或手机菜单中的「录制会议」入口——设备便成了录音机：音频在说话的同时以小片段发出，因此崩溃或断网只会损失几秒，绝不会损失整场会议。停止时，服务器合并录音并依次尝试引擎链，直到有一个完成转写。纪要格式会通过阅读会上说了什么，从三十种内置模板中挑选，除非你指定自己的格式；会议会写明所用格式及其理由。已写好的纪要可以改用其他格式重写，直至完整转写，可原地替换或另存为新文档。花费以两个金额和一个总计说明，缺口会被指出，绝不会被填补。"
+        },
+        "transparencyRegisters": {
+          "title": "📋 操作与查阅登记簿",
+          "description": "两个自动维护、从不混同的登记簿：LIA 为你<i>做</i>了什么——连同结果与你的确认——以及它为回答而<i>查阅</i>了什么，后者只记录能力，绝不记录搜索内容。操作在发生之前即被登记：绝不会因为没有报错就推断成功。第三个标签页勾勒该时段；全部可按三种格式导出，并随账户一并删除。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -4505,6 +4555,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_41_0": {
+          "title": "v1.41.0 — 📋 登记簿：LIA 做了什么，又查阅了什么",
+          "date": "2026 年 9 月",
+          "count": "5",
+          "items": {
+            "i1": "<b>📋 两个自动维护的登记簿</b>——仪表板上的入口现已更名为<b>登记簿</b>，它回答两个从不混同的问题。<i>操作</i>：LIA 代你做过的一切——发出的邮件、创建的日程、删除的文件——连同结果和你给出的确认。<i>查阅</i>：它为回答你而查看过的一切，以能力的形式记录（「你的日历」），<b>绝不</b>记录搜索的内容。一项操作在发生之前即被登记，且只凭明确的结果才标记为完成：LIA 无法宣称一个没有凭据的成功。",
+            "i2": "<b>📊 新增「总览」标签页，勾勒整个时段</b>——十张基于同一批登记簿生成的图表：你的每轮对话如何结束、按结果分布的操作、按领域分布的查阅、各模型的调用与令牌、各工具的平均延迟，以及登记簿自身的任何缺口。每张图旁都标有该时段的精确总数，包括前十二名之外被归入「其他」的部分，因此柱状图始终可核对。管理员可在一个、多个或全部账户上查看同样的图表。",
+            "i3": "<b>📤 三种格式的导出，含技术格式</b>——可读格式、CSV，以及此前仅限管理员的机器可读格式。因此你的文件足够完整，可以直接交给第三方。这些登记簿中的一切都属于你：可在应用内阅读、可导出，并随账户一并删除。",
+            "i4": "<b>🛠️ 导出可能覆盖了错误的时段</b>——当行数超过单个文件的容量时，导出保留的是<b>最早</b>而非最新的记录，因此可能展示数月之前的活动，同时又如实声明自己已被截断。现在，受限的导出始终保留最近的窗口，并明确说明。",
+            "i5": "<b>🛠️ 两个管理界面此前无法访问</b>——跨账户图表与跨账户完整性校验对任何请求都返回错误，现均已修复。同一批修复中，某个已确认的草稿，若其操作已被登记却没有结果，此前可能被报告为已完成：现在它会明确说明未曾重试，并提醒你先确认再重新尝试。"
+          }
+        },
         "v1_40_0": {
           "title": "v1.40.0 — 🔔 三条循环在沉默中空转",
           "date": "2026 年 9 月",
@@ -9614,7 +9676,7 @@
       },
       "gdpr": {
         "title": "符合GDPR",
-        "description": "自动 PII 过滤、假名化、数据最小化。完整账户导出 — 可读 Markdown、结构化 JSON 和你的文件 — 机密材料在设计上无法导出。遵守欧洲法规。"
+        "description": "自动 PII 过滤、假名化、数据最小化。完整的账户导出——可读 Markdown、结构化 JSON 与你的文件——密钥材料在设计上不可导出。两个登记簿记录 LIA 为你做了什么、查阅了哪些能力，正如欧盟人工智能法案第 12 条所要求：可阅读、可导出，并随账户一并删除。"
       }
     },
     "tech": {
@@ -9623,20 +9685,20 @@
       "intro": "不是聊天机器人，而是一套编排系统。每个请求都经过语义路由、规划器和并行执行的智能体——端到端全程可观测，从Token到欧元，关键信号异常时自动邮件告警。\n\n界面背后：贝叶斯计划学习、双向量语义记忆、面向文档的 BM25+语义嵌入混合检索、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\n它所断言的，都是它读到的：每个回答都锚定在真实获取的数据上，而非对早先措辞的记忆；从未获取到的信息会被明确说明，而不是被补全。\n\n被执行的东西与执行它的东西相互隔离：技能代码运行在仅为一次调用而创建的容器中——无套接字、无网络、只读——如果这个沙箱无法建立，就什么都不会运行。",
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
-        "title": "LangGraph",
-        "description": "基于状态图的智能体编排、波次并行执行和贝叶斯计划模式学习。类型化语义层在执行防护栏的保护下将各领域数据互联。 批量执行中的每次迭代都保留自己的结果，即使执行被重放也是如此。"
+        "title": "完成一项请求的两种方式",
+        "description": "简单的请求走计划路线：LIA 写出步骤，把彼此独立的步骤并行执行，并在需要您确认处停下。开放式的请求切换为自主循环，在思考与行动之间交替，直到得出答案。模式在聊天顶栏切换：计划模式的令牌消耗低数倍，自主模式则探索得更远。一轮对话在答案发出时结束——LIA 绝不预告自己不会做的事。"
       },
       "llm_providers": {
-        "title": "7家LLM供应商",
-        "description": "OpenAI、Anthropic、Google Gemini、DeepSeek、Qwen、Perplexity、Ollama。按任务类型动态选择最佳模型。"
+        "title": "七家模型供应商，由您选择",
+        "description": "OpenAI、Anthropic、Google、DeepSeek、Mistral、xAI，以及任何本地 Ollama 模型：路由、规划、回答、视觉、索引等每种角色都可单独配置，让廉价模型处理机械步骤、强模型负责回答。每个模型究竟能做什么，取自持续维护的能力目录而非假设；您所要求的思考深度，会被翻译成各家供应商各自认得的表达。"
       },
       "bayesian": {
-        "title": "贝叶斯学习",
-        "description": "高置信度的规划模式会跳过语义校验。兴趣采用带时间衰减的贝叶斯权重 — 但没有具名并被引用的依据就无法进入，而且去重也会读取被屏蔽的条目：被拒绝的主题无法回来。"
+        "title": "越用越好的计划",
+        "description": "LIA 会记住哪种计划形态适用于哪类请求并加以复用，采用贝叶斯评分：成功则上升，随时间衰减，因此旧习惯的分量绝不会盖过近期的一次失败。效果务实而非神奇——更少的模型调用、更快的回答，以及在您常做之事上更稳定的表现。账户之间不共享任何内容：这份学习属于您，并随您的数据一同消失。"
       },
       "hybrid_search": {
         "title": "混合搜索",
-        "description": "在你的知识空间里，相关性由语义决定：单一阈值作用于多语言嵌入的相似度，并在六种语言上重新校准。BM25 保留了它真正有用的角色——把精确匹配提到几乎并列者之前——但只作为有上限的加分项，绝不充当裁判：把两种信号按相近权重混合，会在提问语言与文档语言拉开距离时丢弃三分之一的正确答案。没有空格的文字被切成两字一组，否则一整句中文只算一个词。至于你的记忆，则由双重语义检索找回。"
+        "description": "在你的知识空间里，相关性由含义而非字面决定：一个统一的多语言相似度阈值，在六种语言上重新校准。精确匹配仍有用武之地——在几乎并列时把字面命中提上来——但只作为有上限的加分，绝不充当裁判：把两种信号等权混合后，只要提问语言与文档语言不同，每三个正确答案就会丢掉一个。不使用空格的文字按双字切分，否则整句中文只会被当作一个词。"
       },
       "realtime": {
         "title": "实时流式传输",
@@ -9647,12 +9709,12 @@
         "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格 TypeScript，后端异步 Python。可安装 PWA：6 种本地化清单、系统分享到聊天、离线页面和智能资源缓存 — API 响应绝不缓存。设置支持键盘搜索，覆盖六种语言，并忽略大小写、重音符与排印撇号。 设计系统是由测试守护的契约：每对颜色都在五套主题的明暗两态下验证，每个状态一个色调，每种操作高度一种形态。"
       },
       "telephony": {
-        "title": "智能体电话",
-        "description": "由目标导向的智能体通过你自己的 ElevenLabs 连接器拨打外呼语音电话。数据保护由能力限制而非提示词保障：通话智能体只能读取你的空闲/忙碌状态 —— 绝不能读取日程的标题、参与者或内容。不录音，转写从不保存；只有一份简短、会过期的小结通过每个用户专属的签名 Webhook 异步回注。"
+        "title": "电话中的 LIA",
+        "description": "LIA 可以拨出，也可以接听：语音转成文字、生成回答、文字再转回语音，与聊天处于同一段对话之中。它能触达同样的能力——您的日历、联系人、提醒——需要确认的操作会当场口头询问，而不是悄悄执行。一通电话在您的登记簿中留下与一轮聊天相同的记录：用语音完成的事，并不比写下来的更少受到追溯。"
       },
       "rich_skills": {
         "title": "带框架和图像的 Skills",
-        "description": "SkillScriptOutput 契约（text/frame/image）— 沙箱化 Python 脚本、注入 CSP 的严格沙箱 iframe、自动调整大小、通过 postMessage 同步主题与语言。所有路径共用一条强化导入管线（上传、聊天生成的技能、经 SSRF 校验器的 https URL 安装）：严格名称校验、zip 解压上限、原子安装带回滚。技能库含预览图与声明的输出通道。 技能同样可以修改：在同名下整体重新生成，事先读取当前技能包，通过由内容派生的令牌进行确认，并由服务器接续那些聊天无法传输的文件。"
+        "description": "技能是 LIA 可以为你编写、并在沙箱中运行的小程序。它可以用文字、图片，或一个嵌入对话的微型界面来回答——表单、表格、图表——与页面相互隔离，并跟随你的主题与语言。无论是上传的、在聊天中生成的，还是从链接安装的，所有技能都走同一条经过加固的路径：严格的名称校验、体积上限，以及要么装成、要么什么也不留下的安装。技能之后可以同名重新生成，并需你确认。"
       },
       "hitl": {
         "title": "Human-in-the-Loop",
@@ -9660,7 +9722,15 @@
       },
       "honest_enrichment": {
         "title": "诚实的信息补充",
-        "description": "服务方有时会给出没有数值的类别：法国国家空气质量指数只显示“Moyen”而没有数字，而 Google 的通用指数与美国标准相反——在那里 100 表示优秀。由此产生两条规则，由天气卡片与地点详情共用的同一段渲染逻辑强制执行：显示的类别始终来自 API 本身，绝不由数字反推；数字也绝不与另一套标准的标签同时出现。当只有类别存在时，就单独显示类别。缺少一个信号，好过给出一个错误的信号。"
+        "description": "有些数据源只给类别、不给数值：法国空气质量指数显示「Moyen」却没有数值，而 Google 的通用指数相对美国标准是反向的——在那里 100 表示优。因此天气卡片与地点详情共用同一套呈现逻辑，遵循两条规则：显示的类别永远取自数据源发布的那一个，绝不从数值反推；数值也绝不与另一套标度的标签同行。缺失的信号，好过虚假的信号。"
+      },
+      "transparency_registers": {
+        "title": "操作与查阅双登记簿",
+        "description": "两个登记簿回答两个不同的问题，且从不合并：助手做了什么——发送、创建、删除，连同结果和您给出的确认——以及它为回答您而查阅了什么。查阅只记录能力本身，「您的日历」，绝不记录搜索的内容。两者都属于您：可在应用内阅读、可导出，并随账户一并删除。一项操作在发生之前就被登记，且只凭明确的结果才被关闭：绝不会仅因为没有报错，就宣称已经完成。"
+      },
+      "semantic_layer": {
+        "title": "贯通您数据的统一词汇",
+        "description": "联系人、邮件、日程、文件、地点：每一类在各处都使用同一个名称——一套三十一个术语的共同词汇，而不是每个集成各说各话。正因如此，一个问题才能跨越数据源：邮件里的那个人，就是日历里和笔记里的那个人。它们之间的关联带有类型、含义经过声明，助手据此推理关系，而不是靠名字相似去猜——新能力引入的词汇在启动时即校验，绝不留到使用中才发现。"
       },
       "native_shells": {
         "title": "原生外壳与唤醒中继",
@@ -9668,11 +9738,11 @@
       },
       "structured_minutes": {
         "title": "结构化会议纪要",
-        "description": "三十种纪要格式存在于代码中，它们的文字放在已翻译的数据里。模板由一个引用命名——内置或个人——会议、偏好设置与请求之间交换的是这个引用而非数据行：随附的格式因此无需数据库行。选择遵循唯一的优先级，由最明确到最一般，最后是一次模型调用：它读取转写摘录，并在置信度阈值之上作出选择；结果会被计数，并连同理由写入该会议。返回整份转写无法装进一次回答：它按部分重写，每部分都受该槽位有效输出窗口的约束。"
+        "description": "LIA 随附三十种纪要格式，从决议清单到一页式摘要，你也可以添加自己的。选用哪一种，取决于可得的最明确信号：你的要求，其次是该会议的设置，再次是你的偏好——若三者皆无，则由模型读取片段来判断，并在把握不足时选择弃权而非猜测。最终由哪条途径决定，会写在该会议上。较长的转录逐段重写：两小时的会议绝不会为了塞进一次回答而被截断。"
       },
       "scoped_state": {
-        "title": "声明作用域的状态，由事件驱动的决策",
-        "description": "每一项保存的数据都会声明自己是什么——一段对话、一份缓存、一项学习成果，还是一次正在进行的执行——而每个操作读取的是这份声明，而不是名字的模式。因此清除对话就只是清除对话：学到的东西保留下来，而家族未知的数据会被保留并计数，而不是靠猜测处理。在此基础上，来自服务商的推送通知不再只是缓存提示，而成为一次决策：它按用户与提供方各排入一次唤醒——密集到达只算一次，时间以第一条为准——再由一个短促的、经领导者选举的处理在完整的资格规则下服务它（时段、配额、冷却、来源偏好），只跳过那条用于摊平例行处理的平滑规则。刚到达的素材只被预读、绝不消费，直到决策真正作出：被拒绝的唤醒会把邮件留在原处，等下一次例行处理来取。"
+        "title": "遗忘，就是真正地遗忘",
+        "description": "助手保存的每一项都会声明自己是什么——一段对话、一份缓存、一条习得、一项进行中的任务——每一次操作都读取这份声明，而不是从名称去猜。因此，清除一段对话就只清除这段对话：LIA 关于您的习得会留下；性质不明确的条目会被保留并计数，而不是凭猜测删除。反向同样成立：只有「全部忘记」和删除账户，才会移除习得的内容。"
       }
     },
     "architecture": {
@@ -10330,9 +10400,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p>"
       },
       "observability": {
-        "title": "519个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
+        "title": "535个Prometheus指标、26个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：473指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 519个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 535个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>26个Grafana仪表板</h2><p>LIA提供26个编号01至26的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony和briefing。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -10932,7 +11002,7 @@
   "story": {
     "meta": {
       "title": "故事 — 指挥一个会写代码的AI | LIA",
-      "description": "LIA 是如何构建的：约 100% 的代码由 AI 在人类指导下编写，26,600+ 个测试，240 份架构决策记录，技术审计得分 8.3/10。完整的实践复盘。"
+      "description": "LIA 是如何构建的：约 100% 的代码由 AI 在人类指导下编写，31,000+ 个测试，262 份架构决策记录，技术审计得分 8.3/10。完整的实践复盘。"
     },
     "breadcrumb": "经验报告",
     "hero": {
@@ -11941,6 +12011,252 @@
         "template_limit_reached": "已达到模板上限",
         "duplicate_failed": "无法添加",
         "delete_failed": "无法删除"
+      }
+    }
+  },
+  "effects": {
+    "journal": {
+      "description": "LIA 代您执行的一切，按记录呈现。",
+      "empty_action": "前往对话",
+      "empty_description": "为您执行的操作将显示在这里。",
+      "empty_filtered_description": "请尝试其他状态。",
+      "empty_filtered_title": "没有操作符合此筛选条件",
+      "empty_title": "尚无任何操作",
+      "error": "无法加载操作记录。",
+      "filter_label": "按状态筛选",
+      "load_more": "加载更多",
+      "loading": "正在加载操作记录",
+      "source": {
+        "scheduled": "计划任务",
+        "subagent": "子代理",
+        "user": "应您的要求"
+      },
+      "status": {
+        "abandoned": "已中断",
+        "all": "全部",
+        "claimed": "进行中",
+        "failed": "已失败",
+        "refused": "已拒绝",
+        "succeeded": "已完成"
+      },
+      "title": "操作记录",
+      "total_one": "{{count}} 项操作",
+      "total_other": "{{count}} 项操作",
+      "refresh": "刷新",
+      "retry": "重试"
+    },
+    "labels": {
+      "activate_hue_scene_tool": "已启用灯光场景「{{target}}」",
+      "activate_skill_tool": "已启用技能「{{target}}」",
+      "apply_labels_tool": "已为 {{count}} 个项目添加标签",
+      "browser_task_tool": "已执行网页浏览：{{target}}",
+      "complete_task_tool": "已将任务「{{target}}」标记为完成",
+      "control_hue_light_tool": "已调整灯光「{{target}}」",
+      "control_hue_room_tool": "已调整房间「{{target}}」的灯光",
+      "draft": {
+        "contact": "已创建联系人「{{target}}」",
+        "contact_delete": "已删除联系人「{{target}}」",
+        "contact_update": "已修改联系人「{{target}}」",
+        "devops_task": "已在「{{target}}」上执行运维任务",
+        "document_append": "已向文档「{{target}}」追加内容",
+        "email": "已向 {{recipient}} 发送邮件",
+        "email_delete": "已删除邮件：{{target}}",
+        "email_filter": "已创建邮件过滤器",
+        "email_forward": "已将邮件转发给 {{recipient}}",
+        "email_reply": "已回复 {{recipient}}",
+        "event": "已创建日程「{{target}}」",
+        "event_delete": "已删除日程「{{target}}」",
+        "event_update": "已修改日程「{{target}}」",
+        "file_delete": "已删除文件「{{target}}」",
+        "label_delete": "已删除标签「{{target}}」",
+        "peer_message": "已向 {{recipient}} 发送消息",
+        "phone_call": "已致电 {{recipient}}",
+        "reminder_delete": "已删除提醒「{{target}}」",
+        "scheduled_action": "已创建计划操作「{{target}}」",
+        "spreadsheet_write": "已更新电子表格「{{target}}」",
+        "task": "已创建任务「{{target}}」",
+        "task_delete": "已删除任务「{{target}}」",
+        "task_update": "已修改任务「{{target}}」",
+        "vacation_responder": "已设置外出自动回复"
+      },
+      "edit_image": "已修改图片：{{target}}",
+      "generate_document": "已生成文档「{{target}}」",
+      "generate_image": "已生成图片：{{target}}",
+      "generic": "已执行「{{tool}}」操作",
+      "import_user_skill": "已将技能「{{target}}」加入您的资料库",
+      "mcp": "已使用外部工具「{{tool}}」",
+      "remove_labels_tool": "已从 {{count}} 个项目移除标签",
+      "run_python_tool": "已在沙盒中执行计算",
+      "run_skill_script": "已执行技能「{{target}}」的脚本",
+      "set_current_item": "已将「{{target}}」设为当前对话对象",
+      "toggle_scheduled_action_tool": "已启用或暂停计划操作「{{target}}」"
+    },
+    "export": {
+      "group_label": "导出此记录",
+      "markdown": "导出（可读）",
+      "csv": "导出（CSV）",
+      "technical": "技术格式",
+      "markdown_hint": "可阅读的文档，含您自己的措辞。",
+      "csv_hint": "可统计的表格，含您自己的措辞。",
+      "technical_hint": "JSON Lines：同样的事件，但不含任何内容，标识符已假名化。可随报告附上，而不泄露所说的内容。"
+    }
+  },
+  "treatments": {
+    "journal": {
+      "title": "LIA 查阅过的内容",
+      "description": "对话期间被调用的每一项能力——绝不记录你问了什么，只记录查阅了什么。",
+      "refresh": "刷新",
+      "error": "无法加载查阅记录。",
+      "retry": "重试",
+      "total_one": "{{count}} 次查阅",
+      "total_other": "{{count}} 次查阅",
+      "filter_label": "按能力筛选",
+      "all_capabilities": "全部",
+      "empty_title": "尚无查阅记录",
+      "empty_description": "当 LIA 查阅你的任一数据时，记录会出现在这里。",
+      "empty_filtered_title": "该能力没有查阅记录",
+      "empty_filtered_description": "请选择其他能力，或返回完整列表。",
+      "empty_action": "打开对话",
+      "load_more": "显示更多",
+      "duration": "{{ms}} 毫秒",
+      "outcome": {
+        "failed": "无响应"
+      },
+      "repeats": "×{{count}}"
+    },
+    "domains": {
+      "automation": "自动化",
+      "brave": "Brave 搜索",
+      "browser": "网页浏览器",
+      "contact": "联系人",
+      "context": "对话上下文",
+      "devops": "服务器管理",
+      "document": "文档",
+      "document_generation": "文档生成",
+      "email": "电子邮件",
+      "event": "日历",
+      "file": "文件",
+      "health": "健康数据",
+      "hue": "智能照明",
+      "image_generation": "图像生成",
+      "mcp": "外部服务器（MCP）",
+      "peer": "联结伙伴",
+      "perplexity": "Perplexity 搜索",
+      "place": "地点",
+      "python_sandbox": "隔离的 Python 计算",
+      "query": "在你的数据中搜索",
+      "reminder": "提醒",
+      "route": "路线",
+      "skill": "技能",
+      "sub_agent": "子代理",
+      "task": "任务",
+      "telephony": "电话",
+      "weather": "天气",
+      "web_fetch": "网页",
+      "web_search": "网页搜索",
+      "wikipedia": "维基百科",
+      "unknown": "未识别的能力"
+    }
+  },
+  "registers": {
+    "title": "透明度记录",
+    "description": "两份独立的清单：LIA 做了什么，以及它查阅了什么。二者统计的对象不同，不能相加。",
+    "tab_actions": "操作",
+    "tab_consultations": "查阅",
+    "seal": {
+      "loading": "正在加载封存状态",
+      "disabled": "本实例未启用记录封存。您的登记册仍然完整可读；缺少的只是它们未被修改的证明。",
+      "not_yet": "尚未封存",
+      "sealed_until": "记录已封存至 {{date}}",
+      "pending_one": "{{count}} 行尚未封存",
+      "pending_other": "{{count}} 行尚未封存",
+      "verify": "验证完整性",
+      "verifying": "正在验证……",
+      "verify_failed": "验证未完成。不显示任何结论：与其断言未经核实的事，不如什么都不说。",
+      "verdict_ok_one": "完好：{{count}} 行重新计算的结果与其指纹一致。",
+      "verdict_ok_other": "完好：{{count}} 行重新计算的结果与其指纹一致。",
+      "verdict_broken": "在第 {{seq}} 位发现断裂。某条登记行或某条封存记录在应用之外被修改。请向本实例的管理员报告。",
+      "fingerprint": "最终指纹："
+    },
+    "tab_overview": "总览",
+    "charts": {
+      "loading": "正在加载图表数据",
+      "empty": "该时间段内没有数据。",
+      "error": "无法计算图表数据。",
+      "activity": {
+        "title": "每日活动",
+        "description": "每个单位代表一个对话轮次——其余卡片对这条时间线的细分。",
+        "legend": "轮次"
+      },
+      "turns_outcome": {
+        "title": "轮次的结局",
+        "description": "未能作答的轮次是一个事实，而非缺失。"
+      },
+      "turns_mode": {
+        "title": "执行模式",
+        "description": "Pipeline 或 ReAct：切换会使单轮成本相差 4 到 8 倍。"
+      },
+      "actions_status": {
+        "title": "按结果统计的操作",
+        "description": "LIA 对外做了什么，以及结果如何。"
+      },
+      "consultations_domain": {
+        "title": "按领域统计的查阅",
+        "description": "为作答而查阅的内容——记录能力，绝不记录请求。"
+      },
+      "latency": {
+        "title": "各工具平均延迟",
+        "description": "一次查阅的平均执行时间。"
+      },
+      "calls_model": {
+        "title": "按模型统计的调用",
+        "description": "实际作答的模型，而非今天所配置的模型。"
+      },
+      "calls_node": {
+        "title": "按图节点统计的调用",
+        "description": "子代理与 MCP 服务器已归并：它们的名称不属于我们。"
+      },
+      "tokens_model": {
+        "title": "按模型统计的词元",
+        "description": "输入与输出并列于同一条形。"
+      },
+      "integrity": {
+        "title": "记录缺口",
+        "description": "没有登记行的操作、未被收集的查阅、断裂的链。",
+        "empty": "没有缺口：该时间段的记录是完整的。"
+      },
+      "legend": {
+        "turns": "轮次",
+        "actions": "操作",
+        "consultations": "查阅",
+        "calls": "调用",
+        "latency": "延迟",
+        "prompt_tokens": "输入词元",
+        "completion_tokens": "输出词元",
+        "gaps": "缺口"
+      },
+      "outcome": {
+        "answered": "已回复",
+        "failed": "失败",
+        "interrupted": "中断"
+      },
+      "status": {
+        "succeeded": "成功",
+        "failed": "失败",
+        "refused": "已拒绝",
+        "claimed": "进行中",
+        "abandoned": "已放弃"
+      },
+      "integrity_kind": {
+        "effect_unrecorded": "未登记的操作",
+        "treatments_uncollected": "未收集的查阅",
+        "chain_broken": "链已断裂",
+        "notary_failed": "封存失败"
+      },
+      "badge": {
+        "count": "合计 {{value}}",
+        "stacked": "合计 {{value}}",
+        "average": "平均 {{value}}"
       }
     }
   }

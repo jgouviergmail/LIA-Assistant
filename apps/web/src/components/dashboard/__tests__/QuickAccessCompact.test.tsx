@@ -27,20 +27,43 @@ const RELATIONS = 'dashboard.quick_access_compact.relations';
 const SETTINGS = 'dashboard.quick_access_compact.settings';
 const SETTINGS_SUB = 'dashboard.quick_access_compact.settings_sub';
 const CAPABILITIES = 'dashboard.quick_access_compact.capabilities';
+const ACTIONS = 'dashboard.quick_access_compact.actions';
 
 describe('QuickAccessCompact', () => {
-  it('offers four destinations: help, relations, capabilities, settings', () => {
+  it('offers four destinations: help, capabilities, actions, settings', () => {
     // The constellation earns a door here rather than a sixth nav slot: the
     // header row is already at its widest, and this is a place you visit
-    // rather than a place you live.
+    // rather than a place you live. The action register (ADR-263) earns one
+    // for the same reason — you come here to CHECK what was done.
     renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     const links = screen.getAllByRole('link');
     expect(links).toHaveLength(4);
     expect(links[0]).toHaveAccessibleName(new RegExp(HELP));
-    expect(links[1]).toHaveAccessibleName(new RegExp(RELATIONS));
-    expect(links[2]).toHaveAccessibleName(new RegExp(CAPABILITIES));
+    expect(links[1]).toHaveAccessibleName(new RegExp(CAPABILITIES));
+    expect(links[2]).toHaveAccessibleName(new RegExp(ACTIONS));
     expect(links[3]).toHaveAccessibleName(new RegExp(SETTINGS));
+  });
+
+  it('does NOT duplicate a destination the header already carries', () => {
+    // Relations has a nav slot (`lib/dashboard-nav.ts`), so a tile here would
+    // be a second door to the same room. Asserted, not merely dropped:
+    // otherwise nothing stops it coming back.
+    renderWithProviders(<QuickAccessCompact lng="fr" />);
+
+    expect(screen.queryByRole('link', { name: new RegExp(RELATIONS) })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('link').map(link => link.getAttribute('href'))).not.toContain(
+      '/fr/dashboard/relations'
+    );
+  });
+
+  it('sends the action entry to the register', () => {
+    renderWithProviders(<QuickAccessCompact lng="fr" />);
+
+    expect(screen.getByRole('link', { name: new RegExp(ACTIONS) })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/actions'
+    );
   });
 
   it('sends the capabilities entry to the constellation', () => {
@@ -52,16 +75,12 @@ describe('QuickAccessCompact', () => {
     );
   });
 
-  it('links to the localized FAQ, relations and settings pages', () => {
+  it('links to the localized FAQ and settings pages', () => {
     renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     expect(screen.getByRole('link', { name: new RegExp(HELP) })).toHaveAttribute(
       'href',
       '/fr/dashboard/faq'
-    );
-    expect(screen.getByRole('link', { name: new RegExp(RELATIONS) })).toHaveAttribute(
-      'href',
-      '/fr/dashboard/relations'
     );
     expect(screen.getByRole('link', { name: new RegExp(SETTINGS) })).toHaveAttribute(
       'href',

@@ -504,6 +504,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'system',
     gate: { kind: 'superuser' },
   },
+  'admin-registers': {
+    titleKey: 'settings.admin.registers.title',
+    descriptionKey: 'settings.admin.registers.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-registers`,
+    group: 'system',
+    gate: { kind: 'superuser' },
+  },
   'admin-public-demo-link': {
     titleKey: 'settings.admin.publicDemoLink.title',
     descriptionKey: 'settings.admin.publicDemoLink.description',

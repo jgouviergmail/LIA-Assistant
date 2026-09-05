@@ -32,6 +32,12 @@ FIELD_TURN_ID = "turn_id"
 FIELD_STEP_ID = "step_id"
 FIELD_WAVE_ID = "wave_id"
 FIELD_PLAN_ID = "plan_id"
+#: The tool parameter the executor fills with a ``ToolRuntime``. It is
+#: plumbing, not intent: the effect ledger excludes it from the evidence,
+#: because ``str()`` of a fresh object carries its ADDRESS and two identical
+#: calls would then digest differently.
+FIELD_INJECTED_RUNTIME = "runtime"
+
 FIELD_AGENT_NAME = "agent_name"
 FIELD_AGENT_TYPE = "agent_type"
 FIELD_NODE_NAME = "node_name"

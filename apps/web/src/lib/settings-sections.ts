@@ -367,6 +367,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'admin-public-demo-link',
     declaredIn: 'components/settings/AdminPublicDemoLinkSection.tsx',
   },
+  'admin-registers': {
+    tab: 'administration',
+    accordionValue: 'admin-registers',
+    declaredIn: 'components/settings/AdminRegistersSection.tsx',
+  },
   'admin-diagnostics': {
     tab: 'administration',
     accordionValue: 'admin-diagnostics',

@@ -58,6 +58,7 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.context import get_tool_context_store
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.effects.decisions import note_route
 
 # Phase 2.1.6 - SubGraph Callback Propagation Fix
 from src.domains.agents.graphs.base_agent_builder import (
@@ -237,6 +238,11 @@ def route_from_router(state: MessagesState) -> str:
         from_node=NODE_ROUTER,
         to_node=next_node,
     ).inc()
+
+    # ADR-263 lot 6: the ONE chokepoint where the turn's route is decided —
+    # pipeline and ReAct both leave through this return. Recording it anywhere
+    # else would be a second reading of the same decision.
+    note_route(next_node)
 
     return next_node
 

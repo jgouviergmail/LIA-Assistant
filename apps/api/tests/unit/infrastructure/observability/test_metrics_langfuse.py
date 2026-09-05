@@ -24,7 +24,6 @@ from src.infrastructure.observability.metrics_langfuse import (
     langfuse_prompt_version_usage,
     langfuse_subgraph_invocations,
     # Tool Call Tracing Metrics (Phase 3.1.5.2)
-    langfuse_tool_calls,
     # Subgraph Tracing Metrics (Phase 3.1.5.1)
     langfuse_trace_depth,
 )
@@ -295,63 +294,6 @@ class TestSubgraphTracingMetrics:
         assert success_rate >= 90.0
 
 
-class TestToolCallTracingMetrics:
-    """Test Phase 3.1.5.2 - Tool Call Tracing Metrics."""
-
-    def test_langfuse_tool_calls_metric_exists(self):
-        """Test langfuse_tool_calls metric."""
-        assert langfuse_tool_calls is not None
-        assert langfuse_tool_calls._name == "langfuse_tool_calls"
-
-    def test_langfuse_tool_calls_success(self):
-        """Test successful tool calls."""
-        # Test search_contacts
-        langfuse_tool_calls.labels(tool_name="search_contacts", success="true").inc()
-
-        # Test create_contact
-        langfuse_tool_calls.labels(tool_name="create_contact", success="true").inc()
-
-        # Test send_email
-        langfuse_tool_calls.labels(tool_name="send_email", success="true").inc()
-
-        # Test search_emails
-        langfuse_tool_calls.labels(tool_name="search_emails", success="true").inc()
-
-        assert (
-            langfuse_tool_calls.labels(tool_name="search_contacts", success="true")._value._value
-            >= 1
-        )
-
-    def test_langfuse_tool_calls_failure(self):
-        """Test failed tool calls."""
-        # Simulate tool failures
-        langfuse_tool_calls.labels(tool_name="search_contacts", success="false").inc()
-        langfuse_tool_calls.labels(tool_name="send_email", success="false").inc()
-
-        assert (
-            langfuse_tool_calls.labels(tool_name="search_contacts", success="false")._value._value
-            >= 1
-        )
-
-    def test_langfuse_tool_calls_success_rate_calculation(self):
-        """Test tool call success rate calculation."""
-        tool = "test_tool"
-
-        # 95 successes, 5 failures (95% success rate)
-        for _ in range(95):
-            langfuse_tool_calls.labels(tool_name=tool, success="true").inc()
-
-        for _ in range(5):
-            langfuse_tool_calls.labels(tool_name=tool, success="false").inc()
-
-        success_count = langfuse_tool_calls.labels(tool_name=tool, success="true")._value._value
-        failure_count = langfuse_tool_calls.labels(tool_name=tool, success="false")._value._value
-
-        success_rate = success_count / (success_count + failure_count) * 100
-
-        assert success_rate >= 95.0
-
-
 class TestMultiAgentHandoffMetrics:
     """Test Phase 3.1.5.3 - Multi-Agent Handoff Metrics."""
 
@@ -450,27 +392,29 @@ class TestMetricsIntegration:
         assert langfuse_trace_depth._name == "langfuse_trace_depth"
         assert langfuse_subgraph_invocations._name == "langfuse_subgraph_invocations"
 
-        # Tool call tracing (Counter)
-        assert langfuse_tool_calls._name == "langfuse_tool_calls"
-
         # Multi-agent handoff (Counter + Histogram)
         assert langfuse_agent_handoffs._name == "langfuse_agent_handoffs"
         assert langfuse_handoff_duration_seconds._name == "langfuse_handoff_duration_seconds"
 
     def test_langfuse_metrics_count(self):
-        """Test correct number of Langfuse metrics (7 total)."""
+        """Test correct number of Langfuse metrics.
+
+        ``langfuse_tool_calls`` was removed with ADR-263's dead-code sweep: its
+        only producer (``llm/tool_tracing.py``) had no caller, so the counter
+        could never rise and the dashboard panel reading it showed an empty
+        series while claiming tool tracing was measured.
+        """
         langfuse_metrics = [
             langfuse_prompt_version_usage,
             langfuse_evaluation_score,
             langfuse_ab_test_variant,
             langfuse_trace_depth,
             langfuse_subgraph_invocations,
-            langfuse_tool_calls,
             langfuse_agent_handoffs,
             langfuse_handoff_duration_seconds,
         ]
 
-        assert len(langfuse_metrics) == 8  # 5 Counters + 3 Histograms
+        assert len(langfuse_metrics) == 7  # 4 Counters + 3 Histograms
 
     def test_simulate_complete_langfuse_flow(self):
         """Test simulating complete Langfuse observability flow."""
@@ -486,16 +430,13 @@ class TestMetricsIntegration:
         # 4. Track subgraph invocation
         langfuse_subgraph_invocations.labels(subgraph_name="contacts_agent", status="success").inc()
 
-        # 5. Track tool call
-        langfuse_tool_calls.labels(tool_name="search_contacts", success="true").inc()
-
-        # 6. Track agent handoff
+        # 5. Track agent handoff
         langfuse_agent_handoffs.labels(source_agent="router", target_agent="planner").inc()
         langfuse_handoff_duration_seconds.labels(
             source_agent="router", target_agent="planner"
         ).observe(0.5)
 
-        # 7. Track evaluation score
+        # 6. Track evaluation score
         langfuse_evaluation_score.labels(metric_name="relevance").observe(0.9)
 
         # All metrics tracked successfully (no exceptions = success)

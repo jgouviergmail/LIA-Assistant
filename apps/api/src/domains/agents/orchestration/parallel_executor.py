@@ -104,6 +104,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_user_id_str,
 )
 from src.domains.agents.data_registry.models import RegistryItemType, generate_registry_id
+from src.domains.agents.effects.scope import effect_scope, scope_from_config, step_effect_key
 from src.domains.agents.orchestration.condition_evaluator import (
     ConditionEvaluator,
     ReferenceResolver,
@@ -2711,7 +2712,16 @@ async def _execute_tool(
                     args = {k: v for k, v in args.items() if k in valid_params}
 
             # Direct coroutine call - preserves StandardToolOutput!
-            result = await tool.coroutine(**args)
+            # ADR-263: publish the authority this step runs under. The pipeline
+            # confirms AFTER execution through drafts, so nothing is approved
+            # here — the gate refuses a ``confirm`` tool rather than running it
+            # unconfirmed, which is the defect H2 measured.
+            with effect_scope(
+                scope_from_config(
+                    config, idempotency_key=step_effect_key(config, step_id or tool_name)
+                )
+            ):
+                result = await tool.coroutine(**args)
 
             logger.debug(
                 "tool_direct_coroutine_call",
@@ -2721,7 +2731,12 @@ async def _execute_tool(
             )
         else:
             # Fallback to ainvoke for sync tools or non-StructuredTool
-            result = await tool.ainvoke(tool_call, config)
+            with effect_scope(
+                scope_from_config(
+                    config, idempotency_key=step_effect_key(config, step_id or tool_name)
+                )
+            ):
+                result = await tool.ainvoke(tool_call, config)
 
             logger.debug(
                 "tool_ainvoke_fallback",

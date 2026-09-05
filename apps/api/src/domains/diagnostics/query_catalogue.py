@@ -230,6 +230,37 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             lia_metrics=("circuit_breaker_state",),
             external_metrics=(),
         ),
+        # ADR-263. Two questions an operator asks of the register itself, and
+        # they are different questions: "is the account of what the assistant
+        # did complete?" (a gap means an effect nobody can vouch for) and
+        # "what does that account COST?" (no purge ships, so the day one is
+        # needed is decided on this figure, per the owner's arbitration).
+        NamedQuery(
+            query_id="effect_register_gaps",
+            title="Effects performed with no record, or claimed and never closed",
+            promql_template=(
+                "sum(increase(lia_effect_unrecorded_total[{window_minutes}m])) "
+                "+ sum(increase(lia_effect_ledger_failures_total[{window_minutes}m])) "
+                "+ max(lia_effect_claimed_orphans)"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=(
+                "lia_effect_unrecorded_total",
+                "lia_effect_ledger_failures_total",
+                "lia_effect_claimed_orphans",
+            ),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="transparency_register_bytes",
+            title="What each transparency register occupies on disk",
+            promql_template="max by (table) (lia_ledger_bytes)",
+            params=(),
+            unit="bytes",
+            lia_metrics=("lia_ledger_bytes",),
+            external_metrics=(),
+        ),
     )
 }
 

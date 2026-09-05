@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.41.0] - 2026-09-05
+
+**Un assistant qui agit à votre place doit pouvoir dire ce qu'il a fait, et ce qu'il a regardé pour le faire.** Cette version ajoute cette capacité au produit : deux registres tenus automatiquement — les **actions** et les **consultations** — plus trois enregistrements techniques qui complètent la traçabilité attendue par l'article 12 de l'IA Act (le tour lui-même, les paramètres de chaque appel de modèle, et les lacunes du registre). Rien n'est déclaratif : une action est inscrite **avant** d'avoir lieu et close **uniquement** sur un résultat explicite, la porte est installée sur la capacité au moment de son enregistrement, et le démarrage refuse une capacité qui ne déclare pas ce qu'elle doit à l'utilisateur.
+
+**Les registres se lisent, s'exportent et se dessinent.** Un troisième onglet donne la forme de la période — dix séries agrégées côté serveur, jamais comptées dans le navigateur — et le même composant sert le lecteur pour son compte et l'exploitant pour un, plusieurs ou tous les comptes. L'export existe en trois formats, y compris le format technique, pour que le fichier d'un utilisateur soit transmissible tel quel.
+
+**Trois défauts trouvés par relecture adversariale, après des portes vertes.** Un export plafonné rendait les lignes les **plus anciennes** faute de tri — il couvrait janvier et nommait des modèles retirés, tout en annonçant sincèrement « plafonné ». Un brouillon confirmé dont la revendication était perdue renvoyait un dictionnaire vide, que l'appelant présentait comme un **succès**. Et l'extraction article 12 — la lecture la plus large de l'application — annonçait « réservé aux administrateurs » dans sa documentation sans jamais le vérifier.
+
+### Added
+
+- **Registre des actions et registre des consultations** : une ligne par action (envoi, création, suppression) avec son résultat, sa confirmation et sa politique déclarée ; une ligne par capacité consultée, qui retient **le domaine, jamais la demande**. Deux registres et non une liste filtrée : ils comptent des choses différentes et ne s'additionnent jamais.
+- **Une représentation graphique des registres** (`GET /effects/statistics`, `GET /admin/effects/statistics`) : dix séries, un onglet « Vue d'ensemble » pour l'utilisateur, la même vue pour l'administrateur sur un, plusieurs ou tous les comptes. Chaque figure porte le **total exact** de l'ensemble filtré, y compris ce que le top-12 a replié dans « autre ».
+- **Un export technique pour l'utilisateur**, en plus du lisible et du CSV : le même contrat que celui de l'administrateur, pour qu'un fichier remis à un tiers ne soit pas un format à part.
+- **Deux sujets « Sous le capot » sur la page d'accueil** : les registres de transparence, et le vocabulaire commun qui permet à une question de traverser les sources.
+
+### Changed
+
+- **Une série dit désormais ce que son chiffre signifie.** Trois natures — un compte, deux mesures empilées, une moyenne — parce qu'une somme de moyennes n'est pas une quantité et qu'un total qui ne couvre qu'une moitié d'une barre empilée est plus court que la barre. La latence moyenne est calculée **pondérée par les observations**, y compris pour la barre repliée.
+- **Un nom d'outil tiers ne peut plus atteindre un axe** : le graphique des latences groupait sur la colonne brute, ce qui affichait sur l'écran de l'exploitant les serveurs MCP installés par un compte. Il se replie maintenant sur un mot, comme le registre des consultations le faisait déjà.
+- **Les deux onglets des registres sont symétriques** : mêmes commandes aux mêmes endroits, filtre générique partagé, et un en-tête qui tient sur un téléphone.
+- **La tuile du tableau de bord s'appelle « Registres »** : la surface avait cessé d'être un journal des actions seul.
+- **La section « Sous le capot » est rééquilibrée et vulgarisée** : les articles allaient de 120 à 884 caractères, ils tiennent maintenant dans une même fourchette, dans le registre du reste du site et dans les six langues.
+
+### Fixed
+
+- **Une lecture plafonnée dit quel bout elle garde.** Les cinq lectures d'export portaient un `LIMIT` sans `ORDER BY` : PostgreSQL rendait les lignes les plus anciennes, si bien qu'un export lu le 2026-09-05 couvrait janvier à mars et nommait huit modèles que l'instance ne configure plus. Un assistant partagé trie du plus récent, plafonne, puis inverse.
+- **Un brouillon confirmé n'annonce plus un succès qu'il ignore.** Quand la revendication est perdue sur une ligne sans résultat — une première tentative en échec, ou une gagnante encore en vol — la porte lève désormais une erreur explicite, traduite dans les six langues, au lieu de rendre un dictionnaire vide que l'appelant présentait comme « fait ».
+- **L'extraction article 12 exige un administrateur.** Sa documentation l'affirmait, son code ne le vérifiait pas.
+- **Les graphiques de l'administrateur et la vérification de chaîne inter-comptes répondaient 422 à toute requête bien formée** : le garde-fou `require_superuser` est un helper impératif à deux paramètres, et le câbler en `Depends` en faisait un paramètre de requête obligatoire — la route était donc morte, et ne vérifiait rien.
+- **Une écriture de registre abandonnée n'est plus collectable en cours de route** : la tâche est retenue par le registre de tâches de fond du module, comme toute autre écriture différée.
+- **L'entrée d'audit d'un démasquage décrit la requête réellement exécutée**, et non le paramètre non substitué.
+
+### Tests
+
+- Trois nouvelles suites : la porte sur les exécuteurs de brouillons (aucune couverture directe jusqu'ici), l'arithmétique du pliage des séries, et la route des statistiques administrateur exercée **à travers le vrai routeur** — le défaut ne vivait que dans le câblage, un test de handler serait resté vert.
+- Trois gardes structurelles : aucune route d'administration sans contrôle réel (lecture AST d'un **appel**, pas d'une mention), aucun usage du helper impératif en dépendance, et aucun paramètre de requête obligatoire qu'un endpoint n'a pas déclaré.
+- 21 900 tests unitaires backend verts, couverture 72,04 % (plancher 70) ; 7 191 tests frontend.
+
 ## [1.40.0] - 2026-09-03
 
 **Trois boucles tournaient en silence, et une seule cause de plomberie les taisait.** Le push Google marchait — 802 notifications Gmail traitées en quinze jours, aucun jeton refusé — sans que rien n'en découle : leur unique lecteur invalidait des caches. Les habitudes observaient depuis des semaines sans jamais rien proposer. La boîte de propositions restait vide. L'audit a croisé les journaux, Redis et la base : **le « nouvelle conversation » effaçait toute clé Redis portant l'identifiant de l'utilisateur** — dont le registre des récurrences, l'ancre de lecture du courrier et les seuils adaptatifs. Cent soixante et un resets en cinquante-six jours : l'apprentissage n'a jamais eu quatorze jours devant lui.

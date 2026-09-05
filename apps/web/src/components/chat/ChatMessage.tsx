@@ -51,8 +51,10 @@ import { SkillBadge } from '@/components/ui/skill-badge';
 import { downloadImage } from '@/lib/utils/download-image';
 import { AssistantAvatar, type AvatarTooltipLine } from '@/components/psyche/AssistantAvatar';
 import { ExecutionTraceDisclosure } from '@/components/chat/ExecutionTraceDisclosure';
+import { PerformedEffects } from '@/components/chat/PerformedEffects';
 import { usePsycheStore } from '@/stores/psycheStore';
 import type { ExecutionTrace } from '@/types/execution-trace';
+import type { PerformedEffect } from '@/types/performed-effects';
 import type { PsycheStateSummary } from '@/types/psyche';
 import type { StreamPhase } from '@/types/chat-state';
 
@@ -274,6 +276,7 @@ function AssistantActionRow({
   feedbackProps,
   proactiveFeedback,
   trace,
+  effects,
   message,
   onRetry,
   onPrefillComposer,
@@ -285,6 +288,8 @@ function AssistantActionRow({
    *  (`responseFeedbackProps` returns null for proactive bubbles). */
   proactiveFeedback: React.ReactNode;
   trace?: ExecutionTrace;
+  /** What the register recorded for this turn (ADR-263). */
+  effects?: PerformedEffect[];
   /** The bubble being decorated — read for its pinned retry prompt. */
   message: Message;
   /** W3: wired only on the latest error bubble (the list decides). */
@@ -342,6 +347,9 @@ function AssistantActionRow({
           incoming connection requests — self-gated on the metadata. */}
       <PeerMessageActions metadata={message.metadata} onPrefillComposer={onPrefillComposer} />
       <ExecutionTraceDisclosure trace={trace} />
+      {/* ADR-263: what the turn actually DID. Visible, never folded — a claim
+          the reader must expand to see is a claim they will miss. */}
+      <PerformedEffects effects={effects} />
     </div>
   );
 }
@@ -1037,6 +1045,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                   ) : null
                 }
                 trace={message.executionTrace}
+                effects={message.performedEffects}
                 message={message}
                 onRetry={onRetry}
                 onPrefillComposer={props.onPrefillComposer}

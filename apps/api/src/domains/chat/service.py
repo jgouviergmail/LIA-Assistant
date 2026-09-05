@@ -49,10 +49,6 @@ from src.domains.chat.run_records import (
     run_offset_ms,
 )
 from src.domains.chat.schemas import TokenSummaryDTO, UserStatisticsResponse
-
-# The record shapes live in their own module (they are a data contract read by
-# ``run_records`` and the debug panel); re-exported here because every existing
-# caller imports them from this module.
 from src.domains.chat.tracking_records import (  # noqa: F401  (re-export)
     GoogleApiRecord,
     ImageGenerationRecord,
@@ -60,6 +56,11 @@ from src.domains.chat.tracking_records import (  # noqa: F401  (re-export)
     TTSUsageRecord,
 )
 from src.infrastructure.database import get_db_context
+
+# The record shapes live in their own module (they are a data contract read by
+# ``run_records`` and the debug panel); re-exported here because every existing
+# caller imports them from this module.
+from src.infrastructure.llm.inference_params import InferenceParams
 
 logger = structlog.get_logger(__name__)
 
@@ -258,6 +259,7 @@ class TrackingContext:
         llm_type: str | None = None,
         status: str | None = None,
         failure_kind: str | None = None,
+        params: InferenceParams | None = None,
     ) -> None:
         """
         Record token usage for a single LLM node call.
@@ -327,6 +329,13 @@ class TrackingContext:
                 llm_type=llm_type,
                 status=status,
                 failure_kind=failure_kind,
+                provider=params.provider if params else None,
+                temperature=params.temperature if params else None,
+                top_p=params.top_p if params else None,
+                max_output_tokens=params.max_output_tokens if params else None,
+                reasoning_level=params.reasoning_level if params else None,
+                reasoning_budget_tokens=params.reasoning_budget_tokens if params else None,
+                params_digest=params.params_digest if params else None,
             )
             self._node_records.append(record)
 
@@ -1044,6 +1053,14 @@ class TrackingContext:
                 "llm_type": record.llm_type,
                 "status": record.status,
                 "failure_kind": record.failure_kind,
+                # ADR-263 lot 7: what was SENT, not what is configured.
+                "provider": record.provider,
+                "temperature": record.temperature,
+                "top_p": record.top_p,
+                "max_output_tokens": record.max_output_tokens,
+                "reasoning_level": record.reasoning_level,
+                "reasoning_budget_tokens": record.reasoning_budget_tokens,
+                "params_digest": record.params_digest,
             }
             for record in self._node_records
         ]

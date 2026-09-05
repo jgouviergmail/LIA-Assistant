@@ -4,7 +4,7 @@
 
 **Version** : 5.2
 **Date** : 2026-08-23
-**Application** : LIA v1.40.0
+**Application** : LIA v1.41.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -42,7 +42,7 @@ L'auto-hébergement a mauvaise réputation. LIA ne prétend pas éliminer toute 
 
 Une fois cette phase d'installation terminée, **tout le quotidien se gère depuis une interface web intuitive**. Plus besoin de terminal ni de fichiers de configuration.
 
-Depuis la v1.29.0, cette première phase est elle-même guidée : `./install.sh`, à la racine du dépôt, te pose un questionnaire court dans ta langue — comment tu veux accéder à l'instance, quelles clés fournisseur tu détiens — puis construit les images depuis le code que tu as cloné, applique les données de référence en une seule transaction, crée ton compte administrateur sans jamais écrire un secret sur la ligne de commande, et vérifie enfin que l'installation fonctionne réellement plutôt que de simplement répondre. Si une étape échoue, la reprise repart exactement où elle s'est arrêtée.
+Cette première phase est elle-même guidée : `./install.sh`, à la racine du dépôt, te pose un questionnaire court dans ta langue — comment tu veux accéder à l'instance, quelles clés fournisseur tu détiens — puis construit les images depuis le code que tu as cloné, applique les données de référence en une seule transaction, crée ton compte administrateur sans jamais écrire un secret sur la ligne de commande, et vérifie enfin que l'installation fonctionne réellement plutôt que de simplement répondre. Si une étape échoue, la reprise repart exactement où elle s'est arrêtée.
 
 ### 2.2. Ce que chaque utilisateur peut configurer
 
@@ -173,7 +173,7 @@ Un agent de navigation (Playwright/Chromium headless) peut naviguer sur des site
 En installant Claude CLI (Claude Code) directement sur le serveur, les administrateurs peuvent diagnostiquer leur infrastructure en langage naturel depuis le chat de LIA : consulter les logs Docker, vérifier la santé des conteneurs, surveiller l'espace disque, analyser les erreurs. Cette fonctionnalité est réservée aux comptes administrateurs.
 
 
-Et depuis la v1.34, LIA se surveille aussi **elle-même** : elle lit sa propre télémétrie, tient un historique d'incidents diagnostiqués automatiquement à partir de ses runbooks d'exploitation, notifie les administrateurs quand quelque chose de critique s'ouvre, et leur offre un panneau « Santé de la plateforme » dans les réglages. Quand une panne est connue, elle en tient compte dans ses réponses au lieu de te laisser attendre un délai d'expiration.
+Et LIA se surveille aussi **elle-même** : elle lit sa propre télémétrie, tient un historique d'incidents diagnostiqués automatiquement à partir de ses runbooks d'exploitation, notifie les administrateurs quand quelque chose de critique s'ouvre, et leur offre un panneau « Santé de la plateforme » dans les réglages. Quand une panne est connue, elle en tient compte dans ses réponses au lieu de te laisser attendre un délai d'expiration.
 
 ### 3.9. Données santé personnelles
 
@@ -343,15 +343,27 @@ Le même principe vaut partout : un compteur porte la couleur des autres compteu
 
 Et la couleur ne porte jamais seule le sens : chaque étiquette garde son mot. Une interface qui ne fonctionne qu'en couleurs ne fonctionne pas pour tout le monde.
 
-### 6.4. Même ce que LIA apprend de toi est inspectable
+### 6.7. Même ce que LIA apprend de toi est inspectable
 
 La même transparence couvre l'apprentissage des habitudes : ce que LIA croit savoir de ton rythme et de tes demandes récurrentes vit dans un panneau dédié — carte de chaleur de tes 24 heures, pourcentage de jours actifs, barre de progression vers les premières détections, et pour chaque habitude les jours réels où elle a été observée plus les seuils exacts appliqués par le détecteur. Quand il n'y a pas d'habitude stable, le panneau le dit au lieu d'en inventer une. Pause, blocage définitif, suppression totale, recalcul rétroactif immédiat — et toute la fonction est éteinte tant que tu ne l'actives pas.
 
-### 6.5. Une surface qui décrit le produit y est tenue
+### 6.8. Une surface qui décrit le produit y est tenue
 
 La transparence a un mode de défaillance que personne ne remarque : un écran qui cesse discrètement de dire vrai. La carte des capacités — la page qui répond *qu'est-ce que mon assistant sait faire pour moi ?* — a publié treize entrées figées pendant des mois, tandis que le produit gagnait la génération d'images, les documents, les plugins, les habitudes apprises, les serveurs MCP et les appels téléphoniques. Rien n'était cassé, aucun test ne virait au rouge, et la page qui existait pour être à jour était devenue la moins à jour de l'application. Une consigne écrite demandait déjà de la maintenir ; les consignes sont précisément ce qu'un mois chargé érode. La règle est donc devenue mécanique : deux tables déclarées doivent rendre compte de chaque capacité que la plateforme sait couper, chaque exclusion portant une raison écrite, et une assertion s'exécute au chargement du code — une capacité livrée sans décider de sa place sur la carte empêche l'application de démarrer. La même conviction, d'un cran plus loin : ce qu'un écran affirme de tes données doit être **exact ou absent**. Un décompte est le nombre que rend la base, jamais une longueur qui traînait à portée de main ; et tant que la réponse est en route, ou quand elle a échoué, la carte ne dit rien plutôt que de deviner. « Rien de configuré » est une affirmation sur ton compte — de celles dont il vaut mieux être sûr avant de les prononcer.
 
 La transparence vaut aussi pour les règles internes de l'assistant. Une contrainte que le système applique doit être publiée à qui la subit : quand l'apprentissage des habitudes ne détecte rien, les Réglages affichent le seuil réellement exigé — plus strict le week-end, où les jours observés sont moins nombreux — au lieu d'un silence inexpliqué. Et quand un réglage s'ajuste tout seul, comme le seuil qui décide qu'une note du journal entre dans une réponse, il le fait dans des bornes strictes, un petit pas par jour, avec un interrupteur d'arrêt et chaque ajustement compté : un système qui apprend n'est acceptable que s'il reste observable et débrayable.
+
+### 6.9. Deux registres : ce que LIA a fait, et ce qu'elle a regardé
+
+La transparence sur le *raisonnement* est une chose ; celle sur les *actes* en est une autre, et c'est elle qui compte quand un assistant peut envoyer, créer et supprimer à ta place. LIA tient donc deux registres, automatiquement, et ne les mélange jamais.
+
+Les **actions** portent une ligne par chose faite pour toi — un e-mail envoyé, un événement créé, un fichier supprimé — avec son résultat et la confirmation que tu as donnée. Les **consultations** portent une ligne par capacité utilisée pour te répondre, nommée sous la forme d'un domaine : « ton agenda », « tes e-mails ». Une consultation n'enregistre jamais ce qui a été cherché : l'écrire reviendrait à recopier la donnée même que le registre existe pour rendre redevable.
+
+La garantie est structurelle plutôt que promise. Une action est inscrite **avant** d'avoir lieu et close **uniquement** sur un résultat explicite : un succès n'est jamais déduit d'une erreur absente. L'enregistrement est installé sur la capacité elle-même au moment où elle est déclarée, si bien qu'un nouvel outil ne peut pas l'oublier. Et le serveur refuse de démarrer si une capacité ne déclare pas ce qu'elle te doit — une lecture, un brouillon, une confirmation, quelque chose de réversible.
+
+Un troisième onglet dessine la période en graphiques, chacun portant à côté de ses barres le total exact de l'ensemble : ce que tu vois se vérifie au lieu de se croire. Tout s'exporte en trois formats — lisible, tableur, et le format machine qu'un auditeur demanderait — tout part avec l'archive de ton compte et disparaît avec lui. Là où ton administrateur l'active, les deux registres sont scellés par compte avec des empreintes que tu peux vérifier toi-même.
+
+C'est aussi ce que l'article 12 du règlement européen sur l'IA attend d'un système comme celui-ci. LIA y répond avec cinq enregistrements au total : les deux ci-dessus, plus le tour lui-même, les paramètres réellement envoyés à chaque modèle, et les lacunes du registre — parce qu'un registre incapable de dire où il est incomplet demande qu'on lui fasse confiance au lieu de se laisser lire.
 
 ## 7. Profondeur émotionnelle
 
@@ -489,9 +501,9 @@ Si un fournisseur change ses tarifs ou dégrade son service, tu bascules instant
 
 ### 9.3. Extensibilité
 
-Chaque utilisateur peut connecter ses propres serveurs MCP, étendant les capacités de LIA bien au-delà des outils intégrés. Le client parle les deux générations du protocole — la nouvelle révision sans état comme l'ancien handshake, choisis automatiquement par serveur — si bien que l'ouverture ne coûte jamais la compatibilité. Les Skills (standard agentskills.io) permettent d'injecter des instructions expertes en langage naturel — avec un générateur de Skills intégré qui les crée en dialogue guidé et les installe directement dans tes skills, prêtes à l'emploi. Depuis la v1.16.8, un Skill peut également retourner une **frame HTML interactive** (carte, dashboard, calendrier, convertisseur...) ou une **image** (QR code, graphique) directement dans le chat, sandboxée sous CSP stricte, avec thème et langue synchronisés automatiquement.
+Chaque utilisateur peut connecter ses propres serveurs MCP, étendant les capacités de LIA bien au-delà des outils intégrés. Le client parle les deux générations du protocole — la nouvelle révision sans état comme l'ancien handshake, choisis automatiquement par serveur — si bien que l'ouverture ne coûte jamais la compatibilité. Les Skills (standard agentskills.io) permettent d'injecter des instructions expertes en langage naturel — avec un générateur de Skills intégré qui les crée en dialogue guidé et les installe directement dans tes skills, prêtes à l'emploi. Un Skill peut également retourner une **frame HTML interactive** (carte, dashboard, calendrier, convertisseur...) ou une **image** (QR code, graphique) directement dans le chat, sandboxée sous CSP stricte, avec thème et langue synchronisés automatiquement.
 
-Depuis la v1.30.9, cette ouverture a un format de paquet : LIA parle le standard ouvert **Agent Plugins** (agent-plugins.org), le format de plugin portable piloté par AWS, Microsoft, OpenAI, Cursor et Vercel et adopté par ChatGPT, Codex, Cursor, GitHub Copilot, Kiro et VS Code. Un plugin regroupant skills et serveurs MCP s'installe dans LIA en une étape — depuis un zip ou un lien https — avec un rapport complet par composant de ce qui a été installé, ignoré (et pourquoi) ou retiré, et se désinstalle tout aussi proprement, tout ce qu'il avait apporté repartant avec lui. L'interopérabilité est ici une conviction, pas une fonctionnalité : ce que tu construis ou adoptes ailleurs dans l'écosystème t'appartient et te suit.
+Cette ouverture a un format de paquet : LIA parle le standard ouvert **Agent Plugins** (agent-plugins.org), le format de plugin portable piloté par AWS, Microsoft, OpenAI, Cursor et Vercel et adopté par ChatGPT, Codex, Cursor, GitHub Copilot, Kiro et VS Code. Un plugin regroupant skills et serveurs MCP s'installe dans LIA en une étape — depuis un zip ou un lien https — avec un rapport complet par composant de ce qui a été installé, ignoré (et pourquoi) ou retiré, et se désinstalle tout aussi proprement, tout ce qu'il avait apporté repartant avec lui. L'interopérabilité est ici une conviction, pas une fonctionnalité : ce que tu construis ou adoptes ailleurs dans l'écosystème t'appartient et te suit.
 
 
 L'architecture de LIA est conçue pour faciliter l'ajout de nouveaux connecteurs, canaux, agents et fournisseurs IA. Le code est structuré avec des abstractions claires et des guides de développement dédiés (agent creation guide, tool creation guide) qui rendent l'extension accessible à tout développeur.

@@ -44,28 +44,12 @@ import pytest
 from src.domains.agents.registry.agent_registry import AgentRegistry
 from src.domains.agents.registry.catalogue_loader import initialize_catalogue
 
-# Every draft-based mutation tool (returns requires_confirmation=True → a draft
-# confirmed via draft_critique). ALL must be hitl_required=False.
-DRAFT_BASED_MUTATION_TOOLS: tuple[str, ...] = (
-    "send_email_tool",
-    "reply_email_tool",
-    "forward_email_tool",
-    "delete_email_tool",
-    "create_event_tool",
-    "update_event_tool",
-    "delete_event_tool",
-    "create_contact_tool",
-    "update_contact_tool",
-    "delete_contact_tool",
-    "create_task_tool",
-    "update_task_tool",
-    "delete_task_tool",
-    "create_label_tool",
-    "update_label_tool",
-    "delete_label_tool",
-    "create_reminder_tool",
-    "cancel_reminder_tool",
-)
+# The draft-based tools are DERIVED from the catalogue since ADR-263: a tool
+# whose manifest declares ``mutation_policy="draft"`` confirms through its
+# draft. The hand-maintained tuple this replaced listed 18 names and had to be
+# edited by whoever added the nineteenth — the declaration cannot be forgotten,
+# the list could.
+MIN_EXPECTED_DRAFT_TOOLS = 18  # what the hand list held on 2026-09-03 (anti-vacuity)
 
 # The ONLY tools allowed to require a pre-execution HITL interrupt: genuinely
 # non-draft mutations. Extend consciously — and make sure ReAct actually renders
@@ -81,12 +65,21 @@ def registry() -> AgentRegistry:
     return reg
 
 
-@pytest.mark.parametrize("tool_name", DRAFT_BASED_MUTATION_TOOLS)
-def test_draft_based_tool_is_not_hitl_required(registry: AgentRegistry, tool_name: str) -> None:
-    """Each draft-based tool exists and is hitl_required=False (no ReAct pre-interrupt)."""
-    manifest = registry.get_tool_manifest(tool_name)  # raises if renamed/removed
-    assert manifest.permissions.hitl_required is False, (
-        f"{tool_name} is draft-based (confirmed via draft_critique) but sets "
+def _draft_based_tools(registry: AgentRegistry) -> list[str]:
+    """Tools whose manifest declares the draft policy (ADR-263)."""
+    return sorted(m.name for m in registry.list_tool_manifests() if m.mutation_policy == "draft")
+
+
+def test_no_draft_based_tool_is_hitl_required(registry: AgentRegistry) -> None:
+    """Every draft-based tool is hitl_required=False (no ReAct pre-interrupt)."""
+    names = _draft_based_tools(registry)
+    assert len(names) >= MIN_EXPECTED_DRAFT_TOOLS, (
+        f"only {len(names)} draft tools found ({names}) — the derivation is vacuous, "
+        "so this test would pass while proving nothing."
+    )
+    offenders = [n for n in names if registry.get_tool_manifest(n).permissions.hitl_required]
+    assert not offenders, (
+        f"{offenders} are draft-based (confirmed via draft_critique) but set "
         "hitl_required=True. In ReAct this triggers the pre-execution "
         "'react_tool_approval' interrupt, which is unrendered → silent hang (#3). "
         "Set hitl_required=False."

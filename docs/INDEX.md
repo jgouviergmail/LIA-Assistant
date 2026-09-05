@@ -18,8 +18,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 261 ADR files (ADR-262 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
-| Fiches knowledge (RAG système) | 30 |
+| ADRs | 262 ADR files (ADR-263 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| Fiches knowledge (RAG système) | 37 |
 
 ---
 
@@ -48,7 +48,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (261 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (262 ADR files) |
 
 ### Pour les Product Managers
 
@@ -108,6 +108,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [Plan latence/TTFT](./superpowers/plans/2026-07-10-latency-optimization-plan.md) | Instrumentation par étage (`langgraph_stage_duration_seconds`), protocole reproductible (`scripts/perf/measure_ttft.py`), shortlist chiffrée & avant/après | 🚧 |
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
 | [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing — bounded context autonome sans LangGraph (ADR-077) : fetchers `asyncio.gather`, cache Redis par section, endpoints split cards/synthesis | ✅ |
+| [AI_ACT_TRACEABILITY.md](./technical/AI_ACT_TRACEABILITY.md) | Traçabilité (ADR-263, lots 5 à 9) : ce que LIA enregistre, ce que le scellement par compte prouve — et, dit noir sur blanc, ce qu'il ne prouve pas ; la carte de l'article 12 lot par lot, la fenêtre publiée, l'exploitation du notaire | ✅ |
 | [DIAGNOSTICS_DOMAIN.md](./technical/DIAGNOSTICS_DOMAIN.md) | Auto-diagnostic (ADR-247) : lecture Prometheus/Loki/Alertmanager qui ne lève jamais, catalogue de requêtes borné, auto-contrôle leader, mémoire d'incidents, diagnostic LLM budgété, advisor de dégradations sur le chemin de réponse | ✅ |
 | [DEBUG_PANEL_ARCHITECTURE.md](./technical/DEBUG_PANEL_ARCHITECTURE.md) | Debug Panel — flow des métriques de scoring (domaines, outils, intents) pour le tuning des thresholds | ✅ |
 
@@ -288,7 +289,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (31 files, 200+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (37 files, 200+ Q/A) | ✅ |
 
 ### Operations
 
@@ -608,7 +609,7 @@ LIA/
 │   ├── technical/              # Docs techniques détaillées (80+)
 │   ├── guides/                 # Guides pratiques (20+)
 │   ├── architecture/           # ADRs (119) + schémas Mermaid (.mmd)
-│   ├── knowledge/              # Fiches FAQ pour le RAG système (31)
+│   ├── knowledge/              # Fiches FAQ pour le RAG système (37)
 │   ├── runbooks/               # Procédures opérationnelles (40)
 │   ├── audit/                  # Audit technique 360° public + protocole
 │   └── readme/                 # README spécialisés (15)

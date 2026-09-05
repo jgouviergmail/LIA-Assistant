@@ -162,12 +162,56 @@ def _register_tool(tool_instance: BaseTool) -> None:
             )
             return
 
+        _install_effect_gate(tool_instance)
         _TOOL_REGISTRY[tool_name] = tool_instance
         logger.debug(
             "tool_auto_registered",
             tool_name=tool_name,
             tool_type=type(tool_instance).__name__,
         )
+
+
+def _install_effect_gate(tool_instance: BaseTool) -> None:
+    """Wrap the tool's coroutine with the effect gate, IN PLACE (ADR-263).
+
+    In place, not on a copy: modules keep their own references to the tool
+    objects they declared (``skills_tools`` is a module-level list, and the
+    ReAct wrapper holds ``_original_tool``), so a copy would leave every one of
+    those references pointing at an ungated capability. Mutating the instance
+    is what makes "registered" and "gated" the same thing.
+
+    Every registration path lands here — the ``@registered_tool`` decorator for
+    natives and ``register_external_tool`` for MCP adapters — which is the point:
+    a gate its callers must remember to invoke is a gate that will be forgotten
+    (measured: three call sites reach a tool today, through two different APIs).
+
+    Args:
+        tool_instance: The tool being registered; mutated in place.
+    """
+    from src.domains.agents.effects.runtime import (
+        EFFECT_GATED_ATTR,
+        EFFECT_GATED_NAME_ATTR,
+        gated,
+    )
+
+    coroutine = getattr(tool_instance, "coroutine", None)
+    if getattr(coroutine, EFFECT_GATED_ATTR, False) and (
+        getattr(coroutine, EFFECT_GATED_NAME_ATTR, tool_instance.name) == tool_instance.name
+    ):
+        # Already gated under its own name — a second registration, or a family
+        # that gates itself because its ``coroutine`` is a read-only property
+        # (the MCP adapters, reached through three doors that all meet inside
+        # ``_arun``). Writing to that property raises, so ask before assigning.
+        # A gate bound to ANOTHER name falls through: ``registration.py`` makes
+        # a renamed ``model_copy`` per MCP server, and a copy acting under the
+        # original's identity would be policed and recorded as the wrong tool.
+        return
+    if coroutine is None:
+        # Every registered tool is an async StructuredTool today (measured:
+        # 119/119). A synchronous one would need its own gate rather than a
+        # silent exemption, so it is refused loudly at the boot assert.
+        return
+    tool_instance.coroutine = gated(tool_instance.name, coroutine)
 
 
 def register_external_tool(tool_instance: BaseTool) -> None:
@@ -488,6 +532,11 @@ def _collect_tools_from_module(module: Any, module_name: str) -> None:
                 # Register if not already registered
                 with _REGISTRY_LOCK:
                     if tool_name not in _TOOL_REGISTRY:
+                        # ADR-263: the SECOND registration path. It used to write
+                        # straight into the dict, so 114 of the 122 tools entered
+                        # the registry without the effect gate — found by the
+                        # completeness assert, which is exactly what it is for.
+                        _install_effect_gate(attr)
                         _TOOL_REGISTRY[tool_name] = attr
                         collected_count += 1
                         logger.debug(

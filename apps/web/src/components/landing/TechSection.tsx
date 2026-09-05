@@ -8,9 +8,11 @@ import {
   GitBranch,
   KeyRound,
   Layers,
+  Network,
   PhoneCall,
   Radio,
   Search,
+  ScrollText,
   ShieldCheck,
   TabletSmartphone,
   TrendingUp,
@@ -28,6 +30,18 @@ interface TechSectionProps {
 }
 
 const TECH_ITEMS = [
+  {
+    // The registers open the section: what an assistant DID, and what it
+    // looked at, is the question a reader brings before any other.
+    key: 'transparency_registers',
+    icon: ScrollText,
+    iconBg: 'bg-gradient-to-br from-indigo-500/15 to-blue-500/15',
+  },
+  {
+    key: 'semantic_layer',
+    icon: Network,
+    iconBg: 'bg-gradient-to-br from-teal-500/15 to-emerald-500/15',
+  },
   {
     key: 'native_shells',
     icon: TabletSmartphone,

@@ -84,6 +84,7 @@ _set_vacation_desc = (
 
 set_vacation_responder_catalogue_manifest = ToolManifest(
     name="set_vacation_responder_tool",
+    mutation_policy="draft",
     # ADR-256: changes a Gmail setting that auto-replies to every sender.
     tool_category="update",
     agent="email_agent",
@@ -171,6 +172,7 @@ _create_filter_desc = (
 
 create_email_filter_catalogue_manifest = ToolManifest(
     name="create_email_filter_tool",
+    mutation_policy="draft",
     agent="email_agent",
     description=_create_filter_desc,
     semantic_keywords=[

@@ -843,6 +843,7 @@ class StreamingService:
                     )
 
                     await stages.add_interest_detection(debug_metrics, self.user_id, state, run_id)
+                    await stages.add_performed_effects(debug_metrics, run_id)
                     stages.add_memory_detection(debug_metrics, run_id)
 
                     logger.debug(

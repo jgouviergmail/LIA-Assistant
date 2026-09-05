@@ -25,6 +25,10 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT,
     ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT,
+    AGENT_ARTICLE12_EXPORT_MAX_ROWS_PER_SOURCE_DEFAULT,
+    AGENT_EFFECT_CLAIMED_ORPHAN_STALENESS_SECONDS_DEFAULT,
+    AGENT_EFFECT_RESULT_PAYLOAD_MAX_BYTES_DEFAULT,
+    AGENT_EFFECT_TECHNICAL_EXPORT_MAX_ROWS_DEFAULT,
     AGENT_HISTORY_KEEP_LAST_DEFAULT,
     AGENT_MAX_ITERATIONS_DEFAULT,
     AGENT_MAX_ITERATIONS_MAX,
@@ -172,6 +176,11 @@ from src.core.constants import (
     INTEREST_TOP_PERCENT_DEFAULT,
     LAST_KNOWN_LOCATION_MIN_DISTANCE_KM_DEFAULT,
     LAST_KNOWN_LOCATION_TTL_HOURS_DEFAULT,
+    LEDGER_CHAIN_ACCOUNTS_PER_PASS_DEFAULT,
+    LEDGER_CHAIN_ENABLED_DEFAULT,
+    LEDGER_CHAIN_INTERVAL_SECONDS_DEFAULT,
+    LEDGER_CHAIN_ROWS_PER_ACCOUNT_DEFAULT,
+    LEDGER_CHAIN_VERIFY_PAGE_DEFAULT,
     MAX_AGENT_RESULTS_DEFAULT,
     MAX_BROWSER_TOOL_TIMEOUT_SECONDS,
     MAX_CONTEXT_BATCH_SIZE_DEFAULT,
@@ -426,6 +435,85 @@ class AgentsSettings(BaseSettings):
         ge=10,
         le=1000,
         description="Max items in data registry (LRU eviction for cross-turn references)",
+    )
+
+    # --- Agent effects ledger (ADR-263) -----------------------------------
+    effect_result_payload_max_bytes: int = Field(
+        default=AGENT_EFFECT_RESULT_PAYLOAD_MAX_BYTES_DEFAULT,
+        ge=1024,
+        description=(
+            "Cap on the encrypted tool result kept per ledger row. Over it the "
+            "payload is cut and the row says so, so a resume re-executes "
+            "instead of serving half a value (ADR-263)."
+        ),
+    )
+    effect_claimed_orphan_staleness_seconds: int = Field(
+        default=AGENT_EFFECT_CLAIMED_ORPHAN_STALENESS_SECONDS_DEFAULT,
+        ge=60,
+        description=(
+            "Age past which an effect still CLAIMED counts as an orphan in the "
+            "gauge an operator watches. Must stay above the longest tool "
+            "timeout, or a call in flight would be reported as a gap (ADR-263)."
+        ),
+    )
+    effect_technical_export_max_rows: int = Field(
+        default=AGENT_EFFECT_TECHNICAL_EXPORT_MAX_ROWS_DEFAULT,
+        ge=100,
+        description=(
+            "Rows one pseudonymised technical export may carry. The cap travels "
+            "in the file's header, so a truncated answer says so (ADR-263)."
+        ),
+    )
+
+    article12_export_max_rows_per_source: int = Field(
+        default=AGENT_ARTICLE12_EXPORT_MAX_ROWS_PER_SOURCE_DEFAULT,
+        ge=50,
+        description=(
+            "Rows PER SOURCE the unified Article-12 extraction may carry. Lower "
+            "than the per-record cap on purpose (measured: 33,9 MB peak at "
+            "5 000 against 6,6 MB at 1 000), and the header states per source "
+            "whether it was reached (ADR-263 lot 9)."
+        ),
+    )
+
+    # --- Tamper-evident chain over the two registers (ADR-263, lot 5) ------
+    ledger_chain_enabled: bool = Field(
+        default=LEDGER_CHAIN_ENABLED_DEFAULT,
+        description=(
+            "Notarise the two registers into a per-account hash chain, so a "
+            "rewritten or deleted row becomes detectable. OFF by default: the "
+            "registers are complete without it (ADR-263)."
+        ),
+    )
+    ledger_chain_interval_seconds: int = Field(
+        default=LEDGER_CHAIN_INTERVAL_SECONDS_DEFAULT,
+        ge=10,
+        le=3600,
+        description=(
+            "Notary period. Also the window inside which a rewrite leaves no "
+            "trace — measured by lia_ledger_chain_lag_seconds, never assumed."
+        ),
+    )
+    ledger_chain_accounts_per_pass: int = Field(
+        default=LEDGER_CHAIN_ACCOUNTS_PER_PASS_DEFAULT,
+        ge=1,
+        description="Accounts one notary pass may serve before yielding the tick.",
+    )
+    ledger_chain_rows_per_account: int = Field(
+        default=LEDGER_CHAIN_ROWS_PER_ACCOUNT_DEFAULT,
+        ge=1,
+        description=(
+            "Rows one account may contribute to a single pass. A busier account "
+            "spans several ticks rather than holding one long transaction."
+        ),
+    )
+    ledger_chain_verify_page: int = Field(
+        default=LEDGER_CHAIN_VERIFY_PAGE_DEFAULT,
+        ge=10,
+        description=(
+            "Links one verification page reads. A chain has no upper length; "
+            "loading one whole is how an audit endpoint becomes an outage."
+        ),
     )
 
     widget_persist_max_bytes: int = Field(

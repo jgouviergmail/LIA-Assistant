@@ -39,6 +39,7 @@ _search_desc = (
 )
 search_wikipedia_catalogue_manifest = ToolManifest(
     name="search_wikipedia_tool",
+    mutation_policy="read",
     agent="wikipedia_agent",
     description=_search_desc,
     # VERY RESTRICTIVE: Only trigger when user explicitly mentions "Wikipedia"
@@ -103,6 +104,7 @@ _summary_desc = (
 )
 get_wikipedia_summary_catalogue_manifest = ToolManifest(
     name="get_wikipedia_summary_tool",
+    mutation_policy="read",
     agent="wikipedia_agent",
     description=_summary_desc,
     # VERY RESTRICTIVE: Only trigger when user explicitly mentions "Wikipedia"
@@ -157,6 +159,7 @@ _article_desc = (
 )
 get_wikipedia_article_catalogue_manifest = ToolManifest(
     name="get_wikipedia_article_tool",
+    mutation_policy="read",
     agent="wikipedia_agent",
     description=_article_desc,
     # VERY RESTRICTIVE: Only trigger when user explicitly mentions "Wikipedia"
@@ -225,6 +228,7 @@ _related_desc = (
 )
 get_wikipedia_related_catalogue_manifest = ToolManifest(
     name="get_wikipedia_related_tool",
+    mutation_policy="read",
     agent="wikipedia_agent",
     description=_related_desc,
     parameters=[

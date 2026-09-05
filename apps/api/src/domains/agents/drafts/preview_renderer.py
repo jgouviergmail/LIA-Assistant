@@ -33,6 +33,7 @@ method: ADR-122 characterization-first decomposition)
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -49,6 +50,12 @@ _FormatDt = Callable[[str | None], str]
 
 # One renderer per DraftType: (content, labels, format_dt) -> preview lines.
 _PreviewRenderer = Callable[[dict[str, Any], dict[str, str], _FormatDt], list[str]]
+
+#: A confirmation card is a question, not a payload dump.
+_TOOL_CALL_MAX_ARGS = 6
+
+#: One argument can be an entire email body: cap the VALUE too, not only the count.
+_TOOL_CALL_MAX_VALUE_CHARS = 80
 
 
 # =============================================================================
@@ -414,6 +421,57 @@ def _render_label_delete(
     return lines
 
 
+def _argument_value(value: Any) -> str:
+    """Render one tool argument as data the user can read.
+
+    Two leaks this closes, both measured on a real MCP call: ``True``/``None``
+    and ``{'k': 'v'}`` are PYTHON spellings on a card read by a human in six
+    languages, and one argument can carry an entire email body — a card is a
+    question, not a payload dump.
+
+    Args:
+        value: The argument value, straight from a third-party tool call.
+
+    Returns:
+        A short, language-neutral rendering; strings pass through, everything
+        else takes its JSON spelling, and both are truncated.
+    """
+    if isinstance(value, str):
+        text = value
+    else:
+        try:
+            text = json.dumps(value, ensure_ascii=False, default=str)
+        except TypeError, ValueError:
+            text = str(value)
+    text = " ".join(text.split())
+    if len(text) > _TOOL_CALL_MAX_VALUE_CHARS:
+        text = f"{text[:_TOOL_CALL_MAX_VALUE_CHARS]}…"
+    return text
+
+
+def _render_tool_call(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[str]:
+    """Render a tool call awaiting confirmation (ADR-263).
+
+    Shows WHAT will run and with WHICH arguments, because that is exactly what
+    the user is being asked to allow. The values come from a third-party tool
+    call, so they are rendered as data — one ``key: value`` per line, never
+    interpreted — and the list is capped: a confirmation card is a question,
+    not a payload dump.
+    """
+    tool_label = content.get("tool_label") or content.get("tool_name") or "?"
+    lines = [f"<br/>**{lbl['tool']}**: {tool_label}"]
+    arguments = content.get("tool_args")
+    if isinstance(arguments, dict) and arguments:
+        shown = list(arguments.items())[:_TOOL_CALL_MAX_ARGS]
+        rendered = ", ".join(f"{key}: {_argument_value(value)}" for key, value in shown)
+        if len(arguments) > _TOOL_CALL_MAX_ARGS:
+            rendered += ", …"
+        lines.append(f"<br/>**{lbl['details']}**: {rendered}")
+    return lines
+
+
 def _render_phone_call(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[str]:
@@ -634,6 +692,7 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.LABEL_DELETE: _render_label_delete,
     DraftType.REMINDER_DELETE: _render_reminder_delete,
     DraftType.PHONE_CALL: _render_phone_call,
+    DraftType.TOOL_CALL: _render_tool_call,
     DraftType.SCHEDULED_ACTION: _render_scheduled_action,
     DraftType.DEVOPS_TASK: _render_devops_task,
     DraftType.PEER_MESSAGE: _render_peer_message,

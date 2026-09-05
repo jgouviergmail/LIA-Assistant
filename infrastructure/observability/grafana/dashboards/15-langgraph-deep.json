@@ -862,53 +862,6 @@
           "description": "A/B test variant assignments."
         },
         {
-          "id": 20,
-          "type": "timeseries",
-          "title": "Tool Calls",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 0,
-            "y": 51
-          },
-          "targets": [
-            {
-              "expr": "sum by (tool_name, success) (rate(langfuse_tool_calls_total[$__rate_interval]))",
-              "legendFormat": "{{tool_name}} ({{success}})",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ops",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "tooltip": {
-              "mode": "multi"
-            },
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            }
-          },
-          "description": "Tool call executions by tool name and success status."
-        },
-        {
           "id": 21,
           "type": "timeseries",
           "title": "Agent Handoffs",

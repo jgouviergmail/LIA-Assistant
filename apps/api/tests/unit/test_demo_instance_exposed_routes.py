@@ -205,6 +205,27 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "POST /api/v1/personalities/admin/{personality_id}/translations",
         "GET /api/v1/personalities/current",
         "PATCH /api/v1/personalities/current",
+        # The action register (ADR-263): a visitor's own record of what the
+        # assistant did for them, on their own demo account. Same class as
+        # memories and journals — read-only, user-scoped, and the settings page
+        # that reads it is part of the real product the demonstrator shows.
+        "GET /api/v1/effects/export",
+        "GET /api/v1/effects/journal",
+        "GET /api/v1/effects/run/{run_id}",
+        "GET /api/v1/effects/treatments/journal",
+        "GET /api/v1/effects/treatments/run/{run_id}",
+        # And the proof over them (ADR-263, lot 5). Read-only and user-scoped
+        # like the journals themselves: a visitor can only ever verify their
+        # own chain, and a verdict says whether rows were altered — never what
+        # any of them says. On the demonstrator the sealing is off, so the
+        # honest answer is « this instance does not seal », which is exactly
+        # what the surface is built to say.
+        # The reader's own records as figures. Every label is a BOUNDED value
+        # — a model, a graph node, a domain, a status — and none names a person
+        # or quotes anything, so there is nothing here to withhold.
+        "GET /api/v1/effects/statistics",
+        "GET /api/v1/effects/chain/status",
+        "GET /api/v1/effects/chain/verify",
         "GET /api/v1/product/public-demo-link",
         "GET /api/v1/psyche/expression",
         "GET /api/v1/psyche/history",

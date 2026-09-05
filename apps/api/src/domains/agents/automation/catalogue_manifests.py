@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 from src.core.config import settings
 from src.domains.agents.registry.catalogue import (
+    REASON_UNDONE_BY_ONE_CALL,
     AgentManifest,
     CostProfile,
     DisplayMetadata,
@@ -56,6 +57,7 @@ AUTOMATION_AGENT_MANIFEST = AgentManifest(
 
 create_scheduled_action_catalogue_manifest = ToolManifest(
     name="create_scheduled_action_tool",
+    mutation_policy="draft",
     agent="automation_agent",
     description=(
         "Creates a recurring automation: LIA will execute the given instruction "
@@ -164,6 +166,7 @@ create_scheduled_action_catalogue_manifest = ToolManifest(
 
 list_scheduled_actions_catalogue_manifest = ToolManifest(
     name="list_scheduled_actions_tool",
+    mutation_policy="read",
     agent="automation_agent",
     description=(
         "Lists the user's recurring automations with their id, title, "
@@ -228,6 +231,8 @@ list_scheduled_actions_catalogue_manifest = ToolManifest(
 
 toggle_scheduled_action_catalogue_manifest = ToolManifest(
     name="toggle_scheduled_action_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_UNDONE_BY_ONE_CALL,
     agent="automation_agent",
     description=(
         "Enables or disables an existing automation (reversible switch). "

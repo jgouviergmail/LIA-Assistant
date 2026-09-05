@@ -68,6 +68,13 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Global floor — re-measured 2026-09-04 after the transparency
+        // registers (ADR-263 lot 4: the shared register hook and body, the
+        // consultation journal with its day sections and its fold, the two
+        // export surfaces and the administrator's extraction — ~60 new tests):
+        // statements 78.39 / branches 73.73 / functions 75.57 / lines 79.12.
+        // `lines` rises 76 -> 77 (floor(measured - 2)); the other three axes do
+        // not cross an integer step and stay put.
         // Global floor — re-measured 2026-09-03 after the meeting recording
         // lot (ADR-258: the recorder state machine under fakes, the ordered
         // uploader and its settled count, the two audio sources' pure parts,
@@ -325,7 +332,7 @@ export default defineConfig({
         statements: 76,
         branches: 71,
         functions: 73,
-        lines: 76,
+        lines: 77,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

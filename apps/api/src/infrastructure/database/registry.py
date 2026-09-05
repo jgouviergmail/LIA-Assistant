@@ -23,6 +23,7 @@ def import_all_models() -> None:
         return
 
     import src.domains.account_export.models  # noqa: F401
+    import src.domains.agents.effects.models  # noqa: F401
     import src.domains.attachments.models  # noqa: F401
     import src.domains.auth.models  # noqa: F401
     import src.domains.channels.models  # noqa: F401

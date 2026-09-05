@@ -2,6 +2,7 @@
  * Chat types for LIA AI Assistant
  */
 
+import type { PerformedEffect } from '@/types/performed-effects';
 import type { ExecutionTrace } from './execution-trace';
 
 export type MessageRole = 'user' | 'assistant' | 'system';
@@ -105,6 +106,8 @@ export interface Message {
   // attached here so it survives the response. Rendered as a collapsed
   // disclosure under the assistant bubble. Session-only in V1.
   executionTrace?: ExecutionTrace;
+  /** What the turn actually performed, from the effect register (ADR-263). */
+  performedEffects?: PerformedEffect[];
   // Message metadata (HITL responses, run_id, etc.)
   metadata?: Record<string, unknown>;
 }
@@ -1197,6 +1200,26 @@ export interface HitlMetrics {
 }
 
 /**
+ * PerformedEffectsMetrics — what the turn actually did (ADR-263).
+ *
+ * Read back from the effect register by run id, so the debug panel states the
+ * same facts as the user's action journal and the exported register.
+ */
+export interface PerformedEffectsEntry {
+  label_key: string;
+  values: Record<string, string | number>;
+  status: string;
+  tool_name: string;
+}
+
+export interface PerformedEffectsMetrics {
+  entries: PerformedEffectsEntry[];
+  count: number;
+  failed_count: number;
+}
+
+/**
+
  * CompactionMetrics - Context compaction of the session (v3.4)
  */
 export interface CompactionMetrics {
@@ -1309,6 +1332,7 @@ export interface DebugMetrics {
   react_execution?: ReactExecutionMetrics; // Optional: ReAct loop details
   hitl?: HitlMetrics; // Optional: human-in-the-loop trace
   compaction?: CompactionMetrics; // Optional: context compaction details
+  performed_effects?: PerformedEffectsMetrics; // ADR-263: what the turn actually did
   image_generation_calls?: ImageGenerationCall[]; // Optional: paid image generations
   image_generation_summary?: ImageGenerationSummary; // Optional: image-gen aggregate
   voice?: VoiceMetrics; // Optional: TTS spend (via debug_metrics_update)

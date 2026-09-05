@@ -9,6 +9,7 @@ capable tool becomes a hammer.
 
 from src.core.constants import EXECUTION_MODE_REACT, PYTHON_SANDBOX_AGENT_NAME
 from src.domains.agents.registry.catalogue import (
+    REASON_SANDBOXED_CONTAINER,
     CostProfile,
     OutputFieldSchema,
     ParameterSchema,
@@ -37,6 +38,8 @@ _DESCRIPTION = (
 
 run_python_catalogue_manifest = ToolManifest(
     name="run_python_tool",
+    mutation_policy="sandboxed",
+    mutation_policy_reason=REASON_SANDBOXED_CONTAINER,
     agent=PYTHON_SANDBOX_AGENT_NAME,
     description=_DESCRIPTION,
     parameters=[

@@ -787,6 +787,20 @@ CREATE TABLE token_usage_logs (
     cost_eur NUMERIC(10, 6) NOT NULL DEFAULT 0.0,
     usd_to_eur_rate NUMERIC(10, 6) NOT NULL DEFAULT 1.0,
 
+    -- Parametres de l'inference (ADR-263, lot 7) : lus dans ce que LangChain a
+    -- REELLEMENT envoye (`invocation_params`), jamais dans la configuration --
+    -- une valeur configuree n'est pas une valeur transmise. Tous nullables :
+    -- un appel anterieur au lot, ou un fournisseur qui n'expose rien, se lit
+    -- « inconnu » plutot que « par defaut ».
+    provider VARCHAR(50),               -- famille normalisee, pas la graphie du SDK
+    temperature DOUBLE PRECISION,
+    top_p DOUBLE PRECISION,
+    max_output_tokens INTEGER,          -- le plafond de sortie, quel que soit son nom chez le fournisseur
+    reasoning_level VARCHAR(20),        -- vocabulaire de l'echelle ADR-245, jamais une graphie fournisseur
+    reasoning_budget_tokens INTEGER,
+    params_digest VARCHAR(64),          -- empreinte du RESTE, sur LISTE BLANCHE : un registre est
+                                        -- le dernier endroit ou une cle d'API devrait atterrir
+
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -2713,7 +2727,7 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 ## Tables complémentaires (présentes en base, non détaillées ci-dessus)
 
 > Diff effectué le 2026-07-20 entre les modèles ORM (`__tablename__`), les migrations
-> Alembic (`create_table`) et ce document : **50 tables réelles, 50 couvertes**.
+> Alembic (`create_table`) et ce document : **52 tables réelles, 52 couvertes** au moment de ce diff. ADR-263 a depuis ajouté `agent_effects` (lot 1), `agent_treatments` (lot 4), `ledger_chain` (lot 5), `agent_decisions` (lot 6) et `agent_integrity_events` (lot 8), toutes décrites ci-dessous.
 > Chaque table ci-dessous existe et est active ; le détail des colonnes vit dans le
 > fichier de modèle indiqué (source de vérité).
 
@@ -2732,6 +2746,11 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `image_generation_pricing` | `src/domains/image_generation/models.py` | Tarification génération d'images (versionnée) |
 | `user_usage_limits` | `src/domains/usage_limits/models.py` | Quotas par utilisateur (tokens, messages, coût — ADR-060) |
 | `system_settings` | `src/domains/system_settings/models.py` | Réglages système clé/valeur (activation composants, ADR-061) |
+| `agent_effects` | `src/domains/agents/effects/models.py` | **Registre des effets** (ADR-263) : une ligne par effet externe, *réclamée avant* l'effet et close sur un résultat explicite. Clé unique `(thread_id, idempotency_key)` — la même approbation ne peut pas être dépensée deux fois ; `claim_token` conditionne chaque clôture (jeton propriétaire) ; `result_payload` et `label` chiffrés (`encrypt_data`), le résultat plafonné par `EFFECT_RESULT_PAYLOAD_MAX_BYTES` avec `result_truncated` qui le dit ; rétention en cascade avec le compte |
+| `agent_treatments` | `src/domains/agents/effects/models.py` | **Registre des consultations** (ADR-263, lot 4) : une ligne par capacité *consultée*, pendant douce de `agent_effects` et délibérément son opposé — **aucune unicité** (une consultation n'est pas idempotente), ni `claim_token`, ni `status`, ni `approval_kind` : rien à posséder, rien à confirmer, rien à rejouer. **Aucune colonne ne porte ce qui a été demandé** (ni libellé, ni arguments, ni résultat) : le registre dit QUELLE capacité, QUAND, COMBIEN DE TEMPS et AVEC QUEL résultat, et la formulation lue est le *domaine* résolu à l'affichage. Écriture en un seul lot en fin de tour ; rétention en cascade avec le compte, sans purge — la croissance est instrumentée (`lia_ledger_rows` / `lia_ledger_bytes`) |
+| `agent_integrity_events` | `src/domains/agents/effects/models.py` | **Lacunes du registre lui-même** (ADR-263, lot 8) : quatre espèces bornées — un effet exécuté sans ligne de registre, un tour dont personne n'a collecté les consultations, une rupture de chaîne, une passe de notaire annulée. Chacune avait déjà une métrique ; **un compteur ne peut pas dire QUELS comptes ni QUELS tours** sont concernés, et c'est exactement la question qu'un utilisateur et un régulateur posent — d'où une ligne plutôt qu'un cinquième compteur. `user_id` et `run_id` **nullables** : l'une des quatre détections se déclenche précisément quand aucun contexte d'exécution ne nommait d'utilisateur, et en inventer un effacerait la moitié intéressante du constat. Aucune colonne de contenu ; `detail` est une classification courte et bornée. **Doit se lire VIDE en production** |
+| `agent_decisions` | `src/domains/agents/effects/models.py` | **Registre des tours** (ADR-263, lot 6) : la colonne vertébrale à laquelle les deux autres se rattachent — `agent_effects` dit ce qui a été FAIT, `agent_treatments` ce qui a été LU, et tous deux classent leurs lignes sous un `run_id` auquel cette table donne enfin un sens. Elle **pointe** vers la demande et la réponse (`request_message_id` / `response_message_id`, `ON DELETE SET NULL`) et n'en **copie** rien : les mots restent dans `conversation_messages`, déjà purgé avec le compte, et supprimer une conversation laisse une **pierre tombale** datée plutôt qu'une résurrection. `UNIQUE (run_id)` : une reprise HITL est le MÊME tour, donc l'écriture est un upsert qui FUSIONNE (début le plus ancien, fin la plus récente, durée CUMULÉE — vingt minutes d'attente humaine ne sont pas vingt minutes d'exécution — et `segments` qui compte les reprises). `outcome` vaut `interrupted` tant que rien n'a dit le contraire : un tour mort ne se lit jamais comme un tour abouti. Aucune colonne de contenu |
+| `ledger_chain` | `src/domains/agents/effects/models.py` | **Scellement des deux registres** (ADR-263, lot 5) : une chaîne de hachage **par COMPTE**, jamais globale — supprimer un compte retire une chaîne ENTIÈRE (`ON DELETE CASCADE`) au lieu de percer un trou définitif dans celle de tout le monde, et c'est ce qui réconcilie inaltérabilité et droit à l'effacement. Une ligne par étape notariée : empreinte d'une **liste blanche explicite de colonnes** (`chain_spec.py`) liée au hachage de l'entrée précédente. `UNIQUE (user_id, seq)` rend une chaîne fourchue impossible même à deux notaires simultanés. **Aucune colonne ne porte de contenu** : empreintes et identifiants seulement (~387 octets par entrée). `digest_version` voyage avec chaque entrée — changer l'encodage ouvre une nouvelle règle au lieu d'invalider tout le passé. Notarisation **asynchrone** (mesuré : 6,0 ms contre 0,21 ms pour l'écriture elle-même, ×28 sur le chemin critique) : la fenêtre qui en résulte est publiée (`lia_ledger_chain_lag_seconds`) et alertée, jamais tue |
 | `admin_broadcasts` / `user_broadcast_reads` | `src/domains/notifications/models.py` | Diffusions admin + accusés de lecture (traductions JSONB persistées) |
 | `user_fcm_tokens` | `src/domains/notifications/models.py` | Tokens FCM push par appareil |
 | `phone_calls` | `src/domains/telephony/models.py` | Appels sortants (un par appel). Le numéro appelé (`callee_phone`) est **chiffré** par le service — PII. |

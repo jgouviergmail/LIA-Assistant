@@ -41,6 +41,7 @@ from langchain_core.tools import InjectedToolArg, tool
 
 from src.core.config import get_settings
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.effects.runtime import resolve_policy
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_runner import ReactSubAgentRunner
 from src.domains.agents.tools.runtime_helpers import (
@@ -134,6 +135,10 @@ async def delegate_to_sub_agent_tool(
             allowed_tools=get_settings().subagent_research_tools_whitelist_parsed,
             blocked_tools=SUBAGENT_DEFAULT_BLOCKED_TOOLS,
             all_tools=list(all_tools_dict.values()),
+            # ADR-263: the read-only guarantee stops being a hand list. The
+            # reader is injected because ``sub_agents`` must not import back
+            # into ``agents`` (F009 runtime-cycle ratchet).
+            policy_of=resolve_policy,
         )
 
         # Run the scoped ReAct loop via the existing generic runner

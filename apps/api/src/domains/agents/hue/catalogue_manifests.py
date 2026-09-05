@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 from src.domains.agents.constants import AGENT_HUE, CONTEXT_DOMAIN_HUE
 from src.domains.agents.registry.catalogue import (
+    REASON_UNDONE_BY_ONE_CALL,
     AgentManifest,
     CostProfile,
     DisplayMetadata,
@@ -137,6 +138,8 @@ list_hue_lights_catalogue_manifest = ToolManifest(
 
 control_hue_light_catalogue_manifest = ToolManifest(
     name="control_hue_light_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_UNDONE_BY_ONE_CALL,
     agent=AGENT_HUE,
     description=(
         "**Tool: control_hue_light_tool** - Control a specific Hue light.\n"
@@ -214,6 +217,8 @@ list_hue_rooms_catalogue_manifest = ToolManifest(
 
 control_hue_room_catalogue_manifest = ToolManifest(
     name="control_hue_room_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_UNDONE_BY_ONE_CALL,
     agent=AGENT_HUE,
     description=(
         "**Tool: control_hue_room_tool** - Control all lights in a room.\n"
@@ -287,6 +292,8 @@ list_hue_scenes_catalogue_manifest = ToolManifest(
 
 activate_hue_scene_catalogue_manifest = ToolManifest(
     name="activate_hue_scene_tool",
+    mutation_policy="reversible",
+    mutation_policy_reason=REASON_UNDONE_BY_ONE_CALL,
     agent=AGENT_HUE,
     description=(
         "**Tool: activate_hue_scene_tool** - Activate a Philips Hue scene.\n"

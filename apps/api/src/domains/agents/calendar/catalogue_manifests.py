@@ -245,6 +245,7 @@ _create_desc = (
 
 create_event_catalogue_manifest = ToolManifest(
     name="create_event_tool",
+    mutation_policy="draft",
     agent="event_agent",
     description=_create_desc,
     # Discriminant phrases - Calendar event creation
@@ -365,6 +366,7 @@ _update_desc = (
 
 update_event_catalogue_manifest = ToolManifest(
     name="update_event_tool",
+    mutation_policy="draft",
     agent="event_agent",
     description=_update_desc,
     # Discriminant phrases - Calendar event modification
@@ -467,6 +469,7 @@ _delete_desc = (
 
 delete_event_catalogue_manifest = ToolManifest(
     name="delete_event_tool",
+    mutation_policy="draft",
     agent="event_agent",
     description=_delete_desc,
     # Discriminant phrases - Calendar event deletion

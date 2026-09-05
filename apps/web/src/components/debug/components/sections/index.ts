@@ -68,3 +68,7 @@ export { ImageGenerationSection, type ImageGenerationSectionProps } from './Imag
 export { HitlSection, type HitlSectionProps } from './HitlSection';
 export { VoiceSection, type VoiceSectionProps } from './VoiceSection';
 export { CompactionSection, type CompactionSectionProps } from './CompactionSection';
+export {
+  PerformedEffectsSection,
+  type PerformedEffectsSectionProps,
+} from './PerformedEffectsSection';

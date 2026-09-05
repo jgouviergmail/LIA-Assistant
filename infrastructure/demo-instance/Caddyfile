@@ -76,7 +76,7 @@
 		respond 404
 	}
 
-	@allowed path /api/v1/auth/* /api/v1/agents/* /api/v1/conversations* /api/v1/users/* /api/v1/usage-limits/me* /api/v1/usage/* /api/v1/capabilities /api/v1/config /api/v1/system-settings/* /api/v1/personalities* /api/v1/psyche/* /api/v1/journals* /api/v1/memories* /api/v1/interests* /api/v1/habits/* /api/v1/relations/* /api/v1/open-loops* /api/v1/briefing/* /api/v1/heartbeat/* /api/v1/notifications* /api/v1/reminders* /api/v1/scheduled-actions* /api/v1/skills* /api/v1/rag-spaces* /api/v1/attachments* /api/v1/mcp/* /api/v1/voice/* /api/v1/health-metrics/* /api/v1/image-generation /api/v1/chat/* /api/v1/account/* /api/v1/product/* /health /ready
+	@allowed path /api/v1/auth/* /api/v1/agents/* /api/v1/conversations* /api/v1/users/* /api/v1/usage-limits/me* /api/v1/usage/* /api/v1/capabilities /api/v1/config /api/v1/system-settings/* /api/v1/personalities* /api/v1/psyche/* /api/v1/journals* /api/v1/memories* /api/v1/effects* /api/v1/interests* /api/v1/habits/* /api/v1/relations/* /api/v1/open-loops* /api/v1/briefing/* /api/v1/heartbeat/* /api/v1/notifications* /api/v1/reminders* /api/v1/scheduled-actions* /api/v1/skills* /api/v1/rag-spaces* /api/v1/attachments* /api/v1/mcp/* /api/v1/voice/* /api/v1/health-metrics/* /api/v1/image-generation /api/v1/chat/* /api/v1/account/* /api/v1/product/* /health /ready
 	handle @allowed {
 		reverse_proxy demo-instance-api:8000
 	}

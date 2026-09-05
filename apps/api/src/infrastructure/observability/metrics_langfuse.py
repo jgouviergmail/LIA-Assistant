@@ -122,21 +122,6 @@ langfuse_subgraph_invocations = Counter(
 # PHASE 3.1.5.2 - TOOL CALL TRACING METRICS
 # ============================================================================
 
-langfuse_tool_calls = Counter(
-    "langfuse_tool_calls",
-    "Tool call executions by tool name and success status",
-    ["tool_name", "success"],
-    # Track tool usage and reliability
-    # Integration: src/infrastructure/llm/tool_tracing.py::trace_tool_call()
-    # Dashboard: Panel 14 (Tool Call Success Rate), Panel 15 (Tool Calls by Tool Name)
-    # Example labels:
-    #   tool_name: search_contacts, create_contact, send_email, search_emails, create_event
-    #   success: true, false
-    # Cardinality: ~10 tools × 2 statuses = 20 series
-    # Success Rate Calculation (Panel 14):
-    #   sum(langfuse_tool_calls{success="true"}) / sum(langfuse_tool_calls) * 100
-)
-
 # ============================================================================
 # PHASE 3.1.5.3 - MULTI-AGENT HANDOFF METRICS
 # ============================================================================
@@ -199,7 +184,6 @@ langfuse_handoff_duration_seconds = Histogram(
 # - 14 panels use new metrics from this module
 #
 # Integration Points (implemented):
-# 1. src/infrastructure/llm/tool_tracing.py - langfuse_tool_calls.labels(...).inc()
 # 2. src/infrastructure/llm/agent_handoff_tracing.py - langfuse_agent_handoffs/handoff_duration_seconds
 #
 # Future integration points (not yet implemented):

@@ -7,6 +7,7 @@ the SmartCatalogueService for domain detection and tool selection.
 
 from src.domains.agents.constants import AGENT_DOCUMENT_GENERATION
 from src.domains.agents.registry.catalogue import (
+    REASON_LOCAL_ARTEFACT,
     AgentManifest,
     CostProfile,
     DisplayMetadata,
@@ -56,6 +57,8 @@ _DOC_TYPE_VALUES: list[str] = [t.value for t in DocumentType]
 
 generate_document_catalogue_manifest = ToolManifest(
     name="generate_document",
+    mutation_policy="artefact",
+    mutation_policy_reason=REASON_LOCAL_ARTEFACT,
     agent=AGENT_DOCUMENT_GENERATION,
     description=_desc,
     semantic_keywords=[

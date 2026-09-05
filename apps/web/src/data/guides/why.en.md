@@ -4,7 +4,7 @@
 
 **Version**: 5.2
 **Date**: 2026-08-23
-**Application**: LIA v1.40.0
+**Application**: LIA v1.41.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -42,7 +42,7 @@ Self-hosting has a bad reputation. LIA doesn't pretend to eliminate every techni
 
 Once this installation phase is complete, **day-to-day management is handled entirely through an intuitive web interface**. No more terminal, no more configuration files.
 
-Since v1.29.0 that first phase is itself guided: `./install.sh` at the repository root asks a short questionnaire in your language — how you want to reach the instance, which provider keys you hold — then builds the images from the source you cloned, applies the reference data in a single transaction, creates your administrator account without ever putting a secret on the command line, and finally verifies that the installation genuinely works rather than merely answering. If a step fails, resuming picks up exactly where it stopped.
+That first phase is itself guided: `./install.sh` at the repository root asks a short questionnaire in your language — how you want to reach the instance, which provider keys you hold — then builds the images from the source you cloned, applies the reference data in a single transaction, creates your administrator account without ever putting a secret on the command line, and finally verifies that the installation genuinely works rather than merely answering. If a step fails, resuming picks up exactly where it stopped.
 
 ### 2.2. What each user can configure
 
@@ -173,7 +173,7 @@ A browsing agent (Playwright/Chromium headless) can navigate websites, click, fi
 By installing Claude CLI (Claude Code) directly on the server, administrators can diagnose their infrastructure in natural language from LIA's chat: check Docker logs, verify container health, monitor disk space, analyze errors. This feature is restricted to administrator accounts.
 
 
-And since v1.34, LIA also watches **itself**: it reads its own telemetry, keeps a history of incidents diagnosed automatically from its operations runbooks, notifies administrators when something critical opens, and gives them a "Platform health" panel in the settings. When an outage is known, it factors it into its answers instead of letting you wait for a timeout.
+And LIA also watches **itself**: it reads its own telemetry, keeps a history of incidents diagnosed automatically from its operations runbooks, notifies administrators when something critical opens, and gives them a "Platform health" panel in the settings. When an outage is known, it factors it into its answers instead of letting you wait for a timeout.
 
 ### 3.9. Personal health data
 
@@ -343,15 +343,27 @@ The same principle applies throughout: a count wears the colour of the other cou
 
 And colour never carries meaning on its own: every label keeps its word. An interface that only works in colour does not work for everyone.
 
-### 6.4. Even what LIA learns about you is inspectable
+### 6.7. Even what LIA learns about you is inspectable
 
 The same transparency covers habit learning: what LIA believes about your rhythm and your recurring requests sits in a dedicated panel — a 24-hour heat map, your active-day percentage, a progress bar toward the first claims, and for every habit the real days it was observed plus the exact thresholds the detector applied. When there is no stable habit, the panel says so instead of inventing one. Pause, permanent block, total deletion, instant retroactive recompute — and the whole feature is off until you turn it on.
 
-### 6.5. A surface that describes the product is held to it
+### 6.8. A surface that describes the product is held to it
 
 Transparency has a failure mode nobody notices: a screen that quietly stops telling the truth. The capability map — the page answering *what can my assistant do for me?* — published thirteen fixed entries for months while the product gained image generation, documents, plugins, learned habits, MCP servers and telephone calls. Nothing was broken, no test went red, and the page that existed to be current had become the least current in the application. A written convention had already asked for it to be updated; conventions are exactly what a busy month erodes. So the rule is now mechanical: two declared tables must account for every capability the platform can switch, each exclusion carrying a written reason, and an assertion runs when the code loads — a capability that ships without deciding its place on the map stops the application from starting. The same conviction, one notch further: what a screen says about your data must be **exact or absent**. A tally is the number the database returns, never a length that happens to be at hand; and while an answer is still on its way, or when it failed, the card says nothing rather than guessing. "Nothing set up yet" is a claim about your account — one worth being sure of before making it.
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
+
+### 6.9. Two registers: what LIA did, and what it looked at
+
+Transparency about *reasoning* is one thing; transparency about *acts* is another, and it is the one that matters when an assistant can send, create and delete on your behalf. LIA therefore keeps two registers, automatically, and never merges them.
+
+**Actions** hold one line per thing done for you — an email sent, an event created, a file deleted — with its outcome and the confirmation you gave. **Consultations** hold one line per capability used to answer you, named as a domain: « your calendar », « your emails ». A consultation never records what was searched for; writing that down would be a second copy of the very data the register exists to make accountable.
+
+The guarantee is structural rather than promised. An action is written down **before** it happens and closed **only** from an explicit result, so a success is never inferred from a missing error; the recording is installed on the capability itself when it is registered, so a new tool cannot forget it; and the server refuses to start if a capability does not declare what it owes you — a read, a draft, a confirmation, something reversible.
+
+A third tab draws the period as charts, each carrying the exact total of the whole period beside its bars, so what you see can be checked rather than believed. Everything exports in three formats — readable, spreadsheet, and the machine-readable one an auditor would ask for — and everything leaves with your account archive and dies with your account. Where your administrator enables it, both registers are sealed per account with cryptographic fingerprints you can verify yourself.
+
+This is also what the European AI Act's Article 12 asks of a system like this. LIA answers it with five records in all: the two above, plus the turn itself, the parameters actually sent to each model, and the gaps in the record — because a register that cannot say where it is incomplete is asking to be trusted rather than read.
 
 ## 7. Emotional depth
 
@@ -489,9 +501,9 @@ If a provider changes its pricing or degrades its service, you switch instantly.
 
 ### 9.3. Extensibility
 
-Each user can connect their own MCP servers, extending LIA's capabilities far beyond built-in tools. The client speaks both generations of the protocol — the new stateless revision and the legacy handshake, chosen automatically per server — so openness never costs compatibility. Skills (agentskills.io standard) allow injecting expert instructions in natural language — with a built-in Skill generator that creates them through a guided dialogue and installs them directly into your skills, ready to use. Since v1.16.8, a Skill can also return an **interactive HTML frame** (map, dashboard, calendar, converter...) or an **image** (QR code, chart) right inside the chat, sandboxed under a strict CSP, with theme and locale automatically kept in sync.
+Each user can connect their own MCP servers, extending LIA's capabilities far beyond built-in tools. The client speaks both generations of the protocol — the new stateless revision and the legacy handshake, chosen automatically per server — so openness never costs compatibility. Skills (agentskills.io standard) allow injecting expert instructions in natural language — with a built-in Skill generator that creates them through a guided dialogue and installs them directly into your skills, ready to use. A Skill can also return an **interactive HTML frame** (map, dashboard, calendar, converter...) or an **image** (QR code, chart) right inside the chat, sandboxed under a strict CSP, with theme and locale automatically kept in sync.
 
-Since v1.30.9, this openness has a package format: LIA speaks the **Agent Plugins** open standard (agent-plugins.org), the portable plugin format steered by AWS, Microsoft, OpenAI, Cursor and Vercel and adopted by ChatGPT, Codex, Cursor, GitHub Copilot, Kiro and VS Code. A plugin bundling skills and MCP servers installs into LIA in one step — from a zip or an https link — with a full per-component report of what was installed, skipped (and why) or removed, and uninstalls just as cleanly, everything it brought leaving with it. Interoperability is a conviction here, not a feature: what you build or adopt anywhere in the ecosystem is yours to bring.
+This openness has a package format: LIA speaks the **Agent Plugins** open standard (agent-plugins.org), the portable plugin format steered by AWS, Microsoft, OpenAI, Cursor and Vercel and adopted by ChatGPT, Codex, Cursor, GitHub Copilot, Kiro and VS Code. A plugin bundling skills and MCP servers installs into LIA in one step — from a zip or an https link — with a full per-component report of what was installed, skipped (and why) or removed, and uninstalls just as cleanly, everything it brought leaving with it. Interoperability is a conviction here, not a feature: what you build or adopt anywhere in the ecosystem is yours to bring.
 
 
 LIA's architecture is designed to facilitate adding new connectors, channels, agents and AI providers. The code is structured with clear abstractions and dedicated development guides (agent creation guide, tool creation guide) that make extension accessible to any developer.

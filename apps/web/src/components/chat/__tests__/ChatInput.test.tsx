@@ -105,6 +105,10 @@ vi.mock('@/hooks/useFileUpload', () => ({
 
 const { toast } = vi.hoisted(() => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
+// The composer's « + » behaves differently in the Android shell (see the
+// control): default to a browser, each shell test opts in explicitly.
+const { isAndroidShell } = vi.hoisted(() => ({ isAndroidShell: vi.fn(() => false) }));
+vi.mock('@/lib/native/shell', () => ({ isAndroidShell }));
 
 import { ChatInput } from '../ChatInput';
 
@@ -124,6 +128,9 @@ function attachment(over: Partial<PendingAttachment> = {}): PendingAttachment {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks keeps implementations, so an opted-in shell would leak into
+  // every later test: put the browser back explicitly.
+  isAndroidShell.mockReturnValue(false);
   voice.options = null;
   voice.isSupported = false;
   voice.isRecording = false;
@@ -147,6 +154,15 @@ function fileInput(): HTMLInputElement {
     .getAllByLabelText('chat.attachments.add')
     .find((el): el is HTMLInputElement => el instanceof HTMLInputElement);
   if (!found) throw new Error('file input not found');
+  return found;
+}
+
+/** The capture input — its own accessible name, so `fileInput()` stays exact. */
+function photoInput(): HTMLInputElement {
+  const found = screen
+    .getAllByLabelText('chat.attachments.take_photo')
+    .find((el): el is HTMLInputElement => el instanceof HTMLInputElement);
+  if (!found) throw new Error('photo input not found');
   return found;
 }
 
@@ -420,6 +436,58 @@ describe('ChatInput — attachments', () => {
     await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledWith(file));
     // The input is reset so re-picking the same file still fires a change event.
     expect(input.value).toBe('');
+  });
+
+  it('opens the picker directly in a browser, where the chooser offers the camera', async () => {
+    const { user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    const click = vi.spyOn(fileInput(), 'click');
+
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+
+    expect(click).toHaveBeenCalledTimes(1);
+    // No menu is interposed: one gesture, one dialog.
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('offers file and camera as a menu in the Android shell, each opening its own input', async () => {
+    isAndroidShell.mockReturnValue(true);
+    const { user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    const pickFile = vi.spyOn(fileInput(), 'click');
+    const takePhoto = vi.spyOn(photoInput(), 'click');
+
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    await screen.findByRole('menu');
+
+    await user.click(screen.getByRole('menuitem', { name: /take_photo/ }));
+    await waitFor(() => expect(takePhoto).toHaveBeenCalledTimes(1));
+    expect(pickFile).not.toHaveBeenCalled();
+  });
+
+  it('routes the shell menu’s file entry to the ordinary picker', async () => {
+    isAndroidShell.mockReturnValue(true);
+    const { user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    const pickFile = vi.spyOn(fileInput(), 'click');
+
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    await user.click(await screen.findByRole('menuitem', { name: /attach_file/ }));
+
+    await waitFor(() => expect(pickFile).toHaveBeenCalledTimes(1));
+  });
+
+  it('uploads a captured photo through the very same path as a picked file', async () => {
+    const { user } = renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    const shot = new File(['x'], 'IMG_0001.jpg', { type: 'image/jpeg' });
+
+    await user.upload(photoInput(), shot);
+
+    await waitFor(() => expect(upload.uploadFile).toHaveBeenCalledWith(shot));
+    expect(photoInput().value).toBe('');
+  });
+
+  it('asks the camera for the rear lens and images only', () => {
+    renderWithProviders(<ChatInput onSendMessage={vi.fn()} attachmentsEnabled />);
+    expect(photoInput()).toHaveAttribute('capture', 'environment');
+    expect(photoInput()).toHaveAttribute('accept', 'image/*');
   });
 
   it('locks the attach button while an upload is in flight', () => {

@@ -52,6 +52,7 @@ PEER_AGENT_MANIFEST = AgentManifest(
 
 send_peer_message_catalogue_manifest = ToolManifest(
     name="send_peer_message_tool",
+    mutation_policy="draft",
     agent="peer_agent",
     description=(
         "Relays a message to a CONNECTED user of this instance: their own "
@@ -147,6 +148,7 @@ send_peer_message_catalogue_manifest = ToolManifest(
 
 list_peer_connections_catalogue_manifest = ToolManifest(
     name="list_peer_connections_tool",
+    mutation_policy="read",
     agent="peer_agent",
     description=(
         "Lists the user's accepted connections with other users of this "
@@ -193,6 +195,7 @@ list_peer_connections_catalogue_manifest = ToolManifest(
 
 get_peer_availability_catalogue_manifest = ToolManifest(
     name="get_peer_availability_tool",
+    mutation_policy="read",
     agent="peer_agent",
     description=(
         "Reads a CONNECTED user's calendar availability, at the level THEY "
@@ -257,6 +260,7 @@ get_peer_availability_catalogue_manifest = ToolManifest(
 
 get_peer_tasks_catalogue_manifest = ToolManifest(
     name="get_peer_tasks_tool",
+    mutation_policy="read",
     agent="peer_agent",
     description=(
         "Reads a CONNECTED user's pending task titles, if they share their "

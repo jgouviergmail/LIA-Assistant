@@ -57,6 +57,10 @@ EXPECTED_ALLOWED = {
     "/api/v1/psyche/*",
     "/api/v1/journals*",
     "/api/v1/memories*",
+    # ADR-263: the visitor's own action register, on their own demo account —
+    # same class as memories and journals, and the settings surface that reads
+    # it is part of the real product the demonstrator shows.
+    "/api/v1/effects*",
     "/api/v1/interests*",
     "/api/v1/habits/*",
     "/api/v1/relations/*",

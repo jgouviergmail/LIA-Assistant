@@ -35,12 +35,13 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 from src.core.constants import (
     DEFAULT_TOOL_TIMEOUT_MS,
     EXECUTION_MODE_PIPELINE,
     EXECUTION_MODE_REACT,
+    MCP_TOOL_NAME_PREFIX,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
 
@@ -60,6 +61,100 @@ ToolCategory = Literal[
     # - All get/search/list operations are now unified under "search"
     # - Use get_*_tool pattern for unified data retrieval
 ]
+
+# =============================================================================
+# Mutation Policy — what confirmation a non-read-only tool owes (ADR-263)
+# =============================================================================
+#
+# The category says WHAT a tool does; the policy says WHAT THE USER IS ASKED
+# before it does it. Measured 2026-09-03: 13 native tools classified as
+# mutations had no confirmation gate in either execution mode, and nothing said
+# whether that was a decision or an omission.
+#
+# Owner rule (2026-09-03): a confirmation is owed by a mutation that MODIFIES,
+# DELETES or COMMUNICATES TO A THIRD PARTY; never by a read; and never out of
+# paranoia — a card the user did not need is a card they stop reading.
+#
+# ``permissions.hitl_required`` answers a DIFFERENT question: does ReAct pause
+# before this call? A tool may be paused on for its COST rather than its effect
+# — ``delegate_to_sub_agent_tool`` opens a whole read-only research loop, asks
+# the user because that is expensive, and changes nothing in the world. Deriving
+# the policy from the flag would have classified it as a mutation and, once the
+# gate refused unconfirmed ones, made it unusable in pipeline mode. The two
+# questions stay separate.
+
+MutationPolicy = Literal[
+    "read",  # acts on nothing: the explicit "no confirmation is owed"
+    "draft",  # the tool returns a draft; the draft IS the confirmation
+    "confirm",  # pre-execution confirmation card, in BOTH execution modes
+    "reversible",  # executes and is journaled; one call undoes it
+    "artefact",  # produces a local artefact for the user, no third-party effect
+    "sandboxed",  # runs inside the throwaway container (SEC-001)
+]
+
+MUTATION_POLICIES: frozenset[str] = frozenset(
+    {"read", "draft", "confirm", "reversible", "artefact", "sandboxed"}
+)
+
+#: The policies of a tool that ACTS. ``read`` is the only value that claims the
+#: tool changes nothing.
+ACTING_POLICIES: frozenset[str] = MUTATION_POLICIES - {"read"}
+
+#: Policies under which the user is ASKED before the effect happens. ``draft``
+#: builds what they confirm; ``confirm`` asks for the call itself. Published to
+#: the planner, so a plan never presents as silent an action a card interrupts.
+ASKING_POLICIES: frozenset[str] = frozenset({"draft", "confirm"})
+
+#: Policies that EXEMPT an acting tool from a confirmation. ``draft`` and
+#: ``confirm`` ask the user, so they justify themselves; the other three must
+#: say in writing why the user is not asked.
+POLICIES_REQUIRING_REASON: frozenset[str] = frozenset({"reversible", "artefact", "sandboxed"})
+
+#: The ONLY category exempt from declaring a policy — and the exemption is
+#: measured, not comfortable. ``infer_tool_category`` assigns ``search`` only
+#: from an explicit ``get_*``/``search_*``/``list_*`` name, whereas
+#: ``"readonly"`` is its FALLBACK when no convention applies. That fallback is
+#: where the dangerous tools landed: ``claude_server_task_tool`` (drives the
+#: production server), ``run_python_tool`` (runs model-authored code) and
+#: ``delegate_to_sub_agent_tool`` (a whole ReAct loop) are all declared
+#: read-only — deliberately, to keep the semantic validator from rerouting them
+#: (ADR-256 §C) — so exempting "read-only" would have exempted exactly them.
+#: ``readonly`` and ``system`` tools therefore declare ``read`` explicitly: one
+#: cheap true statement instead of an inherited silence.
+POLICY_EXEMPT_CATEGORIES: frozenset[str] = frozenset({"search"})
+
+#: Categories whose very name says the tool acts — declaring ``read`` there is
+#: a contradiction, not a decision.
+MUTATING_CATEGORIES: frozenset[str] = frozenset({"create", "update", "delete", "send"})
+
+# Shared justifications for the policies that skip a confirmation. Factored
+# here because they are DOCTRINE, not per-tool data: the same sentence covers
+# three lights and two label tools, and a doctrine that is retyped drifts.
+REASON_UNDONE_BY_ONE_CALL: Final[str] = (
+    "Undone by one more call of the same tool; the owner refused a card per action."
+)
+REASON_REOPENED_BY_AN_UPDATE: Final[str] = (
+    "Reopened by an ordinary update; nothing leaves the account."
+)
+REASON_ADDITIVE_METADATA: Final[str] = (
+    "Additive metadata on the user's own items; the opposite call restores them."
+)
+REASON_LOCAL_ARTEFACT: Final[str] = (
+    "Produces a local artefact for the user; no effect at a third party."
+)
+REASON_SANDBOXED_CONTAINER: Final[str] = (
+    "Runs in the throwaway container (SEC-001): no network, no host filesystem."
+)
+REASON_USER_VISIBLE_CONTROL: Final[str] = (
+    "Navigation under the user's visible control; a submission to a third party "
+    "would need its own draft tool."
+)
+REASON_INTERNAL_CONTEXT: Final[str] = (
+    "Changes only LIA's own conversation context: no user data, no third party."
+)
+REASON_OWN_LIBRARY: Final[str] = (
+    "Installs into the user's own library and is removable from the settings."
+)
 
 # System tools that should ALWAYS be included regardless of strategy
 SYSTEM_TOOL_NAMES = frozenset(
@@ -551,6 +646,18 @@ class ToolManifest:
     # If None, category is inferred from tool name using infer_tool_category()
     tool_category: ToolCategory | None = None
 
+    # ADR-263: the confirmation this tool owes before it acts. None on a
+    # read-only tool (a read owes nothing); mandatory on every other NATIVE
+    # tool, enforced at boot by assert_mutation_policy_completeness(). A
+    # third-party MCP tool never declares it — its policy is DERIVED from what
+    # the server declares (derive_mcp_mutation_policy), never asserted.
+    mutation_policy: MutationPolicy | None = None
+
+    # Mandatory for the policies that exempt a mutation from a confirmation
+    # (POLICIES_REQUIRING_REASON): one English sentence saying why the user is
+    # not asked. An exemption nobody wrote down is an omission nobody can audit.
+    mutation_policy_reason: str | None = None
+
     # Initiative eligibility: whether this tool can be used during the initiative phase.
     # The initiative phase performs proactive cross-domain enrichment after plan execution.
     # Default: None → auto-determined from category (search/readonly = True, system = False).
@@ -833,6 +940,145 @@ def assert_tool_category_completeness(manifests: Iterable[Any]) -> None:
             "read-only initiative phase may run it — inferring 'readonly' there "
             "invents an intention. Declare tool_category on the manifest; see "
             "src/domains/agents/registry/catalogue.py."
+        )
+
+
+def _policy_contradiction_problems(name: str, policy: Any, hitl_required: bool) -> list[str]:
+    """Problems visible from the policy VALUE alone, before any exemption.
+
+    Checked first and for every manifest, because a tool that already asks the
+    user cannot be a read whatever its category says — which is exactly
+    ``delegate_to_sub_agent_tool``, declared read-only and carrying
+    ``hitl_required=True``.
+
+    Args:
+        name: Tool name, for the message.
+        policy: Declared ``mutation_policy`` (may be None or unknown).
+        hitl_required: The manifest's pre-execution HITL flag.
+
+    Returns:
+        Zero or more problem descriptions.
+    """
+    if policy is not None and policy not in MUTATION_POLICIES:
+        return [f"{name}: unknown mutation_policy {policy!r}"]
+    if hitl_required and policy == "draft":
+        # The measured invariant (test_hitl_required_consistency): the draft IS
+        # the confirmation, so a pre-execution card asks the user twice.
+        return [f"{name}: draft policy with hitl_required=True (asks the user twice)"]
+    return []
+
+
+def _policy_declaration_problems(name: str, policy: Any, reason: Any, category: str) -> list[str]:
+    """Problems in what the manifest declares for its category.
+
+    Args:
+        name: Tool name, for the message.
+        policy: Declared ``mutation_policy`` (already known to be valid or None).
+        reason: Declared ``mutation_policy_reason``.
+        category: Effective tool category.
+
+    Returns:
+        Zero or more problem descriptions.
+    """
+    if category in POLICY_EXEMPT_CATEGORIES:
+        if policy in ACTING_POLICIES:
+            return [f"{name}: search tool declares an acting policy ({policy})"]
+        return []
+    if policy is None:
+        return [f"declare no mutation_policy: {name}"]
+    problems: list[str] = []
+    if policy == "read" and category in MUTATING_CATEGORIES:
+        problems.append(f"{name}: declares read but its category ({category}) acts")
+    if policy in POLICIES_REQUIRING_REASON and not str(reason or "").strip():
+        problems.append(f"{name}: policy {policy} without a reason")
+    return problems
+
+
+def requires_user_approval(manifest: Any) -> bool:
+    """Will the user be asked before this tool acts? (ADR-263)
+
+    The planner is told this, so it must be the TRUTH the system enforces, not
+    a permission flag that happens to sit nearby: ``permissions.hitl_required``
+    is ``False`` for the 24 draft-building tools, and a draft is precisely the
+    case where the user IS asked. What enforces the confirmation is the declared
+    policy, so that is what is published (ADR-184: what a system enforces, it
+    must publish to whoever produces the value).
+
+    Args:
+        manifest: A tool manifest, native or third-party.
+
+    Returns:
+        True when the user will be asked — a draft to confirm, a policy
+        demanding confirmation, or an explicit operator requirement.
+    """
+    if getattr(manifest, "mutation_policy", None) in ASKING_POLICIES:
+        return True
+    permissions = getattr(manifest, "permissions", None)
+    return bool(getattr(permissions, "hitl_required", False))
+
+
+def assert_mutation_policy_completeness(manifests: Iterable[Any]) -> None:
+    """Assert every NATIVE manifest carries the confirmation it owes (ADR-263).
+
+    The rules live in :func:`_policy_contradiction_problems` and
+    :func:`_policy_declaration_problems`; this function walks the catalogue and
+    reports EVERY offender at once, so an operator facing a boot refusal sees
+    the whole list rather than the first line of it.
+
+    Called from ``init_agent_registry`` right after the catalogue is loaded,
+    like :func:`assert_tool_category_completeness` — never from
+    ``run_failfast_validations``, which runs before any manifest is registered
+    and would validate an empty registry and pass forever (ADR-085 placement).
+
+    Third-party MCP tools are exempt BY CONSTRUCTION: their policy is derived
+    from what the server declares (``derive_mcp_mutation_policy``), never
+    asserted, because a third party names and annotates its tools as it wants
+    (ADR-255). They are recognised by the ``mcp_`` prefix their adapters carry.
+
+    Args:
+        manifests: Tool manifests currently registered in the catalogue.
+
+    Raises:
+        AssertionError: Listing every offending manifest and rule.
+    """
+    problems: list[str] = []
+    for manifest in manifests:
+        name = str(getattr(manifest, "name", "<unnamed>"))
+        # Same idiom as ``step_timeouts.py``: the prefix constant is "mcp", so
+        # the separator is spelled out — otherwise a native "mcpsomething_tool"
+        # would silently escape the guard.
+        if name.startswith(f"{MCP_TOOL_NAME_PREFIX}_"):
+            continue
+        policy = getattr(manifest, "mutation_policy", None)
+        hitl_required = bool(
+            getattr(getattr(manifest, "permissions", None), "hitl_required", False)
+        )
+        problems.extend(_policy_contradiction_problems(name, policy, hitl_required))
+        if policy is not None and policy not in MUTATION_POLICIES:
+            # Vocabulary already reported; the declaration rules below would
+            # only add noise about a value that means nothing.
+            continue
+        # Defensive like its sibling assert: this runs at boot over whatever
+        # the catalogue holds, and a guard that raises on an odd shape reports
+        # nothing at all.
+        declared_category = getattr(manifest, "tool_category", None)
+        category = declared_category or infer_tool_category(name)
+        problems.extend(
+            _policy_declaration_problems(
+                name,
+                policy,
+                getattr(manifest, "mutation_policy_reason", None),
+                category,
+            )
+        )
+
+    if problems:
+        raise AssertionError(
+            f"{len(problems)} mutation policy problem(s): "
+            + "; ".join(sorted(problems))
+            + ". A non-read-only tool must SAY what confirmation it owes — declaring "
+            "nothing is how 13 tools came to run unconfirmed in both execution modes. "
+            "See MutationPolicy in src/domains/agents/registry/catalogue.py."
         )
 
 

@@ -1525,6 +1525,119 @@
           "description": "Number of data registry items included in HITL metadata. Shown: p95 percentile."
         }
       ]
+    },
+    {
+      "id": 134,
+      "type": "row",
+      "title": "HITL x Registre des effets (ADR-263)",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 138
+      },
+      "panels": [
+        {
+          "id": 135,
+          "title": "Approbations demandées contre effets réclamés",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Deux comptes qui devraient se suivre. Une approbation sans effet réclamé = une action confirmée qui n'a pas eu lieu ; un effet réclamé sans approbation = soit une action qui n'en demandait pas (le cas ordinaire : « reversible »), soit le portail qui a laissé passer quelque chose. Lus séparément, chacun peut sembler sain pendant que la paire est fausse (ADR-263).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 139
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(hitl_interrupts_total[10m])) or vector(0)",
+              "legendFormat": "approbations demandées",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(lia_effect_claims_total{policy=~\"confirm|draft\"}[10m])) or vector(0)",
+              "legendFormat": "effets réclamés (confirmés)",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 2,
+              "noValue": "0",
+              "custom": {
+                "fillOpacity": 8,
+                "showPoints": "never"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 136,
+          "title": "Effets refusés par le portail",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Ce que le portail a REFUSÉ, par motif. « confirmation_missing » est le cas sain (l'action demande une confirmation et la carte est posée) ; « ledger_unavailable » est un incident : une action confirmée n'a pas pu être enregistrée, donc elle n'a pas été faite.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 139
+          },
+          "targets": [
+            {
+              "expr": "sum by (reason) (rate(lia_effect_refusals_total[10m])) or vector(0)",
+              "legendFormat": "{{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 2,
+              "noValue": "0",
+              "custom": {
+                "fillOpacity": 8,
+                "showPoints": "never"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
     }
   ]
 }

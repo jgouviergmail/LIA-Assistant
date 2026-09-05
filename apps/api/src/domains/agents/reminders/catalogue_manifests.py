@@ -57,6 +57,7 @@ REMINDER_AGENT_MANIFEST = AgentManifest(
 
 create_reminder_catalogue_manifest = ToolManifest(
     name="create_reminder_tool",
+    mutation_policy="draft",
     agent="reminder_agent",
     description=(
         "Creates a reminder for the user. "
@@ -258,6 +259,7 @@ list_reminders_catalogue_manifest = ToolManifest(
 
 cancel_reminder_catalogue_manifest = ToolManifest(
     name="cancel_reminder_tool",
+    mutation_policy="draft",
     agent="reminder_agent",
     description=(
         "Cancels a pending reminder. "

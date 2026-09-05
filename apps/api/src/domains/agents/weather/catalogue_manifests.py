@@ -66,6 +66,7 @@ _current_desc = (
 )
 get_current_weather_catalogue_manifest = ToolManifest(
     name="get_current_weather_tool",
+    mutation_policy="read",
     agent="weather_agent",
     description=_current_desc,
     # Discriminant phrases - Current weather conditions
@@ -160,6 +161,7 @@ _forecast_desc = (
 )
 get_weather_forecast_catalogue_manifest = ToolManifest(
     name="get_weather_forecast_tool",
+    mutation_policy="read",
     agent="weather_agent",
     description=_forecast_desc,
     # Discriminant phrases - Multi-day weather forecast

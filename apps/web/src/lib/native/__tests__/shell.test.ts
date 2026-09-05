@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import {
   beginNativeSignIn,
+  isAndroidShell,
   isNativeShell,
   openInSystemBrowser,
   takeNativeVerifier,
@@ -54,6 +55,38 @@ describe('isNativeShell', () => {
     };
 
     expect(isNativeShell()).toBe(false);
+  });
+});
+
+describe('isAndroidShell', () => {
+  it('is false in a plain browser, where no platform is reported at all', () => {
+    expect(isAndroidShell()).toBe(false);
+  });
+
+  it('is true only in the Android shell', () => {
+    (window as unknown as { Capacitor?: unknown }).Capacitor = {
+      isNativePlatform: () => true,
+      getPlatform: () => 'android',
+    };
+
+    expect(isAndroidShell()).toBe(true);
+  });
+
+  it('is false in the iOS shell, which offers the camera on its own', () => {
+    (window as unknown as { Capacitor?: unknown }).Capacitor = {
+      isNativePlatform: () => true,
+      getPlatform: () => 'ios',
+    };
+
+    expect(isAndroidShell()).toBe(false);
+    // Still a shell — only the platform-specific affordance is withheld.
+    expect(isNativeShell()).toBe(true);
+  });
+
+  it('is false when the bridge reports no platform, rather than guessing one', () => {
+    installShell();
+
+    expect(isAndroidShell()).toBe(false);
   });
 });
 

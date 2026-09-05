@@ -36,6 +36,12 @@ def ensure_executors_registered() -> None:
     # Import and register all executor functions
     try:
         # Calendar executors
+        # Register all executors
+        # Email
+        # ADR-263: a tool whose policy demands a confirmation and that builds
+        # no draft of its own. The gate handed the call back as this draft; the
+        # executor replays it once the user has answered.
+        from src.domains.agents.effects.confirmation import execute_tool_call_draft
         from src.domains.agents.tools.calendar_tools import (
             execute_event_delete_draft,
             execute_event_draft,
@@ -77,8 +83,7 @@ def ensure_executors_registered() -> None:
         # confirmed phone_call draft must always resolve to an executor)
         from src.domains.agents.tools.telephony_tools import execute_phone_call_draft
 
-        # Register all executors
-        # Email
+        register_executor(DraftType.TOOL_CALL.value, execute_tool_call_draft)
         register_executor(DraftType.EMAIL.value, execute_email_draft)
         register_executor(DraftType.EMAIL_REPLY.value, execute_email_reply_draft)
         register_executor(DraftType.EMAIL_FORWARD.value, execute_email_forward_draft)

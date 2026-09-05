@@ -6,10 +6,23 @@ with the bespoke `SubAgentExecutor` pipeline; tests for them are gone too.
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.domains.sub_agents.skill_resolver import (
     is_skill_visible_to_agent,
     resolve_tools_for_subagent,
 )
+
+
+@pytest.fixture(autouse=True)
+def _all_fakes_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests exercise the allow/block MECHANICS, not the policy filter.
+
+    Since ADR-263 the resolver also refuses anything that is not declared
+    ``read``; the fakes below have no manifest, so they declare one here and
+    the policy filter has its own file (``test_subagent_is_read_only_by_policy``).
+    """
+    monkeypatch.setattr("src.domains.agents.effects.runtime.resolve_policy", lambda _name: "read")
 
 
 class TestResolveToolsForSubagent:
@@ -24,7 +37,10 @@ class TestResolveToolsForSubagent:
         """Blocked tools are filtered out."""
         tools = [self._make_tool("search_emails_tool"), self._make_tool("send_email_tool")]
         result = resolve_tools_for_subagent(
-            allowed_tools=[], blocked_tools=["send_email_tool"], all_tools=tools
+            allowed_tools=[],
+            blocked_tools=["send_email_tool"],
+            all_tools=tools,
+            policy_of=lambda _n: "read",
         )
         assert len(result) == 1
         assert result[0].name == "search_emails_tool"
@@ -36,7 +52,9 @@ class TestResolveToolsForSubagent:
             self._make_tool("execute_sub_agent_tool"),
             self._make_tool("create_sub_agent_tool"),
         ]
-        result = resolve_tools_for_subagent(allowed_tools=[], blocked_tools=[], all_tools=tools)
+        result = resolve_tools_for_subagent(
+            allowed_tools=[], blocked_tools=[], all_tools=tools, policy_of=lambda _n: "read"
+        )
         assert len(result) == 1
         assert result[0].name == "search_emails_tool"
 
@@ -53,7 +71,9 @@ class TestResolveToolsForSubagent:
             self._make_tool("search_emails_tool"),
             self._make_tool("delegate_to_sub_agent_tool"),
         ]
-        result = resolve_tools_for_subagent(allowed_tools=[], blocked_tools=[], all_tools=tools)
+        result = resolve_tools_for_subagent(
+            allowed_tools=[], blocked_tools=[], all_tools=tools, policy_of=lambda _n: "read"
+        )
         names = {t.name for t in result}
         assert "delegate_to_sub_agent_tool" not in names
         assert "search_emails_tool" in names
@@ -69,6 +89,7 @@ class TestResolveToolsForSubagent:
             allowed_tools=["search_emails_tool", "brave_search_tool"],
             blocked_tools=[],
             all_tools=tools,
+            policy_of=lambda _n: "read",
         )
         assert len(result) == 2
         names = {t.name for t in result}
@@ -77,7 +98,9 @@ class TestResolveToolsForSubagent:
     def test_empty_allowed_means_all(self):
         """Empty allowed_tools means all tools (except blocked)."""
         tools = [self._make_tool("a"), self._make_tool("b"), self._make_tool("c")]
-        result = resolve_tools_for_subagent(allowed_tools=[], blocked_tools=["b"], all_tools=tools)
+        result = resolve_tools_for_subagent(
+            allowed_tools=[], blocked_tools=["b"], all_tools=tools, policy_of=lambda _n: "read"
+        )
         assert len(result) == 2
 
     def test_blocked_takes_priority(self):
@@ -87,6 +110,7 @@ class TestResolveToolsForSubagent:
             allowed_tools=["search_emails_tool"],
             blocked_tools=["search_emails_tool"],
             all_tools=tools,
+            policy_of=lambda _n: "read",
         )
         assert len(result) == 0
 

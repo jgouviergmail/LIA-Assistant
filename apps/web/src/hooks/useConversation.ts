@@ -5,6 +5,7 @@ import { Message, type GeneratedDocument, type GeneratedImage } from '@/types/ch
 import { useAuth } from '@/hooks/useAuth';
 import { CHAT_SEARCH_RESULTS_PAGE_SIZE } from '@/lib/constants';
 import { executionTraceFromMetadata } from '@/lib/execution-trace-hydration';
+import { performedEffectsFromMetadata } from '@/lib/performed-effects-hydration';
 import { logger } from '@/lib/logger';
 import { useLoggingContext } from '@/lib/logging-context';
 
@@ -219,6 +220,7 @@ export const useConversation = (): UseConversationReturn => {
       // Persisted ⚙ execution trace (ADR-133 V2) — labels re-resolved from the
       // stored i18n keys so history rows render the same disclosure as live ones
       executionTrace: executionTraceFromMetadata(msg.message_metadata, t),
+      performedEffects: performedEffectsFromMetadata(msg.message_metadata),
       // AI-generated cards persisted in message_metadata for history display
       // (images, documents, browser screenshot) — narrowed in one pure helper
       // so this mapper keeps a bounded complexity.

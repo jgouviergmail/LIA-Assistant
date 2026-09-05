@@ -321,9 +321,11 @@ langfuse_trace_depth{depth_level}  # Histogram
 langfuse_subgraph_invocations{subgraph_name}  # Counter
 # Collect in: src/infrastructure/llm/instrumentation.py::create_instrumented_config()
 
-# Phase 3.1.5.2 - Tool Call Tracing
-langfuse_tool_calls{tool_name, success}  # Counter
-# Increment in: src/infrastructure/llm/tool_tracing.py::trace_tool_call()
+# Phase 3.1.5.2 - Tool Call Tracing — REMOVED (ADR-263, 2026-09-04)
+# `langfuse_tool_calls` had exactly one producer, `trace_tool_call()`, which
+# had no caller: the counter could never rise, and the panel reading it showed
+# an empty series while claiming tool tracing was measured. What a tool DID is
+# now recorded in the effect register (dashboard 28), not guessed from a span.
 
 # Phase 3.1.5.3 - Multi-Agent Tracing
 langfuse_agent_handoffs{source_agent, target_agent}  # Counter

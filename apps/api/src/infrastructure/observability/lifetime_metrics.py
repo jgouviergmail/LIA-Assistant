@@ -222,6 +222,78 @@ async def _sync_channel_bindings_from_db(db: AsyncSession) -> None:
         )
 
 
+async def _sync_effect_orphans_from_db(db: AsyncSession) -> None:
+    """Transport the exact count of stale CLAIMED effects to its gauge (ADR-263).
+
+    Prometheus cannot see rows, and the counters cannot answer this: an effect
+    claimed and never closed produces no outcome event at all. The number is
+    computed in SQL and merely carried here.
+
+    Args:
+        db: Session of the periodic sync.
+    """
+    from datetime import timedelta
+
+    from src.core.config import settings
+    from src.domains.agents.effects.repository import EffectLedgerRepository
+    from src.infrastructure.observability.metrics_effects import effect_claimed_orphans
+
+    threshold = datetime.now(UTC) - timedelta(
+        seconds=settings.effect_claimed_orphan_staleness_seconds
+    )
+    effect_claimed_orphans.set(await EffectLedgerRepository(db).count_claimed_orphans(threshold))
+
+
+async def _sync_ledger_volume_from_db(db: AsyncSession) -> None:
+    """Transport what the two transparency registers occupy to their gauges.
+
+    No purge job ships with them (owner arbitration, 2026-09-04: keep
+    everything, delete it with the account, and watch the growth). This is what
+    makes the day a purge becomes necessary a measured day.
+
+    Args:
+        db: Session of the periodic sync.
+    """
+    from src.domains.agents.effects.volume import ledger_volume
+    from src.infrastructure.observability.metrics_effects import ledger_bytes, ledger_rows
+
+    for volume in await ledger_volume(db):
+        ledger_rows.labels(table=volume.table).set(volume.rows)
+        ledger_bytes.labels(table=volume.table).set(volume.size_bytes)
+
+
+async def _sync_ledger_chain_from_db(db: AsyncSession) -> None:
+    """Publish the notary's backlog and the width of its window.
+
+    The lag is the design's one concession made measurable: notarising is
+    asynchronous, so a row created at T is covered at T+delta and a rewrite
+    inside delta leaves no trace. Publishing delta is what keeps that a stated
+    cost rather than a hidden one.
+
+    Args:
+        db: Session of the periodic sync.
+    """
+    from src.core.config import settings
+    from src.domains.agents.effects.chain_repository import ChainRepository
+    from src.infrastructure.observability.metrics_effects import (
+        ledger_chain_lag_seconds,
+        ledger_chain_pending,
+    )
+
+    if not getattr(settings, "ledger_chain_enabled", False):
+        return
+
+    repository = ChainRepository(db)
+    _, pending = await repository.counts()
+    ledger_chain_pending.set(pending)
+    oldest = await repository.oldest_pending_at()
+    # Nothing pending is a lag of ZERO, not an absent series: a panel watching
+    # for a stalled notary must render a green 0 rather than "No data".
+    ledger_chain_lag_seconds.set(
+        0.0 if oldest is None else (datetime.now(UTC) - oldest).total_seconds()
+    )
+
+
 async def update_lifetime_metrics() -> None:
     """
     Background task: Sync lifetime metrics from database to Prometheus gauges.
@@ -282,6 +354,28 @@ async def update_lifetime_metrics() -> None:
                     await _sync_channel_bindings_from_db(db)
                 except Exception as exc:
                     logger.warning("channel_bindings_sync_failed", error=str(exc))
+
+                # ADR-263: the effect ledger's only DB-backed gauge. Isolated
+                # like its neighbours — an operator losing this number must not
+                # cost them the token and cost gauges as well.
+                try:
+                    await _sync_effect_orphans_from_db(db)
+                except Exception as exc:
+                    logger.warning("effect_orphans_sync_failed", error=str(exc))
+
+                # ADR-263 lot 4: what the transparency registers occupy. Same
+                # isolation, same reason.
+                try:
+                    await _sync_ledger_volume_from_db(db)
+                except Exception as exc:
+                    logger.warning("ledger_volume_sync_failed", error=str(exc))
+
+                # ADR-263 lot 5: the notary's backlog and the width of the
+                # window in which a rewrite leaves no trace. Same isolation.
+                try:
+                    await _sync_ledger_chain_from_db(db)
+                except Exception as exc:
+                    logger.warning("ledger_chain_sync_failed", error=str(exc))
 
                 # Refresh DB connection-pool gauges (F27, 2026-07): this used
                 # to run on EVERY HTTP request in PrometheusMiddleware — a

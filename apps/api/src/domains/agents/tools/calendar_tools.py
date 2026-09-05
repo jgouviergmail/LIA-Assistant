@@ -48,7 +48,6 @@ from pydantic import BaseModel
 
 from src.core.config import get_settings, settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import normalize_to_rfc3339, now_utc
 from src.core.validators import validate_email
 from src.domains.agents.constants import (
@@ -74,7 +73,6 @@ from src.domains.agents.tools.calendar_draft_execution import (
     execute_event_update_draft,
 )
 from src.domains.agents.tools.decorators import connector_tool
-from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -1624,77 +1622,6 @@ async def delete_event_tool(
 
 
 # ============================================================================
-# LEGACY: Direct Tools (for backward compatibility and draft execution)
-# ============================================================================
-
-
-class CreateEventDirectTool(ConnectorTool[GoogleCalendarClient]):
-    """
-    Create event tool that executes immediately (no HITL).
-
-    WARNING: This tool creates events WITHOUT user confirmation.
-    Used for execute_fn in DraftCritiqueInteraction.
-    """
-
-    connector_type = ConnectorType.GOOGLE_CALENDAR
-    client_class = GoogleCalendarClient
-    functional_category = "calendar"
-
-    def __init__(self) -> None:
-        """Initialize direct create event tool."""
-        super().__init__(tool_name="create_event_direct_tool", operation="create")
-
-    async def execute_api_call(
-        self,
-        client: GoogleCalendarClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute create event API call - business logic only."""
-        summary: str = kwargs["summary"]
-        start_datetime: str = kwargs["start_datetime"]
-        end_datetime: str = kwargs["end_datetime"]
-        timezone: str = kwargs.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-        description: str | None = kwargs.get("description")
-        location: str | None = kwargs.get("location")
-        attendees: list[str] | None = kwargs.get("attendees")
-        add_conference: bool = bool(kwargs.get("add_conference", False))
-
-        if not summary or not start_datetime or not end_datetime:
-            raise ToolValidationError(
-                APIMessages.fields_required(["summary", "start_datetime", "end_datetime"])
-            )
-
-        result = await client.create_event(
-            summary=summary,
-            start_datetime=start_datetime,
-            end_datetime=end_datetime,
-            timezone=timezone,
-            description=description,
-            location=location,
-            attendees=attendees,
-            add_conference=add_conference,
-        )
-
-        logger.info(
-            "calendar_event_created_via_tool",
-            user_id=str(user_id),
-            event_id=result.get("id"),
-            summary=summary,
-        )
-
-        return {
-            "success": True,
-            "event_id": result.get("id"),
-            "html_link": result.get("htmlLink"),
-            "summary": summary,
-            "start": start_datetime,
-            "end": end_datetime,
-            "message": APIMessages.event_created_successfully(summary),
-        }
-
-
-# ============================================================================
 # TOOL 6: LIST CALENDARS (Read Operation - Data Registry LOT 9)
 # ============================================================================
 
@@ -1996,7 +1923,6 @@ __all__ = [
     "CreateEventDraftTool",
     "UpdateEventDraftTool",
     "DeleteEventDraftTool",
-    "CreateEventDirectTool",
     "ListCalendarsTool",
     # Draft execution helpers
     "execute_event_draft",

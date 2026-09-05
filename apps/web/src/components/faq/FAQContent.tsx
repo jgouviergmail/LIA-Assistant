@@ -81,6 +81,7 @@ import {
   MapPin,
   Gauge,
   ClipboardList,
+  ScrollText,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -203,6 +204,7 @@ export const featureIcons = {
   platformCapabilities: SlidersHorizontal,
   tabularAdmin: FileSpreadsheet,
   meetings: ClipboardList,
+  transparencyRegisters: ScrollText,
 };
 
 /**
@@ -278,6 +280,8 @@ export const featureKeys = [
   'ephemeralScripts',
   // Wired at v1.39.0 with ADR-258 — meeting recording and structured minutes.
   'meetings',
+  // Wired at v1.41.0 with ADR-263 — the two transparency registers.
+  'transparencyRegisters',
   'platformCapabilities',
   'tabularAdmin',
 ];

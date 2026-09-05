@@ -24,6 +24,7 @@ _search_desc = (
 )
 perplexity_search_catalogue_manifest = ToolManifest(
     name="perplexity_search_tool",
+    mutation_policy="read",
     agent="perplexity_agent",
     description=_search_desc,
     semantic_keywords=[
@@ -116,6 +117,7 @@ _ask_desc = (
 )
 perplexity_ask_catalogue_manifest = ToolManifest(
     name="perplexity_ask_tool",
+    mutation_policy="read",
     agent="perplexity_agent",
     description=_ask_desc,
     semantic_keywords=[

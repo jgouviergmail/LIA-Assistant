@@ -57,6 +57,16 @@ n'est **pas** un gate (`approval_gate_node` = pass-through, la confirmation y es
 entièrement output-driven) ; le flag pilote donc surtout le gate **pré-exécution
 ReAct** (`react_execute_tools_node` → `tool_confirmation`).
 
+> **Conséquence mesurée (2026-09-03, ADR-263)** : un outil **sans brouillon**
+> dont le manifeste ou le serveur MCP exige la confirmation (`hitl_required`)
+> s'exécute donc **sans carte** en mode pipeline — `parallel_executor` appelle
+> `tool.coroutine(**args)` directement et ne lit ni `hitl_required` ni le
+> verdict du validateur. Le manifeste dit désormais ce que chaque outil doit
+> (`mutation_policy`, voir [AGENT_MANIFEST.md](AGENT_MANIFEST.md)) ; la porte
+> qui l'applique dans les deux modes est le lot 2 d'ADR-263. Depuis ADR-263,
+> `approval_gate_node` sans verdict écrit `plan_approved=None` (« personne n'a
+> regardé ») au lieu de `True`.
+
 ### Évolution : Phase 7 → Phase 8
 
 | Aspect | Phase 7 (Ancien) | Phase 8 (Actuel) |

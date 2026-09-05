@@ -24,6 +24,7 @@ import type { SettingsSectionToken } from '@/lib/settings-sections';
 
 import AdminBroadcastSection from './AdminBroadcastSection';
 import AdminCapabilitiesSection from './AdminCapabilitiesSection';
+import AdminRegistersSection from './AdminRegistersSection';
 import AdminConnectorsSection from './AdminConnectorsSection';
 import AdminConsumptionExportSection from './AdminConsumptionExportSection';
 import AdminDebugSettingsSection from './AdminDebugSettingsSection';
@@ -186,6 +187,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
 
   // ---- Administration / System
   'admin-capabilities': { render: lng => <AdminCapabilitiesSection lng={lng} /> },
+  'admin-registers': { render: lng => <AdminRegistersSection lng={lng} /> },
   'admin-diagnostics': { render: lng => <AdminDiagnosticsSection lng={lng} /> },
   'admin-public-demo-link': { render: lng => <AdminPublicDemoLinkSection lng={lng} /> },
   'debug-settings': { render: lng => <AdminDebugSettingsSection lng={lng} /> },

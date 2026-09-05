@@ -53,7 +53,12 @@ class NotificationSettings(BaseSettings):
     )
     firebase_api_key: str | None = Field(
         default=None,
-        description="Web API key of this deployment's Firebase project.",
+        description=(
+            "API key of the ANDROID client in this deployment's Firebase project "
+            "(api_key.current_key in google-services.json). Often the same string "
+            "as the web key, but not always: a web key restricted by HTTP referrer "
+            "is rejected from a device, which reads as 'push does not work'."
+        ),
     )
     firebase_sender_id: str | None = Field(
         default=None,

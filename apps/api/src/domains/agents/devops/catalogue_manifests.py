@@ -11,6 +11,7 @@ from src.domains.agents.registry.catalogue import (
 
 claude_server_task_catalogue_manifest = ToolManifest(
     name="claude_server_task_tool",
+    mutation_policy="draft",
     agent="devops_agent",
     description=(
         "**Tool: claude_server_task_tool** - Execute a task on a remote server using"

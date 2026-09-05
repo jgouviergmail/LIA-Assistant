@@ -6,7 +6,7 @@
 
 **Version**: 4.7
 **Date**: 2026-08-23
-**Application**: LIA v1.40.0
+**Application**: LIA v1.41.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -65,8 +65,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 519 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 261 ADRs, ~22,775 pytest-collected tests across 1,349 files, native observability, 6-level HITL |
+| Full transparency | 535 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 262 ADRs, ~22,775 pytest-collected tests across 1,349 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -87,7 +87,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 22,775 collected by pytest across 1,349 test files + 6,983 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 261 |
+| ADRs (Architecture Decision Records) | 262 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -196,7 +196,7 @@ apps/api/src/
 
 ### 3.2. Configuration priority chain
 
-A fundamental invariant permeates the entire backend. It was systematically enforced in v1.9.4 with ~291 corrections across ~80 files, because divergences between constants and actual production configuration were causing silent bugs:
+A fundamental invariant permeates the entire backend. It is enforced everywhere, because a divergence between a constant and the actual production configuration causes a silent bug:
 
 ```
 APPLICATION (Admin UI / DB) > .ENV (settings) > CONSTANT (fallback)
@@ -363,7 +363,7 @@ The whole system is governed by a feature flag and a dozen env-tunable settings 
 
 ### 5.5. Generated artifacts: from request to downloadable file (ADR-226)
 
-Since v1.30.9 the pipeline can end on a file rather than only on prose. The `generate_document` tool follows the same architecture as image generation — a virtual agent in the catalogue, no dedicated graph node — but its "generator" is a dedicated LLM slot (`document_generation`, admin-configurable like every other slot) called with **structured output typed per format family**: tabular content for CSV/Excel, a section tree for Word/PDF/Markdown/text, a slide list for PowerPoint. The schema is selected *before* the call, so every response is strict-schema validated, then a **pure local renderer** builds the exact bytes — openpyxl, python-docx, python-pptx, PyMuPDF: the libraries already shipped for RAG extraction, now writing instead of reading, with zero third-party document service.
+The pipeline can end on a file rather than only on prose. The `generate_document` tool follows the same architecture as image generation — a virtual agent in the catalogue, no dedicated graph node — but its "generator" is a dedicated LLM slot (`document_generation`, admin-configurable like every other slot) called with **structured output typed per format family**: tabular content for CSV/Excel, a section tree for Word/PDF/Markdown/text, a slide list for PowerPoint. The schema is selected *before* the call, so every response is strict-schema validated, then a **pure local renderer** builds the exact bytes — openpyxl, python-docx, python-pptx, PyMuPDF: the libraries already shipped for RAG extraction, now writing instead of reading, with zero third-party document service.
 
 Three design decisions carry the feature. First, honesty of the artifact: spreadsheet cells are neutralized against formula injection (a probe proved openpyxl stores `=1+2` as a live formula) while legitimate negative numbers stay untouched, and a failure after the paid LLM call returns an explicit error — never a phantom card. Second, chaining: the planner can feed the results of a web-research step into the document step (`source_data`), so "research then formalize as CSV" is one request. Third, lifecycle: the file lands in the existing attachments store with the same TTL purge as generated images, and its card — delivered live through the SSE done chunk and persisted in message metadata through one shared serializer — displays the exact expiry deadline.
 
@@ -574,7 +574,7 @@ LangGraph's resume semantics re-execute the interrupted node **in full**: past `
 
 The LangGraph state is a `TypedDict` with an `add_messages_with_truncate` reducer that handles token-based truncation, OpenAI message sequence validation, and tool message deduplication.
 
-Since v1.30.12, the state is complemented by a **typed run context** (`LiaRuntimeContext`, ADR-231): a frozen dataclass declared as the graph's `context_schema`, carrying the run's identity, preferences and live dependencies (SSE queue, tool container). Unlike the state, this context is never checkpointed nor copied — object identity is preserved from node to subgraph to tool — and an assert at the graph's entrance refuses any run whose context is missing, including on the resume of a HITL interrupt, where the absence used to degrade silently.
+The state is complemented by a **typed run context** (`LiaRuntimeContext`, ADR-231): a frozen dataclass declared as the graph's `context_schema`, carrying the run's identity, preferences and live dependencies (SSE queue, tool container). Unlike the state, this context is never checkpointed nor copied — object identity is preserved from node to subgraph to tool — and an assert at the graph's entrance refuses any run whose context is missing, including on the resume of a HITL interrupt, where the absence used to degrade silently.
 
 ### 10.2. Why per-node windowing? (ADR-007)
 
@@ -647,7 +647,7 @@ Each memory is a structured document with:
 
 Every memory carries **two embeddings**: one over its content, one over the keywords that trigger it. The query is compared to both and the better match wins (`LEAST(dist_content, dist_keyword)`, falling back to content when the keyword vector is null).
 
-A **BM25 + pgvector hybrid** engine lived here until v1.14.0, when long-term memory migrated to its own PostgreSQL model. The search path followed; the hybrid path did not. As of 2026-07-27 it had **no caller at all**, 21 % coverage, 100 of 127 lines never reached — and the debug panel was still advertising the option to the user. Module, settings, metrics and display were removed together ([ADR-168](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md)). Hybrid search is still very much alive, but where it is actually used: RAG Spaces (section 17).
+Long-term memory has its own PostgreSQL model; the retrieval described above is the one it uses. The search path followed; the hybrid path did not. As of 2026-07-27 it had **no caller at all**, 21 % coverage, 100 of 127 lines never reached — and the debug panel was still advertising the option to the user. Module, settings, metrics and display were removed together ([ADR-168](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md)). Hybrid search is still very much alive, but where it is actually used: RAG Spaces (section 17).
 
 ### 11.5. Stratified journals
 
@@ -663,7 +663,7 @@ The assistant maintains introspective reflections organized along four themes (s
 
 **Three user correction levers** on the portrait (never directly editable): (1) CRUD edits on the L3 source entries, (2) `POST /journals/portrait/feedback` (free text → L0 entry with `source=user_correction` + synchronous re-consolidation that re-weights L3 entries), (3) `POST /journals/consolidate` (manual consolidation, bypasses cooldown).
 
-**Dedup discipline**: no write-time guard (retired in v1.14.0). At consolidation, `STEP 1` performs an explicit pairwise scan that merges semantic duplicates, and `STEP 5` actively clusters convergent L1s into L2 patterns.
+**Dedup discipline**: no write-time guard. At consolidation, `STEP 1` performs an explicit pairwise scan that merges semantic duplicates, and `STEP 5` actively clusters convergent L1s into L2 patterns.
 
 **4-layer anti-hallucination**: Pydantic `field_validator` on UUIDs, reference ID table in the prompt, filtering of actions by known IDs at extraction and consolidation, and atomic counter increments (the LLM only signals `evidence_outcome`).
 
@@ -708,7 +708,7 @@ Pricing itself follows the provider's clock: some providers bill text models by 
 
 ### 12.4. DB-source-of-truth admin catalogue
 
-The `llm_models` table carries the full catalogue: provider, classic functional capabilities (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), and — structuring additions — the **per-model sampling matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) plus the **accepted reasoning ladder** (`reasoning_enum_values`, a JSONB list) and its help-text i18n key (`reasoning_doc_i18n_key`). This per-model declaration replaces the legacy frontend regex that used to guess which sliders to hide: the Configuration LLM dialog reads the DB flags directly and exposes only the parameters the model's API actually accepts. Since v1.32.0 that ladder no longer **declares** what a model accepts, it **narrows** it: what a model accepts is derived from its (provider, model) pair, and the two columns that used to describe the reasoning *shape* are dropped — there is one shape now.
+The `llm_models` table carries the full catalogue: provider, classic functional capabilities (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), and — structuring additions — the **per-model sampling matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) plus the **accepted reasoning ladder** (`reasoning_enum_values`, a JSONB list) and its help-text i18n key (`reasoning_doc_i18n_key`). This per-model declaration replaces the legacy frontend regex that used to guess which sliders to hide: the Configuration LLM dialog reads the DB flags directly and exposes only the parameters the model's API actually accepts. That ladder no longer **declares** what a model accepts, it **narrows** it: what a model accepts is derived from its (provider, model) pair, and the two columns that used to describe the reasoning *shape* are dropped — there is one shape now.
 
 The Pricing LLM admin screen writes that ladder **directly**: it renders the depths the model's family offers — resolved live by `GET /admin/llm/reasoning-family`, through the same function as the translator and the validator — and you **untick** the ones this particular model refuses. Ticking everything stores nothing: the family's ladder applies as is. The Excel workbook (ADR-228) carries the same two columns, and its import refuses a depth outside the family **while naming the ones that would have been accepted**: a spreadsheet cannot render checkboxes, so the guarantee moves to import time. A template mechanism — “copy the shape of that existing model” — used to sit here; it grouped models by their *stored* ladder rather than by family, so copying one across families silently removed depths. See `docs/technical/LLM_REASONING_IDENTITY.md`.
 
@@ -764,7 +764,7 @@ The `MCPClientManager` manages connection lifecycle (exit stacks), tool discover
 
 LIA tracks the current revision of the protocol — **2026-07-28** — on both halves of what a server exposes: how it is spoken to, and what it declares. Reading a declaration is a problem in its own right, and it has exactly one implementation (ADR-255). The specification defines a tool's input schema as JSON Schema 2020-12 and admits *every* keyword in it: an optional parameter may be spelled `"type": ["string", "null"]` or as an `anyOf`, a nested structure declared through a `$ref` into `$defs`, a closed set through `enum` or `const`. Two consumers read that same declaration — the adapter, which turns it into the signature offered to the model, and the catalogue, which turns it into a planning entry — and two readings of one thing always end up disagreeing. `json_schema.py` is therefore the single authority, and a parity test compares what each derives from it. Every function there is total: it answers for any declaration a server can send, because raising costs a tool, and a lost tool is a capability the user no longer has without being told. What stays undecidable — a `not`, an unreachable reference — is typed permissively rather than discarded, and what the server actually enforces (closed sets, bounds, sizes) is published to the planner in the very constraint vocabulary native tools have always used.
 
-Since v1.30.6 the client is **dual-era** (MCP SDK v2, ADR-224): it speaks the stateless 2026-07-28 protocol revision and automatically falls back to the legacy `initialize` handshake for earlier servers — every already-configured server keeps working unchanged while new-generation servers become reachable. LIA identifies itself in the handshake (`clientInfo`), and a server that rejects every revision LIA speaks produces an actionable diagnostic instead of a raw transport error buried in nested `ExceptionGroup`s.
+The client is **dual-era** (MCP SDK v2, ADR-224): it speaks the stateless 2026-07-28 protocol revision and automatically falls back to the legacy `initialize` handshake for earlier servers — every already-configured server keeps working unchanged while new-generation servers become reachable. LIA identifies itself in the handshake (`clientInfo`), and a server that rejects every revision LIA speaks produces an actionable diagnostic instead of a raw transport error buried in nested `ExceptionGroup`s.
 
 The same openness now extends from the wire protocol to the **package format**. LIA is a conformant client of the Agent Plugins v1.0.0 open standard (agent-plugins.org): a plugin is a plain directory — a closed-schema `plugin.json` manifest, agentskills.io skills under `skills/`, MCP servers declared in `mcp.json` — and the same package installs unchanged in ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code and LIA. The design leans entirely on layers that already existed: detection routes a plugin archive to a staging pipeline that reuses the skills importer's hardening (bounded extraction, zip-slip guards, per-skill atomic install with rollback), `mcp.json` entries map onto per-user MCP servers, and quotas are pre-checked globally before the first write so an install is never left half-done. Two principles govern the lifecycle. First, per-component resilience with total honesty: a component that cannot be installed — an stdio server LIA deliberately never launches, a name collision, an invalid skill — is *skipped and said*, with a translated reason in an exhaustive per-component report; nothing is ever pretended installed. Second, provenance as an invariant: every component carries the plugin that brought it, name collisions are only resolved within the same provenance (a plugin can never capture a manually-created skill, nor the reverse), updates are re-imports that preserve configured credentials, and removal only happens as a group uninstall — a plugin can never end up silently amputated.
 
@@ -945,7 +945,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 519 custom metrics (RED pattern) |
+| Prometheus | 535 custom metrics (RED pattern) |
 | Grafana | 26 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -953,7 +953,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 519 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 535 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1351,7 +1351,7 @@ The most valuable engineering lesson came from an invisible defect: the label pr
 
 ## 24. Architecture Decision Records (ADR)
 
-261 ADRs in MADR format document the major architectural decisions. Some representative examples:
+262 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1430,7 +1430,7 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 ### 26.7. The resting frame, recentred on measurement
 
-The Mehrabian mapping rested **all 14** catalogue personalities at D > 0 (spread +0.063 to +0.349). Damping is a homothety and cannot fix that, so the five mood centroids requiring negative dominance stayed unreachable at rest. Two knobs shipped **inert** in v1.25.14 — a translation applied after damping, and a gate on the sustained-quality joy pulse — precisely so activation would be a measured decision rather than an intuition.
+The Mehrabian mapping rested **all 14** catalogue personalities at D > 0 (spread +0.063 to +0.349). Damping is a homothety and cannot fix that, so the five mood centroids requiring negative dominance stayed unreachable at rest. Two knobs ship **inert** — a translation applied after damping, and a gate on the sustained-quality joy pulse — precisely so activation is a measured decision rather than an intuition.
 
 The measurement was taken on production in August 2026 (769 snapshots, 3 users, 90 days), and the diagnosis held more strongly than the simulation had predicted: negative-dominance share **0.0 %**, live catalogue mean +0.234, and the joy pulse crowning joy the dominant emotion on **31 %** of turns (45.5 % over the last 30) regardless of the appraisal actually reported. Both knobs are now code defaults: at 0.20 the catalogue straddles zero — 7/14 rest below it, with the personality ordering exactly preserved and P/A untouched — and the reported appraisal owns the emotion channel again. What the same measurement **refuted** is recorded too: arousal is locked as well, but by the appraisal stream never reporting low-arousal emotions, not by resting-point geometry — so this change does not fix it, and must not be read as if it did.
 
@@ -1490,7 +1490,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 261 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~22,775 tests across 1,349 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 262 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~24,042 tests across 1,451 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1603,4 +1603,4 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 **Every paid unit is accounted, and shown.** A meeting spends audio at the transcription engine and tokens at the synthesis model, condense passes and rebuilds included; both reach the platform's books the way every exchange does — the audio through the remote-speech statistics, the tokens under a `run_id` the archived chat message carries, so history joins the token log exactly as for any proactive notification. The row keeps the minutes' own spend so the page states the exact total with its breakdown, the card states the two units and their sum, and a model without an administered price yields `null`: an unknown price is not a free one. The same honesty runs through the minutes themselves — a gap is stated, never bridged; an unnamed speaker stays S2; a proposal left open is not a decision.
 
 **The minutes format became a library, and the choice has one place.** Thirty built-in templates live in the code, their words in an i18n data module, and a boot-time assertion refuses to start if a name is missing in one of the six languages: what a validator can reject, the catalogue cannot ship. A template is named by a reference — `builtin:<key>` or `user:<uuid>` — that meetings, preferences and requests exchange instead of a row, so a built-in needs no database row and a deleted template leaves a reference whose readers know to fall back on the stored snapshot. The choice follows **one precedence**: the reference carried by the meeting, then the preference's default, then the language model reading a transcript excerpt and choosing above a confidence floor, then the built-in default; every outcome is counted and written on the row with the reason stated, so the page shows a fact rather than a reconstruction. A fifth section kind hands back the transcript itself: it does not fit in one answer — the synthesis slot outputs at most eight thousand tokens — so it is rewritten part by part, each bounded by the effective output window, a missing index splitting the part once and a suspiciously short answer retried once. Rewriting minutes already written borrows the durable regeneration when it replaces, and creates a derived row pointing at its source when it produces new minutes — never a copy: the transcript is the same, the minutes are not. The same concern for order governs knowledge-space documents: since `rag_chunks.space_id` is denormalized and read by retrieval, a move writes the row and its chunks, commits, **then** moves the file; a rename that fails reverts both and reports it for that document alone, and a batch never stops for one item — every id comes back done or skipped with its code.
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 261 ADRs, and the changelog (v1.0 to v1.40.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 262 ADRs, and the changelog (v1.0 to v1.41.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

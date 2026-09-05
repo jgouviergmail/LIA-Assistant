@@ -221,6 +221,10 @@ export type ChatAction =
           // UXR Lot 4 (A2): follow-up chips (mirror of
           // DoneMetadata.followup_suggestions — ADR-117: both types).
           followup_suggestions?: string[];
+          // ADR-263: what the turn actually performed, from the effect
+          // register (mirror of the archived `performed_effects` metadata, so
+          // the live bubble and a reload state exactly the same facts).
+          performed_effects?: unknown[];
           // Lot 1-A3: provenance line of the chips (mirror of
           // DoneMetadata.initiative_motivation — ADR-117: both types).
           initiative_motivation?: string;

@@ -12,12 +12,14 @@ Extracted verbatim from ``src.main.lifespan`` (ADR-123): same structlog
 events, same exception handling, same feature-flag guards.
 """
 
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_BROWSER_CLEANUP
+from src.infrastructure.startup.errors import StartupCompletenessError
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -43,6 +45,64 @@ async def init_checkpointer() -> InstrumentedAsyncPostgresSaver | None:
     except (RuntimeError, ImportError, ConnectionError) as exc:
         logger.error("checkpointer_initialization_failed", error=str(exc), exc_info=True)
     return checkpointer
+
+
+def _assert_effect_completeness(registry: Any) -> None:
+    """Run the ADR-263 boot guards, and let a failure STOP the boot.
+
+    Each guard asserts a property the code is supposed to guarantee rather than
+    trusting that the code ran:
+
+    - every registered capability, and every draft executor, goes through the
+      effect gate (installation happens at registration; this found a second
+      registration path the day it was written);
+    - every capability that can ACT can say what it did — a register nobody can
+      read is a log file;
+    - every capability that can be CONSULTED can be named — a consultation
+      register showing ``get_calls_tool`` to a user is a silent failure of the
+      surface, and the surface has no other alarm.
+
+    Args:
+        registry: The loaded registry, read by the naming guard.
+
+    Raises:
+        StartupCompletenessError: On the first guard that refuses.
+    """
+    from src.core.i18n_treatments import (
+        assert_decision_wording_completeness,
+        assert_stop_reason_wording_completeness,
+    )
+    from src.domains.agents.effects.labels import assert_effect_label_completeness
+    from src.domains.agents.effects.runtime import assert_effect_gate_completeness
+    from src.domains.agents.effects.treatment_labels import (
+        assert_treatment_domain_completeness,
+    )
+
+    guards: tuple[tuple[str, str, Callable[[], None]], ...] = (
+        ("effect_gate_incomplete", "Effect gate", assert_effect_gate_completeness),
+        ("effect_labels_incomplete", "Effect labels", assert_effect_label_completeness),
+        (
+            "treatment_domains_incomplete",
+            "Treatment domains",
+            lambda: assert_treatment_domain_completeness(registry),
+        ),
+        (
+            "decision_wordings_incomplete",
+            "Decision outcome wordings",
+            assert_decision_wording_completeness,
+        ),
+        (
+            "stop_reason_wordings_incomplete",
+            "Turn stop-reason wordings",
+            assert_stop_reason_wording_completeness,
+        ),
+    )
+    for event, subject, guard in guards:
+        try:
+            guard()
+        except AssertionError as exc:
+            logger.error(event, error=str(exc), exc_info=True)
+            raise StartupCompletenessError(f"{subject} incomplete: {exc}") from exc
 
 
 async def init_agent_registry(
@@ -115,7 +175,9 @@ async def init_agent_registry(
             assert_registry_completeness(registry)
         except AssertionError as exc:
             logger.error("capability_directive_registry_incomplete", error=str(exc), exc_info=True)
-            raise RuntimeError(f"Capability directive registry incomplete: {exc}") from exc
+            raise StartupCompletenessError(
+                f"Capability directive registry incomplete: {exc}"
+            ) from exc
 
         # Validate tool safety categories (ADR-085 pattern, ADR-256): a native
         # manifest with neither a declared tool_category nor a naming convention
@@ -132,7 +194,40 @@ async def init_agent_registry(
             assert_tool_category_completeness(registry.list_tool_manifests())
         except AssertionError as exc:
             logger.error("tool_category_registry_incomplete", error=str(exc), exc_info=True)
-            raise RuntimeError(f"Tool category registry incomplete: {exc}") from exc
+            raise StartupCompletenessError(f"Tool category registry incomplete: {exc}") from exc
+
+        # Validate what each acting tool OWES the user before it acts (ADR-263).
+        # The category above says what a tool does; the policy says what the
+        # user is asked. Measured 2026-09-03: 13 native tools classified as
+        # mutations had no confirmation gate in either execution mode, and
+        # nothing said whether that was a decision or an omission. Same
+        # placement and same reason as the two blocks above.
+        try:
+            from src.domains.agents.registry.catalogue import (
+                assert_mutation_policy_completeness,
+            )
+
+            assert_mutation_policy_completeness(registry.list_tool_manifests())
+        except AssertionError as exc:
+            logger.error("mutation_policy_registry_incomplete", error=str(exc), exc_info=True)
+            raise StartupCompletenessError(f"Mutation policy registry incomplete: {exc}") from exc
+
+        # The draft executors register LAZILY (first use of ``DraftExecutor``),
+        # so at this point the registry is empty — measured 2026-09-04: both
+        # asserts below read it, and against an empty dict they passed on
+        # anything. Populating it here is what makes their executor half mean
+        # something at boot rather than only in CI.
+        from src.domains.agents.services.draft_executor_registry import (
+            ensure_executors_registered,
+        )
+
+        ensure_executors_registered()
+
+        # The three ADR-263 completeness guards, run as one: they share a
+        # shape, and four copies of it is four places for the re-raise to be
+        # forgotten — which is exactly the defect the programme found, where
+        # ``init_agent_registry`` caught its own guards and merely logged.
+        _assert_effect_completeness(registry)
 
         # Register all available agents
         # NAMING: domain=entity(singular), agent=domain+"_agent"
@@ -208,7 +303,7 @@ async def init_agent_registry(
             assert_capability_agents_exist(registry)
         except AssertionError as exc:
             logger.error("capability_registry_incomplete", error=str(exc), exc_info=True)
-            raise RuntimeError(f"Capability registry incomplete: {exc}") from exc
+            raise StartupCompletenessError(f"Capability registry incomplete: {exc}") from exc
 
         # Set as global registry
         set_global_registry(registry)
@@ -219,6 +314,12 @@ async def init_agent_registry(
             has_checkpointer=checkpointer is not None,
             has_store=store is not None,
         )
+    except StartupCompletenessError:
+        # A declaration defect: the promise of the guards above is that the
+        # application refuses to start. Logging and continuing would leave the
+        # global registry unset and the instance up with an EMPTY catalogue.
+        logger.error("agent_registry_incomplete_boot_refused", exc_info=True)
+        raise
     except (RuntimeError, ImportError, ValueError) as exc:
         logger.error("agent_registry_initialization_failed", error=str(exc), exc_info=True)
     return registry

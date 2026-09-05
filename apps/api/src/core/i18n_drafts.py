@@ -283,6 +283,25 @@ DRAFT_ERROR_MESSAGES: dict[Language, str] = {
 }
 
 
+# Shown when a confirmed draft could NOT run because the same action is already
+# on record without a result — a first attempt that failed, or one still in
+# flight (ADR-263). Repeating it is the one thing the gate must not do, and
+# reporting a success it knows nothing about is the one thing it must not say.
+DRAFT_ALREADY_CLAIMED_MESSAGES: dict[Language, str] = {
+    "fr": "Cette action est déjà enregistrée sans résultat connu : elle n'a pas "
+    "été relancée. Vérifiez avant de réessayer.",
+    "en": "This action is already on record with no known result: it was not "
+    "retried. Please check before trying again.",
+    "es": "Esta acción ya está registrada sin resultado conocido: no se ha "
+    "reintentado. Compruébelo antes de volver a intentarlo.",
+    "de": "Diese Aktion ist bereits ohne bekanntes Ergebnis erfasst: Sie wurde "
+    "nicht wiederholt. Bitte prüfen Sie es, bevor Sie es erneut versuchen.",
+    "it": "Questa azione è già registrata senza un risultato noto: non è stata "
+    "ripetuta. Verifichi prima di riprovare.",
+    "zh-CN": "此操作已记录但结果未知：未重试。请先确认再重试。",
+}
+
+
 # ============================================================================
 # DRAFT SUMMARY LABELS
 # ============================================================================
@@ -470,6 +489,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "schedule": "Planification",
         "instruction": "Instruction",
         "server": "Serveur",
+        "tool": "Outil",
+        "details": "Détails",
         "context": "Consignes",
         "video_conference": "Visioconférence",
         "video_conference_included": "Incluse",
@@ -517,6 +538,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "schedule": "Schedule",
         "instruction": "Instruction",
         "server": "Server",
+        "tool": "Tool",
+        "details": "Details",
         "context": "Instructions",
         "video_conference": "Video call",
         "video_conference_included": "Included",
@@ -564,6 +587,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "schedule": "Programación",
         "instruction": "Instrucción",
         "server": "Servidor",
+        "tool": "Herramienta",
+        "details": "Detalles",
         "context": "Instrucciones",
         "video_conference": "Videollamada",
         "video_conference_included": "Incluida",
@@ -611,6 +636,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "schedule": "Zeitplan",
         "instruction": "Anweisung",
         "server": "Server",
+        "tool": "Werkzeug",
+        "details": "Details",
         "context": "Vorgaben",
         "video_conference": "Videokonferenz",
         "video_conference_included": "Inbegriffen",
@@ -658,6 +685,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "schedule": "Pianificazione",
         "instruction": "Istruzione",
         "server": "Server",
+        "tool": "Strumento",
+        "details": "Dettagli",
         "context": "Istruzioni",
         "video_conference": "Videoconferenza",
         "video_conference_included": "Inclusa",
@@ -705,6 +734,8 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "schedule": "计划",
         "instruction": "指令",
         "server": "服务器",
+        "tool": "工具",
+        "details": "详情",
         "context": "附加说明",
         "video_conference": "视频会议",
         "video_conference_included": "包含",
@@ -878,6 +909,21 @@ def get_draft_error_message(
     return DRAFT_ERROR_MESSAGES.get(lang, DRAFT_ERROR_MESSAGES[DEFAULT_LANGUAGE])
 
 
+def get_draft_already_claimed_message(language: str | None = None) -> str:
+    """The localized sentence for a draft that was not repeated (ADR-263).
+
+    Args:
+        language: Target language code.
+
+    Returns:
+        The localized message, falling back to the default language.
+    """
+    lang = _normalize_language(language)
+    return DRAFT_ALREADY_CLAIMED_MESSAGES.get(
+        lang, DRAFT_ALREADY_CLAIMED_MESSAGES[DEFAULT_LANGUAGE]
+    )
+
+
 def get_draft_summary_label(
     label_key: str,
     language: str | None = None,
@@ -969,6 +1015,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "fichier", "plural": "fichiers", "gender": "m"},
         "label": {"singular": "label", "plural": "labels", "gender": "m"},
         "call": {"singular": "appel", "plural": "appels", "gender": "m"},
+        "action": {"singular": "action", "plural": "actions", "gender": "f"},
         "automation": {"singular": "automatisation", "plural": "automatisations", "gender": "f"},
         "auto_reply": {
             "singular": "réponse automatique",
@@ -993,6 +1040,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "file", "plural": "files"},
         "label": {"singular": "label", "plural": "labels"},
         "call": {"singular": "call", "plural": "calls"},
+        "action": {"singular": "action", "plural": "actions"},
         "automation": {"singular": "automation", "plural": "automations"},
         "auto_reply": {"singular": "auto-reply", "plural": "auto-replies"},
         "spreadsheet": {"singular": "spreadsheet", "plural": "spreadsheets"},
@@ -1013,6 +1061,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "archivo", "plural": "archivos", "gender": "m"},
         "label": {"singular": "etiqueta", "plural": "etiquetas", "gender": "f"},
         "call": {"singular": "llamada", "plural": "llamadas", "gender": "f"},
+        "action": {"singular": "acción", "plural": "acciones", "gender": "f"},
         "automation": {"singular": "automatización", "plural": "automatizaciones", "gender": "f"},
         "auto_reply": {
             "singular": "respuesta automática",
@@ -1037,6 +1086,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "Datei", "plural": "Dateien"},
         "label": {"singular": "Label", "plural": "Labels"},
         "call": {"singular": "Anruf", "plural": "Anrufe"},
+        "action": {"singular": "Aktion", "plural": "Aktionen"},
         "automation": {"singular": "Automatisierung", "plural": "Automatisierungen"},
         "auto_reply": {"singular": "Abwesenheitsnotiz", "plural": "Abwesenheitsnotizen"},
         "spreadsheet": {"singular": "Tabelle", "plural": "Tabellen"},
@@ -1054,6 +1104,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "file", "plural": "file", "gender": "m"},
         "label": {"singular": "etichetta", "plural": "etichette", "gender": "f"},
         "call": {"singular": "chiamata", "plural": "chiamate", "gender": "f"},
+        "action": {"singular": "azione", "plural": "azioni", "gender": "f"},
         "automation": {"singular": "automazione", "plural": "automazioni", "gender": "f"},
         "auto_reply": {
             "singular": "risposta automatica",
@@ -1079,6 +1130,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "file": {"singular": "文件", "plural": "文件"},
         "label": {"singular": "标签", "plural": "标签"},
         "call": {"singular": "通话", "plural": "通话"},
+        "action": {"singular": "操作", "plural": "操作"},
         "automation": {"singular": "自动化任务", "plural": "自动化任务"},
         "auto_reply": {"singular": "自动回复", "plural": "自动回复"},
         "spreadsheet": {"singular": "电子表格", "plural": "电子表格"},

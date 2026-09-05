@@ -15,6 +15,7 @@
  */
 
 import { useMemo } from 'react';
+import Link from 'next/link';
 import {
   AlertTriangle,
   Bell,
@@ -22,6 +23,7 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDot,
+  ClipboardList,
   History,
   RefreshCw,
   Repeat,
@@ -100,10 +102,7 @@ export function ActivityTimeline({ lng }: ActivityTimelineProps) {
     () => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }),
     [locale]
   );
-  const groups = useMemo(
-    () => (events ? groupByLocalDay(events, locale) : []),
-    [events, locale]
-  );
+  const groups = useMemo(() => (events ? groupByLocalDay(events, locale) : []), [events, locale]);
   const visibleTotals = totals.filter(item => item.total > 0);
   const anyTruncated = visibleTotals.some(item => item.truncated);
 
@@ -119,13 +118,25 @@ export function ActivityTimeline({ lng }: ActivityTimelineProps) {
             {t('activity.subtitle', { days: windowDays ?? 30 })}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refetch} disabled={firstLoad}>
-          <RefreshCw
-            className={loading && !firstLoad ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
-            aria-hidden="true"
-          />
-          {t('activity.refresh')}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* ADR-263: the timeline tells the STORY of LIA's proactive work; the
+              journal is the RECORD of what its capabilities actually did. A
+              reader asking "what did LIA do?" arrives here, so the record is
+              reachable from here rather than from a second entry point. */}
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/${lng}/dashboard/actions`}>
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              {t('effects.journal.title')}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={refetch} disabled={firstLoad}>
+            <RefreshCw
+              className={loading && !firstLoad ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
+              aria-hidden="true"
+            />
+            {t('activity.refresh')}
+          </Button>
+        </div>
       </header>
 
       {error && events === undefined ? (
@@ -237,9 +248,7 @@ function TimelineRow({ item, time, label }: TimelineRowProps) {
             {time}
           </time>
           {item.kind === 'open_loop_closed' && item.status === 'expired' && (
-            <span className="text-xs text-muted-foreground">
-              {t('activity.status_expired')}
-            </span>
+            <span className="text-xs text-muted-foreground">{t('activity.status_expired')}</span>
           )}
         </span>
         {item.text && (

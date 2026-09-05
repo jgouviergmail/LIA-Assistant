@@ -185,6 +185,7 @@ get_steps_daily_breakdown_catalogue_manifest = ToolManifest(
 
 compare_steps_to_baseline_catalogue_manifest = ToolManifest(
     name="compare_steps_to_baseline_tool",
+    mutation_policy="read",
     # ADR-256: derives a delta from stored signals.
     tool_category="readonly",
     agent=AGENT_HEALTH,
@@ -252,6 +253,7 @@ get_heart_rate_summary_catalogue_manifest = ToolManifest(
 
 compare_heart_rate_to_baseline_catalogue_manifest = ToolManifest(
     name="compare_heart_rate_to_baseline_tool",
+    mutation_policy="read",
     # ADR-256: derives a delta from stored signals.
     tool_category="readonly",
     agent=AGENT_HEALTH,
@@ -321,6 +323,7 @@ get_health_overview_catalogue_manifest = ToolManifest(
 
 detect_health_changes_catalogue_manifest = ToolManifest(
     name="detect_health_changes_tool",
+    mutation_policy="read",
     # ADR-256: derives variations from stored signals.
     tool_category="readonly",
     agent=AGENT_HEALTH,

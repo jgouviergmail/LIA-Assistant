@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    LIA's launcher icon, candidate C: the PWA icon rebuilt as adaptive layers.
+
+    Two layers rather than one raster, so the shape follows whatever mask the
+    launcher applies (a superellipse on OneUI, a circle elsewhere) instead of
+    being framed in a white container, and so Android 13 can tint the app in a
+    themed home screen. The disc keeps the 62.5 % share it has in
+    apps/web/public/icon-512.png, which lands inside the 66dp safe zone.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
+</adaptive-icon>

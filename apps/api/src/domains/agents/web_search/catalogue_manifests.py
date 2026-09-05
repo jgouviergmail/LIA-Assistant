@@ -30,6 +30,7 @@ _unified_search_desc = (
 
 unified_web_search_catalogue_manifest = ToolManifest(
     name="unified_web_search_tool",
+    mutation_policy="read",
     # ADR-256: external search, no user data.
     tool_category="readonly",
     agent="web_search_agent",

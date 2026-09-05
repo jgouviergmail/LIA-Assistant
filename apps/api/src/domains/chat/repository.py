@@ -33,6 +33,7 @@ from src.domains.chat.models import (
     TokenUsageLog,
     UserStatistics,
 )
+from src.infrastructure.database.export_window import newest_window
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -154,6 +155,16 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                     status=log_data.get("status"),
                     failure_kind=log_data.get("failure_kind"),
                     llm_type=log_data.get("llm_type"),
+                    # ADR-263 lot 7. Absent on rows written before the
+                    # migration, and on any path that has no invocation
+                    # parameters — NULL says so rather than inventing a default.
+                    provider=log_data.get("provider"),
+                    temperature=log_data.get("temperature"),
+                    top_p=log_data.get("top_p"),
+                    max_output_tokens=log_data.get("max_output_tokens"),
+                    reasoning_level=log_data.get("reasoning_level"),
+                    reasoning_budget_tokens=log_data.get("reasoning_budget_tokens"),
+                    params_digest=log_data.get("params_digest"),
                 )
                 log_entries.append(log_entry)
 
@@ -334,6 +345,45 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                 error=str(e),
             )
             raise
+
+    async def list_inference_for_export(
+        self,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+        user_ids: list[UUID] | None,
+        limit: int,
+    ) -> list[TokenUsageLog]:
+        """Inference rows for a technical export, oldest first (ADR-263 lot 7).
+
+        The same shape the three registers offer, so one extraction can read
+        four sources through one contract. Oldest first, like the others: an
+        export is read forward, as a history.
+
+        Args:
+            since: Inclusive lower bound on ``created_at``.
+            until: Exclusive upper bound.
+            user_ids: One, several, or (None) every account.
+            limit: Row ceiling, published in the file's header by the caller.
+
+        Returns:
+            The matching rows.
+        """
+        filters = []
+        if since is not None:
+            filters.append(TokenUsageLog.created_at >= since)
+        if until is not None:
+            filters.append(TokenUsageLog.created_at < until)
+        if user_ids:
+            filters.append(TokenUsageLog.user_id.in_(user_ids))
+
+        # The most RECENT rows, returned oldest first (``export_window``).
+        return await newest_window(
+            self.db,
+            select(TokenUsageLog).where(*filters),
+            newest_first=(TokenUsageLog.created_at.desc(), TokenUsageLog.id.desc()),
+            limit=limit,
+        )
 
     async def get_token_logs_by_run_id(
         self,

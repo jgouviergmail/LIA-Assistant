@@ -24,7 +24,7 @@ Example:
 """
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from typing import Any
 
 from src.infrastructure.observability.logging import get_logger
@@ -261,3 +261,64 @@ def cancel_all_background_tasks() -> int:
     )
 
     return count
+
+
+async def write_through_cancellation(
+    make_write: Callable[[], Awaitable[None]],
+    *,
+    attempts: int,
+    label: str,
+) -> bool:
+    """Run one write to completion even while the caller is being cancelled.
+
+    The problem it solves is narrow and was measured, twice. A durable write in
+    a ``finally`` block runs while a cancellation is already propagating, so a
+    plain ``await`` is cut short and the row is lost. ``asyncio.shield`` fixes
+    that for the FIRST delivery — but a cancellation can be re-delivered, and
+    the naive retry then calls the write AGAIN.
+
+    Simulated 2026-09-04: shielding a fresh coroutine per attempt produced
+    ``['start', 'start', 'done', 'done']`` — one turn's row upserted twice, its
+    ``segments`` counter reading 2 for a turn nobody interrupted. So the work
+    becomes a TASK once, and every attempt awaits that same task.
+
+    ``make_write`` is a factory rather than an awaitable for the codebase's
+    standing reason (Systemic Rules): a coroutine is awaitable exactly once, so
+    a seam holding one cannot decide whether to run it.
+
+    Args:
+        make_write: Builds the write. Called exactly once.
+        attempts: How many re-deliveries to survive before letting the task
+            finish on its own. Bounded so a shutdown is never held open.
+        label: Event name for the abandonment log.
+
+    Returns:
+        True when a cancellation was delivered. The caller re-raises it: a
+        cancelled turn must stay cancelled — writing a register never
+        resurrects it.
+    """
+    task = asyncio.ensure_future(make_write())
+    task.set_name(label)
+    # asyncio holds tasks WEAKLY, and the abandonment path below returns while
+    # this one is still running — its only local reference dies with the frame.
+    # The module's own registry is what keeps a background write alive, so the
+    # write uses it rather than trusting the loop.
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    cancelled = False
+    for _ in range(attempts):
+        try:
+            await asyncio.shield(task)
+            break
+        except asyncio.CancelledError:
+            cancelled = True
+            if task.done():
+                break
+    else:
+        # Still writing after the last attempt: let it finish on its own rather
+        # than hold the shutdown. The registry above is what keeps it alive,
+        # and ``wait_all_background_tasks`` is what gives it a last chance at
+        # exit — being in that set is the difference between « finishes later »
+        # and « collected mid-write ».
+        logger.warning(f"{label}_abandoned")
+    return cancelled

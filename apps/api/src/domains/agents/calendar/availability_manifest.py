@@ -21,6 +21,7 @@ from src.domains.agents.registry.catalogue import (
 
 find_availability_catalogue_manifest = ToolManifest(
     name="find_availability_tool",
+    mutation_policy="read",
     # ADR-256: computes free slots, writes nothing.
     tool_category="readonly",
     agent="event_agent",

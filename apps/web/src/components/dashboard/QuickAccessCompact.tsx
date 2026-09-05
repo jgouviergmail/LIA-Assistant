@@ -1,27 +1,29 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, HelpCircle, Settings, Sparkles, Users } from 'lucide-react';
+import { ChevronRight, ClipboardList, HelpCircle, Settings, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 /**
- * Quick access to Help, Relations and Settings — a compact bar above the
- * briefing.
+ * Quick access to Help, the constellation, the registers and Settings — a
+ * compact bar above the briefing.
  *
  * These are SECONDARY destinations sitting right before the day's content. As
  * large cards they would cost the briefing its vertical space; one bar says the
- * same thing compactly, with nothing removed. Relations (N-09 CRM) lives here
- * because it has no nav slot (the header already clips at 5 destinations, R01)
- * and no other always-visible home — Quick Access is the discoverable entry
- * that overrides nothing.
+ * same thing compactly, with nothing removed.
+ *
+ * Relations used to sit here because it had no nav slot. It has one now
+ * (`lib/dashboard-nav.ts`), so the tile was a second door to the same room —
+ * removed 2026-09-04. A destination reachable from the header does not also
+ * need a tile: two doors make the bar longer without making anything more
+ * reachable.
  *
  * Layout is decided by MEASUREMENT: the segments STACK below `sm` (full-width
- * rows, every locale legible) and sit side by side above it. Three thirds at
- * `sm` (640 px) leave ~200 px each — "Beziehungen"/"Relaciones" fit; the tight
- * two-up-at-320 px case the old 2-tile math worried about never occurs because
- * 320 px is below `sm`, where they stack.
+ * rows, every locale legible) and sit side by side above it. Four quarters at
+ * `sm` (640 px) leave ~160 px each; the tight two-up-at-320 px case never
+ * occurs because 320 px is below `sm`, where they stack.
  *
  * Links, not buttons: these are navigations. `<Link>` gives middle-click,
  * open-in-new-tab, the URL on hover and the "link" role — matching the rest of
@@ -50,13 +52,6 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
         sublabel={t('dashboard.quick_access_compact.help_sub')}
         tone="primary"
       />
-      <QuickAccessAction
-        href={`/${lng}/dashboard/relations`}
-        icon={Users}
-        label={t('dashboard.quick_access_compact.relations')}
-        sublabel={t('dashboard.quick_access_compact.relations_sub')}
-        tone="success"
-      />
       {/* The constellation earns a door here rather than a sixth nav slot:
           the header row is already at its widest (six destinations, icons only
           below `xl`), and this is a place you visit, not a place you live. */}
@@ -66,6 +61,16 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
         label={t('dashboard.quick_access_compact.capabilities')}
         sublabel={t('dashboard.quick_access_compact.capabilities_sub')}
         tone="primary"
+      />
+      {/* ADR-263: the register of what LIA actually did. It earns a door here
+          for the same reason the constellation does — a place you visit to
+          check something, not a place you live. */}
+      <QuickAccessAction
+        href={`/${lng}/dashboard/actions`}
+        icon={ClipboardList}
+        label={t('dashboard.quick_access_compact.actions')}
+        sublabel={t('dashboard.quick_access_compact.actions_sub')}
+        tone="success"
       />
       <QuickAccessAction
         href={`/${lng}/dashboard/settings`}

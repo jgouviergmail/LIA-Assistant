@@ -154,7 +154,10 @@ class TestTheGuardCannotRefuseAProductionBoot:
         "diagnostics_enabled",
         "python_sandbox_tool_enabled",
         "telephony_enabled",
-        "peer_connections_enabled",
+        # ``peers_enabled`` — NOT "peer_connections_enabled", which does not
+        # exist: the phantom name silently disabled this branch and four peer
+        # manifests escaped the guard entirely (measured 2026-09-04).
+        "peers_enabled",
         "skills_enabled",
         "mcp_enabled",
     )
