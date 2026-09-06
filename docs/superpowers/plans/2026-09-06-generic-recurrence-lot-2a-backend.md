@@ -821,7 +821,7 @@ Then read the converted rows back and confirm each one parses:
 ```bash
 cd apps/api && DATABASE_URL="postgresql+psycopg://u:p@localhost/db" \
   REDIS_URL="redis://localhost:6379/0" SECRET_KEY="$(python -c 'print("x"*48)')" \
-  FERNET_KEY="GHy1cW7bkc7VQFYQeCBcMGmZMOR1sRTaQ4S39aMbF4A=" \
+  FERNET_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" \
   .venv/Scripts/python.exe -c "
 import json, subprocess
 from src.core.recurrence import RecurrenceSpec
