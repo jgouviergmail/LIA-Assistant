@@ -30,24 +30,32 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_ROUTINE_LIMITS
+from src.core.recurrence import (
+    RecurrenceError,
+    RecurrenceSpec,
+    describe,
+    recurrence_from_parameters,
+)
+from src.core.time_utils import now_utc
 from src.domains.agents.constants import AGENT_AUTOMATION
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
+from src.domains.agents.registry.recurrence_parameters import RECURRENCE_DOCS
 from src.domains.agents.tools.decorators import read_tool, with_user_preferences, write_tool
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     parse_user_id,
     validate_runtime_config,
 )
-from src.domains.scheduled_actions.schedule_helpers import format_schedule_display
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate
 from src.infrastructure.database.session import get_db_context
 
@@ -61,9 +69,7 @@ class ScheduledActionDraftInput(BaseModel):
 
     title: str = Field(description="User-facing title of the automation")
     action_prompt: str = Field(description="Instruction executed by the pipeline")
-    days_of_week: list[int] = Field(description="ISO weekdays 1=Monday..7=Sunday")
-    trigger_hour: int = Field(ge=0, le=23, description="Hour in user timezone")
-    trigger_minute: int = Field(ge=0, le=59, description="Minute in user timezone")
+    recurrence: dict = Field(description="Serialized RecurrenceSpec of the automation")
     user_timezone: str = Field(description="IANA timezone of the schedule")
     schedule_human: str = Field(description="Localized human schedule for the card")
 
@@ -77,28 +83,48 @@ async def create_scheduled_action_tool(
         "The instruction LIA will execute on each run, in the user's own words "
         "(e.g. 'fais-moi une revue de presse IA'). Full agent capabilities apply.",
     ],
-    days_of_week: Annotated[
-        list[int],
-        "ISO weekdays to run on: 1=Monday .. 7=Sunday (e.g. [1,2,3,4,5] for weekdays).",
-    ],
-    trigger_hour: Annotated[int, "Hour of execution 0-23, in the USER's timezone"],
+    repeat: Annotated[str, RECURRENCE_DOCS["repeat"]],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
-    trigger_minute: Annotated[int, "Minute of execution 0-59"] = 0,
+    times: Annotated[list[str] | None, RECURRENCE_DOCS["times"]] = None,
+    repeat_every: Annotated[int, RECURRENCE_DOCS["repeat_every"]] = 1,
+    weekdays: Annotated[list[int] | None, RECURRENCE_DOCS["weekdays"]] = None,
+    month_days: Annotated[list[int] | None, RECURRENCE_DOCS["month_days"]] = None,
+    months: Annotated[list[int] | None, RECURRENCE_DOCS["months"]] = None,
+    nth_weekday: Annotated[str | None, RECURRENCE_DOCS["nth_weekday"]] = None,
+    every_minutes: Annotated[int | None, RECURRENCE_DOCS["every_minutes"]] = None,
+    window_start: Annotated[str | None, RECURRENCE_DOCS["window_start"]] = None,
+    window_end: Annotated[str | None, RECURRENCE_DOCS["window_end"]] = None,
+    until_date: Annotated[str | None, RECURRENCE_DOCS["until_date"]] = None,
+    max_occurrences: Annotated[int | None, RECURRENCE_DOCS["max_occurrences"]] = None,
+    starting_on: Annotated[str | None, RECURRENCE_DOCS["starting_on"]] = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str = "fr",
 ) -> UnifiedToolOutput:
     """Create a recurring automation (returns a confirmation draft).
 
-    Validates the schedule against the scheduled-actions contract and returns
-    a SCHEDULED_ACTION draft the user must confirm before anything persists.
+    The schedule is spoken in the flat vocabulary `RECURRENCE_DOCS` declares and
+    `recurrence_from_parameters` translates — the ONE place a spoken schedule
+    becomes a `RecurrenceSpec`. The three cron parameters this replaced could
+    say "weekdays at one time" and nothing else: no single occurrence, no
+    interval, no second time in the same day.
 
     Args:
         title: Short automation title.
         action_prompt: Instruction executed by the agent pipeline on each run.
-        days_of_week: ISO weekdays (1=Monday..7=Sunday).
-        trigger_hour: Execution hour in the user's timezone.
+        repeat: How the schedule walks the calendar.
         runtime: LangChain tool runtime.
-        trigger_minute: Execution minute.
+        times: Times of day, `HH:MM`.
+        repeat_every: One period out of N.
+        weekdays: ISO weekdays for a weekly schedule.
+        month_days: Days of month, or -1 for the last.
+        months: Months for a yearly schedule.
+        nth_weekday: `<nth>:<weekday>` for "the 2nd Tuesday".
+        every_minutes: A step inside a window, instead of explicit times.
+        window_start: First clock of that window.
+        window_end: Last clock of that window.
+        until_date: The last day the schedule serves.
+        max_occurrences: How many firings the schedule holds.
+        starting_on: The day the series starts, and its phase.
         user_timezone: User timezone (injected by @with_user_preferences).
         locale: User language (injected by @with_user_preferences).
 
@@ -111,31 +137,43 @@ async def create_scheduled_action_tool(
         return config
 
     try:
-        data = ScheduledActionCreate(
-            title=title,
-            action_prompt=action_prompt,
-            days_of_week=days_of_week,
-            trigger_hour=trigger_hour,
-            trigger_minute=trigger_minute,
+        recurrence = recurrence_from_parameters(
+            repeat=repeat,
+            today=now_utc().astimezone(ZoneInfo(user_timezone)).date(),
+            times=times,
+            repeat_every=repeat_every,
+            weekdays=weekdays,
+            month_days=month_days,
+            months=months,
+            nth_weekday=nth_weekday,
+            every_minutes=every_minutes,
+            window_start=window_start,
+            window_end=window_end,
+            until_date=until_date,
+            max_occurrences=max_occurrences,
+            starting_on=starting_on,
         )
+        # What a ROUTINE may ask, published in its own manifest and enforced
+        # here: the ceiling travels with the caller, never with the engine.
+        recurrence.validate_against(RECURRENCE_ROUTINE_LIMITS)
+        data = ScheduledActionCreate(
+            title=title, action_prompt=action_prompt, recurrence=recurrence
+        )
+    except RecurrenceError as exc:
+        # Written for the model to relay: it names what could not be read, so
+        # the reader is asked again rather than told "invalid schedule".
+        return UnifiedToolOutput.failure(message=str(exc), error_code="invalid_schedule")
     except ValidationError as exc:
         errors = exc.errors()
         message = str(errors[0]["msg"]) if errors else "invalid schedule"
-        return UnifiedToolOutput.failure(
-            message=message,
-            error_code="invalid_schedule",
-        )
+        return UnifiedToolOutput.failure(message=message, error_code="invalid_schedule")
 
     draft_input = ScheduledActionDraftInput(
         title=data.title,
         action_prompt=data.action_prompt,
-        days_of_week=sorted(data.days_of_week),
-        trigger_hour=data.trigger_hour,
-        trigger_minute=data.trigger_minute,
+        recurrence=data.recurrence.model_dump(mode="json"),
         user_timezone=user_timezone,
-        schedule_human=format_schedule_display(
-            sorted(data.days_of_week), data.trigger_hour, data.trigger_minute, locale
-        ),
+        schedule_human=describe(data.recurrence, locale),
     )
     return DraftService().create_draft(
         draft_type=DraftType.SCHEDULED_ACTION,
@@ -176,9 +214,7 @@ async def list_scheduled_actions_tool(
             {
                 "id": str(action.id),
                 "title": action.title,
-                "schedule": format_schedule_display(
-                    action.days_of_week, action.trigger_hour, action.trigger_minute, locale
-                ),
+                "schedule": describe(action.recurrence_spec, locale),
                 "is_enabled": action.is_enabled,
                 "status": action.status,
                 "last_executed_at": (
@@ -272,9 +308,7 @@ async def execute_scheduled_action_draft(
     data = ScheduledActionCreate(
         title=draft_content["title"],
         action_prompt=draft_content["action_prompt"],
-        days_of_week=draft_content["days_of_week"],
-        trigger_hour=draft_content["trigger_hour"],
-        trigger_minute=draft_content.get("trigger_minute", 0),
+        recurrence=RecurrenceSpec.model_validate(draft_content["recurrence"]),
     )
     user_timezone = draft_content.get("user_timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
 

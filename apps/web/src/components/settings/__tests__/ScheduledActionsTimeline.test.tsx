@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { makeScheduledAction } from '@/__tests__/factories';
 
 import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 
@@ -40,35 +41,30 @@ import { numberByTriggerTime } from '@/lib/scheduled-actions';
 
 import { ScheduledActionsTimeline } from '../ScheduledActionsTimeline';
 
-function routine(over: Partial<ScheduledAction> = {}): ScheduledAction {
-  return {
-    id: 'r',
-    user_id: 'u1',
-    title: 'Morning brief',
-    action_prompt: 'do',
-    days_of_week: [1, 3],
-    trigger_hour: 8,
-    trigger_minute: 5,
-    user_timezone: 'Europe/Paris',
-    trigger_kind: 'time',
-    condition_config: null,
-    requires_approval: false,
-    next_trigger_at: '2026-08-03T06:05:00Z',
-    is_enabled: true,
-    status: 'active',
-    last_executed_at: null,
-    execution_count: 0,
-    consecutive_failures: 0,
-    last_error: null,
-    schedule_display: 'Mon, Wed 08:05',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    ...over,
-  };
-}
 
 /** Wednesday 5 August 2026, 12:00 Paris. */
 const NOW = new Date('2026-08-05T10:00:00Z');
+
+
+/**
+ * A routine firing Monday and Wednesday at 08:05.
+ *
+ * `week_slots` are what the GRID reads to place a chip — they ship with the
+ * routine so the grid never comes up empty — and their `slot_at` are the very
+ * instants the `week()` cells below carry, because an outcome is matched on
+ * the instant, never on the day.
+ */
+function routine(over: Partial<ScheduledAction> = {}): ScheduledAction {
+  return makeScheduledAction({
+    title: 'Morning brief',
+    times_of_day: ['08:05'],
+    week_slots: [
+      { day: 1, date: '2026-08-03', slot_at: '2026-08-03T06:05:00Z', hour: 8, minute: 5 },
+      { day: 3, date: '2026-08-05', slot_at: '2026-08-05T06:05:00Z', hour: 8, minute: 5 },
+    ],
+    ...over,
+  });
+}
 
 function week(over: Partial<ScheduledActionWeekResponse['actions'][number]> = {}) {
   return {
@@ -83,6 +79,8 @@ function week(over: Partial<ScheduledActionWeekResponse['actions'][number]> = {}
             day: 1,
             date: '2026-08-03',
             slot_at: '2026-08-03T06:05:00Z',
+            hour: 8,
+            minute: 5,
             outcome: 'success' as const,
             run_at: '2026-08-03T06:05:04Z',
             error: null,
@@ -92,6 +90,8 @@ function week(over: Partial<ScheduledActionWeekResponse['actions'][number]> = {}
             day: 3,
             date: '2026-08-05',
             slot_at: '2026-08-05T06:05:00Z',
+            hour: 8,
+            minute: 5,
             outcome: null,
             run_at: null,
             error: null,
@@ -220,8 +220,22 @@ describe('ScheduledActionsTimeline — the chips', () => {
   it('orders the chips of one cell chronologically', () => {
     render(
       [
-        routine({ id: 'late', title: 'Late', trigger_minute: 30, days_of_week: [1] }),
-        routine({ id: 'early', title: 'Early', trigger_minute: 0, days_of_week: [1] }),
+        routine({
+          id: 'late',
+          title: 'Late',
+          times_of_day: ['08:30'],
+          week_slots: [
+            { day: 1, date: '2026-08-03', slot_at: '2026-08-03T06:30:00Z', hour: 8, minute: 30 },
+          ],
+        }),
+        routine({
+          id: 'early',
+          title: 'Early',
+          times_of_day: ['08:00'],
+          week_slots: [
+            { day: 1, date: '2026-08-03', slot_at: '2026-08-03T06:00:00Z', hour: 8, minute: 0 },
+          ],
+        }),
       ],
       null
     );
@@ -310,8 +324,23 @@ describe('ScheduledActionsTimeline — the legend', () => {
 
 describe('ScheduledActionsTimeline — the grid is one tab stop', () => {
   const two = () => [
-    routine({ id: 'early', title: 'Early', trigger_minute: 0, days_of_week: [1, 3] }),
-    routine({ id: 'late', title: 'Late', trigger_hour: 19, days_of_week: [5] }),
+    routine({
+          id: 'early',
+          title: 'Early',
+          times_of_day: ['08:00'],
+          week_slots: [
+            { day: 1, date: '2026-08-03', slot_at: '2026-08-03T06:00:00Z', hour: 8, minute: 0 },
+            { day: 3, date: '2026-08-05', slot_at: '2026-08-05T06:00:00Z', hour: 8, minute: 0 },
+          ],
+        }),
+    routine({
+          id: 'late',
+          title: 'Late',
+          times_of_day: ['09:00'],
+          week_slots: [
+            { day: 1, date: '2026-08-03', slot_at: '2026-08-03T07:00:00Z', hour: 9, minute: 0 },
+          ],
+        }),
   ];
 
   it('puts only the first chip in the tab order', () => {

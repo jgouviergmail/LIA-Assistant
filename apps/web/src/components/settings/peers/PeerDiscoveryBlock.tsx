@@ -76,7 +76,7 @@ export function PeerDiscoveryBlock({
 
   return (
     // Headerless on purpose: the section shell folds this block behind a
-    // `SettingsDisclosure` whose summary already carries the title.
+    // `Disclosure` whose summary already carries the title.
     <div className="space-y-3">
       <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="flex-1 space-y-3">

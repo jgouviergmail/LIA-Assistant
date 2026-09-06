@@ -116,6 +116,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   'peer-connections': Handshake,
   heartbeat: Radar,
   'scheduled-actions': CalendarClock,
+  reminders: Bell,
   journals: BookOpen,
   'health-metrics': HeartPulse,
   skills: Blocks,

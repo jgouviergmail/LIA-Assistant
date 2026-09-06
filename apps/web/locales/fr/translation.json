@@ -279,7 +279,8 @@
         "cancel_reminder_description": "« {{content}} » ne se déclenchera pas. Cette action est irréversible.",
         "loop_done": "Marquer comme fait",
         "loop_dismiss": "Plus d’actualité",
-        "loop_edit": "Modifier cet engagement"
+        "loop_edit": "Modifier cet engagement",
+        "cancel_reminder_series_description": "« {{content}} » se répète. L'annuler retire toutes les occurrences à venir."
       },
       "cards": {
         "weather": {
@@ -3568,7 +3569,7 @@
         "interests": "sujets, goûts, thèmes, curiosité, préférences, historique, notifications récentes, provenance, pourquoi, poids, explication, décroissance, source, exporter",
         "peer-connections": "contacts, amis, famille, réseau, partager calendrier, disponibilités, bloquer, découvrir utilisateurs, connecter, mon nom, copier mon nom, demande de connexion, journal des accès, relayer un message, utilisateurs bloqués, proches, réseau social, peer, découverte, se connecter à un proche, partager mon adresse, email visible, mon email, point 360, visibilité, demandes",
         "heartbeat": "proactif, spontané, initiative, prise de contact, messages autonomes, sujets des notifications, sources, historique, notifications récentes, priorité, urgence, haute, moyenne, basse, couleur, météo, fréquence, plage horaire, propositions, offres, routine manquée, réveil par push, réagir à un e-mail, réagir à une invitation, déclencheur, réveil",
-        "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé, vue de la semaine, chronologie, grille hebdomadaire",
+        "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé, vue de la semaine, chronologie, grille hebdomadaire, tous les trois jours, 2e mardi, intervalle, fin de série, options avancées",
         "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger, configuration, consolidation, exporter",
         "health-metrics": "fréquence cardiaque, pas, sommeil, iPhone, Apple Santé, forme, activité",
         "skills": "compétences, capacités, aptitudes, plugins, extensions",
@@ -3594,7 +3595,8 @@
         "eyes-style": "yeux, avatar, animation, style, regard, compagnon, cozmo, visage, bouche, sourcils, mimiques, saynètes, capsules",
         "admin-diagnostics": "santé diagnostic incidents alertes supervision auto-contrôle statut plateforme prometheus loki connectivité sortie réseau embeddings vecteurs quota mémoire langue runbook preuves journaux diagnostic version",
         "meetings": "réunion, enregistrement, compte rendu, transcription, rapport, micro, notes, résumé, actions, modèle, modèles, bibliothèque de modèles, format du compte rendu, format par défaut, format automatique, changer le format, sections, consignes, e-mail du compte rendu",
-        "admin-registers": "registres, transparence, actions, consultations, export, journal, audit, admin, graphiques, statistiques, chiffres, vue d'ensemble"
+        "admin-registers": "registres, transparence, actions, consultations, export, journal, audit, admin, graphiques, statistiques, chiffres, vue d'ensemble",
+        "reminders": "rappel, rappelle-moi, alerte, notification, rappel récurrent, répéter, pense-bête, récurrence, tous les jours, plage horaire"
       }
     },
     "haptics": {
@@ -4384,7 +4386,7 @@
         },
         "reminders": {
           "title": "🔔 Rappels & Notifications Push",
-          "description": "Des rappels créés en langage naturel, poussés sur tous tes appareils, avec conversion des fuseaux et résolution des références (« le prochain », un numéro, un contenu). Chaque message est écrit avec la personnalité active et tes souvenirs, dans ta langue. Les rappels dus sont pris sous bail avant l’envoi, et toute sortie anticipée le libère — un rappel non délivré revient donc au passage suivant au lieu de disparaître."
+          "description": "Des rappels créés en langage naturel, poussés sur tous tes appareils, fuseaux convertis et références résolues (« le prochain », un numéro, un contenu). Un rappel peut se répéter — tous les jours, le lundi et le jeudi, le 15 du mois, toutes les deux heures dans une plage — ou ne sonner qu'une fois puis s'effacer : même règle, un rappel sans avenir disparaît. Chaque message est écrit avec la personnalité active et tes souvenirs, dans ta langue ; non délivré, il revient au passage suivant."
         },
         "personalities": {
           "title": "🎭 14 Personnalités Dynamiques",
@@ -4412,7 +4414,7 @@
         },
         "scheduledActions": {
           "title": "📅 Actions Planifiées",
-          "description": "Des actions récurrentes que l’assistante exécute seule : choisis les jours et l’heure, attache une consigne, et LIA l’exécute. Les résultats sont archivés dans la conversation et poussés vers toi, avec désactivation automatique après cinq échecs consécutifs. La notification porte le texte final effectivement archivé, aplati en texte brut avant troncature. Une vue de la semaine les dessine, heures en descendant et jours en travers, numérotées par ordre de déclenchement, chaque cellule de la semaine colorée par ce qui s'est passé — exécutée, en erreur, proposée, en pause — d'après un historique écrit au résultat."
+          "description": "Des actions récurrentes que l'assistante exécute seule : dis le rythme — tous les trois jours, un mardi sur deux, le 2e mardi du mois, le dernier jour, toutes les deux heures entre 9h et 17h, jusqu'à une date ou N fois — attache une consigne, et LIA l'exécute. Les jours sont énumérés, jamais confiés à un cron : l'ancien moteur sautait la journée au changement d'heure. Résultats archivés et poussés vers toi, désactivation après cinq échecs. Une vue de la semaine les dessine, heures en descendant et jours en travers, chaque cellule colorée par ce qui s'est passé."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4564,7 +4566,7 @@
         },
         "selfDiagnostics": {
           "title": "🩺 Auto-diagnostic & mémoire d'incidents",
-          "description": "LIA lit sa propre télémétrie via des clients qui n'échouent jamais une requête : toute panne devient un résultat typé « indisponible ». Un auto-contrôle périodique évalue les signaux d'or et sonde directement les dépendances ; alertes et verdicts critiques convergent en un seul incident par problème, diagnostiqué par un modèle à budget plafonné qui lit un dossier de preuves borné — métriques ventilées, extrait de journal pseudonymisé, version en cours — et le runbook de l'alerte, puis montre ce qu'il a lu sous son verdict. Une panne connue façonne les réponses : les capacités dégradées sont contournées dès la planification, et une étape échouée est expliquée par des codes d'erreur typés, jamais des logs bruts."
+          "description": "LIA lit sa propre télémétrie via des clients qui n'échouent jamais une requête : toute panne devient un résultat typé « indisponible ». Un auto-contrôle périodique évalue les signaux d'or et sonde les dépendances ; alertes et verdicts critiques convergent en un seul incident par problème, diagnostiqué par un modèle à budget plafonné qui lit un dossier de preuves borné — métriques ventilées, extrait de journal pseudonymisé, version en cours — et le runbook de l'alerte, puis montre ce qu'il a lu sous son verdict. Une panne connue est contournée dès la planification."
         },
         "ephemeralScripts": {
           "title": "🧮 Des réponses calculées, pas devinées",
@@ -4585,6 +4587,17 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_43_0": {
+          "title": "v1.43.0 — 🔁 Tes rappels savent se répéter",
+          "date": "Septembre 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔁 Un rappel peut désormais revenir</b> — jusqu'ici un rappel sonnait une fois puis disparaissait. Tu peux maintenant lui donner un rythme : tous les jours, le lundi et le jeudi, le 15 de chaque mois, ou toutes les deux heures entre 9h et 17h. Une nouvelle section « Rappels » dans les réglages te les montre tous, avec la phrase qui décrit leur rythme et les prochaines dates. Un rappel qui n'a plus d'avenir s'efface, exactement comme avant.",
+            "i2": "<b>🗓️ Tes routines savent dire beaucoup plus</b> — « tous les trois jours », « un mardi sur deux », « le 2e mardi du mois », « le dernier jour du mois », « chaque 14 juillet », « toutes les deux heures entre 9h et 17h », « jusqu'au 30 septembre » ou « les trois prochaines fois ». Tu peux le demander en conversation ou le régler à la main : c'est le même vocabulaire des deux côtés.",
+            "i3": "<b>✏️ Les écrans de saisie respirent</b> — les champs sont regroupés sous des titres nommés (« ce qu'il faut faire », « quand », « exécution »), et ce qu'on règle rarement — un intervalle, une fin de série, une date de départ — se replie derrière « Options avancées ». Cinq questions à l'écran au lieu de huit. Le repli s'ouvre tout seul quand il contient déjà quelque chose, pour ne jamais te cacher un réglage que tu as posé.",
+            "i4": "<b>🐛 Un jour perdu par an, dans 73 fuseaux</b> — au passage à l'heure d'été, quand le décalage change à minuit, l'ancien moteur sautait la journée entière : 142 exécutions perdues par an, sans rien dans les journaux. Corrigé, et la semaine des routines dessine à nouveau la cellule du 30 mars."
+          }
+        },
         "v1_42_4": {
           "title": "v1.42.4 — 🖥️ Tes modèles locaux, des modèles comme les autres",
           "date": "Septembre 2026",
@@ -8423,7 +8436,7 @@
       },
       "folded_settings": {
         "title": "Les réglages, pliés",
-        "desc": "Les onze sujets de notification et les historiques restent fermés. Vous ouvrez ce que vous venez changer — et un bloc fermé ne charge rien."
+        "desc": "Les onze sujets de notification et les historiques restent fermés. Vous ouvrez ce que vous venez changer — et un bloc fermé ne charge rien. Là où le pli cacherait un réglage que vous avez posé, il s’ouvre de lui-même : une routine qui dit déjà « toutes les trois semaines » ne se présente jamais comme une routine ordinaire."
       },
       "provenance_why": {
         "title": "Pourquoi LIA pense cela",
@@ -9341,8 +9354,6 @@
     "field_title": "Titre",
     "field_title_placeholder": "Ex: Recherche météo",
     "field_prompt": "Instruction pour l'assistant",
-    "field_days": "Jours de la semaine",
-    "field_time": "Heure d'exécution",
     "prompt_placeholder": "Ex: Recherche la météo du jour et donne-moi un résumé",
     "studio": {
       "trigger_kind": "Déclencheur",
@@ -9383,7 +9394,8 @@
       "active": "Actif",
       "paused": "Pause",
       "executing": "En cours",
-      "error": "Erreur"
+      "error": "Erreur",
+      "finished": "Terminée"
     },
     "next_execution": "Prochaine",
     "last_execution": "Dernière",
@@ -9404,12 +9416,6 @@
     "next_evaluations": "Prochaines fenêtres d’évaluation",
     "clock_change": "(changement d’heure)",
     "toggle_aria": "Activer ou désactiver {{title}}",
-    "schedule": {
-      "daily": "Tous les jours à {{time}}",
-      "weekdays": "En semaine à {{time}}",
-      "weekend": "Le week-end à {{time}}",
-      "custom": "{{days}} à {{time}}"
-    },
     "next_run": "Prochaine exécution",
     "next_evaluation": "Prochaine évaluation",
     "number_aria": "Routine {{n}}",
@@ -9436,7 +9442,9 @@
         "skipped_hitl": "Ignorée, une validation était en attente dans le chat",
         "executing": "En cours d'exécution"
       }
-    }
+    },
+    "section_what": "Ce qu'il faut faire",
+    "section_execution": "Exécution"
   },
   "landing": {
     "meta": {
@@ -9623,7 +9631,7 @@
       },
       "reminders_scheduling": {
         "title": "Rappels & automatisations",
-        "description": "Programme des rappels en langage naturel (\"Rappelle-moi demain à 9h d'appeler Marie\"). Planifie des actions récurrentes automatiques (résumé emails du lundi, météo du matin...). Un rappel qui arrive à échéance alors que ton quota est atteint est remis en file — jamais perdu. Les routines peuvent désormais attendre une condition — une tâche qui passe en retard, un mail qui correspond, la météo qui change, un document ajouté, un événement qui approche — et proposer avant d'agir si tu le souhaites. Une vue de la semaine étale les routines, heures en descendant et jours en travers, chaque cellule de la semaine en cours colorée par ce qui s'est passé."
+        "description": "Programme des rappels en langage naturel (\"Rappelle-moi demain à 9h d'appeler Marie\"). Planifie des actions récurrentes automatiques (résumé emails du lundi, météo du matin...). Un rappel qui arrive à échéance alors que ton quota est atteint est remis en file — jamais perdu. Les routines peuvent désormais attendre une condition — une tâche qui passe en retard, un mail qui correspond, la météo qui change, un document ajouté, un événement qui approche — et proposer avant d'agir si tu le souhaites. Une vue de la semaine étale les routines, heures en descendant et jours en travers, chaque cellule de la semaine en cours colorée par ce qui s'est passé. Un rappel peut lui aussi se répéter : dis le rythme — tous les trois jours, le 2e mardi du mois, toutes les deux heures entre 9h et 17h — et c'est le même vocabulaire pour une routine."
       },
       "memory": {
         "title": "Mémoire contextuelle",
@@ -10520,7 +10528,7 @@
       "reminders-scheduling": {
         "title": "Rappels et actions programmées : automatise ton quotidien",
         "excerpt": "Crée des rappels en langage naturel et programme des actions récurrentes. LIA gère le timing, les fuseaux horaires et les notifications push.",
-        "body": "<h2>Rappels en langage naturel</h2><p>Créer un rappel avec LIA est aussi simple que de dire :</p><ul><li>« Rappelle-moi d'appeler Marie demain à 9h »</li><li>« Rappel dans 30 minutes : vérifier le four »</li><li>« Pense à acheter du pain ce soir »</li></ul><p>LIA interprète automatiquement les expressions temporelles et crée le rappel avec le bon fuseau horaire.</p><h2>Cycle de vie d'un rappel</h2><p>Chaque rappel suit un cycle de vie précis : <strong>PENDING → PROCESSING → supprimé</strong> après notification. Les rappels sont <strong>one-shot</strong> : une fois délivrés avec succès, ils sont automatiquement supprimés. Chaque rappel contient trois champs clés :</p><ul><li><code>content</code> — Le contenu compris par LIA (reformulé si nécessaire)</li><li><code>original_message</code> — Le texte exact de l'utilisateur</li><li><code>trigger_at</code> — L'heure de déclenchement en UTC</li></ul><p>Le passage en <code>PROCESSING</code> est un <strong>bail</strong>, pas un point de non-retour : la requête de sélection ne regarde que les lignes <code>PENDING</code>, si bien qu'un rappel déjà en cours de traitement ne peut pas être pris deux fois par deux passes concurrentes. Toute sortie anticipée le relâche — limite d'usage atteinte, aucun appareil enregistré — et le rappel repart en <code>PENDING</code> pour le passage suivant. Sans cette libération, un rappel arrivant à échéance à la minute exacte où l'utilisateur atteint son quota serait perdu définitivement, sans erreur ni trace.</p><h2>Gestion des fuseaux horaires</h2><p>Tous les rappels sont stockés en <strong>UTC</strong> en base de données. Le fuseau horaire IANA de l'utilisateur (ex : <code>Europe/Paris</code>, <code>America/New_York</code>) est suivi et utilisé pour convertir les expressions temporelles relatives (« demain à 9h ») en timestamps UTC absolus. L'affichage est toujours converti dans le fuseau local de l'utilisateur.</p><h2>Notifications push</h2><p>Les rappels sont délivrés via <strong>Firebase Cloud Messaging (FCM)</strong> pour les notifications navigateur et mobile. La notification arrive même quand l'application n'est pas ouverte.</p><p>Le titre et le corps de la notification sont rendus dans la langue de l'utilisateur, pour les six langues prises en charge. La normalisation de la locale est faite par la table de titres elle-même plutôt que par chaque appelant, car les appelants détiennent des orthographes de toutes provenances — et le seul endroit qui devait normaliser sans le faire envoyait aux utilisateurs chinois des titres en anglais.</p><h2>Actions programmées</h2><p>Les Actions Programmées (Scheduled Actions) constituent un <strong>domaine séparé</strong> qui va plus loin que les rappels simples. Elles s'intègrent avec <strong>APScheduler</strong> pour programmer des tâches récurrentes que LIA exécutera automatiquement :</p><ul><li>Résumé météo chaque matin à 7h</li><li>Vérification des emails importants toutes les 2 heures</li><li>Rapport hebdomadaire des tâches chaque lundi</li></ul><h2>Limites raisonnables</h2><p>Pour éviter les abus, chaque utilisateur peut avoir jusqu'à 20 actions programmées actives simultanément. La logique de retry avec backoff gère les échecs temporaires.</p>"
+        "body": "<h2>Rappels en langage naturel</h2><p>Créer un rappel avec LIA est aussi simple que de dire :</p><ul><li>« Rappelle-moi d'appeler Marie demain à 9h »</li><li>« Rappel dans 30 minutes : vérifier le four »</li><li>« Pense à acheter du pain ce soir »</li></ul><p>LIA interprète automatiquement les expressions temporelles et crée le rappel avec le bon fuseau horaire.</p><h2>Cycle de vie d'un rappel</h2><p>Chaque rappel suit un cycle de vie précis : <strong>PENDING → PROCESSING → supprimé</strong> après notification. Un rappel peut désormais <strong>se répéter</strong> — tous les jours, le lundi et le jeudi, le 15 du mois, toutes les deux heures dans une plage. Après chaque notification, LIA demande simplement quoi armer ensuite : s'il reste une occurrence, le rappel se réarme ; s'il n'en reste aucune — une occurrence unique consommée, ou une série arrivée à son terme — il est supprimé. C'est la même règle dans les deux cas, et c'est exactement ce que « supprimer après notification » a toujours voulu dire. Chaque rappel contient trois champs clés :</p><ul><li><code>content</code> — Le contenu compris par LIA (reformulé si nécessaire)</li><li><code>original_message</code> — Le texte exact de l'utilisateur</li><li><code>trigger_at</code> — L'heure de déclenchement en UTC</li></ul><p>Le passage en <code>PROCESSING</code> est un <strong>bail</strong>, pas un point de non-retour : la requête de sélection ne regarde que les lignes <code>PENDING</code>, si bien qu'un rappel déjà en cours de traitement ne peut pas être pris deux fois par deux passes concurrentes. Toute sortie anticipée le relâche — limite d'usage atteinte, aucun appareil enregistré — et le rappel repart en <code>PENDING</code> pour le passage suivant. Sans cette libération, un rappel arrivant à échéance à la minute exacte où l'utilisateur atteint son quota serait perdu définitivement, sans erreur ni trace.</p><h2>Gestion des fuseaux horaires</h2><p>Tous les rappels sont stockés en <strong>UTC</strong> en base de données. Le fuseau horaire IANA de l'utilisateur (ex : <code>Europe/Paris</code>, <code>America/New_York</code>) est suivi et utilisé pour convertir les expressions temporelles relatives (« demain à 9h ») en timestamps UTC absolus. L'affichage est toujours converti dans le fuseau local de l'utilisateur.</p><h2>Notifications push</h2><p>Les rappels sont délivrés via <strong>Firebase Cloud Messaging (FCM)</strong> pour les notifications navigateur et mobile. La notification arrive même quand l'application n'est pas ouverte.</p><p>Le titre et le corps de la notification sont rendus dans la langue de l'utilisateur, pour les six langues prises en charge. La normalisation de la locale est faite par la table de titres elle-même plutôt que par chaque appelant, car les appelants détiennent des orthographes de toutes provenances — et le seul endroit qui devait normaliser sans le faire envoyait aux utilisateurs chinois des titres en anglais.</p><h2>Actions programmées</h2><p>Les Actions Programmées (Scheduled Actions) constituent un <strong>domaine séparé</strong> qui va plus loin que les rappels simples. Elles s'intègrent avec <strong>APScheduler</strong> pour programmer des tâches récurrentes que LIA exécutera automatiquement :</p><ul><li>Résumé météo chaque matin à 7h</li><li>Vérification des emails importants toutes les 2 heures</li><li>Rapport hebdomadaire des tâches chaque lundi</li></ul><h2>Limites raisonnables</h2><p>Pour éviter les abus, chaque utilisateur peut avoir jusqu'à 20 actions programmées actives simultanément. La logique de retry avec backoff gère les échecs temporaires.</p>"
       },
       "sub-agents": {
         "title": "Sous-agents : des experts éphémères pour tes questions complexes",
@@ -12231,7 +12239,8 @@
       "run_python_tool": "Calcul exécuté dans le bac à sable",
       "run_skill_script": "Script de la compétence « {{target}} » exécuté",
       "set_current_item": "Élément « {{target}} » choisi comme référence de la conversation",
-      "toggle_scheduled_action_tool": "Action planifiée « {{target}} » activée ou suspendue"
+      "toggle_scheduled_action_tool": "Action planifiée « {{target}} » activée ou suspendue",
+      "create_reminder_tool": "Rappel « {{target}} » créé"
     },
     "export": {
       "group_label": "Exporter ce registre",
@@ -12407,5 +12416,108 @@
       "action": "Extraction unifiée",
       "hint": "JSON Lines, une ligne par enregistrement. Il ne porte aucun contenu et chaque identifiant est remplacé par une poignée — le tien compris — pour que le fichier puisse être joint à une demande ou à une réclamation sans avoir à le retoucher."
     }
+  },
+  "recurrence": {
+    "legend_days": "Quels jours",
+    "legend_times": "À quelle heure",
+    "freq_label": "Répétition",
+    "freq": {
+      "once": "Une seule fois",
+      "daily": "Tous les jours",
+      "weekly": "Toutes les semaines",
+      "monthly": "Tous les mois",
+      "yearly": "Tous les ans"
+    },
+    "interval_label": "Tous les",
+    "interval_unit": {
+      "daily": "jour(s)",
+      "weekly": "semaine(s)",
+      "monthly": "mois",
+      "yearly": "an(s)"
+    },
+    "interval_shortcut": {
+      "quarterly": "Par trimestre",
+      "biannual": "Par semestre"
+    },
+    "weekdays_label": "Jours de la semaine",
+    "weekday_set": {
+      "all": "Tous les jours",
+      "workdays": "En semaine",
+      "weekend": "Le week-end"
+    },
+    "monthday_label": "Jour du mois",
+    "monthday_last": "Dernier jour",
+    "monthly_mode": {
+      "day": "Un jour du mois",
+      "weekday": "Un jour de la semaine"
+    },
+    "nth_label": "Lequel",
+    "nth": {
+      "1": "Premier",
+      "2": "Deuxième",
+      "3": "Troisième",
+      "4": "Quatrième",
+      "5": "Cinquième",
+      "-1": "Dernier"
+    },
+    "month_label": "Mois",
+    "anchor_label": "À partir du",
+    "anchor_hint": "Détermine le début de la série, et la semaine ou le mois sur lequel elle tombe.",
+    "date_label": "Date",
+    "times_mode": {
+      "at": "À des heures précises",
+      "every": "À intervalle régulier"
+    },
+    "times_label": "Heures de la journée",
+    "time_add": "Ajouter une heure",
+    "time_remove": "Retirer {{time}}",
+    "step_label": "Toutes les",
+    "step_unit_minutes": "minutes",
+    "step_from": "De",
+    "step_to": "À",
+    "end_label": "Se termine",
+    "end": {
+      "never": "Jamais",
+      "on_date": "À une date",
+      "after_count": "Après un nombre de fois"
+    },
+    "end_count_label": "Nombre de fois",
+    "summary_per_day_one": "jusqu'à {{count}} fois par jour",
+    "summary_per_day_other": "jusqu'à {{count}} fois par jour",
+    "summary_next": "Prochaines",
+    "summary_finished": "Cette série est terminée",
+    "error_no_time": "Ajoutez au moins une heure.",
+    "error_no_weekday": "Sélectionnez au moins un jour de la semaine.",
+    "error_too_many": "Cela fait {{count}} fois par jour ; la limite est de {{limit}}.",
+    "error_step_too_small": "L'intervalle minimum est de {{limit}} minutes.",
+    "error_no_end_date": "Choisissez le dernier jour, ou une autre fin de série.",
+    "section_when": "Quand",
+    "step_separator": "à",
+    "advanced": "Options avancées"
+  },
+  "reminders": {
+    "settings": {
+      "title": "Rappels",
+      "description": "Ce que LIA vous rappellera, et quand.",
+      "count_one": "{{count}} rappel",
+      "count_other": "{{count}} rappels",
+      "capped": "({{shown}} premiers affichés)"
+    },
+    "create": "Nouveau rappel",
+    "create_title": "Nouveau rappel",
+    "edit_title": "Modifier le rappel",
+    "field_content": "Me rappeler de",
+    "field_content_placeholder": "appeler le médecin",
+    "empty": "Aucun rappel",
+    "empty_hint": "Rien n'est prévu. Demandez à LIA dans la conversation, ou créez-en un ici.",
+    "created": "Rappel créé",
+    "updated": "Rappel modifié",
+    "deleted": "Rappel supprimé",
+    "save_failed": "Impossible d'enregistrer le rappel",
+    "delete_failed": "Impossible de supprimer le rappel",
+    "delete_title": "Supprimer ce rappel ?",
+    "delete_confirm": "« {{content}} » sera supprimé.",
+    "delete_series_confirm": "« {{content}} » se répète ({{schedule}}). Le supprimer retire toutes les occurrences à venir.",
+    "section_what": "Ce dont il faut se souvenir"
   }
 }

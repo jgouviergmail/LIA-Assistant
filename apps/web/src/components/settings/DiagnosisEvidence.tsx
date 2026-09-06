@@ -2,7 +2,7 @@
 
 import { ScrollText } from 'lucide-react';
 
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { unitSuffix } from '@/lib/diagnostics-units';
 import { formatUptime } from '@/lib/format-uptime';
 
@@ -138,7 +138,7 @@ export function DiagnosisEvidence({
   }
   const runtime = context.runtime;
   return (
-    <SettingsDisclosure
+    <Disclosure
       icon={ScrollText}
       title={t('settings.admin.diagnostics.contextTitle')}
       className="mt-2"
@@ -175,6 +175,6 @@ export function DiagnosisEvidence({
           </div>
         ) : null}
       </div>
-    </SettingsDisclosure>
+    </Disclosure>
   );
 }

@@ -2120,13 +2120,17 @@ Le scheduler principal APScheduler est initialisé au démarrage dans `startup/s
 **Diagnostic** :
 
 ```python
-# Le scheduled_action_executor utilise CronTrigger avec la timezone utilisateur
+# Le prochain instant vient du moteur de récurrence (src/core/recurrence),
+# pas d'un CronTrigger : les jours sont énumérés puis localisés dans la
+# timezone de l'utilisateur.
 # Events à chercher :
 #   scheduled_action_trigger_calculated (avec next_trigger_at et timezone)
 #   scheduled_action_due (action sélectionnée pour exécution)
 
-# Vérifier la timezone stockée sur l'action :
-# SELECT id, cron_expression, timezone, next_trigger_at FROM scheduled_actions WHERE user_id = '...';
+# Vérifier la récurrence et la timezone stockées sur l'action :
+# SELECT id, recurrence, user_timezone, next_trigger_at FROM scheduled_actions WHERE user_id = '...';
+# Rejouer la série hors base :
+#   occurrences(spec, timezone, after=now_utc(), count=5)
 ```
 
 **Solutions** :

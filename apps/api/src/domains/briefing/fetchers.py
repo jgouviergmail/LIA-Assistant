@@ -17,6 +17,7 @@ request-scoped session injected by FastAPI Depends.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -85,6 +86,7 @@ from src.domains.users.user_location_service import (
 from src.infrastructure.database.session import get_db_context
 
 if TYPE_CHECKING:
+    from src.domains.scheduled_actions.models import ScheduledAction
     from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
@@ -640,6 +642,35 @@ async def fetch_documents(
     return DocumentsData(items=items)
 
 
+def _soonest_upcoming(
+    actions: Sequence[ScheduledAction], now: datetime
+) -> tuple[ScheduledAction, datetime] | None:
+    """The next routine to fire, with the instant it fires at.
+
+    The instant travels WITH the row rather than being read back from it:
+    ``next_trigger_at`` is nullable since the recurrence rework (NULL = the
+    series is over), and a filter narrows a VALUE, never an attribute — so
+    ``min(..., key=lambda a: a.next_trigger_at)`` would still be typed
+    ``datetime | None`` and would compare against None on an unlucky row.
+
+    Args:
+        actions: The account's routines, paused ones included.
+        now: Reference instant (UTC).
+
+    Returns:
+        The soonest enabled routine and its instant, or ``None`` when none is
+        armed.
+    """
+    dated = [
+        (action, action.next_trigger_at)
+        for action in actions
+        if action.is_enabled
+        and action.next_trigger_at is not None
+        and action.next_trigger_at >= now
+    ]
+    return min(dated, key=lambda pair: pair[1]) if dated else None
+
+
 async def fetch_for_you(
     *, user_id: UUID, user_tz: ZoneInfo, language: str | None = None
 ) -> ForYouData:
@@ -690,20 +721,16 @@ async def fetch_for_you(
         for a in actions
         if a.last_executed_at is not None and a.last_executed_at >= day_ago
     ]
-    upcoming = [
-        a
-        for a in actions
-        if a.is_enabled and a.next_trigger_at is not None and a.next_trigger_at >= now
-    ]
-    if upcoming:
+    soonest = _soonest_upcoming(actions, now)
+    if soonest is not None:
         from src.domains.briefing.formatters import _format_trigger_at_local
 
-        soonest = min(upcoming, key=lambda a: a.next_trigger_at)
+        action, soonest_at = soonest
         next_automation = ForYouAutomationItem(
-            id=str(soonest.id),
-            title=soonest.title,
-            next_trigger_at=soonest.next_trigger_at,
-            next_trigger_local=_format_trigger_at_local(soonest.next_trigger_at, user_tz, language),
+            id=str(action.id),
+            title=action.title,
+            next_trigger_at=soonest_at,
+            next_trigger_local=_format_trigger_at_local(soonest_at, user_tz, language),
         )
 
     return ForYouData(

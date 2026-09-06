@@ -229,6 +229,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'scheduled-actions',
     declaredIn: 'components/settings/ScheduledActionsSettings.tsx',
   },
+  reminders: {
+    tab: 'features',
+    accordionValue: 'reminders',
+    declaredIn: 'components/settings/RemindersSettings.tsx',
+  },
   journals: {
     tab: 'features',
     accordionValue: 'journals',

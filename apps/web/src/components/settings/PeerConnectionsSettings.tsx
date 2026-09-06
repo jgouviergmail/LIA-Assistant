@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { PeerAccessLogBlock } from '@/components/settings/peers/PeerAccessLogBlock';
 import { PeerBlocksBlock } from '@/components/settings/peers/PeerBlocksBlock';
 import { PeerConnectionCard } from '@/components/settings/peers/PeerConnectionCard';
@@ -105,7 +105,7 @@ export function PeerConnectionsSettings({ lng }: BaseSettingsProps) {
       {/* Every zone folds (owner arbitration 2026-08-05): the section reads
           as an INDEX of five titled, icon-carrying entries, and each badge
           says whether anything waits inside without opening. */}
-      <SettingsDisclosure icon={Radar} title={t('settings.peers.visibility_title')}>
+      <Disclosure icon={Radar} title={t('settings.peers.visibility_title')}>
         <PeerVisibilityCard
           lng={lng}
           fullName={user?.full_name ?? null}
@@ -119,11 +119,11 @@ export function PeerConnectionsSettings({ lng }: BaseSettingsProps) {
             void settle(setEmailVisible(value), 'settings.peers.email_visibility.toggle_saved')
           }
         />
-      </SettingsDisclosure>
+      </Disclosure>
 
       {/* "Find someone" groups the search with the requests it produces — a
           pending incoming request is exactly what the badge must surface. */}
-      <SettingsDisclosure
+      <Disclosure
         icon={UserSearch}
         title={t('settings.peers.discovery.title')}
         badge={requests.length > 0 ? requests.length : undefined}
@@ -150,9 +150,9 @@ export function PeerConnectionsSettings({ lng }: BaseSettingsProps) {
             onBlock={peerId => settle(block(peerId), 'settings.peers.blocks.blocked')}
           />
         </div>
-      </SettingsDisclosure>
+      </Disclosure>
 
-      <SettingsDisclosure
+      <Disclosure
         icon={Handshake}
         title={t('settings.peers.connections.title')}
         badge={connections.length > 0 ? connections.length : undefined}
@@ -178,10 +178,10 @@ export function PeerConnectionsSettings({ lng }: BaseSettingsProps) {
             ))}
           </div>
         )}
-      </SettingsDisclosure>
+      </Disclosure>
 
       {/* Blocks and the access log, folded like their new neighbours. */}
-      <SettingsDisclosure
+      <Disclosure
         icon={ShieldOff}
         title={t('settings.peers.blocks.title')}
         description={t('settings.peers.blocks.hint')}
@@ -193,16 +193,16 @@ export function PeerConnectionsSettings({ lng }: BaseSettingsProps) {
           mutating={mutating}
           onUnblock={peerId => settle(unblock(peerId), 'settings.peers.blocks.unblocked')}
         />
-      </SettingsDisclosure>
+      </Disclosure>
 
-      <SettingsDisclosure
+      <Disclosure
         icon={Eye}
         title={t('settings.peers.access_log.title')}
         description={t('settings.peers.access_log.hint')}
         badge={accessLog.length > 0 ? accessLog.length : undefined}
       >
         <PeerAccessLogBlock lng={lng} entries={accessLog} />
-      </SettingsDisclosure>
+      </Disclosure>
     </div>
   );
 

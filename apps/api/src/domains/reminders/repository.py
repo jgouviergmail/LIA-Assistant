@@ -137,6 +137,28 @@ class ReminderRepository(BaseRepository[Reminder]):
 
         return reminders
 
+    async def get_all_pending_for_user(self, user_id: UUID) -> list[Reminder]:
+        """Every reminder still waiting, whatever its trigger time.
+
+        Unlike `get_pending_for_user`, this one is not a page and takes no
+        window: the timezone recalculation must see them all or it would move
+        some clocks and not others.
+
+        Args:
+            user_id: Owner of the reminders.
+
+        Returns:
+            The pending reminders, oldest trigger first.
+        """
+        stmt = (
+            select(Reminder)
+            .where(Reminder.user_id == user_id)
+            .where(Reminder.status == ReminderStatus.PENDING.value)
+            .order_by(Reminder.trigger_at.asc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def cancel_reminder(self, reminder: Reminder) -> Reminder:
         """Cancel a pending reminder by deleting it completely."""
         reminder_id = reminder.id

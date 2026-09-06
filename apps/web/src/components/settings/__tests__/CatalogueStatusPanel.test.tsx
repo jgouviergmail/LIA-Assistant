@@ -114,7 +114,7 @@ describe('the retirement list', () => {
 
   it('keeps the list folded, so the summary alone tells the reader it exists', () => {
     // A folded block is an index entry: the count is visible, the rows are
-    // not in the DOM at all (SettingsDisclosure unmounts its children).
+    // not in the DOM at all (Disclosure unmounts its children).
     renderWithProviders(<CatalogueStatusPanel status={status({ retiring })} t={t} />);
     expect(screen.getByText(/retiring_summary/)).toBeTruthy();
     expect(screen.queryByText('gpt-4.1-nano')).toBeNull();

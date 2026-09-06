@@ -1,3 +1,6 @@
+import type {
+  RecurrenceSpec,
+} from '@/types/recurrence';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
@@ -34,6 +37,17 @@ export interface ConditionConfig {
   within_hours?: number;
 }
 
+// The recurrence vocabulary now lives in `types/recurrence`, beside no
+// consumer. Re-exported here because `ScheduledAction` below is written in it
+// and thirty modules already import the pair from this hook.
+export type {
+  DailyTimes,
+  RecurrenceFreq,
+  RecurrenceSpec,
+  SeriesEnd,
+  TimeOfDay,
+} from '@/types/recurrence';
+
 /**
  * Scheduled action from the API.
  */
@@ -42,14 +56,13 @@ export interface ScheduledAction {
   user_id: string;
   title: string;
   action_prompt: string;
-  days_of_week: number[];
-  trigger_hour: number;
-  trigger_minute: number;
+  recurrence: RecurrenceSpec;
   user_timezone: string;
   trigger_kind: TriggerKind;
   condition_config: ConditionConfig | null;
   requires_approval: boolean;
-  next_trigger_at: string;
+  /** UTC instant of the next run; **null** when the series is over. */
+  next_trigger_at: string | null;
   is_enabled: boolean;
   status: ScheduledActionStatus;
   last_executed_at: string | null;
@@ -65,6 +78,25 @@ export interface ScheduledAction {
    * second authority, and the two would disagree at the daylight-saving edges.
    */
   next_occurrences?: string[];
+  /**
+   * The moments a served day fires at, `HH:MM`, MATERIALISED by the server.
+   *
+   * Optional because a cached payload predating the field must still parse.
+   */
+  times_of_day?: string[];
+  /**
+   * Most times a served day fires — an UPPER BOUND, never an exact count: a
+   * clock change makes the real number differ on one day a year.
+   */
+  runs_per_day?: number;
+  /**
+   * Every instant of the CURRENT week, in the routine's own zone.
+   *
+   * The grid draws its chips from these, so it never comes up empty when the
+   * `/week` request fails — that request carries the run OUTCOMES, and losing
+   * it costs a colour, never a chip.
+   */
+  week_slots?: ScheduledActionWeekSlot[];
   created_at: string;
   updated_at: string;
 }
@@ -75,9 +107,7 @@ export interface ScheduledAction {
 export interface ScheduledActionCreate {
   title: string;
   action_prompt: string;
-  days_of_week: number[];
-  trigger_hour: number;
-  trigger_minute: number;
+  recurrence: RecurrenceSpec;
   trigger_kind?: TriggerKind;
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
@@ -89,12 +119,24 @@ export interface ScheduledActionCreate {
 export interface ScheduledActionUpdate {
   title?: string;
   action_prompt?: string;
-  days_of_week?: number[];
-  trigger_hour?: number;
-  trigger_minute?: number;
+  recurrence?: RecurrenceSpec;
   trigger_kind?: TriggerKind;
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
+}
+
+/** One instant of the current week, carried by the routine itself. */
+export interface ScheduledActionWeekSlot {
+  /** ISO weekday, 1 = Monday … 7 = Sunday, in the routine's zone. */
+  day: number;
+  /** The local calendar date, `YYYY-MM-DD`. */
+  date: string;
+  /** The instant it fires at (UTC). */
+  slot_at: string;
+  /** Local hour — the grid row. */
+  hour: number;
+  /** Local minute. */
+  minute: number;
 }
 
 /** How one tick of a routine ended (mirror of the backend ScheduledRunOutcome). */
@@ -111,8 +153,12 @@ export interface ScheduledActionWeekCell {
   day: number;
   /** The local calendar date, `YYYY-MM-DD`. */
   date: string;
-  /** The instant the routine fires at that day (UTC). */
+  /** The instant the routine fires at (UTC). */
   slot_at: string;
+  /** Local hour of that instant — the grid row, so the client never re-reads a schedule. */
+  hour: number;
+  /** Local minute of that instant. */
+  minute: number;
   /** How the LAST run serving this slot ended; null = no run served it. */
   outcome: ScheduledRunOutcome | null;
   run_at: string | null;

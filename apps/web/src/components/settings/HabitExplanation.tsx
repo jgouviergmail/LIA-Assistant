@@ -14,7 +14,7 @@ import { Scale } from 'lucide-react';
 import { useState } from 'react';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -49,7 +49,7 @@ export function HabitExplanation({ lng, habitId }: { lng: Language; habitId: str
   const dateLabel = (iso: string) => dateFormat.format(new Date(`${iso}T00:00:00`));
 
   return (
-    <SettingsDisclosure
+    <Disclosure
       icon={Scale}
       title={t('settings.habits.explanation.title')}
       onOpenChange={setOpen}
@@ -92,6 +92,6 @@ export function HabitExplanation({ lng, habitId }: { lng: Language; habitId: str
           </p>
         </div>
       ) : null}
-    </SettingsDisclosure>
+    </Disclosure>
   );
 }

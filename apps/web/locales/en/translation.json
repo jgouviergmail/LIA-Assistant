@@ -279,7 +279,8 @@
         "cancel_reminder_description": "“{{content}}” will not fire. This cannot be undone.",
         "loop_done": "Mark as done",
         "loop_dismiss": "No longer relevant",
-        "loop_edit": "Edit this commitment"
+        "loop_edit": "Edit this commitment",
+        "cancel_reminder_series_description": "\"{{content}}\" repeats. Cancelling it removes every future occurrence."
       },
       "cards": {
         "weather": {
@@ -3563,7 +3564,7 @@
         "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, provenance, why, weight, explanation, decay, source, export",
         "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview, visibility, requests",
         "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour, weather, frequency, time window, proposals, offers, missed routine, push wake, react to an email, react to an invitation, trigger, wake-up",
-        "scheduled-actions": "cron, schedule, recurring, automation, timer, planned, week view, timeline, weekly grid",
+        "scheduled-actions": "cron, schedule, recurring, automation, timer, planned, week view, timeline, weekly grid, every three days, 2nd Tuesday, interval, end of series, advanced options",
         "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct, configuration, consolidation, export",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
         "skills": "skills, capabilities, abilities, plugins, extensions",
@@ -3589,7 +3590,8 @@
         "eyes-style": "eyes, avatar, animation, style, gaze, companion, cozmo, face, mouth, brows, mimics, sketches, capsules",
         "admin-diagnostics": "health diagnostics incidents alerts monitoring self-check platform status prometheus loki connectivity egress outbound network embeddings vectors quota memory language runbook evidence logs diagnosis uptime build",
         "meetings": "meeting, recording, minutes, transcription, report, microphone, notes, summary, actions, template, templates, template library, minutes format, default format, automatic format, change the format, sections, instructions, minutes email",
-        "admin-registers": "registers, transparency, actions, consultations, export, journal, audit, admin, charts, statistics, figures, overview"
+        "admin-registers": "registers, transparency, actions, consultations, export, journal, audit, admin, charts, statistics, figures, overview",
+        "reminders": "reminder, remind me, alert, notification, recurring reminder, repeat, snooze, post-it, recurrence, every day, time window"
       }
     },
     "haptics": {
@@ -4379,7 +4381,7 @@
         },
         "reminders": {
           "title": "🔔 Reminders & Push Notifications",
-          "description": "Reminders created in plain language, pushed to every device, with timezones converted for you and references resolved (“the next one”, a number, a piece of content). Each message is written with the active personality and your memories, in your own language. Due reminders are taken under lease before delivery, and every early exit releases it — so an undelivered reminder comes back on the next pass instead of vanishing."
+          "description": "Reminders created in plain language, pushed to every device, timezones converted and references resolved (“the next one”, a number, a piece of content). A reminder can repeat — every day, Monday and Thursday, the 15th, every two hours within a window — or ring once and erase itself: one rule, a reminder with no future left disappears. Each message is written with the active personality and your memories, in your language; an undelivered one comes back on the next pass."
         },
         "personalities": {
           "title": "🎭 14 Dynamic Personalities",
@@ -4407,7 +4409,7 @@
         },
         "scheduledActions": {
           "title": "📅 Scheduled Actions",
-          "description": "Recurring actions the assistant runs on its own: pick the days and the time, attach an instruction, and LIA executes it. Results are archived in the conversation and pushed to you, with auto-disable after five consecutive failures. The notification carries the same final text that was archived, flattened to plain text before truncation. A week view draws them hours down and days across, numbered in the order they fire, each cell of the current week coloured by what happened — executed, failed, proposed, paused — from a run history written at the result, never guessed from a clock."
+          "description": "Recurring actions the assistant runs on its own: say the rhythm — every three days, every other Tuesday, the 2nd Tuesday, the last day, every two hours between 9 and 5, until a date or N times — attach an instruction, and LIA runs it. Days are enumerated, never handed to a cron: the previous engine skipped the day at a clock change. Results archived in the conversation and pushed to you, auto-disabled after five failures. A week view draws them hours down and days across, each cell coloured by what happened."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4580,6 +4582,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_43_0": {
+          "title": "v1.43.0 — 🔁 Your reminders can now repeat",
+          "date": "September 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔁 A reminder can come back</b> — until now a reminder rang once and vanished. You can now give it a rhythm: every day, Monday and Thursday, the 15th of each month, or every two hours between 9 and 5. A new \"Reminders\" section in settings lists them all, with the sentence describing their rhythm and the next dates. A reminder with no future left still disappears, exactly as before.",
+            "i2": "<b>🗓️ Your routines can say far more</b> — \"every three days\", \"every other Tuesday\", \"the 2nd Tuesday of the month\", \"the last day of the month\", \"every 14 July\", \"every two hours between 9 and 5\", \"until 30 September\" or \"the next three times\". Ask for it in conversation or set it by hand: it is the same vocabulary on both sides.",
+            "i3": "<b>✏️ The forms breathe</b> — fields are grouped under named headings (\"what to do\", \"when\", \"how it runs\"), and what you rarely change — an interval, an end rule, a start date — folds away behind \"Advanced options\". Five questions on screen instead of eight. The fold opens by itself when it already holds something, so it never hides a setting you made.",
+            "i4": "<b>🐛 One day lost a year, in 73 timezones</b> — at the spring clock change, when the offset moves at local midnight, the previous engine skipped the whole day: 142 runs lost a year, with nothing in the logs. Fixed, and the routine week now draws the 30 March cell again."
+          }
+        },
         "v1_42_4": {
           "title": "v1.42.4 — 🖥️ Your local models, models like any other",
           "date": "September 2026",
@@ -8418,7 +8431,7 @@
       },
       "folded_settings": {
         "title": "Settings, folded",
-        "desc": "The eleven notification topics and the histories stay closed. You open what you came to change — and a closed block loads nothing."
+        "desc": "The eleven notification topics and the histories stay closed. You open what you came to change — and a closed block loads nothing. Where the fold would hide a setting you made, it opens by itself: a routine that already says “every three weeks” never presents itself as an ordinary one."
       },
       "provenance_why": {
         "title": "Why LIA thinks that",
@@ -9415,8 +9428,6 @@
     "field_title": "Title",
     "field_title_placeholder": "e.g. Weather search",
     "field_prompt": "Instruction for the assistant",
-    "field_days": "Days of the week",
-    "field_time": "Execution time",
     "prompt_placeholder": "e.g. Search today's weather and give me a summary",
     "studio": {
       "trigger_kind": "Trigger",
@@ -9457,7 +9468,8 @@
       "active": "Active",
       "paused": "Paused",
       "executing": "Running",
-      "error": "Error"
+      "error": "Error",
+      "finished": "Finished"
     },
     "next_execution": "Next",
     "last_execution": "Last",
@@ -9478,12 +9490,6 @@
     "next_evaluations": "Next evaluation windows",
     "clock_change": "(clocks change)",
     "toggle_aria": "Enable or disable {{title}}",
-    "schedule": {
-      "daily": "Every day at {{time}}",
-      "weekdays": "Weekdays at {{time}}",
-      "weekend": "Weekends at {{time}}",
-      "custom": "{{days}} at {{time}}"
-    },
     "next_run": "Next run",
     "next_evaluation": "Next evaluation",
     "number_aria": "Routine {{n}}",
@@ -9510,7 +9516,9 @@
         "skipped_hitl": "Skipped, an approval was pending in the chat",
         "executing": "Running now"
       }
-    }
+    },
+    "section_what": "What to do",
+    "section_execution": "How it runs"
   },
   "landing": {
     "meta": {
@@ -9697,7 +9705,7 @@
       },
       "reminders_scheduling": {
         "title": "Reminders & automations",
-        "description": "Schedule reminders in natural language (\"Remind me tomorrow at 9am to call Marie\"). Plan recurring automatic actions (Monday email summary, morning weather...). A reminder that comes due while your quota is reached goes back into the queue — never lost. Routines can now wait for a condition — a task falls overdue, a matching mail arrives, the weather turns, a document is added, an event approaches — and optionally propose before acting. A week view lays the routines out, hours down and days across, each cell of the current week coloured by what happened."
+        "description": "Schedule reminders in natural language (\"Remind me tomorrow at 9am to call Marie\"). Plan recurring automatic actions (Monday email summary, morning weather...). A reminder that comes due while your quota is reached goes back into the queue — never lost. Routines can now wait for a condition — a task falls overdue, a matching mail arrives, the weather turns, a document is added, an event approaches — and optionally propose before acting. A week view lays the routines out, hours down and days across, each cell of the current week coloured by what happened. A reminder can repeat too: say the rhythm — every three days, the 2nd Tuesday of the month, every two hours between 9 and 5 — and it is the same vocabulary for a routine."
       },
       "memory": {
         "title": "Contextual memory",
@@ -10594,7 +10602,7 @@
       "reminders-scheduling": {
         "title": "Reminders and Scheduled Actions: Automate Your Daily Life",
         "excerpt": "Create reminders in natural language and schedule recurring actions. LIA handles timing, timezones, and push notifications.",
-        "body": "<h2>Natural language reminders</h2><p>Creating a reminder with LIA is as simple as saying:</p><ul><li>\"Remind me to call Marie tomorrow at 9am\"</li><li>\"Reminder in 30 minutes: check the oven\"</li><li>\"Remember to buy bread tonight\"</li></ul><p>LIA automatically interprets time expressions and creates the reminder with the correct timezone.</p><h2>Reminder lifecycle</h2><p>Each reminder follows a precise lifecycle: <strong>PENDING → PROCESSING → deleted</strong> after notification. Reminders are <strong>one-shot</strong>: once successfully delivered, they are automatically deleted. Each reminder contains three key fields:</p><ul><li><code>content</code> — The content understood by LIA (reformulated if needed)</li><li><code>original_message</code> — The user's exact text</li><li><code>trigger_at</code> — The trigger time in UTC</li></ul><p>The move to <code>PROCESSING</code> is a <strong>lease</strong>, not a point of no return: the selection query only ever looks at <code>PENDING</code> rows, so a reminder already being handled cannot be picked up twice by two concurrent passes. Every early exit releases it — usage limit reached, no registered device — and the reminder returns to <code>PENDING</code> for the next pass. Without that release, a reminder falling due in the very minute a user hits their quota would be lost for good, with no error and no trace.</p><h2>Timezone management</h2><p>All reminders are stored in <strong>UTC</strong> in the database. The user's IANA timezone (e.g., <code>Europe/Paris</code>, <code>America/New_York</code>) is tracked and used to convert relative time expressions (\"tomorrow at 9am\") into absolute UTC timestamps. Display is always converted to the user's local timezone.</p><h2>Push notifications</h2><p>Reminders are delivered via <strong>Firebase Cloud Messaging (FCM)</strong> for browser and mobile notifications. Notifications arrive even when the app isn't open.</p><p>The notification title and body are rendered in the user's own language, across all six supported languages. Locale normalisation is done by the title table itself rather than by each caller, because callers hold raw locales of every spelling — and the one place that had to normalise and did not sent Chinese users English titles.</p><h2>Scheduled actions</h2><p>Scheduled Actions constitute a <strong>separate domain</strong> that goes beyond simple reminders. They integrate with <strong>APScheduler</strong> to schedule recurring tasks that LIA executes automatically:</p><ul><li>Weather summary every morning at 7am</li><li>Important email check every 2 hours</li><li>Weekly task report every Monday</li></ul><h2>Reasonable limits</h2><p>To prevent abuse, each user can have up to 20 active scheduled actions simultaneously. Retry logic with backoff handles temporary failures.</p>"
+        "body": "<h2>Natural language reminders</h2><p>Creating a reminder with LIA is as simple as saying:</p><ul><li>\"Remind me to call Marie tomorrow at 9am\"</li><li>\"Reminder in 30 minutes: check the oven\"</li><li>\"Remember to buy bread tonight\"</li></ul><p>LIA automatically interprets time expressions and creates the reminder with the correct timezone.</p><h2>Reminder lifecycle</h2><p>Each reminder follows a precise lifecycle: <strong>PENDING → PROCESSING → deleted</strong> after notification. A reminder can now <strong>repeat</strong> — every day, Monday and Thursday, the 15th of the month, every two hours within a window. After each notification LIA simply asks what to arm next: if an occurrence remains, the reminder re-arms; if none does — a consumed single occurrence, or a series that has run out — it is deleted. One rule in both cases, and exactly what “delete after notification” always meant. Each reminder contains three key fields:</p><ul><li><code>content</code> — The content understood by LIA (reformulated if needed)</li><li><code>original_message</code> — The user's exact text</li><li><code>trigger_at</code> — The trigger time in UTC</li></ul><p>The move to <code>PROCESSING</code> is a <strong>lease</strong>, not a point of no return: the selection query only ever looks at <code>PENDING</code> rows, so a reminder already being handled cannot be picked up twice by two concurrent passes. Every early exit releases it — usage limit reached, no registered device — and the reminder returns to <code>PENDING</code> for the next pass. Without that release, a reminder falling due in the very minute a user hits their quota would be lost for good, with no error and no trace.</p><h2>Timezone management</h2><p>All reminders are stored in <strong>UTC</strong> in the database. The user's IANA timezone (e.g., <code>Europe/Paris</code>, <code>America/New_York</code>) is tracked and used to convert relative time expressions (\"tomorrow at 9am\") into absolute UTC timestamps. Display is always converted to the user's local timezone.</p><h2>Push notifications</h2><p>Reminders are delivered via <strong>Firebase Cloud Messaging (FCM)</strong> for browser and mobile notifications. Notifications arrive even when the app isn't open.</p><p>The notification title and body are rendered in the user's own language, across all six supported languages. Locale normalisation is done by the title table itself rather than by each caller, because callers hold raw locales of every spelling — and the one place that had to normalise and did not sent Chinese users English titles.</p><h2>Scheduled actions</h2><p>Scheduled Actions constitute a <strong>separate domain</strong> that goes beyond simple reminders. They integrate with <strong>APScheduler</strong> to schedule recurring tasks that LIA executes automatically:</p><ul><li>Weather summary every morning at 7am</li><li>Important email check every 2 hours</li><li>Weekly task report every Monday</li></ul><h2>Reasonable limits</h2><p>To prevent abuse, each user can have up to 20 active scheduled actions simultaneously. Retry logic with backoff handles temporary failures.</p>"
       },
       "sub-agents": {
         "title": "Sub-Agents: Ephemeral Experts for Complex Questions",
@@ -12226,7 +12234,8 @@
       "run_python_tool": "Ran a computation in the sandbox",
       "run_skill_script": "Ran the “{{target}}” skill script",
       "set_current_item": "Set “{{target}}” as the conversation's current item",
-      "toggle_scheduled_action_tool": "Enabled or paused the scheduled action “{{target}}”"
+      "toggle_scheduled_action_tool": "Enabled or paused the scheduled action “{{target}}”",
+      "create_reminder_tool": "Created the reminder “{{target}}”"
     },
     "export": {
       "group_label": "Export this register",
@@ -12402,5 +12411,108 @@
       "action": "Unified extraction",
       "hint": "JSON Lines, one line per record. It holds no content and every identifier is replaced by a handle — yours included — so the file can be attached to a request or a complaint without editing it first."
     }
+  },
+  "recurrence": {
+    "legend_days": "Which days",
+    "legend_times": "At what time",
+    "freq_label": "Repeats",
+    "freq": {
+      "once": "Once only",
+      "daily": "Every day",
+      "weekly": "Every week",
+      "monthly": "Every month",
+      "yearly": "Every year"
+    },
+    "interval_label": "Every",
+    "interval_unit": {
+      "daily": "day(s)",
+      "weekly": "week(s)",
+      "monthly": "month(s)",
+      "yearly": "year(s)"
+    },
+    "interval_shortcut": {
+      "quarterly": "Quarterly",
+      "biannual": "Twice a year"
+    },
+    "weekdays_label": "Days of the week",
+    "weekday_set": {
+      "all": "Every day",
+      "workdays": "Weekdays",
+      "weekend": "Weekend"
+    },
+    "monthday_label": "Day of the month",
+    "monthday_last": "Last day",
+    "monthly_mode": {
+      "day": "On a day of the month",
+      "weekday": "On a weekday"
+    },
+    "nth_label": "Which one",
+    "nth": {
+      "1": "First",
+      "2": "Second",
+      "3": "Third",
+      "4": "Fourth",
+      "5": "Fifth",
+      "-1": "Last"
+    },
+    "month_label": "Month",
+    "anchor_label": "Starting on",
+    "anchor_hint": "Sets when the series starts, and which week or month it falls on.",
+    "date_label": "Date",
+    "times_mode": {
+      "at": "At set times",
+      "every": "At a regular interval"
+    },
+    "times_label": "Times of day",
+    "time_add": "Add a time",
+    "time_remove": "Remove {{time}}",
+    "step_label": "Every",
+    "step_unit_minutes": "minutes",
+    "step_from": "From",
+    "step_to": "To",
+    "end_label": "Ends",
+    "end": {
+      "never": "Never",
+      "on_date": "On a date",
+      "after_count": "After a number of times"
+    },
+    "end_count_label": "Number of times",
+    "summary_per_day_one": "up to {{count}} time a day",
+    "summary_per_day_other": "up to {{count}} times a day",
+    "summary_next": "Next",
+    "summary_finished": "This series is over",
+    "error_no_time": "Add at least one time of day.",
+    "error_no_weekday": "Select at least one day of the week.",
+    "error_too_many": "That is {{count}} times a day; the limit is {{limit}}.",
+    "error_step_too_small": "The shortest interval is {{limit}} minutes.",
+    "error_no_end_date": "Choose the last day, or pick another end rule.",
+    "section_when": "When",
+    "step_separator": "to",
+    "advanced": "Advanced options"
+  },
+  "reminders": {
+    "settings": {
+      "title": "Reminders",
+      "description": "What LIA will remind you of, and when.",
+      "count_one": "{{count}} reminder",
+      "count_other": "{{count}} reminders",
+      "capped": "(first {{shown}} shown)"
+    },
+    "create": "New reminder",
+    "create_title": "New reminder",
+    "edit_title": "Edit reminder",
+    "field_content": "Remind me to",
+    "field_content_placeholder": "call the doctor",
+    "empty": "No reminder yet",
+    "empty_hint": "Nothing is coming. Ask LIA in the chat, or create one here.",
+    "created": "Reminder created",
+    "updated": "Reminder updated",
+    "deleted": "Reminder deleted",
+    "save_failed": "Could not save the reminder",
+    "delete_failed": "Could not delete the reminder",
+    "delete_title": "Delete this reminder?",
+    "delete_confirm": "\"{{content}}\" will be deleted.",
+    "delete_series_confirm": "\"{{content}}\" repeats ({{schedule}}). Deleting it removes every future occurrence.",
+    "section_what": "What to remind"
   }
 }

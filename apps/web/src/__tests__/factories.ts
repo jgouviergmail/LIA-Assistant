@@ -13,6 +13,7 @@ import type { Connector } from '@/components/settings/connectors/types';
 import type { AdminUserUsageLimitResponse } from '@/types/usage-limits';
 import type { LLMModelPricing } from '@/components/settings/AdminLLMPricingSection';
 import type { Message, MessageAttachmentMeta } from '@/types/chat';
+import type { ScheduledAction } from '@/hooks/useScheduledActions';
 
 /**
  * A fully-populated, authenticated {@link User}. Required fields carry neutral
@@ -153,4 +154,100 @@ export function makeAttachment(over: Partial<MessageAttachmentMeta> = {}): Messa
     content_type: 'image',
     ...over,
   };
+}
+
+/**
+ * A weekly routine, contract-conformant.
+ *
+ * Four test files carried their own copy of this shape and all four broke the
+ * day the API dropped `days_of_week` — while staying green, because a fabricated
+ * payload cannot notice a contract change (that is what
+ * `test_frontend_contract_guard.py` now catches on the backend side). One
+ * factory, so the next contract move is one edit.
+ *
+ * `times_of_day`, `runs_per_day` and `week_slots` are what the SERVER
+ * materialises; a test that omits them is testing a payload the API never
+ * sends.
+ */
+export function makeScheduledAction(over: Partial<ScheduledAction> = {}): ScheduledAction {
+  return {
+    id: 'r',
+    user_id: 'u1',
+    title: 'Routine',
+    action_prompt: 'do',
+    recurrence: {
+      freq: 'weekly',
+      interval: 1,
+      anchor_date: '2026-01-05',
+      byweekday: [1],
+      bymonthday: [],
+      bymonth: [],
+      nth_weekday: null,
+      times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
+      end: { kind: 'never', on_date: null, after_count: null },
+    },
+    user_timezone: 'Europe/Paris',
+    trigger_kind: 'time',
+    condition_config: null,
+    requires_approval: false,
+    next_trigger_at: '2026-08-03T06:00:00Z',
+    is_enabled: true,
+    status: 'active',
+    last_executed_at: null,
+    execution_count: 0,
+    consecutive_failures: 0,
+    last_error: null,
+    schedule_display: 'Mon 08:00',
+    times_of_day: ['08:00'],
+    runs_per_day: 1,
+    week_slots: [
+      {
+        day: 1,
+        date: '2026-08-03',
+        slot_at: '2026-08-03T06:00:00Z',
+        hour: 8,
+        minute: 0,
+      },
+    ],
+    next_occurrences: ['2026-08-03T06:00:00Z'],
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ...over,
+  };
+}
+
+/**
+ * A routine firing at several moments of one day.
+ *
+ * The shape the previous grid could not draw: keyed by `(routine, day)` it
+ * produced one chip carrying the FIRST moment's state, and the second
+ * occurrence — including its failure — was invisible.
+ */
+export function makeMultiSlotAction(over: Partial<ScheduledAction> = {}): ScheduledAction {
+  return makeScheduledAction({
+    times_of_day: ['08:00', '18:00'],
+    runs_per_day: 2,
+    recurrence: {
+      freq: 'weekly',
+      interval: 1,
+      anchor_date: '2026-01-05',
+      byweekday: [1],
+      bymonthday: [],
+      bymonth: [],
+      nth_weekday: null,
+      times: {
+        mode: 'at',
+        at: [
+          { hour: 8, minute: 0 },
+          { hour: 18, minute: 0 },
+        ],
+      },
+      end: { kind: 'never', on_date: null, after_count: null },
+    },
+    week_slots: [
+      { day: 1, date: '2026-08-03', slot_at: '2026-08-03T06:00:00Z', hour: 8, minute: 0 },
+      { day: 1, date: '2026-08-03', slot_at: '2026-08-03T16:00:00Z', hour: 18, minute: 0 },
+    ],
+    ...over,
+  });
 }

@@ -8,6 +8,7 @@ These are internal tools (no OAuth required).
 from datetime import UTC, datetime
 
 from src.core.config import settings
+from src.core.constants import RECURRENCE_REMINDER_LIMITS
 from src.domains.agents.registry.catalogue import (
     AgentManifest,
     CostProfile,
@@ -18,6 +19,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.registry.recurrence_parameters import recurrence_parameters
 
 # =============================================================================
 # Agent Manifest: reminder_agent
@@ -57,7 +59,18 @@ REMINDER_AGENT_MANIFEST = AgentManifest(
 
 create_reminder_catalogue_manifest = ToolManifest(
     name="create_reminder_tool",
-    mutation_policy="draft",
+    # `reversible`, not `draft`: this tool WRITES and commits. `draft` is
+    # pass-through in the effect gate, precisely because a draft only builds
+    # the confirmation someone will answer — so declaring it here meant a
+    # reminder created by conversation was neither asked for nor recorded,
+    # on a tool whose declaration said the opposite (ADR-263, fixed 2026-09-06).
+    # Creating a reminder is deliberately not gated: it is anodyne and already
+    # undoable, and DELETING one already asks.
+    mutation_policy="reversible",
+    mutation_policy_reason=(
+        "Writes a reminder the reader can delete at any time; the deletion is "
+        "the step that asks."
+    ),
     agent="reminder_agent",
     description=(
         "Creates a reminder for the user. "
@@ -125,6 +138,11 @@ create_reminder_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="min_length", value=1),
             ],
         ),
+        # The spoken recurrence vocabulary, bounded by what a REMINDER allows
+        # (48 firings a day where a routine gets 12). `repeat` is optional
+        # here: a reminder may also be a single instant, or a FOR_EACH
+        # expression — and the tool refuses two of the three together.
+        *recurrence_parameters(RECURRENCE_REMINDER_LIMITS, repeat_required=False),
     ],
     outputs=[
         OutputFieldSchema(
@@ -138,6 +156,15 @@ create_reminder_catalogue_manifest = ToolManifest(
             type="string",
             description="Date/time formatted in user's timezone",
             semantic_type="trigger_datetime",
+        ),
+        OutputFieldSchema(
+            path="schedule_human",
+            type="string",
+            nullable=True,
+            description=(
+                "The schedule in the reader's own words, when the reminder "
+                "repeats; null for a single firing."
+            ),
         ),
     ],
     cost=CostProfile(

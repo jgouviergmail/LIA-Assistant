@@ -258,6 +258,10 @@ class ReminderItem(BaseModel):
     trigger_at_local: str = Field(
         ..., description="Pre-formatted local time, e.g. 'today 14:30' or 'tomorrow 09:00'"
     )
+    repeats: bool = Field(
+        default=False,
+        description="True when cancelling removes a SERIES, not one occurrence.",
+    )
 
 
 class RemindersData(BaseModel):

@@ -15,6 +15,19 @@ Create reminders using **natural language**:
 • Day: "*tomorrow*", "*next Monday*", "*January 15*"
 • Combined: "*tomorrow at 10am*", "*Monday at 2pm*"
 
+**🔁 Recurring reminders:**
+A reminder can repeat instead of ringing once:
+• "*Remind me every day at 8am to take my medication*"
+• "*Remind me every Monday and Thursday at 6pm*"
+• "*Remind me on the 15th of each month*"
+• "*Remind me every two hours between 9am and 5pm*"
+• "*Remind me every morning until 30 September*" — or "*the next three times*"
+
+A repeating reminder re-arms itself after each notification. One with no future
+left — a single occurrence, or a series that has run out — is deleted, exactly
+as a one-shot reminder always was. Settings → Reminders lists them all, with the
+sentence describing their rhythm and the next dates.
+
 **✅ Confirmation:**
 LIA confirms creation with the exact date and time in your timezone.
 

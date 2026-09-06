@@ -44,7 +44,7 @@ Le resultat de chaque execution est automatiquement archive dans la conversation
 
 ### Difference avec les Reminders
 
-Les **Reminders** sont des rappels ponctuels (one-shot) crees via le langage naturel ("Rappelle-moi d'appeler le medecin dans 2 heures"). Ils sont supprimes apres execution.
+Les **Reminders** sont des rappels crees via le langage naturel ("Rappelle-moi d'appeler le medecin dans 2 heures") ou depuis leur section de reglages. Depuis 2026-09-06 ils portent la meme `RecurrenceSpec` que les routines : un rappel ponctuel est une recurrence d'une seule occurrence, et une ligne est supprimee des qu'il ne lui reste plus rien a servir.
 
 Les **Scheduled Actions** sont des taches recurrentes configurees via l'UI Settings. Elles persistent et se reprogramment automatiquement apres chaque execution.
 
@@ -73,7 +73,7 @@ Les cartes sont triees a l'affichage par heure de declenchement (heure, minute, 
        |     a. Guard: HITL pending check                      |
        |     b. stream_chat_response(auto_approve_plan=True)   |
        |     c. FCM + SSE notification                         |
-       |     d. compute_next_trigger_utc (CronTrigger)         |
+       |     d. rearm_after (core/recurrence)                  |
        |     e. mark_execution_success / failure               |
 ```
 
@@ -86,7 +86,7 @@ Les cartes sont triees a l'affichage par heure de declenchement (heure, minute, 
 | `domains/scheduled_actions/repository.py` | `BaseRepository` + requetes scheduler (`FOR UPDATE SKIP LOCKED`, recovery) |
 | `domains/scheduled_actions/service.py` | CRUD + toggle + recalcul timezone cascade |
 | `domains/scheduled_actions/router.py` | 7 endpoints FastAPI (`/week` declare AVANT `/{action_id}`) |
-| `domains/scheduled_actions/schedule_helpers.py` | `compute_next_trigger_utc()` via APScheduler `CronTrigger`, `week_slots()` / `local_day_slot()` / `served_slot()` (ADR-265), reparation du trou d'heure d'ete ouvert a minuit (`_next_fire`) |
+| `core/recurrence/schedule.py` | `week_slots()` / `day_slots()` / `served_slot()` / `rearm_after()` — les trois questions qu'une chose planifiee pose au moteur. Le module vivait dans ce domaine tant que seule une routine les posait ; les rappels l'ont refute, il est remonte dans `core` |
 | `domains/scheduled_actions/run_repository.py` | Historique des executions `scheduled_action_runs` : insertion au resultat, lecture par semaine, purge par age (ADR-265) |
 | `domains/scheduled_actions/runs.py` | `record_run()` : une ligne par sortie de l'executeur, dans un SAVEPOINT, jamais fatale |
 | `domains/scheduled_actions/week.py` | Pliage pur de la semaine en cours : une cellule = le DERNIER run dont `slot_at` est EGAL a l'instant du creneau |
@@ -100,11 +100,9 @@ scheduled_actions
 +-- user_id (UUID, FK users.id CASCADE)
 +-- title (String 200)
 +-- action_prompt (Text)
-+-- days_of_week (ARRAY SmallInteger) -- ISO: 1=Lun..7=Dim
-+-- trigger_hour (SmallInteger, 0-23)
-+-- trigger_minute (SmallInteger, 0-59)
++-- recurrence (JSONB) -- RecurrenceSpec : quels jours, quels moments
 +-- user_timezone (String 50, default "Europe/Paris")
-+-- next_trigger_at (DateTime TZ, UTC) -- Calcule automatiquement
++-- next_trigger_at (DateTime TZ, UTC, nullable) -- Calcule ; NULL = plus rien apres
 +-- is_enabled (Boolean, default true)
 +-- status (String 20: active|executing|error)
 +-- last_executed_at (DateTime TZ, nullable)
@@ -221,9 +219,12 @@ POST /api/v1/scheduled-actions
 {
     "title": "Meteo du jour",
     "action_prompt": "Recherche la meteo du jour pour ma ville",
-    "days_of_week": [1, 2, 3, 4, 5, 6, 7],
-    "trigger_hour": 8,
-    "trigger_minute": 0
+    "recurrence": {
+        "freq": "daily",
+        "interval": 1,
+        "anchor_date": "2026-03-09",
+        "times": {"mode": "at", "at": [{"hour": 8, "minute": 0}]}
+    }
 }
 ```
 
@@ -235,9 +236,19 @@ POST /api/v1/scheduled-actions
     "user_id": "...",
     "title": "Meteo du jour",
     "action_prompt": "Recherche la meteo du jour pour ma ville",
-    "days_of_week": [1, 2, 3, 4, 5, 6, 7],
-    "trigger_hour": 8,
-    "trigger_minute": 0,
+    "recurrence": {
+        "freq": "daily",
+        "interval": 1,
+        "anchor_date": "2026-03-09",
+        "byweekday": [],
+        "bymonthday": [],
+        "nth_weekday": null,
+        "bymonth": [],
+        "times": {"mode": "at", "at": [{"hour": 8, "minute": 0}], "step_minutes": null, "start": null, "end": null},
+        "end": {"kind": "never", "on_date": null, "after_count": null}
+    },
+    "times_of_day": ["08:00"],
+    "runs_per_day": 1,
     "user_timezone": "Europe/Paris",
     "next_trigger_at": "2026-03-09T07:00:00Z",
     "is_enabled": true,
@@ -257,11 +268,18 @@ POST /api/v1/scheduled-actions
 ```json
 PATCH /api/v1/scheduled-actions/550e8400-...
 {
-    "days_of_week": [1, 3, 5],
-    "trigger_hour": 19,
-    "trigger_minute": 30
+    "recurrence": {
+        "freq": "weekly",
+        "interval": 1,
+        "anchor_date": "2026-03-09",
+        "byweekday": [1, 3, 5],
+        "times": {"mode": "at", "at": [{"hour": 19, "minute": 30}]}
+    }
 }
 ```
+
+`recurrence` se remplace en entier : une planification partielle ne veut rien
+dire. Omettre le champ la laisse inchangee ; l'envoyer a `null` est refuse.
 
 **Toggle enable/disable** :
 
@@ -281,9 +299,18 @@ Retourne `202 Accepted` avec `{"status": "executing"}`. L'execution s'effectue e
 
 - `title` : 1 a 200 caracteres
 - `action_prompt` : 1 a 2000 caracteres
-- `days_of_week` : 1 a 7 valeurs, chacune entre 1 (Lundi) et 7 (Dimanche), sans doublons
-- `trigger_hour` : 0 a 23
-- `trigger_minute` : 0 a 59
+- `recurrence` : un `RecurrenceSpec` complet (`src/core/recurrence/spec.py`)
+  - `freq` parmi `once`, `daily`, `weekly`, `monthly`, `yearly` ; `interval` >= 1
+  - `anchor_date` obligatoire : c'est l'origine qui rend « une semaine sur
+    deux » stable dans le temps, independamment de la date de lecture
+  - `byweekday` : jours ISO 1 (Lundi) a 7 (Dimanche), sans doublons
+  - `times` : soit des moments explicites (`mode: at`), soit un pas dans une
+    fenetre (`mode: every`, `step_minutes` >= 15 pour une routine)
+  - une date calendaire impossible est refusee (`bymonthday: [31]` avec
+    `bymonth: [2]`), mais `bymonth: [2, 3]` + `bymonthday: [31]` passe : il
+    suffit qu'un des mois porte ce quantieme
+- Plafonds d'une routine : 12 declenchements par jour, pas minimal de 15
+  minutes, 500 occurrences de serie (`RECURRENCE_ROUTINE_LIMITS`)
 - Limite : max `SCHEDULED_ACTIONS_MAX_PER_USER` (20) actions par utilisateur
 
 ### Ownership check
@@ -326,47 +353,60 @@ Les heures de declenchement sont stockees en **UTC** dans `next_trigger_at`, mai
 ```
 CONFIGURATION (heure locale utilisateur)
     |
-compute_next_trigger_utc(days, hour, minute, user_timezone)
+rearm_after(spec, user_timezone, due_at=...)   # core/recurrence
     |
-STOCKAGE: next_trigger_at (UTC)
+STOCKAGE: next_trigger_at (UTC), NULL quand plus rien ne suit
     |
 SCHEDULER: next_trigger_at <= NOW(UTC) ?
     |
-AFFICHAGE: converti en timezone utilisateur (via schedule_display)
+AFFICHAGE: describe(spec, langue) -> schedule_display
 ```
 
-### Calcul avec CronTrigger
+### Calcul avec le moteur de recurrence
 
-Le calcul du prochain declenchement utilise `APScheduler.CronTrigger.get_next_fire_time()` (zero dependance supplementaire) :
+Le prochain declenchement vient de `core/recurrence`, qui enumere des JOURS
+calendaires (`dateutil.rrule`) puis localise chaque moment en heure murale :
 
 ```python
-from apscheduler.triggers.cron import CronTrigger
-from zoneinfo import ZoneInfo
+from src.core.recurrence import RecurrenceSpec, rearm_after
 
-trigger = CronTrigger(
-    day_of_week="mon,wed,fri",
-    hour=19, minute=30,
-    timezone=ZoneInfo("Europe/Paris"),
-)
-next_fire = trigger.get_next_fire_time(None, now_utc())
-# IMPORTANT: CronTrigger retourne l'heure dans la timezone du trigger
-# La conversion explicite vers UTC est indispensable
-return next_fire.astimezone(UTC)
+spec = RecurrenceSpec.model_validate({
+    "freq": "weekly",
+    "interval": 1,
+    "anchor_date": "2026-03-09",
+    "byweekday": [1, 3, 5],
+    "times": {"mode": "at", "at": [{"hour": 19, "minute": 30}]},
+})
+next_fire = rearm_after(spec, "Europe/Paris", due_at=None)  # UTC, ou None
 ```
 
-### Changement de timezone utilisateur
+`rearm_after` part de `max(due_at, now)` : un creneau manque est manque, jamais
+rejoue. Il rend `None` quand la serie est finie — ce que l'appelant stocke tel
+quel (une routine garde la ligne et s'affiche « terminee », un rappel se
+supprime).
 
-Quand un utilisateur modifie son fuseau horaire dans son profil, le service `ScheduledActionService.recalculate_all_for_user()` recalcule le `next_trigger_at` et le `user_timezone` de TOUTES ses actions, en pause comprises (ADR-265). Avant, les actions en pause etaient ignorees : elles gardaient l'ancien fuseau, et `toggle` comme `update` re-derivent le declencheur depuis ce fuseau stocke — une routine mise en pause pendant un demenagement se reveillait sur l'ancienne horloge.
+### Piege ferme par construction : l'heure murale qui n'existe pas
 
-Le meme horaire local est preserve (ex: 19:30 reste 19:30) mais la valeur UTC change. Cet appel est declenche depuis `users/service.py` lors de la mise a jour du profil.
+Ces deux sections decrivaient des pieges d'APScheduler. Le moteur cron a
+disparu (lot 2A) : `core/recurrence/engine.py` enumere des JOURS calendaires
+avec `dateutil.rrule`, puis localise chaque moment en heure murale avec
+`fold=0`. Il ne demande donc jamais a un trigger « quel jour vient ensuite »,
+et les deux defauts ci-dessous ne sont plus atteignables.
 
-### Piege classique
+Ils sont gardes ici parce qu'ils sont la RAISON de cette conception :
 
-`CronTrigger.get_next_fire_time()` retourne un datetime dans la timezone du trigger, **pas en UTC**. Oublier `.astimezone(UTC)` provoquera un decalage horaire.
+- `CronTrigger.get_next_fire_time()` rendait un datetime dans le fuseau du
+  trigger, pas en UTC : un `.astimezone(UTC)` oublie decalait tout.
+- APScheduler 3.11 decalait d'une heure une heure murale inexistante (Paris
+  02:30 le jour du passage a l'heure d'ete devenait 03:30) — sauf quand le trou
+  s'ouvre a 00:00, ou il SAUTAIT la journee entiere. Mesure sur toutes les
+  zones IANA et toutes les transitions 2026 : 2 112 creneaux decales, **72
+  sautes**, tous dans l'heure 00:00-00:59 des six zones qui changent d'heure a
+  minuit (Santiago, La Havane, Le Caire, Beyrouth). Soit 142 executions perdues
+  par an sur 73 zones, `Europe/Paris` comprise.
 
-### Piege mesure : le trou d'heure d'ete ouvert a minuit
-
-APScheduler 3.11 decale d'une heure une heure murale inexistante (Paris 02:30 le jour du passage a l'heure d'ete tourne a 03:30) — sauf quand le trou s'ouvre a 00:00, ou il SAUTE la journee entiere. Mesure sur toutes les zones IANA et toutes les transitions 2026 : 2 112 creneaux decales, 72 sautes, tous dans l'heure 00:00-00:59 des six zones qui changent d'heure a minuit (Santiago, La Havane, Le Caire, Beyrouth…). `schedule_helpers._next_fire()` est le SEUL lecteur de `get_next_fire_time` du module : il cherche un jour configure que le cron a enjambe et dont l'heure murale n'existe pas, et rend le premier instant existant de ce jour (`fold=0` sur une heure inexistante resout vers l'instant d'apres le trou). Differentiel : 15 684 resultats identiques au cron brut, 144 corriges, 0 anomalie (`TestMidnightGap`).
+`fold=0` sur une heure inexistante resout vers l'instant d'apres le trou, et
+c'est le moteur — pas un correctif au-dessus d'un trigger — qui le fait.
 
 ---
 
@@ -459,7 +499,7 @@ Les erreurs FCM et SSE sont loguees mais ne bloquent pas l'execution. L'action e
 | **HITL** | N/A | Bypass plan approval, guard HITL | N/A |
 | **Feature flag** | `FCM_NOTIFICATIONS_ENABLED` | `SCHEDULED_ACTIONS_ENABLED` | `HEARTBEAT_ENABLED` |
 | **Retry** | 3 tentatives, DELETE apres echec | 2 tentatives, auto-disable apres 5 echecs | Pas de retry |
-| **Timezone** | Conversion locale -> UTC au create | Calcul CronTrigger avec timezone | Plage horaire configurable |
+| **Timezone** | Conversion locale -> UTC au create | Heure murale localisee par le moteur | Plage horaire configurable |
 | **Notification** | FCM + SSE + archive | FCM + SSE + archive | FCM + SSE + Telegram + archive |
 | **Scheduler** | `reminder_notification` (60s) | `scheduled_action_executor` (60s) | `heartbeat_notification` (configurable) |
 | **Donnees** | Table `reminders` | Table `scheduled_actions` | Table `heartbeat_notifications` |
@@ -473,7 +513,7 @@ Les erreurs FCM et SSE sont loguees mais ne bloquent pas l'execution. L'action e
 
 | Fichier | Couverture |
 |---------|-----------|
-| `tests/unit/domains/scheduled_actions/test_schedule_helpers.py` | `compute_next_trigger_utc` (incl. validation UTC), `validate_days`, `format_display`, le trou de minuit (`TestMidnightGap`, differentiel contre le cron brut), `week_slots` / `local_day_slot` / `served_slot` |
+| `tests/unit/domains/scheduled_actions/test_schedule_helpers.py` | `week_slots()` / `day_slots()` / `served_slot()` / `rearm_after()` : la semaine servie, le creneau qu'un tick sert, ce qu'on arme apres |
 | `tests/unit/domains/scheduled_actions/test_schemas.py` | validation `Create`/`Update` schemas |
 | `tests/unit/domains/scheduled_actions/test_occurrences.py` | les prochaines executions, dedoublonnees par jour local |
 | `tests/unit/domains/scheduled_actions/test_runs.py`, `test_run_repository.py`, `test_week.py`, `test_router_week.py`, `test_service.py` | ADR-265 : `record_run` (savepoint, jamais fatale), le repository des runs, le pliage de la semaine, la route `/week` et son ordre, le recalcul de fuseau qui couvre les routines en pause |
@@ -491,26 +531,48 @@ cd apps/api
 .venv/Scripts/pytest tests/unit/domains/scheduled_actions/ -v
 ```
 
-### Ecrire un test pour `compute_next_trigger_utc`
+### Ecrire un test pour `rearm_after`
+
+Le reamorcage part de `max(due_at, now)`, jamais de `due_at` seul : mesure du
+2026-09-06 sur une routine toutes les 30 minutes, un reamorcage depuis
+l'instant du : 145 executions a la suite au retour d'une panne de trois jours ;
+depuis le maximum : exactement une. Un creneau manque est manque.
 
 ```python
 from datetime import UTC, datetime
-from src.domains.scheduled_actions.schedule_helpers import compute_next_trigger_utc
+from src.core.recurrence import RecurrenceSpec
+from src.core.recurrence import rearm_after
 
-def test_next_trigger_weekday_in_user_timezone():
-    """Verifie que le calcul respecte la timezone utilisateur."""
-    # Lundi a 08:00 Europe/Paris
-    result = compute_next_trigger_utc(
-        days_of_week=[1],  # Lundi
-        hour=8,
-        minute=0,
-        user_timezone="Europe/Paris",
+WEEKLY_MONDAY_8H = RecurrenceSpec.model_validate({
+    "freq": "weekly",
+    "interval": 1,
+    "anchor_date": "2026-03-09",
+    "byweekday": [1],  # Lundi
+    "times": {"mode": "at", "at": [{"hour": 8, "minute": 0}]},
+})
+
+def test_rearm_respects_the_user_timezone():
+    """L'heure est murale : 08:00 a Paris vaut 07:00 UTC l'hiver, 06:00 l'ete."""
+    result = rearm_after(
+        WEEKLY_MONDAY_8H,
+        "Europe/Paris",
+        due_at=None,
+        now=datetime(2026, 3, 9, 12, 0, tzinfo=UTC),
     )
-    # Le resultat doit etre en UTC
+    assert result is not None
     assert result.tzinfo is not None
-    # Paris est UTC+1 en hiver, UTC+2 en ete
-    # 08:00 Paris = 07:00 UTC (hiver) ou 06:00 UTC (ete)
     assert result.hour in (6, 7)
+
+def test_a_missed_slot_is_never_replayed():
+    """Trois jours de panne ne rejouent pas trois jours de pipelines."""
+    result = rearm_after(
+        WEEKLY_MONDAY_8H,
+        "Europe/Paris",
+        due_at=datetime(2026, 3, 9, 7, 0, tzinfo=UTC),   # du, depasse
+        now=datetime(2026, 3, 12, 9, 0, tzinfo=UTC),      # trois jours plus tard
+    )
+    # Le lundi suivant, pas celui qui a ete manque.
+    assert result == datetime(2026, 3, 16, 7, 0, tzinfo=UTC)
 ```
 
 ### Ecrire un test pour les schemas
@@ -520,26 +582,36 @@ import pytest
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate
 
 def test_create_schema_rejects_invalid_day():
-    """Les jours doivent etre entre 1 et 7."""
-    with pytest.raises(ValueError, match="Invalid day"):
+    """Les jours ISO vont de 1 (Lundi) a 7 (Dimanche)."""
+    with pytest.raises(ValueError, match="weekday must be 1"):
         ScheduledActionCreate(
             title="Test",
             action_prompt="test prompt",
-            days_of_week=[0, 8],  # Invalide
-            trigger_hour=8,
-            trigger_minute=0,
+            recurrence={
+                "freq": "weekly",
+                "interval": 1,
+                "anchor_date": "2026-03-09",
+                "byweekday": [0, 8],  # Invalide
+                "times": {"mode": "at", "at": [{"hour": 8, "minute": 0}]},
+            },
         )
 
-def test_create_schema_rejects_duplicate_days():
-    """Les doublons dans days_of_week sont interdits."""
-    with pytest.raises(ValueError, match="Duplicate"):
-        ScheduledActionCreate(
-            title="Test",
-            action_prompt="test prompt",
-            days_of_week=[1, 1, 3],
-            trigger_hour=8,
-            trigger_minute=0,
-        )
+def test_a_duplicate_weekday_is_repaired_not_refused():
+    """Un selecteur est un ENSEMBLE : [1, 1, 3] ne porte aucune ambiguite
+    d'intention, donc il est replie plutot que refuse (doctrine ADR-184).
+    Sans ce repli, la phrase affichee disait « le lundi, lundi et mercredi »."""
+    created = ScheduledActionCreate(
+        title="Test",
+        action_prompt="test prompt",
+        recurrence={
+            "freq": "weekly",
+            "interval": 1,
+            "anchor_date": "2026-03-09",
+            "byweekday": [3, 1, 1],
+            "times": {"mode": "at", "at": [{"hour": 8, "minute": 0}]},
+        },
+    )
+    assert created.recurrence.byweekday == (1, 3)
 ```
 
 ### Tester l'execution manuellement
@@ -644,7 +716,7 @@ Pour debloquer : repondre a l'interrupt HITL dans le chat, ou resumer le graphe 
 Verifier la timezone de l'utilisateur et le calcul :
 
 ```sql
-SELECT id, title, trigger_hour, trigger_minute, user_timezone, next_trigger_at
+SELECT id, title, recurrence, user_timezone, next_trigger_at
 FROM scheduled_actions
 WHERE user_id = '...';
 ```

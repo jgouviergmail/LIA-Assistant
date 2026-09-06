@@ -1,0 +1,472 @@
+{
+  "_comment": "What a reader can say, and what LIA must understand. Grouped by FAMILY: the parameters and the expected firings are language-independent, only the phrasing changes, so each expectation is written ONCE and checked against six utterances. `expect` holds LOCAL wall clocks in the family's own zone, because a reader can verify those by eye and a UTC instant they cannot. Two consumers: the deterministic test (params -> spec -> instants, in CI, no network) and the on-demand measurement (utterance -> params, through a real model).",
+  "reference_now": "2026-09-06T12:00:00+02:00",
+  "reference_note": "2026-09-06 is a SUNDAY. Anchors default to that local date.",
+  "default_timezone": "Europe/Paris",
+  "families": [
+    {
+      "id": "once-tomorrow",
+      "why": "The post-it. What every reminder was before recurrence existed.",
+      "params": {
+        "repeat": "once",
+        "starting_on": "2026-09-07",
+        "times": [
+          "10:00"
+        ]
+      },
+      "expect": [
+        "2026-09-07 10:00"
+      ],
+      "utterances": {
+        "fr": "rappelle-moi demain à 10h",
+        "en": "remind me tomorrow at 10am",
+        "de": "erinnere mich morgen um 10 Uhr",
+        "es": "recuérdamelo mañana a las 10",
+        "it": "ricordamelo domani alle 10",
+        "zh": "明天上午10点提醒我"
+      }
+    },
+    {
+      "id": "once-fixed-date",
+      "why": "An explicit calendar date, months ahead.",
+      "params": {
+        "repeat": "once",
+        "starting_on": "2027-03-03",
+        "times": [
+          "08:00"
+        ]
+      },
+      "expect": [
+        "2027-03-03 08:00"
+      ],
+      "utterances": {
+        "fr": "le 3 mars 2027 à 8h",
+        "en": "on 3 March 2027 at 8am",
+        "de": "am 3. März 2027 um 8 Uhr",
+        "es": "el 3 de marzo de 2027 a las 8",
+        "it": "il 3 marzo 2027 alle 8",
+        "zh": "2027年3月3日上午8点"
+      }
+    },
+    {
+      "id": "daily-single",
+      "why": "The simplest recurrence.",
+      "params": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ]
+      },
+      "expect": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "utterances": {
+        "fr": "tous les jours à 8h",
+        "en": "every day at 8am",
+        "de": "jeden Tag um 8 Uhr",
+        "es": "todos los días a las 8",
+        "it": "tutti i giorni alle 8",
+        "zh": "每天上午8点"
+      }
+    },
+    {
+      "id": "daily-two-times",
+      "why": "TWICE A DAY - the shape the three cron columns could never express.",
+      "params": {
+        "repeat": "daily",
+        "times": [
+          "08:00",
+          "18:00"
+        ]
+      },
+      "expect": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "utterances": {
+        "fr": "tous les jours à 8h et 18h",
+        "en": "every day at 8am and 6pm",
+        "de": "jeden Tag um 8 und 18 Uhr",
+        "es": "todos los días a las 8 y a las 18",
+        "it": "tutti i giorni alle 8 e alle 18",
+        "zh": "每天上午8点和下午6点"
+      }
+    },
+    {
+      "id": "weekly-two-days-two-times",
+      "why": "Both axes at once: chosen days AND several moments inside them.",
+      "params": {
+        "repeat": "weekly",
+        "weekdays": [
+          1,
+          4
+        ],
+        "times": [
+          "08:00",
+          "18:00"
+        ]
+      },
+      "expect": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "utterances": {
+        "fr": "tous les lundis et jeudis à 8h et 18h",
+        "en": "every Monday and Thursday at 8am and 6pm",
+        "de": "jeden Montag und Donnerstag um 8 und 18 Uhr",
+        "es": "todos los lunes y jueves a las 8 y a las 18",
+        "it": "ogni lunedì e giovedì alle 8 e alle 18",
+        "zh": "每周一和周四上午8点和下午6点"
+      }
+    },
+    {
+      "id": "weekdays-named-set",
+      "why": "A named set. 'En semaine' must not become five separate weeklies.",
+      "params": {
+        "repeat": "weekly",
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "times": [
+          "09:00"
+        ]
+      },
+      "expect": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "utterances": {
+        "fr": "en semaine à 9h",
+        "en": "on weekdays at 9am",
+        "de": "werktags um 9 Uhr",
+        "es": "entre semana a las 9",
+        "it": "nei giorni feriali alle 9",
+        "zh": "工作日上午9点"
+      }
+    },
+    {
+      "id": "weekend-named-set",
+      "why": "The other named set, and the one a model most often mis-numbers.",
+      "params": {
+        "repeat": "weekly",
+        "weekdays": [
+          6,
+          7
+        ],
+        "times": [
+          "10:00"
+        ]
+      },
+      "expect": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "expect_from": "2026-09-06T08:00:00+02:00",
+      "utterances": {
+        "fr": "le week-end à 10h",
+        "en": "on weekends at 10am",
+        "de": "am Wochenende um 10 Uhr",
+        "es": "los fines de semana a las 10",
+        "it": "nel fine settimana alle 10",
+        "zh": "周末上午10点"
+      }
+    },
+    {
+      "id": "fortnightly",
+      "why": "An INTERVAL, not a day-of-month. The classic mis-transcription.",
+      "params": {
+        "repeat": "weekly",
+        "repeat_every": 2,
+        "weekdays": [
+          2
+        ],
+        "times": [
+          "09:00"
+        ],
+        "starting_on": "2026-09-08"
+      },
+      "expect": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "utterances": {
+        "fr": "un mardi sur deux à 9h",
+        "en": "every other Tuesday at 9am",
+        "de": "jeden zweiten Dienstag um 9 Uhr",
+        "es": "un martes de cada dos a las 9",
+        "it": "un martedì su due alle 9",
+        "zh": "每两周的周二上午9点"
+      }
+    },
+    {
+      "id": "every-three-days",
+      "why": "'Tous les 3 jours' is an interval; 'le 3 du mois' is a day-of-month. The anchor matters as much: described at noon, a 07:30 schedule starts TOMORROW, not in three days — a first firing one whole period away is not what anyone means.",
+      "params": {
+        "repeat": "daily",
+        "repeat_every": 3,
+        "times": [
+          "07:30"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "expect": [
+        "2026-09-07 07:30",
+        "2026-09-10 07:30",
+        "2026-09-13 07:30"
+      ],
+      "utterances": {
+        "fr": "tous les trois jours à 7h30",
+        "en": "every three days at 7:30am",
+        "de": "alle drei Tage um 7:30 Uhr",
+        "es": "cada tres días a las 7:30",
+        "it": "ogni tre giorni alle 7:30",
+        "zh": "每三天上午7点30分"
+      }
+    },
+    {
+      "id": "fortnight-days-trap",
+      "why": "TRAP: 'tous les 15 jours' is an interval of 15 DAYS, never the 15th. And it starts at its next slot, not fifteen days from now.",
+      "params": {
+        "repeat": "daily",
+        "repeat_every": 15,
+        "times": [
+          "09:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "expect": [
+        "2026-09-07 09:00",
+        "2026-09-22 09:00",
+        "2026-10-07 09:00"
+      ],
+      "utterances": {
+        "fr": "tous les 15 jours à 9h",
+        "en": "every 15 days at 9am",
+        "de": "alle 15 Tage um 9 Uhr",
+        "es": "cada 15 días a las 9",
+        "it": "ogni 15 giorni alle 9",
+        "zh": "每15天上午9点"
+      }
+    },
+    {
+      "id": "monthly-day-of-month",
+      "why": "A day of month, which the trap above must NOT collapse into.",
+      "params": {
+        "repeat": "monthly",
+        "month_days": [
+          15
+        ],
+        "times": [
+          "09:00"
+        ]
+      },
+      "expect": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "utterances": {
+        "fr": "le 15 de chaque mois à 9h",
+        "en": "on the 15th of every month at 9am",
+        "de": "am 15. jedes Monats um 9 Uhr",
+        "es": "el 15 de cada mes a las 9",
+        "it": "il 15 di ogni mese alle 9",
+        "zh": "每月15号上午9点"
+      }
+    },
+    {
+      "id": "monthly-nth-weekday",
+      "why": "'The 2nd Tuesday' is not a day of month at all.",
+      "params": {
+        "repeat": "monthly",
+        "nth_weekday": "2:2",
+        "times": [
+          "14:00"
+        ]
+      },
+      "expect": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "utterances": {
+        "fr": "le 2e mardi de chaque mois à 14h",
+        "en": "the second Tuesday of every month at 2pm",
+        "de": "am zweiten Dienstag jedes Monats um 14 Uhr",
+        "es": "el segundo martes de cada mes a las 14",
+        "it": "il secondo martedì di ogni mese alle 14",
+        "zh": "每月第二个周二下午2点"
+      }
+    },
+    {
+      "id": "monthly-last-day",
+      "why": "The last day of the month is -1, not 31 - short months would skip.",
+      "params": {
+        "repeat": "monthly",
+        "month_days": [
+          -1
+        ],
+        "times": [
+          "18:00"
+        ]
+      },
+      "expect": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "utterances": {
+        "fr": "le dernier jour du mois à 18h",
+        "en": "on the last day of the month at 6pm",
+        "de": "am letzten Tag des Monats um 18 Uhr",
+        "es": "el último día del mes a las 18",
+        "it": "l'ultimo giorno del mese alle 18",
+        "zh": "每月最后一天下午6点"
+      }
+    },
+    {
+      "id": "yearly",
+      "why": "A fixed date every year.",
+      "params": {
+        "repeat": "yearly",
+        "months": [
+          7
+        ],
+        "month_days": [
+          14
+        ],
+        "times": [
+          "11:00"
+        ]
+      },
+      "expect": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "utterances": {
+        "fr": "chaque 14 juillet à 11h",
+        "en": "every 14 July at 11am",
+        "de": "jedes Jahr am 14. Juli um 11 Uhr",
+        "es": "cada 14 de julio a las 11",
+        "it": "ogni 14 luglio alle 11",
+        "zh": "每年7月14日上午11点"
+      }
+    },
+    {
+      "id": "until-a-date",
+      "why": "A series that STOPS on a date.",
+      "params": {
+        "repeat": "weekly",
+        "weekdays": [
+          1
+        ],
+        "times": [
+          "09:00"
+        ],
+        "until_date": "2026-09-30"
+      },
+      "expect": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "expect_exhaustive": true,
+      "utterances": {
+        "fr": "tous les lundis à 9h jusqu'au 30 septembre",
+        "en": "every Monday at 9am until 30 September",
+        "de": "jeden Montag um 9 Uhr bis zum 30. September",
+        "es": "todos los lunes a las 9 hasta el 30 de septiembre",
+        "it": "ogni lunedì alle 9 fino al 30 settembre",
+        "zh": "每周一上午9点，直到9月30日"
+      }
+    },
+    {
+      "id": "count-limited",
+      "why": "A series that stops after N firings - counted in INSTANTS. The trap is the anchor: 'the next 3 times' means three FUTURE ones, so a faithful transcription starts on the first day whose slot has not passed. Anchored on today, this series would hold only two.",
+      "params": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "max_occurrences": 3,
+        "starting_on": "2026-09-07"
+      },
+      "expect": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expect_exhaustive": true,
+      "utterances": {
+        "fr": "tous les jours à 8h, les 3 prochaines fois",
+        "en": "every day at 8am, the next 3 times",
+        "de": "jeden Tag um 8 Uhr, die nächsten 3 Male",
+        "es": "todos los días a las 8, las próximas 3 veces",
+        "it": "tutti i giorni alle 8, le prossime 3 volte",
+        "zh": "每天上午8点，接下来3次"
+      }
+    },
+    {
+      "id": "stepped-window",
+      "why": "A STEP inside a window - many firings a day from one sentence. The reference instant sits INSIDE the window, so the day it is read on still has slots left; a schedule does not start tomorrow just because it was described today.",
+      "params": {
+        "repeat": "daily",
+        "every_minutes": 120,
+        "window_start": "09:00",
+        "window_end": "17:00"
+      },
+      "expect": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "utterances": {
+        "fr": "toutes les 2 heures entre 9h et 17h",
+        "en": "every 2 hours between 9am and 5pm",
+        "de": "alle 2 Stunden zwischen 9 und 17 Uhr",
+        "es": "cada 2 horas entre las 9 y las 17",
+        "it": "ogni 2 ore tra le 9 e le 17",
+        "zh": "上午9点到下午5点每2小时一次"
+      }
+    },
+    {
+      "id": "monthly-31-short-months",
+      "why": "TRAP: the 31st exists in seven months only; the others are SKIPPED, never shifted.",
+      "params": {
+        "repeat": "monthly",
+        "month_days": [
+          31
+        ],
+        "times": [
+          "12:00"
+        ]
+      },
+      "expect": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "utterances": {
+        "fr": "le 31 de chaque mois à midi",
+        "en": "on the 31st of every month at noon",
+        "de": "am 31. jedes Monats um 12 Uhr",
+        "es": "el 31 de cada mes a mediodía",
+        "it": "il 31 di ogni mese a mezzogiorno",
+        "zh": "每月31号中午12点"
+      }
+    }
+  ]
+}

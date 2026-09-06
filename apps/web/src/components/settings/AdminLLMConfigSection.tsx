@@ -151,14 +151,17 @@ function ProviderKeyRow({
       <div className="flex items-center gap-2">
         {editing ? (
           <>
-            <div className="relative">
+            {/* The width belongs to the `relative` box, not the field: that
+                box is what positions the absolute reveal button, and the
+                field's own `FieldFrame` wrapper is `w-full` regardless. */}
+            <div className="relative w-48">
               <Input
                 aria-labelledby={headingId}
                 type={isOllama || showKey ? 'text' : 'password'}
                 value={keyValue}
                 onChange={e => setKeyValue(e.target.value)}
                 placeholder={isOllama ? 'http://localhost:11434' : 'sk-...'}
-                className="w-48 pr-8 text-xs"
+                className="w-full pr-8 text-xs"
               />
               <button
                 type="button"

@@ -234,26 +234,22 @@ class UserService:
                     error=str(e),
                 )
 
-        # Recalculate scheduled actions if timezone changed
+        # Everything scheduled on a WALL CLOCK follows the reader who moves.
+        #
+        # Composed in `infrastructure`, not called from here: importing the two
+        # domain services closed a domain-to-domain cycle (F009), and this
+        # module is where the codebase already orchestrates across domains.
         if timezone_changed and user.timezone:
-            try:
-                from src.domains.scheduled_actions.service import ScheduledActionService
+            from src.infrastructure.scheduler.timezone_propagation import propagate_timezone
 
-                sa_service = ScheduledActionService(self.db)
-                recalc_count = await sa_service.recalculate_all_for_user(user_id, user.timezone)
-                if recalc_count > 0:
-                    await self.db.commit()
-                    logger.info(
-                        "scheduled_actions_recalculated_on_timezone_change",
-                        user_id=str(user_id),
-                        new_timezone=user.timezone,
-                        recalculated_count=recalc_count,
-                    )
-            except Exception as e:
-                logger.warning(
-                    "scheduled_actions_recalculation_failed",
+            recalculated = await propagate_timezone(self.db, user_id, user.timezone)
+            if any(recalculated.values()):
+                await self.db.commit()
+                logger.info(
+                    "schedules_recalculated_on_timezone_change",
                     user_id=str(user_id),
-                    error=str(e),
+                    new_timezone=user.timezone,
+                    **recalculated,
                 )
 
         # Log with timezone and language change details

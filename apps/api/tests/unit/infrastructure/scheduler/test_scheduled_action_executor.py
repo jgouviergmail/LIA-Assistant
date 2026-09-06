@@ -18,7 +18,7 @@ import uuid
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -26,6 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from src.core.config import settings
+from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
 from src.domains.scheduled_actions.models import ScheduledRunOutcome
 from src.domains.users.schemas import UserProfile
 from src.infrastructure.scheduler.scheduled_action_executor import execute_single_action
@@ -106,9 +107,12 @@ def _executor_env(
     # pending due time against now to tell a consumed slot from a manual "run
     # now" (which must not drop the upcoming run). A MagicMock here would only
     # prove the mock cannot be compared.
-    action.days_of_week = [1, 2, 3, 4, 5, 6, 7]
-    action.trigger_hour = 8
-    action.trigger_minute = 0
+    action.recurrence_spec = RecurrenceSpec(
+        freq="weekly",
+        times=DailyTimes(mode="at", at=(TimeOfDay(hour=8, minute=0),)),
+        anchor_date=date(2026, 1, 5),
+        byweekday=(1, 2, 3, 4, 5, 6, 7),
+    )
     action.user_timezone = "Europe/Paris"
     action.next_trigger_at = datetime(2026, 8, 3, 6, 0, tzinfo=UTC)
 
@@ -193,7 +197,7 @@ def _executor_env(
         )
         stack.enter_context(
             patch(
-                "src.domains.scheduled_actions.schedule_helpers.compute_next_trigger_utc",
+                "src.core.recurrence.rearm_after",
                 return_value=datetime(2026, 7, 1, tzinfo=UTC),
             )
         )
@@ -616,3 +620,38 @@ class TestRetentionPurge:
 
         assert stats["runs_purged"] == 0
         assert stats["processed"] == 0
+
+
+class TestTheReArmIsComputedInOnePlace:
+    """Five exits, one rule.
+
+    Every exit of the executor — condition not met, proposal, pending HITL,
+    success, final failure — must re-arm the routine the same way. They did,
+    by five literal copies of the same three-argument call. That is the shape
+    ADR-248's second invariant names: a rule in five copies gets changed in
+    four, and the exit nobody updated re-arms differently from its siblings
+    with nothing to reveal it.
+
+    The five behaviours are pinned by the tests above; this pins the fact that
+    they cannot drift apart.
+    """
+
+    def test_the_executor_calls_the_engine_from_a_single_site(self) -> None:
+        import ast
+        import inspect
+        from pathlib import Path
+
+        from src.infrastructure.scheduler import scheduled_action_executor
+
+        source = Path(inspect.getfile(scheduled_action_executor)).read_text(encoding="utf-8")
+        calls = [
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "rearm_after"
+        ]
+        assert len(calls) == 1, (
+            f"`rearm_after` is called from {len(calls)} sites; route every exit through the "
+            "single helper so the five exits cannot re-arm differently"
+        )

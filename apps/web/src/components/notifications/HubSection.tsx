@@ -14,7 +14,7 @@
  * - the badge carries the EXACT total, so a folded section is choosable and a
  *   cap is stated rather than applied in silence (ADR-185).
  *
- * Folded by design, and folded means UNMOUNTED: `SettingsDisclosure` renders
+ * Folded by design, and folded means UNMOUNTED: `Disclosure` renders
  * children only while open, so no PAGE of rows is fetched for a section nobody
  * opened. `onOpenChange` gates that query.
  *
@@ -29,7 +29,7 @@ import { useTranslation } from 'react-i18next';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Pagination } from '@/components/ui/pagination';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 
 export interface HubSectionProps {
   icon: LucideIcon;
@@ -92,10 +92,10 @@ export function HubSection({
   const { t } = useTranslation();
 
   return (
-    <SettingsDisclosure
+    <Disclosure
       icon={icon}
       title={title}
-      // The NUMBER only: `SettingsDisclosure` already wraps whatever it is
+      // The NUMBER only: `Disclosure` already wraps whatever it is
       // given in the house pill, and a second styled span nested one pill
       // inside another. "—" while NOTHING is known yet — never "0", which
       // would be a claim nobody has verified.
@@ -150,6 +150,6 @@ export function HubSection({
           )}
         </div>
       )}
-    </SettingsDisclosure>
+    </Disclosure>
   );
 }

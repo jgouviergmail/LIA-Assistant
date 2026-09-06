@@ -2072,9 +2072,19 @@ Cookie: session_id=xxx
       "user_id": "user_uuid",
       "title": "Meteo quotidienne",
       "action_prompt": "Donne-moi la meteo du jour",
-      "days_of_week": [1, 2, 3, 4, 5],
-      "trigger_hour": 7,
-      "trigger_minute": 30,
+      "recurrence": {
+        "freq": "weekly",
+        "interval": 1,
+        "anchor_date": "2026-03-09",
+        "byweekday": [1, 2, 3, 4, 5],
+        "bymonthday": [],
+        "nth_weekday": null,
+        "bymonth": [],
+        "times": {"mode": "at", "at": [{"hour": 7, "minute": 30}], "step_minutes": null, "start": null, "end": null},
+        "end": {"kind": "never", "on_date": null, "after_count": null}
+      },
+      "times_of_day": ["07:30"],
+      "runs_per_day": 1,
       "user_timezone": "Europe/Paris",
       "next_trigger_at": "2026-03-09T06:30:00Z",
       "is_enabled": true,
@@ -2117,9 +2127,13 @@ Content-Type: application/json
 {
   "title": "Meteo quotidienne",
   "action_prompt": "Donne-moi la meteo du jour",
-  "days_of_week": [1, 2, 3, 4, 5],
-  "trigger_hour": 7,
-  "trigger_minute": 30
+  "recurrence": {
+    "freq": "weekly",
+    "interval": 1,
+    "anchor_date": "2026-03-09",
+    "byweekday": [1, 2, 3, 4, 5],
+    "times": {"mode": "at", "at": [{"hour": 7, "minute": 30}]}
+  }
 }
 ```
 
@@ -2129,13 +2143,41 @@ Content-Type: application/json
 |-------|------|--------|-------------|
 | `title` | string (1-200) | Oui | Titre de l'action |
 | `action_prompt` | string (1-2000) | Oui | Prompt envoye au pipeline agent |
-| `days_of_week` | list[int] | Oui | Jours ISO : 1=Lundi..7=Dimanche |
-| `trigger_hour` | int (0-23) | Oui | Heure d'execution (timezone utilisateur) |
-| `trigger_minute` | int (0-59) | Oui | Minute d'execution |
+| `recurrence` | `RecurrenceSpec` | Oui | Quels jours, quels moments (voir ci-dessous) |
+
+#### `RecurrenceSpec`
+
+Une recurrence est un produit : **quels jours calendaires**, puis **quels
+moments a l'interieur de ces jours**. Les deux axes sont independants, ce qui
+permet « tous les mardis a 08:00 et 18:00 » sans cas particulier.
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `freq` | `once`\|`daily`\|`weekly`\|`monthly`\|`yearly` | Axe des jours |
+| `interval` | int >= 1 | Une periode sur `interval` (2 = une semaine sur deux) |
+| `anchor_date` | date | Origine de la serie — **obligatoire**, c'est elle qui rend « une semaine sur deux » stable dans le temps |
+| `byweekday` | list[int] | `weekly` : jours ISO 1=Lundi..7=Dimanche |
+| `bymonthday` | list[int] | `monthly`/`yearly` : quantiemes 1-31 |
+| `nth_weekday` | `{nth, weekday}` | `monthly` : « le 2e mardi » (`nth` = -1 pour le dernier) |
+| `bymonth` | list[int] | `yearly` : mois 1-12 |
+| `times` | `DailyTimes` | Moments de la journee (voir ci-dessous) |
+| `end` | `SeriesEnd` | `{kind: never\|on_date\|after_count, ...}` |
+
+`DailyTimes` a deux modes : `at` porte une liste de moments explicites
+(`{hour, minute}`) ; `every` decrit un pas (`step_minutes`) dans une fenetre
+`start`..`end`. Le second est developpe en moments concrets au calcul, jamais
+stocke developpe.
 
 **Validation :**
-- `days_of_week` : valeurs 1-7, pas de doublons
-- L'heure d'execution est interpretee dans le timezone de l'utilisateur
+- Les moments sont tries et dedupliques **par instant** (deux moments qui
+  tombent sur le meme instant ne comptent qu'une fois)
+- Une date calendaire impossible est refusee a l'ecriture (`bymonthday: [31]`
+  avec `bymonth: [2]`), mais `bymonth: [2, 3]` + `bymonthday: [31]` est
+  legitime : la regle est existentielle, il suffit qu'un mois porte ce jour
+- Les moments sont interpretes dans le timezone de l'utilisateur, en heure
+  murale : un changement d'heure deplace l'instant UTC, jamais l'heure affichee
+- Le nombre de declenchements par jour et la longueur de serie sont plafonnes
+  par appelant (12 par jour et 500 occurrences pour une routine)
 
 **Response :** `201 Created` — `ScheduledActionResponse`
 
@@ -2148,9 +2190,11 @@ curl -X POST http://localhost:8000/api/v1/scheduled-actions \
   -d '{
     "title": "Meteo quotidienne",
     "action_prompt": "Donne-moi la meteo du jour",
-    "days_of_week": [1, 2, 3, 4, 5],
-    "trigger_hour": 7,
-    "trigger_minute": 30
+    "recurrence": {
+      "freq": "weekly", "interval": 1, "anchor_date": "2026-03-09",
+      "byweekday": [1, 2, 3, 4, 5],
+      "times": {"mode": "at", "at": [{"hour": 7, "minute": 30}]}
+    }
   }'
 ```
 
@@ -2168,10 +2212,17 @@ Cookie: session_id=xxx
 Content-Type: application/json
 
 {
-  "trigger_hour": 8,
-  "days_of_week": [1, 2, 3, 4, 5, 6]
+  "recurrence": {
+    "freq": "weekly", "interval": 1, "anchor_date": "2026-03-09",
+    "byweekday": [1, 2, 3, 4, 5, 6],
+    "times": {"mode": "at", "at": [{"hour": 8, "minute": 0}]}
+  }
 }
 ```
+
+`recurrence` se remplace en entier, jamais par morceaux : une recurrence
+partielle serait une planification que rien ne sait interpreter. Omettre le
+champ laisse la planification inchangee ; l'envoyer a `null` est refuse.
 
 **Parametres Path :**
 
@@ -2189,7 +2240,7 @@ Content-Type: application/json
 curl -X PATCH http://localhost:8000/api/v1/scheduled-actions/550e8400-e29b-41d4-a716-446655440000 \
   -H "Content-Type: application/json" \
   -b cookies.txt \
-  -d '{"trigger_hour": 8}'
+  -d '{"title": "Meteo du matin"}'
 ```
 
 ---

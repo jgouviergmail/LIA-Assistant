@@ -77,15 +77,49 @@ class TestThePendingRemindersPage:
         assert page.total == 0
 
 
-class TestTheSurfaceStaysReadOnly:
-    """The listing must not become the management UI the domain refuses."""
+class TestWhatTheSurfaceOffers:
+    """The domain gained a management screen on 2026-09-06; not everything.
 
-    def test_the_router_exposes_only_a_read_and_the_existing_cancel(self) -> None:
+    This class asserted the opposite until that day: "no edit, no snooze, no
+    acknowledgement — the design decision stands". The owner reversed the
+    first of those three, and it is now a first-class verb. The other two were
+    never asked for and are still absent, so the assertion narrows rather than
+    disappearing — a guard that only ever loosened would stop guarding.
+    """
+
+    def test_the_router_offers_reading_creating_changing_and_deleting(self) -> None:
         from src.domains.reminders.router import router
 
         verbs = {(route.path, method) for route in router.routes for method in route.methods}  # type: ignore[attr-defined]
 
         assert ("/reminders", "GET") in verbs
+        assert ("/reminders/detail", "GET") in verbs
+        assert ("/reminders", "POST") in verbs
+        assert ("/reminders/{reminder_id}", "PATCH") in verbs
         assert ("/reminders/{reminder_id}", "DELETE") in verbs
-        # No edit, no snooze, no acknowledgement — the design decision stands.
-        assert not any(method in {"PATCH", "PUT", "POST"} for _, method in verbs)
+
+    def test_there_is_still_no_snooze_and_no_acknowledgement(self) -> None:
+        """Neither was asked for, and both would need state the row has not.
+
+        A snooze is a schedule change (PATCH already does it); an
+        acknowledgement would need a status the domain deliberately lacks,
+        since a reminder with no future is deleted rather than marked.
+        """
+        from src.domains.reminders.router import router
+
+        paths = {route.path for route in router.routes}  # type: ignore[attr-defined]
+
+        assert not any("snooze" in p or "acknowledge" in p for p in paths), paths
+
+    def test_the_listing_is_still_never_a_history(self) -> None:
+        """The one thing the reversal did NOT change.
+
+        A reminder is deleted the moment it has no future left, so there is
+        nothing behind it to list. A route promising past reminders would be a
+        promise the storage cannot keep.
+        """
+        from src.domains.reminders.router import router
+
+        paths = {route.path for route in router.routes}  # type: ignore[attr-defined]
+
+        assert not any("history" in p or "past" in p or "sent" in p for p in paths), paths

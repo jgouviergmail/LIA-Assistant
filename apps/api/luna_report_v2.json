@@ -1,0 +1,2682 @@
+{
+  "measured_at": "2026-09-06T16:51:08",
+  "slot": "planner",
+  "measured": "openai / gpt-5.6-luna (reasoning=none)",
+  "exact": 97,
+  "total": 108,
+  "rows": [
+    {
+      "family": "once-tomorrow",
+      "language": "fr",
+      "utterance": "rappelle-moi demain à 10h",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "10:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 10:00"
+      ],
+      "expected": [
+        "2026-09-07 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-tomorrow",
+      "language": "en",
+      "utterance": "remind me tomorrow at 10am",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "10:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 10:00"
+      ],
+      "expected": [
+        "2026-09-07 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-tomorrow",
+      "language": "de",
+      "utterance": "erinnere mich morgen um 10 Uhr",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "10:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 10:00"
+      ],
+      "expected": [
+        "2026-09-07 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-tomorrow",
+      "language": "es",
+      "utterance": "recuérdamelo mañana a las 10",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "10:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 10:00"
+      ],
+      "expected": [
+        "2026-09-07 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-tomorrow",
+      "language": "it",
+      "utterance": "ricordamelo domani alle 10",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "10:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 10:00"
+      ],
+      "expected": [
+        "2026-09-07 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-tomorrow",
+      "language": "zh",
+      "utterance": "明天上午10点提醒我",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "10:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 10:00"
+      ],
+      "expected": [
+        "2026-09-07 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-fixed-date",
+      "language": "fr",
+      "utterance": "le 3 mars 2027 à 8h",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "08:00"
+        ],
+        "starting_on": "2027-03-03"
+      },
+      "instants": [
+        "2027-03-03 08:00"
+      ],
+      "expected": [
+        "2027-03-03 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-fixed-date",
+      "language": "en",
+      "utterance": "on 3 March 2027 at 8am",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "08:00"
+        ],
+        "starting_on": "2027-03-03"
+      },
+      "instants": [
+        "2027-03-03 08:00"
+      ],
+      "expected": [
+        "2027-03-03 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-fixed-date",
+      "language": "de",
+      "utterance": "am 3. März 2027 um 8 Uhr",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "08:00"
+        ],
+        "starting_on": "2027-03-03"
+      },
+      "instants": [
+        "2027-03-03 08:00"
+      ],
+      "expected": [
+        "2027-03-03 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-fixed-date",
+      "language": "es",
+      "utterance": "el 3 de marzo de 2027 a las 8",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "08:00"
+        ],
+        "starting_on": "2027-03-03"
+      },
+      "instants": [
+        "2027-03-03 08:00"
+      ],
+      "expected": [
+        "2027-03-03 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-fixed-date",
+      "language": "it",
+      "utterance": "il 3 marzo 2027 alle 8",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "08:00"
+        ],
+        "starting_on": "2027-03-03"
+      },
+      "instants": [
+        "2027-03-03 08:00"
+      ],
+      "expected": [
+        "2027-03-03 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "once-fixed-date",
+      "language": "zh",
+      "utterance": "2027年3月3日上午8点",
+      "produced": {
+        "repeat": "once",
+        "times": [
+          "08:00"
+        ],
+        "starting_on": "2027-03-03"
+      },
+      "instants": [
+        "2027-03-03 08:00"
+      ],
+      "expected": [
+        "2027-03-03 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-single",
+      "language": "fr",
+      "utterance": "tous les jours à 8h",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-single",
+      "language": "en",
+      "utterance": "every day at 8am",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-single",
+      "language": "de",
+      "utterance": "jeden Tag um 8 Uhr",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-single",
+      "language": "es",
+      "utterance": "todos los días a las 8",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-single",
+      "language": "it",
+      "utterance": "tutti i giorni alle 8",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-single",
+      "language": "zh",
+      "utterance": "每天上午8点",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-two-times",
+      "language": "fr",
+      "utterance": "tous les jours à 8h et 18h",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00",
+          "18:00"
+        ]
+      },
+      "instants": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "expected": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-two-times",
+      "language": "en",
+      "utterance": "every day at 8am and 6pm",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00",
+          "18:00"
+        ]
+      },
+      "instants": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "expected": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-two-times",
+      "language": "de",
+      "utterance": "jeden Tag um 8 und 18 Uhr",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00",
+          "18:00"
+        ]
+      },
+      "instants": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "expected": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-two-times",
+      "language": "es",
+      "utterance": "todos los días a las 8 y a las 18",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00",
+          "18:00"
+        ]
+      },
+      "instants": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "expected": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-two-times",
+      "language": "it",
+      "utterance": "tutti i giorni alle 8 e alle 18",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00",
+          "18:00"
+        ]
+      },
+      "instants": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "expected": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "daily-two-times",
+      "language": "zh",
+      "utterance": "每天上午8点和下午6点",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00",
+          "18:00"
+        ]
+      },
+      "instants": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "expected": [
+        "2026-09-06 18:00",
+        "2026-09-07 08:00",
+        "2026-09-07 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekly-two-days-two-times",
+      "language": "fr",
+      "utterance": "tous les lundis et jeudis à 8h et 18h",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "08:00",
+          "18:00"
+        ],
+        "weekdays": [
+          1,
+          4
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekly-two-days-two-times",
+      "language": "en",
+      "utterance": "every Monday and Thursday at 8am and 6pm",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "08:00",
+          "18:00"
+        ],
+        "weekdays": [
+          1,
+          4
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekly-two-days-two-times",
+      "language": "de",
+      "utterance": "jeden Montag und Donnerstag um 8 und 18 Uhr",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "08:00",
+          "18:00"
+        ],
+        "weekdays": [
+          1,
+          4
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekly-two-days-two-times",
+      "language": "es",
+      "utterance": "todos los lunes y jueves a las 8 y a las 18",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "08:00",
+          "18:00"
+        ],
+        "weekdays": [
+          1,
+          4
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekly-two-days-two-times",
+      "language": "it",
+      "utterance": "ogni lunedì e giovedì alle 8 e alle 18",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "08:00",
+          "18:00"
+        ],
+        "weekdays": [
+          1,
+          4
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekly-two-days-two-times",
+      "language": "zh",
+      "utterance": "每周一和周四上午8点和下午6点",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "08:00",
+          "18:00"
+        ],
+        "weekdays": [
+          1,
+          4
+        ]
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-07 18:00",
+        "2026-09-10 08:00",
+        "2026-09-10 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekdays-named-set",
+      "language": "fr",
+      "utterance": "en semaine à 9h",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekdays-named-set",
+      "language": "en",
+      "utterance": "on weekdays at 9am",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekdays-named-set",
+      "language": "de",
+      "utterance": "werktags um 9 Uhr",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "09:00"
+        ],
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekdays-named-set",
+      "language": "es",
+      "utterance": "entre semana a las 9",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekdays-named-set",
+      "language": "it",
+      "utterance": "nei giorni feriali alle 9",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 1,
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekdays-named-set",
+      "language": "zh",
+      "utterance": "工作日上午9点",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-08 09:00",
+        "2026-09-09 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekend-named-set",
+      "language": "fr",
+      "utterance": "le week-end à 10h",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "10:00"
+        ],
+        "weekdays": [
+          6,
+          7
+        ]
+      },
+      "instants": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "expected": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekend-named-set",
+      "language": "en",
+      "utterance": "on weekends at 10am",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "10:00"
+        ],
+        "weekdays": [
+          6,
+          7
+        ]
+      },
+      "instants": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "expected": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekend-named-set",
+      "language": "de",
+      "utterance": "am Wochenende um 10 Uhr",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "10:00"
+        ],
+        "repeat_every": 1,
+        "weekdays": [
+          6,
+          7
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "expected": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekend-named-set",
+      "language": "es",
+      "utterance": "los fines de semana a las 10",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "10:00"
+        ],
+        "weekdays": [
+          6,
+          7
+        ]
+      },
+      "instants": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "expected": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekend-named-set",
+      "language": "it",
+      "utterance": "nel fine settimana alle 10",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "10:00"
+        ],
+        "weekdays": [
+          6,
+          7
+        ]
+      },
+      "instants": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "expected": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "weekend-named-set",
+      "language": "zh",
+      "utterance": "周末上午10点",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "10:00"
+        ],
+        "weekdays": [
+          6,
+          7
+        ]
+      },
+      "instants": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "expected": [
+        "2026-09-06 10:00",
+        "2026-09-12 10:00",
+        "2026-09-13 10:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "fortnightly",
+      "language": "fr",
+      "utterance": "un mardi sur deux à 9h",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 2,
+        "weekdays": [
+          2
+        ],
+        "starting_on": "2026-09-08"
+      },
+      "instants": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "expected": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "fortnightly",
+      "language": "en",
+      "utterance": "every other Tuesday at 9am",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 2,
+        "weekdays": [
+          2
+        ],
+        "starting_on": "2026-09-08"
+      },
+      "instants": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "expected": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "fortnightly",
+      "language": "de",
+      "utterance": "jeden zweiten Dienstag um 9 Uhr",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 2,
+        "weekdays": [
+          2
+        ],
+        "starting_on": "2026-09-08"
+      },
+      "instants": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "expected": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "fortnightly",
+      "language": "es",
+      "utterance": "un martes de cada dos a las 9",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 2,
+        "weekdays": [
+          2
+        ],
+        "starting_on": "2026-09-08"
+      },
+      "instants": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "expected": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "fortnightly",
+      "language": "it",
+      "utterance": "un martedì su due alle 9",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 2,
+        "weekdays": [
+          2
+        ],
+        "starting_on": "2026-09-08"
+      },
+      "instants": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "expected": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "fortnightly",
+      "language": "zh",
+      "utterance": "每两周的周二上午9点",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 2,
+        "weekdays": [
+          2
+        ],
+        "starting_on": "2026-09-08"
+      },
+      "instants": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "expected": [
+        "2026-09-08 09:00",
+        "2026-09-22 09:00",
+        "2026-10-06 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "every-three-days",
+      "language": "fr",
+      "utterance": "tous les trois jours à 7h30",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "07:30"
+        ],
+        "repeat_every": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 07:30",
+        "2026-09-10 07:30",
+        "2026-09-13 07:30"
+      ],
+      "expected": [
+        "2026-09-09 07:30",
+        "2026-09-12 07:30",
+        "2026-09-15 07:30"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "every-three-days",
+      "language": "en",
+      "utterance": "every three days at 7:30am",
+      "produced": {
+        "repeat": "daily",
+        "repeat_every": 3,
+        "times": [
+          "07:30"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 07:30",
+        "2026-09-10 07:30",
+        "2026-09-13 07:30"
+      ],
+      "expected": [
+        "2026-09-09 07:30",
+        "2026-09-12 07:30",
+        "2026-09-15 07:30"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "every-three-days",
+      "language": "de",
+      "utterance": "alle drei Tage um 7:30 Uhr",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "07:30"
+        ],
+        "repeat_every": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 07:30",
+        "2026-09-10 07:30",
+        "2026-09-13 07:30"
+      ],
+      "expected": [
+        "2026-09-09 07:30",
+        "2026-09-12 07:30",
+        "2026-09-15 07:30"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "every-three-days",
+      "language": "es",
+      "utterance": "cada tres días a las 7:30",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "07:30"
+        ],
+        "repeat_every": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 07:30",
+        "2026-09-10 07:30",
+        "2026-09-13 07:30"
+      ],
+      "expected": [
+        "2026-09-09 07:30",
+        "2026-09-12 07:30",
+        "2026-09-15 07:30"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "every-three-days",
+      "language": "it",
+      "utterance": "ogni tre giorni alle 7:30",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "07:30"
+        ],
+        "repeat_every": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 07:30",
+        "2026-09-10 07:30",
+        "2026-09-13 07:30"
+      ],
+      "expected": [
+        "2026-09-09 07:30",
+        "2026-09-12 07:30",
+        "2026-09-15 07:30"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "every-three-days",
+      "language": "zh",
+      "utterance": "每三天上午7点30分",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "07:30"
+        ],
+        "repeat_every": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 07:30",
+        "2026-09-10 07:30",
+        "2026-09-13 07:30"
+      ],
+      "expected": [
+        "2026-09-09 07:30",
+        "2026-09-12 07:30",
+        "2026-09-15 07:30"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "fortnight-days-trap",
+      "language": "fr",
+      "utterance": "tous les 15 jours à 9h",
+      "produced": {
+        "repeat": "daily",
+        "repeat_every": 15,
+        "times": [
+          "09:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-22 09:00",
+        "2026-10-07 09:00"
+      ],
+      "expected": [
+        "2026-09-21 09:00",
+        "2026-10-06 09:00",
+        "2026-10-21 09:00"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "fortnight-days-trap",
+      "language": "en",
+      "utterance": "every 15 days at 9am",
+      "produced": {
+        "repeat": "daily",
+        "repeat_every": 15,
+        "times": [
+          "09:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-22 09:00",
+        "2026-10-07 09:00"
+      ],
+      "expected": [
+        "2026-09-21 09:00",
+        "2026-10-06 09:00",
+        "2026-10-21 09:00"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "fortnight-days-trap",
+      "language": "de",
+      "utterance": "alle 15 Tage um 9 Uhr",
+      "produced": {
+        "repeat": "daily",
+        "repeat_every": 15,
+        "times": [
+          "09:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-22 09:00",
+        "2026-10-07 09:00"
+      ],
+      "expected": [
+        "2026-09-21 09:00",
+        "2026-10-06 09:00",
+        "2026-10-21 09:00"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "fortnight-days-trap",
+      "language": "es",
+      "utterance": "cada 15 días a las 9",
+      "produced": {
+        "repeat": "daily",
+        "repeat_every": 15,
+        "times": [
+          "09:00"
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-22 09:00",
+        "2026-10-07 09:00"
+      ],
+      "expected": [
+        "2026-09-21 09:00",
+        "2026-10-06 09:00",
+        "2026-10-21 09:00"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "fortnight-days-trap",
+      "language": "it",
+      "utterance": "ogni 15 giorni alle 9",
+      "produced": {
+        "repeat": "daily",
+        "repeat_every": 15,
+        "times": [
+          "09:00"
+        ]
+      },
+      "instants": [
+        "2026-09-21 09:00",
+        "2026-10-06 09:00",
+        "2026-10-21 09:00"
+      ],
+      "expected": [
+        "2026-09-21 09:00",
+        "2026-10-06 09:00",
+        "2026-10-21 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "fortnight-days-trap",
+      "language": "zh",
+      "utterance": "每15天上午9点",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 15
+      },
+      "instants": [
+        "2026-09-21 09:00",
+        "2026-10-06 09:00",
+        "2026-10-21 09:00"
+      ],
+      "expected": [
+        "2026-09-21 09:00",
+        "2026-10-06 09:00",
+        "2026-10-21 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-day-of-month",
+      "language": "fr",
+      "utterance": "le 15 de chaque mois à 9h",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "09:00"
+        ],
+        "month_days": [
+          15
+        ],
+        "starting_on": "2026-09-15"
+      },
+      "instants": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "expected": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-day-of-month",
+      "language": "en",
+      "utterance": "on the 15th of every month at 9am",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "09:00"
+        ],
+        "month_days": [
+          15
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "expected": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-day-of-month",
+      "language": "de",
+      "utterance": "am 15. jedes Monats um 9 Uhr",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "09:00"
+        ],
+        "month_days": [
+          15
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "expected": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-day-of-month",
+      "language": "es",
+      "utterance": "el 15 de cada mes a las 9",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "09:00"
+        ],
+        "month_days": [
+          15
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "expected": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-day-of-month",
+      "language": "it",
+      "utterance": "il 15 di ogni mese alle 9",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "09:00"
+        ],
+        "month_days": [
+          15
+        ],
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "expected": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-day-of-month",
+      "language": "zh",
+      "utterance": "每月15号上午9点",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "09:00"
+        ],
+        "month_days": [
+          15
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "expected": [
+        "2026-09-15 09:00",
+        "2026-10-15 09:00",
+        "2026-11-15 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-nth-weekday",
+      "language": "fr",
+      "utterance": "le 2e mardi de chaque mois à 14h",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "14:00"
+        ],
+        "nth_weekday": "2:2"
+      },
+      "instants": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "expected": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-nth-weekday",
+      "language": "en",
+      "utterance": "the second Tuesday of every month at 2pm",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "14:00"
+        ],
+        "nth_weekday": "2:2",
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "expected": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-nth-weekday",
+      "language": "de",
+      "utterance": "am zweiten Dienstag jedes Monats um 14 Uhr",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "14:00"
+        ],
+        "nth_weekday": "2:2"
+      },
+      "instants": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "expected": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-nth-weekday",
+      "language": "es",
+      "utterance": "el segundo martes de cada mes a las 14",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "14:00"
+        ],
+        "nth_weekday": "2:2"
+      },
+      "instants": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "expected": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-nth-weekday",
+      "language": "it",
+      "utterance": "il secondo martedì di ogni mese alle 14",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "14:00"
+        ],
+        "nth_weekday": "2:2"
+      },
+      "instants": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "expected": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-nth-weekday",
+      "language": "zh",
+      "utterance": "每月第二个周二下午2点",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "14:00"
+        ],
+        "nth_weekday": "2:2"
+      },
+      "instants": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "expected": [
+        "2026-09-08 14:00",
+        "2026-10-13 14:00",
+        "2026-11-10 14:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-last-day",
+      "language": "fr",
+      "utterance": "le dernier jour du mois à 18h",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "18:00"
+        ],
+        "month_days": [
+          -1
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "expected": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-last-day",
+      "language": "en",
+      "utterance": "on the last day of the month at 6pm",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "18:00"
+        ],
+        "month_days": [
+          -1
+        ]
+      },
+      "instants": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "expected": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-last-day",
+      "language": "de",
+      "utterance": "am letzten Tag des Monats um 18 Uhr",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "18:00"
+        ],
+        "month_days": [
+          -1
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "expected": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-last-day",
+      "language": "es",
+      "utterance": "el último día del mes a las 18",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "18:00"
+        ],
+        "month_days": [
+          -1
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "expected": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-last-day",
+      "language": "it",
+      "utterance": "l'ultimo giorno del mese alle 18",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "18:00"
+        ],
+        "month_days": [
+          -1
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "expected": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-last-day",
+      "language": "zh",
+      "utterance": "每月最后一天下午6点",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "18:00"
+        ],
+        "month_days": [
+          -1
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "expected": [
+        "2026-09-30 18:00",
+        "2026-10-31 18:00",
+        "2026-11-30 18:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "yearly",
+      "language": "fr",
+      "utterance": "chaque 14 juillet à 11h",
+      "produced": {
+        "repeat": "yearly",
+        "times": [
+          "11:00"
+        ],
+        "months": [
+          7
+        ],
+        "month_days": [
+          14
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "expected": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "yearly",
+      "language": "en",
+      "utterance": "every 14 July at 11am",
+      "produced": {
+        "repeat": "yearly",
+        "times": [
+          "11:00"
+        ],
+        "months": [
+          7
+        ],
+        "month_days": [
+          14
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "expected": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "yearly",
+      "language": "de",
+      "utterance": "jedes Jahr am 14. Juli um 11 Uhr",
+      "produced": {
+        "repeat": "yearly",
+        "times": [
+          "11:00"
+        ],
+        "month_days": [
+          14
+        ],
+        "months": [
+          7
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "expected": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "yearly",
+      "language": "es",
+      "utterance": "cada 14 de julio a las 11",
+      "produced": {
+        "repeat": "yearly",
+        "times": [
+          "11:00"
+        ],
+        "months": [
+          7
+        ],
+        "month_days": [
+          14
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "expected": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "yearly",
+      "language": "it",
+      "utterance": "ogni 14 luglio alle 11",
+      "produced": {
+        "repeat": "yearly",
+        "times": [
+          "11:00"
+        ],
+        "months": [
+          7
+        ],
+        "month_days": [
+          14
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "expected": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "yearly",
+      "language": "zh",
+      "utterance": "每年7月14日上午11点",
+      "produced": {
+        "repeat": "yearly",
+        "times": [
+          "11:00"
+        ],
+        "months": [
+          7
+        ],
+        "month_days": [
+          14
+        ]
+      },
+      "instants": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "expected": [
+        "2027-07-14 11:00",
+        "2028-07-14 11:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "until-a-date",
+      "language": "fr",
+      "utterance": "tous les lundis à 9h jusqu'au 30 septembre",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 1,
+        "weekdays": [
+          1
+        ],
+        "until_date": "2026-09-30",
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "until-a-date",
+      "language": "en",
+      "utterance": "every Monday at 9am until 30 September",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "weekdays": [
+          1
+        ],
+        "until_date": "2026-09-30",
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "until-a-date",
+      "language": "de",
+      "utterance": "jeden Montag um 9 Uhr bis zum 30. September",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 1,
+        "weekdays": [
+          1
+        ],
+        "until_date": "2026-09-30",
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "until-a-date",
+      "language": "es",
+      "utterance": "todos los lunes a las 9 hasta el 30 de septiembre",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "weekdays": [
+          1
+        ],
+        "until_date": "2026-09-30"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "until-a-date",
+      "language": "it",
+      "utterance": "ogni lunedì alle 9 fino al 30 settembre",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "weekdays": [
+          1
+        ],
+        "until_date": "2026-09-30"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "until-a-date",
+      "language": "zh",
+      "utterance": "每周一上午9点，直到9月30日",
+      "produced": {
+        "repeat": "weekly",
+        "times": [
+          "09:00"
+        ],
+        "repeat_every": 1,
+        "weekdays": [
+          1
+        ],
+        "until_date": "2026-09-30",
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "expected": [
+        "2026-09-07 09:00",
+        "2026-09-14 09:00",
+        "2026-09-21 09:00",
+        "2026-09-28 09:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "count-limited",
+      "language": "fr",
+      "utterance": "tous les jours à 8h, les 3 prochaines fois",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "max_occurrences": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "count-limited",
+      "language": "en",
+      "utterance": "every day at 8am, the next 3 times",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "max_occurrences": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "count-limited",
+      "language": "de",
+      "utterance": "jeden Tag um 8 Uhr, die nächsten 3 Male",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "max_occurrences": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "count-limited",
+      "language": "es",
+      "utterance": "todos los días a las 8, las próximas 3 veces",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "max_occurrences": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "count-limited",
+      "language": "it",
+      "utterance": "tutti i giorni alle 8, le prossime 3 volte",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "max_occurrences": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "count-limited",
+      "language": "zh",
+      "utterance": "每天上午8点，接下来3次",
+      "produced": {
+        "repeat": "daily",
+        "times": [
+          "08:00"
+        ],
+        "max_occurrences": 3,
+        "starting_on": "2026-09-07"
+      },
+      "instants": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "expected": [
+        "2026-09-07 08:00",
+        "2026-09-08 08:00",
+        "2026-09-09 08:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "stepped-window",
+      "language": "fr",
+      "utterance": "toutes les 2 heures entre 9h et 17h",
+      "produced": {
+        "repeat": "daily",
+        "every_minutes": 120,
+        "window_start": "09:00",
+        "window_end": "17:00"
+      },
+      "instants": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "expected": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "stepped-window",
+      "language": "en",
+      "utterance": "every 2 hours between 9am and 5pm",
+      "produced": {
+        "repeat": "daily",
+        "every_minutes": 120,
+        "window_start": "09:00",
+        "window_end": "17:00"
+      },
+      "instants": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "expected": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "stepped-window",
+      "language": "de",
+      "utterance": "alle 2 Stunden zwischen 9 und 17 Uhr",
+      "produced": {
+        "repeat": "daily",
+        "every_minutes": 120,
+        "window_start": "09:00",
+        "window_end": "17:00"
+      },
+      "instants": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "expected": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "stepped-window",
+      "language": "es",
+      "utterance": "cada 2 horas entre las 9 y las 17",
+      "produced": {
+        "repeat": "daily",
+        "every_minutes": 120,
+        "window_start": "09:00",
+        "window_end": "17:00"
+      },
+      "instants": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "expected": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "stepped-window",
+      "language": "it",
+      "utterance": "ogni 2 ore tra le 9 e le 17",
+      "produced": {
+        "repeat": "daily",
+        "every_minutes": 120,
+        "window_start": "09:00",
+        "window_end": "17:00"
+      },
+      "instants": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "expected": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "stepped-window",
+      "language": "zh",
+      "utterance": "上午9点到下午5点每2小时一次",
+      "produced": {
+        "repeat": "daily",
+        "every_minutes": 120,
+        "window_start": "09:00",
+        "window_end": "17:00"
+      },
+      "instants": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "expected": [
+        "2026-09-06 13:00",
+        "2026-09-06 15:00",
+        "2026-09-06 17:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-31-short-months",
+      "language": "fr",
+      "utterance": "le 31 de chaque mois à midi",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "12:00"
+        ],
+        "month_days": [
+          31
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "expected": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-31-short-months",
+      "language": "en",
+      "utterance": "on the 31st of every month at noon",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "12:00"
+        ],
+        "month_days": [
+          31
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "expected": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-31-short-months",
+      "language": "de",
+      "utterance": "am 31. jedes Monats um 12 Uhr",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "12:00"
+        ],
+        "month_days": [
+          -1
+        ],
+        "starting_on": "2026-10-31"
+      },
+      "instants": [
+        "2026-10-31 12:00",
+        "2026-11-30 12:00",
+        "2026-12-31 12:00"
+      ],
+      "expected": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "verdict": "wrong"
+    },
+    {
+      "family": "monthly-31-short-months",
+      "language": "es",
+      "utterance": "el 31 de cada mes a mediodía",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "12:00"
+        ],
+        "month_days": [
+          31
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "expected": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-31-short-months",
+      "language": "it",
+      "utterance": "il 31 di ogni mese a mezzogiorno",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "12:00"
+        ],
+        "month_days": [
+          31
+        ],
+        "starting_on": "2026-09-06"
+      },
+      "instants": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "expected": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "verdict": "exact"
+    },
+    {
+      "family": "monthly-31-short-months",
+      "language": "zh",
+      "utterance": "每月31号中午12点",
+      "produced": {
+        "repeat": "monthly",
+        "times": [
+          "12:00"
+        ],
+        "month_days": [
+          31
+        ]
+      },
+      "instants": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "expected": [
+        "2026-10-31 12:00",
+        "2026-12-31 12:00",
+        "2027-01-31 12:00"
+      ],
+      "verdict": "exact"
+    }
+  ]
+}

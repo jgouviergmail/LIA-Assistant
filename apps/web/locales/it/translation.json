@@ -271,7 +271,8 @@
         "cancel_reminder_description": "«{{content}}» non verrà attivato. L’azione è irreversibile.",
         "loop_done": "Segna come fatto",
         "loop_dismiss": "Non più attuale",
-        "loop_edit": "Modifica questo impegno"
+        "loop_edit": "Modifica questo impegno",
+        "cancel_reminder_series_description": "«{{content}}» si ripete. Annullandolo si rimuovono tutte le occorrenze future."
       },
       "cards": {
         "weather": {
@@ -3543,7 +3544,7 @@
         "interests": "argomenti, gusti, temi, curiosità, preferenze, cronologia, notifiche recenti, provenienza, perché, peso, spiegazione, decadimento, fonte, esportare",
         "peer-connections": "contatti, amici, famiglia, rete, condividere calendario, disponibilità, bloccare, trovare utenti, connettere, il mio nome, copia il mio nome, richiesta di connessione, registro accessi, trasmettere messaggio, utenti bloccati, persone care, rete sociale, peer, reperibilità, scoperta, condividere il mio indirizzo, email visibile, la mia email, punto 360, visibilità, richieste",
         "heartbeat": "proattivo, spontaneo, iniziativa, contatto, messaggi autonomi, argomenti delle notifiche, fonti, cronologia, notifiche recenti, priorità, urgenza, alta, media, bassa, colore, meteo, frequenza, fascia oraria, proposte, offerte, routine mancata, risveglio push, reagire a un'e-mail, reagire a un invito, innesco",
-        "scheduled-actions": "cron, pianificazione, ricorrente, automazione, timer, programmato, vista settimanale, cronologia, griglia settimanale",
+        "scheduled-actions": "cron, pianificazione, ricorrente, automazione, timer, programmato, vista settimanale, cronologia, griglia settimanale, ogni tre giorni, 2º martedì, intervallo, fine serie, opzioni avanzate",
         "journals": "diario, giornale di bordo, ritratto, riflessioni, note, provenienza, perché, fonte, segnale, origine, correggere, configurazione, consolidamento, esportare",
         "health-metrics": "frequenza cardiaca, passi, sonno, iPhone, Apple Salute, forma fisica, attività",
         "skills": "competenze, capacità, abilità, plugin, estensioni",
@@ -3569,7 +3570,8 @@
         "eyes-style": "occhi, avatar, animazione, stile, sguardo, compagno, cozmo, volto, bocca, sopracciglia, mimiche, scenette, capsule",
         "admin-diagnostics": "salute diagnosi incidenti avvisi monitoraggio autocontrollo stato piattaforma prometheus loki connettività uscita rete embeddings vettori quota memoria lingua runbook prove log diagnosi versione",
         "meetings": "riunione, registrazione, verbale, trascrizione, rapporto, microfono, note, sintesi, azioni, modello, modelli, libreria di modelli, formato del verbale, formato predefinito, formato automatico, cambiare il formato, sezioni, istruzioni, e-mail del verbale",
-        "admin-registers": "registri, trasparenza, azioni, consultazioni, esportazione, diario, audit, admin, grafici, statistiche, cifre, panoramica"
+        "admin-registers": "registri, trasparenza, azioni, consultazioni, esportazione, diario, audit, admin, grafici, statistiche, cifre, panoramica",
+        "reminders": "promemoria, ricordami, avviso, notifica, promemoria ricorrente, ripetere, appunto, ricorrenza, ogni giorno, fascia oraria"
       }
     },
     "haptics": {
@@ -4372,7 +4374,7 @@
         },
         "reminders": {
           "title": "🔔 Promemoria e Notifiche Push",
-          "description": "Promemoria creati in linguaggio naturale, inviati a tutti i tuoi dispositivi, con conversione dei fusi e riferimenti risolti («il prossimo», un numero, un contenuto). Ogni messaggio è scritto con la personalità attiva e i tuoi ricordi, nella tua lingua. I promemoria scaduti vengono presi in lease prima dell’invio, e ogni uscita anticipata lo rilascia — un promemoria non consegnato torna quindi al passaggio successivo invece di sparire."
+          "description": "Promemoria creati in linguaggio naturale, inviati su tutti i tuoi dispositivi, con fusi convertiti e riferimenti risolti («il prossimo», un numero, un contenuto). Un promemoria può ripetersi — ogni giorno, il lunedì e il giovedì, il 15, ogni due ore in una fascia — oppure suonare una volta e cancellarsi: è la stessa regola, un promemoria senza futuro sparisce. Ogni messaggio è scritto con la personalità attiva e i tuoi ricordi, nella tua lingua; uno non consegnato torna al passaggio successivo."
         },
         "personalities": {
           "title": "🎭 14 Personalità Dinamiche",
@@ -4400,7 +4402,7 @@
         },
         "scheduledActions": {
           "title": "📅 Azioni Pianificate",
-          "description": "Azioni ricorrenti che l’assistente esegue da sola: scegli i giorni e l’ora, allega un’istruzione e LIA la esegue. I risultati sono archiviati nella conversazione e ti vengono inviati, con disattivazione automatica dopo cinque fallimenti consecutivi. La notifica porta lo stesso testo finale archiviato, appiattito in testo semplice prima del troncamento. Una vista settimanale le disegna, ore in verticale e giorni in orizzontale, numerate nell'ordine in cui scattano; ogni cella della settimana in corso è colorata da ciò che è successo — eseguita, in errore, proposta, in pausa — da uno storico scritto al risultato."
+          "description": "Azioni ricorrenti che l'assistente esegue da sola: indica il ritmo — ogni tre giorni, un martedì su due, il 2º martedì, l'ultimo giorno, ogni due ore tra le 9 e le 17, fino a una data o N volte —, allega un'istruzione e LIA la esegue. I giorni sono enumerati, mai affidati a un cron: il motore precedente saltava il giorno al cambio dell'ora. Risultati archiviati nella conversazione e inviati a te, disattivazione dopo cinque errori. Una vista della settimana li disegna, ore in verticale e giorni in orizzontale."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4573,6 +4575,17 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_43_0": {
+          "title": "v1.43.0 — 🔁 I tuoi promemoria sanno ripetersi",
+          "date": "Settembre 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔁 Un promemoria può tornare</b> — finora un promemoria suonava una volta e spariva. Ora puoi dargli un ritmo: ogni giorno, il lunedì e il giovedì, il 15 di ogni mese, oppure ogni due ore tra le 9 e le 17. Una nuova sezione «Promemoria» nelle impostazioni li mostra tutti, con la frase che descrive il loro ritmo e le prossime date. Un promemoria senza futuro si cancella, esattamente come prima.",
+            "i2": "<b>🗓️ Le tue routine sanno dire molto di più</b> — «ogni tre giorni», «un martedì su due», «il 2º martedì del mese», «l'ultimo giorno del mese», «ogni 14 luglio», «ogni due ore tra le 9 e le 17», «fino al 30 settembre» o «le prossime tre volte». Chiedilo in conversazione o impostalo a mano: è lo stesso vocabolario da entrambe le parti.",
+            "i3": "<b>✏️ Le schermate di inserimento respirano</b> — i campi sono raggruppati sotto titoli con nome («cosa fare», «quando», «esecuzione»), e ciò che si cambia di rado — un intervallo, una fine serie, una data di partenza — si ripiega dietro «Opzioni avanzate». Cinque domande sullo schermo invece di otto. Il blocco si apre da solo quando contiene già qualcosa, così non ti nasconde mai un'impostazione che hai fatto.",
+            "i4": "<b>🐛 Un giorno perso all'anno, in 73 fusi orari</b> — al passaggio all'ora legale, quando lo scarto cambia a mezzanotte locale, il motore precedente saltava l'intera giornata: 142 esecuzioni perse all'anno, senza nulla nei registri. Corretto, e la settimana delle routine disegna di nuovo la cella del 30 marzo."
+          }
+        },
         "v1_42_4": {
           "title": "v1.42.4 — 🖥️ I tuoi modelli locali, modelli come gli altri",
           "date": "Settembre 2026",
@@ -8411,7 +8424,7 @@
       },
       "folded_settings": {
         "title": "Le impostazioni, ripiegate",
-        "desc": "Gli undici argomenti di notifica e le cronologie restano chiusi. Apri ciò che sei venuto a cambiare — e un blocco chiuso non carica nulla."
+        "desc": "Gli undici argomenti di notifica e le cronologie restano chiusi. Apri ciò che vieni a cambiare — e un blocco chiuso non carica nulla. Dove la piega nasconderebbe un’impostazione che hai fatto, si apre da sola: una routine che dice già «ogni tre settimane» non si presenta mai come una qualsiasi."
       },
       "provenance_why": {
         "title": "Perché LIA pensa questo",
@@ -9337,8 +9350,6 @@
     "field_title": "Titolo",
     "field_title_placeholder": "Es: Ricerca meteo",
     "field_prompt": "Istruzione per l'assistente",
-    "field_days": "Giorni della settimana",
-    "field_time": "Ora di esecuzione",
     "prompt_placeholder": "Es: Cerca il meteo di oggi e dammi un riepilogo",
     "studio": {
       "trigger_kind": "Attivatore",
@@ -9379,7 +9390,8 @@
       "active": "Attivo",
       "paused": "Pausa",
       "executing": "In corso",
-      "error": "Errore"
+      "error": "Errore",
+      "finished": "Terminata"
     },
     "next_execution": "Prossima",
     "last_execution": "Ultima",
@@ -9400,12 +9412,6 @@
     "next_evaluations": "Prossime finestre di valutazione",
     "clock_change": "(cambio dell’ora)",
     "toggle_aria": "Attivare o disattivare {{title}}",
-    "schedule": {
-      "daily": "Ogni giorno alle {{time}}",
-      "weekdays": "Nei giorni feriali alle {{time}}",
-      "weekend": "Nel fine settimana alle {{time}}",
-      "custom": "{{days}} alle {{time}}"
-    },
     "next_run": "Prossima esecuzione",
     "next_evaluation": "Prossima valutazione",
     "number_aria": "Routine {{n}}",
@@ -9432,7 +9438,9 @@
         "skipped_hitl": "Saltata, un'approvazione era in sospeso nella chat",
         "executing": "In esecuzione"
       }
-    }
+    },
+    "section_what": "Cosa fare",
+    "section_execution": "Esecuzione"
   },
   "landing": {
     "meta": {
@@ -9619,7 +9627,7 @@
       },
       "reminders_scheduling": {
         "title": "Promemoria e automatizzazioni",
-        "description": "Programma promemoria in linguaggio naturale (\"Ricordami domani alle 9 di chiamare Maria\"). Pianifica azioni ricorrenti automatiche (riepilogo email del lunedì, meteo del mattino...). Un promemoria che scade mentre la tua quota è raggiunta torna in coda: non va mai perso. Le routine ora possono attendere una condizione — un'attività che scade, una mail che corrisponde, un cambio di meteo, un documento aggiunto, un evento che si avvicina — e proporre prima di agire, se preferisci. Una vista settimanale dispone le routine, ore in verticale e giorni in orizzontale, ogni cella della settimana in corso colorata da ciò che è successo."
+        "description": "Programma promemoria in linguaggio naturale (\"Ricordami domani alle 9 di chiamare Maria\"). Pianifica azioni ricorrenti automatiche (riepilogo email del lunedì, meteo del mattino...). Un promemoria che scade mentre la tua quota è raggiunta torna in coda: non va mai perso. Le routine ora possono attendere una condizione — un'attività che scade, una mail che corrisponde, un cambio di meteo, un documento aggiunto, un evento che si avvicina — e proporre prima di agire, se preferisci. Una vista settimanale dispone le routine, ore in verticale e giorni in orizzontale, ogni cella della settimana in corso colorata da ciò che è successo. Anche un promemoria può ripetersi: indica il ritmo — ogni tre giorni, il 2º martedì del mese, ogni due ore tra le 9 e le 17 — ed è lo stesso vocabolario di una routine."
       },
       "memory": {
         "title": "Memoria contestuale",
@@ -10516,7 +10524,7 @@
       "reminders-scheduling": {
         "title": "Promemoria e azioni programmate: Automatizza la tua giornata",
         "excerpt": "Crea promemoria in linguaggio naturale e programma azioni ricorrenti.",
-        "body": "<h2>Promemoria in linguaggio naturale</h2><p>Creare un promemoria con LIA è semplice come dire:</p><ul><li>\"Ricordami di chiamare Maria domani alle 9\"</li><li>\"Promemoria tra 30 minuti: controllare il forno\"</li><li>\"Ricordati di comprare il pane stasera\"</li></ul><p>LIA interpreta automaticamente le espressioni temporali e crea il promemoria con il fuso orario corretto.</p><h2>Ciclo di vita di un promemoria</h2><p>Ogni promemoria segue un ciclo di vita preciso: <strong>PENDING → PROCESSING → eliminato</strong> dopo la notifica. I promemoria sono <strong>one-shot</strong>: una volta consegnati con successo, vengono automaticamente eliminati. Ogni promemoria contiene tre campi chiave:</p><ul><li><code>content</code> — Il contenuto compreso da LIA (riformulato se necessario)</li><li><code>original_message</code> — Il testo esatto dell'utente</li><li><code>trigger_at</code> — L'ora di attivazione in UTC</li></ul><p>Il passaggio a <code>PROCESSING</code> è un <strong>lease</strong>, non un punto di non ritorno: la query di selezione guarda soltanto le righe <code>PENDING</code>, così un promemoria già in lavorazione non può essere preso due volte da due passaggi concorrenti. Ogni uscita anticipata lo rilascia — limite di utilizzo raggiunto, nessun dispositivo registrato — e il promemoria torna a <code>PENDING</code> per il passaggio successivo. Senza quel rilascio, un promemoria che scade nel minuto esatto in cui l'utente raggiunge la sua quota andrebbe perso definitivamente, senza errore né traccia.</p><h2>Gestione dei fusi orari</h2><p>Tutti i promemoria sono memorizzati in <strong>UTC</strong> nel database. Il fuso orario IANA dell'utente (es.: <code>Europe/Paris</code>, <code>America/New_York</code>) viene tracciato e utilizzato per convertire le espressioni temporali relative (\"domani alle 9\") in timestamp UTC assoluti. La visualizzazione viene sempre convertita nel fuso orario locale dell'utente.</p><h2>Notifiche push</h2><p>I promemoria vengono consegnati tramite <strong>Firebase Cloud Messaging (FCM)</strong> per le notifiche browser e mobile. La notifica arriva anche quando l'applicazione non è aperta.</p><p>Il titolo e il corpo della notifica sono resi nella lingua dell'utente, per tutte e sei le lingue supportate. La normalizzazione della locale è fatta dalla tabella dei titoli stessa anziché da ogni chiamante, perché i chiamanti detengono locale grezze di ogni grafia — e l'unico punto che doveva normalizzare senza farlo inviava agli utenti cinesi titoli in inglese.</p><h2>Azioni programmate</h2><p>Le Azioni Programmate (Scheduled Actions) costituiscono un <strong>dominio separato</strong> che va oltre i semplici promemoria. Si integrano con <strong>APScheduler</strong> per programmare attività ricorrenti che LIA eseguirà automaticamente:</p><ul><li>Riepilogo meteo ogni mattina alle 7</li><li>Verifica delle email importanti ogni 2 ore</li><li>Report settimanale delle attività ogni lunedì</li></ul><h2>Limiti ragionevoli</h2><p>Per evitare abusi, ogni utente può avere fino a 20 azioni programmate attive simultaneamente. La logica di retry con backoff gestisce i fallimenti temporanei.</p>"
+        "body": "<h2>Promemoria in linguaggio naturale</h2><p>Creare un promemoria con LIA è semplice come dire:</p><ul><li>\"Ricordami di chiamare Maria domani alle 9\"</li><li>\"Promemoria tra 30 minuti: controllare il forno\"</li><li>\"Ricordati di comprare il pane stasera\"</li></ul><p>LIA interpreta automaticamente le espressioni temporali e crea il promemoria con il fuso orario corretto.</p><h2>Ciclo di vita di un promemoria</h2><p>Ogni promemoria segue un ciclo di vita preciso: <strong>PENDING → PROCESSING → eliminato</strong> dopo la notifica. Un promemoria ora può <strong>ripetersi</strong> — ogni giorno, il lunedì e il giovedì, il 15 del mese, ogni due ore in una fascia. Dopo ogni notifica LIA chiede semplicemente cosa armare dopo: se resta un'occorrenza, il promemoria si riarma; se non ne resta nessuna — un'occorrenza unica consumata, o una serie esaurita — viene eliminato. La stessa regola in entrambi i casi, ed esattamente ciò che «eliminare dopo la notifica» ha sempre significato. Ogni promemoria contiene tre campi chiave:</p><ul><li><code>content</code> — Il contenuto compreso da LIA (riformulato se necessario)</li><li><code>original_message</code> — Il testo esatto dell'utente</li><li><code>trigger_at</code> — L'ora di attivazione in UTC</li></ul><p>Il passaggio a <code>PROCESSING</code> è un <strong>lease</strong>, non un punto di non ritorno: la query di selezione guarda soltanto le righe <code>PENDING</code>, così un promemoria già in lavorazione non può essere preso due volte da due passaggi concorrenti. Ogni uscita anticipata lo rilascia — limite di utilizzo raggiunto, nessun dispositivo registrato — e il promemoria torna a <code>PENDING</code> per il passaggio successivo. Senza quel rilascio, un promemoria che scade nel minuto esatto in cui l'utente raggiunge la sua quota andrebbe perso definitivamente, senza errore né traccia.</p><h2>Gestione dei fusi orari</h2><p>Tutti i promemoria sono memorizzati in <strong>UTC</strong> nel database. Il fuso orario IANA dell'utente (es.: <code>Europe/Paris</code>, <code>America/New_York</code>) viene tracciato e utilizzato per convertire le espressioni temporali relative (\"domani alle 9\") in timestamp UTC assoluti. La visualizzazione viene sempre convertita nel fuso orario locale dell'utente.</p><h2>Notifiche push</h2><p>I promemoria vengono consegnati tramite <strong>Firebase Cloud Messaging (FCM)</strong> per le notifiche browser e mobile. La notifica arriva anche quando l'applicazione non è aperta.</p><p>Il titolo e il corpo della notifica sono resi nella lingua dell'utente, per tutte e sei le lingue supportate. La normalizzazione della locale è fatta dalla tabella dei titoli stessa anziché da ogni chiamante, perché i chiamanti detengono locale grezze di ogni grafia — e l'unico punto che doveva normalizzare senza farlo inviava agli utenti cinesi titoli in inglese.</p><h2>Azioni programmate</h2><p>Le Azioni Programmate (Scheduled Actions) costituiscono un <strong>dominio separato</strong> che va oltre i semplici promemoria. Si integrano con <strong>APScheduler</strong> per programmare attività ricorrenti che LIA eseguirà automaticamente:</p><ul><li>Riepilogo meteo ogni mattina alle 7</li><li>Verifica delle email importanti ogni 2 ore</li><li>Report settimanale delle attività ogni lunedì</li></ul><h2>Limiti ragionevoli</h2><p>Per evitare abusi, ogni utente può avere fino a 20 azioni programmate attive simultaneamente. La logica di retry con backoff gestisce i fallimenti temporanei.</p>"
       },
       "sub-agents": {
         "title": "Sub-agenti: Esperti effimeri per domande complesse",
@@ -12227,7 +12235,8 @@
       "run_python_tool": "Calcolo eseguito nella sandbox",
       "run_skill_script": "Script della competenza «{{target}}» eseguito",
       "set_current_item": "«{{target}}» impostato come elemento corrente della conversazione",
-      "toggle_scheduled_action_tool": "Azione pianificata «{{target}}» attivata o sospesa"
+      "toggle_scheduled_action_tool": "Azione pianificata «{{target}}» attivata o sospesa",
+      "create_reminder_tool": "Promemoria «{{target}}» creato"
     },
     "export": {
       "group_label": "Esporta questo registro",
@@ -12403,5 +12412,108 @@
       "action": "Estrazione unificata",
       "hint": "JSON Lines, una riga per registrazione. Non porta alcun contenuto e ogni identificatore è sostituito da una maniglia — il tuo compreso — così il file può essere allegato a una richiesta o a un reclamo senza ritoccarlo."
     }
+  },
+  "recurrence": {
+    "legend_days": "Quali giorni",
+    "legend_times": "A che ora",
+    "freq_label": "Ripetizione",
+    "freq": {
+      "once": "Una sola volta",
+      "daily": "Tutti i giorni",
+      "weekly": "Ogni settimana",
+      "monthly": "Ogni mese",
+      "yearly": "Ogni anno"
+    },
+    "interval_label": "Ogni",
+    "interval_unit": {
+      "daily": "giorno/i",
+      "weekly": "settimana/e",
+      "monthly": "mese/i",
+      "yearly": "anno/i"
+    },
+    "interval_shortcut": {
+      "quarterly": "Trimestrale",
+      "biannual": "Semestrale"
+    },
+    "weekdays_label": "Giorni della settimana",
+    "weekday_set": {
+      "all": "Tutti i giorni",
+      "workdays": "Nei giorni feriali",
+      "weekend": "Nel fine settimana"
+    },
+    "monthday_label": "Giorno del mese",
+    "monthday_last": "Ultimo giorno",
+    "monthly_mode": {
+      "day": "Un giorno del mese",
+      "weekday": "Un giorno della settimana"
+    },
+    "nth_label": "Quale",
+    "nth": {
+      "1": "Primo",
+      "2": "Secondo",
+      "3": "Terzo",
+      "4": "Quarto",
+      "5": "Quinto",
+      "-1": "Ultimo"
+    },
+    "month_label": "Mese",
+    "anchor_label": "A partire dal",
+    "anchor_hint": "Definisce l'inizio della serie e la settimana o il mese in cui cade.",
+    "date_label": "Data",
+    "times_mode": {
+      "at": "A orari precisi",
+      "every": "A intervalli regolari"
+    },
+    "times_label": "Orari della giornata",
+    "time_add": "Aggiungi un orario",
+    "time_remove": "Rimuovi {{time}}",
+    "step_label": "Ogni",
+    "step_unit_minutes": "minuti",
+    "step_from": "Dalle",
+    "step_to": "Alle",
+    "end_label": "Termina",
+    "end": {
+      "never": "Mai",
+      "on_date": "A una data",
+      "after_count": "Dopo un numero di volte"
+    },
+    "end_count_label": "Numero di volte",
+    "summary_per_day_one": "fino a {{count}} volta al giorno",
+    "summary_per_day_other": "fino a {{count}} volte al giorno",
+    "summary_next": "Prossime",
+    "summary_finished": "Questa serie è terminata",
+    "error_no_time": "Aggiungi almeno un orario.",
+    "error_no_weekday": "Seleziona almeno un giorno della settimana.",
+    "error_too_many": "Sono {{count}} volte al giorno; il limite è {{limit}}.",
+    "error_step_too_small": "L'intervallo minimo è di {{limit}} minuti.",
+    "error_no_end_date": "Scegli l'ultimo giorno, oppure un'altra regola di fine.",
+    "section_when": "Quando",
+    "step_separator": "alle",
+    "advanced": "Opzioni avanzate"
+  },
+  "reminders": {
+    "settings": {
+      "title": "Promemoria",
+      "description": "Ciò che LIA le ricorderà, e quando.",
+      "count_one": "{{count}} promemoria",
+      "count_other": "{{count}} promemoria",
+      "capped": "(primi {{shown}} mostrati)"
+    },
+    "create": "Nuovo promemoria",
+    "create_title": "Nuovo promemoria",
+    "edit_title": "Modifica promemoria",
+    "field_content": "Ricordami di",
+    "field_content_placeholder": "chiamare il medico",
+    "empty": "Nessun promemoria",
+    "empty_hint": "Non è previsto nulla. Chieda a LIA nella chat o ne crei uno qui.",
+    "created": "Promemoria creato",
+    "updated": "Promemoria aggiornato",
+    "deleted": "Promemoria eliminato",
+    "save_failed": "Impossibile salvare il promemoria",
+    "delete_failed": "Impossibile eliminare il promemoria",
+    "delete_title": "Eliminare questo promemoria?",
+    "delete_confirm": "«{{content}}» sarà eliminato.",
+    "delete_series_confirm": "«{{content}}» si ripete ({{schedule}}). Eliminandolo si rimuovono tutte le occorrenze future.",
+    "section_what": "Cosa ricordare"
   }
 }

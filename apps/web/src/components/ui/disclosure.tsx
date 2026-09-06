@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
  * children render only while open, which is what lets a collapsed history cost
  * nothing — and what makes `onOpenChange` enough to gate a query.
  */
-export interface SettingsDisclosureProps {
+export interface DisclosureProps {
   icon: LucideIcon;
   /** Already translated — this shell never resolves a key itself. */
   title: string;
@@ -59,7 +59,7 @@ export interface SettingsDisclosureProps {
   children: ReactNode;
 }
 
-export function SettingsDisclosure({
+export function Disclosure({
   icon: Icon,
   title,
   badge,
@@ -69,7 +69,7 @@ export function SettingsDisclosure({
   onOpenChange,
   className,
   children,
-}: SettingsDisclosureProps) {
+}: DisclosureProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (

@@ -1,0 +1,3 @@
+- Requested: {created_at_text} ({elapsed_text})
+- This reminder happens ONCE. Mention when the request was made (e.g. "you
+  asked me this morning to…", "you asked me yesterday to…").

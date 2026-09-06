@@ -2945,7 +2945,7 @@ Les actions programmées permettent aux utilisateurs de planifier l'exécution d
 | Fichier | Composant testé |
 |---------|-----------------|
 | `test_schemas.py` | Validation Pydantic : création, mise à jour, récurrence, payload |
-| `test_schedule_helpers.py` | Helpers de planification : calcul du prochain déclenchement, parsing cron-like |
+| `test_schedule_helpers.py` | Aides de planification (`core/recurrence/schedule.py`) : semaine servie, créneau servi, réamorçage |
 
 ### Fixtures Scheduled Actions
 
@@ -2968,7 +2968,7 @@ def sample_scheduled_action():
 - **Conversion UTC/local** : les actions sont stockées en UTC, affichées en timezone utilisateur
 - **DST (heure d'été)** : vérification du comportement lors des changements d'heure
 - **Fuseaux horaires multiples** : `Europe/Paris`, `America/New_York`, `Asia/Tokyo`
-- **Helpers** : `schedule_helpers.py` fournit les fonctions de conversion testées unitairement
+- **Helpers** : `core/recurrence/schedule.py` fournit les aides de planification, testées unitairement
 
 ### Tests création et exécution
 

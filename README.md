@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.42.4</strong> — <strong>Your local models, models like any other.</strong> Ollama was reached through its OpenAI compatibility bridge, and that bridge cannot say what matters: switch off the thinking of a model that thinks, set the context window, separate the thinking trace from the answer. Measured on 5 September 2026: a slot moved to a local model died at instantiation on every turn, and the first fix — the bridge patched — returned an EMPTY answer, twelve tokens asked for and twelve tokens of thinking. LIA now speaks to Ollama in its own language (ADR-267), and the server is the authority on what each of its models can do: capabilities and context length are read from <code>/api/show</code> and feed both the runtime and the administration screen, so a thinking depth never reaches a model that cannot think and the context window LIA accounts with is the one it actually requests. — 5 September 2026.
+  <strong>Version 1.43.0</strong> — <strong>One engine answers "when?", for routines and reminders alike.</strong> A routine could say "Monday and Thursday at 8"; a reminder could only say one instant, once. Neither could say "every three days", "the 2nd Tuesday of the month" or "every two hours between 9 and 5", and a reminder could not repeat at all. One engine now answers both — a recurrence is a PRODUCT, which calendar days times which moments of the day — and the one-shot reminder stops being an exception: asked what to arm next, a consumed single occurrence answers nothing, which is exactly what "delete after notification" always was. Nothing anywhere asks "does this repeat". Saying it out loud is measured, not assumed: 18 families of phrasing across the 6 languages, <strong>105 of 108 transcribed exactly</strong> on 6 September 2026. The engine it replaces skipped a whole day, once a year, in 73 timezones — 142 runs lost, silently. — 6 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **31,600+** automated tests | **266** ADRs                                                           |
-| **249** versions shipped  | **6 languages**, parity enforced in CI  | **537** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **32,300+** automated tests | **267** ADRs                                                           |
+| **250** versions shipped  | **6 languages**, parity enforced in CI  | **537** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -473,7 +473,7 @@ One published app per store, a client for **any** self-hosted LIA server: the We
 
 ### Scheduled Actions
 
-- **Recurring actions**: Schedule repetitive actions executed automatically (send emails, checks, reminders)
+- **Recurring actions and reminders**: one engine answers "when?" for both — a recurrence is a product of calendar days and times of day, so "every three days", "the 2nd Tuesday of the month" and "every two hours between 9 and 5" are expressible, and a reminder can repeat. Days are enumerated, never delegated to a cron: the previous engine skipped a whole day when a timezone's offset changed at local midnight
 - **Timezone-aware**: Correct timezone handling per user
 - **Retry logic**: Automatic retries on failure with back-off
 - **Auto-disable**: Automatic deactivation after N consecutive failures
@@ -1044,7 +1044,7 @@ OpenAI compatibility layer, which is what makes the difference:
 
 ### Architecture Decision Records (ADR)
 
-266 ADR files (ADR-001 through ADR-267 — ADR-008 has no separate file) documenting major architectural decisions:
+267 ADR files (ADR-001 through ADR-268 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

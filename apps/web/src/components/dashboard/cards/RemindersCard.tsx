@@ -162,11 +162,19 @@ function RemindersContent({
               {t('dashboard.briefing.actions.cancel_reminder_title')}
             </AlertDialogTitle>
             {/* The reminder's own words: confirming a deletion without naming
-                what disappears asks the reader to trust their memory. */}
+                what disappears asks the reader to trust their memory.
+
+                And a REPEATING reminder is a series: cancelling from this card
+                deletes the row, so every future occurrence goes with it. The
+                card shows one line and would otherwise look like it removes
+                one occurrence. */}
             <AlertDialogDescription>
-              {t('dashboard.briefing.actions.cancel_reminder_description', {
-                content: pending?.content ?? '',
-              })}
+              {t(
+                pending?.repeats
+                  ? 'dashboard.briefing.actions.cancel_reminder_series_description'
+                  : 'dashboard.briefing.actions.cancel_reminder_description',
+                { content: pending?.content ?? '' }
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

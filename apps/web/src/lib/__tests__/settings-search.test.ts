@@ -92,7 +92,10 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 2026-08-27) joined Administration / System.
     // 54 since the meetings section (ADR-258) joined Features / Extensions &
     // Data (2026-09-02).
-    expect(TOKENS).toHaveLength(55);
+    // 56 since the reminders section joined Features / Automation & Tracking
+    // (2026-09-06): reminders can repeat, and a schedule someone configured
+    // once must be visible and changeable without asking for it in prose.
+    expect(TOKENS).toHaveLength(56);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

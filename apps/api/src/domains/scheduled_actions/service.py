@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import SCHEDULED_ACTIONS_MAX_PER_USER
 from src.core.exceptions import ResourceNotFoundError, ValidationError
+from src.core.recurrence import next_occurrence
+from src.core.time_utils import now_utc
 from src.domains.scheduled_actions.models import (
     ScheduledAction,
     ScheduledActionStatus,
@@ -19,7 +21,6 @@ from src.domains.scheduled_actions.models import (
 )
 from src.domains.scheduled_actions.repository import ScheduledActionRepository
 from src.domains.scheduled_actions.run_repository import ScheduledActionRunRepository
-from src.domains.scheduled_actions.schedule_helpers import compute_next_trigger_utc
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate, ScheduledActionUpdate
 from src.domains.scheduled_actions.week import ActionWeek, build_week, week_read_lower_bound
 
@@ -71,22 +72,16 @@ class ScheduledActionService:
                 f"Maximum of {SCHEDULED_ACTIONS_MAX_PER_USER} scheduled actions per user"
             )
 
-        # Compute next trigger time in UTC
-        next_trigger_at = compute_next_trigger_utc(
-            days_of_week=data.days_of_week,
-            hour=data.trigger_hour,
-            minute=data.trigger_minute,
-            user_timezone=user_timezone,
-        )
+        # The first armed instant, from the engine that will re-arm it.
+        next_trigger_at = next_occurrence(data.recurrence, user_timezone, after=now_utc())
 
         action = await self.repository.create(
             {
                 "user_id": user_id,
                 "title": data.title,
                 "action_prompt": data.action_prompt,
-                "days_of_week": sorted(data.days_of_week),
-                "trigger_hour": data.trigger_hour,
-                "trigger_minute": data.trigger_minute,
+                # A NEW dict, never a mutation: JSONB skips an in-place UPDATE.
+                "recurrence": data.recurrence.model_dump(mode="json"),
                 "user_timezone": user_timezone,
                 # N-07: kind/condition/approval — schema-validated coherence.
                 "trigger_kind": data.trigger_kind.value,
@@ -107,7 +102,7 @@ class ScheduledActionService:
             action_id=str(action.id),
             user_id=str(user_id),
             title=data.title,
-            next_trigger_at=next_trigger_at.isoformat(),
+            next_trigger_at=next_trigger_at.isoformat() if next_trigger_at else None,
         )
 
         return action
@@ -132,13 +127,16 @@ class ScheduledActionService:
         if not update_data:
             return action
 
-        # Determine if schedule changed (requires next_trigger_at recalculation)
-        schedule_fields = {"days_of_week", "trigger_hour", "trigger_minute"}
-        schedule_changed = bool(schedule_fields & set(update_data.keys()))
-
-        # Sort days_of_week if provided
-        if "days_of_week" in update_data:
-            update_data["days_of_week"] = sorted(update_data["days_of_week"])
+        # A changed recurrence re-arms the routine.
+        schedule_changed = "recurrence" in update_data
+        if schedule_changed:
+            # `model_dump(exclude_unset=True)` already produced a plain dict;
+            # re-serialise through the model so the stored shape is canonical
+            # (dates as strings, tuples as lists) and is a NEW dict (JSONB).
+            # The schema refuses an explicit null, so a present key always
+            # carries a recurrence — no `if` left to get wrong here.
+            assert data.recurrence is not None
+            update_data["recurrence"] = data.recurrence.model_dump(mode="json")
 
         # N-07: kind/condition coherence against the RESULTING row (the update
         # schema cannot see the stored half of the pair).
@@ -162,18 +160,15 @@ class ScheduledActionService:
 
         # Recalculate next_trigger_at if schedule changed
         if schedule_changed:
-            next_trigger_at = compute_next_trigger_utc(
-                days_of_week=action.days_of_week,
-                hour=action.trigger_hour,
-                minute=action.trigger_minute,
-                user_timezone=action.user_timezone,
+            next_trigger_at = next_occurrence(
+                action.recurrence_spec, action.user_timezone, after=now_utc()
             )
             action = await self.repository.update(action, {"next_trigger_at": next_trigger_at})
 
             logger.info(
                 "scheduled_action_trigger_recalculated",
                 action_id=str(action_id),
-                next_trigger_at=next_trigger_at.isoformat(),
+                next_trigger_at=next_trigger_at.isoformat() if next_trigger_at else None,
                 reason="schedule_update",
             )
 
@@ -218,11 +213,8 @@ class ScheduledActionService:
 
         if new_enabled:
             # Re-enabling: recalculate next trigger and reset error state
-            next_trigger_at = compute_next_trigger_utc(
-                days_of_week=action.days_of_week,
-                hour=action.trigger_hour,
-                minute=action.trigger_minute,
-                user_timezone=action.user_timezone,
+            next_trigger_at = next_occurrence(
+                action.recurrence_spec, action.user_timezone, after=now_utc()
             )
             update_data["next_trigger_at"] = next_trigger_at
             update_data["status"] = ScheduledActionStatus.ACTIVE.value
@@ -290,15 +282,14 @@ class ScheduledActionService:
         """
         actions = await self.repository.get_all_for_user(user_id)
 
-        recalculated: dict[UUID, datetime] = {}
+        reference = now_utc()
+        recalculated: dict[UUID, datetime | None] = {}
         for action in actions:
-            next_trigger = compute_next_trigger_utc(
-                days_of_week=action.days_of_week,
-                hour=action.trigger_hour,
-                minute=action.trigger_minute,
-                user_timezone=new_timezone,
+            # The spec is a LOCAL wall clock: moving zone keeps "08:00 where I
+            # live" and only changes the instant it lands on.
+            recalculated[action.id] = next_occurrence(
+                action.recurrence_spec, new_timezone, after=reference
             )
-            recalculated[action.id] = next_trigger
 
         if not recalculated:
             return 0

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
 from src.domains.scheduled_actions.models import ScheduledRunOutcome
 from src.domains.scheduled_actions.runs import record_run
 
@@ -37,13 +38,21 @@ class _Savepoint:
         return False
 
 
+def _weekly(days: tuple[int, ...] = (1, 3, 5), hour: int = 8, minute: int = 0) -> RecurrenceSpec:
+    """A routine's schedule, in the shape the column now stores."""
+    return RecurrenceSpec(
+        freq="weekly",
+        times=DailyTimes(mode="at", at=(TimeOfDay(hour=hour, minute=minute),)),
+        anchor_date=date(2026, 1, 5),
+        byweekday=tuple(sorted(days)),
+    )
+
+
 def _action(**over: Any) -> SimpleNamespace:
     base = {
         "id": uuid.uuid4(),
         "user_id": uuid.uuid4(),
-        "days_of_week": [1, 2, 3, 4, 5],
-        "trigger_hour": 8,
-        "trigger_minute": 0,
+        "recurrence_spec": _weekly((1, 2, 3, 4, 5), 8, 0),
         "user_timezone": "Europe/Paris",
     }
     base.update(over)

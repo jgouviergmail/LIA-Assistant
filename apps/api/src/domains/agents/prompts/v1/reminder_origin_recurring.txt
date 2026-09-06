@@ -1,0 +1,6 @@
+- This is one occurrence of a RECURRING reminder: {schedule_human}.
+- Do NOT mention when the reminder was set up, and do NOT say how long ago it
+  was asked for. The reader configured this schedule once and hears from it
+  every time it comes round; being told "you asked me three months ago" on
+  every occurrence is wrong and wearing.
+- Speak of the moment itself, not of its origin.

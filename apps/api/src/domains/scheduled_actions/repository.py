@@ -34,7 +34,10 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         stmt = (
             select(ScheduledAction)
             .where(ScheduledAction.user_id == user_id)
-            .order_by(ScheduledAction.next_trigger_at.asc())
+            # NULLS LAST said out loud: PostgreSQL already does this for ASC,
+            # but a finished series belongs at the end by CONTRACT, not by a
+            # default another engine could spell differently.
+            .order_by(ScheduledAction.next_trigger_at.asc().nullslast())
             .limit(limit)
         )
         result = await self.db.execute(stmt)
@@ -135,7 +138,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
     async def reschedule(
         self,
         action: ScheduledAction,
-        next_trigger_at: datetime,
+        next_trigger_at: datetime | None,
         *,
         condition_state: dict | None = None,
     ) -> ScheduledAction:
@@ -156,7 +159,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
     async def mark_execution_success(
         self,
         action: ScheduledAction,
-        next_trigger_at: datetime,
+        next_trigger_at: datetime | None,
         *,
         condition_state: dict | None = None,
     ) -> ScheduledAction:
@@ -180,7 +183,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
             "scheduled_action_execution_success",
             action_id=str(action.id),
             execution_count=action.execution_count,
-            next_trigger_at=next_trigger_at.isoformat(),
+            next_trigger_at=next_trigger_at.isoformat() if next_trigger_at else None,
         )
 
         return action
@@ -189,7 +192,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         self,
         action: ScheduledAction,
         error: str,
-        next_trigger_at: datetime,
+        next_trigger_at: datetime | None,
         max_consecutive_failures: int = 5,
     ) -> ScheduledAction:
         """
@@ -229,7 +232,7 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         self,
         user_id: UUID,
         new_timezone: str,
-        recalculated_triggers: dict[UUID, datetime],
+        recalculated_triggers: dict[UUID, datetime | None],
     ) -> int:
         """
         Batch update timezone and next_trigger_at for the given user's actions,
@@ -238,7 +241,8 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         Args:
             user_id: User ID.
             new_timezone: New IANA timezone.
-            recalculated_triggers: Mapping of action_id -> new next_trigger_at (UTC).
+            recalculated_triggers: action_id -> new next_trigger_at (UTC), or
+                None when the series is over.
 
         Returns:
             Number of updated actions.

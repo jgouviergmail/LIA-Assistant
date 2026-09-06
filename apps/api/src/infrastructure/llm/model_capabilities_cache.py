@@ -10,9 +10,12 @@ Pattern aligned with :class:`LLMConfigOverrideCache`.
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import REASONING_MODELS_PATTERN
 from src.domains.llm.models import LLMModel
 from src.infrastructure.llm.model_profiles import ModelProfile
 from src.infrastructure.observability.logging import get_logger
@@ -229,3 +232,31 @@ class ModelCapabilitiesCache:
             capability_provenance=row.capability_provenance.value,
             metadata={"pricing_source": "capabilities_cache"},
         )
+
+
+def is_reasoning_model(model_name: str) -> bool:
+    """Whether ``model_name`` reasons — the one predicate, for every caller.
+
+    Two places decide what an OpenAI model may be sent: the Responses adapter,
+    which every `gpt-4.1*`, `gpt-5*` and `o[1-9]*` actually leaves through, and
+    the `init_chat_model` fallback in `providers/adapter.py`. They asked the
+    same question with two copies of the same answer, and only one of them
+    runs — a rule in two copies gets changed in one (ADR-248's second
+    invariant).
+
+    **The catalogue wins when it knows the model**: an administrator who turns
+    `is_reasoning_model` off in Tarification LLM Texte means it, whatever the
+    name looks like. The name pattern is the fallback for a model nobody has
+    seeded yet, and it stays PERMISSIVE — an unknown model keeps its sampling
+    parameters rather than silently losing them.
+
+    Args:
+        model_name: The model identifier as configured.
+
+    Returns:
+        True when the model is known — or looks like — a reasoning model.
+    """
+    profile = ModelCapabilitiesCache.get(model_name)
+    if profile is not None:
+        return profile.is_reasoning_model
+    return bool(re.match(REASONING_MODELS_PATTERN, model_name, re.IGNORECASE))

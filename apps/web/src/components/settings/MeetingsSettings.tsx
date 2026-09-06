@@ -193,18 +193,25 @@ function PreferencesForm({
       <div className="space-y-3">
         <Label htmlFor="meeting-keep-audio">{t('meetings.settings.keep_audio_label')}</Label>
         <div className="flex flex-wrap items-center gap-3">
+          {/* `Input` wraps itself in `FieldFrame`, which is `w-full`: inside a
+              flex row that wrapper claims every spare pixel and pushes the
+              caption away (measured on the recurrence form — "week(s)" sat
+              330 px from an 80 px field). Bounding the WRAPPER is what keeps
+              the two together; a width on the input alone cannot. */}
+          <div data-bounded-field className="w-28 shrink-0">
           <Input
             id="meeting-keep-audio"
             type="number"
             inputMode="numeric"
             min={0}
             max={max}
-            className="w-28"
+            className="w-full"
             value={value.keep_audio_hours}
             onChange={e =>
               edit({ keep_audio_hours: Math.max(0, Math.min(max, Number(e.target.value) || 0)) })
             }
           />
+          </div>
           <span className="text-xs text-muted-foreground">
             {value.keep_audio_hours === 0
               ? t('meetings.settings.keep_audio_none')

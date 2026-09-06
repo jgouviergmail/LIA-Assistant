@@ -281,7 +281,15 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "PUT /api/v1/relations/overview-scope",
         "GET /api/v1/relations/{name}",
         "GET /api/v1/relations/{name}/context",
+        # The reminders domain gained a management screen on 2026-09-06, so a
+        # visitor creates and edits their OWN reminders exactly as they create
+        # and edit their own routines below. Nothing here reaches another
+        # account: every handler resolves the row through the session owner and
+        # answers "not found" for someone else's id.
         "GET /api/v1/reminders",
+        "GET /api/v1/reminders/detail",
+        "POST /api/v1/reminders",
+        "PATCH /api/v1/reminders/{reminder_id}",
         "DELETE /api/v1/reminders/{reminder_id}",
         "GET /api/v1/scheduled-actions",
         "GET /api/v1/scheduled-actions/week",

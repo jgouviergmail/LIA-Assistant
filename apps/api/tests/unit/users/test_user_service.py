@@ -517,6 +517,73 @@ class TestUpdateUser:
         service.repository.update.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_a_timezone_change_moves_reminders_as_well_as_routines(self):
+        """Both surfaces, from the SAME block.
+
+        Reminders were absent from this chokepoint — correct while their
+        instant was frozen at creation, wrong the moment they gained a wall
+        clock. A second block elsewhere would be a second place to remember,
+        so the assertion is that ONE change moves BOTH.
+        """
+        mock_db = MagicMock(spec=AsyncSession)
+        mock_db.commit = AsyncMock()
+        service = UserService(mock_db)
+
+        user_id = uuid.uuid4()
+        service.repository.get_by_id = AsyncMock(
+            return_value=create_mock_user(user_id=user_id, timezone="Europe/Paris")
+        )
+        service.repository.update = AsyncMock(
+            return_value=create_mock_user(user_id=user_id, timezone="Asia/Tokyo")
+        )
+
+        with (
+            patch("src.domains.scheduled_actions.service.ScheduledActionService") as sa_cls,
+            patch("src.domains.reminders.service.ReminderService") as reminder_cls,
+        ):
+            sa_cls.return_value.recalculate_all_for_user = AsyncMock(return_value=2)
+            reminder_cls.return_value.recalculate_all_for_user = AsyncMock(return_value=3)
+
+            await service.update_user(user_id, UserUpdate(timezone="Asia/Tokyo"))
+
+        sa_cls.return_value.recalculate_all_for_user.assert_awaited_once_with(user_id, "Asia/Tokyo")
+        reminder_cls.return_value.recalculate_all_for_user.assert_awaited_once_with(
+            user_id, "Asia/Tokyo"
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_failing_surface_does_not_strand_the_other(self):
+        """One best-effort each: a reminder that cannot move must not leave
+        the routines on their old clock."""
+        mock_db = MagicMock(spec=AsyncSession)
+        mock_db.commit = AsyncMock()
+        service = UserService(mock_db)
+
+        user_id = uuid.uuid4()
+        service.repository.get_by_id = AsyncMock(
+            return_value=create_mock_user(user_id=user_id, timezone="Europe/Paris")
+        )
+        service.repository.update = AsyncMock(
+            return_value=create_mock_user(user_id=user_id, timezone="Asia/Tokyo")
+        )
+
+        with (
+            patch("src.domains.scheduled_actions.service.ScheduledActionService") as sa_cls,
+            patch("src.domains.reminders.service.ReminderService") as reminder_cls,
+        ):
+            sa_cls.return_value.recalculate_all_for_user = AsyncMock(return_value=2)
+            reminder_cls.return_value.recalculate_all_for_user = AsyncMock(
+                side_effect=RuntimeError("boom")
+            )
+
+            result = await service.update_user(user_id, UserUpdate(timezone="Asia/Tokyo"))
+
+        # The routines moved and the profile update stands: each surface is
+        # independently best-effort inside the composition module.
+        assert result.timezone == "Asia/Tokyo"
+        sa_cls.return_value.recalculate_all_for_user.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_update_user_timezone_change_logged(self):
         """Test that timezone changes are logged with logger.info."""
         # Arrange
@@ -534,14 +601,16 @@ class TestUpdateUser:
 
         update_data = UserUpdate(timezone="America/New_York")
 
-        # Act — isolate the scheduled-actions recalculation sub-service (it has its
-        # own suite); running its real implementation against the mock session would
-        # raise and leak an un-awaited AsyncMock coroutine (RuntimeWarning).
+        # Act — isolate the propagation (it has its own suite); running the
+        # real implementation against the mock session would raise and leak an
+        # un-awaited AsyncMock coroutine (F028).
         with (
-            patch("src.domains.scheduled_actions.service.ScheduledActionService") as sa_service_cls,
+            patch(
+                "src.infrastructure.scheduler.timezone_propagation.propagate_timezone",
+                AsyncMock(return_value={}),
+            ),
             patch("src.domains.users.service.logger") as mock_logger,
         ):
-            sa_service_cls.return_value.recalculate_all_for_user = AsyncMock(return_value=0)
             result = await service.update_user(user_id, update_data)
 
             # Assert

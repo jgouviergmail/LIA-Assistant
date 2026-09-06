@@ -11,6 +11,7 @@ import type {
   ScheduledAction,
   ScheduledActionWeekCell,
   ScheduledActionWeekResponse,
+  ScheduledActionWeekSlot,
 } from '@/hooks/useScheduledActions';
 import { SCHEDULED_ACTION_TITLE_MAX_LENGTH } from '@/lib/constants';
 
@@ -67,9 +68,22 @@ export interface NumberedAction {
 }
 
 /**
- * Order two routines by the time of day they fire at.
+ * The FIRST moment of a served day, as `HH:MM`, or an end-of-day sentinel.
  *
- * Hour, then minute, then the title in the reader's language (numeric, so
+ * Read from `times_of_day`, which the SERVER materialised: a routine using a
+ * step (`every 2 h from 08:00`) has no single stored hour, and expanding the
+ * step here to find one would be a second reading of the schedule. A routine
+ * whose payload predates the field sorts LAST rather than first — an unknown
+ * time must not claim midnight.
+ */
+export function firstMomentOf(action: Pick<ScheduledAction, 'times_of_day'>): string {
+  return action.times_of_day?.[0] ?? '99:99';
+}
+
+/**
+ * Order two routines by the time of day they first fire at.
+ *
+ * The first moment, then the title in the reader's language (numeric, so
  * "Routine 2" precedes "Routine 10"; accent-insensitive), then the id — so the
  * order is total and the numbers it produces are deterministic whatever order
  * the API returned the rows in.
@@ -84,8 +98,7 @@ export function compareByTriggerTime(
   collator: Intl.Collator
 ): number {
   return (
-    a.trigger_hour - b.trigger_hour ||
-    a.trigger_minute - b.trigger_minute ||
+    firstMomentOf(a).localeCompare(firstMomentOf(b)) ||
     collator.compare(a.title, b.title) ||
     (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   );
@@ -111,11 +124,6 @@ export function numberByTriggerTime(
     .map((action, index) => ({ action, number: index + 1 }));
 }
 
-/** `HH:MM` of a routine's trigger, as configured (wall clock in its zone). */
-export function triggerTimeLabel(action: Pick<ScheduledAction, 'trigger_hour' | 'trigger_minute'>) {
-  return `${String(action.trigger_hour).padStart(2, '0')}:${String(action.trigger_minute).padStart(2, '0')}`;
-}
-
 // =============================================================================
 // The grid: hours × days
 // =============================================================================
@@ -126,11 +134,13 @@ export const ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 /** The 24 hour rows of the grid. */
 export const GRID_HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
-/** One chip in one cell of the grid. */
+/** One chip in one cell of the grid: a routine at ONE instant of the week. */
 export interface TimelineEntry {
   number: number;
   action: ScheduledAction;
-  /** The week's facts for that routine on that day; null when unknown. */
+  /** Where the chip goes — always known, it ships with the routine. */
+  slot: ScheduledActionWeekSlot;
+  /** How the run serving that instant ended; null when unknown or not yet due. */
   cell: ScheduledActionWeekCell | null;
 }
 
@@ -140,36 +150,48 @@ export function timelineKey(day: number, hour: number): string {
 }
 
 /**
- * Place every routine on its days, at its hour.
+ * Place one chip per INSTANT of the current week, and colour it if we can.
  *
- * The grid speaks in the WALL CLOCK of each routine's own schedule: a routine
- * at 08:00 sits on row 8 whatever the zone, and the zone is named beside the
- * grid. Minutes do not move a chip (the row is the hour); they order the
- * chips inside a cell and appear in the chip's name. Out-of-range days or
- * hours are skipped rather than crashing the grid, and a day listed twice is
- * placed once.
+ * **Position comes from the ROUTINE** (`week_slots`, computed server-side and
+ * shipped with the listing), so the grid is never empty: an empty grid is a
+ * blocking regression (owner arbitration 2026-09-06), and a monthly or
+ * stepped recurrence cannot be positioned by the browser without re-reading
+ * the schedule — the second authority ADR-265 forbids.
+ *
+ * **Colour comes from `/week`**, matched on the INSTANT. When that request has
+ * not answered, every chip is idle and the timeline says the states are
+ * unavailable — losing it costs a colour, never a chip.
+ *
+ * One chip per instant, not per day: the previous version placed one chip per
+ * DAY from a single `trigger_hour`, so a routine firing at 08:00 and 18:00
+ * drew one chip carrying the 08:00 state and the 18:00 failure was invisible.
  *
  * @param numbered - Routines in chronological order (`numberByTriggerTime`).
- * @param week - The current week's states, or null when unavailable.
+ * @param week - The current week's run outcomes, or null when unavailable.
  */
 export function buildTimelineGrid(
   numbered: readonly NumberedAction[],
   week: ScheduledActionWeekResponse | null
 ): Map<string, TimelineEntry[]> {
-  const weekByAction = new Map(week?.actions.map(w => [w.id, w]) ?? []);
+  const outcomes = new Map<string, ScheduledActionWeekCell>();
+  for (const actionWeek of week?.actions ?? []) {
+    for (const cell of actionWeek.cells) {
+      outcomes.set(`${actionWeek.id}:${cell.slot_at}`, cell);
+    }
+  }
   const grid = new Map<string, TimelineEntry[]>();
   for (const entry of numbered) {
     const { action } = entry;
-    if (action.trigger_hour < 0 || action.trigger_hour > 23) continue;
-    const cells = weekByAction.get(action.id)?.cells ?? [];
-    for (const day of new Set(action.days_of_week)) {
-      if (day < 1 || day > 7) continue;
-      const key = timelineKey(day, action.trigger_hour);
+    for (const slot of action.week_slots ?? []) {
+      if (slot.day < 1 || slot.day > 7) continue;
+      if (slot.hour < 0 || slot.hour > 23) continue;
+      const key = timelineKey(slot.day, slot.hour);
       const bucket = grid.get(key) ?? [];
       bucket.push({
         number: entry.number,
         action,
-        cell: cells.find(c => c.day === day) ?? null,
+        slot,
+        cell: outcomes.get(`${action.id}:${slot.slot_at}`) ?? null,
       });
       grid.set(key, bucket);
     }
@@ -278,9 +300,16 @@ export function routineCardId(actionId: string): string {
 // Keyboard: the grid is ONE tab stop
 // =============================================================================
 
-/** Identity of a chip on the grid: a routine on a day. */
-export function chipKey(actionId: string, day: number): string {
-  return `${actionId}:${day}`;
+/**
+ * Identity of a chip on the grid: a routine at ONE instant of the week.
+ *
+ * The minute is part of the key. Keyed by `(routine, day)` alone, a routine
+ * firing at 08:00 and 18:00 on Monday produced two chips with the SAME key —
+ * measured: `distinct: 1` — so the roving focus could reach only one of them
+ * and React saw a duplicate key.
+ */
+export function chipKey(actionId: string, day: number, hour: number, minute: number): string {
+  return `${actionId}:${day}:${hour}:${minute}`;
 }
 
 /** Keys that move the roving focus; anything else is left to the browser. */

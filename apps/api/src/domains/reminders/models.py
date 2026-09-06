@@ -10,9 +10,11 @@ from enum import Enum
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.recurrence import RecurrenceSpec
 from src.infrastructure.database.models import BaseModel
 
 
@@ -31,7 +33,15 @@ class Reminder(BaseModel):
     Stores user reminders with trigger time and notification status.
     All times are stored in UTC.
 
-    Note: Reminders are deleted after successful notification (one-shot behavior).
+    A reminder is deleted once it has no future left. That is not a special
+    case for one-shot reminders — it is the ONE rule: the scheduler asks
+    ``rearm_after`` what to arm next, and a ``None`` answer means the row has
+    nothing more to do. A single occurrence answers ``None`` the first time,
+    which is exactly the historical behaviour; a daily one answers tomorrow;
+    a bounded series answers ``None`` after its last instant.
+
+    That is why ``trigger_at`` stays NOT NULL, unlike a routine's
+    ``next_trigger_at``: a reminder with no future does not exist.
     """
 
     __tablename__ = "reminders"
@@ -53,6 +63,16 @@ class Reminder(BaseModel):
         Text,
         nullable=False,
         doc="Exact user message - 'rappelle-moi d'appeler...'",
+    )
+
+    # Schedule — ONE authority (generic recurrence, `src/core/recurrence`).
+    # `trigger_at` below stays the instant the poll reads; the spec is what
+    # RE-ARMS it. A one-shot reminder carries `freq='once'`, so the two agree
+    # by construction and no branch reads "is this recurring".
+    recurrence: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        comment="RecurrenceSpec: which calendar days, and which moments in them.",
     )
 
     # Scheduling - ALWAYS IN UTC
@@ -78,7 +98,7 @@ class Reminder(BaseModel):
         String(20),
         nullable=False,
         default=ReminderStatus.PENDING.value,
-        doc="pending → processing → cancelled (deleted after notification)",
+        doc="pending → processing → pending again (re-armed) or the row is deleted",
     )
 
     # Retry tracking
@@ -98,6 +118,18 @@ class Reminder(BaseModel):
 
     # Relationship
     user = relationship("User", back_populates="reminders", lazy="selectin")
+
+    @property
+    def recurrence_spec(self) -> RecurrenceSpec:
+        """The stored schedule, parsed.
+
+        A property rather than a column type: the row keeps plain JSONB, so a
+        migration or an admin query never depends on the Python model.
+
+        Returns:
+            The recurrence this reminder follows.
+        """
+        return RecurrenceSpec.model_validate(self.recurrence)
 
     def __repr__(self) -> str:
         return f"<Reminder(id={self.id}, status={self.status}, trigger_at={self.trigger_at})>"

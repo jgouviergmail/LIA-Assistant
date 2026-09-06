@@ -207,3 +207,29 @@ describe('MeetingsSettings', () => {
     expect(push).toHaveBeenCalledWith('/dashboard/meetings');
   });
 });
+
+describe('MeetingsSettings — the retention field and its caption', () => {
+  it('bounds the field WRAPPER so the caption stays beside it', () => {
+    // `Input` wraps itself in `FieldFrame`, which is `w-full`: inside a flex
+    // row that wrapper claims every spare pixel, and the caption is pushed
+    // away — measured in the browser on the recurrence form, "week(s)" sat
+    // 330 px from an 80 px field whose `w-28` looked perfectly correct.
+    // Bounding the WRAPPER is what puts the two side by side; jsdom computes
+    // no layout, so the class is the oracle available here.
+    renderWithProviders(<MeetingsSettings lng="en" />);
+    const input = screen.getByLabelText('meetings.settings.keep_audio_label');
+    const wrapper = input.parentElement!;
+
+    expect(wrapper.className).toContain('w-full');
+    const bounded = input.closest('[data-bounded-field]');
+    expect(bounded, 'the wrapper is not bounded — the caption will drift').not.toBeNull();
+    expect(bounded!.className).toMatch(/\bw-\d/);
+    expect(bounded!.className).not.toContain('w-full');
+  });
+
+  it('still shows the caption it explains', () => {
+    renderWithProviders(<MeetingsSettings lng="en" />);
+    // The caption is a sentence built from two keys; the label is separate.
+    expect(screen.getByText(/keep_audio_max/)).toBeInTheDocument();
+  });
+});

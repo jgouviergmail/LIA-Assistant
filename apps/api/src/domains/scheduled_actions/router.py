@@ -109,6 +109,8 @@ async def week_scheduled_actions(
                         day=cell.day,
                         date=cell.date,
                         slot_at=cell.slot_at,
+                        hour=cell.hour,
+                        minute=cell.minute,
                         outcome=cell.outcome,
                         run_at=cell.run_at,
                         error=cell.error,

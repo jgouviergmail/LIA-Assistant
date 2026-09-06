@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { InfoBox } from '@/components/ui/info-box';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DiagnosisEvidence } from '@/components/settings/DiagnosisEvidence';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import {
   useDiagnosticsIncidentDetail,
@@ -90,7 +90,7 @@ function IncidentRow({
           {t(`settings.admin.diagnostics.status.${incident.status}`)}
         </Badge>
       </div>
-      <SettingsDisclosure
+      <Disclosure
         icon={Stethoscope}
         title={t('settings.admin.diagnostics.diagnosisTitle')}
         onOpenChange={setOpen}
@@ -133,7 +133,7 @@ function IncidentRow({
             {t('settings.admin.diagnostics.noDiagnosisYet')}
           </p>
         )}
-      </SettingsDisclosure>
+      </Disclosure>
     </div>
   );
 }

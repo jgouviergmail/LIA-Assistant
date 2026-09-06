@@ -12,7 +12,9 @@ Flow:
    c. Send via external channels (Telegram, etc.) if enabled
    d. Archive message in conversation
    e. Publish to Redis for SSE real-time
-   f. DELETE reminder from database (one-shot behavior)
+   f. Ask the recurrence what to arm next: an instant RE-ARMS the reminder,
+      `None` DELETES it. A single occurrence answers `None` once consumed, so
+      "delete after notification" is that one rule, not a branch beside it.
 
 Metrics:
 - background_job_duration_seconds{job_name="reminder_notification"}
@@ -24,7 +26,7 @@ import json
 import time
 import uuid
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -36,7 +38,13 @@ from src.core.field_names import (
     FIELD_TOKENS_IN,
     FIELD_TOKENS_OUT,
 )
-from src.domains.agents.prompts.prompt_loader import load_prompt_with_fallback
+from src.core.i18n_dates import format_elapsed, format_short_stamp, neutral_persona
+from src.core.i18n_proactive import ProactiveMessages
+from src.core.recurrence import RecurrenceSpec, describe
+from src.domains.agents.prompts.prompt_loader import (
+    load_prompt,
+    load_prompt_with_fallback,
+)
 
 # CRITICAL: Import Reminder model at module level to register it with SQLAlchemy
 # before any database query is executed. This fixes the mapper initialization error:
@@ -83,59 +91,6 @@ def truncate_for_notification(text: str, max_length: int = 150) -> str:
     return text[: max_length - 3] + "..."
 
 
-def format_elapsed_time(elapsed: timedelta, language: str) -> str:
-    """Format elapsed time in human-readable form."""
-    days = elapsed.days
-    hours = elapsed.seconds // 3600
-    minutes = (elapsed.seconds % 3600) // 60
-
-    if language == "fr":
-        if days > 1:
-            return f"il y a {days} jours"
-        elif days == 1:
-            return "hier"
-        elif hours > 0:
-            return f"il y a {hours} heure{'s' if hours > 1 else ''}"
-        elif minutes > 0:
-            return f"il y a {minutes} minute{'s' if minutes > 1 else ''}"
-        else:
-            return "il y a quelques instants"
-    else:
-        if days > 1:
-            return f"{days} days ago"
-        elif days == 1:
-            return "yesterday"
-        elif hours > 0:
-            return f"{hours} hour{'s' if hours > 1 else ''} ago"
-        elif minutes > 0:
-            return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
-        else:
-            return "just now"
-
-
-def format_creation_datetime(created_at: datetime, user_timezone: str, language: str) -> str:
-    """
-    Format the creation datetime for display in the notification message.
-
-    Args:
-        created_at: When the reminder was created (UTC)
-        user_timezone: User's timezone
-        language: User's language
-
-    Returns:
-        Formatted string like "le 27/12 à 15:30" or "on 12/27 at 3:30 PM"
-    """
-    from zoneinfo import ZoneInfo
-
-    tz = ZoneInfo(user_timezone)
-    local_dt = created_at.astimezone(tz)
-
-    if language == "fr":
-        return f"le {local_dt.strftime('%d/%m')} à {local_dt.strftime('%H:%M')}"
-    else:
-        return f"on {local_dt.strftime('%m/%d')} at {local_dt.strftime('%I:%M %p')}"
-
-
 class ReminderMessageResult:
     """Result of reminder message generation with token usage."""
 
@@ -163,6 +118,7 @@ async def generate_reminder_message(
     memories: list[dict],
     language: str,
     user_id: str | None = None,
+    recurrence: RecurrenceSpec | None = None,
 ) -> ReminderMessageResult:
     """
     Generate a personalized reminder message using LLM.
@@ -175,6 +131,8 @@ async def generate_reminder_message(
         personality: User's personality preference (if any)
         memories: Relevant memories for context
         language: User's language
+        recurrence: The reminder's schedule, so the message can tell a
+            post-it from one occurrence of a series.
         user_id: User UUID string for psyche context injection
 
     Returns:
@@ -184,13 +142,12 @@ async def generate_reminder_message(
 
     from src.infrastructure.llm.factory import get_llm
 
-    # Calculate elapsed time
+    # Six languages, from the central table: these two fragments used to be
+    # `if language == "fr": ... else: <English>`, so four readers out of six
+    # got an English span inside a message otherwise in their own language.
     now = datetime.now(UTC)
-    elapsed = now - created_at
-    elapsed_text = format_elapsed_time(elapsed, language)
-
-    # Format creation datetime for the message
-    created_at_text = format_creation_datetime(created_at, user_timezone, language)
+    elapsed_text = format_elapsed(now - created_at, language)
+    created_at_text = format_short_stamp(created_at, user_timezone, language)
 
     # Get current time in user timezone
     tz = ZoneInfo(user_timezone)
@@ -201,33 +158,35 @@ async def generate_reminder_message(
     if personality and hasattr(personality, "system_prompt"):
         persona_prompt = personality.system_prompt
     else:
-        if language == "fr":
-            persona_prompt = "Tu es un assistant amical et efficace."
-        else:
-            persona_prompt = "You are a friendly and efficient assistant."
+        persona_prompt = neutral_persona(language)
 
     # Build memory context
     memory_section = ""
     if memories:
         memory_lines = [f"- {m.get('content', '')}" for m in memories[:5]]
         memory_context = "\n".join(memory_lines)
-        if language == "fr":
-            memory_section = f"MÉMOIRES PERTINENTES :\n{memory_context}"
-        else:
-            memory_section = f"RELEVANT MEMORIES:\n{memory_context}"
+        header = ProactiveMessages.reminder_memory_header(language)
+        memory_section = header + "\n" + memory_context
 
     # Load prompt template using the standard loader
-    fallback_prompt = f"""{persona_prompt}
 
-It's time to remind the user about: {reminder_content}
-The user asked for this reminder {elapsed_text} ({created_at_text}).
-Generate a short, natural message in {language}.
-"""
+    # What the message may say about its own origin. The SCHEDULING rule has
+    # no branch on "is this recurring"; the WORDING does, and legitimately:
+    # "you asked me three months ago" is right for a post-it and wrong on the
+    # ninetieth morning of a daily reminder.
+    if recurrence is not None and recurrence.freq != "once":
+        origin_context = load_prompt("reminder_origin_recurring", version="v1").format(
+            schedule_human=describe(recurrence, language)
+        )
+    else:
+        origin_context = load_prompt("reminder_origin_once", version="v1").format(
+            created_at_text=created_at_text, elapsed_text=elapsed_text
+        )
 
     template = load_prompt_with_fallback(
         "reminder_prompt",
         version="v1",
-        fallback_content=fallback_prompt,
+        fallback_content=FALLBACK_REMINDER_PROMPT,
     )
 
     # Resolve psyche context before template formatting
@@ -261,6 +220,7 @@ Generate a short, natural message in {language}.
         memory_section=memory_section,
         user_language=language,
         psyche_context=psyche_block,
+        origin_context=origin_context,
     )
     if user_model_block:
         system_prompt += "\n\n" + user_model_block
@@ -316,12 +276,11 @@ Generate a short, natural message in {language}.
             fallback=True,
         )
         # Fallback to simple message with creation date (no token usage)
-        if language == "fr":
-            fallback_msg = f"C'est l'heure ! Rappel ({created_at_text}) : {reminder_content}"
-        else:
-            fallback_msg = f"It's time! Reminder ({created_at_text}): {reminder_content}"
-
-        return ReminderMessageResult(message=fallback_msg)
+        return ReminderMessageResult(
+            message=ProactiveMessages.reminder_fallback_body(
+                created_at_text, reminder_content, language
+            )
+        )
 
 
 async def get_relevant_memories(user_id: str, reminder_content: str) -> list[dict]:
@@ -384,6 +343,26 @@ async def get_relevant_memories(user_id: str, reminder_content: str) -> list[dic
         return []
 
 
+#: The net under `reminder_prompt.txt`, shaped exactly like it: PLACEHOLDERS
+#: filled by the same `.format` call, never an f-string.
+#:
+#: Two defects this shape removes, both measured 2026-09-06 on the previous
+#: inline version:
+#:
+#: - it interpolated the reader's own words into the template, so a reminder
+#:   saying "payer la facture {montant}" turned a brace into a placeholder
+#:   nobody could fill — `KeyError`, three retries, an abandoned occurrence;
+#: - it stated when the reminder was set up unconditionally, contradicting
+#:   `reminder_origin_recurring.txt`. What a message may say about its ORIGIN
+#:   is decided there and arrives as `origin_context`; a net restates nothing.
+FALLBACK_REMINDER_PROMPT = """{persona_prompt}
+
+It's time to remind the user about: {reminder_content}
+{origin_context}
+Generate a short, natural message in {user_language}.
+"""
+
+
 async def process_pending_reminders() -> dict[str, Any]:
     """
     Process pending reminders that are due for notification.
@@ -394,7 +373,8 @@ async def process_pending_reminders() -> dict[str, Any]:
     3. Sends FCM notification
     4. Archives message in conversation
     5. Publishes to Redis for SSE
-    6. DELETES the reminder from database (one-shot behavior)
+    6. Re-arms the reminder on its next instant, or deletes it when the
+       recurrence has none left (`rearm_after` answering `None`)
 
     Returns:
         Stats dict with processed, notified, failed counts
@@ -414,6 +394,7 @@ async def process_pending_reminders() -> dict[str, Any]:
         from src.domains.personalities.service import PersonalityService
         from src.domains.reminders.models import ReminderStatus
         from src.domains.reminders.repository import ReminderRepository
+        from src.domains.reminders.service import next_arming
         from src.domains.users.service import UserService
         from src.infrastructure.cache.redis import get_redis_cache
         from src.infrastructure.database.session import get_db_context
@@ -513,6 +494,7 @@ async def process_pending_reminders() -> dict[str, Any]:
                         memories=memories,
                         language=user.language or settings.default_language,
                         user_id=str(reminder.user_id),
+                        recurrence=reminder.recurrence_spec,
                     )
                     # Always prefix with 🔔 emoji for reminders
                     message = f"🔔 {result.message}"
@@ -661,15 +643,33 @@ async def process_pending_reminders() -> dict[str, Any]:
                             error=str(redis_error),
                         )
 
-                    # 9. DELETE the reminder (one-shot behavior, no need to keep it)
-                    await reminder_repo.delete(reminder)
+                    # 9. Re-arm, or delete when nothing follows.
+                    #
+                    # ONE rule, no branch on "is this recurring": a single
+                    # occurrence answers None here — which IS the historical
+                    # one-shot behaviour — and a recurring one answers its
+                    # next instant.
+                    next_at = next_arming(reminder)
+                    if next_at is None:
+                        await reminder_repo.delete(reminder)
+                    else:
+                        reminder.trigger_at = next_at
+                        reminder.status = ReminderStatus.PENDING.value
+                        # A row that SURVIVES its notification must forget its
+                        # past failures: `retry_count` was never reset because
+                        # the row always died at this point, so a recurring
+                        # reminder would have deleted itself after three
+                        # failures spread over its whole life.
+                        reminder.retry_count = 0
+                        reminder.notification_error = None
 
                     stats["notified"] += 1
 
                     logger.info(
-                        "reminder_notified_and_deleted",
+                        "reminder_notified",
                         reminder_id=str(reminder.id),
                         user_id=str(reminder.user_id),
+                        rearmed_at=next_at.isoformat() if next_at else None,
                         fcm_success=fcm_result.success_count,
                         fcm_failed=fcm_result.failure_count,
                     )
@@ -679,14 +679,26 @@ async def process_pending_reminders() -> dict[str, Any]:
                     reminder.retry_count += 1
 
                     if reminder.retry_count >= MAX_RETRIES:
-                        # Delete failed reminder after max retries
-                        await reminder_repo.delete(reminder)
+                        # Give up on THIS occurrence, not on the series. A
+                        # recurring reminder destroyed by three transient
+                        # failures would take its whole schedule with it; a
+                        # single occurrence has nothing after it and goes, as
+                        # it always did.
+                        next_at = next_arming(reminder)
+                        if next_at is None:
+                            await reminder_repo.delete(reminder)
+                        else:
+                            reminder.trigger_at = next_at
+                            reminder.status = ReminderStatus.PENDING.value
+                            reminder.retry_count = 0
+                            reminder.notification_error = str(e)
                         stats["failed"] += 1
                         logger.error(
-                            "reminder_failed_permanently_deleted",
+                            "reminder_occurrence_abandoned",
                             reminder_id=str(reminder.id),
                             error=str(e),
-                            retry_count=reminder.retry_count,
+                            retry_count=MAX_RETRIES,
+                            rearmed_at=next_at.isoformat() if next_at else None,
                         )
                     else:
                         # Revert to pending for retry

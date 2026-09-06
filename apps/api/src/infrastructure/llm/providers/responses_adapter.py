@@ -36,6 +36,7 @@ from typing import Any
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from src.infrastructure.llm.model_capabilities_cache import is_reasoning_model
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -215,6 +216,24 @@ def create_responses_llm(
         # Reasoning model: the API ignores sampling params; request a reasoning
         # summary so the thinking can be streamed to the UI.
         kwargs["reasoning"] = {"effort": reasoning_effort, "summary": "auto"}
+    elif is_reasoning_model(model):
+        # A reasoning model with no effort asked for. Keying on the EFFORT
+        # alone sent sampling parameters here, because the translator renders
+        # nothing at `provider_default` — and this branch is the one that
+        # actually runs: `_create_with_dedicated_client` is consulted before
+        # the named "reasoning model parameter filter" in
+        # `providers/adapter.py`, which no real OpenAI model ever reaches.
+        #
+        # Measured against the real API on `gpt-5.6-luna` (2026-09-06):
+        # `top_p=0.9` answers 400 *Unsupported parameter*, `top_p=1.0` is
+        # tolerated. Nothing broke only because every configured slot happens
+        # to carry the neutral default; one administrator setting 0.9 would
+        # have taken the slot down on every call.
+        logger.debug(
+            "responses_llm_sampling_omitted",
+            model=model,
+            msg="reasoning model with no effort asked: temperature and top_p omitted",
+        )
     else:
         # Standard model: sampling params apply.
         kwargs["temperature"] = temperature

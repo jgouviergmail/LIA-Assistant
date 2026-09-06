@@ -13,7 +13,7 @@
  * Three rules, and each of them is why the block exists at all:
  *
  * - **folded, and unmounted while folded.** The query fires when the reader
- *   asks, not on a list of forty entries. `SettingsDisclosure` renders its
+ *   asks, not on a list of forty entries. `Disclosure` renders its
  *   children only while open, which is what makes that free;
  * - **a deleted source is a TOMBSTONE, never a resurrection.** The backend
  *   nulls the pointer and keeps the date; this shows "the conversation is
@@ -34,7 +34,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatInstant } from '@/lib/format-instant';
 import { outcomeTone } from '@/lib/status-tone';
@@ -93,7 +93,7 @@ export function ProvenanceDisclosure({ endpoint, locale, onCorrect }: Provenance
   const firstLoad = data === undefined && loading;
 
   return (
-    <SettingsDisclosure
+    <Disclosure
       icon={HelpCircle}
       title={t('provenance.title')}
       onOpenChange={setOpen}
@@ -178,6 +178,6 @@ export function ProvenanceDisclosure({ endpoint, locale, onCorrect }: Provenance
           {t('provenance.correct')}
         </button>
       )}
-    </SettingsDisclosure>
+    </Disclosure>
   );
 }

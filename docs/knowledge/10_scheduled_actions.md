@@ -8,6 +8,18 @@ A scheduled action is a **recurring task** executed automatically by LIA:
 • LIA executes the instruction automatically on chosen days and times
 • Results appear in your conversation + push notification
 
+**🗓️ Schedules you can express:**
+• Every day, or every N days — "*every three days at 7:30am*"
+• Chosen weekdays — "*Monday and Thursday at 8am*", "*every other Tuesday*"
+• Days of the month — "*the 15th*", "*the last day of the month*"
+• An nth weekday — "*the 2nd Tuesday of each month*"
+• A yearly date — "*every 14 July at 11am*"
+• A step inside a window — "*every two hours between 9am and 5pm*"
+• An end — "*until 30 September*", or "*the next three times*"
+
+The days are enumerated rather than handed to a cron, so a daylight-saving
+change never skips one.
+
 **📌 Examples:**
 • "*Search today's weather*" — every day at 8am
 • "*Search the latest 5 AI news*" — Mon, Wed, Fri at 7:30pm

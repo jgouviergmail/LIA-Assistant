@@ -75,11 +75,9 @@ scheduled_actions
 ├── user_id (UUID, FK users.id CASCADE)
 ├── title (String 200)
 ├── action_prompt (Text)
-├── days_of_week (ARRAY SmallInteger) -- ISO: 1=Lun..7=Dim
-├── trigger_hour (SmallInteger, 0-23)
-├── trigger_minute (SmallInteger, 0-59)
+├── recurrence (JSONB) -- RecurrenceSpec : quels jours, quels moments
 ├── user_timezone (String 50, default "Europe/Paris")
-├── next_trigger_at (DateTime TZ, UTC) -- Computed
+├── next_trigger_at (DateTime TZ, UTC, nullable) -- Calcule ; NULL = plus rien
 ├── is_enabled (Boolean, default true)
 ├── status (String 20: active|executing|error)
 ├── last_executed_at (DateTime TZ, nullable)
@@ -89,7 +87,19 @@ scheduled_actions
 ├── created_at, updated_at (DateTime TZ)
 ```
 
-**Index partiel** : `ix_scheduled_actions_due` sur `next_trigger_at WHERE is_enabled=true AND status='active'`
+**Index partiel** : `ix_scheduled_actions_due` sur `next_trigger_at WHERE is_enabled=true AND status='active' AND next_trigger_at IS NOT NULL`
+
+**La planification tient dans une colonne.** `recurrence` porte un
+`RecurrenceSpec` (`src/core/recurrence/spec.py`) : les jours calendaires
+servis (`freq`, `interval`, `anchor_date`, `byweekday`, `bymonthday`,
+`nth_weekday`, `bymonth`), les moments a l'interieur (`times`), et la fin de
+serie (`end`). Il remplace trois colonnes cron qui ne savaient pas decrire une
+routine declenchee deux fois par jour.
+
+`next_trigger_at` est **nullable** depuis cette refonte : NULL signifie qu'il
+n'y a plus rien apres — serie epuisee, occurrence unique consommee. En SQL
+`NULL <= now()` vaut UNKNOWN, donc le scrutin exclut la ligne par
+construction, et non par un filtre qu'il faudrait penser a ecrire.
 
 ### API Endpoints
 

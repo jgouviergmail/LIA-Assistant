@@ -11,6 +11,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { ScheduledActionCreate } from '@/hooks/useScheduledActions';
+
+/** The routine this file's fixtures assume, on the shared factory. */
+function action(over: Partial<ScheduledAction> = {}): ScheduledAction {
+  return makeScheduledAction({ id: 'a1', ...over });
+}
+import { makeScheduledAction } from '@/__tests__/factories';
+import type { ScheduledAction } from '@/hooks/useScheduledActions';
 
 import { renderHook, act } from '@/__tests__/test-utils';
 import {
@@ -32,7 +40,7 @@ import {
   EXECUTING_REFRESH_INTERVAL_MS,
 } from '../useScheduledActions';
 import type {
-  ScheduledAction,
+
   ScheduledActionListResponse,
   ScheduledActionWeekResponse,
 } from '@/hooks/useScheduledActions';
@@ -40,32 +48,6 @@ import type {
 const ENDPOINT = '/scheduled-actions';
 const WEEK_ENDPOINT = '/scheduled-actions/week';
 
-function action(over: Partial<ScheduledAction> = {}): ScheduledAction {
-  return {
-    id: 'a1',
-    user_id: 'u1',
-    title: 'Morning brief',
-    action_prompt: 'Summarise my day',
-    days_of_week: [1],
-    trigger_hour: 8,
-    trigger_minute: 0,
-    user_timezone: 'Europe/Paris',
-    trigger_kind: 'time',
-    condition_config: null,
-    requires_approval: false,
-    next_trigger_at: '2026-07-20T06:00:00Z',
-    is_enabled: true,
-    status: 'active',
-    last_executed_at: null,
-    execution_count: 0,
-    consecutive_failures: 0,
-    last_error: null,
-    schedule_display: 'Mon - 08:00',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    ...over,
-  };
-}
 
 /** The five mutations, handed out in the fixed order the hook declares them. */
 const mutate = {
@@ -94,6 +76,8 @@ function weekPayload(): ScheduledActionWeekResponse {
             day: 1,
             date: '2026-07-20',
             slot_at: '2026-07-20T06:00:00Z',
+          hour: 8,
+          minute: 0,
             outcome: 'success',
             run_at: '2026-07-20T06:00:04Z',
             error: null,
@@ -168,12 +152,20 @@ describe('useScheduledActions — reading the list', () => {
 });
 
 describe('useScheduledActions — creating', () => {
-  const payload = {
+  const payload: ScheduledActionCreate = {
     title: 'Evening recap',
     action_prompt: 'Recap',
-    days_of_week: [5],
-    trigger_hour: 19,
-    trigger_minute: 30,
+    recurrence: {
+          freq: 'weekly',
+          interval: 1,
+          anchor_date: '2026-01-05',
+          byweekday: [1],
+          bymonthday: [],
+          bymonth: [],
+          nth_weekday: null,
+          times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
+          end: { kind: 'never', on_date: null, after_count: null },
+        },
   };
 
   it('posts to the collection and appends the created row', async () => {
@@ -295,9 +287,17 @@ describe('useScheduledActions — updaters on an empty cache', () => {
         h.createAction({
           title: 't',
           action_prompt: 'p',
-          days_of_week: [1],
-          trigger_hour: 8,
-          trigger_minute: 0,
+          recurrence: {
+          freq: 'weekly',
+          interval: 1,
+          anchor_date: '2026-01-05',
+          byweekday: [1],
+          bymonthday: [],
+          bymonth: [],
+          nth_weekday: null,
+          times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
+          end: { kind: 'never', on_date: null, after_count: null },
+        },
         }),
     ],
     [
@@ -382,9 +382,17 @@ describe('useScheduledActions — the week (ADR-265)', () => {
         h.createAction({
           title: 't',
           action_prompt: 'p',
-          days_of_week: [1],
-          trigger_hour: 8,
-          trigger_minute: 0,
+          recurrence: {
+          freq: 'weekly',
+          interval: 1,
+          anchor_date: '2026-01-05',
+          byweekday: [1],
+          bymonthday: [],
+          bymonth: [],
+          nth_weekday: null,
+          times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
+          end: { kind: 'never', on_date: null, after_count: null },
+        },
         }),
     ],
     [
@@ -412,9 +420,17 @@ describe('useScheduledActions — the week (ADR-265)', () => {
       await result.current.createAction({
         title: 't',
         action_prompt: 'p',
-        days_of_week: [1],
-        trigger_hour: 8,
-        trigger_minute: 0,
+        recurrence: {
+          freq: 'weekly',
+          interval: 1,
+          anchor_date: '2026-01-05',
+          byweekday: [1],
+          bymonthday: [],
+          bymonth: [],
+          nth_weekday: null,
+          times: { mode: 'at', at: [{ hour: 8, minute: 0 }] },
+          end: { kind: 'never', on_date: null, after_count: null },
+        },
       });
     });
 

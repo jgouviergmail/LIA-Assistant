@@ -15,6 +15,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.recurrence import RecurrenceSpec
 from src.domains.scheduled_actions.models import (
     ScheduledAction,
     ScheduledActionRun,
@@ -42,14 +43,27 @@ async def _make_user(db: AsyncSession) -> uuid.UUID:
     return user.id
 
 
+#: The routine every case here hangs off: weekdays at 08:00, one run a day.
+#: Built through `RecurrenceSpec` rather than a hand-written dict, so a change
+#: to the vocabulary breaks this file loudly instead of storing a shape the
+#: model can no longer read.
+WEEKDAYS_AT_8 = RecurrenceSpec.model_validate(
+    {
+        "freq": "weekly",
+        "interval": 1,
+        "anchor_date": "2026-03-09",
+        "byweekday": [1, 2, 3, 4, 5],
+        "times": {"mode": "at", "at": [{"hour": 8, "minute": 0}]},
+    }
+)
+
+
 async def _make_action(db: AsyncSession, user_id: uuid.UUID) -> uuid.UUID:
     action = ScheduledAction(
         user_id=user_id,
         title="Morning",
         action_prompt="brief me",
-        days_of_week=[1, 2, 3, 4, 5],
-        trigger_hour=8,
-        trigger_minute=0,
+        recurrence=WEEKDAYS_AT_8.model_dump(mode="json"),
         user_timezone="Europe/Paris",
         next_trigger_at=T0,
     )

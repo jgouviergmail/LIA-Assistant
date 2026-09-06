@@ -663,6 +663,10 @@ def format_reminder_item(
         id=str(reminder.id),
         content=reminder.content,
         trigger_at_local=trigger_local,
+        # Cancelling from the card deletes the ROW, so for a repeating reminder
+        # it removes every future occurrence. The card must be able to say so
+        # before the reader confirms.
+        repeats=reminder.recurrence_spec.freq != "once",
     )
 
 

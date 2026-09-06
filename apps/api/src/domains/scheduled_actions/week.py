@@ -1,5 +1,9 @@
 """The current week of every routine, cell by cell (ADR-265).
 
+A cell is one INSTANT, not one day: a routine may now fire several times a
+day, and keying by day would keep only the first. Each cell carries its own
+local hour so the client places a chip without ever re-reading a schedule.
+
 Pure: routines and run rows in, one ``ActionWeek`` per routine out. The
 service fetches, the router serialises, and everything a test wants to pin —
 which run colours which cell, what "today" is in Auckland when the server is
@@ -8,7 +12,7 @@ still on Sunday — lives here without a database.
 The rule, in one sentence: **a cell takes the LAST run whose ``slot_at``
 equals the week's instant for that day.** Equality, never a window: the
 instants come from the same engine that armed the runs
-(:func:`~src.domains.scheduled_actions.schedule_helpers.week_slots`), so a
+(:func:`~src.core.recurrence.schedule.week_slots`), so a
 schedule change moves them and old runs stop matching by construction. A
 rehearsal (``slot_at`` NULL) colours nothing.
 """
@@ -21,13 +25,13 @@ from datetime import date, datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from src.core.recurrence import week_slots, week_start
 from src.core.time_utils import now_utc
 from src.domains.scheduled_actions.models import (
     ScheduledAction,
     ScheduledActionRun,
     ScheduledRunOutcome,
 )
-from src.domains.scheduled_actions.schedule_helpers import week_slots, week_start
 
 
 @dataclass(frozen=True)
@@ -39,7 +43,12 @@ class WeekCell:
     date: date
     """The local calendar date."""
     slot_at: datetime
-    """The instant the routine fires at that day (UTC)."""
+    """The instant the routine fires at (UTC)."""
+    hour: int
+    """Local hour of that instant — the grid row, so the client never re-reads
+    a schedule to place a chip."""
+    minute: int
+    """Local minute of that instant."""
     outcome: ScheduledRunOutcome | None
     """How the LAST run serving this slot ended; ``None`` = no run served it."""
     run_at: datetime | None
@@ -134,13 +143,7 @@ def build_week(
         tz = ZoneInfo(action.user_timezone)
         monday = week_start(tz, now=reference)
         cells: list[WeekCell] = []
-        for slot in week_slots(
-            action.days_of_week,
-            action.trigger_hour,
-            action.trigger_minute,
-            action.user_timezone,
-            now=reference,
-        ):
+        for slot in week_slots(action.recurrence_spec, action.user_timezone, now=reference):
             local = slot.astimezone(tz)
             run = latest.get((action.id, slot))
             cells.append(
@@ -148,6 +151,8 @@ def build_week(
                     day=local.isoweekday(),
                     date=local.date(),
                     slot_at=slot,
+                    hour=local.hour,
+                    minute=local.minute,
                     outcome=run.outcome if run is not None else None,
                     run_at=run.started_at if run is not None else None,
                     error=run.error if run is not None else None,

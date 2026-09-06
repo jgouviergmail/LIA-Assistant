@@ -27,7 +27,7 @@ function formatInstant(lng: string, iso: string): string {
 
 /**
  * Headerless on purpose: the section shell folds this block behind a
- * `SettingsDisclosure` whose summary already carries the title, the hint and
+ * `Disclosure` whose summary already carries the title, the hint and
  * the count — a second heading inside would say the same thing twice.
  */
 export function PeerAccessLogBlock({ lng, entries }: PeerAccessLogBlockProps) {

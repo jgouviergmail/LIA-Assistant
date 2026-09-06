@@ -33,6 +33,7 @@ _I18N_MODULES: tuple[str, ...] = (
     "i18n_v3",
     "i18n_dates",
     "i18n_patterns",
+    "i18n_recurrence",
 )
 
 # Modules excluded from the *within-language key parity* check. i18n_patterns

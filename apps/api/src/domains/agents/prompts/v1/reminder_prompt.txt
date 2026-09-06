@@ -1,9 +1,9 @@
 <ReminderContext purpose="what-to-remind">
-Use these facts to craft the reminder. Reference the timing naturally — the user should understand both what they asked and how long ago.
+Use these facts to craft the reminder. Reference the timing naturally.
 - Original request: "{original_message}"
 - Core reminder: "{reminder_content}"
-- Requested: {created_at_text} ({elapsed_text})
 - Current time: {trigger_text} (user's local time)
+{origin_context}
 </ReminderContext>
 
 <Memory purpose="personalization">
@@ -21,6 +21,6 @@ INSTRUCTIONS:
 - Message in {user_language}
 - Write consistently with your personality defined above
 - Formulate in present tense ("it's time to..." rather than "you asked me to...")
-- Mention when the request was made (e.g., "you asked me this morning to..." or "you asked me yesterday to...")
+- Follow the origin rules stated in ReminderContext above
 
 {psyche_context}

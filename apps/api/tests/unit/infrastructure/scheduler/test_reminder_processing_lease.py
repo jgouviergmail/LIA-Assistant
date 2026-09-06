@@ -26,6 +26,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.recurrence import RecurrenceSpec
 from src.domains.reminders.models import ReminderStatus
 from src.infrastructure.scheduler.reminder_notification import (
     MAX_RETRIES,
@@ -35,8 +36,36 @@ from src.infrastructure.scheduler.reminder_notification import (
 pytestmark = pytest.mark.unit
 
 
+#: The default schedule of these doubles: a single occurrence, which is what
+#: every reminder was before the recurrence lot. `next_arming` answers None for
+#: it, so the historical "delivered, therefore deleted" outcome is reproduced
+#: here BY THE RULE, not by a branch that reads "one-shot".
+ONCE = RecurrenceSpec.model_validate(
+    {
+        "freq": "once",
+        "interval": 1,
+        "anchor_date": "2026-09-06",
+        "times": {"mode": "at", "at": [{"hour": 9, "minute": 0}]},
+    }
+)
+
+#: Every morning at 09:00 — the schedule a post-it could never carry.
+DAILY = RecurrenceSpec.model_validate(
+    {
+        "freq": "daily",
+        "interval": 1,
+        "anchor_date": "2026-09-06",
+        "times": {"mode": "at", "at": [{"hour": 9, "minute": 0}]},
+    }
+)
+
+
 def _reminder(**overrides: Any) -> SimpleNamespace:
-    """A locked reminder, exactly as the repository hands it over."""
+    """A locked reminder, exactly as the repository hands it over.
+
+    `recurrence_spec` is the model's own property; the double exposes it so
+    the scheduler reads the same attribute it reads in production.
+    """
     base: dict[str, Any] = {
         "id": uuid4(),
         "user_id": uuid4(),
@@ -45,6 +74,8 @@ def _reminder(**overrides: Any) -> SimpleNamespace:
         "created_at": datetime.now(UTC) - timedelta(hours=2),
         "trigger_at": datetime.now(UTC) - timedelta(minutes=1),
         "user_timezone": "Europe/Paris",
+        "recurrence": ONCE.model_dump(mode="json"),
+        "recurrence_spec": ONCE,
         # The lease the repository just took.
         "status": ReminderStatus.PROCESSING.value,
         "retry_count": 0,
@@ -195,8 +226,13 @@ class TestLeaseIsAlwaysResolved:
 
 
 class TestNominalDelivery:
-    async def test_a_sent_reminder_is_deleted(self) -> None:
-        """One-shot semantics: delivery is the end of the row's life."""
+    async def test_a_sent_one_shot_reminder_is_deleted(self) -> None:
+        """The historical behaviour, now reached by the general rule.
+
+        `next_arming` answers None for a consumed single occurrence, and None
+        is what the scheduler reads as "delete". Nothing in the loop asks
+        whether the reminder repeats.
+        """
         reminder = _reminder()
         user = _user(id=reminder.user_id)
         harness = _Harness([reminder], user)
@@ -235,7 +271,7 @@ class TestFailureRetryLadder:
         assert reminder.notification_error == "fcm down"
         harness.repo.delete.assert_not_awaited()
 
-    async def test_the_last_allowed_failure_drops_the_reminder(self) -> None:
+    async def test_the_last_allowed_failure_drops_a_one_shot_reminder(self) -> None:
         """Past MAX_RETRIES the row is deleted rather than retried forever."""
         reminder = _reminder(retry_count=MAX_RETRIES - 1)
         user = _user(id=reminder.user_id)
@@ -273,3 +309,68 @@ class TestBatchIsolation:
         assert stats["notified"] == 1
         assert failing.status == ReminderStatus.PENDING.value
         harness.repo.delete.assert_awaited_once_with(healthy)
+
+
+class TestARecurringReminderSurvivesItsOccurrence:
+    """The whole point of the lot: the row outlives the notification.
+
+    Each of these was a defect waiting to happen. The re-arm is the feature;
+    the two others are damage the feature would have caused.
+    """
+
+    async def test_a_sent_recurring_reminder_is_rearmed_not_deleted(self) -> None:
+        reminder = _reminder(recurrence=DAILY.model_dump(mode="json"), recurrence_spec=DAILY)
+        user = _user(id=reminder.user_id)
+        harness = _Harness([reminder], user)
+        previous = reminder.trigger_at
+
+        stats = await _run(harness)
+
+        assert stats["notified"] == 1
+        harness.repo.delete.assert_not_awaited()
+        assert reminder.status == ReminderStatus.PENDING.value
+        assert reminder.trigger_at > previous
+
+    async def test_delivery_clears_the_failures_of_earlier_occurrences(self) -> None:
+        """`retry_count` was NEVER reset, because the row always died here.
+
+        Left alone, a reminder firing every morning would accumulate three
+        failures over months and then delete itself — a schedule destroyed by
+        transient errors that each recovered on the next tick.
+        """
+        reminder = _reminder(
+            recurrence=DAILY.model_dump(mode="json"),
+            recurrence_spec=DAILY,
+            retry_count=MAX_RETRIES - 1,
+            notification_error="fcm down last week",
+        )
+        user = _user(id=reminder.user_id)
+        harness = _Harness([reminder], user)
+
+        await _run(harness)
+
+        assert reminder.retry_count == 0
+        assert reminder.notification_error is None
+
+    async def test_exhausted_retries_abandon_the_occurrence_not_the_series(self) -> None:
+        """Three failures cost one morning, not the whole schedule."""
+        reminder = _reminder(
+            recurrence=DAILY.model_dump(mode="json"),
+            recurrence_spec=DAILY,
+            retry_count=MAX_RETRIES - 1,
+        )
+        user = _user(id=reminder.user_id)
+        harness = _Harness([reminder], user)
+        harness.fcm.send_reminder_notification = AsyncMock(side_effect=RuntimeError("fcm down"))
+        previous = reminder.trigger_at
+
+        stats = await _run(harness)
+
+        assert stats["failed"] == 1
+        harness.repo.delete.assert_not_awaited()
+        assert reminder.trigger_at > previous
+        assert reminder.status == ReminderStatus.PENDING.value
+        # The reader can still see WHY the occurrence was abandoned.
+        assert reminder.notification_error == "fcm down"
+        # …but the counter starts again, or the next failure would be the last.
+        assert reminder.retry_count == 0

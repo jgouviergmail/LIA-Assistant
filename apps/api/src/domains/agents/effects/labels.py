@@ -112,6 +112,10 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "apply_labels_tool": _count("label_ids", "labels", "message_ids"),
     "remove_labels_tool": _count("label_ids", "labels", "message_ids"),
     "complete_task_tool": _target("title", "task_title", "task_id"),
+    # A reminder created by conversation WRITES; it declared  and was
+    # therefore recorded nowhere until 2026-09-06 (ADR-268). The label names
+    # what the reader asked to be reminded of, never the whole request.
+    "create_reminder_tool": _target("content", "original_message"),
     "toggle_scheduled_action_tool": _target("name", "action_name", "action_id"),
     "browser_task_tool": _target("task", "instruction", "url"),
     "activate_skill_tool": _target("skill_name", "name", "skill_id"),

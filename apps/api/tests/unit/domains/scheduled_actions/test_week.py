@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 
+from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
 from src.domains.scheduled_actions.models import ScheduledRunOutcome
 from src.domains.scheduled_actions.week import (
     build_week,
@@ -25,12 +26,20 @@ WED = datetime(2026, 8, 5, 6, 0, tzinfo=UTC)
 FRI = datetime(2026, 8, 7, 6, 0, tzinfo=UTC)
 
 
+def _weekly(days: tuple[int, ...] = (1, 3, 5), hour: int = 8, minute: int = 0) -> RecurrenceSpec:
+    """A routine's schedule, in the shape the column now stores."""
+    return RecurrenceSpec(
+        freq="weekly",
+        times=DailyTimes(mode="at", at=(TimeOfDay(hour=hour, minute=minute),)),
+        anchor_date=date(2026, 1, 5),
+        byweekday=tuple(sorted(days)),
+    )
+
+
 def _action(**over: Any) -> SimpleNamespace:
     base = {
         "id": uuid.uuid4(),
-        "days_of_week": [1, 3, 5],
-        "trigger_hour": 8,
-        "trigger_minute": 0,
+        "recurrence_spec": _weekly((1, 3, 5), 8, 0),
         "user_timezone": "Europe/Paris",
         "is_enabled": True,
     }
@@ -106,7 +115,7 @@ class TestCells:
 
     def test_a_run_from_before_a_schedule_change_no_longer_matches(self) -> None:
         # The routine ran at 08:00 Monday; the user then moved it to 09:00.
-        action = _action(trigger_hour=9)
+        action = _action(recurrence_spec=_weekly((1, 3, 5), 9, 0))
         [week] = build_week([action], [_run(action, MON)], now=NOW)
         assert all(c.outcome is None for c in week.cells)
 
@@ -144,8 +153,10 @@ class TestToday:
     def test_today_is_read_in_the_routines_zone_not_the_servers(self) -> None:
         # Sunday 14:00 UTC: 16:00 Sunday in Paris, 02:00 Monday in Auckland.
         sunday_night = datetime(2026, 8, 9, 14, 0, tzinfo=UTC)
-        paris = _action(days_of_week=[1, 2, 3, 4, 5, 6, 7])
-        auckland = _action(days_of_week=[1, 2, 3, 4, 5, 6, 7], user_timezone="Pacific/Auckland")
+        paris = _action(recurrence_spec=_weekly((1, 2, 3, 4, 5, 6, 7)))
+        auckland = _action(
+            recurrence_spec=_weekly((1, 2, 3, 4, 5, 6, 7)), user_timezone="Pacific/Auckland"
+        )
 
         weeks = {w.action_id: w for w in build_week([paris, auckland], [], now=sunday_night)}
 

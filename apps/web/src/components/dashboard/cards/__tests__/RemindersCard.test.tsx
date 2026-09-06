@@ -166,3 +166,33 @@ describe('where the keyboard lands once the reminder is gone', () => {
     });
   });
 });
+
+describe('cancelling a reminder that repeats', () => {
+  it('says the whole SERIES goes, not one occurrence', async () => {
+    // The card shows one line, so cancelling looks like removing one firing.
+    // It deletes the row: every future occurrence goes with it.
+    const { user } = renderWithProviders(
+      <RemindersCard {...props} section={section([reminder({ repeats: true })])} />
+    );
+
+    await openCardActions(user);
+    await user.click(screen.getByRole('menuitem', { name: CANCEL }));
+
+    expect(
+      await screen.findByText('dashboard.briefing.actions.cancel_reminder_series_description')
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the plain wording for a single occurrence', async () => {
+    const { user } = renderWithProviders(
+      <RemindersCard {...props} section={section([reminder()])} />
+    );
+
+    await openCardActions(user);
+    await user.click(screen.getByRole('menuitem', { name: CANCEL }));
+
+    expect(
+      await screen.findByText('dashboard.briefing.actions.cancel_reminder_description')
+    ).toBeInTheDocument();
+  });
+});

@@ -1824,6 +1824,31 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def reminder_created_recurring(schedule: str, language: SupportedLanguage = "fr") -> str:
+        """Success - a REPEATING reminder was created.
+
+        Not `reminder_created`: naming the next instant of a schedule reads as
+        a one-off. Someone who said "every morning at 8" and is told "set for
+        tomorrow 08:00" has no way to know the rest was understood.
+
+        Args:
+            schedule: The schedule in the reader's own words (`describe`).
+            language: Backend-canonical language code.
+
+        Returns:
+            The localized confirmation.
+        """
+        messages = {
+            "fr": f"🔔 Rappel récurrent créé : {schedule}",
+            "en": f"🔔 Repeating reminder set: {schedule}",
+            "es": f"🔔 Recordatorio periódico creado: {schedule}",
+            "de": f"🔔 Wiederkehrende Erinnerung erstellt: {schedule}",
+            "it": f"🔔 Promemoria ricorrente creato: {schedule}",
+            "zh-CN": f"🔔 已创建重复提醒：{schedule}",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def reminder_cancelled(content: str, language: SupportedLanguage = "fr") -> str:
         """Success - reminder cancelled."""
         messages = {

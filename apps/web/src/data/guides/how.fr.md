@@ -6,7 +6,7 @@
 
 **Version** : 4.9
 **Date** : 2026-08-23
-**Application** : LIA v1.42.4
+**Application** : LIA v1.43.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 537 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 266 ADRs, ~24 454 tests collectés par pytest sur 1 488 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 267 ADRs, ~24 454 tests collectés par pytest sur 1 488 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -87,7 +87,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | 24 454 collectés par pytest sur 1 488 fichiers de test + 7 404 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 755, dont 32 partagées via conftest |
 | Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 266 |
+| ADRs (Architecture Decision Records) | 267 |
 | Métriques Prometheus | 486 définitions |
 | Dashboards Grafana | 26 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -825,11 +825,17 @@ Node LangGraph post-exécution : après chaque tour actionnable, l'initiative an
 
 Le même nœud émet aussi jusqu'à 3 **puces de suivi** — de courtes demandes que l'utilisateur enverra probablement ensuite, formulées dans sa langue et ancrées dans les résultats visibles. Une sanitisation côté serveur (clamp, dédoublonnage insensible à la casse, plafond dur) et un handoff pop-once par run les portent à la fois dans le chunk SSE `done` et dans les métadonnées du message archivé : les puces s'affichent en direct et survivent à un rechargement ; en taper une ne fait que préremplir la saisie.
 
-### 16.3. Actions planifiées
+### 16.3. Actions planifiées et rappels
 
-APScheduler avec leader election Redis (SETNX, TTL 120s, recheck 5s). `FOR UPDATE SKIP LOCKED` pour isolation. Auto-approve des plans (`plan_approved=True` injecté dans le state). Auto-disable après 5 échecs consécutifs. Retry sur erreurs transitoires.
+APScheduler avec leader election Redis (SETNX, TTL 120s, recheck 5s) pour la boucle, `FOR UPDATE SKIP LOCKED` pour l'isolation, auto-approve des plans, auto-disable après 5 échecs consécutifs.
 
-Chaque tick se termine par une ligne dans un **historique des exécutions**, écrite au résultat dans la transaction du marquage — cinq issues, une par sortie de l'exécuteur, dans un savepoint et jamais bloquante pour la routine. La semaine en cours de chaque routine se calcule côté serveur avec le moteur cron qui arme les runs : une cellule prend la dernière exécution dont l'instant servi est **égal** à celui du créneau, jamais une fenêtre de tolérance, si bien qu'un changement d'horaire remet la grille à blanc par construction et que le navigateur ne relit jamais le cron — il peint. Le trou d'heure d'été ouvert à minuit, que le moteur sautait pour toute une journée dans six fuseaux, est réparé en un seul point de lecture, prouvé par un différentiel sur toutes les zones IANA.
+**Une récurrence est un produit** : quels jours du calendrier × quels moments de la journée. Un seul moteur (`src/core/recurrence`) répond pour les routines comme pour les rappels — `dateutil.rrule` énumère les jours, chaque moment est localisé avec `fold=0`, et la série est ordonnée puis dédoublonnée par instant, car deux horloges murales tombent sur le même instant au passage à l'heure d'hiver. Les jours ne sont jamais délégués à un cron : un `IntervalTrigger` saute la journée entière quand le décalage change à minuit local — 142 exécutions par an dans 73 fuseaux, sans trace dans les journaux.
+
+**Le rappel qui ne sonne qu'une fois n'est pas une exception, c'est le cas général** : interrogé sur ce qu'il faut armer ensuite, `rearm_after` répond `None` pour une occurrence unique consommée, et `None` signifie « supprimer ». Aucune branche nulle part ne demande « est-ce que ça se répète ». Conséquence de typage : le `trigger_at` d'un rappel reste NOT NULL — un rappel sans avenir est effacé — là où le `next_trigger_at` d'une routine est nullable, sa configuration étant la chose de valeur.
+
+Les plafonds sont **injectés par le consommateur**, jamais lus dans le modèle : 12 déclenchements par jour pour une routine, 48 pour un rappel. Chaque outil de conversation publie les bornes qu'il applique (ADR-184), donc un nombre hors bornes est réparé par le clamp du planificateur au lieu d'être rapporté comme un défaut.
+
+Chaque tick se termine par une ligne dans un **historique des exécutions**, écrite au résultat dans la transaction du marquage — cinq issues, une par sortie de l'exécuteur, dans un savepoint et jamais bloquante pour la routine. La semaine en cours se calcule côté serveur avec le moteur qui arme les runs : une cellule prend la dernière exécution dont l'instant servi est **égal** à celui du créneau, jamais une fenêtre de tolérance, si bien qu'un changement d'horaire remet la grille à blanc par construction et que le navigateur ne relit jamais le planning — il peint.
 
 ### 16.4. Une notification push qui aboutit à une décision
 
@@ -1368,7 +1374,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-266 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+267 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1514,7 +1520,7 @@ Un `.xlsx` est une archive : la garde anti-bombe zip est celle de l'importeur de
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 266 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~24 454 tests sur 1 488 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 267 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~24 454 tests sur 1 488 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
@@ -1631,4 +1637,4 @@ Le visage du compagnon choisissait son expression de fin de tour dans l'émotion
 **Chaque unité payante est comptée, et montrée.** Une réunion dépense de l'audio chez le moteur de transcription et des tokens chez le modèle de synthèse, passes de condensation et reconstructions comprises ; les deux rejoignent la comptabilité de la plateforme comme tout échange — l'audio par les statistiques de reconnaissance distante, les tokens sous un `run_id` que le message archivé porte, si bien que l'historique se joint au journal des tokens exactement comme pour toute notification proactive. La ligne garde la dépense propre au compte rendu pour que la page affiche le total exact et sa décomposition, la carte dit les deux unités et leur somme, et un modèle sans tarif administré donne `null` : un prix inconnu n'est pas un prix nul. La même honnêteté traverse le compte rendu lui-même — une lacune est dite, jamais comblée ; un interlocuteur non nommé reste S2 ; une proposition restée ouverte n'est pas une décision.
 
 **Le format du compte rendu est devenu une bibliothèque, et le choix a un seul lieu.** Trente modèles intégrés vivent dans le code, leurs mots dans une donnée i18n, et une assertion au démarrage refuse de booter si un nom manque dans l'une des six langues : ce qu'un validateur peut rejeter, le catalogue ne peut pas le livrer. Un modèle est désigné par une référence — `builtin:<clé>` ou `user:<uuid>` — que réunions, préférences et requêtes échangent à la place d'une ligne, si bien qu'un intégré n'a pas besoin d'exister en base et qu'un modèle supprimé laisse une référence dont les lecteurs savent se replier sur l'instantané conservé. Le choix suit **une seule précédence** : la référence portée par la réunion, puis le défaut de la préférence, puis le modèle de langage qui lit un extrait de transcription et choisit au-dessus d'un seuil de confiance, puis l'intégré par défaut ; chaque issue est comptée et écrite sur la ligne avec la raison énoncée, de sorte que la page affiche un fait et non une reconstruction. Une cinquième sorte de section rend la transcription elle-même : elle ne tient pas dans une réponse — le slot de synthèse sort au plus huit mille tokens — donc elle est réécrite par parties, chacune bornée par la fenêtre de sortie effective, un index manquant scindant la partie une fois et une réponse trop courte étant retentée une fois. Réécrire un compte rendu déjà rendu emprunte la régénération durable quand il s'agit de remplacer, et crée une ligne dérivée pointant sa source quand il s'agit d'un nouveau compte rendu — jamais une copie : la transcription est la même, le compte rendu non. Le même souci d'ordre gouverne les documents des espaces de connaissances : `rag_chunks.space_id` étant dénormalisé et lu par la recherche, un déplacement écrit la ligne et ses morceaux, valide, **puis** déplace le fichier ; un renommage qui échoue remet les deux en arrière et le rapporte pour ce document seul, et un lot ne s'interrompt jamais pour un élément — chaque identifiant revient fait ou ignoré avec son code.
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 266 ADRs, et du changelog (v1.0 à v1.42.4). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 267 ADRs, et du changelog (v1.0 à v1.43.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

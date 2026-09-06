@@ -331,6 +331,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'automation_tracking',
     gate: { kind: 'always' },
   },
+  reminders: {
+    titleKey: 'reminders.settings.title',
+    descriptionKey: 'reminders.settings.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.reminders`,
+    group: 'automation_tracking',
+    gate: { kind: 'always' },
+  },
   journals: {
     titleKey: 'journals.title',
     descriptionKey: 'journals.description',

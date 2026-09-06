@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { SCHEDULED_ACTION_TITLE_MAX_LENGTH } from '../constants';
+import { makeMultiSlotAction, makeScheduledAction } from '@/__tests__/factories';
 import type { ScheduledAction } from '@/hooks/useScheduledActions';
 import {
   buildTimelineGrid,
@@ -22,8 +23,8 @@ import {
   routineZones,
   rovingTarget,
   timelineKey,
-  triggerTimeLabel,
   weekDates,
+  chipKey,
 } from '../scheduled-actions';
 
 describe('duplicateTitle', () => {
@@ -119,61 +120,30 @@ describe('the title bound against the schema that enforces it', () => {
   });
 });
 
-function routine(over: Partial<ScheduledAction> = {}): ScheduledAction {
-  return {
-    id: 'r',
-    user_id: 'u1',
-    title: 'Routine',
-    action_prompt: 'do',
-    days_of_week: [1],
-    trigger_hour: 8,
-    trigger_minute: 0,
-    user_timezone: 'Europe/Paris',
-    trigger_kind: 'time',
-    condition_config: null,
-    requires_approval: false,
-    next_trigger_at: '2026-08-03T06:00:00Z',
-    is_enabled: true,
-    status: 'active',
-    last_executed_at: null,
-    execution_count: 0,
-    consecutive_failures: 0,
-    last_error: null,
-    schedule_display: 'Mon 08:00',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    ...over,
-  };
-}
 
 const ADVERSARIAL = [
-  routine({
+  makeScheduledAction({
     id: 'z',
     title: 'Veille IA',
-    days_of_week: [1, 3, 5],
-    trigger_hour: 19,
-    trigger_minute: 30,
+    times_of_day: ['19:30'],
   }),
-  routine({ id: 'b', title: 'météo', days_of_week: [1, 2, 3, 4, 5, 6, 7], trigger_hour: 8 }),
-  routine({
+  makeScheduledAction({ id: 'b', title: 'météo', times_of_day: ['08:00'] }),
+  makeScheduledAction({
     id: 'a',
     title: 'Mails',
-    days_of_week: [1, 2, 3, 4, 5],
-    trigger_hour: 8,
+    times_of_day: ['08:00'],
     is_enabled: false,
   }),
-  routine({ id: 'c', title: 'Mails', days_of_week: [6, 7, 7], trigger_hour: 8 }),
-  routine({ id: 'd', title: 'Minuit', days_of_week: [7], trigger_hour: 0 }),
-  routine({
+  makeScheduledAction({ id: 'c', title: 'Mails', times_of_day: ['08:00'] }),
+  makeScheduledAction({ id: 'd', title: 'Minuit', times_of_day: ['00:00'] }),
+  makeScheduledAction({
     id: 'e',
     title: 'Tard',
-    days_of_week: [5],
-    trigger_hour: 23,
-    trigger_minute: 55,
+    times_of_day: ['23:55'],
     user_timezone: 'Asia/Tokyo',
   }),
-  routine({ id: 'f', title: 'Routine 10', days_of_week: [2], trigger_hour: 8, trigger_minute: 5 }),
-  routine({ id: 'g', title: 'Routine 2', days_of_week: [2], trigger_hour: 8, trigger_minute: 5 }),
+  makeScheduledAction({ id: 'f', title: 'Routine 10', times_of_day: ['08:05'] }),
+  makeScheduledAction({ id: 'g', title: 'Routine 2', times_of_day: ['08:05'] }),
 ];
 
 describe('numberByTriggerTime', () => {
@@ -202,7 +172,7 @@ describe('numberByTriggerTime', () => {
   });
 
   it('renumbers the later routines when an earlier one is created', () => {
-    const inserted = [...ADVERSARIAL, routine({ id: 'h', title: 'Nouvelle', trigger_hour: 7 })];
+    const inserted = [...ADVERSARIAL, makeScheduledAction({ id: 'h', title: 'Nouvelle', times_of_day: ['07:00'] })];
     const numbered = numberByTriggerTime(inserted, 'fr');
     expect(numbered.find(n => n.action.id === 'h')?.number).toBe(2);
     expect(numbered.find(n => n.action.id === 'b')?.number).toBe(5);
@@ -215,26 +185,23 @@ describe('numberByTriggerTime', () => {
   });
 });
 
-describe('triggerTimeLabel', () => {
-  it('pads both halves', () => {
-    expect(triggerTimeLabel({ trigger_hour: 8, trigger_minute: 5 })).toBe('08:05');
-    expect(triggerTimeLabel({ trigger_hour: 23, trigger_minute: 55 })).toBe('23:55');
-  });
-});
-
 describe('buildTimelineGrid', () => {
   const numbered = numberByTriggerTime(ADVERSARIAL, 'fr');
 
-  it('places one chip per configured day at the hour row, duplicates collapsed', () => {
+  it('places one chip per INSTANT the routine carries, at that instant hour', () => {
+    // Position comes from `week_slots`, computed server-side: one chip per
+    // instant, never one per configured day. The shared factory gives each
+    // routine a single Monday 08:00 slot.
     const grid = buildTimelineGrid(numbered, null);
     const total = [...grid.values()].reduce((sum, entries) => sum + entries.length, 0);
-    expect(total).toBe(21); // 3+7+5+2+1+1+1+1
-    expect(grid.get(timelineKey(7, 8))?.map(e => e.number)).toEqual([3, 4]);
+    expect(total).toBe(ADVERSARIAL.length);
+    expect(grid.get(timelineKey(1, 8))).toHaveLength(ADVERSARIAL.length);
   });
 
   it('keeps the chronological order inside a cell', () => {
     const grid = buildTimelineGrid(numbered, null);
-    expect(grid.get(timelineKey(2, 8))?.map(e => e.number)).toEqual([2, 4, 5, 6]);
+    const numbers = grid.get(timelineKey(1, 8))?.map(e => e.number) ?? [];
+    expect(numbers).toEqual([...numbers].sort((a, b) => a - b));
   });
 
   it('attaches the week cell of the routine for that day', () => {
@@ -250,6 +217,8 @@ describe('buildTimelineGrid', () => {
               day: 1,
               date: '2026-08-03',
               slot_at: '2026-08-03T06:00:00Z',
+              hour: 8,
+              minute: 0,
               outcome: 'success' as const,
               run_at: '2026-08-03T06:00:05Z',
               error: null,
@@ -262,18 +231,51 @@ describe('buildTimelineGrid', () => {
     };
     const grid = buildTimelineGrid(numbered, week);
     const monday = grid.get(timelineKey(1, 8))?.find(e => e.action.id === 'b');
-    const tuesday = grid.get(timelineKey(2, 8))?.find(e => e.action.id === 'b');
+    // Matched on the INSTANT, not on the day: that is what lets two chips of
+    // one day carry different outcomes.
     expect(monday?.cell?.outcome).toBe('success');
-    expect(tuesday?.cell).toBeNull();
   });
 
-  it('skips a day or an hour out of range instead of crashing', () => {
+  it('skips a slot whose day or hour is out of range instead of crashing', () => {
     const broken = numberByTriggerTime(
-      [routine({ id: 'x', days_of_week: [0, 8, 3] }), routine({ id: 'y', trigger_hour: 24 })],
+      [
+        makeScheduledAction({
+          id: 'x',
+          week_slots: [
+            { day: 0, date: '2026-08-03', slot_at: 'a', hour: 8, minute: 0 },
+            { day: 8, date: '2026-08-03', slot_at: 'b', hour: 8, minute: 0 },
+            { day: 3, date: '2026-08-05', slot_at: 'c', hour: 8, minute: 0 },
+          ],
+        }),
+        makeScheduledAction({
+          id: 'y',
+          week_slots: [{ day: 1, date: '2026-08-03', slot_at: 'd', hour: 24, minute: 0 }],
+        }),
+      ],
       'fr'
     );
     const grid = buildTimelineGrid(broken, null);
     expect([...grid.keys()]).toEqual([timelineKey(3, 8)]);
+  });
+
+  it('draws every chip even when the outcomes request never answered', () => {
+    // Owner arbitration 2026-09-06: an empty grid is a blocking regression.
+    // Position ships with the routine; `/week` only adds colour.
+    const numbered = numberByTriggerTime([makeMultiSlotAction({ id: 'm' })], 'fr');
+    const grid = buildTimelineGrid(numbered, null);
+    expect(grid.get(timelineKey(1, 8))).toHaveLength(1);
+    expect(grid.get(timelineKey(1, 18))).toHaveLength(1);
+    expect(grid.get(timelineKey(1, 8))?.[0].cell).toBeNull();
+  });
+
+  it('gives a routine firing twice a day two chips with distinct keys', () => {
+    const numbered = numberByTriggerTime([makeMultiSlotAction({ id: 'm' })], 'fr');
+    const grid = buildTimelineGrid(numbered, null);
+    const keys = [
+      ...(grid.get(timelineKey(1, 8)) ?? []),
+      ...(grid.get(timelineKey(1, 18)) ?? []),
+    ].map(e => chipKey(e.action.id, e.slot.day, e.slot.hour, e.slot.minute));
+    expect(new Set(keys).size).toBe(2);
   });
 });
 
@@ -282,6 +284,8 @@ describe('chipState', () => {
     day: 1,
     date: '2026-08-03',
     slot_at: '2026-08-03T06:00:00Z',
+    hour: 8,
+    minute: 0,
     outcome: outcome as never,
     run_at: null,
     error: null,
@@ -289,7 +293,7 @@ describe('chipState', () => {
   });
 
   it('paused outranks every outcome', () => {
-    expect(chipState(routine({ is_enabled: false }), cell('success'))).toEqual({
+    expect(chipState(makeScheduledAction({ is_enabled: false }), cell('success'))).toEqual({
       tone: 'paused',
       reason: null,
       executing: false,
@@ -301,11 +305,11 @@ describe('chipState', () => {
     ['failure', 'failure'],
     ['proposed', 'proposed'],
   ])('%s colours the chip %s', (outcome, tone) => {
-    expect(chipState(routine(), cell(outcome)).tone).toBe(tone);
+    expect(chipState(makeScheduledAction(), cell(outcome)).tone).toBe(tone);
   });
 
   it.each(['skipped_condition', 'skipped_hitl'])('%s stays idle but says why', reason => {
-    expect(chipState(routine(), cell(reason))).toEqual({
+    expect(chipState(makeScheduledAction(), cell(reason))).toEqual({
       tone: 'idle',
       reason,
       executing: false,
@@ -313,12 +317,12 @@ describe('chipState', () => {
   });
 
   it('is idle with no reason when nothing served the slot, or the week is unknown', () => {
-    expect(chipState(routine(), cell(null)).tone).toBe('idle');
-    expect(chipState(routine(), null)).toEqual({ tone: 'idle', reason: null, executing: false });
+    expect(chipState(makeScheduledAction(), cell(null)).tone).toBe('idle');
+    expect(chipState(makeScheduledAction(), null)).toEqual({ tone: 'idle', reason: null, executing: false });
   });
 
   it('reports a routine running right now', () => {
-    expect(chipState(routine({ status: 'executing' }), null).executing).toBe(true);
+    expect(chipState(makeScheduledAction({ status: 'executing' }), null).executing).toBe(true);
   });
 });
 

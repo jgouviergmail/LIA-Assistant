@@ -79,6 +79,8 @@ PromptName = Literal[
     "hitl_classifier_prompt",
     "hitl_classifier_examples",
     "reminder_prompt",
+    "reminder_origin_once",
+    "reminder_origin_recurring",
     # Email content generation
     "email_content_generation_prompt",
     "email_subject_generation_prompt",

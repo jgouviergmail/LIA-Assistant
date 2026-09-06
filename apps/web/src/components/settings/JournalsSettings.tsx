@@ -58,7 +58,7 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import {
   useJournals,
   type JournalEntry,
@@ -499,7 +499,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 toggles, a gauge and four numeric dials are TUNING, not
                 reading — the reader came for the portrait and the entries. */}
             <div className="border-t pt-4">
-              <SettingsDisclosure
+              <Disclosure
                 icon={Settings2}
                 title={t('journals.configuration', 'Configuration')}
               >
@@ -730,7 +730,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                     </div>
                   </div>
                 </div>
-              </SettingsDisclosure>
+              </Disclosure>
             </div>
 
             {/* Last Cost Info */}
@@ -963,7 +963,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                             entry answered questions nobody was
                                             asking while scanning (owner
                                             arbitration 2026-08-05). */}
-                                        <SettingsDisclosure
+                                        <Disclosure
                                           icon={Info}
                                           title={t('common.details', 'Details')}
                                           className="mt-1"
@@ -1025,7 +1025,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                               </span>
                                             </div>
                                           </div>
-                                        </SettingsDisclosure>
+                                        </Disclosure>
                                         {/* The counters above answer HOW MANY
                                             signals; this answers WHICH. A
                                             conclusion nobody can examine is one

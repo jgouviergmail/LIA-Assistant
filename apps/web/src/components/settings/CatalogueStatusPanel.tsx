@@ -3,7 +3,7 @@
 import { AlertTriangle, CalendarClock, CheckCircle2, Database } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import { SettingsDisclosure } from './SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { capabilityProvenanceTone } from '@/lib/status-tone';
 import { formatLocalDateInput } from '@/lib/date-format';
 import type { CatalogueStatus } from '@/lib/actions/settings-actions';
@@ -85,7 +85,7 @@ export function CatalogueStatusPanel({ status, t }: CatalogueStatusPanelProps) {
       </div>
 
       {retiring.length > 0 && (
-        <SettingsDisclosure
+        <Disclosure
           icon={CalendarClock}
           title={t('settings.admin.llm.catalogue.retiring_summary')}
           badge={retiring.length}
@@ -108,7 +108,7 @@ export function CatalogueStatusPanel({ status, t }: CatalogueStatusPanelProps) {
               </li>
             ))}
           </ul>
-        </SettingsDisclosure>
+        </Disclosure>
       )}
 
       {snapshotDate && (

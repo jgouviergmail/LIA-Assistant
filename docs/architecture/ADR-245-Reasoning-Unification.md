@@ -237,3 +237,54 @@ Three decisions:
 3. **`extra_body` is merged, never assigned** (`_merge_extra_body`): three branches
    wrote that one kwarg and a plain assignment dropped whatever the
    `provider_config` escape hatch had put there.
+
+## Amendment, 2026-09-06 — the filter that protected nothing
+
+A cold audit of "what does LIA actually send to OpenAI" found that the named
+**reasoning model parameter filter** in `providers/adapter.py` — some fifty
+lines that strip `top_p` and the penalties, pin `temperature`, and log what they
+removed — **runs for no real model**.
+
+`_create_with_dedicated_client` is consulted FIRST, and every `gpt-4.1*`,
+`gpt-5*` and `o[1-9]*` leaves through the Responses API before that filter is
+ever evaluated. Enumerated against both patterns: the only names that still
+reach it are `o0*`, which does not exist. Its unit test even patches
+`is_responses_api_eligible` to `False` to get there, and calls the branch a
+"Chat Completions fallback" — accurate, and precisely what hides that the
+fallback has no trigger left.
+
+**The protection that does run lives in `create_responses_llm`**, and it keyed
+on the wrong thing: `if reasoning_effort:` — the EFFORT, not the MODEL. The
+translator renders nothing at `provider_default`, so a reasoning model with no
+configured intent took the "standard model" branch and got `temperature` and
+`top_p`.
+
+Measured against the real API on `gpt-5.6-luna` (2026-09-06):
+
+| Sent | Answer |
+|---|---|
+| `top_p=1.0` (the value every slot carries) | **OK** — the neutral value is tolerated |
+| `top_p=0.9` | **400** *Unsupported parameter* |
+| `frequency_penalty=0.5` | **400** |
+| `temperature=0.3` | OK — though the catalogue marks it unsupported |
+
+Nothing was broken, and not by luck twice over: the 8 slots on `gpt-5.6-*` all
+carry an explicit `none` intent (so no sampling parameter leaves at all), and
+every slot with no intent runs on `gpt-4.1*`, which is not a reasoning model and
+accepts `top_p=0.9`. The exposure was **zero**; one administrator setting a
+non-neutral `top_p` on a `gpt-5.x` slot would have taken it down on every call.
+
+**The fix keys on the MODEL, and the predicate is now shared.** Both the
+Responses adapter and the fallback ask "is this a reasoning model", and both
+read `model_capabilities_cache.is_reasoning_model` — catalogue first (an
+administrator who turns it off means it), name pattern for a model nobody has
+seeded, permissive for the unknown. A guard asserts the name pattern has exactly
+one reader, because two copies of a question where only one branch runs is how a
+fix lands on the branch nobody executes.
+
+**What was deliberately NOT done**: read `supports_top_p` / `supports_temperature`
+from the catalogue. They are absent from `sync_diff.COMPARED_FIELDS`, so an
+`imported` provenance does not vouch for them — and the measurement proves the
+point, since the catalogue marks `temperature` unsupported on a model that
+accepts it. Trusting those columns would have traded a latent defect for an
+active one.

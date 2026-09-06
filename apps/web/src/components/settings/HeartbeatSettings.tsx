@@ -18,7 +18,7 @@ import { useHeartbeatHistory } from '@/hooks/useHeartbeatHistory';
 import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { HeartbeatSourceSwitches } from '@/components/settings/HeartbeatSourceSwitches';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -171,7 +171,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
               badge carries how many are refused, so the fold still says
               whether anything was silenced. */}
           <div className="border-t pt-4">
-            <SettingsDisclosure
+            <Disclosure
               icon={SlidersHorizontal}
               title={t('heartbeat.sources_permission_title')}
               badge={
@@ -191,11 +191,11 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
                 updating={updating}
                 onChange={handleSourcesChange}
               />
-            </SettingsDisclosure>
+            </Disclosure>
           </div>
 
           <div className="border-t pt-4">
-            <SettingsDisclosure
+            <Disclosure
               icon={History}
               title={t('heartbeat.history.title')}
               onOpenChange={setHistoryOpen}
@@ -211,7 +211,7 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
                 error={history.error}
                 locale={intlLocale}
               />
-            </SettingsDisclosure>
+            </Disclosure>
           </div>
         </div>
       )}

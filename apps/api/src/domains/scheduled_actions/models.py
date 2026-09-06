@@ -1,8 +1,8 @@
-"""
-Scheduled Actions domain models.
+"""Scheduled Actions domain models.
 
-Stores user-defined recurring actions with day-of-week + time scheduling.
-The scheduler polls for due actions using next_trigger_at (UTC).
+A routine stores a ``RecurrenceSpec`` (``src/core/recurrence``) — which
+calendar days it serves, and which moments inside them. The scheduler polls
+for due rows on ``next_trigger_at`` (UTC), which is NULL when nothing follows.
 """
 
 from datetime import datetime
@@ -21,10 +21,11 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.recurrence import RecurrenceSpec
 from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
 
@@ -77,15 +78,15 @@ CONDITION_TYPES: frozenset[str] = frozenset(
 
 
 class ScheduledAction(BaseModel):
-    """
-    Scheduled Action model.
+    """A recurring action the agent pipeline runs on the owner's behalf.
 
-    Stores user-defined recurring actions with cron-style scheduling.
-    The scheduler computes next_trigger_at in UTC from days_of_week + trigger_hour/minute
-    + user_timezone via APScheduler CronTrigger.
+    The schedule is a ``RecurrenceSpec`` in ``recurrence``: single occurrence,
+    daily/weekly/monthly/yearly with an interval, one or several moments a day.
+    ``next_trigger_at`` is derived from it after every tick and is NULL once
+    the series is over.
 
-    Unlike reminders (one-shot, deleted after execution), scheduled actions persist
-    and recalculate next_trigger_at after each execution.
+    Unlike a reminder — a post-it deleted once notified — a routine persists
+    and re-arms.
     """
 
     __tablename__ = "scheduled_actions"
@@ -109,21 +110,14 @@ class ScheduledAction(BaseModel):
         doc="Prompt sent to agent pipeline - 'recherche la meteo du jour'",
     )
 
-    # Schedule (stored as explicit fields, CronTrigger built on-the-fly)
-    days_of_week: Mapped[list[int]] = mapped_column(
-        ARRAY(SmallInteger),
+    # Schedule — ONE authority (generic recurrence, `src/core/recurrence`).
+    # The three cron columns this replaces could not describe a routine firing
+    # twice a day, and keeping them beside the spec would let the row disagree
+    # with itself. SQL `comment=` mirrors the migration EXACTLY.
+    recurrence: Mapped[dict] = mapped_column(
+        JSONB,
         nullable=False,
-        doc="ISO weekdays: 1=Monday..7=Sunday",
-    )
-    trigger_hour: Mapped[int] = mapped_column(
-        SmallInteger,
-        nullable=False,
-        doc="Hour of execution (0-23) in user timezone",
-    )
-    trigger_minute: Mapped[int] = mapped_column(
-        SmallInteger,
-        nullable=False,
-        doc="Minute of execution (0-59) in user timezone",
+        comment="RecurrenceSpec: which calendar days, and which moments in them.",
     )
     user_timezone: Mapped[str] = mapped_column(
         String(50),
@@ -132,12 +126,16 @@ class ScheduledAction(BaseModel):
         doc="IANA timezone for schedule evaluation",
     )
 
-    # Computed trigger time (UTC) - recalculated after each execution
-    next_trigger_at: Mapped[datetime] = mapped_column(
+    # Computed trigger time (UTC) — recalculated after each execution.
+    # NULLABLE since the recurrence rework: NULL means nothing follows (an
+    # exhausted series, a consumed single occurrence). `NULL <= now()` is
+    # UNKNOWN in SQL, so the scheduler's poll excludes such a row by
+    # construction rather than by a filter someone must remember to write.
+    next_trigger_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        nullable=False,
+        nullable=True,
         index=True,
-        doc="Next execution time in UTC (computed from schedule + timezone)",
+        comment="Next execution (UTC); NULL = nothing follows.",
     )
 
     # N-07 phase 1: trigger evolution — cron stays the clock for both kinds.
@@ -216,9 +214,23 @@ class ScheduledAction(BaseModel):
         Index(
             "ix_scheduled_actions_due",
             "next_trigger_at",
-            postgresql_where=("is_enabled = true AND status = 'active'"),
+            postgresql_where=(
+                "is_enabled = true AND status = 'active' AND next_trigger_at IS NOT NULL"
+            ),
         ),
     )
+
+    @property
+    def recurrence_spec(self) -> RecurrenceSpec:
+        """The stored schedule, parsed.
+
+        A property rather than a column type: the row keeps plain JSONB, so a
+        migration or an admin query never depends on the Python model.
+
+        Returns:
+            The recurrence this routine follows.
+        """
+        return RecurrenceSpec.model_validate(self.recurrence)
 
     def __repr__(self) -> str:
         return (

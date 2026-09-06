@@ -17,7 +17,10 @@ References:
     - ADR-001: Constants Centralization Strategy
 """
 
-from typing import Final, Literal
+from typing import TYPE_CHECKING, Final, Literal
+
+if TYPE_CHECKING:
+    from src.core.recurrence.spec import RecurrenceLimits
 
 # ============================================================================
 # APPLICATION IDENTITY
@@ -688,6 +691,25 @@ SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS = 60
 SCHEDULED_ACTIONS_MAX_PER_USER = 20
 SCHEDULED_ACTIONS_SESSION_PREFIX = "scheduled_action_"  # Session ID prefix for automated sources
 
+# =============================================================================
+# Recurrence caps, per consumer (generic recurrence component)
+# =============================================================================
+# The component itself owns no ceiling: a cap travels with the caller, which is
+# what lets ONE engine serve a routine that runs an agent pipeline and a
+# reminder that only sends a notification. The assembled `RecurrenceLimits`
+# live at the end of this module, next to the helper that builds them.
+
+#: A routine runs the full agent pipeline on every occurrence: twelve a day is
+#: twelve LLM runs, and the form states that cost before saving.
+RECURRENCE_ROUTINE_MAX_TIMES_PER_DAY = 12
+RECURRENCE_ROUTINE_MIN_STEP_MINUTES = 15
+RECURRENCE_ROUTINE_MAX_SERIES_COUNT = 500
+
+#: A reminder sends a notification: its ceiling is about noise, not cost.
+RECURRENCE_REMINDER_MAX_TIMES_PER_DAY = 48
+RECURRENCE_REMINDER_MIN_STEP_MINUTES = 5
+RECURRENCE_REMINDER_MAX_SERIES_COUNT = 1000
+
 # Session-id shapes of HUMAN chat runs in message_token_summary (ADR-214).
 # The rhythm learner reads the token summaries as its DURABLE retroactive
 # source (conversation messages die on reset), and background jobs run at
@@ -703,10 +725,17 @@ HUMAN_CHAT_SESSION_UUID_REGEX = (
 
 #: How many upcoming runs of a routine the interfaces preview.
 #:
-#: One per LOCAL day: at the daylight-saving fall-back the cron yields two
-#: instants for the same wall-clock time, and listing both would show the
-#: same line twice.
+#: One per instant: the engine de-duplicates by instant, so the two readings
+#: of a fall-back hour collapse to one line rather than showing the same
+#: wall clock twice.
 SCHEDULED_ACTION_OCCURRENCES_PREVIEW = 5
+
+#: How many upcoming firings a REMINDER shows on the management screen.
+#:
+#: Its own constant rather than the routines' one: the two surfaces are read
+#: differently (a routine is scanned in a weekly grid, a reminder is read as a
+#: list) and sharing the number would tie them together for no reason.
+REMINDER_OCCURRENCES_PREVIEW = 5
 
 #: How many grounded suggestions the empty chat offers.
 #:
@@ -5802,3 +5831,35 @@ LEDGER_NOTARY_INITIAL_DELAY_SECONDS = 45
 #: a chain has no upper length, and loading one whole is how an audit endpoint
 #: becomes the outage it was meant to detect.
 LEDGER_CHAIN_VERIFY_PAGE_DEFAULT = 1_000
+
+
+def _recurrence_limits() -> tuple[RecurrenceLimits, RecurrenceLimits]:
+    """Assemble the two default limit sets from the values declared above.
+
+    The import is local rather than module-level: this module is imported very
+    early and by nearly everything, and ``core.recurrence`` has no business
+    being pulled in by a caller that only wants a timeout. It stays a leaf.
+
+    Returns:
+        The routine limits, then the reminder limits.
+    """
+    from src.core.recurrence.spec import RecurrenceLimits as _Limits
+
+    return (
+        _Limits(
+            max_times_per_day=RECURRENCE_ROUTINE_MAX_TIMES_PER_DAY,
+            min_step_minutes=RECURRENCE_ROUTINE_MIN_STEP_MINUTES,
+            max_series_count=RECURRENCE_ROUTINE_MAX_SERIES_COUNT,
+        ),
+        _Limits(
+            max_times_per_day=RECURRENCE_REMINDER_MAX_TIMES_PER_DAY,
+            min_step_minutes=RECURRENCE_REMINDER_MIN_STEP_MINUTES,
+            max_series_count=RECURRENCE_REMINDER_MAX_SERIES_COUNT,
+        ),
+    )
+
+
+#: What a routine may ask of the recurrence engine, and what a reminder may.
+#: Two consumers, two ceilings, one engine — the difference is a value, never a
+#: branch.
+RECURRENCE_ROUTINE_LIMITS, RECURRENCE_REMINDER_LIMITS = _recurrence_limits()

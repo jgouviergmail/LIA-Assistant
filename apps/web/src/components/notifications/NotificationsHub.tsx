@@ -74,7 +74,7 @@ function useHubSections() {
   // rather than opened to find out whether it holds anything.
   const { counts } = useHubCounts();
 
-  // One open-state per section: `SettingsDisclosure` unmounts its children
+  // One open-state per section: `Disclosure` unmounts its children
   // when closed, and these flags are what gate each query.
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const isOpen = (key: string) => Boolean(open[key]);

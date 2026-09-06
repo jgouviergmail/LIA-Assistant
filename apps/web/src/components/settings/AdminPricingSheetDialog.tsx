@@ -48,7 +48,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { usePricingSheetImportState } from '@/components/settings/pricing-sheet-import-state';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -159,7 +159,7 @@ function ChangeSection({ plan, t }: { plan: PricingSheetPlan; t: Translate }) {
         const rows = moved.filter(change => change.action === action);
         if (rows.length === 0) return null;
         return (
-          <SettingsDisclosure
+          <Disclosure
             key={action}
             icon={icon}
             title={t(`settings.admin.llm.sheet.action.${action}`)}
@@ -171,7 +171,7 @@ function ChangeSection({ plan, t }: { plan: PricingSheetPlan; t: Translate }) {
                 <ChangeLine key={change.model_name} change={change} />
               ))}
             </ul>
-          </SettingsDisclosure>
+          </Disclosure>
         );
       })}
       <p className="text-sm text-muted-foreground">

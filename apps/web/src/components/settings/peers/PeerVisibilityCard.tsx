@@ -54,7 +54,7 @@ export function PeerVisibilityCard({
 
   return (
     // No frame or heading of its own: the section shell folds this card
-    // behind a `SettingsDisclosure` whose summary carries both (owner
+    // behind a `Disclosure` whose summary carries both (owner
     // arbitration 2026-08-05 — the Connexions section reads as an index).
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">

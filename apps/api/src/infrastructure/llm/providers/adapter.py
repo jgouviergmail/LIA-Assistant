@@ -19,7 +19,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.core.config import settings
-from src.core.constants import OLLAMA_BASE_URL_ENV, REASONING_MODELS_PATTERN
+from src.core.constants import OLLAMA_BASE_URL_ENV
 
 # ADR-245: one seam for every provider. It derives the model's family, narrows
 # the ladder with whatever the catalogue declares, reads the stored value as an
@@ -890,13 +890,17 @@ class ProviderAdapter:
             # an admin in Tarification LLM Texte must be treated as a
             # standard model. The regex remains the fallback for unknown /
             # not-yet-seeded models.
-            from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+            from src.infrastructure.llm.model_capabilities_cache import (
+                is_reasoning_model as resolve_is_reasoning_model,
+            )
 
-            cached_profile = ModelCapabilitiesCache.get(model)
-            if cached_profile is not None:
-                is_reasoning_model = cached_profile.is_reasoning_model
-            else:
-                is_reasoning_model = bool(re.match(REASONING_MODELS_PATTERN, model, re.IGNORECASE))
+            # ONE predicate, shared with the Responses adapter. This branch is
+            # the FALLBACK: every real OpenAI model leaves through
+            # `_create_with_dedicated_client` before reaching it (measured
+            # 2026-09-06 — only `o0`, which does not exist, still lands here).
+            # Two copies of the same question, only one of them running, is how
+            # a fix lands on the branch nobody executes.
+            is_reasoning_model = resolve_is_reasoning_model(model)
 
             # gpt-5.1/5.2+ at level "none" behave as standard models (sampling
             # params allowed). ``requested_level`` reads the level off whatever

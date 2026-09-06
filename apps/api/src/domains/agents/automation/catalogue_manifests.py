@@ -8,6 +8,7 @@ agent pipeline via the existing scheduled-action executor.
 from datetime import UTC, datetime
 
 from src.core.config import settings
+from src.core.constants import RECURRENCE_ROUTINE_LIMITS
 from src.domains.agents.registry.catalogue import (
     REASON_UNDONE_BY_ONE_CALL,
     AgentManifest,
@@ -19,6 +20,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.registry.recurrence_parameters import recurrence_parameters
 
 # =============================================================================
 # Agent Manifest: automation_agent
@@ -90,27 +92,10 @@ create_scheduled_action_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="max_length", value=2000),
             ],
         ),
-        ParameterSchema(
-            name="days_of_week",
-            type="array",
-            required=True,
-            description=(
-                "ISO weekdays to run on: 1=Monday .. 7=Sunday. "
-                "[1,2,3,4,5]=weekdays, [1..7]=every day."
-            ),
-        ),
-        ParameterSchema(
-            name="trigger_hour",
-            type="integer",
-            required=True,
-            description="Hour of execution 0-23, in the USER's timezone",
-        ),
-        ParameterSchema(
-            name="trigger_minute",
-            type="integer",
-            required=False,
-            description="Minute of execution 0-59 (default 0)",
-        ),
+        # The spoken recurrence vocabulary, bounded by what a ROUTINE allows
+        # (12 firings a day). Declared once in `recurrence_parameters` and read
+        # by the tool signature too, so the two cannot drift.
+        *recurrence_parameters(RECURRENCE_ROUTINE_LIMITS, repeat_required=True),
     ],
     outputs=[
         OutputFieldSchema(

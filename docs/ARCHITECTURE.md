@@ -103,7 +103,7 @@ des plus structurants, pas un inventaire) :
 11. **memories** - Mémoire long-terme sémantique (pgvector + BM25)
 12. **interests** - Interest Learning System (extraction automatique)
 13. **system_settings** - Configuration système et préférences globales
-14. **scheduled_actions** - Actions planifiées récurrentes (APScheduler CronTrigger)
+14. **scheduled_actions** - Actions planifiées récurrentes (moteur `core/recurrence`)
 15. **user_mcp** - Serveurs MCP utilisateur (CRUD per-user, Model Context Protocol, auto-génération de description LLM)
 16. **plugins** - Client Agent Plugins (standard ouvert agent-plugins.org, ADR-225) : import de paquets portables regroupant skills + serveurs MCP, rapport par composant, désinstallation groupée
 16. **channels** - Canaux de messagerie externes (Telegram) avec OTP linking, HITL inline keyboards, voice STT
@@ -3530,7 +3530,6 @@ apps/api/src/domains/scheduled_actions/
 ├── service.py          # CRUD, toggle, timezone recalculation
 ├── router.py           # 7 REST API endpoints (/week declare avant /{id})
 ├── schemas.py          # Pydantic Create/Update/Response/ListResponse
-├── schedule_helpers.py # APScheduler CronTrigger integration (compute_next_trigger_utc, week_slots, served_slot)
 ├── run_repository.py   # Historique des executions scheduled_action_runs (ADR-265)
 ├── runs.py             # record_run : une ligne par sortie de l'executeur, dans un savepoint
 └── week.py             # Pliage pur de la semaine en cours (une cellule = le dernier run au slot EGAL)

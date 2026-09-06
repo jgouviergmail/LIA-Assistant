@@ -16,9 +16,17 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import ResourceConflictError, ResourceNotFoundError
+from src.core.recurrence import (
+    DailyTimes,
+    RecurrenceSpec,
+    TimeOfDay,
+    next_occurrence,
+    rearm_after,
+)
+from src.core.time_utils import now_utc
 from src.domains.reminders.models import Reminder, ReminderStatus
 from src.domains.reminders.repository import ReminderRepository
-from src.domains.reminders.schemas import ReminderCreate
+from src.domains.reminders.schemas import ReminderCreate, ReminderUpdate
 
 logger = structlog.get_logger(__name__)
 
@@ -45,6 +53,57 @@ def convert_to_utc(local_dt: datetime, user_timezone: str) -> datetime:
 
     # Convert to UTC
     return local_aware.astimezone(UTC)
+
+
+def once_at(instant_utc: datetime, user_timezone: str) -> RecurrenceSpec:
+    """The recurrence of a reminder that happens exactly once.
+
+    The same rule the migration applied to every existing row: read the
+    instant in the reader's own zone, and store that wall clock. Seconds are
+    dropped — a `TimeOfDay` has none — which costs nothing because
+    ``trigger_at`` stays the armed instant and this spec only ever answers
+    "what comes after", which for a single occurrence is nothing.
+
+    Args:
+        instant_utc: The instant the reminder is armed at (UTC).
+        user_timezone: The reader's IANA zone.
+
+    Returns:
+        A `once` recurrence naming that local wall clock.
+    """
+    local = instant_utc.astimezone(ZoneInfo(user_timezone))
+    return RecurrenceSpec(
+        freq="once",
+        anchor_date=local.date(),
+        times=DailyTimes(mode="at", at=(TimeOfDay(hour=local.hour, minute=local.minute),)),
+    )
+
+
+def next_arming(reminder: Reminder, *, now: datetime | None = None) -> datetime | None:
+    """What to arm after this reminder's current occurrence — or nothing.
+
+    THE rule of the domain, in one place. ``None`` means the reminder has no
+    future and the caller deletes it; anything else is the instant to arm.
+
+    A single occurrence answers ``None`` the first time, which is exactly the
+    historical post-it behaviour — so nothing anywhere asks "is this reminder
+    recurring". A daily one answers tomorrow. A bounded series answers ``None``
+    after its last instant, and the row goes the same way as a post-it: a
+    reminder with no future does not exist (owner decision, 2026-09-06).
+
+    Args:
+        reminder: The row that has just been served.
+        now: Current instant (UTC); defaults to now.
+
+    Returns:
+        The next instant to arm, or ``None`` when nothing follows.
+    """
+    return rearm_after(
+        reminder.recurrence_spec,
+        reminder.user_timezone,
+        due_at=reminder.trigger_at,
+        now=now,
+    )
 
 
 class ReminderService:
@@ -83,18 +142,35 @@ class ReminderService:
         Returns:
             Created reminder instance
         """
-        # Convert local time to UTC
-        trigger_at_utc = convert_to_utc(data.trigger_at, user_timezone)
+        # ONE authority for the armed instant. When a recurrence is given, the
+        # instant is DERIVED from it: a caller cannot hand in a schedule and a
+        # contradicting time and have the row announce one while ringing at the
+        # other. The schema refuses both together; this decides which one is
+        # read when only one arrives.
+        if data.recurrence is not None:
+            derived = next_occurrence(data.recurrence, user_timezone, after=now_utc())
+            if derived is None:
+                raise ValueError("this recurrence has no future occurrence")
+            trigger_at_utc = derived
+        else:
+            assert data.trigger_at is not None  # guaranteed by the schema
+            trigger_at_utc = convert_to_utc(data.trigger_at, user_timezone)
 
         # Validate trigger time is in the future
-        now_utc = datetime.now(UTC)
-        if trigger_at_utc <= now_utc:
+        # Named `now`, not `now_utc`: a local of that name SHADOWS the imported
+        # helper for the whole function, so the line above would have raised
+        # `UnboundLocalError` at runtime. Ruff F823 caught it; the shadow was
+        # harmless only while nothing else in here called the function.
+        now = datetime.now(UTC)
+        if trigger_at_utc <= now:
             # Allow a small grace period (30 seconds) for "in 1 minute"
             logger.warning(
                 "reminder_trigger_in_past",
                 trigger_at=trigger_at_utc.isoformat(),
-                now=now_utc.isoformat(),
+                now=now.isoformat(),
             )
+
+        recurrence = data.recurrence or once_at(trigger_at_utc, user_timezone)
 
         reminder = await self.repository.create(
             {
@@ -103,6 +179,7 @@ class ReminderService:
                 "original_message": data.original_message,
                 "trigger_at": trigger_at_utc,
                 "user_timezone": user_timezone,
+                "recurrence": recurrence.model_dump(mode="json"),
                 "status": ReminderStatus.PENDING.value,
             }
         )
@@ -115,6 +192,121 @@ class ReminderService:
             user_timezone=user_timezone,
         )
 
+        return reminder
+
+    async def recalculate_all_for_user(self, user_id: UUID, new_timezone: str) -> int:
+        """Move every pending reminder to the reader's new zone.
+
+        **A spec is a wall clock, and a wall clock follows the person** (owner
+        decision, 2026-09-06). Someone who moves to Tokyo means 08:00 where
+        they now live, and that is true of a single occurrence as much as of a
+        daily one: one rule, no exception to remember.
+
+        This CHANGES the historical behaviour, where a reminder's instant was
+        frozen at creation. It is the price of having one rule instead of two,
+        and it matches what the routines already do.
+
+        A reminder that is DUE but not yet collected — the scheduler runs on a
+        tick, so there is a window — has nothing ahead of it and answers
+        ``None``. Such a row is left entirely alone, zone included: it is about
+        to fire in the zone its instant was computed in, and stamping the new
+        one on it would leave a row nobody can explain.
+
+        Args:
+            user_id: Owner of the reminders.
+            new_timezone: The reader's new IANA zone.
+
+        Returns:
+            Number of reminders moved.
+        """
+        reminders = await self.repository.get_all_pending_for_user(user_id)
+        moved = 0
+        for reminder in reminders:
+            spec = reminder.recurrence_spec
+            # Strictly after NOW, read in the NEW zone: an occurrence still
+            # ahead of the reader keeps its wall clock and simply lands on a
+            # different instant, while one already behind them is not revived.
+            arrival = next_occurrence(spec, new_timezone, after=datetime.now(UTC))
+            if arrival is None:
+                # Due already; it fires within the tick, in its own zone.
+                continue
+            reminder.user_timezone = new_timezone
+            reminder.trigger_at = arrival
+            moved += 1
+        if reminders:
+            await self.db.flush()
+        return moved
+
+    async def update_reminder(
+        self,
+        reminder_id: UUID,
+        user_id: UUID,
+        data: ReminderUpdate,
+        user_timezone: str,
+    ) -> Reminder:
+        """Change what a reminder says or when it fires.
+
+        A changed recurrence RE-ARMS the reminder from now, exactly as a
+        changed routine does: the stored instant belongs to the old schedule
+        and keeping it would fire once more on a rule the reader has replaced.
+
+        Args:
+            reminder_id: The reminder to change.
+            user_id: The caller, checked against the row's owner.
+            data: The fields to change; absent ones are left alone.
+            user_timezone: The reader's zone, for a supplied local instant.
+
+        Returns:
+            The updated reminder.
+
+        Raises:
+            ResourceNotFoundError: Unknown id, or one owned by someone else.
+            ResourceConflictError: The reminder is already being processed.
+            ValueError: The new recurrence arms nothing (a date now past).
+        """
+        reminder = await self.get_by_id(reminder_id, user_id)
+        if reminder.status != ReminderStatus.PENDING.value:
+            raise ResourceConflictError(
+                resource_type="reminder",
+                reason="reminder_not_pending",
+            )
+
+        if data.content is not None:
+            reminder.content = data.content
+
+        if data.recurrence is not None:
+            arrival = next_occurrence(data.recurrence, user_timezone, after=now_utc())
+            if arrival is None:
+                raise ValueError("this recurrence has no future occurrence")
+            reminder.recurrence = data.recurrence.model_dump(mode="json")
+            reminder.trigger_at = arrival
+            reminder.user_timezone = user_timezone
+        elif data.trigger_at is not None:
+            # Moving a SINGLE occurrence: the derived `once` spec follows, or
+            # the row would describe one time and fire at another.
+            #
+            # On a REPEATING reminder the same payload has no honest meaning —
+            # the next re-arm reads the rule and throws the manual instant
+            # away, so it would look like a change that silently undoes itself
+            # (a snooze is a different feature, and would need to say so).
+            if reminder.recurrence_spec.freq != "once":
+                raise ValueError(
+                    "a repeating reminder is moved by changing its recurrence, "
+                    "not by setting a single instant"
+                )
+            moved = convert_to_utc(data.trigger_at, user_timezone)
+            reminder.trigger_at = moved
+            reminder.user_timezone = user_timezone
+            reminder.recurrence = once_at(moved, user_timezone).model_dump(mode="json")
+
+        await self.db.flush()
+        logger.info(
+            "reminder_updated",
+            reminder_id=str(reminder.id),
+            user_id=str(user_id),
+            trigger_at=reminder.trigger_at.isoformat(),
+            schedule_changed=data.recurrence is not None,
+        )
         return reminder
 
     async def list_pending_for_user(self, user_id: UUID) -> list[Reminder]:

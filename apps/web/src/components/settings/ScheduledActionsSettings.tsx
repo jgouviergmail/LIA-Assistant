@@ -8,9 +8,11 @@ import {
   Copy,
   Info,
   Pencil,
+  PencilLine,
   Play,
   Plus,
   Trash2,
+  Zap,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -49,7 +51,8 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
+import { FormSection } from '@/components/ui/form-section';
 import { RoutineNumberChip } from '@/components/settings/RoutineNumberChip';
 import { ScheduledActionsTimeline } from '@/components/settings/ScheduledActionsTimeline';
 import {
@@ -59,10 +62,12 @@ import {
   type ScheduledAction,
   type ScheduledActionCreate,
   type ScheduledActionUpdate,
+  type RecurrenceSpec,
   type TriggerKind,
 } from '@/hooks/useScheduledActions';
+import { RecurrenceEditor, type RecurrenceLimits } from '@/components/recurrence/RecurrenceEditor';
 import { renderOccurrences } from '@/lib/occurrences';
-import { scheduleShape } from '@/lib/schedule-label';
+import { emptyRecurrence, recurrenceIsComplete } from '@/lib/recurrence';
 import { duplicateTitle, numberByTriggerTime, routineCardId } from '@/lib/scheduled-actions';
 import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
 import { toast } from 'sonner';
@@ -71,21 +76,38 @@ interface ScheduledActionsSettingsProps {
   lng: Language;
 }
 
-/** ISO weekday numbers 1=Mon..7=Sun */
-const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+/**
+ * What a ROUTINE may ask of the recurrence engine.
+ *
+ * Mirrors `RECURRENCE_ROUTINE_LIMITS` in `core/constants.py`: a routine runs
+ * the full agent pipeline on every occurrence, so its ceiling is lower than a
+ * reminder's. The server enforces it; stating it here is what lets the form
+ * refuse before a request fails.
+ */
+const ROUTINE_LIMITS: RecurrenceLimits = {
+  maxTimesPerDay: 12,
+  minStepMinutes: 15,
+  maxSeriesCount: 500,
+};
 
-/** Minute options (every 5 minutes) */
-const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, i) => i * 5);
+/** The reader's own zone, for a routine that does not exist yet. */
+function browserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
 
-/** Hour options (0-23) */
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
+/** The reader's today, as `YYYY-MM-DD` — a new recurrence starts there. */
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 interface FormState {
   title: string;
   action_prompt: string;
-  days_of_week: number[];
-  trigger_hour: number;
-  trigger_minute: number;
+  recurrence: RecurrenceSpec;
   // N-07 (flattened for the form; assembled into ConditionConfig on save).
   trigger_kind: TriggerKind;
   condition_type: ConditionType;
@@ -96,9 +118,7 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   title: '',
   action_prompt: '',
-  days_of_week: [],
-  trigger_hour: 8,
-  trigger_minute: 0,
+  recurrence: emptyRecurrence(todayIso()),
   trigger_kind: 'time',
   condition_type: 'task_overdue',
   condition_query: '',
@@ -139,9 +159,7 @@ function formStateFromAction(action: ScheduledAction): FormState {
   return {
     title: action.title,
     action_prompt: action.action_prompt,
-    days_of_week: [...action.days_of_week],
-    trigger_hour: action.trigger_hour,
-    trigger_minute: action.trigger_minute,
+    recurrence: action.recurrence,
     trigger_kind: action.trigger_kind ?? 'time',
     condition_type: action.condition_config?.type ?? 'task_overdue',
     condition_query: action.condition_config?.query ?? '',
@@ -163,10 +181,8 @@ function buildUpdatePayload(
   const update: ScheduledActionUpdate = {};
   if (form.title !== editing.title) update.title = form.title;
   if (form.action_prompt !== editing.action_prompt) update.action_prompt = form.action_prompt;
-  if (JSON.stringify(form.days_of_week) !== JSON.stringify(editing.days_of_week))
-    update.days_of_week = form.days_of_week;
-  if (form.trigger_hour !== editing.trigger_hour) update.trigger_hour = form.trigger_hour;
-  if (form.trigger_minute !== editing.trigger_minute) update.trigger_minute = form.trigger_minute;
+  if (JSON.stringify(form.recurrence) !== JSON.stringify(editing.recurrence))
+    update.recurrence = form.recurrence;
   if (form.trigger_kind !== (editing.trigger_kind ?? 'time')) {
     update.trigger_kind = form.trigger_kind;
     update.condition_config = conditionConfig;
@@ -217,8 +233,12 @@ function ActionScheduleBlock({
   t: (key: string, options?: Record<string, unknown>) => string;
   formatDateTime: (iso: string | null) => string;
 }) {
+  // NO fallback on `next_trigger_at`: it is nullable since the recurrence
+  // rework (NULL = the series is over), and `new Date(null)` is the EPOCH,
+  // which `renderOccurrences` does not filter — a finished routine announced
+  // "01/01/1970" as its next run. An absent list renders nothing at all.
   const occurrences = renderOccurrences(
-    action.next_occurrences ?? [action.next_trigger_at],
+    action.next_occurrences ?? [],
     action.user_timezone,
     intlLocale
   );
@@ -235,7 +255,7 @@ function ActionScheduleBlock({
           <OccurrenceLine run={next} clockChangeLabel={clockChangeLabel} />
         </p>
       )}
-      <SettingsDisclosure icon={Info} title={t('common.details')}>
+      <Disclosure icon={Info} title={t('common.details')}>
         <div className="space-y-1.5 text-xs text-muted-foreground">
           {later.length > 0 && (
             <div>
@@ -264,7 +284,7 @@ function ActionScheduleBlock({
             </p>
           )}
         </div>
-      </SettingsDisclosure>
+      </Disclosure>
     </div>
   );
 }
@@ -278,7 +298,98 @@ function ActionScheduleBlock({
  */
 function getStatusBadgeVariant(action: ScheduledAction): BadgeTone {
   if (!action.is_enabled) return 'secondary';
+  // Grey is reserved for INACTIVE elements — and a series with nothing left is
+  // exactly that, however "active" its status column still reads.
+  if (action.next_trigger_at === null && action.status === 'active') return 'secondary';
   return lifecycleTone(action.status);
+}
+
+
+/**
+ * The trigger question (N-07): does the routine fire at every tick, or only
+ * when a condition is met — and which one.
+ *
+ * Its own component for the same reason the recurrence editor is split by
+ * question: the condition's per-type branches pushed the dialog past the
+ * shrink-only complexity ratchet.
+ */
+function ConditionFields({
+  form,
+  setForm,
+  conditionInvalid,
+  t,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  conditionInvalid: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
+}) {
+  return (
+    <>
+          {/* N-07 studio: trigger kind */}
+      <div className="space-y-3">
+        <Label htmlFor="sa-trigger-kind">{t('scheduled_actions.studio.trigger_kind')}</Label>
+        <Select
+          value={form.trigger_kind}
+          onValueChange={v => setForm(f => ({ ...f, trigger_kind: v as TriggerKind }))}
+        >
+          <SelectTrigger id="sa-trigger-kind">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="time">{t('scheduled_actions.studio.kind_time')}</SelectItem>
+            <SelectItem value="condition">
+              {t('scheduled_actions.studio.kind_condition')}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* N-07 studio: condition config (condition kind only) */}
+      {form.trigger_kind === 'condition' && (
+        <div className="space-y-3 rounded-lg border border-border/40 p-3">
+          <Label htmlFor="sa-condition-type">
+            {t('scheduled_actions.studio.condition_type')}
+          </Label>
+          <Select
+            value={form.condition_type}
+            onValueChange={v => setForm(f => ({ ...f, condition_type: v as ConditionType }))}
+          >
+            <SelectTrigger id="sa-condition-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CONDITION_TYPES.map(type => (
+                <SelectItem key={type} value={type}>
+                  {t(`scheduled_actions.studio.condition.${type}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {QUERY_CONDITION_TYPES.includes(form.condition_type) && (
+            <div className="space-y-3">
+              <Label htmlFor="sa-condition-query">
+                {t(`scheduled_actions.studio.query_label.${form.condition_type}`)}
+              </Label>
+              <Input
+                id="sa-condition-query"
+                value={form.condition_query}
+                maxLength={120}
+                onChange={e => setForm(f => ({ ...f, condition_query: e.target.value }))}
+                placeholder={t(`scheduled_actions.studio.query_ph.${form.condition_type}`)}
+              />
+              {conditionInvalid && (
+                <p className="text-xs text-destructive" role="alert">
+                  {t('scheduled_actions.studio.query_required')}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+    </>
+  );
 }
 
 export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps) {
@@ -324,30 +435,13 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     card.focus({ preventScroll: true });
   }, []);
 
-  // Day labels for the current language
-  const dayLabels = useMemo(() => {
-    const labels: Record<number, string> = {};
-    for (const d of WEEKDAYS) {
-      labels[d] = t(`scheduled_actions.days.d${d}`);
-    }
-    return labels;
-  }, [t]);
 
-  // Synthesised schedule line ("Weekdays at 08:00"): the three shapes people
-  // actually schedule get a NAME instead of a five-token day list; only a
-  // genuinely irregular pick still spells its days.
+  // The schedule line is the SERVER's sentence (`schedule_display`): one
+  // authority, composed from localized clauses, and the only place that knows
+  // how a monthly or stepped recurrence reads in six languages.
   const formatSchedule = useCallback(
-    (action: ScheduledAction) => {
-      const time = `${String(action.trigger_hour).padStart(2, '0')}:${String(action.trigger_minute).padStart(2, '0')}`;
-      const shape = scheduleShape(action.days_of_week);
-      if (shape !== 'custom') {
-        return t(`scheduled_actions.schedule.${shape}`, { time });
-      }
-      const sorted = [...action.days_of_week].sort((a, b) => a - b);
-      const daysStr = sorted.map(d => dayLabels[d] ?? `${d}`).join(', ');
-      return t('scheduled_actions.schedule.custom', { days: daysStr, time });
-    },
-    [dayLabels, t]
+    (action: ScheduledAction) => action.schedule_display,
+    []
   );
 
   // Format datetime for display
@@ -363,15 +457,6 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     }
   };
 
-  // Toggle day in form
-  const toggleDay = (day: number) => {
-    setForm(prev => ({
-      ...prev,
-      days_of_week: prev.days_of_week.includes(day)
-        ? prev.days_of_week.filter(d => d !== day)
-        : [...prev.days_of_week, day].sort(),
-    }));
-  };
 
   // Open create dialog
   const handleOpenCreate = () => {
@@ -415,7 +500,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     if (
       !form.title.trim() ||
       !form.action_prompt.trim() ||
-      form.days_of_week.length === 0 ||
+      !recurrenceIsComplete(form.recurrence) ||
       conditionInvalid
     ) {
       return;
@@ -434,9 +519,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
         const data: ScheduledActionCreate = {
           title: form.title.trim(),
           action_prompt: form.action_prompt.trim(),
-          days_of_week: form.days_of_week,
-          trigger_hour: form.trigger_hour,
-          trigger_minute: form.trigger_minute,
+          recurrence: form.recurrence,
           trigger_kind: form.trigger_kind,
           condition_config: conditionConfig,
           requires_approval: form.requires_approval,
@@ -499,182 +582,105 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     if (!action.is_enabled) return t('scheduled_actions.status.paused');
     if (action.status === 'error') return t('scheduled_actions.status.error');
     if (action.status === 'executing') return t('scheduled_actions.status.executing');
+    // A null trigger means the series is over: saying "active" would be a
+    // claim the routine cannot honour — it will never run again.
+    if (action.next_trigger_at === null) return t('scheduled_actions.status.finished');
     return t('scheduled_actions.status.active');
   };
 
   // Form dialog content (shared between create and edit)
   const formDialog = (isOpen: boolean, onClose: () => void, titleKey: string) => (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="sm:max-w-[480px]">
+      {/* The recurrence editor made this form tall: two questions, a weekday
+          row, an end rule and a summary. `DialogContent` does not scroll on its
+          own — every rich dialog here constrains its height (`dvh`, so the
+          mobile browser bars are accounted for) and scrolls inside. */}
+      <DialogContent className="sm:max-w-[480px] max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t(titleKey)}</DialogTitle>
           <DialogDescription>{t('scheduled_actions.settings.description')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Title */}
-          <div className="space-y-3">
-            <Label htmlFor="sa-title">{t('scheduled_actions.field_title')}</Label>
-            <Input
-              id="sa-title"
-              value={form.title}
-              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              maxLength={200}
-              placeholder={t('scheduled_actions.field_title_placeholder')}
-            />
-          </div>
-
-          {/* Prompt */}
-          <div className="space-y-3">
-            <Label htmlFor="sa-prompt">{t('scheduled_actions.field_prompt')}</Label>
-            <Textarea
-              id="sa-prompt"
-              value={form.action_prompt}
-              onChange={e => setForm(f => ({ ...f, action_prompt: e.target.value }))}
-              maxLength={2000}
-              rows={3}
-              placeholder={t('scheduled_actions.prompt_placeholder')}
-            />
-          </div>
-
-          {/* Days of week */}
-          <div className="space-y-2">
-            <Label>{t('scheduled_actions.field_days')}</Label>
-            <div className="flex flex-wrap gap-2">
-              {WEEKDAYS.map(day => (
-                <Button
-                  key={day}
-                  type="button"
-                  size="sm"
-                  variant={form.days_of_week.includes(day) ? 'default' : 'outline'}
-                  onClick={() => toggleDay(day)}
-                  className="min-w-[3rem]"
-                >
-                  {dayLabels[day]}
-                </Button>
-              ))}
+        {/* Two named groups rather than one column of inputs: the form asks
+            two different questions, and `space-y-6` gives the boundary between
+            them more air than the gap inside each. */}
+        <div className="space-y-6 py-4">
+          <FormSection icon={PencilLine} title={t('scheduled_actions.section_what')}>
+            <div className="space-y-3">
+              <Label htmlFor="sa-title">{t('scheduled_actions.field_title')}</Label>
+              <Input
+                id="sa-title"
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                maxLength={200}
+                placeholder={t('scheduled_actions.field_title_placeholder')}
+              />
             </div>
-          </div>
 
-          {/* Time */}
-          <div className="space-y-3">
-            <Label>{t('scheduled_actions.field_time')}</Label>
-            <div className="flex items-center gap-2">
-              <Select
-                value={String(form.trigger_hour)}
-                onValueChange={v => setForm(f => ({ ...f, trigger_hour: parseInt(v) }))}
-              >
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {HOUR_OPTIONS.map(h => (
-                    <SelectItem key={h} value={String(h)}>
-                      {String(h).padStart(2, '0')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-lg font-bold">:</span>
-              <Select
-                value={String(form.trigger_minute)}
-                onValueChange={v => setForm(f => ({ ...f, trigger_minute: parseInt(v) }))}
-              >
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MINUTE_OPTIONS.map(m => (
-                    <SelectItem key={m} value={String(m)}>
-                      {String(m).padStart(2, '0')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <Label htmlFor="sa-prompt">{t('scheduled_actions.field_prompt')}</Label>
+              <Textarea
+                id="sa-prompt"
+                value={form.action_prompt}
+                onChange={e => setForm(f => ({ ...f, action_prompt: e.target.value }))}
+                maxLength={2000}
+                rows={3}
+                placeholder={t('scheduled_actions.prompt_placeholder')}
+              />
             </div>
+          </FormSection>
+
+          {/* When it runs — the generic editor, mounted with the ROUTINE's caps.
+              A reminder mounts the same component with its own, which is what
+              makes the component generic rather than a routines widget. */}
+          <RecurrenceEditor
+            value={form.recurrence}
+            onChange={recurrence => setForm(f => ({ ...f, recurrence }))}
+            limits={ROUTINE_LIMITS}
+            timezone={editingAction?.user_timezone ?? browserTimezone()}
+            idPrefix="sa"
+            sentence={editingAction?.schedule_display}
+            occurrences={editingAction?.next_occurrences}
+            finished={editingAction != null && editingAction.next_trigger_at === null}
+          />
+          {/* The third question the routine form asks, and the reminder form
+              does not: how it runs. Its trigger, the condition gating it, and
+              whether it proposes before acting — grouped like the other two,
+              rather than trailing below them as a bare column of controls. */}
+          <FormSection icon={Zap} title={t('scheduled_actions.section_execution')}>
+            <ConditionFields
+              form={form}
+              setForm={setForm}
+              conditionInvalid={conditionInvalid}
+              t={t}
+            />
+
+            {/* What the trigger does with the time chosen above. It used to sit
+                between the two groups, the one line still outside the template;
+                it explains the trigger, so it belongs beside it. */}
             <p className="text-xs text-muted-foreground">
               {form.trigger_kind === 'condition'
                 ? t('scheduled_actions.studio.time_hint_condition')
                 : t('scheduled_actions.studio.time_hint_time')}
             </p>
-          </div>
 
-          {/* N-07 studio: trigger kind */}
-          <div className="space-y-3">
-            <Label htmlFor="sa-trigger-kind">{t('scheduled_actions.studio.trigger_kind')}</Label>
-            <Select
-              value={form.trigger_kind}
-              onValueChange={v => setForm(f => ({ ...f, trigger_kind: v as TriggerKind }))}
-            >
-              <SelectTrigger id="sa-trigger-kind">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="time">{t('scheduled_actions.studio.kind_time')}</SelectItem>
-                <SelectItem value="condition">
-                  {t('scheduled_actions.studio.kind_condition')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* N-07 studio: condition config (condition kind only) */}
-          {form.trigger_kind === 'condition' && (
-            <div className="space-y-3 rounded-lg border border-border/40 p-3">
-              <Label htmlFor="sa-condition-type">
-                {t('scheduled_actions.studio.condition_type')}
-              </Label>
-              <Select
-                value={form.condition_type}
-                onValueChange={v => setForm(f => ({ ...f, condition_type: v as ConditionType }))}
-              >
-                <SelectTrigger id="sa-condition-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONDITION_TYPES.map(type => (
-                    <SelectItem key={type} value={type}>
-                      {t(`scheduled_actions.studio.condition.${type}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {QUERY_CONDITION_TYPES.includes(form.condition_type) && (
-                <div className="space-y-3">
-                  <Label htmlFor="sa-condition-query">
-                    {t(`scheduled_actions.studio.query_label.${form.condition_type}`)}
-                  </Label>
-                  <Input
-                    id="sa-condition-query"
-                    value={form.condition_query}
-                    maxLength={120}
-                    onChange={e => setForm(f => ({ ...f, condition_query: e.target.value }))}
-                    placeholder={t(`scheduled_actions.studio.query_ph.${form.condition_type}`)}
-                  />
-                  {conditionInvalid && (
-                    <p className="text-xs text-destructive" role="alert">
-                      {t('scheduled_actions.studio.query_required')}
-                    </p>
-                  )}
-                </div>
-              )}
+            {/* N-07 studio: propose-first mode */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <Label htmlFor="sa-approval">
+                  {t('scheduled_actions.studio.requires_approval')}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('scheduled_actions.studio.requires_approval_hint')}
+                </p>
+              </div>
+              <Switch
+                id="sa-approval"
+                checked={form.requires_approval}
+                onCheckedChange={v => setForm(f => ({ ...f, requires_approval: v }))}
+              />
             </div>
-          )}
-
-          {/* N-07 studio: propose-first mode */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <Label htmlFor="sa-approval">{t('scheduled_actions.studio.requires_approval')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('scheduled_actions.studio.requires_approval_hint')}
-              </p>
-            </div>
-            <Switch
-              id="sa-approval"
-              checked={form.requires_approval}
-              onCheckedChange={v => setForm(f => ({ ...f, requires_approval: v }))}
-            />
-          </div>
+          </FormSection>
         </div>
 
         <DialogFooter>
@@ -686,7 +692,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             disabled={
               !form.title.trim() ||
               !form.action_prompt.trim() ||
-              form.days_of_week.length === 0 ||
+              !recurrenceIsComplete(form.recurrence) ||
               conditionInvalid ||
               creating ||
               updating
@@ -754,7 +760,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             because it is what the reader came to see; foldable, because a
             24-row grid above a long list is a wall on a phone. */}
         {!initialLoading && numbered.length > 0 && (
-          <SettingsDisclosure
+          <Disclosure
             icon={CalendarRange}
             title={t('scheduled_actions.timeline.title')}
             description={t('scheduled_actions.timeline.description')}
@@ -768,7 +774,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
               week={week}
               onSelect={handleSelectFromTimeline}
             />
-          </SettingsDisclosure>
+          </Disclosure>
         )}
 
         {/* Action cards, in trigger-time order, each carrying its rank */}

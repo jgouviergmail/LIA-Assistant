@@ -33,9 +33,10 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_REMINDER_LIMITS
 from src.core.i18n_api_messages import APIMessages
-from src.core.time_utils import format_datetime_for_display
+from src.core.recurrence import RecurrenceError, describe, recurrence_from_parameters
+from src.core.time_utils import format_datetime_for_display, now_utc
 from src.domains.agents.constants import (
     AGENT_REMINDER,
     CONTEXT_DOMAIN_REMINDERS,
@@ -46,6 +47,7 @@ from src.domains.agents.data_registry.models import (
     RegistryItemMeta,
     RegistryItemType,
 )
+from src.domains.agents.registry.recurrence_parameters import RECURRENCE_DOCS
 from src.domains.agents.tools.decorators import read_tool, with_user_preferences, write_tool
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -183,50 +185,74 @@ def _parse_relative_trigger(relative_trigger: str, user_timezone: str) -> str:
 @write_tool(name="create_reminder", agent_name=AGENT_REMINDER)
 @with_user_preferences
 async def create_reminder_tool(
-    content: Annotated[str, "Ce dont l'utilisateur veut être rappelé (résumé concis)"],
-    original_message: Annotated[str, "Message original complet de l'utilisateur"],
+    content: Annotated[str, "What the user wants to be reminded of, summarised."],
+    original_message: Annotated[str, "The user's own request, in full."],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     trigger_datetime: Annotated[
         str | None,
-        "Date/heure ISO du rappel en heure LOCALE (ex: 2025-12-29T10:00:00). "
-        "Utiliser CE paramètre pour les rappels à date fixe.",
+        "A SINGLE firing, as a local ISO date-time (e.g. 2026-12-29T10:00:00). "
+        "Use this for a one-off reminder. Never together with `repeat`.",
     ] = None,
     relative_trigger: Annotated[
         str | None,
-        "Expression relative pour FOR_EACH: 'ISO_DATETIME|OFFSET|@TIME'. "
-        "Ex: '$item.start.dateTime|-1d|@19:00' = veille à 19h. "
-        "Offset: -1d (1 jour avant), -2h (2h avant), -30m (30min avant). "
-        "Utiliser CE paramètre quand le rappel est relatif à un événement.",
+        "FOR_EACH only: a firing relative to an event, 'ISO_DATETIME|OFFSET|@TIME'. "
+        "E.g. '$item.start.dateTime|-1d|@19:00' is the day before at 19:00. "
+        "Offsets: -1d (days), -2h (hours), -30m (minutes).",
     ] = None,
+    repeat: Annotated[str | None, RECURRENCE_DOCS["repeat"]] = None,
+    times: Annotated[list[str] | None, RECURRENCE_DOCS["times"]] = None,
+    repeat_every: Annotated[int, RECURRENCE_DOCS["repeat_every"]] = 1,
+    weekdays: Annotated[list[int] | None, RECURRENCE_DOCS["weekdays"]] = None,
+    month_days: Annotated[list[int] | None, RECURRENCE_DOCS["month_days"]] = None,
+    months: Annotated[list[int] | None, RECURRENCE_DOCS["months"]] = None,
+    nth_weekday: Annotated[str | None, RECURRENCE_DOCS["nth_weekday"]] = None,
+    every_minutes: Annotated[int | None, RECURRENCE_DOCS["every_minutes"]] = None,
+    window_start: Annotated[str | None, RECURRENCE_DOCS["window_start"]] = None,
+    window_end: Annotated[str | None, RECURRENCE_DOCS["window_end"]] = None,
+    until_date: Annotated[str | None, RECURRENCE_DOCS["until_date"]] = None,
+    max_occurrences: Annotated[int | None, RECURRENCE_DOCS["max_occurrences"]] = None,
+    starting_on: Annotated[str | None, RECURRENCE_DOCS["starting_on"]] = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     locale: str = "fr",
 ) -> UnifiedToolOutput:
-    """Create a reminder for the user.
+    """Create a reminder, once or repeating.
 
-    The reminder will be sent as a push notification (FCM)
-    and recorded in the conversation history.
+    Three ways to say WHEN, and exactly one may be used:
 
-    IMPORTANT - Deux modes de déclenchement (mutuellement exclusifs):
+    1. `trigger_datetime` — a single firing at a fixed local date-time.
+       "remind me tomorrow at 9" -> trigger_datetime="2026-01-27T09:00:00"
+    2. `repeat` and its companions — a schedule.
+       "every morning at 8" -> repeat="daily", times=["08:00"]
+    3. `relative_trigger` — FOR_EACH only, a firing relative to an event.
 
-    1. trigger_datetime (mode absolu):
-       - Pour les rappels à date/heure fixe
-       - Ex: "rappelle-moi demain à 9h" → trigger_datetime="2026-01-27T09:00:00"
-
-    2. relative_trigger (mode relatif - FOR_EACH):
-       - Pour les rappels relatifs à un événement (dans un for_each)
-       - Format: "ISO_DATETIME|OFFSET|@TIME"
-       - Ex: "la veille à 19h de chaque rdv" → relative_trigger="$item.start.dateTime|-1d|@19:00"
+    Sending two of them is refused rather than resolved: they can disagree, and
+    the reminder would announce one time and arrive at another.
 
     Args:
-        content: Ce dont l'utilisateur veut être rappelé (résumé)
-        original_message: La demande originale de l'utilisateur (complète)
-        trigger_datetime: Quand envoyer le rappel (format ISO, heure locale) - mode absolu
-        relative_trigger: Expression relative "ISO|OFFSET|@TIME" - mode FOR_EACH
-        user_timezone: User timezone (injected by @with_user_preferences)
-        locale: User language (injected by @with_user_preferences)
+        content: What to remind, summarised.
+        original_message: The user's own request, in full.
+        runtime: LangChain tool runtime.
+        trigger_datetime: A single firing, local ISO date-time.
+        relative_trigger: FOR_EACH expression.
+        repeat: How the schedule walks the calendar.
+        times: Times of day, `HH:MM`.
+        repeat_every: One period out of N.
+        weekdays: ISO weekdays for a weekly schedule.
+        month_days: Days of month, or -1 for the last.
+        months: Months for a yearly schedule.
+        nth_weekday: `<nth>:<weekday>` for "the 2nd Tuesday".
+        every_minutes: A step inside a window, instead of explicit times.
+        window_start: First clock of that window.
+        window_end: Last clock of that window.
+        until_date: The last day the schedule serves.
+        max_occurrences: How many firings the schedule holds.
+        starting_on: The day the series starts, and its phase.
+        user_timezone: User timezone (injected by @with_user_preferences).
+        locale: User language (injected by @with_user_preferences).
 
     Returns:
-        UnifiedToolOutput with confirmation message
+        UnifiedToolOutput with a confirmation message, or a failure the model
+        can relay.
     """
     from src.domains.reminders.service import ReminderService
     from src.infrastructure.database.session import get_db_context
@@ -239,18 +265,47 @@ async def create_reminder_tool(
     try:
         user_id = parse_user_id(config.user_id)
 
-        # Validate: exactly one of trigger_datetime or relative_trigger
-        if trigger_datetime and relative_trigger:
+        # Exactly ONE way to say when. Two of them can disagree, and the
+        # reminder would then announce one time and arrive at another — the
+        # defect the API layer refuses for the same reason (ADR-268).
+        ways = [bool(trigger_datetime), bool(relative_trigger), bool(repeat)]
+        if sum(ways) > 1:
             return UnifiedToolOutput.failure(
                 message=APIMessages.reminder_trigger_params_conflict(locale),
                 error_code="invalid_parameters",
             )
-
-        if not trigger_datetime and not relative_trigger:
+        if not any(ways):
             return UnifiedToolOutput.failure(
                 message=APIMessages.reminder_trigger_params_missing(locale),
                 error_code="missing_parameters",
             )
+
+        # A SCHEDULE: the armed instant is derived from it by the service, so
+        # nothing here computes a second one.
+        recurrence = None
+        if repeat:
+            try:
+                recurrence = recurrence_from_parameters(
+                    repeat=repeat,
+                    today=now_utc().astimezone(ZoneInfo(user_timezone)).date(),
+                    times=times,
+                    repeat_every=repeat_every,
+                    weekdays=weekdays,
+                    month_days=month_days,
+                    months=months,
+                    nth_weekday=nth_weekday,
+                    every_minutes=every_minutes,
+                    window_start=window_start,
+                    window_end=window_end,
+                    until_date=until_date,
+                    max_occurrences=max_occurrences,
+                    starting_on=starting_on,
+                )
+                # What a REMINDER may ask — 48 firings a day where a routine
+                # gets 12. The ceiling travels with the caller.
+                recurrence.validate_against(RECURRENCE_REMINDER_LIMITS)
+            except RecurrenceError as exc:
+                return UnifiedToolOutput.failure(message=str(exc), error_code="invalid_schedule")
 
         # Calculate final trigger datetime
         if relative_trigger:
@@ -282,12 +337,16 @@ async def create_reminder_tool(
                     message=message,
                     error_code="invalid_relative_trigger",
                 )
-        else:
+        elif trigger_datetime:
             from src.core.time_utils import normalize_user_datetime
 
             final_trigger_datetime = (
                 normalize_user_datetime(trigger_datetime, user_timezone) or trigger_datetime
             )
+        else:
+            # A schedule was given; the service derives the armed instant from
+            # it. Nothing here computes a second one.
+            final_trigger_datetime = None
 
         async with get_db_context() as db:
             service = ReminderService(db)
@@ -296,7 +355,9 @@ async def create_reminder_tool(
                 user_id=user_id,
                 data=ReminderCreate(
                     content=content,
+                    # EITHER an instant OR a schedule — the schema refuses both.
                     trigger_at=final_trigger_datetime,
+                    recurrence=recurrence,
                     original_message=original_message,
                 ),
                 user_timezone=user_timezone,
@@ -318,12 +379,21 @@ async def create_reminder_tool(
                 used_relative_trigger=bool(relative_trigger),
             )
 
+            # A SCHEDULE is confirmed as a schedule. Naming only its next
+            # instant reads as a one-off, and the reader who said "every
+            # morning at 8" would have no sign the rest was understood.
+            schedule_human = describe(recurrence, locale) if recurrence else None
             return UnifiedToolOutput.action_success(
-                message=APIMessages.reminder_created(formatted_time),
+                message=(
+                    APIMessages.reminder_created_recurring(schedule_human, locale)
+                    if schedule_human
+                    else APIMessages.reminder_created(formatted_time, locale)
+                ),
                 structured_data={
                     "reminder_id": str(reminder.id),
                     "content": content,
                     "trigger_at_formatted": formatted_time,
+                    "schedule_human": schedule_human,
                 },
             )
 

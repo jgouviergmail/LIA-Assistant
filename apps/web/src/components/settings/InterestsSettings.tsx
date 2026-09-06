@@ -44,7 +44,7 @@ import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
-import { SettingsDisclosure } from '@/components/settings/SettingsDisclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { HourWindow, MinMaxPerDay } from '@/components/settings/FrequencyControls';
 import { InterestNotificationHistory } from '@/components/settings/InterestNotificationHistory';
 import { useInterestNotificationHistory } from '@/hooks/useInterestNotificationHistory';
@@ -850,7 +850,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
           CLOSED, and not fetched until opened — a list nobody looks at must
           not cost a request. */}
       <div className="border-t pt-4">
-        <SettingsDisclosure
+        <Disclosure
           icon={History}
           title={t('interests.history.title')}
           onOpenChange={setHistoryOpen}
@@ -864,7 +864,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
             error={notificationHistory.error}
             locale={intlLocale}
           />
-        </SettingsDisclosure>
+        </Disclosure>
       </div>
     </div>
   );

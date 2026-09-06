@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.43.0] - 2026-09-06
+
+**Une routine et un rappel posaient la même question — « quand ? » — et deux moteurs y répondaient.** Les routines savaient dire « le lundi et le jeudi à 8h » ; les rappels ne savaient dire qu'un instant, une fois. Rien ne permettait « tous les trois jours », « le 2e mardi du mois », « toutes les deux heures entre 9h et 17h », ni de faire répéter un rappel. Un seul moteur répond désormais aux deux, et le post-it n'est plus une exception : `rearm_after` renvoie `None` pour une occurrence unique consommée, ce qui EST « supprimer après notification » — aucune branche nulle part ne demande « est-ce que ça se répète ».
+
+**Et le moteur d'avant sautait un jour par an, dans 73 fuseaux.** Mesuré : APScheduler saute la journée entière quand le décalage change à minuit local — 72 créneaux perdus, 142 exécutions par an, `Europe/Paris` compris, sans rien dans les journaux.
+
+### Added
+
+- **Un moteur de récurrence unique** (`src/core/recurrence/`) : une récurrence est un PRODUIT — quels jours du calendrier × quels moments de la journée. `dateutil.rrule` énumère les jours, chaque moment est localisé avec `fold=0`, et le résultat est ordonné et dédoublonné PAR INSTANT (au passage à l'heure d'hiver, deux horloges murales tombent sur le même instant). Le paquet n'importe aucun domaine et **aucune configuration** : `core.constants` lit ses plafonds ici, donc y toucher à `core.config` referme une chaîne sur une configuration à moitié construite et plus rien ne démarre.
+- **Un rappel peut se répéter.** Colonne `recurrence` JSONB, reprise en SQL pur depuis l'instant déjà stocké, et une section « Rappels » dans les réglages qui monte l'éditeur générique **sans une ligne de modification** — c'est la preuve de la généricité, pas une intention.
+- **Les deux outils de chat parlent la même langue.** Un vocabulaire PLAT déclaré une fois et traduit une fois : `compact_schema` aplatit un objet imbriqué en les noms `parent.child` qu'il refuse ensuite, donc la surface parlée ne peut pas être le modèle stocké. Chaque outil publie les plafonds QU'IL applique (ADR-184) — 12 déclenchements par jour pour une routine, 48 pour un rappel — et un nombre hors bornes est RÉPARÉ par le clamp du planificateur, jamais rapporté comme un défaut.
+- **La transcription est mesurée, pas supposée** : 18 familles de formulations × 6 langues. La moitié déterministe est un test unitaire ; la moitié fournisseur est un script (`task recurrence:corpus:measure`), parce qu'un test qui saute faute de clé est de la décoration (ADR-155). Mesuré le 2026-09-06 sur `gpt-5.6-luna` : **105/108 exactes (97 %)**, fr/en/es 18/18. L'oracle est les INSTANTS et non les paramètres — deux formulations qui déclenchent aux mêmes moments sont le même planning.
+- **Une chronologie hebdomadaire des routines** et un historique par exécution (ADR-265) : une grille qui ne PEINT que, sans jamais relire le planning.
+
+### Changed
+
+- **Les jours sont énumérés, plus jamais délégués à un cron.** `dateutil.rrule` remplace `CronTrigger` sur les deux domaines ; l'équivalence est prouvée sur 76 518 comparaisons couvrant tous les fuseaux IANA, et les 26 écarts sont tous des créneaux que l'ancien moteur SAUTAIT.
+- **`create_reminder_tool` déclare `mutation_policy="reversible"`** : il agit, et il héritait de `readonly` par un repli d'inférence (ADR-263).
+- **Les formulaires de saisie sont regroupés** : deux questions nommées avec leur icône de thème pour un rappel — « ce qu'il faut faire », « quand » —, trois pour une routine, et l'intervalle, la fin de série et la date de départ repliés derrière « Options avancées » (8 champs visibles ramenés à 5). Le repli **s'ouvre de lui-même** sur toute valeur non par défaut, et le champ qui PORTE la réponse ne se replie jamais : pour une occurrence unique, la date d'ancrage EST la date du rappel.
+- **`SettingsDisclosure` devient `ui/disclosure.tsx`** : aucune dépendance au domaine des réglages, et trois autres domaines l'importaient déjà. La garde de généricité de l'éditeur a refusé son import et a ainsi nommé une adresse fausse antérieure au chantier.
+
+### Fixed
+
+- **Un sélecteur de jours que le moteur IGNORAIT était accepté, stocké et affiché.** Une règle quotidienne déclarant les jours ouvrés sonnait aussi le week-end ; une règle mensuelle déclarant janvier et juillet se déclenchait douze fois par an. C'est le miroir d'ADR-184 : là une borne était appliquée sans être publiée, ici une valeur était publiée sans être appliquée — dans les deux cas le producteur croit avoir été obéi. Le modèle refuse désormais, la dictée RÉPARE les deux identités exactes (« tous les jours » restreint aux jours ouvrés EST la règle hebdomadaire) et la réparation est VISIBLE dans la confirmation.
+- **Une phrase annuelle ne nommait que son premier mois et son premier jour** : « le 15 janvier et juillet » s'affichait « le 15 janvier », juillet se déclenchait et rien à l'écran ne le disait.
+- **La marque du jour appartenait à la phrase, pas au nombre** : « Am 1 und 15. jedes Monats » en allemand — un seul ordinal pour deux. Défaut préexistant : toute routine mensuelle sur deux jours était déjà mal formulée en allemand et en chinois.
+- **Une fonction qui documentait `Raises: RecurrenceError`** laissait Pydantic l'envelopper : sept familles de refus — « le 31 février », un jour de semaine à 9 — traversaient le `except` des deux outils, qui LEVAIENT au lieu de répondre, avec un message portant les noms de champs internes et une URL de documentation.
+- **Le repli du prompt de notification contredisait le fragment versionné qu'il secourt** (il nommait la date de création sur chaque occurrence d'un rappel quotidien) **et faisait du texte de l'utilisateur une partie de son gabarit** : un rappel contenant une accolade levait `KeyError`, trois réessais, occurrence abandonnée.
+- **La propagation d'un changement de fuseau attrapait ses erreurs mais pas ses transactions** : une instruction en échec empoisonne une transaction PostgreSQL, donc un rappel dont l'écriture échouait emportait au commit les routines déjà déplacées ET la mise à jour du profil. Un point de reprise par surface désormais.
+- **Le ré-armement était calculé sur cinq sites identiques** dans l'exécuteur de routines — une règle en cinq copies se modifie en quatre.
+- **Un filtre de sécurité qui ne s'exécutait pour aucun modèle réel** : le filtre des modèles de raisonnement de la branche OpenAI est intercepté par la voie Responses pour tout `gpt-4.1*`, `gpt-5*` et `o[1-9]*`. La protection qui TOURNE décidait sur l'effort demandé et non sur le modèle, donc un modèle de raisonnement sans intention configurée recevait `temperature` et `top_p` (mesuré sur l'API réelle : `top_p=1.0` toléré, `top_p=0.9` répond 400). Les deux voies lisent maintenant UN prédicat, et une garde exige qu'il n'ait qu'un lecteur.
+- **Une largeur posée sur un champ ne borne pas ce que la ligne mesure** : `Input` s'enveloppe dans `FieldFrame`, qui est `w-full`, donc l'unité partait à 330 px du champ. Huit champs corrigés dans cinq écrans, et une garde qui s'auto-teste — trois versions successives de cette garde passaient alors que le défaut était dans l'arbre.
+- **Une date de fin vidée bloquait le formulaire sans dire pourquoi**, et l'ancienne grille hebdomadaire ne dessinait pas la cellule du 30 mars.
+
+### Tests
+
+- 24 783 unitaires backend, 7 522 frontend, 864 d'intégration sur PostgreSQL réel, 15 parcours d'accessibilité, 149 de déploiement.
+- Trois gardes neuves, chacune prouvée par réintroduction du défaut : un seul lecteur du motif de raisonnement, une largeur toujours portée par le conteneur, et la table des sélecteurs identique entre Python et TypeScript.
+- Le corpus de transcription gèle 18 familles dans 6 langues ; la moitié déterministe tourne en CI, la moitié fournisseur est une mesure datée.
+
 ## [1.42.4] - 2026-09-05
 
 **Les modèles qui tournent sur ta machine deviennent des modèles comme les autres.** Ollama était branché sur son pont de compatibilité OpenAI, et ce pont ne sait pas dire l'essentiel : couper la réflexion d'un modèle qui pense, fixer la fenêtre de contexte, séparer la pensée de la réponse. Mesuré le 2026-09-05 : un emplacement passé sur `qwen3.8:27b` mourait à l'instanciation à chaque tour, et le premier correctif — le pont rafistolé — rendait une réponse VIDE, douze jetons demandés et douze jetons de pensée. LIA parle désormais à Ollama dans sa propre langue, et c'est le serveur qui dit ce que chacun de ses modèles sait faire.

@@ -149,6 +149,15 @@ export interface ReminderItem {
   id?: string | null;
   content: string;
   trigger_at_local: string;
+  /**
+   * True when this reminder repeats.
+   *
+   * Cancelling from the card deletes the ROW, so for a repeating reminder it
+   * removes every future occurrence. Optional because a payload cached before
+   * this field still parses; absent reads as "does not repeat", which is what
+   * every reminder was before 2026-09-06.
+   */
+  repeats?: boolean;
 }
 
 export interface RemindersData {

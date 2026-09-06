@@ -208,9 +208,26 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               user_id: '00000000-0000-4000-8000-000000000001',
               title: 'Revue du matin',
               action_prompt: 'Résume ma journée',
-              days_of_week: [1, 2, 3, 4, 5],
-              trigger_hour: 8,
-              trigger_minute: 0,
+              recurrence: {
+                freq: 'weekly',
+                interval: 1,
+                anchor_date: '2026-10-19',
+                byweekday: [1, 2, 3, 4, 5],
+                bymonthday: [],
+                nth_weekday: null,
+                bymonth: [],
+                times: { mode: 'at', at: [{ hour: 8, minute: 0 }, { hour: 18, minute: 0 }], step_minutes: null, start: null, end: null },
+                end: { kind: 'never', on_date: null, after_count: null },
+              },
+              times_of_day: ['08:00', '18:00'],
+              runs_per_day: 2,
+              week_slots: [
+                { day: 1, date: '2026-10-19', hour: 8, minute: 0, slot_at: '2026-10-19T06:00:00Z' },
+                { day: 1, date: '2026-10-19', hour: 18, minute: 0, slot_at: '2026-10-19T16:00:00Z' },
+                { day: 2, date: '2026-10-20', hour: 8, minute: 0, slot_at: '2026-10-20T06:00:00Z' },
+                { day: 2, date: '2026-10-20', hour: 18, minute: 0, slot_at: '2026-10-20T16:00:00Z' },
+                { day: 3, date: '2026-10-21', hour: 8, minute: 0, slot_at: '2026-10-21T06:00:00Z' },
+              ],
               user_timezone: 'Europe/Paris',
               trigger_kind: 'time',
               condition_config: null,
@@ -224,7 +241,7 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               last_error: null,
               created_at: '2026-08-01T10:00:00Z',
               updated_at: '2026-08-01T10:00:00Z',
-              schedule_display: '',
+              schedule_display: 'En semaine, à 08:00 et 18:00',
               next_occurrences: ['2026-10-24T06:00:00Z', '2026-10-26T07:00:00Z'],
             },
             // A paused routine and a condition routine, so the grey chip, the
@@ -236,9 +253,24 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               user_id: '00000000-0000-4000-8000-000000000001',
               title: 'Veille en pause',
               action_prompt: 'Cherche les actualités IA',
-              days_of_week: [1, 3, 5],
-              trigger_hour: 19,
-              trigger_minute: 30,
+              recurrence: {
+                freq: 'weekly',
+                interval: 1,
+                anchor_date: '2026-10-19',
+                byweekday: [1, 3, 5],
+                bymonthday: [],
+                nth_weekday: null,
+                bymonth: [],
+                times: { mode: 'at', at: [{ hour: 19, minute: 30 }], step_minutes: null, start: null, end: null },
+                end: { kind: 'never', on_date: null, after_count: null },
+              },
+              times_of_day: ['19:30'],
+              runs_per_day: 1,
+              week_slots: [
+                { day: 1, date: '2026-10-19', hour: 19, minute: 30, slot_at: '2026-10-19T17:30:00Z' },
+                { day: 3, date: '2026-10-21', hour: 19, minute: 30, slot_at: '2026-10-21T17:30:00Z' },
+                { day: 5, date: '2026-10-23', hour: 19, minute: 30, slot_at: '2026-10-23T17:30:00Z' },
+              ],
               user_timezone: 'Europe/Paris',
               trigger_kind: 'time',
               condition_config: null,
@@ -252,7 +284,7 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               last_error: null,
               created_at: '2026-08-01T10:00:00Z',
               updated_at: '2026-08-01T10:00:00Z',
-              schedule_display: '',
+              schedule_display: 'Toutes les semaines, le lundi, mercredi et vendredi, à 19:30',
               next_occurrences: [],
             },
             {
@@ -260,9 +292,23 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               user_id: '00000000-0000-4000-8000-000000000001',
               title: 'Factures en retard',
               action_prompt: 'Signale les factures en retard',
-              days_of_week: [2, 4],
-              trigger_hour: 8,
-              trigger_minute: 0,
+              recurrence: {
+                freq: 'weekly',
+                interval: 1,
+                anchor_date: '2026-10-19',
+                byweekday: [2, 4],
+                bymonthday: [],
+                nth_weekday: null,
+                bymonth: [],
+                times: { mode: 'at', at: [{ hour: 8, minute: 0 }], step_minutes: null, start: null, end: null },
+                end: { kind: 'never', on_date: null, after_count: null },
+              },
+              times_of_day: ['08:00'],
+              runs_per_day: 1,
+              week_slots: [
+                { day: 2, date: '2026-10-20', hour: 8, minute: 0, slot_at: '2026-10-20T06:00:00Z' },
+                { day: 4, date: '2026-10-22', hour: 8, minute: 0, slot_at: '2026-10-22T06:00:00Z' },
+              ],
               user_timezone: 'Europe/Paris',
               trigger_kind: 'condition',
               condition_config: { type: 'task_overdue' },
@@ -276,7 +322,7 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               last_error: null,
               created_at: '2026-08-01T10:00:00Z',
               updated_at: '2026-08-01T10:00:00Z',
-              schedule_display: '',
+              schedule_display: 'Toutes les semaines, le mardi et jeudi, à 08:00',
               next_occurrences: ['2026-10-27T07:00:00Z'],
             },
           ],
@@ -394,6 +440,38 @@ ${summary}`
 
     const pane = await scanPage(page, testInfo, '/dashboard/settings#pane-phone');
     expect(pane.blocking, `axe violations on the phone pane:\n${pane.summary}`).toHaveLength(0);
+  });
+
+  test('the two recurrence sections scan clean on a phone', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // Test 25 of the recurrence design: both sections mount the SAME editor,
+    // and it is the densest control the settings pane carries — a frequency
+    // select, an interval, a day picker, a list of times and an end rule, all
+    // inside a drill-down pane 390 px wide. The desktop scans never see this
+    // DOM, and the editor is shared, so a violation here would land on both
+    // features at once.
+    await authenticate();
+    await mockApi([]);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/en/dashboard/settings');
+    await expect(page.getByRole('navigation', { name: 'Settings sections' })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    for (const section of ['Scheduled Actions', 'Reminders']) {
+      await page.getByRole('button', { name: section }).click();
+      await expect(page.getByRole('button', { name: 'Back to settings' })).toBeVisible({
+        timeout: 20_000,
+      });
+      const scan = await scanPage(page, testInfo, `/dashboard/settings#${section}-phone`);
+      expect(scan.blocking, `axe violations on ${section}:
+${scan.summary}`).toHaveLength(0);
+      await page.getByRole('button', { name: 'Back to settings' }).click();
+      await expect(page.getByRole('navigation', { name: 'Settings sections' })).toBeVisible();
+    }
   });
 
   test('spaces page scans clean', async ({ page, authenticate, mockApi }, testInfo) => {

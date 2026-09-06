@@ -2256,13 +2256,11 @@ CREATE TABLE scheduled_actions (
     -- Action definition
     title VARCHAR(200) NOT NULL,
     action_prompt TEXT NOT NULL,
-    days_of_week SMALLINT[] NOT NULL,         -- ISO: 1=Mon..7=Sun
-    trigger_hour SMALLINT NOT NULL,            -- 0-23 (user timezone)
-    trigger_minute SMALLINT NOT NULL,          -- 0-59
+    recurrence JSONB NOT NULL,                 -- RecurrenceSpec (see below)
     user_timezone VARCHAR(50) NOT NULL DEFAULT 'Europe/Paris',
 
     -- Scheduling state
-    next_trigger_at TIMESTAMPTZ NOT NULL,      -- Computed, UTC
+    next_trigger_at TIMESTAMPTZ,               -- Computed, UTC; NULL = nothing follows
     is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     status VARCHAR(20) NOT NULL DEFAULT 'active', -- active|executing|error
 
@@ -2281,8 +2279,22 @@ CREATE TABLE scheduled_actions (
 CREATE INDEX ix_scheduled_actions_user_id ON scheduled_actions(user_id);
 CREATE INDEX ix_scheduled_actions_due
     ON scheduled_actions(next_trigger_at)
-    WHERE is_enabled = TRUE AND status = 'active';
+    WHERE is_enabled = TRUE AND status = 'active' AND next_trigger_at IS NOT NULL;
 ```
+
+**The schedule is one column.** `recurrence` holds a `RecurrenceSpec`
+(`src/core/recurrence/spec.py`): which calendar days the routine serves
+(`freq`, `interval`, `anchor_date`, `byweekday`, `bymonthday`, `nth_weekday`,
+`bymonth`), which moments inside them (`times`), and where the series stops
+(`end`). It replaced three cron columns that could not express a routine
+firing twice a day; keeping them beside the spec would let one row disagree
+with itself.
+
+`next_trigger_at` is **nullable** since that rework: NULL means nothing
+follows — an exhausted series, a consumed single occurrence. `NULL <= now()`
+is UNKNOWN in SQL, so the poll excludes such a row by construction rather
+than by a filter someone must remember to write; the index predicate states
+the same thing so the partial index stays aligned with the query.
 
 **Status lifecycle:**
 
@@ -2305,11 +2317,9 @@ class ScheduledAction(BaseModel):
     user_id: Mapped[UUID]
     title: Mapped[str]
     action_prompt: Mapped[str]
-    days_of_week: Mapped[list[int]]       # ARRAY(SmallInteger)
-    trigger_hour: Mapped[int]
-    trigger_minute: Mapped[int]
+    recurrence: Mapped[dict]              # JSONB - RecurrenceSpec
     user_timezone: Mapped[str]
-    next_trigger_at: Mapped[datetime]     # UTC
+    next_trigger_at: Mapped[datetime | None]  # UTC; None = nothing follows
     is_enabled: Mapped[bool]
     status: Mapped[str]
     last_executed_at: Mapped[datetime | None]
@@ -2736,7 +2746,7 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `memories` | `src/domains/memories/models.py` | Mémoire long-terme (contenu chiffré, embeddings pgvector, catégorie, poids émotionnel) |
 | `journal_entries` | `src/domains/journals/models.py` | Carnets de bord introspectifs stratifiés L0–L3 (ADR-079/088) |
 | `psyche_states` / `psyche_history` | `src/domains/psyche/models.py` | État psychologique dynamique courant + snapshots historiques (ADR-068) |
-| `reminders` | `src/domains/reminders/models.py` | Rappels one-shot éphémères (ADR-051) |
+| `reminders` | `src/domains/reminders/models.py` | Rappels, ponctuels ou récurrents ; supprimés quand plus rien ne suit (ADR-051) |
 | `attachments` | `src/domains/attachments/models.py` | Pièces jointes chat (images/PDF) + analyse vision |
 | `rag_spaces` / `rag_documents` / `rag_chunks` / `rag_drive_sources` / `rag_mail_sources` | `src/domains/rag_spaces/models.py` | Espaces de connaissances RAG, documents, chunks vectorisés, sync Drive (ADR-055/056), source « libellé Gmail » opt-in (ADR-262 : `rag_mail_sources`, colonnes `mail_source_id` / `mail_thread_id` / `mail_last_message_at` de `rag_documents`) |
 | `health_samples` / `health_metric_tokens` | `src/domains/health_metrics/models.py` | Métriques santé (iPhone Shortcuts) + tokens d'ingestion par utilisateur (ADR-076) |

@@ -11,7 +11,12 @@
  * the user reopens a form and saves it untouched.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { makeScheduledAction } from '@/__tests__/factories';
+import type { ScheduledAction } from '@/hooks/useScheduledActions';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
@@ -22,38 +27,22 @@ vi.mock('sonner', () => ({ toast }));
 
 import { ScheduledActionsSettings } from '../ScheduledActionsSettings';
 import type {
-  ScheduledAction,
+
   useScheduledActions as useScheduledActionsFn,
 } from '@/hooks/useScheduledActions';
 
-type ScheduledHook = ReturnType<typeof useScheduledActionsFn>;
-
+/** The routine this file's fixtures assume, on the shared factory. */
 function action(over: Partial<ScheduledAction> = {}): ScheduledAction {
-  return {
+  return makeScheduledAction({
     id: 'a1',
-    user_id: 'u1',
     title: 'Morning brief',
     action_prompt: 'Summarise my day',
-    days_of_week: [1, 2],
-    trigger_hour: 8,
-    trigger_minute: 0,
-    user_timezone: 'Europe/Paris',
-    trigger_kind: 'time',
-    condition_config: null,
-    requires_approval: false,
-    next_trigger_at: '2026-07-20T06:00:00Z',
-    is_enabled: true,
-    status: 'active',
-    last_executed_at: null,
-    execution_count: 0,
-    consecutive_failures: 0,
-    last_error: null,
-    schedule_display: 'Mon, Tue - 08:00',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
     ...over,
-  };
+  });
 }
+
+type ScheduledHook = ReturnType<typeof useScheduledActionsFn>;
+
 
 function hook(over: Partial<ScheduledHook> = {}) {
   return {
@@ -88,7 +77,6 @@ const SAVE = 'common.save';
 const FIELD_TITLE = 'scheduled_actions.field_title';
 const FIELD_PROMPT = 'scheduled_actions.field_prompt';
 /** Monday, in the WEEKDAYS 1..7 numbering the form uses. */
-const MONDAY = 'scheduled_actions.days.d1';
 
 const saveButton = () => screen.getByRole('button', { name: SAVE });
 
@@ -226,7 +214,10 @@ describe('ScheduledActionsSettings — creation', () => {
     return screen.findByLabelText(FIELD_TITLE);
   }
 
-  it('keeps saving impossible until title, prompt and at least one day are given', async () => {
+  it('keeps saving impossible until a title and a prompt are given', async () => {
+    // The recurrence starts COMPLETE (every day at 08:00) — the editor cannot
+    // produce an incomplete one, and its own suite proves that. What this
+    // section still owns is the text: a blank title is not a title.
     useScheduledActions.mockReturnValue(hook());
     const { user } = render();
     const title = await openCreate(user);
@@ -238,8 +229,6 @@ describe('ScheduledActionsSettings — creation', () => {
     await user.type(title, 'Morning brief');
     expect(saveButton()).toBeDisabled();
     await user.type(screen.getByLabelText(FIELD_PROMPT), 'Summarise my day');
-    expect(saveButton()).toBeDisabled(); // no day picked yet
-    await user.click(screen.getByRole('button', { name: MONDAY }));
     expect(saveButton()).toBeEnabled();
   });
 
@@ -256,16 +245,16 @@ describe('ScheduledActionsSettings — creation', () => {
     // how long the string is, so the length was pure flake surface.
     await user.type(title, '  Brief  ');
     await user.type(screen.getByLabelText(FIELD_PROMPT), '  Digest  ');
-    await user.click(screen.getByRole('button', { name: MONDAY }));
     await user.click(saveButton());
 
     await waitFor(() =>
       expect(createAction).toHaveBeenCalledWith({
         title: 'Brief',
         action_prompt: 'Digest',
-        days_of_week: [1],
-        trigger_hour: 8,
-        trigger_minute: 0,
+        recurrence: expect.objectContaining({
+          freq: 'daily',
+          times: expect.objectContaining({ mode: 'at', at: [{ hour: 8, minute: 0 }] }),
+        }),
         // N-07: a default create is an unchanged "time" routine.
         trigger_kind: 'time',
         condition_config: null,
@@ -285,7 +274,6 @@ describe('ScheduledActionsSettings — creation', () => {
 
     await user.type(title, 'Morning brief');
     await user.type(screen.getByLabelText(FIELD_PROMPT), 'Summarise my day');
-    await user.click(screen.getByRole('button', { name: MONDAY }));
     await user.click(saveButton());
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('scheduled_actions.error_create'));
@@ -333,18 +321,23 @@ describe('ScheduledActionsSettings — edition', () => {
     expect(toast.success).toHaveBeenCalledWith('scheduled_actions.edit_success');
   });
 
-  it('sends the days when the selection changes, and nothing else', async () => {
+  it('sends the recurrence when it changes, and nothing else', async () => {
     const updateAction = vi.fn().mockResolvedValue(action());
-    useScheduledActions.mockReturnValue(
-      hook({ actions: [action({ days_of_week: [1, 2] })], updateAction })
-    );
+    useScheduledActions.mockReturnValue(hook({ actions: [action()], updateAction }));
     const { user } = render();
     await openEdit(user);
 
-    await user.click(screen.getByRole('button', { name: MONDAY })); // deselect Monday
+    // One change inside the embedded editor: add a second moment to the day.
+    await user.click(screen.getByRole('button', { name: 'recurrence.time_add' }));
     await user.click(saveButton());
 
-    await waitFor(() => expect(updateAction).toHaveBeenCalledWith('a1', { days_of_week: [2] }));
+    await waitFor(() =>
+      expect(updateAction).toHaveBeenCalledWith('a1', {
+        recurrence: expect.objectContaining({
+          times: expect.objectContaining({ mode: 'at' }),
+        }),
+      })
+    );
   });
 
   it('saves nothing when the form is reopened and left untouched', async () => {
@@ -388,7 +381,7 @@ describe('ScheduledActionsSettings — duplication', () => {
     // personal/professional): everything is copied, only the title is marked.
     useScheduledActions.mockReturnValue(
       hook({
-        actions: [action({ days_of_week: [6, 7], trigger_hour: 19, trigger_minute: 30 })],
+        actions: [action({ times_of_day: ['19:30'] })],
       })
     );
     const { user } = render();
@@ -423,9 +416,10 @@ describe('ScheduledActionsSettings — duplication', () => {
     expect(createAction.mock.calls[0][0]).toMatchObject({
       title: 'Morning brief scheduled_actions.duplicate_suffix',
       action_prompt: 'Summarise my day',
-      days_of_week: [1, 2],
-      trigger_hour: 8,
-      trigger_minute: 0,
+      // The copy carries the SOURCE's recurrence: duplicating to change a day
+      // or an hour is the point, and a copy that reset the schedule would make
+      // the reader redo the very thing they duplicated to keep.
+      recurrence: action().recurrence,
     });
   });
 
@@ -580,9 +574,9 @@ describe('where the keyboard lands once a routine is deleted', () => {
 });
 
 describe('ScheduledActionsSettings — chronological order and rank (ADR-265)', () => {
-  const morning = action({ id: 'm', title: 'Morning', trigger_hour: 8 });
-  const evening = action({ id: 'e', title: 'Evening', trigger_hour: 19, trigger_minute: 30 });
-  const dawn = action({ id: 'd', title: 'Dawn', trigger_hour: 6, is_enabled: false });
+  const morning = action({ id: 'm', title: 'Morning', times_of_day: ['08:00'] });
+  const evening = action({ id: 'e', title: 'Evening', times_of_day: ['19:30'] });
+  const dawn = action({ id: 'd', title: 'Dawn', times_of_day: ['06:00'], is_enabled: false });
 
   it('lists the cards by trigger time, not in the order the API returned them', () => {
     useScheduledActions.mockReturnValue(hook({ actions: [evening, morning, dawn], total: 3 }));
@@ -637,5 +631,105 @@ describe('ScheduledActionsSettings — chronological order and rank (ADR-265)', 
     expect(card).not.toBeNull();
     expect(document.activeElement).toBe(card);
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ScheduledActionsSettings — a finished series says so', () => {
+  it('states FINISHED rather than active when nothing follows', () => {
+    // `next_trigger_at: null` means the series is over. Showing "active" is a
+    // claim the routine cannot honour: it will never run again. Found by
+    // adversarial review 2026-09-06 — no test covered it.
+    useScheduledActions.mockReturnValue(
+      hook({ actions: [action({ next_trigger_at: null, next_occurrences: [] })], total: 1 })
+    );
+    render();
+    expect(screen.getByText('scheduled_actions.status.finished')).toBeInTheDocument();
+    expect(screen.queryByText('scheduled_actions.status.active')).not.toBeInTheDocument();
+  });
+
+  it('still says PAUSED when the reader switched it off, finished or not', () => {
+    // Paused outranks finished: a switched-off routine is inert whatever its
+    // series has left.
+    useScheduledActions.mockReturnValue(
+      hook({
+        actions: [action({ next_trigger_at: null, is_enabled: false, next_occurrences: [] })],
+        total: 1,
+      })
+    );
+    render();
+    expect(screen.getByText('scheduled_actions.status.paused')).toBeInTheDocument();
+  });
+
+  it('says nothing about being finished while a run is armed', () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [action()], total: 1 }));
+    render();
+    expect(screen.queryByText('scheduled_actions.status.finished')).not.toBeInTheDocument();
+  });
+});
+
+describe('the routine form fits a phone', () => {
+  it('constrains its height and scrolls inside, in dynamic viewport units', () => {
+    // The recurrence editor made this dialog far taller than the three short
+    // fields it replaced. `DialogContent` does not scroll on its own, so
+    // without this the bottom of the form — including the save button — is
+    // unreachable on a phone. `dvh`, not `vh`: the mobile browser bars move.
+    const source = readFileSync(
+      join(process.cwd(), 'src/components/settings/ScheduledActionsSettings.tsx'),
+      'utf8'
+    );
+    const dialog = source.match(/<DialogContent className="([^"]*)"/)?.[1] ?? '';
+    expect(dialog).toContain('overflow-y-auto');
+    expect(dialog).toMatch(/max-h-\[\d+dvh\]/);
+  });
+});
+
+describe('ScheduledActionsSettings — the form reads as named groups', () => {
+  it('groups every question, leaving no field outside one', async () => {
+    // The routine form asks three questions where the reminder form asks two:
+    // what to do, when, and how it runs (its trigger, its condition, and
+    // whether it asks before acting). The first two were grouped on
+    // 2026-09-06; the third stayed a bare column of controls below them.
+    useScheduledActions.mockReturnValue(hook());
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: CREATE }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    for (const name of [
+      'scheduled_actions.section_what',
+      'recurrence.section_when',
+      'scheduled_actions.section_execution',
+    ]) {
+      expect(screen.getByRole('group', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('puts the trigger and the approval switch inside that third group', async () => {
+    useScheduledActions.mockReturnValue(hook());
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: CREATE }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    const execution = screen.getByRole('group', { name: 'scheduled_actions.section_execution' });
+    expect(execution).toContainElement(
+      screen.getByLabelText('scheduled_actions.studio.trigger_kind')
+    );
+    expect(execution).toContainElement(
+      screen.getByLabelText('scheduled_actions.studio.requires_approval')
+    );
+  });
+
+  it('leaves no explanatory line floating between two groups', async () => {
+    // The sentence explaining what the trigger does with the chosen time sat
+    // BETWEEN the "when" group and the next heading — the one element still
+    // outside the template. It explains the trigger, so it belongs with it.
+    useScheduledActions.mockReturnValue(hook());
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: CREATE }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    const execution = screen.getByRole('group', { name: 'scheduled_actions.section_execution' });
+    expect(execution).toContainElement(
+      screen.getByText('scheduled_actions.studio.time_hint_time')
+    );
   });
 });

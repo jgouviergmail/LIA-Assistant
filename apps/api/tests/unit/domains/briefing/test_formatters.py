@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.core.recurrence import RecurrenceSpec
 from src.domains.briefing.formatters import (
     WEATHER_EMOJI_DEFAULT,
     WEATHER_EMOJI_MAP,
@@ -308,12 +309,38 @@ class TestFormatEmailItem:
 # =============================================================================
 
 
+def _once() -> RecurrenceSpec:
+    """A reminder that happens once — what every reminder was before 2026-09-06."""
+    return RecurrenceSpec.model_validate(
+        {
+            "freq": "once",
+            "interval": 1,
+            "anchor_date": "2026-09-06",
+            "times": {"mode": "at", "at": [{"hour": 9, "minute": 0}]},
+        }
+    )
+
+
+def _daily() -> RecurrenceSpec:
+    return RecurrenceSpec.model_validate(
+        {
+            "freq": "daily",
+            "interval": 1,
+            "anchor_date": "2026-09-06",
+            "times": {"mode": "at", "at": [{"hour": 9, "minute": 0}]},
+        }
+    )
+
+
 @pytest.mark.unit
 def test_format_reminder_item_today() -> None:
     now_utc = datetime.now(UTC).replace(microsecond=0)
     # `id` is not optional on the model (UUIDMixin); a double without it
-    # would only prove the double is incomplete.
-    reminder = SimpleNamespace(id=uuid4(), content="Call mom", trigger_at=now_utc)
+    # would only prove the double is incomplete. Same for `recurrence_spec`:
+    # the card reads it to know whether cancelling removes a SERIES.
+    reminder = SimpleNamespace(
+        id=uuid4(), content="Call mom", trigger_at=now_utc, recurrence_spec=_once()
+    )
     item = format_reminder_item(reminder, PARIS)
     assert item.content == "Call mom"
     # Should be HH:MM (today)
@@ -326,7 +353,9 @@ def test_format_reminder_item_tomorrow() -> None:
     from datetime import timedelta as td
 
     now_utc = datetime.now(UTC).replace(microsecond=0) + td(days=1)
-    reminder = SimpleNamespace(id=uuid4(), content="Wake up early", trigger_at=now_utc)
+    reminder = SimpleNamespace(
+        id=uuid4(), content="Wake up early", trigger_at=now_utc, recurrence_spec=_once()
+    )
     item = format_reminder_item(reminder, PARIS)
     # New format: "HH:MM tomorrow" (time first, then relative day marker).
     assert item.trigger_at_local.endswith(" tomorrow")
@@ -497,3 +526,25 @@ class TestMakeHealthSummaryItem:
                 window_days=14,
                 days_with_data=5,
             )
+
+
+@pytest.mark.unit
+class TestTheCardKnowsWhetherCancellingRemovesASeries:
+    """The briefing card shows ONE line and offers a cancel.
+
+    Cancelling deletes the row, so for a repeating reminder every future
+    occurrence goes with it. Without this flag the card could only offer a
+    confirmation that reads like it removes one firing.
+    """
+
+    def test_a_single_occurrence_does_not_repeat(self) -> None:
+        reminder = SimpleNamespace(
+            id=uuid4(), content="x", trigger_at=datetime.now(UTC), recurrence_spec=_once()
+        )
+        assert format_reminder_item(reminder, PARIS).repeats is False
+
+    def test_a_daily_reminder_repeats(self) -> None:
+        reminder = SimpleNamespace(
+            id=uuid4(), content="x", trigger_at=datetime.now(UTC), recurrence_spec=_daily()
+        )
+        assert format_reminder_item(reminder, PARIS).repeats is True

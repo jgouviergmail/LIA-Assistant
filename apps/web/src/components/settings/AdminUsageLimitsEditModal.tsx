@@ -256,6 +256,7 @@ function LimitField({
           onCheckedChange={checked => onChange(checked ? 0 : null)}
         />
         {!isUnlimited && (
+          <div className="w-32">
           <Input
             id={fieldId}
             type="number"
@@ -263,8 +264,9 @@ function LimitField({
             step={step}
             value={value}
             onChange={e => onChange(Number(e.target.value))}
-            className="w-32 text-sm"
+            className="w-full text-sm"
           />
+          </div>
         )}
         {isUnlimited && (
           <span className="text-xs text-muted-foreground">{t('usage_limits.unlimited')}</span>

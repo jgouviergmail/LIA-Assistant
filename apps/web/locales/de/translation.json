@@ -271,7 +271,8 @@
         "cancel_reminder_description": "„{{content}}“ wird nicht ausgelöst. Dies kann nicht rückgängig gemacht werden.",
         "loop_done": "Als erledigt markieren",
         "loop_dismiss": "Nicht mehr aktuell",
-        "loop_edit": "Diese Verpflichtung bearbeiten"
+        "loop_edit": "Diese Verpflichtung bearbeiten",
+        "cancel_reminder_series_description": "„{{content}}\" wiederholt sich. Beim Abbrechen entfallen alle künftigen Termine."
       },
       "cards": {
         "weather": {
@@ -3541,7 +3542,7 @@
         "interests": "Themen, Vorlieben, Geschmack, Neugier, Präferenzen, Verlauf, letzte Benachrichtigungen, Herkunft, warum, Gewicht, Erklärung, Abklingen, Quelle, exportieren",
         "peer-connections": "kontakte, freunde, familie, netzwerk, kalender teilen, verfügbarkeit, blockieren, nutzer finden, verbinden, mein Name, meinen Namen kopieren, Verbindungsanfrage, Zugriffsprotokoll, Nachricht weiterleiten, blockierte Nutzer, Nahestehende, soziales Netzwerk, Peer, Auffindbarkeit, Entdeckung, meine Adresse teilen, E-Mail sichtbar, meine E-Mail, 360°-Überblick, Sichtbarkeit, Anfragen",
         "heartbeat": "proaktiv, spontan, Initiative, Kontaktaufnahme, autonome Nachrichten, Benachrichtigungsthemen, Quellen, Verlauf, letzte Benachrichtigungen, Priorität, Dringlichkeit, hoch, mittel, niedrig, Farbe, Wetter, Frequenz, Zeitfenster, Vorschläge, Angebote, verpasste Routine, push-weckruf, auf eine e-mail reagieren, auf eine einladung reagieren, auslöser",
-        "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant, Wochenansicht, Zeitleiste, Wochenraster",
+        "scheduled-actions": "Cron, Zeitplan, wiederkehrend, Automatisierung, Timer, geplant, Wochenansicht, Zeitleiste, Wochenraster, alle drei Tage, 2. Dienstag, Intervall, Serienende, erweiterte Optionen",
         "journals": "Tagebuch, Logbuch, Porträt, Reflexionen, Notizen, Herkunft, warum, Quelle, Signal, Ursprung, korrigieren, Konfiguration, Konsolidierung, exportieren",
         "health-metrics": "Herzfrequenz, Schritte, Schlaf, iPhone, Apple Health, Fitness, Aktivität",
         "skills": "Fähigkeiten, Kompetenzen, Skills, Plugins, Erweiterungen",
@@ -3567,7 +3568,8 @@
         "eyes-style": "Augen, Avatar, Animation, Stil, Blick, Begleiter, Cozmo, Gesicht, Mund, Brauen, Mimik, Szenen, Kapseln",
         "admin-diagnostics": "zustand diagnose vorfälle alarme überwachung selbstprüfung plattform status prometheus loki konnektivität ausgehend netzwerk embeddings vektoren kontingent gedächtnis sprache Runbook Beweise Logs Diagnose Version",
         "meetings": "besprechung, aufnahme, protokoll, transkription, bericht, mikrofon, notizen, zusammenfassung, aktionen, vorlage, vorlagen, vorlagenbibliothek, protokollformat, standardformat, automatisches format, format ändern, abschnitte, anweisungen, protokoll-e-mail",
-        "admin-registers": "register, transparenz, aktionen, abrufe, export, protokoll, audit, admin, Diagramme, Statistiken, Zahlen, Überblick"
+        "admin-registers": "register, transparenz, aktionen, abrufe, export, protokoll, audit, admin, Diagramme, Statistiken, Zahlen, Überblick",
+        "reminders": "Erinnerung, erinnere mich, Warnung, Benachrichtigung, wiederkehrende Erinnerung, wiederholen, Merkzettel, Wiederholung, täglich, Zeitfenster"
       }
     },
     "haptics": {
@@ -4370,7 +4372,7 @@
         },
         "reminders": {
           "title": "🔔 Erinnerungen & Push-Benachrichtigungen",
-          "description": "Erinnerungen in natürlicher Sprache angelegt, auf alle Geräte gepusht, mit Zeitzonenumrechnung und aufgelösten Bezügen („die nächste“, eine Nummer, ein Inhalt). Jede Nachricht entsteht mit der aktiven Persönlichkeit und deinen Erinnerungen, in deiner Sprache. Fällige Erinnerungen werden vor dem Versand unter Lease genommen, und jeder vorzeitige Ausstieg gibt sie frei — eine nicht zugestellte Erinnerung kommt also im nächsten Durchlauf zurück, statt zu verschwinden."
+          "description": "Erinnerungen in natürlicher Sprache, auf alle Geräte gesendet, Zeitzonen umgerechnet und Bezüge aufgelöst („die nächste“, eine Nummer, ein Inhalt). Eine Erinnerung kann sich wiederholen — täglich, montags und donnerstags, am 15., alle zwei Stunden in einem Zeitfenster — oder einmal klingeln und sich löschen: dieselbe Regel, eine Erinnerung ohne Zukunft verschwindet. Jede Nachricht entsteht mit der aktiven Persönlichkeit und deinen Erinnerungen, in deiner Sprache; eine nicht zugestellte kehrt beim nächsten Durchgang zurück."
         },
         "personalities": {
           "title": "🎭 14 Dynamische Persönlichkeiten",
@@ -4398,7 +4400,7 @@
         },
         "scheduledActions": {
           "title": "📅 Geplante Aktionen",
-          "description": "Wiederkehrende Aktionen, die die Assistentin allein ausführt: Tage und Uhrzeit wählen, eine Anweisung anhängen, und LIA führt sie aus. Ergebnisse landen im Gesprächsarchiv und werden dir gepusht, mit automatischer Abschaltung nach fünf Fehlschlägen in Folge. Die Benachrichtigung trägt denselben archivierten Endtext, vor dem Kürzen zu reinem Text geglättet. Eine Wochenansicht zeichnet sie, Stunden nach unten und Tage nach rechts, nummeriert in Auslösereihenfolge; jede Zelle der laufenden Woche ist nach dem gefärbt, was geschah — ausgeführt, fehlgeschlagen, vorgeschlagen, pausiert — aus einer beim Ergebnis geschriebenen Historie."
+          "description": "Wiederkehrende Aktionen, die die Assistentin allein ausführt: nenne den Rhythmus — alle drei Tage, jeden zweiten Dienstag, am 2. Dienstag, am letzten Tag, alle zwei Stunden zwischen 9 und 17 Uhr, bis zu einem Datum oder N-mal —, hänge eine Anweisung an, und LIA führt sie aus. Die Tage werden aufgezählt, nie einem Cron überlassen: die alte Maschine übersprang den Tag bei der Zeitumstellung. Ergebnisse im Gespräch archiviert und zu dir gesendet, Abschaltung nach fünf Fehlschlägen. Eine Wochenansicht zeichnet sie, Stunden nach unten und Tage quer."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4571,6 +4573,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_43_0": {
+          "title": "v1.43.0 — 🔁 Deine Erinnerungen können sich wiederholen",
+          "date": "September 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔁 Eine Erinnerung kann wiederkehren</b> — bisher klingelte eine Erinnerung einmal und verschwand. Jetzt kannst du ihr einen Rhythmus geben: täglich, montags und donnerstags, am 15. jedes Monats oder alle zwei Stunden zwischen 9 und 17 Uhr. Ein neuer Bereich „Erinnerungen“ in den Einstellungen zeigt alle an, mit dem Satz, der ihren Rhythmus beschreibt, und den nächsten Terminen. Eine Erinnerung ohne Zukunft verschwindet weiterhin, genau wie zuvor.",
+            "i2": "<b>🗓️ Deine Routinen können viel mehr ausdrücken</b> — „alle drei Tage“, „jeden zweiten Dienstag“, „am 2. Dienstag des Monats“, „am letzten Tag des Monats“, „jeden 14. Juli“, „alle zwei Stunden zwischen 9 und 17 Uhr“, „bis zum 30. September“ oder „die nächsten drei Male“. Im Gespräch erfragen oder von Hand einstellen: es ist dasselbe Vokabular auf beiden Seiten.",
+            "i3": "<b>✏️ Die Eingabemasken atmen</b> — die Felder stehen unter benannten Überschriften („was zu tun ist“, „wann“, „Ausführung“), und was man selten ändert — ein Intervall, eine Endregel, ein Startdatum — klappt hinter „Erweiterte Optionen“ zusammen. Fünf Fragen auf dem Bildschirm statt acht. Der Bereich öffnet sich von selbst, wenn er bereits etwas enthält, und verbirgt so nie eine Einstellung, die du vorgenommen hast.",
+            "i4": "<b>🐛 Ein verlorener Tag pro Jahr, in 73 Zeitzonen</b> — bei der Umstellung auf die Sommerzeit, wenn sich der Versatz um Mitternacht ändert, übersprang die alte Maschine den ganzen Tag: 142 verlorene Ausführungen pro Jahr, ohne Spur in den Protokollen. Behoben — und die Routinenwoche zeichnet die Zelle vom 30. März wieder."
+          }
+        },
         "v1_42_4": {
           "title": "v1.42.4 — 🖥️ Deine lokalen Modelle, Modelle wie alle anderen",
           "date": "September 2026",
@@ -8409,7 +8422,7 @@
       },
       "folded_settings": {
         "title": "Einstellungen, zugeklappt",
-        "desc": "Die elf Benachrichtigungsthemen und die Verläufe bleiben geschlossen. Sie öffnen, was Sie ändern wollten — und ein geschlossener Block lädt nichts."
+        "desc": "Die elf Benachrichtigungsthemen und die Verläufe bleiben geschlossen. Du öffnest, was du ändern willst — und ein geschlossener Block lädt nichts. Wo die Faltung eine von dir gesetzte Einstellung verbergen würde, öffnet sie sich von selbst: eine Routine, die bereits „alle drei Wochen“ sagt, gibt sich nie als gewöhnliche aus."
       },
       "provenance_why": {
         "title": "Warum LIA das denkt",
@@ -9335,8 +9348,6 @@
     "field_title": "Titel",
     "field_title_placeholder": "z.B. Wettersuche",
     "field_prompt": "Anweisung für den Assistenten",
-    "field_days": "Wochentage",
-    "field_time": "Ausführungszeit",
     "prompt_placeholder": "z.B. Suche das heutige Wetter und gib mir eine Zusammenfassung",
     "studio": {
       "trigger_kind": "Auslöser",
@@ -9377,7 +9388,8 @@
       "active": "Aktiv",
       "paused": "Pause",
       "executing": "Läuft",
-      "error": "Fehler"
+      "error": "Fehler",
+      "finished": "Beendet"
     },
     "next_execution": "Nächste",
     "last_execution": "Letzte",
@@ -9398,12 +9410,6 @@
     "next_evaluations": "Nächste Auswertungsfenster",
     "clock_change": "(Zeitumstellung)",
     "toggle_aria": "{{title}} aktivieren oder deaktivieren",
-    "schedule": {
-      "daily": "Täglich um {{time}}",
-      "weekdays": "Wochentags um {{time}}",
-      "weekend": "Am Wochenende um {{time}}",
-      "custom": "{{days}} um {{time}}"
-    },
     "next_run": "Nächste Ausführung",
     "next_evaluation": "Nächste Auswertung",
     "number_aria": "Routine {{n}}",
@@ -9430,7 +9436,9 @@
         "skipped_hitl": "Übersprungen, im Chat stand eine Freigabe aus",
         "executing": "Läuft gerade"
       }
-    }
+    },
+    "section_what": "Was zu tun ist",
+    "section_execution": "Ausführung"
   },
   "landing": {
     "meta": {
@@ -9617,7 +9625,7 @@
       },
       "reminders_scheduling": {
         "title": "Erinnerungen & Automatisierungen",
-        "description": "Plane Erinnerungen in natürlicher Sprache (\"Erinnere mich morgen um 9 Uhr Marie anzurufen\"). Plane wiederkehrende automatische Aktionen (E-Mail-Zusammenfassung am Montag, Morgenwetter...). Eine Erinnerung, die fällig wird, während dein Kontingent erreicht ist, kehrt in die Warteschlange zurück — sie geht nie verloren. Routinen können jetzt auf eine Bedingung warten — eine Aufgabe wird überfällig, eine passende Mail kommt an, das Wetter schlägt um, ein Dokument wird hinzugefügt, ein Termin naht — und auf Wunsch vorschlagen, bevor sie handeln. Eine Wochenansicht breitet die Routinen aus, Stunden nach unten und Tage nach rechts, jede Zelle der laufenden Woche nach dem gefärbt, was geschah."
+        "description": "Plane Erinnerungen in natürlicher Sprache (\"Erinnere mich morgen um 9 Uhr Marie anzurufen\"). Plane wiederkehrende automatische Aktionen (E-Mail-Zusammenfassung am Montag, Morgenwetter...). Eine Erinnerung, die fällig wird, während dein Kontingent erreicht ist, kehrt in die Warteschlange zurück — sie geht nie verloren. Routinen können jetzt auf eine Bedingung warten — eine Aufgabe wird überfällig, eine passende Mail kommt an, das Wetter schlägt um, ein Dokument wird hinzugefügt, ein Termin naht — und auf Wunsch vorschlagen, bevor sie handeln. Eine Wochenansicht breitet die Routinen aus, Stunden nach unten und Tage nach rechts, jede Zelle der laufenden Woche nach dem gefärbt, was geschah. Auch eine Erinnerung kann sich wiederholen: nenne den Rhythmus — alle drei Tage, am 2. Dienstag des Monats, alle zwei Stunden zwischen 9 und 17 Uhr — und es ist dasselbe Vokabular wie für eine Routine."
       },
       "memory": {
         "title": "Kontextuelles Gedächtnis",
@@ -10514,7 +10522,7 @@
       "reminders-scheduling": {
         "title": "Erinnerungen und geplante Aktionen: Automatisiere deinen Alltag",
         "excerpt": "Erstelle Erinnerungen in natürlicher Sprache und plane wiederkehrende Aktionen.",
-        "body": "<h2>Erinnerungen in natürlicher Sprache</h2><p>Eine Erinnerung mit LIA zu erstellen ist so einfach wie zu sagen:</p><ul><li>\"Erinnere mich, morgen um 9 Uhr Marie anzurufen\"</li><li>\"Erinnerung in 30 Minuten: Ofen überprüfen\"</li><li>\"Denk daran, heute Abend Brot zu kaufen\"</li></ul><p>LIA interpretiert automatisch die Zeitausdrücke und erstellt die Erinnerung mit der richtigen Zeitzone.</p><h2>Lebenszyklus einer Erinnerung</h2><p>Jede Erinnerung folgt einem genauen Lebenszyklus: <strong>PENDING → PROCESSING → gelöscht</strong> nach Benachrichtigung. Erinnerungen sind <strong>One-Shot</strong>: Nach erfolgreicher Zustellung werden sie automatisch gelöscht. Jede Erinnerung enthält drei Schlüsselfelder:</p><ul><li><code>content</code> — Der von LIA verstandene Inhalt (bei Bedarf umformuliert)</li><li><code>original_message</code> — Der exakte Text des Benutzers</li><li><code>trigger_at</code> — Die Auslösezeit in UTC</li></ul><p>Der Wechsel zu <code>PROCESSING</code> ist eine <strong>Sperre</strong>, kein Punkt ohne Wiederkehr: die Auswahlabfrage betrachtet ausschließlich <code>PENDING</code>-Zeilen, sodass eine bereits bearbeitete Erinnerung nicht zweimal von zwei gleichzeitigen Durchläufen aufgegriffen werden kann. Jeder vorzeitige Ausstieg gibt sie frei — Nutzungslimit erreicht, kein registriertes Gerät — und die Erinnerung kehrt für den nächsten Durchlauf zu <code>PENDING</code> zurück. Ohne diese Freigabe wäre eine Erinnerung, die genau in der Minute fällig wird, in der ein Nutzer sein Kontingent erreicht, endgültig verloren, ohne Fehler und ohne Spur.</p><h2>Zeitzonenverwaltung</h2><p>Alle Erinnerungen werden in <strong>UTC</strong> in der Datenbank gespeichert. Die IANA-Zeitzone des Benutzers (z.B.: <code>Europe/Paris</code>, <code>America/New_York</code>) wird verfolgt und verwendet, um relative Zeitausdrücke (\"morgen um 9 Uhr\") in absolute UTC-Zeitstempel umzuwandeln. Die Anzeige wird stets in die lokale Zeitzone des Benutzers konvertiert.</p><h2>Push-Benachrichtigungen</h2><p>Erinnerungen werden über <strong>Firebase Cloud Messaging (FCM)</strong> für Browser- und Mobilbenachrichtigungen zugestellt. Die Benachrichtigung kommt auch an, wenn die Anwendung nicht geöffnet ist.</p><p>Titel und Inhalt der Benachrichtigung werden in der Sprache des Nutzers gerendert, für alle sechs unterstützten Sprachen. Die Normalisierung der Locale übernimmt die Titeltabelle selbst statt jeder Aufrufer, denn die Aufrufer halten rohe Locales jeder Schreibweise — und die eine Stelle, die normalisieren musste und es nicht tat, schickte chinesischen Nutzern englische Titel.</p><h2>Geplante Aktionen</h2><p>Geplante Aktionen (Scheduled Actions) stellen eine <strong>separate Domäne</strong> dar, die über einfache Erinnerungen hinausgeht. Du integrierst sich mit <strong>APScheduler</strong>, um wiederkehrende Aufgaben zu planen, die LIA automatisch ausführt:</p><ul><li>Wetterbericht jeden Morgen um 7 Uhr</li><li>Prüfung wichtiger E-Mails alle 2 Stunden</li><li>Wöchentlicher Aufgabenbericht jeden Montag</li></ul><h2>Vernünftige Grenzen</h2><p>Um Missbrauch zu vermeiden, kann jeder Benutzer bis zu 20 gleichzeitig aktive geplante Aktionen haben. Retry-Logik mit Backoff behandelt temporäre Fehler.</p>"
+        "body": "<h2>Erinnerungen in natürlicher Sprache</h2><p>Eine Erinnerung mit LIA zu erstellen ist so einfach wie zu sagen:</p><ul><li>\"Erinnere mich, morgen um 9 Uhr Marie anzurufen\"</li><li>\"Erinnerung in 30 Minuten: Ofen überprüfen\"</li><li>\"Denk daran, heute Abend Brot zu kaufen\"</li></ul><p>LIA interpretiert automatisch die Zeitausdrücke und erstellt die Erinnerung mit der richtigen Zeitzone.</p><h2>Lebenszyklus einer Erinnerung</h2><p>Jede Erinnerung folgt einem genauen Lebenszyklus: <strong>PENDING → PROCESSING → gelöscht</strong> nach Benachrichtigung. Eine Erinnerung kann sich nun <strong>wiederholen</strong> — täglich, montags und donnerstags, am 15. des Monats, alle zwei Stunden in einem Zeitfenster. Nach jeder Benachrichtigung fragt LIA einfach, was als Nächstes zu setzen ist: bleibt eine Gelegenheit, wird die Erinnerung neu gesetzt; bleibt keine — eine verbrauchte Einzelgelegenheit oder eine abgelaufene Reihe —, wird sie gelöscht. Dieselbe Regel in beiden Fällen, und genau das, was „nach der Benachrichtigung löschen“ immer bedeutete. Jede Erinnerung enthält drei Schlüsselfelder:</p><ul><li><code>content</code> — Der von LIA verstandene Inhalt (bei Bedarf umformuliert)</li><li><code>original_message</code> — Der exakte Text des Benutzers</li><li><code>trigger_at</code> — Die Auslösezeit in UTC</li></ul><p>Der Wechsel zu <code>PROCESSING</code> ist eine <strong>Sperre</strong>, kein Punkt ohne Wiederkehr: die Auswahlabfrage betrachtet ausschließlich <code>PENDING</code>-Zeilen, sodass eine bereits bearbeitete Erinnerung nicht zweimal von zwei gleichzeitigen Durchläufen aufgegriffen werden kann. Jeder vorzeitige Ausstieg gibt sie frei — Nutzungslimit erreicht, kein registriertes Gerät — und die Erinnerung kehrt für den nächsten Durchlauf zu <code>PENDING</code> zurück. Ohne diese Freigabe wäre eine Erinnerung, die genau in der Minute fällig wird, in der ein Nutzer sein Kontingent erreicht, endgültig verloren, ohne Fehler und ohne Spur.</p><h2>Zeitzonenverwaltung</h2><p>Alle Erinnerungen werden in <strong>UTC</strong> in der Datenbank gespeichert. Die IANA-Zeitzone des Benutzers (z.B.: <code>Europe/Paris</code>, <code>America/New_York</code>) wird verfolgt und verwendet, um relative Zeitausdrücke (\"morgen um 9 Uhr\") in absolute UTC-Zeitstempel umzuwandeln. Die Anzeige wird stets in die lokale Zeitzone des Benutzers konvertiert.</p><h2>Push-Benachrichtigungen</h2><p>Erinnerungen werden über <strong>Firebase Cloud Messaging (FCM)</strong> für Browser- und Mobilbenachrichtigungen zugestellt. Die Benachrichtigung kommt auch an, wenn die Anwendung nicht geöffnet ist.</p><p>Titel und Inhalt der Benachrichtigung werden in der Sprache des Nutzers gerendert, für alle sechs unterstützten Sprachen. Die Normalisierung der Locale übernimmt die Titeltabelle selbst statt jeder Aufrufer, denn die Aufrufer halten rohe Locales jeder Schreibweise — und die eine Stelle, die normalisieren musste und es nicht tat, schickte chinesischen Nutzern englische Titel.</p><h2>Geplante Aktionen</h2><p>Geplante Aktionen (Scheduled Actions) stellen eine <strong>separate Domäne</strong> dar, die über einfache Erinnerungen hinausgeht. Du integrierst sich mit <strong>APScheduler</strong>, um wiederkehrende Aufgaben zu planen, die LIA automatisch ausführt:</p><ul><li>Wetterbericht jeden Morgen um 7 Uhr</li><li>Prüfung wichtiger E-Mails alle 2 Stunden</li><li>Wöchentlicher Aufgabenbericht jeden Montag</li></ul><h2>Vernünftige Grenzen</h2><p>Um Missbrauch zu vermeiden, kann jeder Benutzer bis zu 20 gleichzeitig aktive geplante Aktionen haben. Retry-Logik mit Backoff behandelt temporäre Fehler.</p>"
       },
       "sub-agents": {
         "title": "Sub-Agenten: Ephemere Experten für komplexe Fragen",
@@ -12225,7 +12233,8 @@
       "run_python_tool": "Berechnung in der Sandbox ausgeführt",
       "run_skill_script": "Skript der Fähigkeit „{{target}}“ ausgeführt",
       "set_current_item": "„{{target}}“ als aktuelles Element des Gesprächs gesetzt",
-      "toggle_scheduled_action_tool": "Geplante Aktion „{{target}}“ aktiviert oder pausiert"
+      "toggle_scheduled_action_tool": "Geplante Aktion „{{target}}“ aktiviert oder pausiert",
+      "create_reminder_tool": "Erinnerung „{{target}}“ erstellt"
     },
     "export": {
       "group_label": "Dieses Register exportieren",
@@ -12401,5 +12410,108 @@
       "action": "Vereinheitlichte Auswertung",
       "hint": "JSON Lines, eine Zeile je Aufzeichnung. Sie enthält keine Inhalte, und jede Kennung ist durch ein Handle ersetzt — deine eingeschlossen —, damit die Datei einem Antrag oder einer Beschwerde unverändert beigefügt werden kann."
     }
+  },
+  "recurrence": {
+    "legend_days": "Welche Tage",
+    "legend_times": "Um welche Uhrzeit",
+    "freq_label": "Wiederholung",
+    "freq": {
+      "once": "Nur einmal",
+      "daily": "Täglich",
+      "weekly": "Wöchentlich",
+      "monthly": "Monatlich",
+      "yearly": "Jährlich"
+    },
+    "interval_label": "Alle",
+    "interval_unit": {
+      "daily": "Tag(e)",
+      "weekly": "Woche(n)",
+      "monthly": "Monat(e)",
+      "yearly": "Jahr(e)"
+    },
+    "interval_shortcut": {
+      "quarterly": "Vierteljährlich",
+      "biannual": "Halbjährlich"
+    },
+    "weekdays_label": "Wochentage",
+    "weekday_set": {
+      "all": "Täglich",
+      "workdays": "An Werktagen",
+      "weekend": "Am Wochenende"
+    },
+    "monthday_label": "Tag des Monats",
+    "monthday_last": "Letzter Tag",
+    "monthly_mode": {
+      "day": "An einem Tag des Monats",
+      "weekday": "An einem Wochentag"
+    },
+    "nth_label": "Welcher",
+    "nth": {
+      "1": "Erster",
+      "2": "Zweiter",
+      "3": "Dritter",
+      "4": "Vierter",
+      "5": "Fünfter",
+      "-1": "Letzter"
+    },
+    "month_label": "Monat",
+    "anchor_label": "Beginnt am",
+    "anchor_hint": "Legt den Beginn der Serie fest und damit die betroffene Woche bzw. den Monat.",
+    "date_label": "Datum",
+    "times_mode": {
+      "at": "Zu festen Zeiten",
+      "every": "In regelmäßigen Abständen"
+    },
+    "times_label": "Uhrzeiten",
+    "time_add": "Uhrzeit hinzufügen",
+    "time_remove": "{{time}} entfernen",
+    "step_label": "Alle",
+    "step_unit_minutes": "Minuten",
+    "step_from": "Von",
+    "step_to": "Bis",
+    "end_label": "Endet",
+    "end": {
+      "never": "Nie",
+      "on_date": "An einem Datum",
+      "after_count": "Nach einer Anzahl"
+    },
+    "end_count_label": "Anzahl",
+    "summary_per_day_one": "bis zu {{count}}-mal täglich",
+    "summary_per_day_other": "bis zu {{count}}-mal täglich",
+    "summary_next": "Nächste",
+    "summary_finished": "Diese Serie ist beendet",
+    "error_no_time": "Fügen Sie mindestens eine Uhrzeit hinzu.",
+    "error_no_weekday": "Wählen Sie mindestens einen Wochentag.",
+    "error_too_many": "Das sind {{count}}-mal täglich; die Grenze liegt bei {{limit}}.",
+    "error_step_too_small": "Der kürzeste Abstand beträgt {{limit}} Minuten.",
+    "error_no_end_date": "Wählen Sie den letzten Tag oder eine andere Endregel.",
+    "section_when": "Wann",
+    "step_separator": "bis",
+    "advanced": "Erweiterte Optionen"
+  },
+  "reminders": {
+    "settings": {
+      "title": "Erinnerungen",
+      "description": "Woran LIA Sie erinnert, und wann.",
+      "count_one": "{{count}} Erinnerung",
+      "count_other": "{{count}} Erinnerungen",
+      "capped": "(erste {{shown}} angezeigt)"
+    },
+    "create": "Neue Erinnerung",
+    "create_title": "Neue Erinnerung",
+    "edit_title": "Erinnerung bearbeiten",
+    "field_content": "Erinnere mich an",
+    "field_content_placeholder": "den Arzt anrufen",
+    "empty": "Noch keine Erinnerung",
+    "empty_hint": "Es steht nichts an. Fragen Sie LIA im Chat oder legen Sie hier eine an.",
+    "created": "Erinnerung erstellt",
+    "updated": "Erinnerung aktualisiert",
+    "deleted": "Erinnerung gelöscht",
+    "save_failed": "Erinnerung konnte nicht gespeichert werden",
+    "delete_failed": "Erinnerung konnte nicht gelöscht werden",
+    "delete_title": "Diese Erinnerung löschen?",
+    "delete_confirm": "„{{content}}\" wird gelöscht.",
+    "delete_series_confirm": "„{{content}}\" wiederholt sich ({{schedule}}). Beim Löschen entfallen alle künftigen Termine.",
+    "section_what": "Woran zu erinnern ist"
   }
 }

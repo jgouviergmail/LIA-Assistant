@@ -182,16 +182,20 @@ export function ChatShortcutsSettings({ lng }: BaseSettingsProps) {
                   {/* Names carry the shortcut they act on. Reusing the add
                       form's labels put two identically-named fields on the
                       page, which a screen-reader user cannot tell apart. */}
-                  <Input
-                    aria-label={t('settings.chat_shortcuts.edit_id_label', { id: shortcut.id })}
-                    value={editId}
-                    maxLength={CHAT_SHORTCUT_ID_MAX_LENGTH}
-                    onChange={event => {
-                      setEditId(event.target.value);
-                      setEditError(null);
-                    }}
-                    className="sm:w-44"
-                  />
+                  {/* The width belongs to the wrapper: its sibling below is
+                      `flex-1`, so this one must stop claiming the row. */}
+                  <div className="sm:w-44">
+                    <Input
+                      aria-label={t('settings.chat_shortcuts.edit_id_label', { id: shortcut.id })}
+                      value={editId}
+                      maxLength={CHAT_SHORTCUT_ID_MAX_LENGTH}
+                      onChange={event => {
+                        setEditId(event.target.value);
+                        setEditError(null);
+                      }}
+                      className="w-full"
+                    />
+                  </div>
                   <Input
                     aria-label={t('settings.chat_shortcuts.edit_text_label', { id: shortcut.id })}
                     value={editText}

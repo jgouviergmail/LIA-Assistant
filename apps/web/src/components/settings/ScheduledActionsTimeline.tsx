@@ -11,11 +11,13 @@
  *
  * What the grid claims, and where each claim comes from:
  *
- * - **Position** is the routine's own schedule — `trigger_hour` on the row,
- *   `days_of_week` on the columns — read as the wall clock of the routine's
- *   zone, which is named beside the grid. No instant is converted here.
- * - **Colour** is the current week's facts, computed server-side from the
- *   scheduler's own cron engine (`/scheduled-actions/week`): the browser
+ * - **Position** is the routine's own schedule, as the server resolved it:
+ *   one chip per INSTANT of `week_slots`, each carrying its own local hour and
+ *   day. A routine firing twice a day therefore draws two chips, which a
+ *   single hour column could never express. The hours are the wall clock of
+ *   the routine's zone, named beside the grid; no instant is converted here.
+ * - **Colour** is the current week's facts, computed server-side by the same
+ *   recurrence engine that arms the runs (`/scheduled-actions/week`): the browser
  *   never re-reads a schedule, it paints. When that read is unavailable the
  *   grid still draws, every chip idle, and SAYS the states are unavailable
  *   rather than leaving a silent white.
@@ -46,7 +48,6 @@ import {
   routineZones,
   rovingTarget,
   timelineKey,
-  triggerTimeLabel,
   weekDates,
   type ChipState,
   type ChipTone,
@@ -96,11 +97,26 @@ function todayColumn(
   return isoWeekdayInZone(now, zones[0] as string);
 }
 
-/** The seven dates of the week when every routine agrees on which week it is. */
-function headerDates(week: ScheduledActionWeekResponse | null): string[] {
+/**
+ * The seven dates of the week, from `/week` when it answered, from the
+ * routines' own slots otherwise.
+ *
+ * The fallback matters since the grid stopped depending on that request to
+ * DRAW: a header that emptied while the chips stayed would be the same
+ * half-rendered state, one row higher.
+ */
+function headerDates(
+  week: ScheduledActionWeekResponse | null,
+  numbered: readonly NumberedAction[]
+): string[] {
   const starts = new Set(week?.actions.map(w => w.week_start) ?? []);
-  if (starts.size !== 1) return [];
-  return weekDates([...starts][0] as string);
+  if (starts.size === 1) return weekDates([...starts][0] as string);
+  // A slot knows its own local date; Monday's is the week's start.
+  for (const { action } of numbered) {
+    const monday = action.week_slots?.find(slot => slot.day === 1);
+    if (monday) return weekDates(monday.date);
+  }
+  return [];
 }
 
 /** Renders an instant in a routine's zone; the caller caches the formatters. */
@@ -135,7 +151,6 @@ function makeRunAtFormatter(intlLocale: string): RunAtFormatter {
 
 function TimelineChip({
   entry,
-  day,
   lng,
   formatRunAt,
   tabbable,
@@ -143,7 +158,6 @@ function TimelineChip({
   onSelect,
 }: {
   entry: TimelineEntry;
-  day: number;
   lng: Language;
   formatRunAt: RunAtFormatter;
   /** The ONE chip in the tab order (roving focus); the arrows reach the rest. */
@@ -152,10 +166,12 @@ function TimelineChip({
   onSelect: (actionId: string) => void;
 }) {
   const { t } = useTranslation(lng);
-  const key = chipKey(entry.action.id, day);
+  const key = chipKey(entry.action.id, entry.slot.day, entry.slot.hour, entry.slot.minute);
   const state = chipState(entry.action, entry.cell);
   const stateLabel = t(`scheduled_actions.timeline.state.${stateKey(state)}`);
-  const time = triggerTimeLabel(entry.action);
+  // The chip names ITS OWN instant, not the routine's whole day: a routine
+  // firing at 08:00 and 18:00 draws two chips, and each says which it is.
+  const time = `${String(entry.slot.hour).padStart(2, '0')}:${String(entry.slot.minute).padStart(2, '0')}`;
   const isCondition = (entry.action.trigger_kind ?? 'time') === 'condition';
   const runAt = entry.cell?.run_at
     ? formatRunAt(entry.cell.run_at, entry.action.user_timezone)
@@ -234,7 +250,9 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
     () =>
       GRID_HOURS.flatMap(hour =>
         ISO_WEEKDAYS.flatMap(day =>
-          (grid.get(timelineKey(day, hour)) ?? []).map(entry => chipKey(entry.action.id, day))
+          (grid.get(timelineKey(day, hour)) ?? []).map(entry =>
+            chipKey(entry.action.id, entry.slot.day, entry.slot.hour, entry.slot.minute)
+          )
         )
       ),
     [grid]
@@ -260,7 +278,7 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
     () => todayColumn(numbered, week, pinnedNow === undefined ? new Date() : new Date(pinnedNow)),
     [numbered, week, pinnedNow]
   );
-  const dates = useMemo(() => headerDates(week), [week]);
+  const dates = useMemo(() => headerDates(week, numbered), [week, numbered]);
   const dayOfMonth = useMemo(
     () => new Intl.DateTimeFormat(intlLocale, { day: 'numeric', timeZone: 'UTC' }),
     [intlLocale]
@@ -362,10 +380,16 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
                               <TimelineChip
                                 key={entry.action.id}
                                 entry={entry}
-                                day={day}
                                 lng={lng}
                                 formatRunAt={formatRunAt}
-                                tabbable={chipKey(entry.action.id, day) === tabbableKey}
+                                tabbable={
+                                  chipKey(
+                                    entry.action.id,
+                                    entry.slot.day,
+                                    entry.slot.hour,
+                                    entry.slot.minute
+                                  ) === tabbableKey
+                                }
                                 onFocus={setVisitedKey}
                                 onSelect={onSelect}
                               />

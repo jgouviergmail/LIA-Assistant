@@ -271,7 +271,8 @@
         "cancel_reminder_description": "«{{content}}» no se activará. Esta acción es irreversible.",
         "loop_done": "Marcar como hecho",
         "loop_dismiss": "Ya no procede",
-        "loop_edit": "Editar este compromiso"
+        "loop_edit": "Editar este compromiso",
+        "cancel_reminder_series_description": "«{{content}}» se repite. Al cancelarlo se quitan todas las próximas repeticiones."
       },
       "cards": {
         "weather": {
@@ -3541,7 +3542,7 @@
         "interests": "temas, gustos, materias, curiosidad, preferencias, historial, notificaciones recientes, procedencia, por qué, peso, explicación, decaimiento, fuente, exportar",
         "peer-connections": "contactos, amigos, familia, red, compartir calendario, disponibilidad, bloquear, descubrir usuarios, conectar, mi nombre, copiar mi nombre, solicitud de conexión, historial de accesos, transmitir mensaje, usuarios bloqueados, allegados, red social, peer, descubrimiento, visibilidad, compartir mi dirección, email visible, mi correo, resumen 360, solicitudes",
         "heartbeat": "proactivo, espontáneo, iniciativa, contacto, mensajes autónomos, temas de las notificaciones, fuentes, historial, notificaciones recientes, prioridad, urgencia, alta, media, baja, color, meteorología, frecuencia, franja horaria, propuestas, ofertas, rutina perdida, despertar por push, reaccionar a un correo, reaccionar a una invitación, disparador",
-        "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado, vista semanal, cronología, cuadrícula semanal",
+        "scheduled-actions": "cron, programación, recurrente, automatización, temporizador, planificado, vista semanal, cronología, cuadrícula semanal, cada tres días, 2.º martes, intervalo, fin de serie, opciones avanzadas",
         "journals": "diario, bitácora, retrato, reflexiones, notas, procedencia, por qué, fuente, señal, origen, corregir, configuración, consolidación, exportar",
         "health-metrics": "frecuencia cardíaca, pasos, sueño, iPhone, Apple Salud, forma física, actividad",
         "skills": "habilidades, capacidades, competencias, plugins, extensiones",
@@ -3567,7 +3568,8 @@
         "eyes-style": "ojos, avatar, animación, estilo, mirada, compañero, cozmo, rostro, boca, cejas, muecas, escenas, cápsulas",
         "admin-diagnostics": "salud diagnóstico incidentes alertas supervisión autocomprobación estado plataforma prometheus loki conectividad salida red embeddings vectores cuota memoria idioma runbook evidencias registros diagnóstico versión",
         "meetings": "reunión, grabación, acta, transcripción, informe, micrófono, notas, resumen, acciones, plantilla, plantillas, biblioteca de plantillas, formato del acta, formato predeterminado, formato automático, cambiar el formato, secciones, instrucciones, correo del acta",
-        "admin-registers": "registros, transparencia, acciones, consultas, exportar, diario, auditoría, admin, gráficos, estadísticas, cifras, vista general"
+        "admin-registers": "registros, transparencia, acciones, consultas, exportar, diario, auditoría, admin, gráficos, estadísticas, cifras, vista general",
+        "reminders": "recordatorio, recuérdame, alerta, notificación, recordatorio recurrente, repetir, nota, recurrencia, cada día, franja horaria"
       }
     },
     "haptics": {
@@ -4370,7 +4372,7 @@
         },
         "reminders": {
           "title": "🔔 Recordatorios y Notificaciones Push",
-          "description": "Recordatorios creados en lenguaje natural, enviados a todos tus dispositivos, con conversión de husos y referencias resueltas («el próximo», un número, un contenido). Cada mensaje se escribe con la personalidad activa y tus recuerdos, en tu idioma. Los recordatorios vencidos se toman bajo arriendo antes del envío, y toda salida anticipada lo libera — así un recordatorio no entregado vuelve en la siguiente pasada en vez de desaparecer."
+          "description": "Recordatorios creados en lenguaje natural, enviados a todos tus dispositivos, con zonas horarias convertidas y referencias resueltas («el próximo», un número, un contenido). Un recordatorio puede repetirse — cada día, los lunes y jueves, el 15, cada dos horas dentro de una franja — o sonar una vez y borrarse: es la misma regla, un recordatorio sin futuro desaparece. Cada mensaje se escribe con la personalidad activa y tus recuerdos, en tu idioma; uno no entregado vuelve en la siguiente pasada."
         },
         "personalities": {
           "title": "🎭 14 Personalidades Dinámicas",
@@ -4398,7 +4400,7 @@
         },
         "scheduledActions": {
           "title": "📅 Acciones Programadas",
-          "description": "Acciones recurrentes que la asistente ejecuta sola: elige los días y la hora, adjunta una instrucción y LIA la ejecuta. Los resultados se archivan en la conversación y se te envían, con desactivación automática tras cinco fallos seguidos. La notificación lleva el mismo texto final archivado, aplanado a texto plano antes de truncarse. Una vista semanal las dibuja, horas hacia abajo y días a lo ancho, numeradas en el orden en que se disparan; cada celda de la semana en curso se colorea por lo que pasó — ejecutada, con error, propuesta, en pausa — desde un historial escrito al resultado."
+          "description": "Acciones recurrentes que la asistente ejecuta sola: di el ritmo — cada tres días, un martes de cada dos, el 2.º martes, el último día, cada dos horas entre las 9 y las 17, hasta una fecha o N veces —, adjunta una instrucción y LIA la ejecuta. Los días se enumeran, nunca se delegan a un cron: el motor anterior se saltaba el día al cambiar la hora. Resultados archivados en la conversación y enviados a ti, con desactivación tras cinco fallos. Una vista de la semana los dibuja, horas hacia abajo y días a lo ancho."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4571,6 +4573,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_43_0": {
+          "title": "v1.43.0 — 🔁 Tus recordatorios ya pueden repetirse",
+          "date": "Septiembre 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔁 Un recordatorio puede volver</b> — hasta ahora un recordatorio sonaba una vez y desaparecía. Ahora puedes darle un ritmo: cada día, los lunes y jueves, el 15 de cada mes, o cada dos horas entre las 9 y las 17. Una nueva sección «Recordatorios» en los ajustes los muestra todos, con la frase que describe su ritmo y las próximas fechas. Un recordatorio que ya no tiene futuro se borra, exactamente como antes.",
+            "i2": "<b>🗓️ Tus rutinas saben decir mucho más</b> — «cada tres días», «un martes de cada dos», «el 2.º martes del mes», «el último día del mes», «cada 14 de julio», «cada dos horas entre las 9 y las 17», «hasta el 30 de septiembre» o «las tres próximas veces». Pídelo en la conversación o ajústalo a mano: es el mismo vocabulario en ambos lados.",
+            "i3": "<b>✏️ Las pantallas de edición respiran</b> — los campos se agrupan bajo títulos con nombre («qué hacer», «cuándo», «ejecución»), y lo que rara vez se cambia — un intervalo, un fin de serie, una fecha de inicio — se pliega tras «Opciones avanzadas». Cinco preguntas en pantalla en lugar de ocho. El pliegue se abre solo cuando ya contiene algo, para no ocultarte nunca un ajuste que hiciste.",
+            "i4": "<b>🐛 Un día perdido al año, en 73 zonas horarias</b> — al cambiar al horario de verano, cuando el desfase se mueve a medianoche local, el motor anterior se saltaba el día entero: 142 ejecuciones perdidas al año, sin nada en los registros. Corregido, y la semana de rutinas vuelve a dibujar la celda del 30 de marzo."
+          }
+        },
         "v1_42_4": {
           "title": "v1.42.4 — 🖥️ Tus modelos locales, modelos como los demás",
           "date": "Septiembre de 2026",
@@ -8409,7 +8422,7 @@
       },
       "folded_settings": {
         "title": "Los ajustes, plegados",
-        "desc": "Los once temas de notificación y los historiales siguen cerrados. Abres lo que venías a cambiar — y un bloque cerrado no carga nada."
+        "desc": "Los once temas de notificación y los historiales permanecen cerrados. Abres lo que vienes a cambiar — y un bloque cerrado no carga nada. Allí donde el pliegue ocultaría un ajuste que hiciste, se abre solo: una rutina que ya dice «cada tres semanas» nunca se presenta como una rutina corriente."
       },
       "provenance_why": {
         "title": "Por qué LIA piensa eso",
@@ -9335,8 +9348,6 @@
     "field_title": "Título",
     "field_title_placeholder": "Ej: Búsqueda del tiempo",
     "field_prompt": "Instrucción para el asistente",
-    "field_days": "Días de la semana",
-    "field_time": "Hora de ejecución",
     "prompt_placeholder": "Ej: Busca el tiempo de hoy y dame un resumen",
     "studio": {
       "trigger_kind": "Disparador",
@@ -9377,7 +9388,8 @@
       "active": "Activo",
       "paused": "Pausa",
       "executing": "Ejecutando",
-      "error": "Error"
+      "error": "Error",
+      "finished": "Finalizada"
     },
     "next_execution": "Próxima",
     "last_execution": "Última",
@@ -9398,12 +9410,6 @@
     "next_evaluations": "Próximas ventanas de evaluación",
     "clock_change": "(cambio de hora)",
     "toggle_aria": "Activar o desactivar {{title}}",
-    "schedule": {
-      "daily": "Todos los días a las {{time}}",
-      "weekdays": "Entre semana a las {{time}}",
-      "weekend": "Los fines de semana a las {{time}}",
-      "custom": "{{days}} a las {{time}}"
-    },
     "next_run": "Próxima ejecución",
     "next_evaluation": "Próxima evaluación",
     "number_aria": "Rutina {{n}}",
@@ -9430,7 +9436,9 @@
         "skipped_hitl": "Omitida, había una aprobación pendiente en el chat",
         "executing": "En ejecución"
       }
-    }
+    },
+    "section_what": "Qué hacer",
+    "section_execution": "Ejecución"
   },
   "landing": {
     "meta": {
@@ -9617,7 +9625,7 @@
       },
       "reminders_scheduling": {
         "title": "Recordatorios y automatizaciones",
-        "description": "Programa recordatorios en lenguaje natural (\"Recuérdame mañana a las 9 llamar a María\"). Planifica acciones recurrentes automáticas (resumen de emails del lunes, clima matutino...). Un recordatorio que vence con tu cuota alcanzada vuelve a la cola: nunca se pierde. Las rutinas ahora pueden esperar una condición — una tarea que vence, un correo que coincide, un cambio de tiempo, un documento añadido, un evento que se acerca — y proponer antes de actuar si lo prefieres. Una vista semanal despliega las rutinas, horas hacia abajo y días a lo ancho, cada celda de la semana en curso coloreada por lo que pasó."
+        "description": "Programa recordatorios en lenguaje natural (\"Recuérdame mañana a las 9 llamar a María\"). Planifica acciones recurrentes automáticas (resumen de emails del lunes, clima matutino...). Un recordatorio que vence con tu cuota alcanzada vuelve a la cola: nunca se pierde. Las rutinas ahora pueden esperar una condición — una tarea que vence, un correo que coincide, un cambio de tiempo, un documento añadido, un evento que se acerca — y proponer antes de actuar si lo prefieres. Una vista semanal despliega las rutinas, horas hacia abajo y días a lo ancho, cada celda de la semana en curso coloreada por lo que pasó. Un recordatorio también puede repetirse: di el ritmo — cada tres días, el 2.º martes del mes, cada dos horas entre las 9 y las 17 — y es el mismo vocabulario que para una rutina."
       },
       "memory": {
         "title": "Memoria contextual",
@@ -10514,7 +10522,7 @@
       "reminders-scheduling": {
         "title": "Recordatorios y acciones programadas: Automatiza tu día a día",
         "excerpt": "Crea recordatorios en lenguaje natural y programa acciones recurrentes.",
-        "body": "<h2>Recordatorios en lenguaje natural</h2><p>Crear un recordatorio con LIA es tan simple como decir:</p><ul><li>\"Recuérdame llamar a María mañana a las 9h\"</li><li>\"Recordatorio en 30 minutos: revisar el horno\"</li><li>\"Acuérdate de comprar pan esta noche\"</li></ul><p>LIA interpreta automáticamente las expresiones temporales y crea el recordatorio con la zona horaria correcta.</p><h2>Ciclo de vida de un recordatorio</h2><p>Cada recordatorio sigue un ciclo de vida preciso: <strong>PENDING → PROCESSING → eliminado</strong> tras la notificación. Los recordatorios son <strong>de un solo uso</strong>: una vez entregados con éxito, se eliminan automáticamente. Cada recordatorio contiene tres campos clave:</p><ul><li><code>content</code> — El contenido comprendido por LIA (reformulado si es necesario)</li><li><code>original_message</code> — El texto exacto del usuario</li><li><code>trigger_at</code> — La hora de activación en UTC</li></ul><p>El paso a <code>PROCESSING</code> es un <strong>bloqueo temporal</strong>, no un punto sin retorno: la consulta de selección solo mira las filas <code>PENDING</code>, de manera que un recordatorio ya en tratamiento no puede ser tomado dos veces por dos pasadas concurrentes. Toda salida anticipada lo libera — límite de uso alcanzado, ningún dispositivo registrado — y el recordatorio vuelve a <code>PENDING</code> para la pasada siguiente. Sin esa liberación, un recordatorio que vence en el minuto exacto en que el usuario alcanza su cuota se perdería definitivamente, sin error ni rastro.</p><h2>Gestión de zonas horarias</h2><p>Todos los recordatorios se almacenan en <strong>UTC</strong> en la base de datos. La zona horaria IANA del usuario (ej.: <code>Europe/Paris</code>, <code>America/New_York</code>) se rastrea y se utiliza para convertir las expresiones temporales relativas (\"mañana a las 9h\") en timestamps UTC absolutos. La visualización siempre se convierte a la zona horaria local del usuario.</p><h2>Notificaciones push</h2><p>Los recordatorios se entregan mediante <strong>Firebase Cloud Messaging (FCM)</strong> para las notificaciones del navegador y móvil. La notificación llega incluso cuando la aplicación no está abierta.</p><p>El título y el cuerpo de la notificación se renderizan en el idioma del usuario, para los seis idiomas admitidos. La normalización de la configuración regional la hace la propia tabla de títulos y no cada llamante, porque los llamantes manejan locales sin normalizar de todas las grafías — y el único sitio que debía normalizar y no lo hacía enviaba títulos en inglés a los usuarios chinos.</p><h2>Acciones programadas</h2><p>Las Acciones Programadas (Scheduled Actions) constituyen un <strong>dominio separado</strong> que va más allá de los recordatorios simples. Se integran con <strong>APScheduler</strong> para programar tareas recurrentes que LIA ejecutará automáticamente:</p><ul><li>Resumen del clima cada mañana a las 7h</li><li>Verificación de emails importantes cada 2 horas</li><li>Informe semanal de tareas cada lunes</li></ul><h2>Límites razonables</h2><p>Para evitar abusos, cada usuario puede tener hasta 20 acciones programadas activas simultáneamente. La lógica de reintentos con backoff gestiona los fallos temporales.</p>"
+        "body": "<h2>Recordatorios en lenguaje natural</h2><p>Crear un recordatorio con LIA es tan simple como decir:</p><ul><li>\"Recuérdame llamar a María mañana a las 9h\"</li><li>\"Recordatorio en 30 minutos: revisar el horno\"</li><li>\"Acuérdate de comprar pan esta noche\"</li></ul><p>LIA interpreta automáticamente las expresiones temporales y crea el recordatorio con la zona horaria correcta.</p><h2>Ciclo de vida de un recordatorio</h2><p>Cada recordatorio sigue un ciclo de vida preciso: <strong>PENDING → PROCESSING → eliminado</strong> tras la notificación. Un recordatorio ahora puede <strong>repetirse</strong> — cada día, los lunes y jueves, el 15 del mes, cada dos horas dentro de una franja. Tras cada notificación LIA simplemente pregunta qué armar después: si queda una ocurrencia, el recordatorio se vuelve a armar; si no queda ninguna — una ocurrencia única ya consumida, o una serie agotada —, se elimina. La misma regla en ambos casos, y exactamente lo que «eliminar tras la notificación» siempre quiso decir. Cada recordatorio contiene tres campos clave:</p><ul><li><code>content</code> — El contenido comprendido por LIA (reformulado si es necesario)</li><li><code>original_message</code> — El texto exacto del usuario</li><li><code>trigger_at</code> — La hora de activación en UTC</li></ul><p>El paso a <code>PROCESSING</code> es un <strong>bloqueo temporal</strong>, no un punto sin retorno: la consulta de selección solo mira las filas <code>PENDING</code>, de manera que un recordatorio ya en tratamiento no puede ser tomado dos veces por dos pasadas concurrentes. Toda salida anticipada lo libera — límite de uso alcanzado, ningún dispositivo registrado — y el recordatorio vuelve a <code>PENDING</code> para la pasada siguiente. Sin esa liberación, un recordatorio que vence en el minuto exacto en que el usuario alcanza su cuota se perdería definitivamente, sin error ni rastro.</p><h2>Gestión de zonas horarias</h2><p>Todos los recordatorios se almacenan en <strong>UTC</strong> en la base de datos. La zona horaria IANA del usuario (ej.: <code>Europe/Paris</code>, <code>America/New_York</code>) se rastrea y se utiliza para convertir las expresiones temporales relativas (\"mañana a las 9h\") en timestamps UTC absolutos. La visualización siempre se convierte a la zona horaria local del usuario.</p><h2>Notificaciones push</h2><p>Los recordatorios se entregan mediante <strong>Firebase Cloud Messaging (FCM)</strong> para las notificaciones del navegador y móvil. La notificación llega incluso cuando la aplicación no está abierta.</p><p>El título y el cuerpo de la notificación se renderizan en el idioma del usuario, para los seis idiomas admitidos. La normalización de la configuración regional la hace la propia tabla de títulos y no cada llamante, porque los llamantes manejan locales sin normalizar de todas las grafías — y el único sitio que debía normalizar y no lo hacía enviaba títulos en inglés a los usuarios chinos.</p><h2>Acciones programadas</h2><p>Las Acciones Programadas (Scheduled Actions) constituyen un <strong>dominio separado</strong> que va más allá de los recordatorios simples. Se integran con <strong>APScheduler</strong> para programar tareas recurrentes que LIA ejecutará automáticamente:</p><ul><li>Resumen del clima cada mañana a las 7h</li><li>Verificación de emails importantes cada 2 horas</li><li>Informe semanal de tareas cada lunes</li></ul><h2>Límites razonables</h2><p>Para evitar abusos, cada usuario puede tener hasta 20 acciones programadas activas simultáneamente. La lógica de reintentos con backoff gestiona los fallos temporales.</p>"
       },
       "sub-agents": {
         "title": "Sub-agentes: Expertos efímeros para preguntas complejas",
@@ -12225,7 +12233,8 @@
       "run_python_tool": "Cálculo ejecutado en el entorno aislado",
       "run_skill_script": "Script de la habilidad «{{target}}» ejecutado",
       "set_current_item": "«{{target}}» establecido como elemento actual de la conversación",
-      "toggle_scheduled_action_tool": "Acción programada «{{target}}» activada o pausada"
+      "toggle_scheduled_action_tool": "Acción programada «{{target}}» activada o pausada",
+      "create_reminder_tool": "Recordatorio «{{target}}» creado"
     },
     "export": {
       "group_label": "Exportar este registro",
@@ -12401,5 +12410,108 @@
       "action": "Extracción unificada",
       "hint": "JSON Lines, una línea por registro. No contiene contenido alguno y cada identificador se sustituye por un asa — el tuyo incluido — para que el archivo pueda adjuntarse a una solicitud o una reclamación sin retocarlo."
     }
+  },
+  "recurrence": {
+    "legend_days": "Qué días",
+    "legend_times": "A qué hora",
+    "freq_label": "Repetición",
+    "freq": {
+      "once": "Una sola vez",
+      "daily": "Todos los días",
+      "weekly": "Cada semana",
+      "monthly": "Cada mes",
+      "yearly": "Cada año"
+    },
+    "interval_label": "Cada",
+    "interval_unit": {
+      "daily": "día(s)",
+      "weekly": "semana(s)",
+      "monthly": "mes(es)",
+      "yearly": "año(s)"
+    },
+    "interval_shortcut": {
+      "quarterly": "Trimestral",
+      "biannual": "Semestral"
+    },
+    "weekdays_label": "Días de la semana",
+    "weekday_set": {
+      "all": "Todos los días",
+      "workdays": "Entre semana",
+      "weekend": "Fin de semana"
+    },
+    "monthday_label": "Día del mes",
+    "monthday_last": "Último día",
+    "monthly_mode": {
+      "day": "Un día del mes",
+      "weekday": "Un día de la semana"
+    },
+    "nth_label": "Cuál",
+    "nth": {
+      "1": "Primero",
+      "2": "Segundo",
+      "3": "Tercero",
+      "4": "Cuarto",
+      "5": "Quinto",
+      "-1": "Último"
+    },
+    "month_label": "Mes",
+    "anchor_label": "A partir del",
+    "anchor_hint": "Define el inicio de la serie y la semana o el mes en que cae.",
+    "date_label": "Fecha",
+    "times_mode": {
+      "at": "A horas concretas",
+      "every": "A intervalos regulares"
+    },
+    "times_label": "Horas del día",
+    "time_add": "Añadir una hora",
+    "time_remove": "Quitar {{time}}",
+    "step_label": "Cada",
+    "step_unit_minutes": "minutos",
+    "step_from": "Desde",
+    "step_to": "Hasta",
+    "end_label": "Termina",
+    "end": {
+      "never": "Nunca",
+      "on_date": "En una fecha",
+      "after_count": "Tras un número de veces"
+    },
+    "end_count_label": "Número de veces",
+    "summary_per_day_one": "hasta {{count}} vez al día",
+    "summary_per_day_other": "hasta {{count}} veces al día",
+    "summary_next": "Próximas",
+    "summary_finished": "Esta serie ha terminado",
+    "error_no_time": "Añada al menos una hora.",
+    "error_no_weekday": "Seleccione al menos un día de la semana.",
+    "error_too_many": "Son {{count}} veces al día; el límite es {{limit}}.",
+    "error_step_too_small": "El intervalo mínimo es de {{limit}} minutos.",
+    "error_no_end_date": "Elija el último día, o bien otra regla de fin.",
+    "section_when": "Cuándo",
+    "step_separator": "a",
+    "advanced": "Opciones avanzadas"
+  },
+  "reminders": {
+    "settings": {
+      "title": "Recordatorios",
+      "description": "Lo que LIA le recordará, y cuándo.",
+      "count_one": "{{count}} recordatorio",
+      "count_other": "{{count}} recordatorios",
+      "capped": "(se muestran los {{shown}} primeros)"
+    },
+    "create": "Nuevo recordatorio",
+    "create_title": "Nuevo recordatorio",
+    "edit_title": "Editar recordatorio",
+    "field_content": "Recuérdame",
+    "field_content_placeholder": "llamar al médico",
+    "empty": "Ningún recordatorio",
+    "empty_hint": "No hay nada previsto. Pídaselo a LIA en el chat o cree uno aquí.",
+    "created": "Recordatorio creado",
+    "updated": "Recordatorio actualizado",
+    "deleted": "Recordatorio eliminado",
+    "save_failed": "No se pudo guardar el recordatorio",
+    "delete_failed": "No se pudo eliminar el recordatorio",
+    "delete_title": "¿Eliminar este recordatorio?",
+    "delete_confirm": "«{{content}}» se eliminará.",
+    "delete_series_confirm": "«{{content}}» se repite ({{schedule}}). Al eliminarlo se quitan todas las próximas repeticiones.",
+    "section_what": "Qué recordar"
   }
 }

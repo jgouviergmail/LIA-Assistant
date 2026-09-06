@@ -6,7 +6,7 @@
 
 **Versione**: 4.9
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.42.4
+**Applicazione**: LIA v1.43.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -66,7 +66,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 537 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 266 ADRs, ~24.454 test raccolti da pytest in 1.488 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 267 ADRs, ~24.454 test raccolti da pytest in 1.488 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -87,7 +87,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Test | 24.454 raccolti da pytest su 1.488 file di test + 7.404 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 266 |
+| ADR (Architecture Decision Record) | 267 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -825,11 +825,17 @@ Nodo LangGraph post-esecuzione: dopo ogni turno azionabile, l'iniziativa analizz
 
 Lo stesso nodo emette inoltre fino a 3 **chip di follow-up** — brevi richieste che l'utente probabilmente invierà dopo, formulate nella sua lingua e ancorate ai risultati visibili. Una sanitizzazione lato server (clamp, dedupe case-insensitive, tetto rigido) e un handoff pop-once per run le portano sia nel chunk SSE `done` sia nei metadati del messaggio archiviato: le chip appaiono live e sopravvivono a un ricaricamento; toccarne una riempie soltanto il campo.
 
-### 16.3. Azioni pianificate
+### 16.3. Azioni pianificate e promemoria
 
-APScheduler con leader election Redis (SETNX, TTL 120s, recheck 5s). `FOR UPDATE SKIP LOCKED` per isolamento. Auto-approvazione dei piani (`plan_approved=True` iniettato nello state). Auto-disattivazione dopo 5 fallimenti consecutivi. Retry su errori transitori.
+APScheduler con leader election Redis (SETNX, TTL 120s, recheck 5s) per il ciclo, `FOR UPDATE SKIP LOCKED` per l'isolamento, piani auto-approvati, disattivazione dopo 5 errori consecutivi.
 
-Ogni tick termina con una riga in uno **storico delle esecuzioni**, scritta al risultato nella transazione della marcatura — cinque esiti, uno per uscita dell'esecutore, in un savepoint e mai un blocco per la routine. La settimana in corso di ogni routine è calcolata lato server dallo stesso motore cron che arma le esecuzioni: una cella prende l'ultima esecuzione il cui istante servito è **uguale** a quello della fascia, mai una finestra di tolleranza, così che un cambio di orario svuota la griglia per costruzione e il browser non rilegge mai il cron — dipinge. Un buco di ora legale che si apre a mezzanotte, che il motore saltava per un giorno intero in sei fusi, è riparato in un unico punto di lettura e provato da un differenziale su tutte le zone IANA.
+**Una ricorrenza è un prodotto**: quali giorni del calendario × quali momenti della giornata. Un solo motore (`src/core/recurrence`) risponde sia per le routine sia per i promemoria — `dateutil.rrule` enumera i giorni, ogni momento è localizzato con `fold=0`, e la serie è ordinata e deduplicata per istante, perché al passaggio all'ora solare due orologi da parete cadono sullo stesso istante. I giorni non sono mai affidati a un cron: un `IntervalTrigger` salta l'intera giornata quando lo scarto cambia a mezzanotte locale — 142 esecuzioni all'anno in 73 fusi orari, senza traccia nei registri.
+
+**Il promemoria che suona una volta sola non è un'eccezione, è il caso generale**: interrogato su cosa armare dopo, `rearm_after` risponde `None` per un'occorrenza unica consumata, e `None` significa «eliminare». Da nessuna parte un ramo chiede «questo si ripete?». Conseguenza di tipizzazione: il `trigger_at` di un promemoria resta NOT NULL — un promemoria senza futuro viene eliminato — mentre il `next_trigger_at` di una routine ammette il nullo, perché lì il valore sta nella configurazione.
+
+I tetti sono **iniettati dal consumatore**, mai letti nel modello: 12 scatti al giorno per una routine, 48 per un promemoria. Ogni strumento di conversazione pubblica i limiti che applica (ADR-184), così un numero fuori intervallo viene riparato dal clamp del pianificatore invece di essere segnalato come difetto.
+
+Ogni tick termina con una riga in una **cronologia delle esecuzioni**, scritta al risultato nella transazione di marcatura — cinque esiti, uno per uscita dell'esecutore, in un savepoint e mai bloccante. La settimana in corso è calcolata lato server con lo stesso motore: una cella prende l'ultima esecuzione il cui istante servito **è uguale** a quello dello slot, mai una finestra di tolleranza, così un cambio di orario azzera la griglia per costruzione e il browser non rilegge mai la pianificazione — la dipinge.
 
 ### 16.4. Una notifica push che sfocia in una decisione
 
@@ -1363,7 +1369,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-266 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+267 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1469,7 +1475,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 266 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~24.454 test in 1.488 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 267 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~24.454 test in 1.488 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1586,4 +1592,4 @@ Il volto del compagno sceglieva la propria espressione di fine turno dall'emozio
 **Ogni unità pagata è contabilizzata, e mostrata.** Una riunione spende audio presso il motore di trascrizione e token presso il modello di sintesi, passaggi di condensazione e ricostruzioni compresi; entrambi raggiungono i registri della piattaforma come ogni scambio — l'audio tramite le statistiche del riconoscimento remoto, i token sotto un `run_id` che il messaggio archiviato porta, così la cronologia si unisce al registro dei token esattamente come per ogni notifica proattiva. La riga conserva la spesa propria del verbale perché la pagina dichiari il totale esatto con la sua scomposizione, la scheda dichiara le due unità e la loro somma, e un modello senza tariffa amministrata restituisce `null`: un prezzo sconosciuto non è un prezzo gratuito. La stessa onestà attraversa il verbale stesso — una lacuna è dichiarata, mai colmata; un interlocutore senza nome resta S2; una proposta rimasta aperta non è una decisione.
 
 **Il formato del verbale è diventato una libreria, e la scelta ha un solo luogo.** Trenta modelli integrati vivono nel codice, le loro parole in un modulo di dati i18n, e un'asserzione all'avvio rifiuta di partire se manca un nome in una delle sei lingue: ciò che un validatore può rifiutare, il catalogo non può consegnarlo. Un modello è designato da un riferimento — `builtin:<chiave>` o `user:<uuid>` — che riunioni, preferenze e richieste si scambiano al posto di una riga, così un modello integrato non ha bisogno di esistere in banca dati e un modello eliminato lascia un riferimento i cui lettori sanno ripiegare sull'istantanea conservata. La scelta segue **una sola precedenza**: il riferimento portato dalla riunione, poi il predefinito della preferenza, poi il modello linguistico che legge un estratto della trascrizione e sceglie sopra una soglia di confidenza, poi il modello integrato predefinito; ogni esito è contato e scritto sulla riga con la ragione enunciata, così la pagina mostra un fatto e non una ricostruzione. Una quinta specie di sezione restituisce la trascrizione stessa: non entra in una sola risposta — lo slot di sintesi emette al massimo ottomila token — quindi viene riscritta per parti, ciascuna limitata dalla finestra di uscita effettiva, un indice mancante divide la parte una volta e una risposta sospettosamente corta viene ritentata una volta. Riscrivere un verbale già redatto prende in prestito la rigenerazione durevole quando sostituisce, e crea una riga derivata che punta alla sua origine quando produce un nuovo verbale — mai una copia: la trascrizione è la stessa, il verbale no. La stessa cura per l'ordine governa i documenti degli spazi di conoscenza: poiché `rag_chunks.space_id` è denormalizzato e letto dalla ricerca, uno spostamento scrive la riga e i suoi frammenti, conferma, **poi** sposta il file; una rinomina fallita riporta indietro entrambi e lo segnala per quel solo documento, e un lotto non si ferma mai per un elemento — ogni identificatore torna fatto o ignorato con il suo codice.
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 266 ADRs e del changelog (da v1.0 a v1.42.4). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 267 ADRs e del changelog (da v1.0 a v1.43.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

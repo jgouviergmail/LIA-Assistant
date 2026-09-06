@@ -10,13 +10,14 @@ stored ``user_timezone``.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
 from src.domains.scheduled_actions.service import ScheduledActionService
 
 pytestmark = pytest.mark.unit
@@ -27,9 +28,12 @@ PARIS_MORNING = datetime(2026, 8, 3, 6, 0, tzinfo=UTC)  # 08:00 Paris
 def _action(**over: Any) -> SimpleNamespace:
     base = {
         "id": uuid.uuid4(),
-        "days_of_week": [1, 2, 3, 4, 5, 6, 7],
-        "trigger_hour": 8,
-        "trigger_minute": 0,
+        "recurrence_spec": RecurrenceSpec(
+            freq="weekly",
+            times=DailyTimes(mode="at", at=(TimeOfDay(hour=8, minute=0),)),
+            anchor_date=date(2026, 1, 5),
+            byweekday=(1, 2, 3, 4, 5, 6, 7),
+        ),
         "user_timezone": "Europe/Paris",
         "is_enabled": True,
         "next_trigger_at": PARIS_MORNING,

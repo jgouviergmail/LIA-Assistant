@@ -31,6 +31,8 @@ def _week(action_id: uuid.UUID) -> ActionWeek:
         cells=[
             WeekCell(
                 day=1,
+                hour=8,
+                minute=0,
                 date=date(2026, 8, 3),
                 slot_at=MON,
                 outcome=ScheduledRunOutcome.FAILURE,
@@ -40,6 +42,8 @@ def _week(action_id: uuid.UUID) -> ActionWeek:
             ),
             WeekCell(
                 day=3,
+                hour=8,
+                minute=0,
                 date=date(2026, 8, 5),
                 slot_at=datetime(2026, 8, 5, 6, 0, tzinfo=UTC),
                 outcome=None,
@@ -80,6 +84,8 @@ class TestTheResponse:
                     "cells": [
                         {
                             "day": 1,
+                            "hour": 8,
+                            "minute": 0,
                             "date": date(2026, 8, 3),
                             "slot_at": MON,
                             "outcome": "skipped_condition",

@@ -66,6 +66,7 @@ import { PeerConnectionsSettings } from './PeerConnectionsSettings';
 import { PersonalitySettings } from './PersonalitySettings';
 import { PluginsSettings } from './PluginsSettings';
 import { PsycheSettings } from './PsycheSettings';
+import { RemindersSettings } from './RemindersSettings';
 import { ScheduledActionsSettings } from './ScheduledActionsSettings';
 import { SecuritySettings } from './SecuritySettings';
 import { SkillsSettings } from './SkillsSettings';
@@ -145,6 +146,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
     feature: 'scheduled-actions',
     render: lng => <ScheduledActionsSettings lng={lng} />,
   },
+  reminders: { feature: 'reminders', render: lng => <RemindersSettings lng={lng} /> },
   journals: { feature: 'journals', render: lng => <JournalsSettings lng={lng} /> },
   'health-metrics': {
     feature: 'health-metrics',

@@ -230,6 +230,67 @@ class ProactiveMessages:
         task_titles = ProactiveMessages._TITLES.get(task_type, {})
         return task_titles.get(normalize_language(language), task_titles.get("en", "Notification"))
 
+    #: What a reminder says when the model could not compose its message.
+    #:
+    #: This is the NOTIFICATION BODY, not prompt scaffolding: it reaches the
+    #: reader verbatim. It was `if language == "fr": ... else: <English>`, so
+    #: four readers out of six were told "It's time!" in a language they may
+    #: not read — and precisely on the path where something had already gone
+    #: wrong.
+    _REMINDER_FALLBACKS: dict[str, str] = {
+        "fr": "C'est l'heure ! Rappel ({stamp}) : {content}",
+        "en": "It's time! Reminder ({stamp}): {content}",
+        "es": "¡Es la hora! Recordatorio ({stamp}): {content}",
+        "de": "Es ist so weit! Erinnerung ({stamp}): {content}",
+        "it": "È ora! Promemoria ({stamp}): {content}",
+        "zh-CN": "时间到了！提醒（{stamp}）：{content}",
+    }
+
+    #: The header introducing recalled memories inside the reminder prompt.
+    _MEMORY_HEADERS: dict[str, str] = {
+        "fr": "MÉMOIRES PERTINENTES :",
+        "en": "RELEVANT MEMORIES:",
+        "es": "RECUERDOS RELEVANTES:",
+        "de": "RELEVANTE ERINNERUNGEN:",
+        "it": "RICORDI RILEVANTI:",
+        "zh-CN": "相关记忆：",
+    }
+
+    @staticmethod
+    def reminder_fallback_body(stamp: str, content: str, language: str) -> str:
+        """The reminder message to send when generation failed.
+
+        Args:
+            stamp: Localized "asked on ..." fragment.
+            content: What the reader asked to be reminded of.
+            language: Any locale spelling; normalized internally.
+
+        Returns:
+            The localized body (English fallback).
+        """
+        from src.core.i18n import normalize_language
+
+        template = ProactiveMessages._REMINDER_FALLBACKS.get(
+            normalize_language(language), ProactiveMessages._REMINDER_FALLBACKS["en"]
+        )
+        return template.format(stamp=stamp, content=content)
+
+    @staticmethod
+    def reminder_memory_header(language: str) -> str:
+        """The header the reminder prompt puts above recalled memories.
+
+        Args:
+            language: Any locale spelling; normalized internally.
+
+        Returns:
+            The localized header (English fallback).
+        """
+        from src.core.i18n import normalize_language
+
+        return ProactiveMessages._MEMORY_HEADERS.get(
+            normalize_language(language), ProactiveMessages._MEMORY_HEADERS["en"]
+        )
+
     @staticmethod
     def routine_approval_body(title: str, intent_url: str, language: str) -> str:
         """Localized propose-first body for a routine awaiting approval (N-07).

@@ -26,6 +26,7 @@ from datetime import datetime
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.recurrence import served_slot
 from src.core.time_utils import now_utc
 from src.domains.scheduled_actions.models import (
     ScheduledAction,
@@ -33,7 +34,6 @@ from src.domains.scheduled_actions.models import (
     ScheduledRunOutcome,
 )
 from src.domains.scheduled_actions.run_repository import ScheduledActionRunRepository
-from src.domains.scheduled_actions.schedule_helpers import served_slot
 
 logger = structlog.get_logger(__name__)
 
@@ -42,7 +42,7 @@ async def record_run(
     db: AsyncSession,
     action: ScheduledAction,
     *,
-    due_at: datetime,
+    due_at: datetime | None,
     started_at: datetime,
     outcome: ScheduledRunOutcome,
     attempts: int,
@@ -53,7 +53,8 @@ async def record_run(
     Args:
         db: The executor's session — the row joins ITS transaction.
         action: The routine, as loaded at the start of the tick.
-        due_at: ``action.next_trigger_at`` captured BEFORE any re-arm.
+        due_at: ``action.next_trigger_at`` captured BEFORE any re-arm, or
+            ``None`` when the series was already over (a manual run).
         started_at: When the tick started (UTC).
         outcome: How it ended.
         attempts: Pipeline attempts made; 0 when the pipeline never ran.
@@ -68,9 +69,7 @@ async def record_run(
         # from within its retry loop, where an unexpected raise would be read
         # as an execution failure and mark the routine failed.
         slot_at = served_slot(
-            action.days_of_week,
-            action.trigger_hour,
-            action.trigger_minute,
+            action.recurrence_spec,
             action.user_timezone,
             due_at=due_at,
             now=started_at,
@@ -84,7 +83,8 @@ async def record_run(
                 ended_at=now_utc(),
                 outcome=outcome,
                 attempts=attempts,
-                manual=due_at > started_at,
+                # No pending slot at all means the reader started this run.
+                manual=due_at is None or due_at > started_at,
                 error=error,
             )
     except Exception as exc:

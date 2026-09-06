@@ -75,9 +75,17 @@ class TestScheduledActionDraftExecutor:
         draft_content = {
             "title": "Revue de presse IA",
             "action_prompt": "Fais-moi une revue de presse IA",
-            "days_of_week": [1, 2, 3, 4, 5],
-            "trigger_hour": 8,
-            "trigger_minute": 0,
+            "recurrence": {
+                "freq": "weekly",
+                "interval": 1,
+                "anchor_date": "2026-01-05",
+                "byweekday": [1, 2, 3, 4, 5],
+                "bymonthday": [],
+                "bymonth": [],
+                "nth_weekday": None,
+                "times": {"mode": "at", "at": [{"hour": 8, "minute": 0}]},
+                "end": {"kind": "never", "on_date": None, "after_count": None},
+            },
             "user_timezone": "Europe/Paris",
         }
 
@@ -96,8 +104,9 @@ class TestScheduledActionDraftExecutor:
         assert result["success"] is True
         assert result["title"] == "Revue de presse IA"
         create_kwargs = service.create.await_args.kwargs
-        assert create_kwargs["data"].trigger_hour == 8
-        assert create_kwargs["data"].days_of_week == [1, 2, 3, 4, 5]
+        spec = create_kwargs["data"].recurrence
+        assert spec.byweekday == (1, 2, 3, 4, 5)
+        assert [(t.hour, t.minute) for t in spec.times.materialise()] == [(8, 0)]
         assert create_kwargs["user_timezone"] == "Europe/Paris"
 
     def test_executor_is_registered_for_draft_type(self):

@@ -115,3 +115,119 @@ class TestCreateResponsesLLM:
         assert isinstance(llm, ChatOpenAICached)
         # Reasoning config carries summary=auto so thinking can be streamed.
         assert llm.reasoning == {"effort": "low", "summary": "auto"}
+
+
+class TestSamplingParametersOnAReasoningModel:
+    """A reasoning model gets no sampling parameter, effort asked for or not.
+
+    This is the branch that actually runs. `_prepare_provider_config` carries a
+    named "reasoning model parameter filter", and it is unreachable for every
+    real OpenAI model: `_create_with_dedicated_client` is consulted FIRST, and
+    every `gpt-4.1*`, `gpt-5*` and `o[1-9]*` leaves through the Responses API
+    before that filter is ever evaluated (measured 2026-09-06 — only `o0`,
+    which does not exist, still reaches it).
+
+    So the protection lives HERE, and it had a hole: it keyed on the effort
+    being rendered, not on the model. With no intent configured the translator
+    renders nothing, the "standard model" branch was taken, and `top_p` and
+    `temperature` went out to a model whose API refuses them the moment they
+    are not neutral (`top_p=0.9` -> 400 *Unsupported parameter*, measured
+    against the real API on `gpt-5.6-luna`; `top_p=1.0` is tolerated, which is
+    the only reason nothing broke).
+    """
+
+    def test_no_effort_asked_still_sends_no_sampling_parameter(self) -> None:
+        llm = create_responses_llm(
+            model="gpt-5.6-luna", api_key="k", temperature=0.3, top_p=0.9, max_tokens=64
+        )
+        assert llm.top_p is None
+        assert llm.temperature is None
+
+    def test_an_effort_asked_sends_none_either(self) -> None:
+        llm = create_responses_llm(
+            model="gpt-5.6-luna",
+            api_key="k",
+            temperature=0.3,
+            top_p=0.9,
+            max_tokens=64,
+            reasoning_effort="low",
+        )
+        assert llm.top_p is None
+        assert llm.temperature is None
+
+    def test_a_standard_model_keeps_both(self) -> None:
+        """The 18 slots on `gpt-4.1*` must be untouched: that model accepts
+        `top_p=0.9` (measured against the real API)."""
+        llm = create_responses_llm(
+            model="gpt-4.1-mini", api_key="k", temperature=0.3, top_p=0.9, max_tokens=64
+        )
+        assert llm.top_p == 0.9
+        assert llm.temperature == 0.3
+
+    def test_an_unknown_model_is_treated_as_standard(self) -> None:
+        """The fallback stays permissive: only a model KNOWN to reason loses
+        its sampling parameters."""
+        llm = create_responses_llm(
+            model="gpt-4.1-turbo-2026", api_key="k", temperature=0.5, top_p=0.8, max_tokens=64
+        )
+        assert llm.top_p == 0.8
+
+
+class TestOnePredicateForReasoningModels:
+    """ "Is this a reasoning model" is asked in two places. It must be ANSWERED
+    in one.
+
+    Both the Responses adapter and the `init_chat_model` fallback need the
+    answer, and they used to compute it separately — cache, then name pattern,
+    written twice. Only ONE of the two branches runs for any real model, so a
+    fix applied to the other passes its tests and changes nothing in
+    production. That is not a hypothetical: it is exactly the mistake this
+    change was about to ship (2026-09-06).
+    """
+
+    def test_the_name_pattern_is_read_from_a_single_module(self) -> None:
+        import subprocess
+
+        out = subprocess.run(
+            ["git", "grep", "-l", "REASONING_MODELS_PATTERN", "--", "src"],
+            capture_output=True,
+            text=True,
+            cwd=_repo_root(),
+        ).stdout.split()
+        readers = {f for f in out if not f.endswith("core/constants.py")}
+        assert readers == {"src/infrastructure/llm/model_capabilities_cache.py"}, (
+            "the reasoning-model pattern gained a second reader: route it through "
+            "`model_capabilities_cache.is_reasoning_model` instead, or the two "
+            f"copies will drift. Readers: {sorted(readers)}"
+        )
+
+    def test_the_catalogue_wins_over_the_name(self) -> None:
+        """An administrator turning `is_reasoning_model` off means it."""
+        from unittest.mock import patch
+
+        from src.infrastructure.llm.model_capabilities_cache import is_reasoning_model
+        from src.infrastructure.llm.model_profiles import ModelProfile
+
+        with patch(
+            "src.infrastructure.llm.model_capabilities_cache.ModelCapabilitiesCache.get",
+            return_value=ModelProfile(is_reasoning_model=False),
+        ):
+            assert is_reasoning_model("gpt-5.6-luna") is False
+
+    def test_an_unseeded_model_falls_back_to_the_name(self) -> None:
+        from unittest.mock import patch
+
+        from src.infrastructure.llm.model_capabilities_cache import is_reasoning_model
+
+        with patch(
+            "src.infrastructure.llm.model_capabilities_cache.ModelCapabilitiesCache.get",
+            return_value=None,
+        ):
+            assert is_reasoning_model("gpt-5.9-unseeded") is True
+            assert is_reasoning_model("gpt-4.1-mini") is False
+
+
+def _repo_root() -> str:
+    from pathlib import Path
+
+    return str(Path(__file__).resolve().parents[5])

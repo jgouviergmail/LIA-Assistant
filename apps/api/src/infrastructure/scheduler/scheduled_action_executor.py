@@ -93,6 +93,31 @@ def _truncate(text: str, max_length: int | None = None) -> str:
     return text[: max_length - 3] + "..."
 
 
+def _next_trigger(action: ScheduledAction, due_at: datetime | None) -> datetime | None:
+    """When to arm this routine after the tick that has just ended.
+
+    Every exit of :func:`execute_single_action` — condition not met, proposal,
+    pending HITL, success, final failure — re-arms the SAME way, and this is
+    the one place that says how. They used to be five literal copies of the
+    same call: a rule in five copies gets changed in four, and the exit nobody
+    updated re-arms differently from its siblings with nothing to reveal it
+    (the shape ADR-248's second invariant names).
+
+    Args:
+        action: The routine that has just run.
+        due_at: The pending due instant when the tick started (UTC), or
+            ``None`` when nothing was pending — a manual run on an exhausted
+            series reaches here.
+
+    Returns:
+        The next instant, or ``None`` when the series is over — which the
+        repository stores as a null trigger.
+    """
+    from src.core.recurrence import rearm_after
+
+    return rearm_after(action.recurrence_spec, action.user_timezone, due_at=due_at)
+
+
 async def _send_approval_notification(
     db: Any,
     *,
@@ -151,7 +176,6 @@ async def execute_single_action(
     from src.domains.conversations.service import ConversationService
     from src.domains.notifications.service import FCMNotificationService
     from src.domains.scheduled_actions.repository import ScheduledActionRepository
-    from src.domains.scheduled_actions.schedule_helpers import compute_rearm_trigger
     from src.domains.users.service import UserService
     from src.infrastructure.cache.redis import get_redis_cache
     from src.infrastructure.database.session import get_db_context
@@ -225,13 +249,7 @@ async def execute_single_action(
             verdict = await evaluate_condition(orm_user, action.condition_config or {})
             last_fingerprint = (action.condition_state or {}).get("last_fingerprint")
             if not verdict.met or verdict.fingerprint == last_fingerprint:
-                next_trigger = compute_rearm_trigger(
-                    days_of_week=action.days_of_week,
-                    hour=action.trigger_hour,
-                    minute=action.trigger_minute,
-                    user_timezone=action.user_timezone,
-                    due_at=action.next_trigger_at,
-                )
+                next_trigger = _next_trigger(action, due_at)
                 await repo.reschedule(action, next_trigger)
                 await record_run(
                     db,
@@ -269,13 +287,7 @@ async def execute_single_action(
                 action=action,
                 user_language=user_language,
             )
-            next_trigger = compute_rearm_trigger(
-                days_of_week=action.days_of_week,
-                hour=action.trigger_hour,
-                minute=action.trigger_minute,
-                user_timezone=action.user_timezone,
-                due_at=action.next_trigger_at,
-            )
+            next_trigger = _next_trigger(action, due_at)
             await repo.reschedule(action, next_trigger, condition_state=new_condition_state)
             await record_run(
                 db,
@@ -318,13 +330,7 @@ async def execute_single_action(
                     conversation_id=str(conversation.id),
                 )
                 # Recalculate next trigger for the next cycle (skip without error)
-                next_trigger = compute_rearm_trigger(
-                    days_of_week=action.days_of_week,
-                    hour=action.trigger_hour,
-                    minute=action.trigger_minute,
-                    user_timezone=action.user_timezone,
-                    due_at=action.next_trigger_at,
-                )
+                next_trigger = _next_trigger(action, due_at)
                 await repo.mark_execution_success(action, next_trigger)
                 await record_run(
                     db,
@@ -410,13 +416,7 @@ async def execute_single_action(
 
                 # Success — recalculate next trigger (+ the N-07 dedup ledger,
                 # written only on a REAL run so a failed one retries the fact).
-                next_trigger = compute_rearm_trigger(
-                    days_of_week=action.days_of_week,
-                    hour=action.trigger_hour,
-                    minute=action.trigger_minute,
-                    user_timezone=action.user_timezone,
-                    due_at=action.next_trigger_at,
-                )
+                next_trigger = _next_trigger(action, due_at)
                 await repo.mark_execution_success(
                     action, next_trigger, condition_state=new_condition_state
                 )
@@ -434,7 +434,7 @@ async def execute_single_action(
                     action_id=str(action_id),
                     user_id=str(user_id),
                     response_length=len(response_content),
-                    next_trigger_at=next_trigger.isoformat(),
+                    next_trigger_at=next_trigger.isoformat() if next_trigger else None,
                     attempt=attempt,
                 )
                 last_error = None
@@ -484,13 +484,7 @@ async def execute_single_action(
             else:
                 error_msg = f"{type(last_error).__name__}: {last_error}"
 
-            next_trigger = compute_rearm_trigger(
-                days_of_week=action.days_of_week,
-                hour=action.trigger_hour,
-                minute=action.trigger_minute,
-                user_timezone=action.user_timezone,
-                due_at=action.next_trigger_at,
-            )
+            next_trigger = _next_trigger(action, due_at)
             await repo.mark_execution_failure(
                 action,
                 error_msg,

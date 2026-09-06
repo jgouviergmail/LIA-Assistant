@@ -26,6 +26,80 @@ Bot: "🔔 Rappel annulé : appeler le médecin"
 
 ---
 
+## Recurrence et surface de gestion (2026-09-06)
+
+Un rappel portait UN instant (`trigger_at`) et etait supprime apres
+notification. Il porte desormais une `RecurrenceSpec` (`src/core/recurrence`),
+la meme que les routines, et **le comportement historique est devenu un cas
+particulier de la regle generale** :
+
+```
+next_arming(reminder) is None  ->  DELETE
+sinon                          ->  trigger_at = l'instant rendu, status = pending
+```
+
+Une occurrence unique consommee rend `None` — donc « supprime apres
+notification » et « reamorce » sont la meme ligne de code, sans branche qui
+demanderait « ce rappel se repete-t-il ? ».
+
+Trois consequences :
+
+- **`trigger_at` reste NOT NULL.** Contrairement au `next_trigger_at` d'une
+  routine, un rappel sans avenir n'existe pas : il est supprime. Arbitrage du
+  proprietaire, 2026-09-06.
+- **`retry_count` est remis a zero apres chaque notification reussie.** Il ne
+  l'etait jamais, parce que la ligne mourait a cet endroit ; sans cela un
+  rappel quotidien accumulait trois echecs sur des mois et se supprimait.
+- **Un echec repete abandonne l'OCCURRENCE, pas la serie.** Trois echecs
+  coutent un matin, pas tout le calendrier.
+
+### Une seule autorite pour l'heure de declenchement
+
+`POST /reminders` accepte **soit** un `trigger_at` (une occurrence unique)
+**soit** une `recurrence`, jamais les deux. Envoyer les deux etait accepte et
+l'instant de l'appelant gagnait : la carte annoncait « tous les jours a 08:00 »
+et la notification arrivait a 23:00, jusqu'au premier reamorçage. Quand une
+recurrence est fournie, l'instant arme en est **derive**.
+
+De meme, `PATCH` refuse un `trigger_at` seul sur un rappel recurrent : le
+reamorçage suivant relit la regle et jetterait l'instant manuel, donc la
+modification semblerait s'annuler d'elle-meme.
+
+### Le message n'est plus le meme selon l'occurrence
+
+Le prompt ordonnait « Mention when the request was made » sans condition. Pour
+un rappel quotidien cree il y a trois mois, le modele disait « tu m'as demande
+il y a 3 mois » **chaque matin**. Deux fragments versionnes remplacent cette
+ligne (`reminder_origin_once.txt`, `reminder_origin_recurring.txt`) : le second
+interdit explicitement de citer la date de mise en place et cite la
+planification a la place.
+
+### Le fuseau suit le lecteur
+
+Un changement de fuseau recalcule **tous** les rappels, ponctuels compris
+(arbitrage du proprietaire) : une heure murale suit la personne. C'est un
+changement de comportement — l'instant etait fige a la creation — assume pour
+n'avoir qu'une seule regle. La composition vit dans
+`infrastructure/scheduler/timezone_propagation.py`, avec les routines : un
+second point d'appel serait un second endroit a ne pas oublier.
+
+### La surface de gestion
+
+| Route | Role |
+|---|---|
+| `GET /reminders` | Le hub : ce qui arrive, trois champs |
+| `GET /reminders/detail` | L'ecran de reglages : recurrence, phrase, prochains instants |
+| `POST /reminders` | Creation |
+| `PATCH /reminders/{id}` | Modification (recurrence remplacee EN ENTIER) |
+| `DELETE /reminders/{id}` | Suppression |
+
+Le domaine refusait cette surface par conception jusqu'au 2026-09-06 ; le
+proprietaire a renverse la decision. **Ce que le renversement ne change pas :
+la liste n'est jamais un historique.** Une ligne est supprimee des qu'il ne lui
+reste rien, donc il n'y a rien derriere elle a lister.
+
+---
+
 ## Architecture
 
 ```
@@ -163,21 +237,43 @@ CREATE INDEX ix_user_fcm_tokens_user_id ON user_fcm_tokens(user_id);
 
 Crée un rappel pour l'utilisateur.
 
-**Parameters**:
+**Trois façons de dire QUAND, mutuellement exclusives.** En envoyer deux est
+refusé plutôt qu'arbitré : elles peuvent se contredire, et le rappel
+annoncerait une heure pour arriver à une autre.
+
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `content` | string | ✅ | Ce dont l'utilisateur veut être rappelé (résumé concis) |
-| `trigger_datetime` | string | ✅ | Date/heure ISO en heure LOCALE (ex: 2025-12-29T10:00:00) |
+| `content` | string | ✅ | Ce dont l'utilisateur veut être rappelé (résumé) |
 | `original_message` | string | ✅ | Message original complet de l'utilisateur |
+| `trigger_datetime` | string | — | **(1)** Une occurrence unique, ISO en heure LOCALE |
+| `relative_trigger` | string | — | **(2)** FOR_EACH : `ISO\|OFFSET\|@TIME`, relatif à un événement |
+| `repeat` | string | — | **(3)** `once`, `daily`, `weekly`, `monthly`, `yearly` |
+| `times` | array | — | Heures `HH:MM` ; plusieurs valeurs = plusieurs déclenchements le MÊME jour |
+| `repeat_every` | int | — | Une période sur N (2 = une semaine sur deux) |
+| `weekdays` | array | — | Jours ISO 1=Lundi..7=Dimanche |
+| `month_days` | array | — | Quantièmes 1..31, ou -1 pour le dernier jour |
+| `months` | array | — | Mois 1..12 |
+| `nth_weekday` | string | — | `<nième>:<jour>`, `2:2` = le 2e mardi |
+| `every_minutes` | int | — | Un pas dans une fenêtre, au lieu de `times` |
+| `window_start` / `window_end` | string | — | Bornes de cette fenêtre |
+| `until_date` | string | — | Dernier jour servi (pas avec `max_occurrences`) |
+| `max_occurrences` | int | — | Nombre de DÉCLENCHEMENTS (pas de jours) |
+| `starting_on` | string | — | Début de série, et PHASE quand `repeat_every` > 1 |
 
-**Output**:
+Le vocabulaire est déclaré une seule fois
+(`registry/recurrence_parameters.py`), traduit une seule fois
+(`core/recurrence/dictation.py`), et chaque outil publie **ses propres**
+bornes : 48 déclenchements par jour pour un rappel, 12 pour une routine.
+
+**Output** — une planification est confirmée COMME une planification :
 ```json
 {
     "success": true,
     "reminder_id": "550e8400-e29b-41d4-a716-446655440000",
-    "message": "🔔 Rappel créé pour dimanche 29 décembre 2025 à 10:00",
-    "content": "appeler le médecin",
-    "trigger_at_formatted": "dimanche 29 décembre 2025 à 10:00"
+    "message": "🔔 Rappel récurrent créé : Tous les jours à 08:00",
+    "content": "prendre les vitamines",
+    "trigger_at_formatted": "lundi 7 septembre 2026 à 08:00",
+    "schedule_human": "Tous les jours à 08:00"
 }
 ```
 
@@ -276,11 +372,12 @@ scheduler.add_job(
    f. Send FCM push notification to all user devices
    g. Archive message in conversation history
    h. Publish to Redis for SSE real-time
-   i. DELETE reminder (one-shot behavior)
+   i. Re-arm from the recurrence, or DELETE when nothing follows
 
 3. On failure:
    - retry_count++
-   - If retry_count >= 3: DELETE + log error
+   - If retry_count >= 3: abandon THIS occurrence — re-arm the next one, or
+     DELETE when there is none
    - Else: status = 'pending' (retry next minute)
 ```
 
@@ -671,12 +768,12 @@ LIA possede 3 systemes de notifications qui servent des cas d'usage differents :
 | Critere | Reminders | Scheduled Actions | Heartbeat Autonome |
 |---------|-----------|-------------------|-------------------|
 | **Declencheur** | Utilisateur (ex: "rappelle-moi...") | Utilisateur (action planifiee recurrente) | LLM (decision autonome) |
-| **Frequence** | Ponctuel (one-shot) | Recurrent (cron-like) | Periodique (scheduler) |
+| **Frequence** | Ponctuelle ou recurrente (`RecurrenceSpec`) | Recurrente (`RecurrenceSpec`) | Periodique (scheduler) |
 | **Contenu** | Message LLM personnalise | Resultat d'execution d'action | Message LLM contextuel |
-| **Suppression apres envoi** | Oui (DELETE) | Non (recurrent) | Non (audit trail) |
+| **Suppression apres envoi** | Quand plus rien ne suit (DELETE) | Non (la ligne s'affiche « terminee ») | Non (audit trail) |
 | **Intelligence** | LLM pour message uniquement | Execution d'action LangGraph | LLM pour decision ET message |
 | **Sources de contexte** | Memoires + personnalite | Parametres de l'action | Calendar + Weather + Tasks + Interests + Memories + Activity |
-| **Feature flag** | Aucun (toujours actif) | `SCHEDULED_ACTIONS_ENABLED` | `HEARTBEAT_ENABLED` |
+| **Feature flag** | Aucun (toujours actif) | Aucun (toujours cable) | `HEARTBEAT_ENABLED` |
 | **Canaux de delivery** | FCM + SSE | FCM + SSE + Telegram | FCM + SSE + Telegram |
 
 ### Quand utiliser quoi ?
