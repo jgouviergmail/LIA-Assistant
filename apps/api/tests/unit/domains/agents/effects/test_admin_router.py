@@ -13,6 +13,8 @@ Three properties:
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
@@ -27,6 +29,7 @@ from src.domains.agents.effects.admin_router import (
     read_admin_view,
 )
 from src.domains.agents.effects.models import EffectStatus
+from tests.unit.domains.agents.effects.streaming import body_of, rows_of
 
 pytestmark = [pytest.mark.unit]
 
@@ -63,13 +66,68 @@ def _row(user_id: uuid.UUID | None = None) -> Any:
 
 
 class _Repository:
+    """The readable SCREEN's read: one page, newest first (ADR-273).
+
+    The screen keeps a page size — an operator sees it and asks for another —
+    where the downloadable extractions no longer have one.
+    """
+
     def __init__(self, rows: list[Any]) -> None:
         self._rows = rows
         self.seen: dict[str, Any] = {}
 
-    async def list_for_export(self, **kwargs: Any) -> list[Any]:
-        self.seen = kwargs
+    @staticmethod
+    def export_query(**kwargs: Any) -> Any:
+        return SimpleNamespace(**kwargs)
+
+    async def list_latest(self, query: Any, *, limit: int) -> list[Any]:
+        self.seen = {**vars(query), "limit": limit}
         return self._rows
+
+
+class _Reads:
+    """The count and the stream of one register, stubbed together."""
+
+    def __init__(self, rows: list[Any], *, total: int | None = None) -> None:
+        self._rows = rows
+        self._total = len(rows) if total is None else total
+        self.asked: Any = None
+
+    async def count(self, _db: Any, asked: Any) -> int:
+        self.asked = asked
+        return self._total
+
+    def stream(self, _db: Any, asked: Any, *, batch: int) -> Any:
+        self.asked = asked
+        return rows_of(self._rows)
+
+
+@asynccontextmanager
+async def _no_session() -> AsyncIterator[Any]:
+    """The session the streaming generator opens for itself."""
+    yield SimpleNamespace()
+
+
+async def _technical(reads: _Reads, **kwargs: Any) -> tuple[Any, str]:
+    """Run the technical export and read its body while the seams hold.
+
+    A ``StreamingResponse``'s body is produced after the handler returns, so
+    reading it outside the patches would reach the real database.
+
+    Args:
+        reads: The stubbed register read.
+        **kwargs: The route's own parameters.
+
+    Returns:
+        The response and its whole body.
+    """
+    with (
+        patch("src.domains.agents.effects.admin_router.count_register", reads.count),
+        patch("src.domains.agents.effects.admin_router.stream_register", reads.stream),
+        patch("src.domains.agents.effects.admin_router.get_db_context", _no_session),
+    ):
+        response = await export_technical(**kwargs)
+        return response, await body_of(response)
 
 
 class _Session:
@@ -204,11 +262,9 @@ class TestTheReadableViewIsMaskedByDefault:
 class TestTheTechnicalExport:
     async def test_it_returns_json_lines_naming_nobody(self) -> None:
         row = _row()
-        repository = _Repository([row])
-        with _patched(repository):
-            response = await export_technical(db=object(), current_user=_superuser())
 
-        body = bytes(response.body).decode("utf-8")
+        response, body = await _technical(_Reads([row]), db=object(), current_user=_superuser())
+
         assert "application/x-ndjson" in response.media_type
         assert str(row.user_id) not in body
         assert "ENCRYPTED" not in body
@@ -216,34 +272,49 @@ class TestTheTechnicalExport:
         assert '"pseudonymised": true' in body
 
     async def test_the_filters_travel_to_the_query_and_the_header(self) -> None:
-        repository = _Repository([])
+        reads = _Reads([])
         since = datetime(2026, 9, 1, tzinfo=UTC)
-        with _patched(repository):
-            response = await export_technical(
-                since=since,
-                status=EffectStatus.FAILED,
-                db=object(),
-                current_user=_superuser(),
-            )
 
-        assert repository.seen["since"] == since
-        assert repository.seen["status"] is EffectStatus.FAILED
-        body = bytes(response.body).decode("utf-8")
+        _, body = await _technical(
+            reads,
+            since=since,
+            status=EffectStatus.FAILED,
+            db=object(),
+            current_user=_superuser(),
+        )
+
+        assert reads.asked.since == since
+        assert reads.asked.status is EffectStatus.FAILED
         assert '"status": "failed"' in body
 
-    async def test_the_cap_comes_from_settings_and_is_published(self) -> None:
-        from src.core.config import get_settings
+    async def test_the_extraction_is_whole_and_says_so(self) -> None:
+        """It replaced « the cap comes from settings and is published ».
 
-        repository = _Repository([])
-        with _patched(repository):
-            response = await export_technical(db=object(), current_user=_superuser())
+        There is no ceiling to publish any more (ADR-273); what the file owes
+        its reader instead is an explicit claim of completeness and the exact
+        total, so completeness is never inferred from silence.
+        """
+        response, body = await _technical(
+            _Reads([_row()], total=9_001), db=object(), current_user=_superuser()
+        )
 
-        assert repository.seen["limit"] == get_settings().effect_technical_export_max_rows
-        assert '"row_cap"' in bytes(response.body).decode("utf-8")
+        assert '"row_cap"' not in body
+        assert '"truncated": false' in body
+        assert response.headers["x-register-truncated"] == "false"
+        assert response.headers["x-register-rows"] == "9001"
 
     async def test_the_file_is_offered_as_a_download(self) -> None:
-        repository = _Repository([])
-        with _patched(repository):
-            response = await export_technical(db=object(), current_user=_superuser())
+        response, _ = await _technical(_Reads([]), db=object(), current_user=_superuser())
 
         assert "attachment" in response.headers["content-disposition"]
+
+    async def test_it_is_compressed_when_the_client_offers_to_decompress(self) -> None:
+        response, body = await _technical(
+            _Reads([_row()]),
+            db=object(),
+            current_user=_superuser(),
+            accept_encoding="gzip",
+        )
+
+        assert response.headers["content-encoding"] == "gzip"
+        assert '"pseudonymised": true' in body, "compression changed the document"

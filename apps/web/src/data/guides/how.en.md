@@ -6,7 +6,7 @@
 
 **Version**: 4.9
 **Date**: 2026-08-23
-**Application**: LIA v1.43.0
+**Application**: LIA v1.43.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,6 +52,8 @@
 36. [A trait is not a reaction: the register the answer declares](#36-a-trait-is-not-a-reaction-the-register-the-answer-declares)
 37. [Three mechanisms for one convergence: shaping a burst a ceiling cannot see](#37-three-mechanisms-for-one-convergence-shaping-a-burst-a-ceiling-cannot-see)
 38. [Meeting minutes: the row is the job, the template is the contract](#38-meeting-minutes-the-row-is-the-job-the-template-is-the-contract)
+39. [Three registers, and the one nobody had asked for](#39-three-registers-and-the-one-nobody-had-asked-for)
+40. [A debrief per relationship: what ten sections do not say](#40-a-debrief-per-relationship-what-ten-sections-do-not-say)
 ---
 
 ## 1. Context and founding choices
@@ -65,8 +67,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 537 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 267 ADRs, ~24,454 pytest-collected tests across 1,488 files, native observability, 6-level HITL |
+| Full transparency | 541 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 272 ADRs, ~25,394 pytest-collected tests across 1,488 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -84,10 +86,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 24,454 collected by pytest across 1,488 test files + 7,404 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 25,394 collected by pytest across 1,534 test files + 7,626 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 267 |
+| ADRs (Architecture Decision Records) | 272 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -955,15 +957,15 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 537 custom metrics (RED pattern) |
-| Grafana | 26 production-ready dashboards |
+| Prometheus | 541 custom metrics (RED pattern) |
+| Grafana | 28 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 537 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 541 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1251,7 +1253,7 @@ The full application to weather (`gettext.gettext(text, language)` propagated ex
 
 ### 23.11. Observability architecture
 
-Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (26 dashboards / 637 panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
+Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (28 dashboards / 719 panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
 
 A 26th dashboard turns this telemetry into a product cockpit (ADR-178): outcomes are validated E1 (explicit user confirmation) or E2 (an action left uncorrected through a full behavioral window), the exact deduplicated counting lives in PostgreSQL — mutable states can never be derived from Prometheus counters — and Grafana reads it through a read-only role restricted to aggregate views with a pinned statement timeout.
 
@@ -1361,7 +1363,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-267 ADRs in MADR format document the major architectural decisions. Some representative examples:
+272 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1500,7 +1502,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 267 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~24,454 tests across 1,488 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 272 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~25,394 tests across 1,488 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1617,4 +1619,29 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 **Every paid unit is accounted, and shown.** A meeting spends audio at the transcription engine and tokens at the synthesis model, condense passes and rebuilds included; both reach the platform's books the way every exchange does — the audio through the remote-speech statistics, the tokens under a `run_id` the archived chat message carries, so history joins the token log exactly as for any proactive notification. The row keeps the minutes' own spend so the page states the exact total with its breakdown, the card states the two units and their sum, and a model without an administered price yields `null`: an unknown price is not a free one. The same honesty runs through the minutes themselves — a gap is stated, never bridged; an unnamed speaker stays S2; a proposal left open is not a decision.
 
 **The minutes format became a library, and the choice has one place.** Thirty built-in templates live in the code, their words in an i18n data module, and a boot-time assertion refuses to start if a name is missing in one of the six languages: what a validator can reject, the catalogue cannot ship. A template is named by a reference — `builtin:<key>` or `user:<uuid>` — that meetings, preferences and requests exchange instead of a row, so a built-in needs no database row and a deleted template leaves a reference whose readers know to fall back on the stored snapshot. The choice follows **one precedence**: the reference carried by the meeting, then the preference's default, then the language model reading a transcript excerpt and choosing above a confidence floor, then the built-in default; every outcome is counted and written on the row with the reason stated, so the page shows a fact rather than a reconstruction. A fifth section kind hands back the transcript itself: it does not fit in one answer — the synthesis slot outputs at most eight thousand tokens — so it is rewritten part by part, each bounded by the effective output window, a missing index splitting the part once and a suspiciously short answer retried once. Rewriting minutes already written borrows the durable regeneration when it replaces, and creates a derived row pointing at its source when it produces new minutes — never a copy: the transcript is the same, the minutes are not. The same concern for order governs knowledge-space documents: since `rag_chunks.space_id` is denormalized and read by retrieval, a move writes the row and its chunks, commits, **then** moves the file; a rename that fails reverts both and reports it for that document alone, and a batch never stops for one item — every id comes back done or skipped with its code.
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 267 ADRs, and the changelog (v1.0 to v1.43.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+
+## 39. Three registers, and the one nobody had asked for
+
+**An assistant that acts must be able to say what it did, what it read, and on which turn.** Three registers answer that, and are never conflated: the first takes one row per **action**, claimed before it happens and closed from an explicit result; the second one row per **consultation**, named as the capability and never as what was searched for; the third one row per **turn**, the spine the other two hang off. Their totals do not add up, and that is deliberate: a turn can consult five sources and change nothing at all.
+
+**The guarantee was structural, but the door was single.** Recording is installed on the capability at the moment it is declared — so a new tool cannot forget it — except that a capability reached through its *client* rather than through the tool gate stays invisible. Measured in production over fourteen days: conversational surfaces were recorded 24 times out of 24, and out-of-turn work **0 times out of 228**. Nothing was broken: the registers follow the graph, and those surfaces call the model directly. The list of what the assistant undertakes on her own therefore read empty whatever she did — the sharpest possible version of the gap, since a proactive notification is the one act of her own initiative a person actually experiences.
+
+**The answer is not a fourth detector, it is a declaration.** Every surface that reads without going through a tool — the briefing, the relationship debrief, the periodic sweep, the interests, the knowledge spaces — declares its vocabulary in one table, and the boot assert now checks the thirty-one capabilities where it only looked at tools. The twenty-two modules that import a connector client are enumerated one by one: recorder, not-a-reader with the reason written down, or debt — an empty debt table that can only shrink. The register is finally **offered** rather than fetched: the agents domain already imports the relations one, so an import back would close a cycle that a local import would merely hide.
+
+**Where a euro goes is declared, never inferred.** Accounting here is ambient — a node spends through a context an ancestor published — so answering "is this counted?" by reading files produced nine wrong conclusions in a single session, in both directions. One table therefore names the forty-six call sites and the ledger each reaches, and a guard reading calls by AST corrected six of those classifications. Counting is only half a ceiling, though: the other half is **asking first**, and five of those sites were bounded by nothing. Three shapes produced them — a registry naming a wrapper instead of the door, a guard returning before it asked, and one refusal rendered two different ways. A refusal now follows its transport and never its verdict: a request raises, a background task gives up and logs itself **skipped**, never *failed*.
+
+**Two endpoints serving one screen make one act of reading.** The dashboard fetches its cards and its synthesis in parallel, and each built the nine-section bundle on its own: over seven days, 151 builds of which 44 were duplicates — 39 % of page loads, and 44 of 44 concurrent. Every connector was opened twice and two batches of consultation rows filed for one act of reading. The cause was a question, not a line of code: the synthesis asked "does this bundle hold anything interesting?" instead of "has this bundle been built?", and the first cannot tell a cold cache from a quiet day. Whoever asks first builds it and the others are handed the same object — in-process, and across the four workers of a production instance, through a claim released by its owner alone.
+
+**An extraction is complete, or it is not an extraction.** The five downloadable records carried a row ceiling that was measured rather than arbitrary: on the Raspberry Pi this targets, five sources at five thousand rows peaked at 33,9 MB. The constraint was real — the whole document was assembled in memory — but applied to the wrong variable. **What was scarce was memory; what was bounded was the truth**: 49 195 real rows against a thousand per source, so 97,9 % of the inference record was absent, under a header that truthfully said "truncated". A server-side cursor now bounds the buffer; the count is exact — an aggregate over the same statement the body streams — and published before the first row, so an extraction with no upper bound is given one: the instant of its generation, named in the header rather than pinned in silence.
+
+## 40. A debrief per relationship: what ten sections do not say
+
+**A card stacks ten sections, and nobody reads ten sections.** What a reader wants first — where I stand with this person, and what to raise — is a synthesis no aggregate produces. It is therefore written by the model at the top of the card: what is still open, what to do next, what is worth remembering. Its production is **lazy**: it is born when the card is opened, at most once per the reader's local day, never by a scheduler — the number of relationships is unbounded — and never during a chat turn. Exactly three rebuilds are legitimate: the language, the requested scope, and an explicit ask.
+
+**Two assemblies would have created two authorities on who someone is.** The evidence assembly already existed, inside the tool that answers in chat; it was therefore extracted into its own module, of which the tool became the first consumer. A refactor on a production path is not verified by reading: a golden file was captured **on the code before it**, eighteen scope cases, payload and message compared byte for byte. The provider half is no longer read whole only to be dropped — up to eleven external calls used to be billed against a selection the reader had already made — and the narrowing needed a third status: "I did not look, on purpose" is neither "found nothing" nor "could not look".
+
+**Nothing is invented, and a failure destroys nothing.** No evidence settles it *empty* without calling the model, and a failed refresh **keeps the previous text** under a line saying so: replacing a usable synthesis with an empty panel turns "I could not refresh this" into "there is nothing". The claim is one SQL statement, and each settle writes only its own columns — ready, empty, failed — because a single settle overwrote the body on the first failure. What the writing cost is stored with it and shown underneath; a zero cost being a claim, a silent row renders nothing rather than "€0.00".
+
+**In the chat, the debrief joins the peer block — with the opposite directive.** The peer block states exact facts because it reads them in the turn itself; the same sentence over a dated synthesis would be a false-claim machine. The template therefore says it is dated, carries its **age** and not only its date, and sends every figure, count and status to the tools. An ambiguous name match injects **nothing**: the directory holds every relationship ever opened, company names and phone numbers included, and a false positive would hand one person's file to a question about another.
+
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 272 ADRs, and the changelog (v1.0 to v1.43.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

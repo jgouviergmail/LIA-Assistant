@@ -56,6 +56,7 @@ from src.domains.shared.extraction_targets import (
 from src.domains.shared.provenance_capture import record_origin
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import (
     journal_extraction_duration_seconds,
@@ -471,14 +472,9 @@ async def _persist_journal_tokens(
         if not usage_metadata:
             return
 
-        raw_input_tokens = usage_metadata.get("input_tokens", 0)
-        output_tokens = usage_metadata.get("output_tokens", 0)
-
-        input_details = usage_metadata.get("input_token_details", {})
-        cached_tokens = input_details.get("cache_read", 0) if input_details else 0
-        input_tokens = raw_input_tokens - cached_tokens
-
-        if input_tokens == 0 and output_tokens == 0:
+        usage = tokens_from_usage_metadata(usage_metadata)
+        input_tokens, output_tokens, cached_tokens = usage
+        if usage.is_empty:
             return
 
         run_id = parent_run_id or f"journal_{uuid.uuid4().hex[:12]}"

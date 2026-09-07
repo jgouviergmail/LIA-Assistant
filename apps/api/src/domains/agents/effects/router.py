@@ -29,6 +29,7 @@ from src.core.constants import RATE_LIMIT_EFFECTS_READ_PER_MINUTE
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.effects.models import EffectStatus
+from src.domains.agents.effects.origin import RegisterOrigin
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.users.models import User
 
@@ -165,6 +166,7 @@ async def list_journal(
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     offset: int = Query(0, ge=0),
     status: EffectStatus | None = Query(None, description="One outcome, or every outcome"),
+    origin: RegisterOrigin = Query(RegisterOrigin.ALL, description="mine | initiative | all"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_session),
 ) -> EffectPage:
@@ -176,6 +178,11 @@ async def list_journal(
         status: Restrict to one outcome. Filtering SERVER-side is what keeps
             the total exact: a count computed over everything, displayed above
             a filtered list, describes a set the reader cannot see.
+        origin: Which authorships to read — ``mine`` for everything the
+            person set in motion (what they typed, their routines, the
+            sub-agents those delegated to), ``initiative`` for what LIA decided
+            alone. Filtered SERVER-side like every other criterion, so the
+            total above the list describes the list.
         db: Session.
         user: The authenticated caller.
 
@@ -188,7 +195,7 @@ async def list_journal(
     # Typed as the enum, so an unknown value is refused by FastAPI with a 422
     # rather than raising a ValueError the client reads as a server fault.
     rows, total = await EffectLedgerRepository(db).list_for_user(
-        user.id, limit=limit, offset=offset, status=_given(status)
+        user.id, limit=limit, offset=offset, status=_given(status), origin=origin
     )
     return EffectPage(
         entries=[_entry(row) for row in rows], total=total, limit=limit, offset=offset

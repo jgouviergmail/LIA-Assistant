@@ -3438,6 +3438,38 @@ RELATIONS_PROVIDER_CONTACT_TTL_SECONDS = 21600  # 6 h — an address book barely
 RELATIONS_PROVIDER_EMAILS_TTL_SECONDS = 900  # 15 min — new mail matters, quotas too
 RELATIONS_PROVIDER_EVENTS_TTL_SECONDS = 900  # 15 min — same cadence as the agenda card
 
+# ----------------------------------------------------------------------------
+# RELATIONSHIP DEBRIEF (one LLM synthesis per person, per local day)
+# ----------------------------------------------------------------------------
+RELATION_DEBRIEF_LLM_TYPE: Final = "relation_debrief"
+RELATION_DEBRIEF_PROMPT_NAME: Final = "relation_debrief_prompt"
+# The proactive task type: the debrief is billed through the SAME path as every
+# other non-chat LLM call (token_usage_logs + user_statistics), never a
+# parallel accounting nobody would think to look at.
+RELATION_DEBRIEF_PROACTIVE_TASK_TYPE: Final = "relation_debrief"
+# The stored body is versioned: a reader that cannot understand a shape must
+# rebuild rather than render half of it.
+RELATION_DEBRIEF_BODY_VERSION = 1
+# How long one build holds the row before another may take it over. Sized on
+# the LLM timeout plus the evidence read, not on a round number: shorter and a
+# slow provider hands the row to a second builder mid-call.
+RELATION_DEBRIEF_LEASE_SECONDS_DEFAULT = 180
+# A failed build is retryable — a gap the reader can see must be repairable —
+# but not on every card open: this is the cooldown before the retry.
+RELATION_DEBRIEF_FAILURE_COOLDOWN_SECONDS_DEFAULT = 900
+# Builds one account may start per day, across every relationship. The once-a-
+# day rule already bounds the nominal case; this bounds the pathological one
+# (a script walking every card, a rebuild button held down).
+RELATION_DEBRIEF_DAILY_BUILD_CAP_DEFAULT = 40
+# Beyond this age a debrief stops being injected into a chat turn. It is still
+# SHOWN on the card, with its date: the card can state how old it is, a prompt
+# block competing with live tools should simply step aside.
+RELATION_DEBRIEF_INJECTION_MAX_AGE_DAYS_DEFAULT = 14
+# Bounds PUBLISHED to the model in its own prompt (ADR-184): what the schema
+# will trim is what the writer can read.
+RELATION_DEBRIEF_MAX_OPEN_POINTS_DEFAULT = 5
+RELATION_DEBRIEF_MAX_NOTABLE_FACTS_DEFAULT = 5
+
 # ============================================================================
 # MEMORY REFERENCE EXTRACTION (3-Phase Resolution Pipeline)
 # ============================================================================
@@ -5782,18 +5814,20 @@ AGENT_EFFECT_RESULT_PAYLOAD_MAX_BYTES_DEFAULT = 65_536
 #: call merely in flight is never counted as a gap (ADR-263).
 AGENT_EFFECT_CLAIMED_ORPHAN_STALENESS_SECONDS_DEFAULT = 900
 
-#: Rows one technical export may carry. Published in the file's header rather
-#: than applied in silence: an operator who needs more narrows the period.
-AGENT_EFFECT_TECHNICAL_EXPORT_MAX_ROWS_DEFAULT = 5_000
+#: Rows a register extraction reads at a time (ADR-273). It replaced two row
+#: CEILINGS — 5 000 per technical export, 1 000 per Article-12 source — which
+#: existed because the whole document was built in memory: five sources at
+#: 5 000 rows peaked at 33,9 MB on the Raspberry Pi 5 this project deploys to.
+#: An extraction is now streamed, so this number bounds the BUFFER instead of
+#: the truth, and it bounds it whatever the register weighs. Raising it trades
+#: memory for round trips; it never changes what the file contains.
+AGENT_EFFECT_EXPORT_BATCH_ROWS_DEFAULT = 1_000
 
-#: Rows PER SOURCE the unified Article-12 extraction may carry (ADR-263 lot 9).
-#: Lower than the per-record cap above, and measured rather than guessed: five
-#: sources at 5 000 rows render a 10,8 MB file with a 33,9 MB peak and 939 ms of
-#: pure serialisation — before the ORM instances behind them — which is a poor
-#: bargain on the Raspberry Pi 5 this project deploys to. At 1 000 the same file
-#: is 2,1 MB, peaks at 6,6 MB and renders in 201 ms. An operator who needs more
-#: narrows the period, and the header SAYS, per source, that it was truncated.
-AGENT_ARTICLE12_EXPORT_MAX_ROWS_PER_SOURCE_DEFAULT = 1_000
+#: How hard the export stream is compressed. Six is zlib's own default and the
+#: knee of the curve on text: nine costs measurably more CPU on RPi-class
+#: hardware for a percent or two of size, on a document whose bytes are already
+#: dominated by the database read.
+EXPORT_GZIP_COMPRESSION_LEVEL = 6
 
 # -----------------------------------------------------------------------------
 # Tamper-evident chain over the two registers (ADR-263, lot 5)

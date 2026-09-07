@@ -56,11 +56,30 @@ apps/api/src/domains/briefing/
 | Weather     | 1 h    | Slow variations, free-tier API friendly           |
 | Agenda      | 10 min | Occasional event edits                            |
 | Mails       | 5 min  | Important but Gmail-quota friendly                |
-| Birthdays   | 24 h   | Quasi-static                                      |
-| Reminders   | 0 (live) | Local DB lookup, < 10 ms                       |
+| Birthdays   | local midnight, capped at 24 h | `days_until` is pre-computed, so day N's "in 1 day" must not survive into day N+1 |
+| Reminders   | 1 min  | The CARD is always live (the plan forces it); the TTL exists so the section is WRITTEN and therefore readable by the cache-only readers |
 | Health      | 15 min | Aligned with iPhone Shortcuts ingest cadence      |
 
-Cache keys: `briefing:{user_id}:{section}`. Defensive: any Redis error degrades gracefully to a live fetch.
+**Every section has a TTL above zero, and that is a rule rather than a
+coincidence** (ADR-271): a section that is never written is invisible to every
+cache-only reader, and freshness is decided by whether the cache HOLDS each
+visible section. `reminders` sat at `0` and was therefore missing from the
+bundle the synthesis reads — the reminders branch of `_summarize_cards_for_llm`
+existed but no ordinary page load could reach it.
+
+Cache keys: `briefing:v2:{user_id}:{language}:{section}`, and the long-TTL
+side key `briefing:v2:lastgood:{user_id}:{language}:{section}`. **Both are built
+in exactly one place**, `briefing/cache_keys.py` — the push invalidation in
+`push_channels/` deletes the very same keys, and a second hand-written builder
+there is how it silently stopped matching for the length of one commit
+(`redis.delete` on an absent key succeeds and returns 0). A caller that knows a
+source changed but not the reader's language asks for
+`section_keys_every_language`. **The language is part of the key** because agenda times, mail dates, reminder wordings and
+document timestamps are pre-formatted server-side; keyed on the account alone,
+the cache served the previous language until each TTL elapsed. The family
+prefixes are unchanged, so both keep the scopes they declare in
+`infrastructure/cache/key_families.py` (ADR-260). Defensive: any Redis error
+degrades gracefully to a live fetch.
 
 ### Status mapping
 
@@ -168,21 +187,55 @@ The `usage` field is `null` when no LLM call was made (fallback greeting, skippe
 
 > **Note on `DailyForecastItem`** — the `weekday_short` field shipped before 1.18.0 has been removed. The frontend now derives the localized weekday label from `date_iso` via `Intl.DateTimeFormat` (locale-aware), avoiding the C-locale label that the backend produced.
 
-#### Race-aware fallback (cold cache)
+#### One page load is one act of reading (ADR-271)
 
-`/cards` and `/synthesis` are called in parallel by the frontend (`useBriefing` fires both via `useApiQuery`). On a cold cache (page first load, or all section TTLs just expired), `/synthesis` may read Redis **before** `/cards` has had time to populate it — every section then reads as `NOT_CONFIGURED`, `cards_with_data` falls below 2, and the synthesis is silently skipped.
+`/cards` and `/synthesis` are called in parallel by the frontend (`useBriefing`
+fires both via `useApiQuery`), and both need the bundle. Each used to obtain it
+on its own, so a page load opened the same person's sources **twice within the
+same second** — measured on the running instance: two builds 23 ms apart,
+`duration_ms=1108` each, with `weather_current_retrieved`,
+`calendar_events_listed`, `drive_search_completed` and `treatments_recorded`
+all appearing exactly twice. Over seven days: 151 builds, **44 of them
+duplicates, 39 % of page loads paying double** — and **44 of 44** concurrent
+with a `/cards` build.
 
-To eliminate that race, `BriefingService.build_text()` checks the cache hit count itself:
+Two changes end it, and only the first carries the volume.
+
+**The gathering is coalesced.** `build_cards` runs `_gather_cards` through
+`infrastructure/utils/single_flight.py`: whoever asks first builds, whoever asks
+while it runs is handed the same object. The key is the whole identity —
+account, language, timezone, hidden sections, forced sections — so a forced
+refresh never joins an unforced build (joining would silently ignore the force).
+It is not a cache: a finished build is never handed to a later request.
+
+Two consequences worth naming:
+
+- **Both responses describe the same bundle.** Independent fetches could
+  disagree — the card saying one unread while the synthesis described two, which
+  is a claim the reader cannot reconcile (ADR-185).
+- **The effect register stops double-counting.** The shared task runs in the
+  context of the caller that started it, so consultations land in that caller's
+  live list; a joining caller collects nothing and files no decision. One act,
+  one set of rows, with no register code involved.
+
+**`/synthesis` decides on coverage, not richness.** The question is "has this
+bundle been built?", never "does it hold anything interesting?" — the second
+cannot tell a cold cache from a legitimately quiet day, and it was answered by a
+SECOND implementation of a threshold `generate_synthesis` already owned (six
+sections here, nine there, against the same constant).
 
 ```python
-cache_sections_with_data = self._count_sections_with_data(cards)
-if cache_sections_with_data < BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA:
-    cards = await self.build_cards()  # inline rebuild
+cards, missing = await self._read_cached_bundle()
+if missing:                      # a visible section the cache has no entry for
+    cards = await self.build_cards()   # joins the build /cards is running
 ```
 
-This makes `/synthesis` self-sufficient on the data side while keeping the two endpoints independent on the wire. The trade-off: on a true cold-start race, both `/cards` and `/synthesis` will run their fetchers (one round each, in parallel) — a one-time duplication per session that we accept rather than introduce a Redis lock.
+`build_text(cards=...)` still accepts a pre-built bundle to bypass the cache read
+entirely, used by `build_today` (the `/refresh` path).
 
-`build_text(cards=...)` accepts a pre-built bundle to bypass the cache read entirely, used by `build_today` (the `/refresh` path) so we never rebuild what the caller already produced.
+The known limits are stated in ADR-271: coalescing is in-process (one uvicorn
+process today), a failing connector costs one extra build when `/synthesis` runs
+with no concurrent `/cards`, and a language change costs one build.
 
 ### `POST /api/v1/briefing/refresh`
 
@@ -242,9 +295,11 @@ cache-backed sources are exactly the ones a connector-less account cannot fill.
 Reminders close that gap without costing anything the rule above forbids: they
 live in a LOCAL table, `fetch_reminders` is documented as "always succeeds —
 does not raise `ConnectorNotConfiguredError`", and the read is rated at < 10 ms.
-That is precisely why `SECTION_REMINDERS_TTL_SECONDS = 0` and the section is
-never cached — which is also why a cache-only reader could not see the cheapest
-source in the system.
+The card is therefore always fetched live (the build plan forces it). It used
+to carry `SECTION_REMINDERS_TTL_SECONDS = 0` as well, so the section was never
+WRITTEN either — which is why a cache-only reader could not see the cheapest
+source in the system. Since ADR-271 the TTL is 60 s: the card is unchanged, and
+the section is finally readable by the synthesis.
 
 ## Unconfigured cards (W7)
 
@@ -396,10 +451,16 @@ Frontend tests can be added under `apps/web/src/components/dashboard/__tests__/`
 
 Adding a new card (e.g. "tasks") follows a 5-step recipe:
 
-1. **Add the section name** to `briefing/constants.py` (`SECTION_TASKS`, TTL constant).
+1. **Add the section name** to `briefing/constants.py` — `SECTION_TASKS`, added to
+   `SECTION_NAMES`, plus a TTL constant that is **strictly above zero** (a
+   section that is never written is invisible to every cache-only reader).
 2. **Add the data schema** to `briefing/schemas.py` (`TasksData`, ensure it's part of the `SectionPayload` union and `CardsBundle`).
 3. **Add a fetcher** to `briefing/fetchers.py` following the existing pattern (raise `ConnectorNotConfiguredError` / `ConnectorAccessError`).
-4. **Wire it in** `BriefingService.build_cards()` — add the `_section` call to the `asyncio.gather` block (and update `_count_sections_with_data` if the new section should count toward the synthesis threshold).
+4. **Add a `_SectionPlan`** to `BriefingService._build_plan()` — one declaration,
+   read by the gather, the cold/warm verdict and the structured log alike. There
+   is nothing else to wire: coverage, coalescing and the synthesis threshold all
+   derive from it. `test_page_load_single_flight.py` fails if `_build_plan`,
+   `SECTION_NAMES` and `CardsBundle` stop agreeing.
 5. **Add a frontend card** under `components/dashboard/cards/TasksCard.tsx` and include it in `<TodayBriefing>` with a `staggerIndex`.
 
 i18n: add new keys to `dashboard.briefing.cards.tasks.*` in the 6 locale files.

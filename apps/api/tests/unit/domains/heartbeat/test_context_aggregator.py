@@ -1463,3 +1463,137 @@ class TestProviderClientLifecycle:
         with pytest.raises(RuntimeError):
             await self._run("_fetch_emails", client)
         client.close.assert_awaited_once()
+
+
+@pytest.mark.unit
+class TestTheSecondPassReportsWhatItActuallyOpened:
+    """A source the person switched off was never opened.
+
+    Found by a cold review, 2026-09-07: the recording appended
+    ``SECOND_PASS_SOURCES`` wholesale, so someone who had turned their
+    journals off still got a « LIA opened your journal » row. In a register
+    whose whole promise is « exact or absent », that is a false claim about
+    reading someone's diary.
+
+    ``departure`` was worse: it reads the person's HOME LOCATION and calls the
+    Routes API, and it was declared nowhere at all — the sixteenth source,
+    missed when the other fifteen were fixed.
+    """
+
+    @staticmethod
+    def _aggregator():
+        return ContextAggregator(MagicMock())
+
+    @staticmethod
+    def _user(**enabled):
+        """A user whose source switches answer exactly as asked."""
+        return SimpleNamespace(heartbeat_sources=dict(enabled))
+
+    async def test_nothing_enabled_opens_nothing(self):
+        from unittest.mock import patch
+        from uuid import uuid4
+
+        with patch(
+            "src.domains.heartbeat.context_aggregator.is_source_enabled",
+            return_value=False,
+        ):
+            opened = await self._aggregator()._second_pass(
+                HeartbeatContext(), uuid4(), self._user(), _make_settings()
+            )
+
+        assert opened == [], "a silenced source must record nothing"
+
+    async def test_only_the_enabled_sources_are_reported(self):
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = self._aggregator()
+        aggregator._fetch_journals = AsyncMock(return_value=None)
+        aggregator._fetch_memories = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "src.domains.heartbeat.context_aggregator.is_source_enabled",
+                side_effect=lambda _user, name: name == "journals",
+            ),
+            patch(
+                "src.domains.heartbeat.context_aggregator.fetch_departure_advice",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            opened = await aggregator._second_pass(
+                HeartbeatContext(), uuid4(), self._user(), _make_settings()
+            )
+
+        assert opened == ["journals"]
+
+    async def test_every_gated_source_is_reported_when_all_are_on(self):
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = self._aggregator()
+        aggregator._fetch_journals = AsyncMock(return_value=None)
+        aggregator._fetch_memories = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "src.domains.heartbeat.context_aggregator.is_source_enabled",
+                return_value=True,
+            ),
+            patch(
+                "src.domains.heartbeat.context_aggregator.fetch_departure_advice",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            opened = await aggregator._second_pass(
+                HeartbeatContext(), uuid4(), self._user(), _make_settings()
+            )
+
+        assert opened == ["journals", "departure", "memories"]
+
+    async def test_a_journal_search_that_failed_is_not_filed_as_a_read(self):
+        """« Unreadable is not empty » — this block reported nothing at all."""
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = self._aggregator()
+        aggregator._fetch_journals = AsyncMock(side_effect=RuntimeError("embedding down"))
+        aggregator._fetch_memories = AsyncMock(return_value=None)
+        context = HeartbeatContext()
+
+        with (
+            patch(
+                "src.domains.heartbeat.context_aggregator.is_source_enabled",
+                side_effect=lambda _user, name: name == "journals",
+            ),
+            patch(
+                "src.domains.heartbeat.context_aggregator.fetch_departure_advice",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            opened = await aggregator._second_pass(context, uuid4(), self._user(), _make_settings())
+
+        assert opened == ["journals"]
+        assert "journals" in context.failed_sources
+
+    async def test_a_departure_lookup_that_failed_is_not_filed_as_a_read(self):
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        aggregator = self._aggregator()
+        context = HeartbeatContext()
+
+        with (
+            patch(
+                "src.domains.heartbeat.context_aggregator.is_source_enabled",
+                side_effect=lambda _user, name: name == "departure",
+            ),
+            patch(
+                "src.domains.heartbeat.context_aggregator.fetch_departure_advice",
+                new=AsyncMock(side_effect=RuntimeError("quota")),
+            ),
+        ):
+            opened = await aggregator._second_pass(context, uuid4(), self._user(), _make_settings())
+
+        assert opened == ["departure"]
+        assert "departure" in context.failed_sources

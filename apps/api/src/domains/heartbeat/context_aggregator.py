@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -38,6 +39,10 @@ from src.core.constants import (
 )
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.models import Conversation, ConversationMessage
+
+#: Fetched by ``_second_pass`` rather than the parallel gather, and read
+#: just the same.
+from src.domains.heartbeat.consultations import record_source_consultations
 from src.domains.heartbeat.context_sources import (
     detect_weather_changes,
     fetch_birthdays_context,
@@ -55,6 +60,7 @@ from src.domains.heartbeat.habit_context import fetch_habits_context
 from src.domains.heartbeat.health_context import fetch_health_signals
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
+from src.domains.heartbeat.second_pass_query import build_second_pass_query
 from src.domains.heartbeat.source_policy import is_source_enabled
 from src.domains.interests.models import InterestNotification, UserInterest
 from src.domains.push_channels.wake import WakePayload
@@ -231,6 +237,7 @@ class ContextAggregator:
             for name, fetch, args, scoped in specs
             if is_source_enabled(user, name)
         ]
+        started = perf_counter()
         results = await asyncio.gather(*(coro for _, coro in planned), return_exceptions=True)
 
         for (name, _), result in zip(planned, results, strict=True):
@@ -256,8 +263,21 @@ class ContextAggregator:
         # context, not a static generic query. Sequential on purpose — two
         # indexed queries, each on its own session (CLAUDE.md concurrency
         # guidance: a plain sequential pass is fine and simpler here).
-        await self._second_pass(context, user_id, user, settings)
+        second_pass_opened = await self._second_pass(context, user_id, user, settings)
 
+        # Everything above opened one of the person's sources, on LIA's own
+        # initiative and while nobody was watching. Recorded here, at the one
+        # place that knows what was PLANNED (a silenced source never was) and
+        # what refused.
+        record_source_consultations(
+            user_id=user_id,
+            # What the GATES let through, never the declaration: appending
+            # ``SECOND_PASS_SOURCES`` wholesale recorded a journal read for
+            # people who had switched their journals off.
+            opened=[name for name, _ in planned] + second_pass_opened,
+            failed=context.failed_sources,
+            duration_ms=int((perf_counter() - started) * 1000),
+        )
         return context
 
     async def _second_pass(
@@ -266,18 +286,25 @@ class ContextAggregator:
         user_id: UUID,
         user: Any,
         settings: Any,
-    ) -> None:
+    ) -> list[str]:
         """Sources selected from the aggregated context, not from a static query.
 
         Journals and memories are searched with a query built from what the
-        first pass found (P8, ADR-135); departure advice consumes the calendar
-        events it fetched. Extracted from ``aggregate`` so the per-source
-        gating (ADR-197) does not push it over the complexity ratchet — the
-        three blocks are unchanged.
+        first pass found (P8, ADR-135); departure advice reads the person's
+        home location and asks the Routes API for the next located event.
+        Extracted from ``aggregate`` so the per-source gating (ADR-197) does
+        not push it over the complexity ratchet.
+
+        Returns:
+            The sources this pass actually attempted — the gates are the only
+            authority on that, and the register reads this rather than the
+            declaration.
         """
-        second_pass_query = self._build_second_pass_query(context)
+        second_pass_query = build_second_pass_query(context)
+        opened: list[str] = []
 
         if is_source_enabled(user, "journals"):
+            opened.append("journals")
             try:
                 journal_result = await self._fetch_journals(user_id, user, query=second_pass_query)
                 if journal_result:
@@ -288,12 +315,16 @@ class ContextAggregator:
                     user_id=str(user_id),
                     error=str(e),
                 )
+                # « Unreadable is not empty »: without this the register filed
+                # a failed journal search as a successful read.
+                context.failed_sources.append("journals")
 
         # Departure advice (P6): consumes the calendar events fetched above.
         # Refusing `calendar` therefore leaves nothing to advise on — the
         # switch stays independent because a user may well want the agenda in
         # the decision without traffic-driven nudges about it.
         if is_source_enabled(user, "departure"):
+            opened.append("departure")
             try:
                 departure = await fetch_departure_advice(
                     user_id, user, settings, context.calendar_events
@@ -307,8 +338,10 @@ class ContextAggregator:
                     user_id=str(user_id),
                     error=str(e),
                 )
+                context.failed_sources.append("departure")
 
         if is_source_enabled(user, "memories"):
+            opened.append("memories")
             try:
                 memories_result = await self._fetch_memories(
                     user_id, settings, query=second_pass_query
@@ -322,6 +355,8 @@ class ContextAggregator:
                     error=str(e),
                 )
                 context.failed_sources.append("memories")
+
+        return opened
 
     def _apply_source_result(
         self,
@@ -1092,47 +1127,6 @@ class ContextAggregator:
     # ------------------------------------------------------------------
     # Journals (Personal Journals — semantic relevance search)
     # ------------------------------------------------------------------
-
-    def _build_second_pass_query(self, context: HeartbeatContext) -> str:
-        """Build a semantic search query from aggregated heartbeat context.
-
-        Combines summaries of available context sources into a query that
-        selects the most relevant journal entries AND user memories for
-        this specific notification cycle (second-pass sources, P8).
-
-        Args:
-            context: Aggregated heartbeat context (calendar, weather, etc.)
-
-        Returns:
-            Query string for embedding-based semantic search
-        """
-        parts: list[str] = []
-
-        if context.calendar_events:
-            summaries = [e.get("summary", "") for e in context.calendar_events[:3]]
-            parts.append(f"upcoming events: {', '.join(summaries)}")
-
-        if context.weather_current:
-            desc = context.weather_current.get("description", "")
-            parts.append(f"weather: {desc}")
-
-        if context.trending_interests:
-            topics = [i.get("topic", "") for i in context.trending_interests[:3]]
-            parts.append(f"interests: {', '.join(topics)}")
-
-        if context.pending_tasks:
-            tasks = [t.get("title", "") for t in context.pending_tasks[:3]]
-            parts.append(f"tasks: {', '.join(tasks)}")
-
-        if context.unread_emails:
-            subjects = [e.get("subject", "") for e in context.unread_emails[:2]]
-            parts.append(f"emails: {', '.join(subjects)}")
-
-        # Fallback if no context available
-        if not parts:
-            return "user preferences observations patterns priorities"
-
-        return " ".join(parts)
 
     async def _fetch_journals(
         self,

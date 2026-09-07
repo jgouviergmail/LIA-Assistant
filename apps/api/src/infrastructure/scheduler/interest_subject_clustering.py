@@ -27,10 +27,12 @@ from src.domains.interests.models import InterestStatus, UserInterest
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+from src.infrastructure.llm.usage_metadata import model_name_of, tokens_from_response
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_registry import (
     interest_subject_recluster_total,
 )
+from src.infrastructure.proactive.tracking import track_proactive_tokens
 
 logger = get_logger(__name__)
 
@@ -119,12 +121,28 @@ async def recluster_user_subjects(user_id: UUID) -> int:
         )
 
         llm = get_llm("interest_extraction")
+        # The real account, not "system". Re-clustering runs FOR this person's
+        # interests, so passing a placeholder made the Layer-2 usage guard
+        # unable to resolve anyone — no quota was consulted — and left the
+        # spend attributed to nobody.
         llm_result = await invoke_with_instrumentation(
             llm=llm,
             llm_type="interest_subject_clustering",
             messages=prompt,
             session_id=f"subj_cluster_{uuid_module.uuid4().hex[:8]}",
-            user_id="system",
+            user_id=str(user_id),
+        )
+        usage = tokens_from_response(llm_result)
+        await track_proactive_tokens(
+            user_id=user_id,
+            task_type="interest_subject_clustering",
+            target_id=str(user_id),
+            conversation_id=None,
+            tokens_in=usage.prompt,
+            tokens_out=usage.completion,
+            tokens_cache=usage.cached,
+            model_name=model_name_of(llm),
+            source="proactive",
         )
         assignments = parse_assignments(
             llm_result.text,

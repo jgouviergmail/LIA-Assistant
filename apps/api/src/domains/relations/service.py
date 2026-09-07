@@ -283,6 +283,24 @@ class RelationsService:
             max_items=scope.max_items,
         )
 
+    async def set_debrief_enabled(self, enabled: bool) -> bool:
+        """Turn the daily debrief on or off for this account.
+
+        Args:
+            enabled: What the reader asked for.
+
+        Returns:
+            The stored value (unchanged when the user vanished mid-request).
+        """
+        async with get_db_context() as db:
+            user = await db.get(User, self.user_id)
+            if user is None:  # defensive — the session dependency resolved them
+                return enabled
+            user.relation_debrief_enabled = enabled
+            await db.commit()
+        logger.info("relation_debrief_preference_set", user_id=str(self.user_id), enabled=enabled)
+        return enabled
+
     async def build_overview(self) -> RelationsOverview:
         """Rank relationships by most-recent interaction, with EXACT counts.
 
@@ -343,6 +361,9 @@ class RelationsService:
         )
         # The cap is STATED, not silently applied (ADR-185): the list is a page
         # like any section, and past it people would simply vanish.
+        # `debrief_enabled` is filled by the router, which already holds the
+        # authenticated user: reading the row again here would add a query to a
+        # pure aggregation for a value its caller has in hand.
         return RelationsOverview(
             relations=summaries[: settings.relations_max_items],
             relations_total=len(summaries),
@@ -603,6 +624,12 @@ class RelationsService:
                 canonical_key=canonical,
                 alias_display_name=source_display,
             )
+            # Both halves' debriefs describe an identity that no longer exists
+            # as such. Deleting is the only honest repair — the next card open
+            # writes one for the identity that DOES exist. Same transaction as
+            # the merge: a debrief surviving a committed merge would describe
+            # the wrong person until somebody noticed.
+            await self._forget_debriefs(db, [source_key, canonical])
         # No PII at INFO: that a merge happened, never who with whom.
         logger.info("relation_merged", user_id=str(self.user_id))
         return canonical
@@ -623,9 +650,30 @@ class RelationsService:
         if not key:
             raise ValueError("a name is required to split a merge")
         async with get_db_context() as db:
+            resolver = await self._load_identity_resolver(db)
+            # Read BEFORE the split: afterwards the alias resolves to itself
+            # and the canonical card's debrief would keep the merged content.
+            canonical = resolver.canonical(key)
             undone = await RelationAliasRepository(db).split(self.user_id, alias_key=key)
+            if undone:
+                await self._forget_debriefs(db, [key, canonical])
         logger.info("relation_split", user_id=str(self.user_id), undone=undone)
         return undone
+
+    async def _forget_debriefs(self, db: AsyncSession, keys: list[str]) -> None:
+        """Drop the debriefs of identities a merge or a split just rewrote.
+
+        Imported at call time: ``relations.debrief`` reads this very service to
+        assemble its evidence, so a module-level import would close a cycle
+        inside the domain. The edge is one function deep and named here.
+
+        Args:
+            db: The session the merge/split runs in — same transaction.
+            keys: Canonical keys whose stored debrief is now about nobody.
+        """
+        from src.domains.relations.debrief.repository import RelationDebriefRepository
+
+        await RelationDebriefRepository(db).delete_for_keys(self.user_id, keys)
 
     async def add_favorite(self, name: str) -> None:
         """Star a relationship name (idempotent).

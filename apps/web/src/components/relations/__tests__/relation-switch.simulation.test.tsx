@@ -52,6 +52,7 @@ vi.mock('@/lib/api-client', () => ({
   ApiError: class ApiError extends Error {},
 }));
 
+
 import { RelationDetailPanel } from '../RelationDetailPanel';
 
 const SCOPE = {
@@ -119,6 +120,8 @@ function renderPanel(name: string) {
       lng="fr"
       isFavorite={false}
       onToggleFavorite={vi.fn()}
+      debriefEnabled={false}
+      onDebriefToggle={vi.fn()}
       onBack={vi.fn()}
       candidates={[]}
       onMerged={vi.fn()}
@@ -145,6 +148,8 @@ describe('switching relationship then running a 360°', () => {
         lng="fr"
         isFavorite={false}
         onToggleFavorite={vi.fn()}
+        debriefEnabled={false}
+        onDebriefToggle={vi.fn()}
         onBack={vi.fn()}
       candidates={[]}
       onMerged={vi.fn()}
@@ -168,6 +173,8 @@ describe('switching relationship then running a 360°', () => {
         lng="fr"
         isFavorite={false}
         onToggleFavorite={vi.fn()}
+        debriefEnabled={false}
+        onDebriefToggle={vi.fn()}
         onBack={vi.fn()}
       candidates={[]}
       onMerged={vi.fn()}
@@ -208,6 +215,8 @@ describe('switching relationship then running a 360°', () => {
         lng="fr"
         isFavorite={false}
         onToggleFavorite={vi.fn()}
+        debriefEnabled={false}
+        onDebriefToggle={vi.fn()}
         onBack={vi.fn()}
       candidates={[]}
       onMerged={vi.fn()}
@@ -264,6 +273,8 @@ describe('switching relationship then running a 360°', () => {
         lng="fr"
         isFavorite={false}
         onToggleFavorite={vi.fn()}
+        debriefEnabled={false}
+        onDebriefToggle={vi.fn()}
         onBack={vi.fn()}
       candidates={[]}
       onMerged={vi.fn()}

@@ -12,18 +12,19 @@ otherwise build a statement bounded only by how long the loop ran.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from datetime import datetime
 from typing import Any, Final
 
 import structlog
-from sqlalchemy import func, insert, select
+from sqlalchemy import Select, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.agents.effects.models import AgentTreatment
+from src.domains.agents.effects.origin import RegisterOrigin, origin_sources
 from src.domains.agents.effects.period import period_conditions
 from src.domains.agents.effects.treatments import Treatment
-from src.infrastructure.database.export_window import newest_window
+from src.infrastructure.database.export_stream import stream_all
 
 logger = structlog.get_logger(__name__)
 
@@ -107,6 +108,7 @@ class TreatmentRepository:
         tool_name: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        origin: RegisterOrigin = RegisterOrigin.ALL,
     ) -> tuple[list[AgentTreatment], int]:
         """One page of a user's consultations, newest first, with the EXACT total.
 
@@ -121,6 +123,9 @@ class TreatmentRepository:
             tool_name: One capability, when the reader is filtering.
             since: Inclusive lower bound.
             until: Exclusive upper bound.
+            origin: Which authorships to keep — the same vocabulary the action
+                journal reads, so the two tabs cannot disagree about what
+                belongs to the person.
 
         Returns:
             The page and the exact total.
@@ -128,6 +133,9 @@ class TreatmentRepository:
         conditions = [AgentTreatment.user_id == user_id]
         if tool_name:
             conditions.append(AgentTreatment.tool_name == tool_name)
+        sources = origin_sources(origin)
+        if sources is not None:
+            conditions.append(AgentTreatment.source.in_(sources))
         conditions.extend(period_conditions(AgentTreatment.occurred_at, since, until))
 
         total = (
@@ -144,21 +152,19 @@ class TreatmentRepository:
         )
         return list(rows.scalars().all()), int(total)
 
-    async def list_for_export(
-        self,
+    @staticmethod
+    def export_query(
         *,
         user_id: uuid.UUID | None = None,
         user_ids: Sequence[uuid.UUID] | None = None,
         tool_name: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
-        limit: int,
-    ) -> list[AgentTreatment]:
-        """Rows for an extraction, OLDEST first, capped.
+    ) -> Select[tuple[AgentTreatment]]:
+        """The filtered SELECT an extraction reads, without order or ceiling.
 
-        Same shape and same doctrine as the ledger's own export read: an
-        export is read forwards where a journal page is read backwards, and
-        the cap travels into the document so a truncation is stated.
+        One builder for the exact count published in the header and the rows
+        streamed under it, so the two cannot describe different sets.
 
         Args:
             user_id: One account.
@@ -166,10 +172,9 @@ class TreatmentRepository:
             tool_name: One capability.
             since: Inclusive lower bound.
             until: Exclusive upper bound.
-            limit: Row ceiling.
 
         Returns:
-            The matching rows, oldest first.
+            The statement.
         """
         conditions: list[Any] = []
         if user_id is not None:
@@ -179,11 +184,28 @@ class TreatmentRepository:
         if tool_name:
             conditions.append(AgentTreatment.tool_name == tool_name)
         conditions.extend(period_conditions(AgentTreatment.occurred_at, since, until))
+        return select(AgentTreatment).where(*conditions)
 
-        # The most RECENT rows, returned oldest first (``export_window``).
-        return await newest_window(
+    def stream_for_export(
+        self, query: Select[tuple[AgentTreatment]], *, batch: int
+    ) -> AsyncIterator[AgentTreatment]:
+        """Every row the filters match, oldest first, at constant memory.
+
+        An export is read forwards where a journal page is read backwards, and
+        it is read WHOLE: a consultation register that stopped early would
+        leave a reader unable to tell a quiet period from a truncated one
+        (ADR-273).
+
+        Args:
+            query: What :meth:`export_query` built.
+            batch: How many rows the cursor buffers at a time.
+
+        Yields:
+            The rows, oldest first.
+        """
+        return stream_all(
             self.db,
-            select(AgentTreatment).where(*conditions),
-            newest_first=(AgentTreatment.occurred_at.desc(), AgentTreatment.id.desc()),
-            limit=limit,
+            query,
+            oldest_first=(AgentTreatment.occurred_at.asc(), AgentTreatment.id.asc()),
+            batch=batch,
         )

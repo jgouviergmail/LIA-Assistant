@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LLMUsageBadge } from './LLMUsageBadge';
+import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';
 import { UpdatedAtBadge } from './UpdatedAtBadge';
 import { useBriefingAudio } from '@/hooks/useBriefingAudio';
 import { useLiaGender } from '@/hooks/useLiaGender';

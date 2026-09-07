@@ -67,6 +67,7 @@ vi.mock('@/hooks/useRelations', async importOriginal => ({
   useOverviewScope,
 }));
 
+
 import { settingsSectionHref } from '@/lib/settings-sections';
 import { RelationDetailPanel } from '../RelationDetailPanel';
 
@@ -132,6 +133,11 @@ function renderPanel(
       lng="fr"
       isFavorite={over.isFavorite ?? false}
       onToggleFavorite={onToggleFavorite}
+      // Off in these suites: they assert the sections BELOW the debrief, and
+      // an extra network read would be noise their fetch stubs never planned
+      // for. The debrief has its own suite.
+      debriefEnabled={false}
+      onDebriefToggle={vi.fn()}
       onBack={onBack}
       candidates={[]}
       onMerged={vi.fn()}

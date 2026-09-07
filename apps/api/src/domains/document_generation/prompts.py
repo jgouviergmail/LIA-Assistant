@@ -8,16 +8,18 @@ agents package — otherwise ``agents.tools.document_generation_tools`` (which
 imports this domain's service) would close an ``agents ↔ document_generation``
 runtime import cycle (F009 ratchet). Same doctrine as
 ``telephony/prompts/loader.py`` (audit T2).
+
+This loader delegates the FILE READ to ``core.prompt_store``: the same
+byte-identical reader had grown in three domains, and a fourth was about to
+join them. What stays here is what is domain-specific — which prompts this
+domain may ask for, and the exception its callers catch.
 """
 
 from __future__ import annotations
 
-from functools import lru_cache
-from pathlib import Path
 from typing import Literal
 
-# Central prompt store, reached by path (never by importing the agents package).
-_PROMPTS_DIR = Path(__file__).parents[1] / "agents" / "prompts"
+from src.core.prompt_store import PromptFileError, read_prompt_file
 
 DocumentPromptName = Literal["document_generation_prompt"]
 
@@ -26,7 +28,6 @@ class DocumentPromptError(Exception):
     """Raised when a document-generation prompt file cannot be loaded."""
 
 
-@lru_cache(maxsize=4)
 def load_document_prompt(name: DocumentPromptName, version: str = "v1") -> str:
     """Load a document-generation prompt from ``prompts/<version>/<name>.txt``.
 
@@ -40,8 +41,7 @@ def load_document_prompt(name: DocumentPromptName, version: str = "v1") -> str:
     Raises:
         DocumentPromptError: When the file does not exist or cannot be read.
     """
-    path = _PROMPTS_DIR / version / f"{name}.txt"
     try:
-        return path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise DocumentPromptError(f"Cannot load prompt {name!r} ({path})") from exc
+        return read_prompt_file(name, version)
+    except PromptFileError as exc:
+        raise DocumentPromptError(f"Cannot load prompt {name!r}: {exc}") from exc

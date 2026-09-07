@@ -25,10 +25,9 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT,
     ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT,
-    AGENT_ARTICLE12_EXPORT_MAX_ROWS_PER_SOURCE_DEFAULT,
     AGENT_EFFECT_CLAIMED_ORPHAN_STALENESS_SECONDS_DEFAULT,
+    AGENT_EFFECT_EXPORT_BATCH_ROWS_DEFAULT,
     AGENT_EFFECT_RESULT_PAYLOAD_MAX_BYTES_DEFAULT,
-    AGENT_EFFECT_TECHNICAL_EXPORT_MAX_ROWS_DEFAULT,
     AGENT_HISTORY_KEEP_LAST_DEFAULT,
     AGENT_MAX_ITERATIONS_DEFAULT,
     AGENT_MAX_ITERATIONS_MAX,
@@ -456,23 +455,14 @@ class AgentsSettings(BaseSettings):
             "timeout, or a call in flight would be reported as a gap (ADR-263)."
         ),
     )
-    effect_technical_export_max_rows: int = Field(
-        default=AGENT_EFFECT_TECHNICAL_EXPORT_MAX_ROWS_DEFAULT,
-        ge=100,
-        description=(
-            "Rows one pseudonymised technical export may carry. The cap travels "
-            "in the file's header, so a truncated answer says so (ADR-263)."
-        ),
-    )
-
-    article12_export_max_rows_per_source: int = Field(
-        default=AGENT_ARTICLE12_EXPORT_MAX_ROWS_PER_SOURCE_DEFAULT,
+    effect_export_batch_rows: int = Field(
+        default=AGENT_EFFECT_EXPORT_BATCH_ROWS_DEFAULT,
         ge=50,
+        le=100_000,
         description=(
-            "Rows PER SOURCE the unified Article-12 extraction may carry. Lower "
-            "than the per-record cap on purpose (measured: 33,9 MB peak at "
-            "5 000 against 6,6 MB at 1 000), and the header states per source "
-            "whether it was reached (ADR-263 lot 9)."
+            "Rows a register extraction reads at a time. It bounds the MEMORY a "
+            "download holds, never what it contains: an extraction is complete "
+            "or it is not an extraction (ADR-273)."
         ),
     )
 

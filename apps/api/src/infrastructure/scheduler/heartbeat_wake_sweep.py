@@ -25,7 +25,10 @@ the push to the decision. Nothing here bypasses a gate.
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -39,6 +42,7 @@ from src.domains.push_channels.wake import (
     pop_wakes,
     try_acquire_wake_cooldown,
 )
+from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.metrics_push_channels import (
@@ -53,6 +57,34 @@ _SOURCE_OF_PROVIDER: dict[str, str] = {
     PushChannelProvider.GOOGLE_GMAIL.value: "emails",
     PushChannelProvider.GOOGLE_CALENDAR.value: "calendar",
 }
+
+
+@asynccontextmanager
+async def _wake_read(user_id: UUID, section: str) -> AsyncIterator[None]:
+    """Record one source the wake sweep probed, around the probe itself.
+
+    Args:
+        user_id: Whose mailbox or calendar was read.
+        section: ``emails`` or ``calendar``.
+
+    Yields:
+        Nothing; the block does the reading.
+    """
+    started = perf_counter()
+    failed = False
+    try:
+        yield
+    except Exception:
+        failed = True
+        raise
+    finally:
+        record_surface_consultations(
+            surface="wake",
+            user_id=user_id,
+            opened=[section],
+            failed=[section] if failed else (),
+            duration_ms=int((perf_counter() - started) * 1000),
+        )
 
 
 async def _load_user(user_id: UUID) -> Any:
@@ -93,10 +125,15 @@ async def _gmail_signal(payload: WakePayload) -> tuple[str, WakePayload]:
             return "source_disabled", payload
         client = GoogleGmailClient(payload.user_id, credentials, connector_service)
         try:
-            ids, new_history_id = await gmail_delta_preview(client, anchor_str)
-            if not ids:
-                return "no_signal", payload
-            messages = await fetch_mail_metadata(client, ids)
+            # ONE row per wake and per source probed, never one per message:
+            # the register names the capability, never the mail. Nobody asked
+            # for this read, and when the verdict is « not worth waking them »
+            # there is nothing else the person could ever consult about it.
+            async with _wake_read(payload.user_id, "emails"):
+                ids, new_history_id = await gmail_delta_preview(client, anchor_str)
+                if not ids:
+                    return "no_signal", payload
+                messages = await fetch_mail_metadata(client, ids)
         finally:
             await client.close()
     verdict = mail_verdict(messages, mail_rules_from_settings(settings))
@@ -132,19 +169,20 @@ async def _calendar_signal(payload: WakePayload, user: Any) -> tuple[str, WakePa
             return "source_disabled", payload
         client = GoogleCalendarClient(payload.user_id, credentials, connector_service)
         try:
-            calendar_id = await resolve_owner_calendar_id(
-                db=db,
-                client=client,
-                owner_id=payload.user_id,
-                connector_type=ConnectorType.GOOGLE_CALENDAR,
-            )
-            since = payload.enqueued_at - timedelta(minutes=rules.recent_update_minutes)
-            events = await fetch_calendar_changes(
-                client,
-                calendar_id=calendar_id,
-                since=since,
-                lookahead_hours=rules.lookahead_hours,
-            )
+            async with _wake_read(payload.user_id, "calendar"):
+                calendar_id = await resolve_owner_calendar_id(
+                    db=db,
+                    client=client,
+                    owner_id=payload.user_id,
+                    connector_type=ConnectorType.GOOGLE_CALENDAR,
+                )
+                since = payload.enqueued_at - timedelta(minutes=rules.recent_update_minutes)
+                events = await fetch_calendar_changes(
+                    client,
+                    calendar_id=calendar_id,
+                    since=since,
+                    lookahead_hours=rules.lookahead_hours,
+                )
         finally:
             await client.close()
     verdict = calendar_verdict(events, user_email=str(getattr(user, "email", "")), rules=rules)

@@ -69,6 +69,7 @@ import {
   providerNoteKey,
 } from '@/components/relations/RelationProviderSections';
 import { CollapsibleSection, SectionBadge } from '@/components/relations/CollapsibleSection';
+import { RelationDebriefSection } from '@/components/relations/RelationDebriefSection';
 import { RelationMergePanel } from '@/components/relations/RelationMergePanel';
 import { RelationScopeSection, useScopeDraft } from '@/components/relations/RelationScopeSection';
 import { chatDraftHref, chatIntentHref, timeAgoLabel } from '@/lib/briefing-utils';
@@ -76,6 +77,7 @@ import { openChatDeepLink } from '@/lib/chat-deep-link';
 import {
   useRelationMerge,
   useRelationContext,
+  useRelationDebrief,
   useRelationDetail,
   type RelationContext,
   type RelationDetail,
@@ -759,12 +761,17 @@ export function RelationDetailPanel({
   candidates,
   onMerged,
   onBack,
+  debriefEnabled,
+  onDebriefToggle,
 }: {
   name: string;
   lng: string;
   /** Star state from the overview (single source; the panel never re-reads). */
   isFavorite: boolean;
   onToggleFavorite: (name: string, nextValue: boolean) => void;
+  /** Debrief switch from the overview — same single-source rule as the star. */
+  debriefEnabled: boolean;
+  onDebriefToggle: (next: boolean) => void;
   /** Every relationship of the overview — the merge candidates. */
   candidates: string[];
   /** Bring the overview back in sync: a merge turns two cards into one. */
@@ -811,6 +818,16 @@ export function RelationDetailPanel({
     refreshing,
     refreshSections,
   } = useRelationContext(name);
+
+  // The debrief is read at once (that read never builds) and BUILT only once
+  // the provider sections have settled: it draws on the very caches they just
+  // filled, so racing them would pay the external quota twice for one card.
+  const {
+    debrief,
+    loading: debriefLoading,
+    building: debriefBuilding,
+    rebuild: rebuildDebrief,
+  } = useRelationDebrief(name, { enabled: debriefEnabled, providerReady: !contextLoading });
 
   // Here — unlike the overview — staging the spinner on `loading` is CORRECT,
   // and must stay: this panel is keyed on a person, so when `name` changes the
@@ -887,6 +904,18 @@ export function RelationDetailPanel({
           {t('relations.identity_best_effort')}
         </p>
       )}
+
+      {/* First: it is the answer the reader came for. Everything below is the
+          evidence they would otherwise have had to assemble themselves. */}
+      <RelationDebriefSection
+        debrief={debrief}
+        loading={debriefLoading}
+        building={debriefBuilding}
+        enabled={debriefEnabled}
+        lng={lng}
+        onRebuild={rebuildDebrief}
+        onToggle={onDebriefToggle}
+      />
 
       <QuickActions detail={detail} lng={lng} />
 

@@ -1,11 +1,11 @@
-"""An administrator extracting a readable register (ADR-263, lot 4).
+"""An administrator extracting a readable register (ADR-263 lot 4, ADR-273).
 
 The third and fourth extractions the owner asked for: a human-readable register
 for one account, several, or all of them over a period — and the technical one
 under the same scoping. Both reuse the engine the user's own export uses, so
 the three documents cannot disagree about what a register says.
 
-Two properties are this surface's own:
+Three properties are this surface's own:
 
 - **masked by default, unmasked on the record.** An administrator may
   legitimately need to read what an action said; nobody should be able to do so
@@ -15,11 +15,21 @@ Two properties are this surface's own:
 - **"all accounts" is a request, not an omission.** Passing no account must
   mean the whole instance because an administrator asked for the whole
   instance, and the row count says how much that was.
+- **the record is whole.** No ceiling applies (ADR-273), and the trace of an
+  unmasking is written BEFORE the first byte leaves: the administrator asked to
+  see the wordings, which is true whether or not the download completes.
+
+A note on the harness: a ``StreamingResponse``'s body is produced after the
+handler returns, so ``_run`` collects it while the read seams are still
+patched. Reading it afterwards would consume the real ones.
 """
 
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
@@ -28,6 +38,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.domains.agents.effects.admin_router import export_readable_admin
+from src.domains.agents.effects.technical_reads import TechnicalQuery
+from tests.unit.domains.agents.effects.streaming import body_of, rows_of
 
 pytestmark = [pytest.mark.unit]
 
@@ -74,21 +86,37 @@ def _treatment(user_id: uuid.UUID = ALICE, **overrides: Any) -> Any:
     return SimpleNamespace(**row)
 
 
-class _Repository:
-    def __init__(self, rows: list[Any]) -> None:
+class _Reads:
+    """The count and the stream of one register, stubbed together."""
+
+    def __init__(self, rows: list[Any], *, total: int | None = None) -> None:
         self._rows = rows
-        self.seen: dict[str, Any] = {}
+        self._total = len(rows) if total is None else total
+        self.asked: TechnicalQuery | None = None
+        self.batch: int | None = None
 
-    def __call__(self, _db: Any) -> Any:
-        return self
+    async def count(self, _db: Any, asked: TechnicalQuery) -> int:
+        self.asked = asked
+        return self._total
 
-    async def list_for_export(self, **kwargs: Any) -> list[Any]:
-        self.seen = kwargs
-        return self._rows
+    def stream(self, _db: Any, asked: TechnicalQuery, *, batch: int) -> AsyncIterator[Any]:
+        self.asked = asked
+        self.batch = batch
+        return rows_of(self._rows)
+
+
+class _Ledger:
+    """Only what the readable document asks of the ledger repository."""
 
     @staticmethod
     def decrypted_label(_row: Any) -> dict[str, Any]:
         return {"i18n_key": "effects.labels.send_email_tool", "values": {"recipient": "Marie"}}
+
+
+@asynccontextmanager
+async def _no_session() -> AsyncIterator[Any]:
+    """The session the streaming generator opens for itself."""
+    yield SimpleNamespace()
 
 
 def _admin(is_superuser: bool = True) -> Any:
@@ -101,254 +129,244 @@ def _request() -> Any:
     return SimpleNamespace(client=SimpleNamespace(host="10.0.0.1"), headers={"user-agent": "x"})
 
 
-async def _run(**kwargs: Any) -> Any:
-    repository = kwargs.pop("repository")
-    db = AsyncMock()
-    db.add = lambda _row: None
+@dataclass(frozen=True)
+class _Download:
+    """What the administrator actually received."""
+
+    headers: Any
+    media_type: str | None
+    body: str
+    audited: list[Any]
+
+
+def _seams() -> tuple[Any, ...]:
+    """Patch the reads, the streaming session and the ledger's one helper."""
+    return (
+        patch("src.domains.agents.effects.admin_router.get_db_context", _no_session),
+        patch("src.domains.agents.effects.repository.EffectLedgerRepository", _Ledger),
+    )
+
+
+async def _run(**kwargs: Any) -> _Download:
+    """Call the readable route and read everything it produced."""
+    reads: _Reads = kwargs.pop("reads")
+    db = kwargs.pop("db", None) or AsyncMock()
+    audited: list[Any] = []
+    db.add = audited.append
+    session, ledger = _seams()
     with (
-        patch("src.domains.agents.effects.repository.EffectLedgerRepository", repository),
-        patch("src.domains.agents.effects.treatment_repository.TreatmentRepository", repository),
+        patch("src.domains.agents.effects.admin_router.count_register", reads.count),
+        patch("src.domains.agents.effects.admin_router.stream_register", reads.stream),
+        session,
+        ledger,
     ):
-        return await export_readable_admin(request=_request(), db=db, **kwargs)
+        response = await export_readable_admin(
+            request=_request(), db=db, accept_encoding=None, **kwargs
+        )
+        return _Download(
+            headers=response.headers,
+            media_type=response.media_type,
+            body=await body_of(response),
+            audited=audited,
+        )
+
+
+def _call(**overrides: Any) -> dict[str, Any]:
+    """The readable route's parameters, with the boring ones filled in."""
+    call = {
+        "register": "actions",
+        "export_format": "markdown",
+        "user_ids": None,
+        "since": None,
+        "until": None,
+        "unmask": False,
+        "current_user": _admin(),
+    }
+    call.update(overrides)
+    return call
 
 
 class TestOnlyAnAdministrator:
     async def test_an_ordinary_user_is_refused(self) -> None:
         with pytest.raises(Exception):  # noqa: B017 - the raiser's own type
-            await _run(
-                register="actions",
-                export_format="markdown",
-                user_ids=None,
-                since=None,
-                until=None,
-                unmask=False,
-                current_user=_admin(is_superuser=False),
-                repository=_Repository([_action()]),
-            )
+            await _run(**_call(current_user=_admin(is_superuser=False)), reads=_Reads([_action()]))
 
 
 class TestTheScopeIsWhatWasAsked:
     async def test_one_account_narrows_the_query(self) -> None:
-        repository = _Repository([_action()])
+        reads = _Reads([_action()])
 
-        await _run(
-            register="actions",
-            export_format="markdown",
-            user_ids=[ALICE],
-            since=None,
-            until=None,
-            unmask=False,
-            current_user=_admin(),
-            repository=repository,
-        )
+        await _run(**_call(user_ids=[ALICE]), reads=reads)
 
-        assert repository.seen["user_ids"] == [ALICE]
+        assert reads.asked is not None
+        assert reads.asked.user_ids == [ALICE]
 
     async def test_several_accounts_narrow_it_to_several(self) -> None:
-        repository = _Repository([_action(), _action(BOB)])
+        reads = _Reads([_action(), _action(BOB)])
 
-        await _run(
-            register="actions",
-            export_format="csv",
-            user_ids=[ALICE, BOB],
-            since=None,
-            until=None,
-            unmask=False,
-            current_user=_admin(),
-            repository=repository,
-        )
+        await _run(**_call(export_format="csv", user_ids=[ALICE, BOB]), reads=reads)
 
-        assert repository.seen["user_ids"] == [ALICE, BOB]
+        assert reads.asked is not None
+        assert reads.asked.user_ids == [ALICE, BOB]
 
     async def test_no_account_means_every_account(self) -> None:
         """An omission that means "everything" must be a request, not a bug."""
-        repository = _Repository([_action(), _action(BOB)])
+        reads = _Reads([_action(), _action(BOB)])
 
-        response = await _run(
-            register="actions",
-            export_format="csv",
-            user_ids=None,
-            since=None,
-            until=None,
-            unmask=False,
-            current_user=_admin(),
-            repository=repository,
-        )
+        response = await _run(**_call(export_format="csv"), reads=reads)
 
-        assert repository.seen["user_ids"] is None
+        assert reads.asked is not None
+        assert reads.asked.user_ids is None
         assert response.headers["x-register-rows"] == "2"
 
     async def test_the_period_travels(self) -> None:
         since = datetime(2026, 9, 1, tzinfo=UTC)
         until = datetime(2026, 9, 4, tzinfo=UTC)
-        repository = _Repository([_action()])
+        reads = _Reads([_action()])
 
-        await _run(
-            register="actions",
-            export_format="markdown",
-            user_ids=None,
-            since=since,
-            until=until,
-            unmask=False,
-            current_user=_admin(),
-            repository=repository,
-        )
+        await _run(**_call(since=since, until=until), reads=reads)
 
-        assert repository.seen["since"] == since
-        assert repository.seen["until"] == until
+        assert reads.asked is not None
+        assert reads.asked.since == since
+        assert reads.asked.until == until
 
 
 class TestTheWordingIsMaskedUnlessAsked:
     async def test_an_action_wording_is_withheld_by_default(self) -> None:
-        response = await _run(
-            register="actions",
-            export_format="markdown",
-            user_ids=None,
-            since=None,
-            until=None,
-            unmask=False,
-            current_user=_admin(),
-            repository=_Repository([_action()]),
-        )
+        response = await _run(**_call(), reads=_Reads([_action()]))
 
-        body = response.body.decode()
-        assert "Marie" not in body
-        assert "send_email_tool" in body, "masking must not hide WHICH capability acted"
+        assert "Marie" not in response.body
+        assert "send_email_tool" in response.body, "masking must not hide WHICH capability acted"
 
     async def test_unmasking_reveals_and_is_recorded(self) -> None:
-        repository = _Repository([_action()])
+        response = await _run(**_call(unmask=True), reads=_Reads([_action()]))
+
+        assert "Marie" in response.body
+        assert len(response.audited) == 1, "an unmasked export left no trace"
+
+    async def test_the_trace_is_written_BEFORE_the_document_is_sent(self) -> None:
+        """An administrator asked to read the wordings; that is what is audited.
+
+        Recording it only once the download completed would leave no trace of a
+        request the reader abandoned halfway — and the abandoned half was read
+        all the same.
+        """
+        reads = _Reads([_action()])
         db = AsyncMock()
         audited: list[Any] = []
         db.add = audited.append
-
+        session, ledger = _seams()
         with (
-            patch("src.domains.agents.effects.repository.EffectLedgerRepository", repository),
-            patch(
-                "src.domains.agents.effects.treatment_repository.TreatmentRepository",
-                repository,
-            ),
+            patch("src.domains.agents.effects.admin_router.count_register", reads.count),
+            patch("src.domains.agents.effects.admin_router.stream_register", reads.stream),
+            session,
+            ledger,
         ):
-            response = await export_readable_admin(
-                request=_request(),
-                register="actions",
-                export_format="markdown",
-                user_ids=None,
-                since=None,
-                until=None,
-                unmask=True,
-                db=db,
-                current_user=_admin(),
+            await export_readable_admin(
+                request=_request(), db=db, accept_encoding=None, **_call(unmask=True)
             )
 
-        assert "Marie" in response.body.decode()
-        assert len(audited) == 1, "an unmasked export left no trace"
+            assert len(audited) == 1, "nothing was recorded before the first byte"
+
+    async def test_nothing_is_audited_when_nothing_was_revealed(self) -> None:
+        response = await _run(**_call(), reads=_Reads([_action()]))
+
+        assert response.audited == []
 
     async def test_a_consultation_export_has_nothing_to_mask(self) -> None:
         """No label, no arguments: masking here would cost information for nothing."""
-        response = await _run(
-            register="consultations",
-            export_format="markdown",
-            user_ids=None,
-            since=None,
-            until=None,
-            unmask=False,
-            current_user=_admin(),
-            repository=_Repository([_treatment()]),
-        )
+        response = await _run(**_call(register="consultations"), reads=_Reads([_treatment()]))
 
-        body = response.body.decode()
-        assert "E-mails" in body
-        assert "•••" not in body
+        assert "E-mails" in response.body
+        assert "•••" not in response.body
 
 
 class TestTheDocumentSaysWhatItIs:
     async def test_the_file_is_named_after_the_register(self) -> None:
         response = await _run(
-            register="consultations",
-            export_format="csv",
-            user_ids=None,
-            since=None,
-            until=None,
-            unmask=False,
-            current_user=_admin(),
-            repository=_Repository([_treatment()]),
+            **_call(register="consultations", export_format="csv"), reads=_Reads([_treatment()])
         )
 
         assert "consultations" in response.headers["content-disposition"]
 
-    async def test_a_truncated_export_says_so(self) -> None:
-        from src.core.config import settings
+    async def test_the_export_declares_itself_complete(self) -> None:
+        """It replaced « a truncated export says so »: there is no ceiling left.
 
-        rows = [_treatment() for _ in range(settings.effect_technical_export_max_rows)]
-
+        The header is kept rather than dropped for the same reason it existed:
+        a reader must not have to infer completeness from the absence of a
+        warning (ADR-273).
+        """
         response = await _run(
-            register="consultations",
-            export_format="csv",
-            user_ids=None,
-            since=None,
-            until=None,
-            unmask=False,
-            current_user=_admin(),
-            repository=_Repository(rows),
+            **_call(register="consultations", export_format="csv"),
+            reads=_Reads([_treatment()], total=12_000),
         )
 
-        assert response.headers["x-register-truncated"] == "true"
+        assert response.headers["x-register-truncated"] == "false"
+        assert response.headers["x-register-rows"] == "12000"
+
+    async def test_the_masking_state_travels_with_the_document(self) -> None:
+        masked = await _run(**_call(), reads=_Reads([_action()]))
+        revealed = await _run(**_call(unmask=True), reads=_Reads([_action()]))
+
+        assert masked.headers["x-register-masked"] == "true"
+        assert revealed.headers["x-register-masked"] == "false"
 
 
 class TestTheTechnicalExportServesBothRegisters:
     """The consultation register had NO technical export: an administrator
     could analyse what the assistant did and nothing of what it looks at."""
 
-    async def _run(self, **kwargs: Any) -> Any:
-        repository = kwargs.pop("repository")
+    @staticmethod
+    async def _run(**kwargs: Any) -> _Download:
+        reads: _Reads = kwargs.pop("reads")
         db = AsyncMock()
+        session, ledger = _seams()
         with (
-            patch("src.domains.agents.effects.repository.EffectLedgerRepository", repository),
-            patch(
-                "src.domains.agents.effects.treatment_repository.TreatmentRepository", repository
-            ),
+            patch("src.domains.agents.effects.admin_router.count_register", reads.count),
+            patch("src.domains.agents.effects.admin_router.stream_register", reads.stream),
+            session,
+            ledger,
         ):
             from src.domains.agents.effects.admin_router import export_technical
 
-            return await export_technical(db=db, **kwargs)
+            response = await export_technical(db=db, accept_encoding=None, **kwargs)
+            return _Download(
+                headers=response.headers,
+                media_type=response.media_type,
+                body=await body_of(response),
+                audited=[],
+            )
+
+    @staticmethod
+    def _technical_call(**overrides: Any) -> dict[str, Any]:
+        call = {
+            "register": "consultations",
+            "since": None,
+            "until": None,
+            "user_ids": None,
+            "tool_name": None,
+            "mutation_policy": None,
+            "status": None,
+            "source": None,
+            "execution_mode": None,
+            "current_user": _admin(),
+        }
+        call.update(overrides)
+        return call
 
     async def test_consultations_are_exportable_and_pseudonymised(self) -> None:
-        repository = _Repository([_treatment()])
+        reads = _Reads([_treatment()])
 
-        response = await self._run(
-            register="consultations",
-            since=None,
-            until=None,
-            user_ids=[ALICE],
-            tool_name=None,
-            mutation_policy=None,
-            status=None,
-            source=None,
-            execution_mode=None,
-            current_user=_admin(),
-            repository=repository,
-        )
+        response = await self._run(**self._technical_call(user_ids=[ALICE]), reads=reads)
 
-        body = response.body.decode()
-        assert "get_emails_tool" in body
-        assert str(ALICE) not in body, "an account id reached a pseudonymised export"
-        assert "conv-1" not in body, "a conversation id reconstructs someone's day"
-        assert repository.seen["user_ids"] == [ALICE]
+        assert "get_emails_tool" in response.body
+        assert str(ALICE) not in response.body, "an account id reached a pseudonymised export"
+        assert "conv-1" not in response.body, "a conversation id reconstructs someone's day"
+        assert reads.asked is not None
+        assert reads.asked.user_ids == [ALICE]
 
     async def test_the_file_is_named_after_the_register(self) -> None:
-        response = await self._run(
-            register="consultations",
-            since=None,
-            until=None,
-            user_ids=None,
-            tool_name=None,
-            mutation_policy=None,
-            status=None,
-            source=None,
-            execution_mode=None,
-            current_user=_admin(),
-            repository=_Repository([_treatment()]),
-        )
+        response = await self._run(**self._technical_call(), reads=_Reads([_treatment()]))
 
         assert "consultations" in response.headers["content-disposition"]
 
@@ -357,36 +375,16 @@ class TestTheTechnicalExportServesBothRegisters:
         import json
 
         response = await self._run(
-            register="consultations",
-            since=None,
-            until=None,
-            user_ids=None,
-            tool_name=None,
-            mutation_policy=None,
-            status=None,
-            source=None,
-            execution_mode="react",
-            current_user=_admin(),
-            repository=_Repository([_treatment()]),
+            **self._technical_call(execution_mode="react"), reads=_Reads([_treatment()])
         )
 
-        header = json.loads(response.body.decode().splitlines()[0])
+        header = json.loads(response.body.splitlines()[0])
         assert "execution_mode" in header["filters"]["ignored_filters"]
 
     async def test_the_action_export_is_unchanged(self) -> None:
         response = await self._run(
-            register="actions",
-            since=None,
-            until=None,
-            user_ids=None,
-            tool_name=None,
-            mutation_policy=None,
-            status=None,
-            source=None,
-            execution_mode=None,
-            current_user=_admin(),
-            repository=_Repository([_action()]),
+            **self._technical_call(register="actions"), reads=_Reads([_action()])
         )
 
         assert "actions" in response.headers["content-disposition"]
-        assert "send_email_tool" in response.body.decode()
+        assert "send_email_tool" in response.body

@@ -16,7 +16,6 @@ from fastapi import Request
 from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.exceptions import (
     raise_admin_required,
     raise_user_not_found,
@@ -411,7 +410,7 @@ class UserService:
         Raises:
             HTTPException: If user not found, Google Places not active, or geocoding fails
         """
-        from src.core.exceptions import raise_invalid_input, raise_permission_denied
+        from src.core.exceptions import raise_permission_denied
         from src.core.security.utils import encrypt_data
         from src.domains.connectors.service import ConnectorService
 
@@ -429,95 +428,11 @@ class UserService:
                 details="Google Places connector must be enabled to set home location",
             )
 
-        # Geocode if coordinates are invalid (0,0 or very close)
-        final_lat = location.lat
-        final_lon = location.lon
-        final_place_id = location.place_id
+        from src.domains.users.geocoding import resolve_home_coordinates
 
-        if abs(location.lat) < 0.0001 and abs(location.lon) < 0.0001:
-            # Coordinates are essentially (0,0) - need geocoding
-            logger.info(
-                "home_location_geocoding_required",
-                user_id=str(user_id),
-                address=location.address[:50] if location.address else None,
-            )
-
-            try:
-                from src.domains.connectors.clients.google_places_client import (
-                    GooglePlacesClient,
-                )
-
-                places_client = GooglePlacesClient(
-                    user_id=user_id,
-                    language=user.language or settings.default_language,
-                )
-
-                # Use search_text to geocode the address
-                result = await places_client.search_text(
-                    query=location.address,
-                    max_results=1,
-                    use_cache=False,  # Don't cache geocoding results
-                )
-
-                places = result.get("places", [])
-                if not places:
-                    raise_invalid_input(
-                        f"Could not find location for address: {location.address[:50]}",
-                        address=location.address,
-                        error="no_results",
-                    )
-
-                # Extract coordinates from first result
-                first_place = places[0]
-                place_location = first_place.get("location", {})
-
-                if not place_location.get("latitude") or not place_location.get("longitude"):
-                    raise_invalid_input(
-                        f"Could not geocode address: {location.address[:50]}",
-                        address=location.address,
-                        error="no_coordinates",
-                    )
-
-                final_lat = place_location["latitude"]
-                final_lon = place_location["longitude"]
-                final_place_id = first_place.get("id")
-
-                # Track the API call (outside chat context, direct logging)
-                # Note: search_text tracking via ContextVar is skipped when no tracker active
-                from src.domains.google_api.service import GoogleApiUsageService
-
-                await GoogleApiUsageService.record_api_call(
-                    db=self.db,
-                    user_id=user_id,
-                    api_name="places",
-                    endpoint="/places:searchText",
-                )
-
-                logger.info(
-                    "home_location_geocoded",
-                    user_id=str(user_id),
-                    lat=final_lat,
-                    lon=final_lon,
-                    place_id=final_place_id,
-                )
-
-            except Exception as e:
-                from fastapi import HTTPException
-
-                if isinstance(e, HTTPException):
-                    raise  # Re-raise HTTP exceptions (invalid_input, etc.)
-
-                logger.error(
-                    "home_location_geocoding_failed",
-                    user_id=str(user_id),
-                    address=location.address[:50] if location.address else None,
-                    error=str(e),
-                )
-                raise_invalid_input(
-                    f"Failed to geocode address: {str(e)[:100]}",
-                    address=location.address,
-                    error=str(e),
-                )
+        final_lat, final_lon, final_place_id = await resolve_home_coordinates(
+            db=self.db, user_id=user_id, user=user, location=location
+        )
 
         # Encrypt location data with geocoded coordinates
         location_data = HomeLocationData(

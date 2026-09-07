@@ -503,6 +503,7 @@ async def reindex_from_push(user_id: UUID, page_token: str | None) -> str:
     from src.domains.push_channels.models import PushChannelProvider
     from src.domains.push_channels.repository import PushChannelRepository
     from src.domains.push_channels.service import DRIVE_WATCH_TARGET
+    from src.domains.rag_spaces.consultations import SECTION_DRIVE, space_read
     from src.infrastructure.database.session import get_db_context
 
     outcome = "error"
@@ -531,7 +532,11 @@ async def reindex_from_push(user_id: UUID, page_token: str | None) -> str:
 
             client = GoogleDriveClient(user_id, credentials, connector_service)
             try:
-                changes, new_start = await _drain_changes(client, token)
+                # A Google push can trigger this at four in the morning; before
+                # it was recorded, the person had no way to learn their Drive
+                # had been opened.
+                async with space_read(user_id=user_id, section=SECTION_DRIVE):
+                    changes, new_start = await _drain_changes(client, token)
                 touched = _touched_sources(changes, sources)
                 if channel is not None and new_start:
                     channel.page_token = new_start

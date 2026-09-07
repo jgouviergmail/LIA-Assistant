@@ -191,6 +191,52 @@
       }
     },
     {
+      "id": 9,
+      "title": "Duplicate builds avoided (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Bundle builds a caller JOINED instead of repeating. /briefing/cards and /briefing/synthesis are issued in parallel for one page load and both want the bundle; before this seam each ran its own, calling every connector twice. A value of 0 over 24h with non-zero cold/partial builds means the coalescing is no longer taking effect.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(briefing_bundle_builds_total{outcome=\"joined\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
       "id": 4,
       "title": "Build duration p95 (by cache_state)",
       "type": "timeseries",
@@ -403,6 +449,47 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Bundle builds: owned vs joined",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "One page load should show one owned build and one joined. A joined line flat at zero while owned climbs means the two endpoints are building the bundle separately again.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(briefing_bundle_builds_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",

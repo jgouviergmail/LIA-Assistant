@@ -173,6 +173,9 @@ PromptName = Literal[
     # named in the turn). Scoped by the user's own 360° selection.
     "peer_context_template",
     "peer_context_section_headers",
+    "relation_debrief_prompt",
+    "relation_debrief_context_template",
+    "relation_debrief_context_sections",
     # Pipeline intelligence (analysis, planning, validation)
     "query_analyzer_prompt",
     "smart_planner_prompt",

@@ -22,14 +22,66 @@ from __future__ import annotations
 import inspect
 import json
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
+from src.domains.agents.effects.technical_reads import TechnicalQuery
 from tests.unit.domains.agents.effects.route_vocabulary import literal_values
+from tests.unit.domains.agents.effects.streaming import rendered, rows_of
 
 pytestmark = [pytest.mark.unit]
+
+
+@asynccontextmanager
+async def _no_session() -> AsyncIterator[object]:
+    """The session the streaming generator opens for itself."""
+    yield object()
+
+
+async def render_technical(
+    spec: object, rows: list[object], language: str, timezone: str, *, total: int | None = None
+) -> str:
+    """The whole JSON Lines document the route composes, collected (ADR-273).
+
+    It goes through the route's own composition rather than through the
+    renderer directly: what these properties are about is what the READER
+    receives, and the header, the contract and the rows are assembled here.
+
+    Args:
+        spec: Which register, in its readable declaration.
+        rows: The rows the read would have produced.
+        language: The reader's language — unused by this format, passed for
+            signature parity with the two readable ones.
+        timezone: Likewise.
+        total: What the header declares; defaults to the number of rows.
+
+    Returns:
+        The document.
+    """
+    from src.domains.agents.effects import export_router as module
+
+    asked = TechnicalQuery(register=spec.slug, user_ids=[uuid.uuid4()])  # type: ignore[attr-defined]
+    with (
+        patch.object(module, "stream_register", lambda _db, _a, *, batch: rows_of(rows)),
+        patch.object(module, "get_db_context", _no_session),
+    ):
+        return await rendered(
+            module._document(
+                spec,  # type: ignore[arg-type]
+                asked,
+                export_format="technical",
+                total=len(rows) if total is None else total,
+                language=language,
+                timezone=timezone,
+                generated_at=datetime(2026, 9, 5, 10, 0, tzinfo=UTC),
+                batch=100,
+            )
+        )
 
 
 def _effect(**values: object) -> SimpleNamespace:
@@ -86,45 +138,41 @@ class TestTheThirdFormatIsAnENTRYNotAnEdit:
 
 
 class TestItCarriesNoCONTENT:
-    def test_the_wording_never_leaves(self) -> None:
+    async def test_the_wording_never_leaves(self) -> None:
         """`label` names people. The readable export shows it to its owner; a
         file meant to be handed on must not."""
         from src.domains.agents.effects.export_readable import ACTIONS
-        from src.domains.agents.effects.export_router import render_technical
 
-        body = render_technical(ACTIONS, [_effect()], "fr", "Europe/Paris")
+        body = await render_technical(ACTIONS, [_effect()], "fr", "Europe/Paris")
 
         assert "Marie" not in body
         assert "encrypted-blob" not in body
 
-    def test_the_account_id_is_pseudonymised_like_everywhere_else(self) -> None:
+    async def test_the_account_id_is_pseudonymised_like_everywhere_else(self) -> None:
         from src.domains.agents.effects.export_readable import ACTIONS
-        from src.domains.agents.effects.export_router import render_technical
         from src.domains.agents.effects.technical_export import pseudonymise
 
         account = uuid.uuid4()
-        body = render_technical(ACTIONS, [_effect(user_id=account)], "fr", "Europe/Paris")
+        body = await render_technical(ACTIONS, [_effect(user_id=account)], "fr", "Europe/Paris")
 
         assert str(account) not in body
         assert pseudonymise(account) in body
 
-    def test_the_file_opens_with_a_header_naming_its_register(self) -> None:
+    async def test_the_file_opens_with_a_header_naming_its_register(self) -> None:
         from src.domains.agents.effects.export_readable import ACTIONS
-        from src.domains.agents.effects.export_router import render_technical
 
         header = json.loads(
-            render_technical(ACTIONS, [_effect()], "fr", "Europe/Paris").splitlines()[0]
+            (await render_technical(ACTIONS, [_effect()], "fr", "Europe/Paris")).splitlines()[0]
         )
 
         assert header["register"] == "actions"
         assert header["pseudonymised"] is True
         assert "label" in header["excluded_columns"]
 
-    def test_every_line_is_valid_json(self) -> None:
+    async def test_every_line_is_valid_json(self) -> None:
         from src.domains.agents.effects.export_readable import TREATMENTS
-        from src.domains.agents.effects.export_router import render_technical
 
-        body = render_technical(
+        body = await render_technical(
             TREATMENTS,
             [
                 SimpleNamespace(
@@ -148,11 +196,10 @@ class TestItCarriesNoCONTENT:
         for line in body.strip().splitlines():
             json.loads(line)
 
-    def test_an_empty_register_still_produces_a_readable_file(self) -> None:
+    async def test_an_empty_register_still_produces_a_readable_file(self) -> None:
         from src.domains.agents.effects.export_readable import ACTIONS
-        from src.domains.agents.effects.export_router import render_technical
 
-        lines = render_technical(ACTIONS, [], "fr", "Europe/Paris").strip().splitlines()
+        lines = (await render_technical(ACTIONS, [], "fr", "Europe/Paris")).strip().splitlines()
 
         assert len(lines) == 1
         assert json.loads(lines[0])["row_count"] == 0
@@ -169,36 +216,42 @@ class TestTheReadersOwnRegisterAndNoOnesELSE:
         assert not parameters & {"user_id", "user_ids", "account", "account_id"}
 
     def test_the_read_is_scoped_to_the_caller(self) -> None:
-        from src.domains.agents.effects.export_router import _rows
+        """The scope is built once, from the session, for all three formats."""
+        from src.domains.agents.effects.export_router import export_register
 
-        source = inspect.getsource(_rows)
+        source = inspect.getsource(export_register)
 
-        assert source.count("user_id=user.id") == 2, "a register is read unscoped"
+        assert "user_ids=[user.id]" in source, "a register is read unscoped"
 
 
-class TestTheCapIsReadFromONEPlace:
-    def test_the_route_and_the_renderer_publish_the_same_ceiling(self) -> None:
-        """The route reads the setting to LIMIT the query; the renderer reads it
-        to STATE the cap in the header. They are the same setting today, and a
-        header stating a ceiling the query did not apply would make a truncated
-        file look complete — the one thing this header exists to prevent.
-        """
-        import inspect
+class TestTheReaderGetsTheirWHOLERegister:
+    """What replaced « the route and the renderer publish the same ceiling ».
 
-        from src.domains.agents.effects.export_router import export_register, render_technical
+    That property guarded a real hazard — a header stating a ceiling the query
+    had not applied would make a truncated file look complete. The hazard is
+    gone with the ceiling (ADR-273), so the guard is rewritten rather than
+    deleted: the file must now CLAIM completeness, and it must publish the
+    total that was counted rather than the length of what it happened to send.
+    """
 
-        setting = "effect_technical_export_max_rows"
-        assert setting in inspect.getsource(export_register), "the route stopped capping"
-        assert setting in inspect.getsource(render_technical), "the header stopped stating it"
-
-    def test_the_header_states_the_cap_the_reader_actually_got(self) -> None:
-        from src.core.config import settings
+    async def test_the_header_claims_completeness_and_advertises_no_ceiling(self) -> None:
         from src.domains.agents.effects.export_readable import ACTIONS
-        from src.domains.agents.effects.export_router import render_technical
 
         header = json.loads(
-            render_technical(ACTIONS, [_effect()], "fr", "Europe/Paris").splitlines()[0]
+            (await render_technical(ACTIONS, [_effect()], "fr", "Europe/Paris")).splitlines()[0]
         )
 
-        assert header["row_cap"] == settings.effect_technical_export_max_rows
         assert header["truncated"] is False
+        assert "row_cap" not in header
+
+    async def test_the_header_publishes_the_COUNTED_total(self) -> None:
+        """It is written before the first row is read, so it cannot be a tally."""
+        from src.domains.agents.effects.export_readable import ACTIONS
+
+        header = json.loads(
+            (
+                await render_technical(ACTIONS, [_effect()], "fr", "Europe/Paris", total=4211)
+            ).splitlines()[0]
+        )
+
+        assert header["row_count"] == 4211

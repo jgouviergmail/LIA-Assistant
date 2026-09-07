@@ -39,6 +39,7 @@ from typing_extensions import TypedDict
 from src.core.config import settings
 from src.core.field_names import FIELD_AGENT_NAME, FIELD_METADATA, FIELD_STATUS
 from src.infrastructure.llm import get_llm
+from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -593,16 +594,9 @@ def create_agent_wrapper_node(
                 duration_ms = duration * 1000
                 for msg in new_messages:
                     if isinstance(msg, AIMessage) and getattr(msg, "usage_metadata", None):
-                        usage = msg.usage_metadata
-                        input_tokens = usage.get("input_tokens", 0)
-                        output_tokens = usage.get("output_tokens", 0)
-                        # Extract cached tokens from input_token_details
-                        input_details = usage.get("input_token_details", {})
-                        cached_tokens = (
-                            (input_details.get("cache_read", 0) or 0) if input_details else 0
+                        net_input, output_tokens, cached_tokens = tokens_from_usage_metadata(
+                            msg.usage_metadata
                         )
-                        # Subtract cached from input (same logic as TokenExtractor)
-                        net_input = input_tokens - cached_tokens
                         # Extract model name from response_metadata
                         model_name = "unknown"
                         resp_meta = getattr(msg, "response_metadata", None)

@@ -13,8 +13,8 @@ from uuid import UUID
 import structlog
 
 from src.core.constants import REDIS_KEY_GMAIL_SEARCH_PREFIX
+from src.domains.briefing.cache_keys import section_keys_every_language
 from src.domains.briefing.constants import (
-    BRIEFING_CACHE_PREFIX,
     SECTION_AGENDA,
     SECTION_DOCUMENTS,
     SECTION_MAILS,
@@ -52,7 +52,11 @@ async def invalidate_for_provider(provider: str, user_id: UUID) -> None:
     with contextlib.suppress(Exception):
         redis = await get_redis_cache()
         section = _PROVIDER_SECTIONS[provider]
-        await redis.delete(f"{BRIEFING_CACHE_PREFIX}:{user_id}:{section}")
+        # Every language variant: this path knows a source changed, not which
+        # language the person reads in. Building the key here by hand is what
+        # made this deletion silently miss when the key gained its language
+        # segment — an absent key deletes cleanly and reports nothing.
+        await redis.delete(*section_keys_every_language(user_id=user_id, section=section))
 
         if provider == PushChannelProvider.GOOGLE_GMAIL.value:
             keys: list[str] = []

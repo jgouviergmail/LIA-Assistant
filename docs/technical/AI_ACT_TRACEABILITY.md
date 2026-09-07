@@ -72,6 +72,34 @@ Three properties hold across all of them:
 - **The user's own.** Both registers leave with the account archive and die with
   the account.
 
+### What the graph could not see (ADR-270, 2026-09-07)
+
+The three properties above held for the CONVERSATION. They did not hold for
+work that never entered the agent graph, and that turned out to be most of the
+activity: joining `token_usage_logs` to the registers by `run_id` showed
+**24/24, 22/22, 10/10** for conversational surfaces and **0 of 228** for
+out-of-turn runs over fourteen days. Nothing was failing — the registers follow
+the graph, and those surfaces call the model directly.
+
+Three consequences, all closed:
+
+- **The record now covers out-of-turn work.** `track_proactive_tokens`, the
+  single funnel all thirteen of those sites use, files the turn's row under the
+  very `run_id` the cost was filed under.
+- **The authorship is declared, never guessed.** A briefing answers a REQUEST
+  (nothing schedules it), a reminder is the person's own deferred instruction,
+  and only a runner sweep is LIA's own initiative. The parameter has no
+  default, because one default would have filed all three identically.
+- **Account-less spend has a ledger too.** Self-diagnosis and catalogue
+  translations run for no account, so per-account counters must stay untouched;
+  they now reach `instance_daily_budget`, which is what a deployment ceiling
+  reads. Measured before the fix: 84 personality translations recorded nowhere
+  at all, while the ledger held 5 976 rows from 17 other surfaces over the same
+  window.
+
+The register's own limit is unchanged and still stated: it records what a
+capability was ASKED to do and what came back, never the words of the request.
+
 ### What is deliberately NOT recorded
 
 A consultation records the **capability**, never the request. "Consulted your
@@ -171,18 +199,39 @@ to know what survives an erasure must not have to infer it from a data map.
 
 ## 6 bis. Reading an extraction, and reading a chart
 
-**Every extraction is capped, and the cap keeps the MOST RECENT window.** The
-ceiling exists because production runs on a Raspberry Pi 5 — a five-record,
-5000-row extraction peaked at 33,9 MB and 939 ms, against 6,6 MB and 201 ms at
-1000. Two properties make that ceiling honest rather than misleading:
+**No extraction is capped** (ADR-273). Every one of the five returns every row
+its filters match, for the account holder and for the operator alike.
 
-- it is stated **per source**, in the file's header, because a file complete in
-  four records of five is not a complete file;
-- it keeps the **newest** rows. Ordering was missing once, and PostgreSQL then
-  returned the oldest ones: an export read on 2026-09-05 covered
-  January to March and named models the instance no longer configured. Nothing
-  was fabricated and nothing was checkable. A capped read now says which end it
-  kept (`infrastructure/database/export_window.py`, one helper for all five).
+There used to be a ceiling, and it was measured rather than guessed: production
+runs on a Raspberry Pi 5, where a five-record, 5000-row extraction peaked at
+33,9 MB and took 939 ms to serialise, against 6,6 MB and 201 ms at 1000. The
+constraint was real — the whole document was assembled in memory — but it was
+applied to the wrong variable. **What was scarce was memory; what was bounded
+was the truth.** A person exercising a portability right received a sample of
+their own record, and it said so, which repairs nothing.
+
+The rows are now streamed through a server-side cursor, so what a download
+holds is one partition (`EFFECT_EXPORT_BATCH_ROWS`, default 1000) rather than a
+register — and the download is compressed on the way out when the client can
+decompress, which is what makes a complete file usable over a domestic uplink.
+Three properties make the result readable:
+
+- the **count is exact**, counted by an aggregate over the same statement the
+  body streams. It is published before the first row, because a streamed file
+  cannot revise its own first line;
+- the **period is closed** at the instant the file is generated when the caller
+  named no upper bound, so the count and the body describe the same set — and
+  that bound is named in the header rather than applied in silence;
+- **completeness is claimed**, per source, in the header and in
+  `X-Register-Truncated`. Dropping those keys would have been tidier and worse:
+  a reader would then tell a complete file from a partial one by the ABSENCE of
+  a warning.
+
+The ordering lesson outlived the ceiling that taught it. It was missing once,
+and PostgreSQL returned the oldest rows: an export read on 2026-09-05 covered
+January to March and named models the instance no longer configured. Nothing
+was fabricated and nothing was checkable. A register is read forward, in one
+place (`infrastructure/database/export_stream.py`, one helper for all five).
 
 **A model change stays visible.** Every LLM row stores the model actually used,
 so the record keeps what was current at the time. Nothing resolves a model name
@@ -260,7 +309,8 @@ des journaux*.
 | Writing one row per turn, exactly once | `domains/agents/effects/decision_recorder.py` |
 | The upsert that merges a resumed turn | `domains/agents/effects/decision_repository.py` |
 | The scheduled pass | `infrastructure/startup/scheduler_ledger.py` |
-| The capped window, newest kept, shared by five reads | `infrastructure/database/export_window.py` |
+| The whole register, streamed, shared by five reads | `infrastructure/database/export_stream.py` |
+| Serving a document too large to hold in memory | `core/streaming_download.py` |
 | The parameters actually sent to a model | `infrastructure/llm/inference_params.py` |
 | Gaps in the record itself | `domains/agents/effects/integrity.py` |
 | The five records as one file | `domains/agents/effects/article12_export.py` |

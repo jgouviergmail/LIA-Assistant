@@ -8,7 +8,7 @@ time-aware probabilistic logic, and elapsed hours calculation.
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -100,6 +100,23 @@ class TestRunnerStats:
 # ---------------------------------------------------------------------------
 # _process_user stats recording tests
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _ledger_stays_out_of_reach():  # type: ignore[no-untyped-def]
+    """No unit test in this module reaches a database.
+
+    Delivering a notification now CLAIMS an action row (ADR-270), so the real
+    ledger opens a session on every success path — including the ones written
+    long before, which is exactly how a unit suite acquires an environment.
+    The claim door answers None here: the wiring still runs for real, it simply
+    writes nowhere.
+    """
+    with patch(
+        "src.domains.agents.effects.runtime._LEDGER.claim",
+        new=AsyncMock(return_value=None),
+    ):
+        yield
 
 
 def _make_mock_user(**overrides: Any) -> MagicMock:
@@ -624,3 +641,288 @@ class TestWakeGateBypass:
         stats = RunnerStats()
         assert await runner._process_user(_make_mock_user(), AsyncMock(), stats) is False
         assert stats.skip_reasons == {"outside_time_window": 1}
+
+
+@pytest.mark.unit
+class TestTheSuccessPathIsAccountedAndRecorded:
+    """The one path where a sweep spends, and the one nothing exercised.
+
+    Every existing test of ``_process_user`` stops at a skip or a failure, so
+    the branch that bills the account, publishes the consultation collector and
+    files the turn in the decision register ran in no test at all — measured
+    2026-09-07, and it is exactly the wiring that was found missing in
+    production (824 sweeps, no consultation row).
+
+    A helper covered by a test whose caller is not is the same green-by-absence
+    trap the register itself was built to end.
+    """
+
+    @staticmethod
+    def _no_register():  # type: ignore[no-untyped-def]
+        """Keep the consultation flush off any database.
+
+        The subject here is « the collector was published and collected the
+        row », never « the write succeeded ». Stubbing the write keeps the test
+        hermetic and avoids the coroutine a fake session synthesises on every
+        nested attribute access (F028).
+        """
+        return patch(
+            "src.domains.agents.effects.treatment_recorder._flush",
+            new=AsyncMock(),
+        )
+
+    @staticmethod
+    def _successful_runner(task_type: str = "interest") -> Any:
+        from src.infrastructure.proactive.eligibility import EligibilityResult
+        from src.infrastructure.proactive.notification import NotificationResult
+
+        checker = AsyncMock()
+        checker.check = AsyncMock(return_value=EligibilityResult.success())
+        checker.should_send_notification = MagicMock(return_value=(True, {"decision": "send"}))
+        checker.notification_model = None
+        checker.start_hour_field = "interests_notify_start_hour"
+        checker.end_hour_field = "interests_notify_end_hour"
+
+        @dataclass
+        class FakeTaskResult:
+            success: bool = True
+            content: str = "Test content"
+            target_id: str = "interest-1"
+            error: str | None = None
+            model_name: str | None = "gpt-test"
+            tokens_in: int = 120
+            tokens_out: int = 30
+            tokens_cache: int = 0
+            metadata: dict = field(default_factory=dict)
+            source_name: str = "test-source"
+            total_tokens: int = 150
+
+        mock_task = AsyncMock()
+        mock_task.task_type = task_type
+        mock_task.check_eligibility = AsyncMock(return_value=True)
+        mock_task.select_target = AsyncMock(return_value=MagicMock())
+        mock_task.generate_content = AsyncMock(return_value=FakeTaskResult())
+
+        runner = _make_runner(eligibility_checker=checker, task=mock_task)
+        runner._get_today_notification_count = AsyncMock(return_value=0)
+        runner._dispatch_notification = AsyncMock(
+            return_value=NotificationResult(success=True, fcm_success=1, sse_sent=True)
+        )
+        return runner
+
+    @pytest.mark.asyncio
+    async def test_a_delivered_sweep_bills_the_account_it_served(self) -> None:
+        runner = self._successful_runner()
+        user = _make_mock_user()
+
+        with patch(
+            "src.infrastructure.proactive.runner.track_proactive_tokens",
+            new=AsyncMock(return_value="run-x"),
+        ) as tracked:
+            assert await runner._process_user(user, AsyncMock(), RunnerStats()) is True
+
+        assert tracked.await_count == 1
+        call = tracked.await_args.kwargs
+        assert call["user_id"] == user.id
+        assert call["tokens_in"] == 120
+        assert call["tokens_out"] == 30
+        assert call["model_name"] == "gpt-test"
+
+    @pytest.mark.asyncio
+    async def test_a_sweep_is_filed_as_lias_own_initiative(self) -> None:
+        """Nobody asked for it. Filing it as the person's would hide it in
+        the list of things they set in motion themselves."""
+        runner = self._successful_runner()
+
+        with patch(
+            "src.infrastructure.proactive.runner.track_proactive_tokens",
+            new=AsyncMock(return_value="run-x"),
+        ) as tracked:
+            await runner._process_user(_make_mock_user(), AsyncMock(), RunnerStats())
+
+        assert tracked.await_args.kwargs["source"] == "proactive"
+
+    @pytest.mark.asyncio
+    async def test_the_run_id_is_minted_before_the_content_and_shared(self) -> None:
+        """The collector is published around ``generate_content``, so the id
+        must exist before it — a tracker that minted its own would file the
+        consultations under a run the register never joins."""
+        runner = self._successful_runner()
+
+        with patch(
+            "src.infrastructure.proactive.runner.track_proactive_tokens",
+            new=AsyncMock(return_value="run-x"),
+        ) as tracked:
+            await runner._process_user(_make_mock_user(), AsyncMock(), RunnerStats())
+
+        passed = tracked.await_args.kwargs["run_id"]
+        assert passed, "no run id reached the tracker"
+        assert isinstance(passed, str)
+
+    @pytest.mark.asyncio
+    async def test_the_sources_opened_during_the_sweep_are_collected(self) -> None:
+        """The collector must be live while the task generates its content."""
+        from src.domains.agents.effects.treatments import collected_treatments
+        from src.domains.shared.consultation_surfaces import record_surface_consultations
+
+        runner = self._successful_runner("heartbeat")
+        seen: list[int] = []
+
+        original = runner.task.generate_content
+
+        async def _generate(*args: Any, **kwargs: Any) -> Any:
+            record_surface_consultations(
+                surface="heartbeat",
+                user_id="11111111-1111-1111-1111-111111111111",
+                opened=["emails"],
+                duration_ms=5,
+            )
+            seen.append(len(collected_treatments()))
+            return await original(*args, **kwargs)
+
+        runner.task.generate_content = _generate
+
+        with (
+            patch(
+                "src.infrastructure.proactive.runner.track_proactive_tokens",
+                new=AsyncMock(return_value="run-x"),
+            ),
+            self._no_register(),
+        ):
+            await runner._process_user(_make_mock_user(), AsyncMock(), RunnerStats())
+
+        assert seen == [1], "the runner published no collector around generate_content"
+
+    @pytest.mark.asyncio
+    async def test_a_delivered_notification_is_recorded_as_an_ACTION(self) -> None:
+        """The gap reported from production, 2026-09-07.
+
+        Sending a notification is an act LIA decided on alone, and it left no
+        row in the action register at all — so « Actions menées d'elle-même »
+        was empty by construction whatever LIA did. The helper is tested next
+        door; this asserts the RUNNER reaches it, which is the half that was
+        missing.
+        """
+        runner = self._successful_runner()
+        claimed: list[dict] = []
+
+        from contextlib import asynccontextmanager
+
+        @asynccontextmanager
+        async def _spy(**kwargs):  # type: ignore[no-untyped-def]
+            claimed.append(kwargs)
+            from src.domains.agents.effects.out_of_turn_effects import ProactiveEffect
+
+            effect = ProactiveEffect()
+            yield effect
+            claimed[-1]["delivered"] = effect.delivered
+
+        with (
+            patch(
+                "src.infrastructure.proactive.runner.track_proactive_tokens",
+                new=AsyncMock(return_value="run-x"),
+            ),
+            patch(
+                "src.domains.agents.effects.out_of_turn_effects.proactive_notification_effect",
+                _spy,
+            ),
+        ):
+            user = _make_mock_user()
+            await runner._process_user(user, AsyncMock(), RunnerStats())
+
+        assert len(claimed) == 1, "the notification claimed no action row"
+        assert claimed[0]["user_id"] == user.id
+        assert claimed[0]["task_type"] == "interest"
+        assert claimed[0]["delivered"] is True
+
+    @pytest.mark.asyncio
+    async def test_a_notification_nobody_received_is_not_recorded_as_done(self) -> None:
+        """Settled from the dispatch's explicit result, never from silence."""
+        from contextlib import asynccontextmanager
+
+        from src.infrastructure.proactive.notification import NotificationResult
+
+        runner = self._successful_runner()
+        runner._dispatch_notification = AsyncMock(
+            return_value=NotificationResult(success=False, error="FCM failed")
+        )
+        seen: list[bool] = []
+
+        @asynccontextmanager
+        async def _spy(**_kwargs):  # type: ignore[no-untyped-def]
+            from src.domains.agents.effects.out_of_turn_effects import ProactiveEffect
+
+            effect = ProactiveEffect()
+            yield effect
+            seen.append(effect.delivered)
+
+        with (
+            patch(
+                "src.infrastructure.proactive.runner.track_proactive_tokens",
+                new=AsyncMock(return_value="run-x"),
+            ),
+            patch(
+                "src.domains.agents.effects.out_of_turn_effects.proactive_notification_effect",
+                _spy,
+            ),
+        ):
+            await runner._process_user(_make_mock_user(), AsyncMock(), RunnerStats())
+
+        assert seen == [False]
+
+    @pytest.mark.asyncio
+    async def test_a_tracking_failure_never_loses_a_delivered_notification(self) -> None:
+        """The notification is already sent; the accounting must not undo it.
+
+        The protection lives INSIDE ``track_proactive_tokens`` rather than at
+        this call site — one place, so every caller inherits it. Asserted on
+        the real function, because a test that patched the seam would prove
+        only that the patch was applied.
+        """
+        from src.infrastructure.proactive.tracking import track_proactive_tokens
+
+        with patch(
+            "src.domains.chat.service.TrackingContext",
+            side_effect=RuntimeError("ledger down"),
+        ):
+            recorded = await track_proactive_tokens(
+                user_id=uuid4(),
+                task_type="interest",
+                target_id="interest-1",
+                conversation_id=None,
+                tokens_in=10,
+                tokens_out=2,
+                model_name="gpt-test",
+                source="proactive",
+            )
+
+        assert recorded is None, "a failed ledger must report nothing, never raise"
+
+    @pytest.mark.asyncio
+    async def test_a_model_that_cannot_be_priced_still_records_its_tokens(self) -> None:
+        """An unpriced call is still a call; dropping it loses the tokens too."""
+        from src.infrastructure.proactive.tracking import track_proactive_tokens
+
+        with (
+            patch(
+                "src.infrastructure.cache.pricing_cache.get_cached_cost_usd_eur",
+                side_effect=RuntimeError("no price for this model"),
+            ),
+            patch(
+                "src.domains.chat.service.TrackingContext",
+                side_effect=RuntimeError("stop before the write"),
+            ),
+        ):
+            assert (
+                await track_proactive_tokens(
+                    user_id=uuid4(),
+                    task_type="interest",
+                    target_id="interest-1",
+                    conversation_id=None,
+                    tokens_in=10,
+                    tokens_out=2,
+                    model_name="a-model-nobody-prices",
+                    source="proactive",
+                )
+                is None
+            )

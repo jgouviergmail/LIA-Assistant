@@ -81,3 +81,17 @@ Yes, in three ways:
 
 Sent and received items each carry their own colour, on relayed messages as on
 emails — the direction used to be told apart by a small arrow alone.
+
+## What is a relationship debrief?
+At the top of the card, LIA writes a **synthesis** of what it knows about that person: **what is still open**, **what to do next**, **what is worth remembering**. Ten sections is not something anyone reads; this is the part a reader actually wants first.
+
+It is written **at most once a day**, only at the moment you open the card — never by a background job, never during a conversation. The **Refresh debrief** button rewrites it on demand; changing language or changing the sources it may use rewrites it too.
+
+If a write fails, the **previous text stays on screen** under a line saying so: an empty panel would suggest there is nothing to say. If no source could be read at all, it says so rather than inventing. The model used and the cost are shown underneath — and when nothing was spent, nothing is shown, because a zero cost would be a claim rather than an absence.
+
+## Is the debrief used in my conversations?
+Yes, as long as **Daily debrief** stays switched on from the Relations page. When you **name** someone in the chat, their synthesis joins LIA's context, so it no longer announces a search for facts already written down.
+
+It arrives **dated**, with its age, and LIA knows to check any exact date, count or status against its tools rather than quoting yesterday's synthesis as today's fact — the opposite directive to the one that governs the peer block, which states exact facts because it reads them in the turn itself.
+
+Past a certain age — which the host can set — it is no longer injected at all; the card still shows it, dated. And if the name is **ambiguous**, nothing is injected: the directory holds every relationship ever opened, company names and phone numbers included, so saying nothing beats handing you someone else's file.

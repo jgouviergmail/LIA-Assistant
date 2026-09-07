@@ -123,3 +123,10 @@ The administrator panel shows today's spend, the number of runs, the
 ceiling that actually applies, and what remains. Where both a deployment
 setting and an administrator setting exist, the **smaller** one applies:
 an operator can tighten what the deployment allows, never widen it.
+
+## Do the ceilings cover everything LIA consumes?
+Everything **the instance pays for**, yes. Language models, speech synthesis and recognition, image generation and maps all run on the deployment's own provider keys, so every one of those calls answers to **both ceilings**: your personal quota and the instance's daily budget.
+
+What goes through **your own key** at a provider — web search, weather, telephony — stays outside them: the instance is not paying that bill.
+
+A refusal looks different depending on where it lands, and that is deliberate. A request you just made answers plainly, naming the limit reached and when it lifts. A background task — a reminder notification, a dashboard synthesis, a self-check — **gives up quietly** and records itself as *skipped*, never as *failed*: a quota refusal is not a generation failure, and displaying it as one would send an operator looking for a fault that does not exist.

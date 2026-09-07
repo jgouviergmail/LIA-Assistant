@@ -22,6 +22,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel
 
 from src.core.config import settings
+from src.core.exceptions import UsageLimitExceededError
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output
@@ -34,6 +35,56 @@ logger = get_logger(__name__)
 # ============================================================================
 # DATA MODELS
 # ============================================================================
+
+
+async def _scored_with_accounting[T: BaseModel](
+    llm: Any,
+    *,
+    prompt: str,
+    schema: type[T],
+    provider: str,
+    node_name: str,
+) -> T:
+    """One evaluator call, with its cost charged to the deployment.
+
+    The harness measures the instance's own retrieval quality on an operator's
+    request, so no account may be billed — but the deployment's daily ceiling
+    must still see the spend, and until 2026-09-07 it saw nothing at all.
+
+    Args:
+        llm: The evaluator model.
+        prompt: The rendered evaluation prompt.
+        schema: Pydantic schema the evaluator must produce.
+        provider: Provider name, for the structured-output strategy.
+        node_name: Surface name, for metrics and the ledger log line.
+
+    Returns:
+        The validated evaluation.
+    """
+    from langchain_core.callbacks import UsageMetadataCallbackHandler
+    from langchain_core.messages import HumanMessage
+
+    from src.domains.usage_limits.instance_spend import record_instance_llm_spend
+    from src.infrastructure.llm.usage_metadata import model_name_of, tokens_from_callback
+
+    usage_handler = UsageMetadataCallbackHandler()
+    result: T = await get_structured_output(
+        llm=llm,
+        messages=[HumanMessage(content=prompt)],
+        schema=schema,
+        provider=provider,
+        node_name=node_name,
+        config={"callbacks": [usage_handler]},
+    )
+    usage = tokens_from_callback(usage_handler)
+    await record_instance_llm_spend(
+        surface=node_name,
+        model_name=model_name_of(llm),
+        tokens_in=usage.prompt,
+        tokens_out=usage.completion,
+        tokens_cache=usage.cached,
+    )
+    return result
 
 
 @dataclass
@@ -157,13 +208,11 @@ Provide your evaluation in JSON format with 'score' (float 0-1) and 'reasoning' 
     ) -> EvaluationResult:
         """Evaluate response relevance."""
         try:
-            from langchain_core.messages import HumanMessage
-
             prompt = self.RELEVANCE_PROMPT.format(query=query, response=response)
             agent_config = get_llm_config_for_agent(settings, "evaluator")
-            result: RelevanceScore = await get_structured_output(
-                llm=self.llm,
-                messages=[HumanMessage(content=prompt)],
+            result: RelevanceScore = await _scored_with_accounting(
+                self.llm,
+                prompt=prompt,
                 schema=RelevanceScore,
                 provider=agent_config.provider,
                 node_name="evaluation_relevance",
@@ -176,6 +225,13 @@ Provide your evaluation in JSON format with 'score' (float 0-1) and 'reasoning' 
                 score=result.score,
                 reasoning=result.reasoning,
             )
+        except UsageLimitExceededError:
+            # A ceiling REFUSED this measurement; it did not fail to make it.
+            # Turning that into 0.5 would hand an operator a fabricated score
+            # they would read as real — the very harm ``INSTANCE_GATE_EXEMPT``
+            # argues about, arriving through the gate instead of around it.
+            # Bounded AND honest: the ceiling applies, and the harness stops.
+            raise
         except Exception as e:
             logger.error(
                 "relevance_evaluation_failed",
@@ -273,17 +329,15 @@ Provide your evaluation in JSON format with:
                 context_section = f"Tool Results (source data):\n{context['tool_results']}"
 
         try:
-            from langchain_core.messages import HumanMessage
-
             prompt = self.HALLUCINATION_PROMPT.format(
                 query=query,
                 response=response,
                 context_section=context_section or "No additional context provided.",
             )
             agent_config = get_llm_config_for_agent(settings, "evaluator")
-            result: HallucinationScore = await get_structured_output(
-                llm=self.llm,
-                messages=[HumanMessage(content=prompt)],
+            result: HallucinationScore = await _scored_with_accounting(
+                self.llm,
+                prompt=prompt,
                 schema=HallucinationScore,
                 provider=agent_config.provider,
                 node_name="evaluation_hallucination",
@@ -297,6 +351,9 @@ Provide your evaluation in JSON format with:
                 reasoning=result.reasoning,
                 metadata={"hallucinated_claims": result.hallucinated_claims},
             )
+        except UsageLimitExceededError:
+            # See the relevance evaluator: a refusal is not a measurement.
+            raise
         except Exception as e:
             logger.error(
                 "hallucination_evaluation_failed",

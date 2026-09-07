@@ -1,9 +1,9 @@
-"""Downloading a register: to read, to count, or to analyse (ADR-263).
+"""Downloading a register: to read, to count, or to analyse (ADR-263, ADR-273).
 
 One endpoint for two registers and three formats, because the combinations are
 the same operation with a different renderer — and because a second endpoint
-would be a second place for the period, the timezone and the cap to be spelled
-slightly differently.
+would be a second place for the period, the timezone and the completeness to be
+spelled slightly differently.
 
 The third format, JSON Lines, is the SAME contract the administrator's export
 obeys: an allowlist of columns, no content, identifiers pseudonymised. Reusing
@@ -18,44 +18,56 @@ The document is rendered in the READER's language and the READER's display
 timezone, both taken from their own account rather than from a query string: an
 export is evidence, and evidence a caller can restyle is weaker evidence.
 
-The cap travels into the answer's headers, so a truncated register says it was
-truncated instead of looking complete.
+**Nothing is truncated** (ADR-273). The rows are streamed under a header that
+states the exact total, and the period is closed at the instant the file is
+generated so the two describe the same set. The download is compressed on the
+way out when the client offers to decompress, which is what makes a complete
+register practical over a domestic uplink.
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 import structlog
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RATE_LIMIT_EFFECTS_READ_PER_MINUTE
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
+from src.core.streaming_download import attachment_stream
 from src.domains.agents.effects.article12_export import (
+    SourceStream,
     article12_filters,
-    extract_of,
     known_sources,
-    render_article12,
+    stream_article12,
 )
 from src.domains.agents.effects.export_readable import (
     ACTIONS,
     TREATMENTS,
     RegisterSpec,
-    render_csv,
-    render_markdown,
+    stream_csv,
+    stream_markdown,
 )
 from src.domains.agents.effects.technical_export import (
     TECHNICAL_SPECS,
+    TechnicalSpec,
     export_header,
-    render_jsonl,
+    stream_jsonl,
     technical_row,
 )
-from src.domains.agents.effects.technical_reads import TechnicalQuery, read_register
+from src.domains.agents.effects.technical_reads import (
+    TechnicalQuery,
+    count_register,
+    stated_query,
+    stream_register,
+)
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.users.models import User
+from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
 
@@ -69,51 +81,14 @@ rate_limit_export = create_user_rate_limiter(
 #: Which register, by the name it carries in its own download.
 REGISTERS: dict[str, RegisterSpec] = {ACTIONS.slug: ACTIONS, TREATMENTS.slug: TREATMENTS}
 
-
-def render_technical(spec: RegisterSpec, rows: list[object], language: str, timezone: str) -> str:
-    """Render one register as pseudonymised JSON Lines.
-
-    Signature-compatible with the two readable renderers so the format table
-    stays a table. ``language`` and ``timezone`` are deliberately unused: a
-    machine-readable file has no reader to localise for, and rendering
-    timestamps in a display zone would make two exports of the same rows
-    disagree.
-
-    The contract is found BY SLUG, which is why a test pins that the readable
-    and technical spec families still share theirs.
-
-    Args:
-        spec: Which register, in its readable declaration.
-        rows: Its rows, oldest first.
-        language: Unused — see above.
-        timezone: Unused — see above.
-
-    Returns:
-        The file content: one header line, then one line per row.
-    """
-    from src.core.config import settings
-
-    contract = TECHNICAL_SPECS[spec.slug]
-    cap = settings.effect_technical_export_max_rows
-    return render_jsonl(
-        [technical_row(row, contract) for row in rows],
-        export_header(
-            row_count=len(rows),
-            cap=cap,
-            # No account filter to state: this route has none to state.
-            filters={},
-            generated_at=datetime.now(UTC),
-            spec=contract,
-        ),
-    )
-
-
-#: Format → (renderer, media type, extension). A table rather than a branch:
-#: a third format is an entry, not an edit.
-FORMATS: dict[str, tuple[object, str, str]] = {
-    "markdown": (render_markdown, "text/markdown; charset=utf-8", "md"),
-    "csv": (render_csv, "text/csv; charset=utf-8", "csv"),
-    "technical": (render_technical, "application/x-ndjson", "jsonl"),
+#: Format → (media type, extension). A table rather than a branch: a fourth
+#: format is an entry, not an edit. The renderer is chosen beside it, in
+#: :func:`_document`, because the three no longer share one signature — a
+#: machine-readable file has no reader to localise for.
+FORMATS: dict[str, tuple[str, str]] = {
+    "markdown": ("text/markdown; charset=utf-8", "md"),
+    "csv": ("text/csv; charset=utf-8", "csv"),
+    "technical": ("application/x-ndjson", "jsonl"),
 }
 
 
@@ -130,42 +105,69 @@ def _display_timezone(user: User) -> str:
     return getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
 
 
-async def _rows(
-    spec: RegisterSpec,
-    db: AsyncSession,
-    user: User,
-    since: datetime | None,
-    until: datetime | None,
-    limit: int,
-) -> list[object]:
-    """Read one register's rows for this user and period, oldest first.
+async def _shaped(
+    rows: AsyncIterator[Any], contract: TechnicalSpec
+) -> AsyncIterator[dict[str, Any]]:
+    """Put each row through its register's column contract, one at a time.
 
     Args:
-        spec: Which register.
-        db: Session.
-        user: Whose register — always the caller's, never a parameter.
-        since: Inclusive lower bound.
-        until: Exclusive upper bound.
-        limit: Row ceiling.
+        rows: The register's rows.
+        contract: What the file may show, and what it must never show.
 
-    Returns:
-        The rows.
+    Yields:
+        The pseudonymised, allowlisted mapping for one row.
     """
-    if spec is ACTIONS:
-        from src.domains.agents.effects.repository import EffectLedgerRepository
+    async for row in rows:
+        yield technical_row(row, contract)
 
-        return list(
-            await EffectLedgerRepository(db).list_for_export(
-                user_id=user.id, since=since, until=until, limit=limit
+
+async def _document(
+    spec: RegisterSpec,
+    asked: TechnicalQuery,
+    *,
+    export_format: str,
+    total: int,
+    language: str,
+    timezone: str,
+    generated_at: datetime,
+    batch: int,
+) -> AsyncIterator[str]:
+    """Render the whole register, reading it as it is written out.
+
+    The session is opened HERE and belongs to this generator: the cursor
+    underneath empties the identity map between partitions, which would detach
+    whatever else a shared session held (``export_stream``).
+
+    Args:
+        spec: Which register, in its readable declaration.
+        asked: What was asked for — the caller's own account, and a closed
+            period.
+        export_format: ``markdown``, ``csv`` or ``technical``.
+        total: The exact row count, already published in the header.
+        language: The reader's language.
+        timezone: The reader's display timezone.
+        generated_at: When the file was produced.
+        batch: How many rows the cursor buffers at a time.
+
+    Yields:
+        The document, chunk by chunk.
+    """
+    async with get_db_context() as db:
+        rows = stream_register(db, asked, batch=batch)
+        if export_format == "technical":
+            contract = TECHNICAL_SPECS[spec.slug]
+            header = export_header(
+                row_count=total,
+                filters=stated_query(asked),
+                generated_at=generated_at,
+                spec=contract,
             )
-        )
-    from src.domains.agents.effects.treatment_repository import TreatmentRepository
-
-    return list(
-        await TreatmentRepository(db).list_for_export(
-            user_id=user.id, since=since, until=until, limit=limit
-        )
-    )
+            async for chunk in stream_jsonl(header, _shaped(rows, contract)):
+                yield chunk
+            return
+        renderer = stream_markdown if export_format == "markdown" else stream_csv
+        async for chunk in renderer(spec, rows, language, timezone):
+            yield chunk
 
 
 @router.get(
@@ -183,6 +185,7 @@ async def export_register(
     ),
     since: datetime | None = Query(None, description="Inclusive lower bound"),
     until: datetime | None = Query(None, description="Exclusive upper bound"),
+    accept_encoding: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_session),
 ) -> Response:
@@ -195,46 +198,105 @@ async def export_register(
             to analyse — the last one is the administrator's own contract, so
             it holds no content and can be shared without exposing anything.
         since: Inclusive lower bound on the period.
-        until: Exclusive upper bound.
-        db: Session.
+        until: Exclusive upper bound. Left out, it becomes the instant the file
+            is generated: the count in the headers and the rows in the body
+            must describe the same closed window.
+        accept_encoding: What the client can decompress.
+        db: Session — used for the exact count; the rows are streamed on a
+            session of their own.
         user: The authenticated caller. The register exported is always
             theirs; there is no account parameter on this route, so there is
             no way to ask for someone else's by mistake.
 
     Returns:
         The document, as an attachment named after the register and the day.
+        Complete: no ceiling applies, and ``X-Register-Truncated`` says so
+        rather than leaving a reader to assume it.
     """
     from src.core.config import settings
 
     spec = REGISTERS[register]
-    renderer, media_type, extension = FORMATS[export_format]
-    limit = settings.effect_technical_export_max_rows
-
-    rows = await _rows(spec, db, user, since, until, limit)
-    body: str = renderer(  # type: ignore[operator]
-        spec, rows, user.language, _display_timezone(user)
+    media_type, extension = FORMATS[export_format]
+    generated_at = datetime.now(UTC)
+    asked = TechnicalQuery(
+        register=spec.slug,
+        since=since,
+        until=until or generated_at,
+        user_ids=[user.id],
     )
 
-    stamp = datetime.now(UTC).strftime("%Y%m%d")
-    filename = f"lia-{spec.slug}-{stamp}.{extension}"
+    total = await count_register(db, asked)
+    filename = f"lia-{spec.slug}-{generated_at.strftime('%Y%m%d')}.{extension}"
     logger.info(
         "register_exported",
         register=spec.slug,
         export_format=export_format,
-        rows=len(rows),
-        truncated=len(rows) >= limit,
+        rows=total,
     )
-    return Response(
-        content=body,
+    return attachment_stream(
+        _document(
+            spec,
+            asked,
+            export_format=export_format,
+            total=total,
+            language=user.language,
+            timezone=_display_timezone(user),
+            generated_at=generated_at,
+            batch=settings.effect_export_batch_rows,
+        ),
+        filename=filename,
         media_type=media_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            # The cap is PUBLISHED, never applied in silence: a reader who got
-            # exactly `limit` rows must be able to tell that more exist.
-            "X-Register-Rows": str(len(rows)),
-            "X-Register-Truncated": "true" if len(rows) >= limit else "false",
+        accept_encoding=accept_encoding,
+        extra_headers={
+            # The total is EXACT — an aggregate over the same statement the
+            # body streams, never the length of what came back (ADR-185).
+            "X-Register-Rows": str(total),
+            "X-Register-Truncated": "false",
         },
     )
+
+
+async def _article12_document(
+    since: datetime | None,
+    until: datetime,
+    scope: list[Any],
+    *,
+    totals: dict[str, int],
+    generated_at: datetime,
+    batch: int,
+) -> AsyncIterator[str]:
+    """Compose the five records into one file, reading them one after another.
+
+    Args:
+        since: Inclusive lower bound.
+        until: Exclusive upper bound — closed, so the totals hold.
+        scope: The single account covered.
+        totals: The exact count per source, already in the header.
+        generated_at: When the file was produced.
+        batch: How many rows each cursor buffers at a time.
+
+    Yields:
+        The extraction, chunk by chunk.
+    """
+    async with get_db_context() as db:
+        sources = [
+            SourceStream(
+                spec=spec,
+                total=totals[spec.slug],
+                rows=stream_register(
+                    db,
+                    TechnicalQuery(register=spec.slug, since=since, until=until, user_ids=scope),
+                    batch=batch,
+                ),
+            )
+            for spec in known_sources()
+        ]
+        async for chunk in stream_article12(
+            sources,
+            filters=article12_filters(since=since, until=until, user_ids=scope),
+            generated_at=generated_at,
+        ):
+            yield chunk
 
 
 @router.get(
@@ -245,6 +307,7 @@ async def export_register(
 async def export_article12(
     since: datetime | None = Query(None, description="Inclusive lower bound"),
     until: datetime | None = Query(None, description="Exclusive upper bound"),
+    accept_encoding: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_session),
 ) -> Response:
@@ -263,13 +326,15 @@ async def export_article12(
     slip from « forbidden » to « exported ».
 
     Five sources answer five different questions and never add up, so the
-    ceiling applies PER SOURCE and the header states, per source, whether it
-    was reached (ADR-185).
+    header states an exact count PER SOURCE. None of them is capped: a file
+    complete in four records of five is not a complete file, and the way to
+    honour that is to be complete in five (ADR-185, ADR-273).
 
     Args:
         since: Inclusive lower bound on the period.
-        until: Exclusive upper bound.
-        db: Session.
+        until: Exclusive upper bound; left out, the instant of generation.
+        accept_encoding: What the client can decompress.
+        db: Session, for the five exact counts.
         user: The authenticated caller, and the only account covered.
 
     Returns:
@@ -277,30 +342,33 @@ async def export_article12(
     """
     from src.core.config import settings
 
+    generated_at = datetime.now(UTC)
+    closed_until = until or generated_at
     scope = [user.id]
-    cap = settings.article12_export_max_rows_per_source
-    extracts = []
-    for spec in known_sources():
-        rows = await read_register(
-            db, TechnicalQuery(register=spec.slug, since=since, until=until, user_ids=scope), cap
+    totals = {
+        spec.slug: await count_register(
+            db,
+            TechnicalQuery(register=spec.slug, since=since, until=closed_until, user_ids=scope),
         )
-        extracts.append(extract_of(spec, rows, cap=cap))
+        for spec in known_sources()
+    }
 
-    lines = sum(len(extract.rows) for extract in extracts)
-    logger.info("article12_self_export_served", sources=len(extracts), lines=lines)
-    stamp = datetime.now(UTC).strftime("%Y%m%d")
-    return Response(
-        content=render_article12(
-            extracts,
-            cap=cap,
-            filters=article12_filters(since=since, until=until, user_ids=scope),
+    lines = sum(totals.values())
+    logger.info("article12_self_export_served", sources=len(totals), lines=lines)
+    return attachment_stream(
+        _article12_document(
+            since,
+            closed_until,
+            scope,
+            totals=totals,
+            generated_at=generated_at,
+            batch=settings.effect_export_batch_rows,
         ),
+        filename=f"lia-article12-{generated_at.strftime('%Y%m%d')}.jsonl",
         media_type="application/x-ndjson",
-        headers={
-            "Content-Disposition": f'attachment; filename="lia-article12-{stamp}.jsonl"',
+        accept_encoding=accept_encoding,
+        extra_headers={
             "X-Register-Rows": str(lines),
-            "X-Register-Truncated": (
-                "true" if any(extract.capped for extract in extracts) else "false"
-            ),
+            "X-Register-Truncated": "false",
         },
     )

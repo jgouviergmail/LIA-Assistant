@@ -27,12 +27,23 @@ def _alias_row(alias: str, canonical: str):
     return SimpleNamespace(alias_key=alias, canonical_key=canonical, alias_display_name=alias)
 
 
-def _patched(existing=()):
-    """Patch the alias repository, exposing what was written."""
+def _patched(existing=(), *, debriefs=None):
+    """Patch the alias repository, exposing what was written.
+
+    ``debriefs`` stands in for the debrief repository the merge/split also
+    writes to: an identity that stops existing must not leave a debrief
+    describing it, so both verbs delete by key IN THE SAME transaction. A fake
+    that ignored that call would let the two drift apart silently.
+    """
     repo = SimpleNamespace(
         list_for_user=AsyncMock(return_value=[_alias_row(a, c) for a, c in existing]),
         merge=AsyncMock(),
         split=AsyncMock(return_value=True),
+    )
+    debrief_repo = (
+        debriefs
+        if debriefs is not None
+        else SimpleNamespace(delete_for_keys=AsyncMock(return_value=0))
     )
     import contextlib
 
@@ -43,20 +54,24 @@ def _patched(existing=()):
     return (
         patch("src.domains.relations.service.get_db_context", _ctx),
         patch("src.domains.relations.service.RelationAliasRepository", return_value=repo),
+        patch(
+            "src.domains.relations.debrief.repository.RelationDebriefRepository",
+            return_value=debrief_repo,
+        ),
         repo,
     )
 
 
-async def _merge(source: str, target: str, existing=()):
-    ctx, repo_patch, repo = _patched(existing)
-    with ctx, repo_patch:
+async def _merge(source: str, target: str, existing=(), *, debriefs=None):
+    ctx, repo_patch, debrief_patch, repo = _patched(existing, debriefs=debriefs)
+    with ctx, repo_patch, debrief_patch:
         result = await RelationsService(uuid4()).merge_relations(source=source, target=target)
     return result, repo
 
 
-async def _split(name: str, existing=()):
-    ctx, repo_patch, repo = _patched(existing)
-    with ctx, repo_patch:
+async def _split(name: str, existing=(), *, debriefs=None):
+    ctx, repo_patch, debrief_patch, repo = _patched(existing, debriefs=debriefs)
+    with ctx, repo_patch, debrief_patch:
         result = await RelationsService(uuid4()).split_relation(name)
     return result, repo
 
@@ -175,3 +190,43 @@ class TestUndo:
     async def test_a_blank_name_is_refused(self) -> None:
         with pytest.raises(ValueError, match="name"):
             await _split("   ")
+
+
+class TestAnIdentityThatStopsExistingLeavesNoDebrief:
+    """A debrief is keyed on the identity. Change who is who, and the stored
+    text describes somebody the CRM no longer has — for a whole day, on the
+    card and in the chat, with nothing to say it is wrong."""
+
+    async def test_a_merge_drops_both_halves(self) -> None:
+        debriefs = SimpleNamespace(delete_for_keys=AsyncMock(return_value=2))
+        await _merge("0612345678", "Alice Vernier", debriefs=debriefs)
+
+        debriefs.delete_for_keys.assert_awaited_once()
+        dropped = debriefs.delete_for_keys.await_args.args[1]
+        assert set(dropped) == {"0612345678", "alice vernier"}
+
+    async def test_a_split_drops_the_alias_and_its_canonical(self) -> None:
+        debriefs = SimpleNamespace(delete_for_keys=AsyncMock(return_value=1))
+        await _split("0612345678", (("0612345678", "alice vernier"),), debriefs=debriefs)
+
+        dropped = debriefs.delete_for_keys.await_args.args[1]
+        assert set(dropped) == {"0612345678", "alice vernier"}
+
+    async def test_a_split_that_undid_nothing_drops_nothing(self) -> None:
+        """No merge existed: there is no identity to repair."""
+        debriefs = SimpleNamespace(delete_for_keys=AsyncMock(return_value=0))
+        ctx, repo_patch, debrief_patch, repo = _patched(debriefs=debriefs)
+        repo.split = AsyncMock(return_value=False)
+        with ctx, repo_patch, debrief_patch:
+            await RelationsService(uuid4()).split_relation("Alice Vernier")
+
+        debriefs.delete_for_keys.assert_not_awaited()
+
+    async def test_a_merge_that_writes_nothing_drops_nothing(self) -> None:
+        """Two cards already forming one identity: nothing changed."""
+        debriefs = SimpleNamespace(delete_for_keys=AsyncMock(return_value=0))
+        await _merge(
+            "0612345678", "Alice Vernier", (("0612345678", "alice vernier"),), debriefs=debriefs
+        )
+
+        debriefs.delete_for_keys.assert_not_awaited()

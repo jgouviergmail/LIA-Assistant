@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.5** | 2026-07-29 | 26 dashboards, 637 panels
+> **Version 4.5** | 2026-07-29 | 28 dashboards, 719 panels
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **26 dashboards Grafana** fournissent une observabilite complete pour :
+Les **28 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -37,8 +37,8 @@ Les **26 dashboards Grafana** fournissent une observabilite complete pour :
 
 | Indicateur | Valeur |
 |------------|--------|
-| Dashboards | 26 |
-| Panels total | 637 |
+| Dashboards | 28 |
+| Panels total | 719 |
 | Recording rules | 86 |
 | Schema version | 38 (Grafana 11.3) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
@@ -120,35 +120,37 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 02 | SLO Tracking | `02-slo-tracking` | lia, slo, reliability | 17 | SLOs API, SLOs agents, SLOs providers LLM, SLOs DB et business |
 | 03 | Infrastructure & Resources | `03-infra-resources` | lia, infra, docker, raspberry-pi | 24 | Systeme hote (RPi), ressources conteneurs, PostgreSQL, Redis |
 | 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency | 17 | Trafic, latence, erreurs, rate limiting |
-| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 52 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison) |
+| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 56 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison) |
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug | 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
-| 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration | 61 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121) |
-| 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval | 27 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
+| 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration | 62 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121) |
+| 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval | 29 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
 | 09 | Conversations & Users | `09-conversations-users` | lia, conversations, users, engagement | 37 | Activite utilisateurs, cycle de vie conversations, analyse abandon, succes et qualite agents, attachments, inscriptions, purge du reset par famille de cles (ADR-260) |
-| 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp | 39 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
+| 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp | 44 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
 | 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket | 24 | TTS, streaming audio, STT, WebSocket |
 | 12 | Channels / Telegram | `12-channels` | lia, channels, telegram | 13 | Flux messages, bindings et securite, fonctionnalites canal |
 | 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat | 26 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261) |
 | 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints | 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
-| 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework | 36 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
+| 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework | 35 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
 | 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational | 33 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues) |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo | 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
 | 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge | 35 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation, recuperation de jobs, reindexation Drive ciblee et source libelle Gmail (ADR-261/262) |
 | 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills | 10 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs), skills |
-| 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser | 17 | Boucle ReAct (iterations, outils, HITL tool-level), sessions navigateur, snapshots |
+| 20 | ReAct Agent & Browser | `20-react-browser` | lia, react, browser | 23 | Boucle ReAct (iterations, outils, HITL tool-level), sessions navigateur, snapshots |
 | 21 | Health Metrics | `21-health-metrics` | lia, health-metrics | 10 | Ingestion des echantillons sante (auth, validation, doublons), variations detectees |
 | 22 | Compaction | `22-compaction` | lia, compaction | 13 | Sante compaction (executions, fallbacks truncation, writer unavailable), timeouts, volume et economies de tokens |
-| 23 | Journals & User Model | `23-journals-user-model` | lia, journals, user-model | 16 | Extraction, actions sur entrees, consolidation par niveaux, portrait utilisateur |
+| 23 | Journals & User Model | `23-journals-user-model` | lia, journals, user-model | 17 | Extraction, actions sur entrees, consolidation par niveaux, portrait utilisateur |
 | 24 | Telephony | `24-telephony` | lia, telephony, calls | 9 | Appels sortants par statut, duree, reapers de recuperation (T1), webhooks ignores |
-| 25 | Today Briefing | `25-briefing` | lia, briefing | 8 | Duree de build par etat de cache, statuts par section, invocations LLM, refresh |
-| 26 | Product Value, Activation & Retention | `26-product-value` | lia, product, value, growth, outcomes | 42 | Cockpit produit (ADR-178) : North Star E1/E2, funnel d'activation, qualite agentique, retention, couts EUR, qualite des donnees — v0 avec panels LIVE/PRE-WIRED/TEXT |
+| 25 | Today Briefing | `25-briefing` | lia, briefing | 10 | Duree de build par etat de cache, statuts par section, invocations LLM, refresh |
+| 26 | Product Value, Activation & Retention | `26-product-value` | lia, product, value, growth, outcomes | 45 | Cockpit produit (ADR-178) : North Star E1/E2, funnel d'activation, qualite agentique, retention, couts EUR, qualite des donnees — v0 avec panels LIVE/PRE-WIRED/TEXT |
+| 27 | Meetings | `27-meetings` | lia, meetings, minutes | 9 | Reunions par statut, duree de traitement par etape, moteurs de transcription (distant / local) et issues, comptes rendus rendus et reformates (ADR-258, ADR-259) |
+| 28 | Effect Ledger & Registers | `28-effect-ledger` | lia, ledger, transparency, ai-act | 27 | Effets reclames / clos / abandonnes, consultations par domaine, lacunes du registre, retard de scellement de la chaine, croissance des registres (ADR-263, ADR-270) |
 
 ---
 
 ## Lecture par tiers (audience)
 
 Le catalogue ci-dessus est ordonne par numero ; celui-ci l'est par **qui ouvre
-quoi**. Les deux vues portent sur les memes 26 dashboards — elles vivent dans ce
+quoi**. Les deux vues portent sur les memes 28 dashboards — elles vivent dans ce
 document, et non dans un second fichier, parce que la version enveloppe qui les
 separait a derive quatre fois du catalogue qu'elle resumait (elle annoncait
 encore 25 dashboards apres l'ajout du 26).
@@ -157,8 +159,8 @@ encore 25 dashboards apres l'ajout du 26).
 |------|----------|------------|----------|
 | 1 — Vue d'ensemble | Tous | 01, 02 | Sante globale, SLOs, budget d'erreurs |
 | 2 — Plateforme | Ops / Dev | 03, 04, 05, 06 | Infra, HTTP, couts LLM, logs/traces |
-| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25 | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing |
-| 4 — Avance | SRE | 14, 15, 16 | Registry/checkpoints, LangGraph deep (latence par etage TTFT), sante des recording rules et du registre d'outils |
+| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25, 27 | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing, reunions |
+| 4 — Avance | SRE | 14, 15, 16, 28 | Registry/checkpoints, LangGraph deep (latence par etage TTFT), sante des recording rules et du registre d'outils, registres de transparence et scellement |
 | 5 — Analytics / Produit | Product | 17, 26 | Engagement et geolocalisation ; cockpit produit ADR-178 (North Star, activation, retention) |
 
 Points d'entree recommandes : **01 - Application Overview** en cas d'incident
@@ -187,7 +189,7 @@ Trafic HTTP detaille : requetes/s par endpoint, distribution latence (p50/p95/p9
 
 > **Labels `endpoint` bornes (v1.21.1)** : les labels des metriques HTTP (`http_requests_total`, `http_request_duration_seconds`) utilisent desormais le **template de route** matche (`/api/v1/journals/{entry_id}`) et non plus le chemin brut avec UUID ; les requetes non routees (404, scans de bots) sont regroupees sous `unmatched`, et la gauge `http_requests_in_progress` (pre-routing) applique un repli qui remplace les segments UUID/hex/numeriques par `{id}`. Cardinalite bornee par construction. **Toute requete Grafana qui filtrait sur des chemins exacts contenant des identifiants doit etre adaptee aux templates.**
 
-### 05 - LLM Tokens & Cost (48 panels)
+### 05 - LLM Tokens & Cost (56 panels)
 
 Dashboard le plus riche en panels avec le 07. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Cache LLM (hits/misses, erreurs, migrations de format) et economies estimees (`llm_cache_cost_saved_total`), fallbacks du cache pricing. Metriques de cout cumulees sur la duree de vie. La section compaction historique a ete deplacee vers le dashboard 22.
 
@@ -199,19 +201,19 @@ Observabilite unifiee. Volume de logs par niveau, recherche par `run_id` ou `use
 
 **Datasources** : Prometheus + Loki + Tempo.
 
-### 07 - Agent Orchestration Pipeline (61 panels)
+### 07 - Agent Orchestration Pipeline (62 panels)
 
 Coeur du monitoring agent. Sections pour chaque etape du pipeline : router (decisions, confiance, latence), planner (plans crees, retries, validation, succes), orchestrateur (vagues d'execution, parallellisme), execution des nodes agent (duree, statut, erreurs), execution des outils (taux succes, latence par outil), contexte et etat (taille state, checkpoints), SSE streaming (TTFT, tokens/s, erreurs). Deux sections repliees completent le perimetre : background runs ADR-117 (producteurs detaches, statuts terminaux, resolution de contexte) et couche semantique ADR-120/121 (blocages du garde de parametres, expansion par evidence, fuites de termes semantiques detectees/autocorrigees, clarifications du validateur).
 
-### 08 - HITL Human-in-the-Loop (27 panels)
+### 08 - HITL Human-in-the-Loop (29 panels)
 
 Monitoring des 6 types HITL : Plan Approval, Clarification, Draft Critique, Destructive Confirm, FOR_EACH Confirm, Modifier Review. Qualite de classification (taux d'approbation, confiance), comportement utilisateur (temps de reponse, timeouts), analyse des editions de parametres et des rejets, metriques de reprise apres interruption HITL.
 
-### 09 - Conversations & Users (35 panels)
+### 09 - Conversations & Users (37 panels)
 
 Activite utilisateurs (sessions actives, repartition horaire), cycle de vie des conversations (creation, duree, longueur en messages), analyse de l'abandon (ou et quand les utilisateurs quittent), succes des agents par domaine et indicateurs de qualite. Section repliee : attachments en profondeur (duree upload par content_type, suppressions cleanup) et inscriptions par provider/statut.
 
-### 10 - OAuth, Connectors & MCP (39 panels)
+### 10 - OAuth, Connectors & MCP (44 panels)
 
 Flux OAuth complet (initiations, callbacks, succes/echec, types d'erreurs), performance OAuth (latence d'echange de tokens, rafraichissement), sante des connecteurs Google (contacts, calendar, drive, gmail, tasks), metriques des serveurs MCP (admin et per-user : connexions, appels d'outils, erreurs). Sections repliees : OAuth en profondeur (erreurs de callback, durees initiate/activation, cycle de vie des verrous de refresh, verification par cle API) et formes de requetes contacts/email (types de requetes, resultats par requete).
 
@@ -223,7 +225,7 @@ TTS : latence par provider (Edge, OpenAI, Gemini), taille audio, erreurs. Stream
 
 Flux de messages Telegram (entrants/sortants, types), bindings utilisateur-canal (OTP, etat), securite (rate limiting, tentatives invalides), fonctionnalites canal (voix, HITL clavier, formatage).
 
-### 13 - Proactive & Heartbeat (20 panels)
+### 13 - Proactive & Heartbeat (26 panels)
 
 Taches proactives (selections, generations, envois), notifications heartbeat (volume, cout LLM de la decision + redaction), eligibilite (fenetres horaires, quotas, cooldowns, dedup), feedback utilisateur.
 
@@ -231,11 +233,11 @@ Taches proactives (selections, generations, envois), notifications heartbeat (vo
 
 Data registry (items par type, taille, operations CRUD), moteur de requetes (latence, filtres), checkpoints LangGraph (duree sauvegarde et chargement, taille payload, frequence), recherche hybride (BM25 + semantic OpenAI embeddings, scores, latence). Section repliee : sante du repository de conversations (erreurs par version, cache de resolution d'id).
 
-### 15 - LangGraph Framework Deep Dive (36 panels)
+### 15 - LangGraph Framework Deep Dive (35 panels)
 
 Metriques bas niveau LangGraph : execution de graphe (duree totale, nombre de noeuds traverses), gestion d'etat (taille, serialisation), latence par etage du tour de chat (`langgraph_stage_duration_seconds`, l'instrument du chantier TTFT — voir LATENCY_PLAN), erreurs de graphe, appels d'outils par subgraph, garde double-appel du reasoning streaming. La section Langfuse est repliee et marquee : elle reste vide tant que `LANGFUSE_ENABLED=false`.
 
-### 16 - Recording Rules & Alerts Health (27 panels)
+### 16 - Recording Rules & Alerts Health (33 panels)
 
 Dashboard meta/operationnel. Sante des 86 recording rules Prometheus (evaluation, erreurs, duree), validation de la configuration et securite de la stack d'observabilite, integrite du registre d'outils (`tool_module_import_failures_total` : toute valeur > 0 signifie qu'une famille entiere d'outils manque silencieusement du registre). (L'alerting Prometheus est reactive depuis ADR-119 — le noyau de 14 alertes actives se consulte dans Prometheus `/alerts` et Alertmanager, voir README_ALERTING.md.)
 
@@ -247,7 +249,7 @@ Vue geographique via Geomap (DB-IP Lite City, compteur `http_requests_by_country
 
 ---
 
-### 18 - RAG Spaces / Knowledge Documents (30 panels)
+### 18 - RAG Spaces / Knowledge Documents (35 panels)
 
 Vue d'ensemble des espaces de connaissances RAG : espaces actifs, documents traites, taux de succes, requetes de retrieval, tokens embedding. Pipeline de traitement documents (rate, duree percentiles, distribution chunks, tailles uploads). Performance retrieval (rate, latence percentiles, chunks retournes, raisons de skip). Couts embedding (tokens par operation, distribution statuts documents). Section reindexation (historique runs, succes/echecs). Section repliee : recuperation de jobs par le reaper (`rag_jobs_recovered_total`).
 
@@ -257,7 +259,7 @@ Vue d'ensemble des espaces de connaissances RAG : espaces actifs, documents trai
 
 Executions de sous-agents ReAct via `ReactSubAgentRunner` (ADR-083) : spawns par agent et mode, duree (p50/p95/p99), tokens entrants/sortants, sous-agents actifs, erreurs par type. Vision de la delegation de taches aux agents parametres.
 
-### 20 - ReAct Agent & Browser (17 panels)
+### 20 - ReAct Agent & Browser (23 panels)
 
 Mode d'execution ReAct : iterations par tour, appels d'outils, interruptions HITL tool-level, erreurs. Sessions navigateur headless (actions, navigation, memoire, tokens des snapshots).
 
@@ -269,7 +271,7 @@ Ingestion des echantillons sante (Apple Health) : volume par type, echecs d'auth
 
 Compaction de contexte v2. Ligne de sante en tete : compactions 24h, fallbacks truncation (rouge si > 0), erreurs, writer unavailable (rouge si > 0). Strategie mix, duree end-to-end et par chunk, timeouts par chunk et globaux, raisons de skip, tokens economises vs tokens consommes par la compaction.
 
-### 23 - Journals & User Model (16 panels)
+### 23 - Journals & User Model (17 panels)
 
 Feature journaux : extraction (volume, duree, erreurs), actions sur les entrees par action/theme/source, signaux d'evidence, consolidation (distribution par niveau, promotions/demotions, dedup), age des entrees jamais injectees, portrait utilisateur (age, feedback, duree de compilation, injections dans les prompts).
 
@@ -277,17 +279,29 @@ Feature journaux : extraction (volume, duree, erreurs), actions sur les entrees 
 
 Appels sortants agentiques : appels par statut terminal, duree des appels (plafonnee par TELEPHONY_MAX_CALL_DURATION_SECONDS), reapers de recuperation T1 (notifications et syntheses de retour re-dispatchees apres crash), webhooks post-appel ignores par le filtre HMAC/foreign.
 
-### 25 - Today Briefing (8 panels)
+### 25 - Today Briefing (10 panels)
 
 Page d'accueil Today Briefing (BRIEFING_DOMAIN) : duree de build par etat de cache (cold = LLM-bound, warm = quasi instantane), statuts de build par section (agenda, mails, meteo...), volume par section, invocations LLM (greeting / synthese) par issue, refreshes utilisateur.
 
-### 26 - Product Value, Activation & Retention (42 panels)
+### 26 - Product Value, Activation & Retention (45 panels)
 
 Cockpit produit (ADR-178, spec `docs/superpowers/specs/2026-07-29-product-dashboard-program.md`). Repond a « combien d'utilisateurs obtiennent un resultat utile, a quel cout, reviennent-ils ? » sans dupliquer les dashboards techniques (liens de drill-down). 11 rows : scorecard executive (12 stats), North Star E1/E2, funnel d'activation, qualite agentique, HITL et brouillons, engagement/retention, connecteurs, routines/proactivite, recherche/mobile/performance percue, couts EUR, qualite des donnees. Trois etats de panel : **LIVE Prometheus** (series existantes : succes technique E3, feedback negatif, HITL, DAU/WAU avec caveat conversationnel, connecteurs, proactivite, TTFT, couts EUR DB-backed), **PRE-WIRED** (requetes posees sur les series `product_*` du pipeline outcomes — compteur + gauges DB-backed alimentees par le rollup horaire, `PRODUCT_ANALYTICS_ENABLED`), **LIVE PostgreSQL** (panels 3/5/18/27/31/32 : mediane de profondeur, first-pass proxy, signup->premiere valeur (ACT-03), cohortes hebdomadaires et sante des routines en SQL exact sur les vues en lecture seule). La North Star n'est jamais calculee depuis les compteurs Prometheus (etats E1/E2 mutables) : les gauges transportent des agregats SQL exacts.
 
 La telemetrie client (Phase 4) alimente les familles `product_client_events_total` (funnel anonyme borne : landing, inscription, demo, PWA), `product_search_total` (recherche des reglages) et `product_web_vital_seconds`/`_ratio` (LCP/CLS) via `POST /api/v1/product/events` — endpoint a auth optionnelle, rate-limite par IP, schema borne par enums, emetteur frontend inerte sans `NEXT_PUBLIC_PRODUCT_TELEMETRY`.
 
 **Datasources** : Prometheus + `postgres-product-readonly` (role `grafana_product_reader`, SELECT sur les 7 vues produit uniquement, `statement_timeout` 10s — cree par `task db:create-grafana-reader`). Alertes produit : `alerts-product.yml` prepare mais NON monte (baseline 4 semaines requise, ADR-119).
+
+### 27 - Meetings (9 panels)
+
+Enregistrement de reunion et compte rendu structure (ADR-258, ADR-259) : reunions par statut, duree de chaque etape du traitement (normalisation, transcription, synthese, indexation), moteur de transcription reellement utilise et ses issues, comptes rendus rendus, regeneres et reformates.
+
+**Datasource** : Prometheus.
+
+### 28 - Effect Ledger & Registers (27 panels)
+
+Les trois registres de transparence (ADR-263, ADR-270) : effets reclames, clos et abandonnes par politique de mutation, consultations par domaine et par surface, lignes filees hors tour, lacunes du registre lui-meme — un panneau qui doit rester vide —, retard de scellement de la chaine de hachage et croissance des registres (`lia_ledger_rows`, `lia_ledger_bytes`).
+
+**Datasource** : Prometheus.
 
 ---
 
@@ -425,6 +439,8 @@ infrastructure/observability/grafana/dashboards/
   24-telephony.json
   25-briefing.json
   26-product-value.json
+  27-meetings.json
+  28-effect-ledger.json
 ```
 
 ### Ajouter un panel
@@ -521,4 +537,4 @@ docker compose restart grafana
 **Version** : 4.5
 **Date** : 2026-07-29
 **Auteur** : Equipe LIA
-**Statut** : Production (26 dashboards, 637 panels)
+**Statut** : Production (28 dashboards, 719 panels)

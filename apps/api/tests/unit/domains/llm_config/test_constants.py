@@ -43,8 +43,9 @@ class TestLLMDefaults:
         + open_loop_extraction (ADR-139) + document_generation (ADR-226)
         + diagnostician (self-diagnostics spec 2026-08-27)
         + meeting_synthesis (ADR-258)
+        + relation_debrief (the daily relationship debrief)
         - router and context_resolver (ADR-244: no get_llm() caller anywhere)."""
-        assert len(LLM_DEFAULTS) == 58
+        assert len(LLM_DEFAULTS) == 59
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

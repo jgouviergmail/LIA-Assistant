@@ -18,7 +18,7 @@ output is only ever SHOWN to admins — no automated action derives from it.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -35,10 +35,15 @@ from src.core.i18n_types import get_language_name
 from src.domains.diagnostics.context_collector import collect_diagnosis_context
 from src.domains.diagnostics.models import Incident
 from src.domains.diagnostics.repository import DiagnosticsRepository
+from src.domains.usage_limits.instance_spend import (
+    is_instance_spend_blocked,
+    record_instance_llm_spend,
+)
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
+from src.infrastructure.llm.usage_metadata import UsageTokens, tokens_from_callback
 from src.infrastructure.telemetry.loki import LokiClient
 from src.infrastructure.telemetry.prometheus import PrometheusClient
 
@@ -133,9 +138,36 @@ def _budget_key() -> str:
     return f"{REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX}{datetime.now(UTC):%Y%m%d}"
 
 
+async def _tick_may_not_spend(cap: float, incidents: Sequence[Incident]) -> bool:
+    """Is there any reason this tick must not call the model at all?
+
+    Two ceilings, two questions. The USD cap bounds what DIAGNOSIS may cost;
+    the instance ledger bounds what the whole deployment may spend today — and
+    it was never asked, because self-diagnosis runs on a scheduler tick with no
+    account behind it, so nothing else could ask on its behalf.
+
+    The instance check runs once per tick rather than per call: it returns
+    immediately, with no query at all, when no ceiling is configured, and one
+    tick cannot meaningfully overshoot a daily bound.
+
+    Args:
+        cap: The diagnosis subsystem's own daily USD cap; ``0`` disables it.
+        incidents: What this tick would diagnose.
+
+    Returns:
+        True when the tick must stop before spending anything.
+    """
+    if cap <= 0 or not incidents:
+        return True
+    if await is_instance_spend_blocked():
+        logger.info("diagnostics_diagnosis_instance_budget_exhausted")
+        return True
+    return False
+
+
 async def _invoke_diagnostician(
     llm: BaseChatModel, system: str, human: str
-) -> tuple[DiagnosisOutput, int, int]:
+) -> tuple[DiagnosisOutput, UsageTokens]:
     """One structured diagnostician call with real usage capture.
 
     Args:
@@ -144,7 +176,10 @@ async def _invoke_diagnostician(
         human: Evidence pack (quoted data).
 
     Returns:
-        (validated output, input tokens, output tokens).
+        (validated output, normalised usage). The counts come from the one
+        implementation that reads both provider spellings and subtracts the
+        cache — the hand-rolled sum here did neither, so a cached prompt was
+        billed at full price against the daily cap.
     """
     usage_handler = UsageMetadataCallbackHandler()
     output = await get_structured_output_with_retry(
@@ -155,12 +190,7 @@ async def _invoke_diagnostician(
         node_name="diagnostics_diagnosis",
         config={"callbacks": [usage_handler]},
     )
-    tokens_in = 0
-    tokens_out = 0
-    for usage in usage_handler.usage_metadata.values():
-        tokens_in += int(usage.get("input_tokens", 0))
-        tokens_out += int(usage.get("output_tokens", 0))
-    return output, tokens_in, tokens_out
+    return output, tokens_from_callback(usage_handler)
 
 
 #: Units that need no suffix: a count is read as a count.
@@ -447,7 +477,7 @@ async def diagnose_incidents(
         Number of diagnoses stored this call (skips keep NULL for retry).
     """
     cap = settings.diagnostics_diagnosis_daily_cost_cap_usd
-    if cap <= 0 or not incidents:
+    if await _tick_may_not_spend(cap, incidents):
         return 0
 
     budget_key = _budget_key()
@@ -499,7 +529,7 @@ async def diagnose_incidents(
                 # example, a set literal) would make `.format` raise and take
                 # the whole diagnosis pump down with it.
                 rendered = system_prompt.replace("{language}", get_language_name(language))
-                output, used_in, used_out = await _invoke_diagnostician(llm, rendered, human)
+                output, usage = await _invoke_diagnostician(llm, rendered, human)
             except Exception:
                 # NULL diagnosis stays NULL: the next tick retries this incident.
                 logger.exception(
@@ -511,9 +541,23 @@ async def diagnose_incidents(
                 break
             # Billed as it is spent: a language that ran has been paid for,
             # whether or not the languages after it get to run.
-            call_cost, _call_eur = get_cached_cost_usd_eur(model_name, used_in, used_out)
+            call_cost, _call_eur = get_cached_cost_usd_eur(
+                model_name, usage.prompt, usage.completion, usage.cached
+            )
             cost_usd += call_cost
             await _record_spend(budget_key, call_cost)
+            # The private counter above answers « how much has DIAGNOSIS spent
+            # today »; the instance ledger answers « how much has this
+            # deployment spent today ». Both are needed: the first bounds this
+            # subsystem, the second is the only one an operator can arm from
+            # the admin settings, and it saw none of this until now.
+            await record_instance_llm_spend(
+                surface="diagnostician",
+                model_name=model_name,
+                tokens_in=usage.prompt,
+                tokens_out=usage.completion,
+                tokens_cache=usage.cached,
+            )
             variants[language] = {
                 "diagnosis": output.diagnosis,
                 "probable_cause": output.probable_cause,

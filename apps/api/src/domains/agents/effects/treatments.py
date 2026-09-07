@@ -31,6 +31,7 @@ from datetime import UTC, datetime
 import structlog
 
 from src.domains.agents.effects.integrity import IntegrityKind, record_integrity_event
+from src.domains.shared.consultation_sink import install_consultation_sink
 
 logger = structlog.get_logger(__name__)
 
@@ -160,6 +161,67 @@ def record_treatment(
         logger.debug("treatment_not_collected", tool_name=tool_name, exc_info=True)
 
 
+def record_out_of_turn_consultation(
+    *,
+    user_id: object,
+    capability: str,
+    run_id: str | None = None,
+    source: str,
+    succeeded: bool,
+    duration_ms: int,
+) -> None:
+    """Record one consultation made outside the conversation graph.
+
+    :func:`record_treatment` reads the ambient runtime context to learn whose
+    turn it is. Surfaces that never enter the graph have none — the briefing
+    reads nine sources through direct fetchers, not tools — so their
+    consultations were absent BY CONSTRUCTION rather than by a missing flag.
+
+    Best-effort like its sibling, and silent outside a collector: observing
+    must never break what it observes.
+
+    Args:
+        user_id: Whose data was read.
+        run_id: The run this consultation belongs to. Optional: the collector
+            the turn published already carries one, so a caller deep in a
+            fetch does not have to be handed an identifier it has no other use
+            for.
+        capability: What was consulted, in a BOUNDED vocabulary the domain
+            table can read (``briefing:mails``, ...). Never free text: the
+            register's labels must stay a closed set.
+        source: Who asked — the briefing answers a request, so ``user``.
+        succeeded: Whether the source answered.
+        duration_ms: Wall-clock duration of the read.
+    """
+    collector = _COLLECTOR.get()
+    if collector is None:
+        return
+    correlation = run_id or collector.run_id
+    if not correlation:
+        # A collector with no run id and a caller that knows none: the row
+        # would be filed under nothing and read as belonging to no act.
+        return
+    try:
+        from src.domains.agents.effects.decisions import OUT_OF_TURN_EXECUTION_MODE
+
+        observe(
+            Treatment(
+                user_id=str(user_id),
+                thread_id=correlation,
+                run_id=correlation,
+                source=source,
+                execution_mode=OUT_OF_TURN_EXECUTION_MODE,
+                tool_name=capability,
+                mutation_policy=None,
+                outcome="ok" if succeeded else "failed",
+                duration_ms=duration_ms,
+                occurred_at=datetime.now(UTC),
+            )
+        )
+    except Exception:  # noqa: BLE001 - observing must never break the observed
+        logger.debug("out_of_turn_treatment_not_collected", capability=capability, exc_info=True)
+
+
 def _count_lost_register() -> None:
     """Signal a turn whose consultations nobody is collecting.
 
@@ -218,6 +280,7 @@ def _build(
     """
     from src.domains.agents.context.runtime_context import runtime_context_if_running
     from src.domains.agents.effects.scope import current_scope
+    from src.domains.agents.effects.source import resolve_source
 
     context = runtime_context_if_running()
     if context is None:
@@ -228,7 +291,7 @@ def _build(
     run_id = (collector.run_id if collector else None) or (
         scope.run_id if scope else context.thread_id
     )
-    source = scope.source if scope else ("scheduled" if context.is_automated_source else "user")
+    source = resolve_source(context, scope=scope)
     return Treatment(
         user_id=str(context.user_id),
         thread_id=str(context.thread_id),
@@ -241,3 +304,10 @@ def _build(
         duration_ms=duration_ms,
         occurred_at=datetime.now(UTC),
     )
+
+
+# The seam a domain records through without importing this package. ``agents``
+# already imports ``relations`` and ``briefing`` reaches back the other way, so
+# the register offers itself rather than being fetched (CLAUDE.md: break a
+# cycle with injection, never with a local import the ratchet still counts).
+install_consultation_sink(record_out_of_turn_consultation)

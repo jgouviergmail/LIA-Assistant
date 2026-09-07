@@ -6,7 +6,7 @@
 
 **Versione**: 4.9
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.43.0
+**Applicazione**: LIA v1.43.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,6 +52,8 @@
 36. [Un tratto non è una reazione: il registro dichiarato dalla risposta](#36-un-tratto-non-è-una-reazione-il-registro-dichiarato-dalla-risposta)
 37. [Tre meccanismi per una convergenza: smorzare una raffica che un tetto non vede](#37-tre-meccanismi-per-una-convergenza-smorzare-una-raffica-che-un-tetto-non-vede)
 38. [Verbali di riunione: la riga è il job, il modello è il contratto](#38-verbali-di-riunione-la-riga-è-il-job-il-modello-è-il-contratto)
+39. [Tre registri, e quello che nessuno aveva chiesto](#39-tre-registri-e-quello-che-nessuno-aveva-chiesto)
+40. [Un debriefing per relazione: ciò che dieci sezioni non dicono](#40-un-debriefing-per-relazione-ciò-che-dieci-sezioni-non-dicono)
 ---
 
 ## 1. Contesto e scelte fondanti
@@ -65,8 +67,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 537 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 267 ADRs, ~24.454 test raccolti da pytest in 1.488 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 541 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 272 ADRs, ~25.394 test raccolti da pytest in 1.534 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -84,10 +86,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | 24.454 raccolti da pytest su 1.488 file di test + 7.404 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | 25.394 raccolti da pytest su 1.534 file di test + 7.626 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 267 |
+| ADR (Architecture Decision Record) | 272 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -957,15 +959,15 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 537 metriche custom (RED pattern) |
-| Grafana | 26 dashboard production-ready |
+| Prometheus | 541 metriche custom (RED pattern) |
+| Grafana | 28 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
 | Langfuse | Tracing specifico LLM (versioni prompt, utilizzo token) |
 | Alertmanager | Nucleo di 14 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) + webhook verso LIA: ogni avviso diventa un incidente nel prodotto (ADR-247) |
 | structlog | Logging strutturato con filtraggio PII |
 
-**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 537 definite; le 57 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
+**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 541 definite; le 57 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
 
 ### 20.2. Debug Panel integrato
 
@@ -1259,7 +1261,7 @@ L'applicazione completa alla meteo (`gettext.gettext(text, language)` propagato 
 
 ### 23.11. Architettura di osservabilità
 
-L'osservabilità poggia su tre pilastri: **emissione difensiva** sul percorso critico, **dashboard Grafana** pre-cablate (26 dashboard / 637 pannelli che coprono l'app, l'infra e ogni sotto-sistema di business) e **gauge DB-backed** mantenute da un updater periodico.
+L'osservabilità poggia su tre pilastri: **emissione difensiva** sul percorso critico, **dashboard Grafana** pre-cablate (28 dashboard / 719 pannelli che coprono l'app, l'infra e ogni sotto-sistema di business) e **gauge DB-backed** mantenute da un updater periodico.
 
 Un 26° dashboard trasforma questa telemetria in un cockpit prodotto (ADR-178): i risultati sono validati E1 (conferma esplicita dell'utente) o E2 (un'azione rimasta senza correzioni per un'intera finestra comportamentale), il conteggio esatto e deduplicato vive in PostgreSQL — stati mutabili non si derivano mai da contatori Prometheus — e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate con statement timeout fissato.
 
@@ -1369,7 +1371,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-267 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+272 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1475,7 +1477,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 267 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~24.454 test in 1.488 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 272 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~25.394 test in 1.534 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1592,4 +1594,29 @@ Il volto del compagno sceglieva la propria espressione di fine turno dall'emozio
 **Ogni unità pagata è contabilizzata, e mostrata.** Una riunione spende audio presso il motore di trascrizione e token presso il modello di sintesi, passaggi di condensazione e ricostruzioni compresi; entrambi raggiungono i registri della piattaforma come ogni scambio — l'audio tramite le statistiche del riconoscimento remoto, i token sotto un `run_id` che il messaggio archiviato porta, così la cronologia si unisce al registro dei token esattamente come per ogni notifica proattiva. La riga conserva la spesa propria del verbale perché la pagina dichiari il totale esatto con la sua scomposizione, la scheda dichiara le due unità e la loro somma, e un modello senza tariffa amministrata restituisce `null`: un prezzo sconosciuto non è un prezzo gratuito. La stessa onestà attraversa il verbale stesso — una lacuna è dichiarata, mai colmata; un interlocutore senza nome resta S2; una proposta rimasta aperta non è una decisione.
 
 **Il formato del verbale è diventato una libreria, e la scelta ha un solo luogo.** Trenta modelli integrati vivono nel codice, le loro parole in un modulo di dati i18n, e un'asserzione all'avvio rifiuta di partire se manca un nome in una delle sei lingue: ciò che un validatore può rifiutare, il catalogo non può consegnarlo. Un modello è designato da un riferimento — `builtin:<chiave>` o `user:<uuid>` — che riunioni, preferenze e richieste si scambiano al posto di una riga, così un modello integrato non ha bisogno di esistere in banca dati e un modello eliminato lascia un riferimento i cui lettori sanno ripiegare sull'istantanea conservata. La scelta segue **una sola precedenza**: il riferimento portato dalla riunione, poi il predefinito della preferenza, poi il modello linguistico che legge un estratto della trascrizione e sceglie sopra una soglia di confidenza, poi il modello integrato predefinito; ogni esito è contato e scritto sulla riga con la ragione enunciata, così la pagina mostra un fatto e non una ricostruzione. Una quinta specie di sezione restituisce la trascrizione stessa: non entra in una sola risposta — lo slot di sintesi emette al massimo ottomila token — quindi viene riscritta per parti, ciascuna limitata dalla finestra di uscita effettiva, un indice mancante divide la parte una volta e una risposta sospettosamente corta viene ritentata una volta. Riscrivere un verbale già redatto prende in prestito la rigenerazione durevole quando sostituisce, e crea una riga derivata che punta alla sua origine quando produce un nuovo verbale — mai una copia: la trascrizione è la stessa, il verbale no. La stessa cura per l'ordine governa i documenti degli spazi di conoscenza: poiché `rag_chunks.space_id` è denormalizzato e letto dalla ricerca, uno spostamento scrive la riga e i suoi frammenti, conferma, **poi** sposta il file; una rinomina fallita riporta indietro entrambi e lo segnala per quel solo documento, e un lotto non si ferma mai per un elemento — ogni identificatore torna fatto o ignorato con il suo codice.
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 267 ADRs e del changelog (da v1.0 a v1.43.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+
+## 39. Tre registri, e quello che nessuno aveva chiesto
+
+**Un assistente che agisce deve poter dire che cosa ha fatto, che cosa ha letto e in quale turno.** Tre registri rispondono a questo e non si confondono mai: il primo porta una riga per **azione**, rivendicata prima che avvenga e chiusa solo su un esito esplicito; il secondo una riga per **consultazione**, nominata come capacità e mai come contenuto cercato; il terzo una riga per **turno**, la spina dorsale a cui gli altri due si agganciano. I loro totali non si sommano, ed è voluto: un turno può consultare cinque fonti e non cambiare nulla.
+
+**La garanzia era strutturale, ma la porta era unica.** La registrazione è installata sulla capacità nel momento in cui viene dichiarata — un nuovo strumento non può quindi dimenticarla — salvo che una capacità raggiunta tramite il suo *client* anziché tramite la porta degli strumenti resta invisibile. Misurato in produzione su quattordici giorni: le superfici conversazionali risultavano registrate 24 volte su 24, e il lavoro fuori turno **0 volte su 228**. Nulla era guasto: i registri seguono il grafo, e quelle superfici chiamano il modello direttamente. L'elenco di ciò che l'assistente intraprende di sua iniziativa si leggeva dunque vuoto qualunque cosa facesse — la versione più netta del buco, dato che una notifica proattiva è l'unico atto di iniziativa propria che una persona sperimenta davvero.
+
+**La risposta non è un quarto rilevatore, è una dichiarazione.** Ogni superficie che legge senza passare da uno strumento — il briefing, il debriefing di relazione, la passata periodica, gli interessi, gli spazi di conoscenza — dichiara il proprio vocabolario in un'unica tabella, e l'asserzione di avvio verifica ora le trentuno capacità là dove guardava solo gli strumenti. I ventidue moduli che importano un client di connettore sono elencati uno per uno: registratore, non-lettore con la ragione scritta, oppure debito — una tabella di debito vuota, che può solo restringersi. Il registro si **offre** finalmente anziché farsi cercare: il dominio degli agenti importa già quello delle relazioni, quindi un import di ritorno chiuderebbe un ciclo che un import locale si limiterebbe a nascondere.
+
+**Dove va un euro è dichiarato, mai dedotto.** La contabilità è ambientale — un nodo spende attraverso un contesto pubblicato da un antenato — sicché rispondere «è contato?» leggendo i file ha prodotto nove conclusioni false in una sola sessione, in entrambi i sensi. Una tabella nomina dunque i quarantasei siti di chiamata e il registro che ciascuno raggiunge, e una guardia che legge le chiamate tramite AST ne ha corretti sei. Contare è però solo metà di un tetto: l'altra metà è **chiedere prima**, e cinque di quei siti non erano limitati da nulla. Tre forme li avevano prodotti — un registro che nominava un involucro anziché la porta, una guardia che usciva prima di chiedere, e uno stesso rifiuto reso in due modi. Un rifiuto segue ora il proprio trasporto e mai il proprio verdetto: una richiesta solleva, un compito in background rinuncia e si registra come **saltato**, mai come *fallito*.
+
+**Due punti di ingresso che servono uno stesso schermo fanno un solo atto di lettura.** Il cruscotto recupera schede e sintesi in parallelo, e ciascuno costruiva il lotto delle nove sezioni per conto proprio: su sette giorni, 151 costruzioni di cui 44 duplicate — il 39 % dei caricamenti, e 44 su 44 concorrenti. Ogni connettore veniva aperto due volte e due lotti di consultazioni depositati per un solo atto di lettura. La causa era una domanda, non una riga di codice: la sintesi chiedeva «questo lotto contiene qualcosa di interessante?» invece di «questo lotto è stato costruito?», e la prima non distingue una cache fredda da una giornata tranquilla. Chi chiede per primo costruisce e gli altri ricevono lo stesso oggetto — nel processo e tra i quattro worker di un'istanza di produzione, tramite una rivendicazione rilasciata solo dal suo proprietario.
+
+**Un'estrazione è completa, oppure non è un'estrazione.** I cinque record scaricabili portavano un tetto di righe misurato e non arbitrario: sul Raspberry Pi di destinazione, cinque fonti a cinquemila righe toccavano un picco di 33,9 MB. Il vincolo era reale — l'intero documento veniva assemblato in memoria — ma applicato alla variabile sbagliata. **Scarsa era la memoria; limitata era la verità**: 49 195 righe reali contro mille per fonte, ossia il 97,9 % del record d'inferenza assente, sotto un'intestazione che diceva il vero annunciando «troncato». Un cursore lato server limita ora il buffer; il conteggio è esatto — un aggregato sulla stessa statement che il corpo percorre — e pubblicato prima della prima riga, sicché un'estrazione senza limite superiore ne riceve uno: l'istante della sua generazione, nominato nell'intestazione anziché fissato in silenzio.
+
+## 40. Un debriefing per relazione: ciò che dieci sezioni non dicono
+
+**Una scheda impila dieci sezioni, e nessuno legge dieci sezioni.** Ciò che un lettore cerca per primo — a che punto sono con questa persona, e che cosa affrontare — è una sintesi che nessun aggregato produce. Viene quindi scritta dal modello in cima alla scheda: ciò che resta aperto, ciò che fare dopo, ciò che vale la pena ricordare. La sua fabbricazione è **pigra**: nasce all'apertura della scheda, al massimo una volta per giorno locale del lettore, mai per opera di uno scheduler — il numero di relazioni non è limitato — e mai durante un turno di chat. Solo tre ricostruzioni sono legittime: la lingua, l'ampiezza richiesta e una richiesta esplicita.
+
+**Due assemblaggi avrebbero creato due autorità su chi è quella persona.** L'assemblaggio delle prove esisteva già, dentro lo strumento che risponde in chat; è stato dunque estratto in un modulo proprio, di cui lo strumento è diventato il primo consumatore. Un refactor su un percorso in produzione non si verifica leggendo: un file dorato è stato catturato **sul codice precedente**, diciotto casi di ampiezza, payload e messaggio confrontati byte per byte. La metà del fornitore non viene più letta per intero per essere poi scartata — fino a undici chiamate esterne venivano fatturate contro una selezione che il lettore aveva già fatto — e il restringimento ha richiesto un terzo stato: «non ho guardato, di proposito» non è né «non ho trovato nulla» né «non ho potuto guardare».
+
+**Nulla è inventato, e un fallimento non distrugge nulla.** Nessuna prova conclude *vuoto* senza chiamare il modello, e un aggiornamento fallito **conserva il testo precedente** sotto una riga che lo segnala: sostituire una sintesi utilizzabile con un pannello vuoto trasforma «non ho potuto aggiornare» in «non c'è nulla». La rivendicazione è una sola istruzione SQL, e ogni chiusura scrive soltanto le proprie colonne — pronta, vuota, fallita — perché una chiusura unica sovrascriveva il corpo al primo fallimento. Ciò che la stesura è costata è memorizzato con essa e mostrato sotto; essendo un costo nullo un'affermazione, una riga muta non mostra nulla anziché «0,00 €».
+
+**In chat, il debriefing affianca il blocco dei pari — con la direttiva opposta.** Il blocco dei pari afferma fatti esatti perché li legge nel turno stesso; la stessa frase sopra una sintesi datata sarebbe una macchina per affermazioni false. Il modello dice quindi che è datata, porta la sua **età** e non solo la sua data, e rimanda agli strumenti ogni cifra, ogni conteggio e ogni stato. Una corrispondenza di nome ambigua non inserisce **nulla**: la rubrica contiene ogni relazione mai aperta, nomi di aziende e numeri compresi, e un falso positivo consegnerebbe il fascicolo di una persona a una domanda che ne riguardava un'altra.
+
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 272 ADRs e del changelog (da v1.0 a v1.43.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

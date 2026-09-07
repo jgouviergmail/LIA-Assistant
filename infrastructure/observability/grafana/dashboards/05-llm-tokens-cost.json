@@ -2529,6 +2529,220 @@
           }
         }
       ]
+    },
+    {
+      "id": 126,
+      "title": "Relationship Debrief",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 134
+      },
+      "panels": []
+    },
+    {
+      "id": 127,
+      "title": "Debriefs written (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 135
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(relation_debrief_builds_total{outcome=\"ready\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Relationship debriefs the model actually wrote in the last 24 hours."
+    },
+    {
+      "id": 128,
+      "title": "Debrief build failures (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 135
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(relation_debrief_builds_total{outcome=\"failed\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "yellow"
+              },
+              {
+                "value": 10,
+                "color": "red"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Builds that produced nothing. This slot is the newest LLM type: a sustained non-zero here usually means the model it is routed to cannot answer a schema, and every reader sees a generic failure on one card."
+    },
+    {
+      "id": 129,
+      "title": "Debrief build p95 (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 135
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(relation_debrief_build_duration_seconds_bucket[24h])) by (le)) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Evidence read plus the model call. RELATION_DEBRIEF_LEASE_SECONDS must stay above this, or a slow provider hands the row to a second builder mid-call."
+    },
+    {
+      "id": 130,
+      "title": "Debriefs injected into chat (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 135
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(relation_debrief_injections_total[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Chat turns that carried a written debrief. A debrief nothing ever injects is a capability paid for and never spent."
     }
   ],
   "time": {

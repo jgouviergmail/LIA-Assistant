@@ -43,6 +43,13 @@ class ContextStatus(str, Enum):
     #: the question was never asked. NOT the same as "nothing found" —
     #: reporting an empty result here would be a negative we never verified.
     NO_ADDRESS = "no_address"
+    #: The caller excluded this section, so it was never fetched. A third
+    #: answer next to "found nothing" and "could not look": the question was
+    #: deliberately not asked, and the section is neither a result nor a gap.
+    #: Only a caller passing ``sections=`` to ``RelationContextService.build``
+    #: can produce it — the HTTP route asks for all three, so a browser never
+    #: sees it.
+    NOT_REQUESTED = "not_requested"
 
 
 class ContactValue(BaseModel):

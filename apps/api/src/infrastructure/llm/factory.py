@@ -193,6 +193,8 @@ LLMType = Literal[
     "document_generation",
     # Meeting minutes — structured synthesis of a transcribed recording (ADR-258)
     "meeting_synthesis",
+    # Relationship debrief — daily synthesis of one contact's file (personal CRM)
+    "relation_debrief",
 ]
 
 

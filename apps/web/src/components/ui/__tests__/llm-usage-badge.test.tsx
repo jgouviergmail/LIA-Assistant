@@ -19,8 +19,8 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-import { LLMUsageBadge } from '../LLMUsageBadge';
-import type { LLMUsage } from '@/types/briefing';
+import { LLMUsageBadge } from '../llm-usage-badge';
+import type { LLMUsage } from '@/types/llm-usage';
 
 function usage(over: Partial<LLMUsage> = {}): LLMUsage {
   return {

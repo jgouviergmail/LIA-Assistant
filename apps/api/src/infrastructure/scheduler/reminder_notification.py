@@ -27,17 +27,12 @@ import time
 import uuid
 from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
-from src.core.field_names import (
-    FIELD_COST_EUR,
-    FIELD_TOKENS_CACHE,
-    FIELD_TOKENS_IN,
-    FIELD_TOKENS_OUT,
-)
 from src.core.i18n_dates import format_elapsed, format_short_stamp, neutral_persona
 from src.core.i18n_proactive import ProactiveMessages
 from src.core.recurrence import RecurrenceSpec, describe
@@ -51,11 +46,15 @@ from src.domains.agents.prompts.prompt_loader import (
 # "expression 'Reminder' failed to locate a name" when User.reminders relationship
 # is resolved during the first DB query.
 from src.domains.reminders.models import Reminder  # noqa: F401
+from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
 
@@ -148,6 +147,20 @@ async def generate_reminder_message(
     now = datetime.now(UTC)
     elapsed_text = format_elapsed(now - created_at, language)
     created_at_text = format_short_stamp(created_at, user_timezone, language)
+
+    # Bounded before it spends: this model call runs on the DEPLOYMENT's
+    # provider key, so both ceilings apply — the account's and the instance's.
+    # Non-raising on purpose: the reminder still has to fire. It goes out with
+    # its written sentence instead of a composed one, and says so as a skip
+    # rather than as a generation failure, which is not what happened.
+    from src.domains.usage_limits.enforcement import spend_blocked
+
+    if await spend_blocked(user_id):
+        return ReminderMessageResult(
+            message=ProactiveMessages.reminder_fallback_body(
+                created_at_text, reminder_content, language
+            )
+        )
 
     # Get current time in user timezone
     tz = ZoneInfo(user_timezone)
@@ -363,6 +376,79 @@ Generate a short, natural message in {user_language}.
 """
 
 
+async def _account_reminder_spend(
+    db: AsyncSession,
+    *,
+    reminder_id: str,
+    user_id: UUID,
+    run_id: str,
+    conversation_id: UUID,
+    result: ReminderMessageResult,
+) -> float:
+    """Charge one reminder notification to the account it was written for.
+
+    Until 2026-09-07 this path wrote only ``message_token_summary``. That row
+    is a per-run aggregate and nothing else reads it for accounting, so the
+    spend reached NONE of the three places that matter: no
+    ``token_usage_logs`` row (so no Article-12 trace), no ``user_statistics``
+    increment (so the account's own quota never moved) and no
+    ``instance_daily_budget`` entry (so the deployment ceiling was blind to
+    it). The irony measured at the same time: this path DOES consult the quota
+    before spending — it read a counter it never fed.
+
+    ``track_proactive_tokens`` is the funnel every other out-of-turn surface
+    uses and it writes all four, so this is one call rather than a fourth
+    hand-rolled variant.
+
+    Args:
+        db: The caller's session; the write joins its transaction.
+        reminder_id: Reminder being notified, for the log line.
+        user_id: Account to bill.
+        run_id: Pre-generated run id, already injected into the archived
+            message's metadata — it must be reused, not regenerated, or the
+            message and its cost stop pointing at each other.
+        conversation_id: Conversation the notification is archived in.
+        result: The generated message and its token usage.
+
+    Returns:
+        The call's cost in euros, for the archived message's metadata.
+    """
+    from src.infrastructure.proactive.tracking import track_proactive_tokens
+
+    if result.tokens_in <= 0 and result.tokens_out <= 0:
+        return 0.0
+
+    cost_eur = 0.0
+    try:
+        _cost_usd, cost_eur = get_cached_cost_usd_eur(
+            model=result.model_name or "",
+            prompt_tokens=result.tokens_in,
+            completion_tokens=result.tokens_out,
+            cached_tokens=result.tokens_cache,
+        )
+    except Exception as price_error:  # noqa: BLE001 — an unpriced call still happened
+        logger.warning(
+            "reminder_cost_calculation_failed",
+            reminder_id=reminder_id,
+            error=str(price_error),
+        )
+
+    await track_proactive_tokens(
+        user_id=user_id,
+        task_type="reminder",
+        target_id=reminder_id,
+        conversation_id=conversation_id,
+        tokens_in=result.tokens_in,
+        tokens_out=result.tokens_out,
+        tokens_cache=result.tokens_cache,
+        model_name=result.model_name,
+        db=db,
+        run_id=run_id,
+        source="scheduled",
+    )
+    return float(cost_eur)
+
+
 async def process_pending_reminders() -> dict[str, Any]:
     """
     Process pending reminders that are due for notification.
@@ -537,9 +623,7 @@ async def process_pending_reminders() -> dict[str, Any]:
 
                     # 7. Archive message in conversation with token tracking
                     try:
-                        from src.domains.chat.repository import ChatRepository
                         from src.domains.conversations.service import ConversationService
-                        from src.domains.llm.pricing_service import AsyncPricingService
 
                         conv_service = ConversationService()
                         conversation = await conv_service.get_or_create_conversation(
@@ -548,46 +632,14 @@ async def process_pending_reminders() -> dict[str, Any]:
                             language=user.language or settings.default_language,
                         )
 
-                        # Calculate cost if we have token usage
-                        cost_eur = 0.0
-                        if result.tokens_in > 0 or result.tokens_out > 0:
-                            try:
-                                pricing_service = AsyncPricingService(db)
-                                cost_eur = await pricing_service.calculate_token_cost_at_date(
-                                    model=result.model_name or "claude-3-5-haiku-latest",
-                                    input_tokens=result.tokens_in,
-                                    output_tokens=result.tokens_out,
-                                    cached_tokens=result.tokens_cache,
-                                    at_date=datetime.now(UTC),
-                                )
-                            except Exception as price_error:
-                                logger.warning(
-                                    "reminder_cost_calculation_failed",
-                                    reminder_id=str(reminder.id),
-                                    error=str(price_error),
-                                )
-
-                            # Store token summary
-                            try:
-                                chat_repo = ChatRepository(db)
-                                await chat_repo.create_or_update_token_summary(
-                                    run_id=run_id,
-                                    user_id=reminder.user_id,
-                                    session_id=f"reminder_{reminder.id}",
-                                    conversation_id=conversation.id,
-                                    summary_data={
-                                        FIELD_TOKENS_IN: result.tokens_in,
-                                        FIELD_TOKENS_OUT: result.tokens_out,
-                                        FIELD_TOKENS_CACHE: result.tokens_cache,
-                                        FIELD_COST_EUR: cost_eur,
-                                    },
-                                )
-                            except Exception as token_error:
-                                logger.warning(
-                                    "reminder_token_summary_failed",
-                                    reminder_id=str(reminder.id),
-                                    error=str(token_error),
-                                )
+                        cost_eur = await _account_reminder_spend(
+                            db,
+                            reminder_id=str(reminder.id),
+                            user_id=reminder.user_id,
+                            run_id=run_id,
+                            conversation_id=conversation.id,
+                            result=result,
+                        )
 
                         # Archive message with run_id for token linking
                         await conv_service.archive_message(

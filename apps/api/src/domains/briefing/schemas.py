@@ -16,6 +16,12 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Re-exported: the shape moved to `core` when the relationship debrief
+# needed the same one (a second holder for one concept is how two
+# surfaces come to report a cost differently). Every caller here, and
+# the OpenAPI schema name, are unchanged.
+from src.core.llm_usage import LLMUsage
+
 # BirthdayItem moved to the neutral connectors home (P7 — heartbeat consumes
 # it too and briefing→heartbeat→briefing would cycle). Re-exported here to
 # keep the historical briefing import surface stable.
@@ -448,26 +454,6 @@ class CardSection(BaseModel):
     last_attempt_at: datetime | None = Field(
         None, description="ERROR only: when the failed live fetch was attempted (UTC)."
     )
-
-
-class LLMUsage(BaseModel):
-    """Token usage + EUR cost summary for a single LLM call.
-
-    Surfaced alongside greeting / synthesis text so the UI can display the
-    real consumption of each briefing LLM call next to the timestamp.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    tokens_in: int = Field(0, ge=0, description="Input/prompt tokens (excluding cached).")
-    tokens_out: int = Field(0, ge=0, description="Output/completion tokens.")
-    tokens_cache: int = Field(0, ge=0, description="Cached input tokens (when supported).")
-    cost_eur: float = Field(
-        0.0,
-        ge=0.0,
-        description="Computed cost in EUR using the active pricing cache.",
-    )
-    model_name: str | None = Field(None, description="Model identifier used for the call.")
 
 
 class TextSection(BaseModel):

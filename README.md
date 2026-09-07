@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.43.0</strong> — <strong>One engine answers "when?", for routines and reminders alike.</strong> A routine could say "Monday and Thursday at 8"; a reminder could only say one instant, once. Neither could say "every three days", "the 2nd Tuesday of the month" or "every two hours between 9 and 5", and a reminder could not repeat at all. One engine now answers both — a recurrence is a PRODUCT, which calendar days times which moments of the day — and the one-shot reminder stops being an exception: asked what to arm next, a consumed single occurrence answers nothing, which is exactly what "delete after notification" always was. Nothing anywhere asks "does this repeat". Saying it out loud is measured, not assumed: 18 families of phrasing across the 6 languages, <strong>105 of 108 transcribed exactly</strong> on 6 September 2026. The engine it replaces skipped a whole day, once a year, in 73 timezones — 142 runs lost, silently. — 6 September 2026.
+  <strong>Version 1.43.1</strong> — <strong>A written debrief per relationship, and a register that no longer hides what LIA does on her own.</strong> A relationship card stacks ten sections; nobody reads ten sections. What a reader actually wants — where I stand with this person, and what to raise next — is a synthesis no aggregate produces, so one is now written per person, at most once per local day, and read by the chat when that person is named. Facing it, the record closed three holes it could not see: the effect register is fed by the tool gate and proactive work calls no tool, so <strong>0 out-of-turn runs out of 228 over fourteen days</strong> left a trace while conversational surfaces scored 24/24 — "acts of her own initiative" was empty <em>by construction</em>, whatever she did. Nine surfaces that read through connector clients rather than tools recorded nothing either. And the download meant to hand that record over carried a row cap applied to the wrong variable: <strong>49 195 real rows against 1 000 per source — 97,9 % of the inference record absent</strong> from every extraction, under a header that truthfully said "truncated", which repairs nothing. A server-side cursor replaces the cap: what is bounded is now the memory a download holds, never what it contains. — 7 September 2026.
 </p>
 
 ---
@@ -78,7 +78,7 @@
 | **Unpredictable LLM costs**     | Real-time token tracking, budget alerts, 93% optimization                                    |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels                                              |
 | **Fragmented integrations**     | Unified multi-domain orchestration (20+ agents + MCP + sub-agents)                           |
-| **Limited observability**       | 450+ Prometheus metrics, 26 Grafana dashboards (including a product-value cockpit), email alerting with runbooks, GeoIP analytics |
+| **Limited observability**       | 450+ Prometheus metrics, 28 Grafana dashboards (including a product-value cockpit), email alerting with runbooks, GeoIP analytics |
 | **Inconsistent performance**    | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring        |
 
 ### Primary Use Cases
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **32,300+** automated tests | **267** ADRs                                                           |
-| **250** versions shipped  | **6 languages**, parity enforced in CI  | **537** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **33,000+** automated tests | **272** ADRs                                                           |
+| **251** versions shipped  | **6 languages**, parity enforced in CI  | **541** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -379,8 +379,8 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 537 custom metrics (agents, LLM, infrastructure)
-- **Grafana**: 26 production-ready dashboards
+- **Prometheus**: 541 custom metrics (agents, LLM, infrastructure)
+- **Grafana**: 28 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
@@ -401,6 +401,9 @@ ExecutionStep(
 - **ContextVar Pattern**: Implicit tracking without explicit parameter passing
 - **Admin CSV Exports**: Token usage, Google API usage, Consumption summary (all users or filtered by user)
 - **User CSV Exports** (v1.9.1): Personal consumption export in Settings > Features — users export their own data only (`user_id` forced server-side, IDOR-safe)
+- **Every platform-paid token answers to BOTH ceilings** ([ADR-272](docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md)): what one account may consume, and what the instance may spend in a day. `cost_bearers.py` draws the line — `provider_api_keys` has no `user_id`, so models, TTS, STT, image and Maps run on the deployment's key, while Perplexity, Brave, weather and telephony run on the person's own and are outside. Measured: of the 46 declared LLM spend sites, **5 were bounded by nothing**. A chokepoint is the INNERMOST door, never its wrapper; a gate that returns early bounds nothing; and how a caller receives a refusal follows its transport while the verdict never does — a request path raises (429, dedicated code, `Retry-After`), a background path degrades and logs **skipped**, never *failed*
+- **Where a module's spend is recorded is DECLARED, not inferred** ([ADR-270](docs/architecture/ADR-270-Spend-Roads-And-Register-Authorship.md)): accounting here is ambient — a node spends through a tracking context an ancestor published — so reading files to answer "is this tracked?" produced nine wrong conclusions in one session. `spend_roads.py` names all 46 sites and the ledger each reaches; an AST guard refuses an omission, a stale entry or a road whose module does not do what it claims, and it caught 6 of the author's own classifications. Reading a provider's usage metadata likewise had **eight divergent implementations** (only one read Anthropic's cached-prompt tokens, only one clamped at zero) and now has one
+- **A euro nobody owns still reaches a ledger**: self-diagnosis and catalogue translations run for no account, so they must not touch per-account counters — they feed the instance daily budget instead, and ask it for permission first. Measured before the fix: 84 personality translations recorded nowhere at all, while the ledger held 5 976 rows from 17 other surfaces over the same window
 
 ### Security & Compliance
 
@@ -415,6 +418,15 @@ ExecutionStep(
 - **Instance Daily Spend Ceiling**: a durable UTC ledger caps what the whole deployment may spend in a day, not what one account consumes — atomic UPSERT with column arithmetic inside the transaction that persists the run's token summary, so concurrent runs can never lose spend to a read-modify-write race. Two bounds compose (`INSTANCE_DAILY_BUDGET_EUR` and an admin setting) and the smaller wins. Unlike per-user limits, which fail **open**, an unknown instance spend fails **closed**; refusals carry a dedicated code and a `Retry-After` to the next UTC midnight — ADR-216
 - **Administrable Platform Capabilities**: ten non-connector capabilities switch off from the admin panel with no redeploy, each declaring the mode by which it is really enforced — planner catalogue exclusion, a route dependency refusing with a stable code, or an internal chokepoint for capabilities that have no route at all. Two boot guards recalculate the declaration against the live agent catalogue and the live routers — ADR-217
 - **Backups**: Automated daily PostgreSQL dumps (pg_dump sidecar, daily/weekly/monthly rotation, all `.env`-driven) with a tested one-command restore and a verification drill (`task backup:verify`) — ADR-109, runbook in `docs/runbooks/DATABASE_BACKUP_RESTORE.md`
+
+### Transparency Registers — What Was Done, What Was Read, and Who Asked ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-270](docs/architecture/ADR-270-Spend-Roads-And-Register-Authorship.md), [ADR-273](docs/architecture/ADR-273-Complete-Register-Extractions.md))
+
+- **Three registers, never one list with a filter**: `agent_effects` takes one row per ACTION (claimed *before* it happens, closed from an explicit result), `agent_treatments` one row per CONSULTATION (no uniqueness, no owner token, no content column — which capability, when, how long, with what outcome), and `agent_decisions` one row per TURN, the spine the other two hang off. Every capability that acts declares what it owes the reader (`mutation_policy`), checked at boot; a third-party MCP tool never declares it — the policy is derived from the server's own annotations and never looser
+- **A third tab: acts of LIA's own initiative** (ADR-270). The registers were fed by the tool gate alone, and proactive work calls no tool: measured in production, **0 out-of-turn runs out of 228 over fourteen days** left a row, so "acts of her own initiative" was empty *by construction*. A proactive notification is now claimed before it is sent and settled from the delivery result; the nine surfaces that read through connector clients rather than tools (briefing, relationship debrief, heartbeat sweep, interests, knowledge spaces) record their consultations; and each surface DECLARES its vocabulary rather than a third copy being transcribed
+- **Authorship is a property of the call site, not of the plumbing**: nothing schedules a briefing (it answers a request), a reminder is the person's own deferred instruction, and only a runner sweep is LIA's own initiative. The parameter has no default — a default would have filed all three identically
+- **No extraction is capped** (ADR-273). The five downloadable records — readable, CSV, technical, unified Article-12, and the operator's cross-account view — return every row their filters match. There used to be a measured ceiling (a five-record, 5000-row extraction peaked at 33,9 MB on the Raspberry Pi 5 this deploys to), but it was applied to the wrong variable: the whole document was assembled in memory. **What was scarce was memory; what was bounded was the truth** — 49 195 real rows against 1 000 per source meant 97,9 % of the inference record was absent. A server-side cursor bounds the buffer instead; the count is exact (an aggregate over the same statement the body streams) and published before the first row, and the download is gzipped when the client offers to decompress (measured ×10,1) without the file name changing
+- **Per-account hash-chain sealing** (`LEDGER_CHAIN_ENABLED`, off by default): per account and never global, because that is what lets inalterability and the right to erasure coexist. Notarising is asynchronous on a measurement (6,0 ms against 0,21 ms for the write itself), so it has a window — and that window is published, alerted and named on every surface rather than implied away by the word "verified". Nothing repairs a chain: a repair tool serves an attacker as well as an operator
+- **Two endpoints serving one screen make ONE act of reading** ([ADR-271](docs/architecture/ADR-271-One-Page-Load-One-Act-Of-Reading.md)): the dashboard fetches cards and synthesis in parallel, and each used to build the nine-section bundle on its own — measured over seven days, **151 builds, 44 duplicates, 39 % of page loads, 44 of 44 concurrent**. Every connector was called twice and two batches of consultation rows were filed for one act. Whoever asks first runs it and whoever asks while it runs is handed the same object, in-process and across workers (production runs `WEB_CONCURRENCY=4`, so the two requests share a worker about one time in four)
 
 ### MCP (Model Context Protocol)
 
@@ -567,6 +579,9 @@ One published app per store, a client for **any** self-hosted LIA server: the We
 - **Three read capabilities the assistant was missing** ([ADR-193](docs/architecture/ADR-193-Read-Capabilities-And-Merged-Identity.md)): past calls, open commitments and relayed messages are now answerable in chat. Each lives in the domain whose catalogue had none — a domain that can only write will push to write, which is how "when did I last call my wife?" became a plan to phone her and ask. All three project the SAME service the relationship card uses, so the tool and the card cannot disagree about who someone is, and each returns the exact total next to its page
 - **Merging two relationships, manually and reversibly** (ADR-193): folding decides who is *literally* the same spelling; it cannot know that a raw phone number and a name are one person. The user says so, once — and sees what was merged, with a per-row undo. The alias table is flat (no chain to walk, no cycle writable) and the merge never touches the peer directory: a display decision must not redirect a message to another account
 - **Facts about a named peer, injected rather than searched** (ADR-193, opt-in): naming a connected person used to correct only the routing, so the assistant announced a lookup for facts already one query away. The three local blocks are injected — never the connector-backed ones, because merely naming someone must not trigger an external call
+- **A written debrief per relationship** ([ADR-269](docs/architecture/ADR-269-Relationship-Debrief.md)): where you stand with someone, what to raise next and what is worth remembering, written by the model at the top of the card — because ten sections is not something anyone reads. Built lazily at card open, **never by a scheduler** (`relations_total` is unbounded) and never during a chat turn, at most once per the reader's LOCAL day, with exactly three legitimate rebuilds: language, scope, an explicit ask. Nothing is invented — no evidence settles it *empty* with no model call, and a failed refresh KEEPS the previous text under a line saying so, because replacing a usable synthesis with an empty panel turns "I could not refresh this" into "there is nothing"
+- **The 360° evidence assembly is one implementation, shared** (ADR-269): it was extracted out of `get_person_overview_tool` into `domains/relations/overview/`, and the tool became its first consumer — two assemblies would be two authorities on who someone is (ADR-185). The extraction is pinned by a golden file captured on the code BEFORE it, 18 scope cases compared byte for byte. The provider half is now read only for the sections the scope asks for: up to **eleven external calls** used to be billed against a selection the reader had already made, which needs a third status — `NOT_REQUESTED`, since "I did not look, on purpose" is neither "found nothing" nor "could not look"
+- **The debrief joins the chat with the OPPOSITE directive to the peer block** (ADR-269, opt-in per account): the peer block states EXACT facts because it reads them in the turn itself; the same sentence over a dated synthesis would be a false-claim machine. The template says it is dated, carries its AGE, and sends every date, count and status to the tools. An ambiguous name match injects NOTHING — the directory holds every relationship ever opened, and a false positive hands one person's file to a question about another
 
 ### Peer Connections — Users of the Same Instance, Assistant to Assistant
 
@@ -991,7 +1006,7 @@ OpenAI compatibility layer, which is what makes the difference:
 | Technology | Role                 |
 | ---------- | -------------------- |
 | Prometheus | 473 metrics          |
-| Grafana    | 26 dashboards        |
+| Grafana    | 28 dashboards        |
 | Loki       | Aggregated logs      |
 | Tempo      | Distributed tracing  |
 | Langfuse   | LLM observability    |
@@ -1044,7 +1059,7 @@ OpenAI compatibility layer, which is what makes the difference:
 
 ### Architecture Decision Records (ADR)
 
-267 ADR files (ADR-001 through ADR-268 — ADR-008 has no separate file) documenting major architectural decisions:
+272 ADR files (ADR-001 through ADR-273 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

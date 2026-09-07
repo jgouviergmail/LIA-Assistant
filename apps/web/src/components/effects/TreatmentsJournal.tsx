@@ -20,28 +20,47 @@
  */
 
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Eye, RefreshCw, XCircle } from 'lucide-react';
+import { CheckCircle2, Eye, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { RegisterExportButton } from '@/components/effects/RegisterExportButton';
+import {
+  RegisterJournalTitle,
+  registerEmptyState,
+  registerTotalLabel,
+  type RegisterHeadingOverride,
+} from '@/components/effects/RegisterJournalChrome';
 import { RegisterJournalBody } from '@/components/effects/RegisterJournalBody';
-import { RegisterFilter, RegisterHeader } from '@/components/effects/RegisterJournalStates';
+import { RegisterRow } from '@/components/effects/RegisterRow';
+import { RegisterFilter } from '@/components/effects/RegisterJournalStates';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useTreatmentsJournal } from '@/hooks/useTreatmentsJournal';
 import { getIntlLocale, type Language } from '@/i18n/settings';
-import { cn } from '@/lib/utils';
+import { lifecycleTone } from '@/lib/status-tone';
+import type { RegisterOrigin } from '@/types/register-origin';
 import type { TreatmentEntry } from '@/types/treatments';
 
 export interface TreatmentsJournalProps {
   /** Current URL locale segment (drives date/time formatting). */
   lng: string;
+  /**
+   * Which authorships to read. Defaults to everything so an existing
+   * caller keeps its behaviour; the tabs pass `mine` or `initiative`.
+   */
+  origin?: RegisterOrigin;
+  /**
+   * Wording for this reading, when a container names the list better than the
+   * register does. The initiative tab stacks both registers under its own
+   * headings; without this each list carried TWO titles — the tab's and the
+   * journal's own — over one set of rows (reported from the dev instance,
+   * 2026-09-07). Omitted, the journal names itself, as it does on its own tab.
+   */
+  heading?: RegisterHeadingOverride;
 }
 
-export function TreatmentsJournal({ lng }: TreatmentsJournalProps) {
+export function TreatmentsJournal({ lng, origin = 'all', heading }: TreatmentsJournalProps) {
   const { t, i18n } = useTranslation();
   const [tool, setTool] = useState<string | undefined>(undefined);
-  const state = useTreatmentsJournal(tool);
+  const state = useTreatmentsJournal(tool, origin);
   const { entries, total, firstLoad, loading, refetch } = state;
 
   const locale = getIntlLocale(i18n.language as Language);
@@ -78,35 +97,25 @@ export function TreatmentsJournal({ lng }: TreatmentsJournalProps) {
 
   return (
     <section className="space-y-6">
-      <RegisterHeader
-        actions={
-          <>
-            <RegisterExportButton register="consultations" />
-            <Button variant="outline" size="sm" onClick={refetch} disabled={firstLoad}>
-              <RefreshCw
-                className={loading && !firstLoad ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
-                aria-hidden="true"
-              />
-              {t('treatments.journal.refresh')}
-            </Button>
-          </>
-        }
-      >
-        <h2 className="flex items-center gap-2 text-xl font-bold">
-          <Eye className="h-5 w-5 text-primary" aria-hidden="true" />
-          {t('treatments.journal.title')}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t('treatments.journal.description')}</p>
-      </RegisterHeader>
+      <RegisterJournalTitle
+        icon={Eye}
+        title={t('treatments.journal.title')}
+        description={t('treatments.journal.description')}
+        heading={heading}
+        exportKind="consultations"
+        origin={origin}
+        refreshLabel={t('treatments.journal.refresh')}
+        onRefresh={refetch}
+        firstLoad={firstLoad}
+        loading={loading}
+      />
 
       <RegisterJournalBody<TreatmentEntry, FoldedTreatment>
         state={state}
         skeletonSlot="treatments-skeleton"
         errorMessage={t('treatments.journal.error')}
         retryLabel={t('treatments.journal.retry')}
-        totalLabel={
-          total === undefined ? undefined : t('treatments.journal.total', { count: total })
-        }
+        totalLabel={registerTotalLabel(t, 'treatments.journal.total', total)}
         filters={
           showFilter ? (
             <RegisterFilter<string | undefined>
@@ -119,22 +128,12 @@ export function TreatmentsJournal({ lng }: TreatmentsJournalProps) {
             />
           ) : undefined
         }
-        empty={{
+        empty={registerEmptyState(t, {
           icon: Eye,
-          title: t(
-            filtered ? 'treatments.journal.empty_filtered_title' : 'treatments.journal.empty_title'
-          ),
-          description: t(
-            filtered
-              ? 'treatments.journal.empty_filtered_description'
-              : 'treatments.journal.empty_description'
-          ),
-          reason: filtered ? 'no-match' : 'no-data',
-          action: {
-            label: t('treatments.journal.empty_action'),
-            href: `/${lng}/dashboard/chat`,
-          },
-        }}
+          prefix: 'treatments.journal',
+          filtered,
+          lng,
+        })}
         loadMoreLabel={t('treatments.journal.load_more')}
         dayOf={dayOfEntry}
         itemsOf={entries => foldRepeats(entries, dayOfEntry)}
@@ -215,47 +214,36 @@ interface TreatmentRowProps {
 function TreatmentRow({ item: entry, when }: TreatmentRowProps) {
   const { t } = useTranslation();
   const failed = entry.outcome === 'failed';
-  const Icon = failed ? XCircle : CheckCircle2;
 
   return (
-    <li className="flex items-start gap-3 rounded-xl border bg-card px-4 py-3">
-      <span
-        className={cn(
-          'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-          failed ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
-        )}
-      >
-        <Icon className="h-4 w-4" aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-baseline gap-x-2">
-          <span className="min-w-0 break-words text-sm font-semibold text-foreground">
-            {t(`treatments.domains.${entry.domain}`, {
-              defaultValue: t('treatments.domains.unknown'),
-            })}
-          </span>
-          <time dateTime={entry.occurred_at} className="text-xs text-muted-foreground">
-            {when}
-          </time>
-          {entry.repeats > 1 && (
-            <Badge variant="secondary">
-              {t('treatments.journal.repeats', { count: entry.repeats })}
-            </Badge>
-          )}
-        </span>
-        <span className="mt-1 flex flex-wrap items-center gap-1.5">
-          {failed && <Badge variant="destructive">{t('treatments.journal.outcome.failed')}</Badge>}
-          <span className="min-w-0 break-words font-mono text-xs text-muted-foreground">
-            {entry.tool_name}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {t('treatments.journal.duration', { ms: entry.total_ms })}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {t(`effects.journal.source.${entry.source}`)}
-          </span>
-        </span>
-      </span>
-    </li>
+    <RegisterRow
+      icon={failed ? XCircle : CheckCircle2}
+      failed={failed}
+      headline={t(`treatments.domains.${entry.domain}`, {
+        defaultValue: t('treatments.domains.unknown'),
+      })}
+      when={when}
+      dateTime={entry.occurred_at}
+      headlineBadges={
+        entry.repeats > 1 ? (
+          <Badge variant="secondary">
+            {t('treatments.journal.repeats', { count: entry.repeats })}
+          </Badge>
+        ) : undefined
+      }
+      detailBadges={
+        // ALWAYS, the way the action register always states its status. Shown
+        // only on failure, a successful read said nothing at all — so a reader
+        // could not tell « it answered » from « nothing was recorded », while
+        // the neighbouring tab spelled its outcome out on every row (owner
+        // report on display homogeneity, 2026-09-07).
+        <Badge variant={lifecycleTone(failed ? 'failed' : 'succeeded')}>
+          {t(`treatments.journal.outcome.${failed ? 'failed' : 'ok'}`)}
+        </Badge>
+      }
+      capability={entry.tool_name}
+      durationMs={entry.total_ms}
+      source={entry.source}
+    />
   );
 }

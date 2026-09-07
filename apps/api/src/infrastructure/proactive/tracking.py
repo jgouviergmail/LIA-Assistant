@@ -20,6 +20,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -47,6 +48,60 @@ def generate_proactive_run_id(task_type: str, target_id: str) -> str:
     return f"proactive_{task_type}_{target_id[:12]}_{uuid.uuid4().hex[:8]}"
 
 
+async def _record_out_of_turn(
+    user_id: UUID,
+    task_type: str,
+    run_id: str,
+    source: str,
+) -> None:
+    """File one row in the decision register for a run LIA started itself.
+
+    Measured 2026-09-07 by joining ``token_usage_logs`` to ``agent_decisions``
+    on ``run_id``: every conversational surface was recorded in full — 24/24,
+    22/22, 10/10 — while 228 proactive runs over fourteen days produced not one
+    row. Nothing was failing; the registers follow the GRAPH, and these
+    surfaces call the model directly.
+
+    The account holder felt it as silence: the briefing read their mail every
+    morning at their expense, and their register said nothing had happened
+    since their last conversation.
+
+    Never raises. The provider has already billed this call, and a register
+    that can take a briefing down is worse than the gap it closes.
+
+    Args:
+        user_id: Account the work was done for.
+        task_type: The surface (``briefing``, ``heartbeat``, ...).
+        run_id: The run the cost was filed under; the row reuses it so the two
+            records point at each other.
+        source: Who asked, declared by the call site. This funnel is named for
+            the plumbing, not for the initiative: the briefing is reached only
+            from a request, a reminder is the person's own deferred
+            instruction, and only a runner sweep is LIA's own idea.
+    """
+    try:
+        from src.domains.agents.effects.decision_recorder import record_decision
+        from src.domains.agents.effects.decisions import out_of_turn_decision
+        from src.domains.agents.effects.models import DecisionOutcome
+
+        decision = out_of_turn_decision(
+            user_id=user_id, run_id=run_id, thread_id=run_id, source=source
+        )
+        # The work is done and paid for by the time this runs, so the outcome
+        # is known. Leaving it at the ``interrupted`` default would file every
+        # successful briefing as an interruption.
+        decision.outcome = DecisionOutcome.ANSWERED
+        decision.route = task_type
+        await record_decision(decision)
+    except Exception as exc:  # noqa: BLE001 - observing must never break the observed
+        logger.warning(
+            "out_of_turn_decision_not_recorded",
+            task_type=task_type,
+            run_id=run_id,
+            error_type=type(exc).__name__,
+        )
+
+
 async def track_proactive_tokens(
     user_id: UUID,
     task_type: str,
@@ -56,8 +111,11 @@ async def track_proactive_tokens(
     tokens_out: int,
     tokens_cache: int = 0,
     model_name: str | None = None,
+    *,
+    source: str,
     db: AsyncSession | None = None,
     run_id: str | None = None,
+    llm_type: str | None = None,
 ) -> str | None:
     """
     Persist token usage from a proactive task.
@@ -82,6 +140,10 @@ async def track_proactive_tokens(
         db: Optional external database session for transaction composition.
             When provided, uses this session and does NOT commit - caller
             is responsible for transaction management.
+        source: Who asked — ``user``, ``scheduled`` or ``proactive``. Required
+            and without a default on purpose: this funnel serves surfaces of all
+            three kinds, and a default would file a page load LIA never chose to
+            make as an initiative it took.
         run_id: Optional pre-generated run_id. When provided, uses it instead
             of generating a new one. Useful when the run_id must be known
             before tracking (e.g., for injection into archived message metadata).
@@ -153,6 +215,7 @@ async def track_proactive_tokens(
             await tracker.record_node_tokens(
                 node_name=f"proactive_{task_type}",
                 model_name=model_name or "unknown",
+                llm_type=llm_type,
                 prompt_tokens=tokens_in,
                 completion_tokens=tokens_out,
                 cached_tokens=tokens_cache,
@@ -160,6 +223,8 @@ async def track_proactive_tokens(
                 cost_eur=cost_eur,
             )
             await tracker.commit()
+
+        await _record_out_of_turn(user_id, task_type, run_id, source)
 
         logger.info(
             "proactive_tokens_tracked",
@@ -196,6 +261,8 @@ async def track_proactive_tokens_from_result(
     task_type: str,
     conversation_id: UUID | None,
     result: ProactiveTaskResult,
+    *,
+    source: str,
     db: AsyncSession | None = None,
 ) -> str | None:
     """
@@ -206,6 +273,7 @@ async def track_proactive_tokens_from_result(
         task_type: Task type identifier
         conversation_id: Conversation UUID for linking
         result: ProactiveTaskResult with token usage
+        source: Who asked (see :func:`track_proactive_tokens`)
         db: Optional external database session (see track_proactive_tokens)
 
     Returns:
@@ -220,6 +288,7 @@ async def track_proactive_tokens_from_result(
         tokens_out=result.tokens_out,
         tokens_cache=result.tokens_cache,
         model_name=result.model_name,
+        source=source,
         db=db,
     )
 
@@ -281,26 +350,19 @@ class TokenAccumulator:
         """
         Add token usage from AIMessage.usage_metadata.
 
-        Handles OpenAI's format where input_tokens includes cached tokens.
+        Delegates to the one implementation that reads both provider
+        spellings and subtracts the cache — this copy read only OpenAI's.
 
         Args:
             usage_metadata: usage_metadata dict from AIMessage
         """
-        if not usage_metadata:
+        usage = tokens_from_usage_metadata(usage_metadata)
+        if usage.is_empty:
             return
-
-        # Extract tokens (handle OpenAI format)
-        raw_input = usage_metadata.get("input_tokens", 0)
-        output = usage_metadata.get("output_tokens", 0)
-        cached = usage_metadata.get("input_token_details", {}).get("cache_read", 0)
-
-        # OpenAI's input_tokens includes cached tokens
-        input_tokens = raw_input - cached
-
         self.add(
-            tokens_in=input_tokens,
-            tokens_out=output,
-            tokens_cache=cached,
+            tokens_in=usage.prompt,
+            tokens_out=usage.completion,
+            tokens_cache=usage.cached,
         )
 
     def get_totals(self) -> tuple[int, int, int]:

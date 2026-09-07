@@ -56,6 +56,7 @@ def render_effect_heading(language: str) -> str:
 #: language -> {label key -> wording}. Placeholders are the builder's values.
 EFFECT_LABELS: dict[str, dict[str, str]] = {
     "fr": {
+        "effects.labels.proactive_notification": "Notification envoyée ({kind})",
         "effects.labels.generic": "Action « {tool} » exécutée",
         "effects.labels.mcp": "Outil externe « {tool} » utilisé",
         "effects.labels.control_hue_light_tool": "Lumière « {target} » modifiée",
@@ -101,6 +102,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.draft.devops_task": "Tâche d'administration exécutée sur « {target} »",
     },
     "en": {
+        "effects.labels.proactive_notification": "Notification sent ({kind})",
         "effects.labels.generic": "Ran the “{tool}” action",
         "effects.labels.mcp": "Used the external tool “{tool}”",
         "effects.labels.control_hue_light_tool": "Changed the “{target}” light",
@@ -146,6 +148,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.draft.devops_task": "Ran an administration task on “{target}”",
     },
     "de": {
+        "effects.labels.proactive_notification": "Benachrichtigung gesendet ({kind})",
         "effects.labels.generic": "Aktion „{tool}“ ausgeführt",
         "effects.labels.mcp": "Externes Werkzeug „{tool}“ verwendet",
         "effects.labels.control_hue_light_tool": "Licht „{target}“ geändert",
@@ -191,6 +194,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.draft.devops_task": "Administrationsaufgabe auf „{target}“ ausgeführt",
     },
     "es": {
+        "effects.labels.proactive_notification": "Notificación enviada ({kind})",
         "effects.labels.generic": "Acción «{tool}» ejecutada",
         "effects.labels.mcp": "Herramienta externa «{tool}» utilizada",
         "effects.labels.control_hue_light_tool": "Luz «{target}» modificada",
@@ -236,6 +240,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.draft.devops_task": "Tarea de administración ejecutada en «{target}»",
     },
     "it": {
+        "effects.labels.proactive_notification": "Notifica inviata ({kind})",
         "effects.labels.generic": "Azione «{tool}» eseguita",
         "effects.labels.mcp": "Strumento esterno «{tool}» utilizzato",
         "effects.labels.control_hue_light_tool": "Luce «{target}» modificata",
@@ -281,6 +286,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.draft.devops_task": "Attività di amministrazione eseguita su «{target}»",
     },
     "zh-CN": {
+        "effects.labels.proactive_notification": "已发送通知（{kind}）",
         "effects.labels.generic": "已执行「{tool}」操作",
         "effects.labels.mcp": "已使用外部工具「{tool}」",
         "effects.labels.control_hue_light_tool": "已调整灯光「{target}」",

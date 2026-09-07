@@ -12,7 +12,7 @@ from src.domains.agents.registry.catalogue import MUTATION_POLICIES
 #: The three sources that can produce an effect. Mirrors ``EffectSource``; the
 #: Literal exists so a request is rejected at the API boundary rather than at
 #: the INSERT.
-EffectSourceName = Literal["user", "scheduled", "subagent"]
+EffectSourceName = Literal["user", "scheduled", "subagent", "proactive"]
 
 
 class ClaimRequest(BaseModel):

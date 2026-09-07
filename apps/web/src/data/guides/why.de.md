@@ -4,7 +4,7 @@
 
 **Version**: 5.4
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.43.0
+**Anwendung**: LIA v1.43.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -211,6 +211,8 @@ Du kannst auch einfach fragen, ohne die Seite zu öffnen: wann der letzte Anruf 
 Bleibt, was kein System erraten kann. LIA gruppiert, was gleich geschrieben wird, unabhängig von Akzenten und Großschreibung; sie kann nicht wissen, dass eine irgendwann notierte Nummer und ein Name dieselbe Person sind, oder wer genau „Papa“ ist. Das ist ein Urteil, und es liegt bei dir: Du sagst es einmal, auf der Karte, und es ist **umkehrbar** — die Zusammenführung erscheint samt Rückgängig-Schaltfläche, und in deinen Quellen wird nichts umgeschrieben. Eine Anzeige-Gruppierung ändert im Übrigen nie, an wen eine Nachricht gerichtet ist.
 
 
+Und weil zehn Abschnitte nicht gelesen werden, schreibt LIA die Zusammenfassung selbst, oben auf die Karte: wo du mit dieser Person stehst, was offen ist, was anzusprechen wäre, was du dir merken solltest. Sie entsteht höchstens einmal am Tag, in dem Moment, in dem du die Karte öffnest — nie als Hintergrundlauf, nie während eines Gesprächs — und scheitert die Aktualisierung, bleibt der vorherige Text stehen, mit einer Zeile, die das sagt: ein leeres Feld ließe vermuten, es gäbe nichts. Die Person im Chat zu nennen genügt dann, damit LIA sie nutzt, im Wissen, dass es ein datierter Text ist: Sie nennt sein Alter und prüft jede Zahl und jeden Status bei ihren Werkzeugen nach, statt die Zusammenfassung von gestern als heutige Tatsache zu zitieren.
+
 ### 3.13. Eine Besprechung aufgenommen, ein Protokoll geschrieben
 
 Eine Schaltfläche in der Kopfzeile — oder der Eintrag „Besprechung aufnehmen“ im Menü am Telefon — und dein Telefon oder Computer wird zum Aufnahmegerät der Besprechung. Ein Banner begleitet dich auf jeder Seite mit der Zeit und dem, was deinen Server schon erreicht hat; du sprichst währenddessen weiter mit LIA — gesprochene Antworten pausieren einfach, damit das Mikrofon den Assistenten nie hört. Wenn du stoppst, transkribiert LIA alles und schreibt das Protokoll **in deiner Struktur**: Der Kopf ist fest (Datum, Zeiten, Ort, Teilnehmende), der Hauptteil folgt einem Format, das du aus dreißig integrierten Vorlagen wählst — Besprechungen und Teams, Transkripte, Gesprächsanalysen, Vertrieb, Technik, persönliche Termine, Kurse — oder das du selbst baust, Abschnitt für Abschnitt. Und wählst du nichts, liest LIA, was gesagt wurde, behält das passende Format und sagt dir welches und warum: eine Projektbesprechung und eine ärztliche Beratung haben nicht dieselbe Struktur.
@@ -357,17 +359,19 @@ Transparenz hat einen Ausfallmodus, den niemand bemerkt: einen Bildschirm, der s
 
 Transparenz gilt auch für die inneren Regeln des Assistenten. Eine Grenze, die das System durchsetzt, muss dem veröffentlicht werden, den sie betrifft: Erkennt das Gewohnheitslernen nichts, zeigen die Einstellungen die tatsächlich verlangte Schwelle — strenger am Wochenende, wo weniger Tage beobachtet werden — statt eines unerklärten Schweigens. Und wenn sich eine Einstellung selbst justiert, wie die Schwelle, die entscheidet, ob eine Journalnotiz in eine Antwort einfließt, dann innerhalb strikter Grenzen, ein kleiner Schritt pro Tag, mit Notausschalter und gezählten Anpassungen: Ein lernendes System ist nur akzeptabel, wenn es beobachtbar und abschaltbar bleibt.
 
-### 6.9. Zwei Register: was LIA getan und was sie angesehen hat
+### 6.9. Drei Register: was LIA getan, was sie angesehen und was sie allein unternommen hat
 
-Transparenz über das *Denken* ist das eine; Transparenz über *Handlungen* ist das andere — und darauf kommt es an, wenn ein Assistent in deinem Namen senden, anlegen und löschen kann. LIA führt daher zwei Register, automatisch, und vermischt sie nie.
+Transparenz über das *Denken* ist eine Sache; die über die *Taten* eine andere, und auf sie kommt es an, wenn ein Assistent an deiner Stelle senden, anlegen und löschen kann. LIA führt daher drei Register, automatisch, und vermischt sie nie.
 
-**Aktionen** enthalten eine Zeile je Sache, die für dich getan wurde — eine gesendete E-Mail, ein angelegter Termin, eine gelöschte Datei — mit Ergebnis und deiner Bestätigung. **Abfragen** enthalten eine Zeile je Fähigkeit, die zur Antwort genutzt wurde, benannt als Bereich: „dein Kalender“, „deine E-Mails“. Eine Abfrage hält nie fest, wonach gesucht wurde; das aufzuschreiben wäre eine zweite Kopie genau der Daten, die das Register nachvollziehbar machen soll.
+Die **Aktionen** tragen eine Zeile je für dich erledigter Sache — eine gesendete E-Mail, ein angelegter Termin, eine gelöschte Datei — mit Ergebnis und der Bestätigung, die du gegeben hast. Die **Einsichtnahmen** tragen eine Zeile je Fähigkeit, die zur Antwort genutzt wurde, benannt als Bereich: „dein Kalender“, „deine E-Mails“. Eine Einsichtnahme hält nie fest, wonach gesucht wurde: Das aufzuschreiben hieße, genau die Daten zu kopieren, für deren Rechenschaft das Register existiert. Und die **Züge** tragen eine Zeile je Austausch, das Rückgrat, an dem die beiden anderen hängen.
 
-Die Zusicherung ist strukturell, nicht versprochen. Eine Aktion wird **vor** ihrer Ausführung eingetragen und **nur** mit einem ausdrücklichen Ergebnis abgeschlossen — ein Erfolg wird nie aus einem fehlenden Fehler geschlossen. Die Aufzeichnung wird bei der Registrierung an der Fähigkeit selbst installiert, sodass ein neues Werkzeug sie nicht vergessen kann. Und der Server verweigert den Start, wenn eine Fähigkeit nicht erklärt, was sie dir schuldet — ein Lesen, einen Entwurf, eine Bestätigung, etwas Umkehrbares.
+Eine vierte Lesart ist hinzugekommen, und sie fehlte mehr als die übrigen: **was LIA von sich aus unternimmt**. Ihre morgendlichen Durchläufe, die Themen, die sie für dich erkundet, die Benachrichtigungen, die sie ungefragt schickt, haben nun einen eigenen Reiter, nie vermischt mit dem, was du ausgelöst hast. Beides zusammenzuwerfen hieße, gar nichts zu sagen: Was du erbeten hast, verlangt eine andere Lesart als das, was sie entschieden hat.
 
-Ein dritter Reiter zeichnet den Zeitraum als Diagramme, jedes mit der exakten Gesamtzahl neben seinen Balken: Was du siehst, lässt sich prüfen statt glauben. Alles ist in drei Formaten exportierbar — lesbar, Tabelle und das maschinenlesbare, nach dem ein Prüfer fragen würde —, alles geht mit dem Archiv deines Kontos und endet mit ihm. Wo dein Administrator es aktiviert, werden beide Register je Konto mit Prüfsummen versiegelt, die du selbst verifizieren kannst.
+Die Garantie ist strukturell statt versprochen. Eine Aktion wird **vor** ihrer Ausführung eingetragen und **nur** aus einem ausdrücklichen Ergebnis geschlossen: Ein Erfolg wird nie aus einem fehlenden Fehler abgeleitet. Die Aufzeichnung wird auf der Fähigkeit selbst installiert, sobald sie deklariert ist, sodass ein neues Werkzeug sie nicht vergessen kann — und jede Oberfläche, die ohne Werkzeug liest, erklärt ein für alle Mal, was sie öffnet. Der Server verweigert den Start, wenn eine Fähigkeit nicht erklärt, was sie dir schuldet: ein Lesen, einen Entwurf, eine Bestätigung, etwas Umkehrbares.
 
-Das ist auch, was Artikel 12 der europäischen KI-Verordnung von einem solchen System erwartet. LIA antwortet darauf mit insgesamt fünf Aufzeichnungen: den beiden oben, dazu der Zug selbst, die tatsächlich an jedes Modell gesendeten Parameter und die Lücken im Register — denn ein Register, das nicht sagen kann, wo es unvollständig ist, verlangt Vertrauen, statt sich lesen zu lassen.
+Ein letzter Reiter zeichnet den Zeitraum als Diagramme, jedes mit dem exakten Gesamtwert neben seinen Balken: Was du siehst, lässt sich prüfen statt glauben. Alles ist in drei Formaten exportierbar — lesbar, Tabellenkalkulation und das Maschinenformat, das eine Prüferin verlangen würde — und **nichts darin wird abgeschnitten**: Unabhängig vom Umfang trägt die Datei alles, was deine Filter benennen, mit der exakten Anzahl im Kopf und dem Zeitpunkt ihrer Erstellung. Alles geht mit dem Archiv deines Kontos und verschwindet mit ihm. Wo deine Administration es einschaltet, sind die Register je Konto mit Prüfsummen versiegelt, die du selbst nachrechnen kannst.
+
+Genau das erwartet auch Artikel 12 der europäischen KI-Verordnung von einem System wie diesem. LIA antwortet darauf mit fünf Aufzeichnungen: den dreien oben, den tatsächlich an jedes Modell gesendeten Parametern und den Lücken des Registers selbst — denn ein Register, das nicht sagen kann, wo es unvollständig ist, verlangt Vertrauen, statt sich lesen zu lassen.
 
 ## 7. Emotionale Tiefe
 

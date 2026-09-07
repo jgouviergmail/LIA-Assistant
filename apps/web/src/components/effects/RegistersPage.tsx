@@ -10,17 +10,24 @@
  * capabilities and acts on none; merging them would drown the four lines that
  * matter under four hundred that do not.
  *
+ * A fourth tab was added on 2026-09-07 and it is a READING, not a register:
+ * an initiative is neither an action nor a consultation, it is an ORIGIN, and
+ * it holds both kinds. The two first tabs therefore read `mine` — everything
+ * the person set in motion, including the routines they wrote — so no existing
+ * row moves out of the list where its owner has always found it.
+ *
  * The tab is the only state this shell owns. Each register loads its own page
  * only when its tab is shown, so opening the page costs one request, not two.
  */
 
-import { BarChart3, ClipboardList, Eye, ShieldCheck } from 'lucide-react';
+import { BarChart3, ClipboardList, Eye, ShieldCheck, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Article12ExportCard } from '@/components/effects/Article12ExportCard';
 import { ChainSealCard } from '@/components/effects/ChainSealCard';
 import { RegisterCharts } from '@/components/effects/RegisterCharts';
 import { EffectsJournal } from '@/components/effects/EffectsJournal';
+import { InitiativeJournal } from '@/components/effects/InitiativeJournal';
 import { TreatmentsJournal } from '@/components/effects/TreatmentsJournal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -56,6 +63,15 @@ export function RegistersPage({ lng }: RegistersPageProps) {
             <Eye className="h-4 w-4" aria-hidden="true" />
             {t('registers.tab_consultations')}
           </TabsTrigger>
+          {/* A fourth READING, not a fourth register: an initiative is neither
+              an action nor a consultation, it is an ORIGIN, and it holds both
+              kinds. Separated because a sweep runs on its own schedule and
+              outnumbers by far what a person actually asked for — 319
+              heartbeat runs against 22 turns over fourteen days. */}
+          <TabsTrigger value="initiative">
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            {t('registers.tab_initiative')}
+          </TabsTrigger>
           {/* A third VIEW, not a third register: the same records, answering
               « what has been happening » where the journals answer « what
               exactly happened ». */}
@@ -66,10 +82,13 @@ export function RegistersPage({ lng }: RegistersPageProps) {
         </TabsList>
 
         <TabsContent value="actions">
-          <EffectsJournal lng={lng} />
+          <EffectsJournal lng={lng} origin="mine" />
         </TabsContent>
         <TabsContent value="consultations">
-          <TreatmentsJournal lng={lng} />
+          <TreatmentsJournal lng={lng} origin="mine" />
+        </TabsContent>
+        <TabsContent value="initiative">
+          <InitiativeJournal lng={lng} />
         </TabsContent>
         <TabsContent value="overview">
           <RegisterCharts />

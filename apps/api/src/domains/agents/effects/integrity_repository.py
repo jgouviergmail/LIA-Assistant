@@ -8,14 +8,15 @@ aggregate and no filter vocabulary to maintain — one write, two reads.
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.models import AgentIntegrityEvent
-from src.infrastructure.database.export_window import newest_window
+from src.infrastructure.database.export_stream import stream_all
 
 
 class IntegrityRepository:
@@ -77,18 +78,14 @@ class IntegrityRepository:
             ).scalar_one()
         )
 
-    async def list_for_export(
-        self,
+    @staticmethod
+    def export_query(
         *,
         since: datetime | None,
         until: datetime | None,
         user_ids: list[uuid.UUID] | None,
-        limit: int,
-    ) -> list[AgentIntegrityEvent]:
-        """Gaps for an extraction, oldest first.
-
-        The same shape the other records offer, so one extraction reads five
-        sources through one contract.
+    ) -> Select[tuple[AgentIntegrityEvent]]:
+        """The filtered SELECT an extraction reads, without order or ceiling.
 
         Args:
             since: Inclusive lower bound on ``occurred_at``.
@@ -96,10 +93,9 @@ class IntegrityRepository:
             user_ids: One, several, or (None) every account — including the
                 rows that name none, which are exactly the ones an operator
                 must not lose.
-            limit: Row ceiling, published in the file's header by the caller.
 
         Returns:
-            The matching rows.
+            The statement.
         """
         filters = []
         if since is not None:
@@ -108,16 +104,31 @@ class IntegrityRepository:
             filters.append(AgentIntegrityEvent.occurred_at < until)
         if user_ids:
             filters.append(AgentIntegrityEvent.user_id.in_(user_ids))
+        return select(AgentIntegrityEvent).where(*filters)
 
-        # The most RECENT rows, returned oldest first (``export_window``).
-        return await newest_window(
+    def stream_for_export(
+        self, query: Select[tuple[AgentIntegrityEvent]], *, batch: int
+    ) -> AsyncIterator[AgentIntegrityEvent]:
+        """Every gap the filters match, oldest first, at constant memory.
+
+        The record that says the record itself is incomplete is the last one
+        that may arrive incomplete, so it is never capped (ADR-273).
+
+        Args:
+            query: What :meth:`export_query` built.
+            batch: How many rows the cursor buffers at a time.
+
+        Yields:
+            The rows, oldest first.
+        """
+        return stream_all(
             self.db,
-            select(AgentIntegrityEvent).where(*filters),
-            newest_first=(
-                AgentIntegrityEvent.occurred_at.desc(),
-                AgentIntegrityEvent.id.desc(),
+            query,
+            oldest_first=(
+                AgentIntegrityEvent.occurred_at.asc(),
+                AgentIntegrityEvent.id.asc(),
             ),
-            limit=limit,
+            batch=batch,
         )
 
 

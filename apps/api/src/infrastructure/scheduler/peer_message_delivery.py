@@ -316,6 +316,7 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
             tokens_out=tokens_out,
             tokens_cache=tokens_cache,
             model_name=None,
+            source="scheduled",
         )
 
     try:

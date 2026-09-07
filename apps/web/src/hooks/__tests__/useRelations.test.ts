@@ -25,17 +25,25 @@ vi.mock('@/lib/api-client', () => ({
   ApiError: class ApiError extends Error {},
 }));
 
-const { putMutate, delMutate, postMutate } = vi.hoisted(() => ({
+const { putMutate, delMutate, postMutate, patchMutate } = vi.hoisted(() => ({
   // `Promise<unknown>`, not `Promise<undefined>`: the scope PUT answers with
   // the stored scope, and a mock that can only resolve `undefined` could not
   // express the echo the caller adopts.
   putMutate: vi.fn(async (): Promise<unknown> => undefined),
   delMutate: vi.fn(async (): Promise<unknown> => undefined),
   postMutate: vi.fn(async (): Promise<unknown> => undefined),
+  patchMutate: vi.fn(async (): Promise<unknown> => undefined),
 }));
 vi.mock('@/hooks/useApiMutation', () => ({
   useApiMutation: ({ method }: { method: string }) => ({
-    mutate: method === 'PUT' ? putMutate : method === 'POST' ? postMutate : delMutate,
+    mutate:
+      method === 'PUT'
+        ? putMutate
+        : method === 'POST'
+          ? postMutate
+          : method === 'PATCH'
+            ? patchMutate
+            : delMutate,
     loading: false,
   }),
 }));
@@ -466,5 +474,71 @@ describe('useRelationMerge', () => {
     });
 
     expect(verdict).toEqual({ ok: false });
+  });
+});
+
+
+describe('the daily debrief switch', () => {
+  beforeEach(() => {
+    patchMutate.mockClear();
+  });
+
+  it('reads ON when the API says nothing — the column default, and older APIs', () => {
+    useApiQuery.mockReturnValue({
+      data: { relations: [], relations_total: 0 },
+      loading: false,
+      error: null,
+      refetch,
+    });
+    const { result } = renderHook(() => useRelationsOverview());
+    expect(result.current.debriefEnabled).toBe(true);
+  });
+
+  it('reads what the API stored', () => {
+    useApiQuery.mockReturnValue({
+      data: { relations: [], relations_total: 0, debrief_enabled: false },
+      loading: false,
+      error: null,
+      refetch,
+    });
+    const { result } = renderHook(() => useRelationsOverview());
+    expect(result.current.debriefEnabled).toBe(false);
+  });
+
+  it('flips optimistically and adopts what the server STORED', async () => {
+    useApiQuery.mockReturnValue({
+      data: { relations: [], relations_total: 0, debrief_enabled: true },
+      loading: false,
+      error: null,
+      refetch,
+    });
+    patchMutate.mockResolvedValueOnce({ debrief_enabled: false });
+    const { result } = renderHook(() => useRelationsOverview());
+
+    await act(async () => {
+      await result.current.setDebriefEnabled(false);
+    });
+
+    expect(patchMutate).toHaveBeenCalledWith('/relations/settings', { debrief_enabled: false });
+    expect(result.current.debriefEnabled).toBe(false);
+  });
+
+  it('rolls the flip back when the server refuses', async () => {
+    useApiQuery.mockReturnValue({
+      data: { relations: [], relations_total: 0, debrief_enabled: true },
+      loading: false,
+      error: null,
+      refetch,
+    });
+    patchMutate.mockRejectedValueOnce(new Error('nope'));
+    const { result } = renderHook(() => useRelationsOverview());
+
+    let outcome: { ok: boolean } | undefined;
+    await act(async () => {
+      outcome = await result.current.setDebriefEnabled(false);
+    });
+
+    expect(outcome).toEqual({ ok: false });
+    expect(result.current.debriefEnabled).toBe(true);
   });
 });

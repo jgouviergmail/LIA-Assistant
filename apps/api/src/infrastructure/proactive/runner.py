@@ -473,7 +473,20 @@ class ProactiveTaskRunner:
         user_language = (
             getattr(user, "language", settings.default_language) or settings.default_language
         )
-        result = await self.task.generate_content(user.id, target, user_language)
+        # The correlation key is minted HERE rather than at 4b, and the
+        # collector is published around the generation, because that is where
+        # the person's sources are actually opened: the heartbeat aggregator
+        # reads thirteen of them in parallel, on LIA's own initiative and while
+        # nobody is watching — 824 sweeps over thirty days with not one row in
+        # the register (measured 2026-09-07). Minting it later left nothing for
+        # those reads to be filed under.
+        from src.domains.agents.effects.treatment_recorder import treatment_recorder
+
+        run_id = generate_proactive_run_id(
+            self.task.task_type, str(getattr(target, "id", "unknown"))
+        )
+        async with treatment_recorder(run_id=run_id):
+            result = await self.task.generate_content(user.id, target, user_language)
 
         if not result.success or not result.content:
             logger.warning(
@@ -500,12 +513,12 @@ class ProactiveTaskRunner:
                     task_type=self.task.task_type, source=_source_name
                 ).inc()
 
-        # 4b. Pre-generate run_id and compute cost for metadata injection.
-        # This ensures the archived message contains run_id + token data
-        # BEFORE track_proactive_tokens() runs, fixing the LEFT JOIN in
-        # get_messages_with_token_summaries() for history queries.
+        # 4b. Cost for metadata injection. The archived message carries the
+        # run id + token data BEFORE track_proactive_tokens() runs, which is
+        # what makes the LEFT JOIN in get_messages_with_token_summaries()
+        # resolve for history queries. The run id itself was minted above, so
+        # what the sweep READ and what it COST point at each other.
         target_id_for_tracking = result.target_id or str(getattr(target, "id", "unknown"))
-        run_id = generate_proactive_run_id(self.task.task_type, target_id_for_tracking)
 
         cost_eur = 0.0
         if result.model_name:
@@ -543,14 +556,29 @@ class ProactiveTaskRunner:
         # gate this used to read was a redundant second switch that could
         # silently mute a feature for users who had toggled it off before the
         # control was removed from the UI.
-        notification_result = await self._dispatch_notification(
-            user=user,
-            result=result,
-            target=target,
-            db=db,
-            push_enabled=True,
-            run_id=run_id,
+        # CLAIMED before it leaves, SETTLED from what the dispatch reports.
+        # Sending a notification is the one act of LIA's own initiative a
+        # person actually experiences — and it left NO action row at all, so
+        # « Actions menées d'elle-même » was empty by construction whatever
+        # LIA did (reported from production, 2026-09-07).
+        from src.domains.agents.effects.out_of_turn_effects import (
+            proactive_notification_effect,
         )
+
+        async with proactive_notification_effect(
+            user_id=user.id, run_id=run_id, task_type=self.task.task_type
+        ) as notified:
+            notification_result = await self._dispatch_notification(
+                user=user,
+                result=result,
+                target=target,
+                db=db,
+                push_enabled=True,
+                run_id=run_id,
+            )
+            # The explicit result, never the absence of an exception: a
+            # dispatch that reached no channel is a notification nobody got.
+            notified.delivered = bool(notification_result.success)
 
         if not notification_result.success:
             logger.warning(
@@ -598,6 +626,7 @@ class ProactiveTaskRunner:
             tokens_cache=result.tokens_cache,
             model_name=result.model_name,
             run_id=run_id,
+            source="proactive",
         )
 
         # 7. Call task's on_notification_sent hook

@@ -32,11 +32,46 @@ import pytest
 from src.domains.agents.effects.export_readable import (
     ACTIONS,
     TREATMENTS,
-    render_csv,
-    render_markdown,
+    stream_csv,
+    stream_markdown,
 )
+from tests.unit.domains.agents.effects.streaming import rendered, rows_of
 
 pytestmark = [pytest.mark.unit]
+
+
+async def render_markdown(spec: Any, rows: list[Any], language: str, timezone_name: str) -> str:
+    """The whole Markdown document, collected from the stream that renders it.
+
+    The renderers stream since ADR-273; these properties are about the
+    DOCUMENT, so they read it whole. Collecting in one helper rather than at
+    fifty assertions keeps the chunk boundaries an implementation detail.
+
+    Args:
+        spec: Which register.
+        rows: Its rows, oldest first.
+        language: The reader's language.
+        timezone_name: The reader's display timezone.
+
+    Returns:
+        The document.
+    """
+    return await rendered(stream_markdown(spec, rows_of(rows), language, timezone_name))
+
+
+async def render_csv(spec: Any, rows: list[Any], language: str, timezone_name: str) -> str:
+    """The whole CSV document, collected from the stream that renders it.
+
+    Args:
+        spec: Which register.
+        rows: Its rows, oldest first.
+        language: The reader's language.
+        timezone_name: The reader's display timezone.
+
+    Returns:
+        The document.
+    """
+    return await rendered(stream_csv(spec, rows_of(rows), language, timezone_name))
 
 
 def _action(**overrides: Any) -> Any:
@@ -78,29 +113,29 @@ def _treatment(**overrides: Any) -> Any:
 
 
 class TestTheDayIsTheReadersDay:
-    def test_a_late_utc_action_falls_on_the_next_day_in_auckland(self) -> None:
-        markdown = render_markdown(ACTIONS, [_action()], "fr", "Pacific/Auckland")
+    async def test_a_late_utc_action_falls_on_the_next_day_in_auckland(self) -> None:
+        markdown = await render_markdown(ACTIONS, [_action()], "fr", "Pacific/Auckland")
 
         assert "2026-09-04" in markdown, "the day was cut on the server's clock"
 
-    def test_the_same_action_falls_on_the_previous_day_in_los_angeles(self) -> None:
-        markdown = render_markdown(ACTIONS, [_action()], "fr", "America/Los_Angeles")
+    async def test_the_same_action_falls_on_the_previous_day_in_los_angeles(self) -> None:
+        markdown = await render_markdown(ACTIONS, [_action()], "fr", "America/Los_Angeles")
 
         assert "2026-09-03" in markdown
 
-    def test_an_unknown_timezone_does_not_break_the_export(self) -> None:
+    async def test_an_unknown_timezone_does_not_break_the_export(self) -> None:
         """A stale preference must degrade, never lose the register."""
-        markdown = render_markdown(ACTIONS, [_action()], "fr", "Mars/Olympus_Mons")
+        markdown = await render_markdown(ACTIONS, [_action()], "fr", "Mars/Olympus_Mons")
 
         assert "Marie" in markdown
 
-    def test_one_header_per_day_not_per_row(self) -> None:
+    async def test_one_header_per_day_not_per_row(self) -> None:
         rows = [
             _action(claimed_at=datetime(2026, 9, 3, 8, 0, tzinfo=UTC)),
             _action(claimed_at=datetime(2026, 9, 3, 9, 0, tzinfo=UTC)),
             _action(claimed_at=datetime(2026, 9, 4, 8, 0, tzinfo=UTC)),
         ]
-        markdown = render_markdown(ACTIONS, rows, "fr", "UTC")
+        markdown = await render_markdown(ACTIONS, rows, "fr", "UTC")
 
         assert markdown.count("## 2026-09-03") == 1
         assert markdown.count("## 2026-09-04") == 1
@@ -111,73 +146,77 @@ class TestTheWordingIsTheReadersLanguage:
         ("language", "expected"),
         [("fr", "Marie"), ("de", "Marie"), ("en", "Marie")],
     )
-    def test_the_action_label_is_rendered(self, language: str, expected: str) -> None:
-        assert expected in render_markdown(ACTIONS, [_action()], language, "UTC")
+    async def test_the_action_label_is_rendered(self, language: str, expected: str) -> None:
+        assert expected in await render_markdown(ACTIONS, [_action()], language, "UTC")
 
-    def test_a_treatment_reads_as_its_domain(self) -> None:
-        markdown = render_markdown(TREATMENTS, [_treatment()], "fr", "UTC")
+    async def test_a_treatment_reads_as_its_domain(self) -> None:
+        markdown = await render_markdown(TREATMENTS, [_treatment()], "fr", "UTC")
 
         assert "E-mails" in markdown
         assert "get_emails_tool" in markdown
 
 
 class TestTheAuthorityIsOnTheLine:
-    def test_an_action_says_how_it_was_authorised(self) -> None:
-        assert "draft_confirm" in render_markdown(ACTIONS, [_action()], "fr", "UTC")
+    async def test_an_action_says_how_it_was_authorised(self) -> None:
+        assert "draft_confirm" in await render_markdown(ACTIONS, [_action()], "fr", "UTC")
 
-    def test_an_action_says_who_asked_for_the_turn(self) -> None:
-        markdown = render_markdown(ACTIONS, [_action(source="scheduled")], "fr", "UTC")
+    async def test_an_action_says_who_asked_for_the_turn(self) -> None:
+        markdown = await render_markdown(ACTIONS, [_action(source="scheduled")], "fr", "UTC")
 
         assert "scheduled" in markdown
 
-    def test_a_provider_reference_is_printed_when_there_is_one(self) -> None:
-        assert "msg-42" in render_markdown(ACTIONS, [_action()], "fr", "UTC")
+    async def test_a_provider_reference_is_printed_when_there_is_one(self) -> None:
+        assert "msg-42" in await render_markdown(ACTIONS, [_action()], "fr", "UTC")
 
-    def test_nothing_is_invented_when_there_is_none(self) -> None:
-        markdown = render_markdown(ACTIONS, [_action(provider_ref=None)], "fr", "UTC")
+    async def test_nothing_is_invented_when_there_is_none(self) -> None:
+        markdown = await render_markdown(ACTIONS, [_action(provider_ref=None)], "fr", "UTC")
 
         assert "None" not in markdown
         assert "msg-42" not in markdown
 
 
 class TestTheCsvIsCountable:
-    def test_the_action_header_names_every_column(self) -> None:
-        rows = list(csv.reader(io.StringIO(render_csv(ACTIONS, [_action()], "fr", "UTC"))))
+    async def test_the_action_header_names_every_column(self) -> None:
+        rows = list(csv.reader(io.StringIO(await render_csv(ACTIONS, [_action()], "fr", "UTC"))))
 
         assert rows[0] == list(ACTIONS.csv_columns)
         assert len(rows) == 2
 
-    def test_the_treatment_header_names_every_column(self) -> None:
-        rows = list(csv.reader(io.StringIO(render_csv(TREATMENTS, [_treatment()], "fr", "UTC"))))
+    async def test_the_treatment_header_names_every_column(self) -> None:
+        rows = list(
+            csv.reader(io.StringIO(await render_csv(TREATMENTS, [_treatment()], "fr", "UTC")))
+        )
 
         assert rows[0] == list(TREATMENTS.csv_columns)
         assert len(rows[1]) == len(TREATMENTS.csv_columns)
 
-    def test_the_timestamp_is_the_readers_too(self) -> None:
-        body = render_csv(ACTIONS, [_action()], "fr", "Pacific/Auckland")
+    async def test_the_timestamp_is_the_readers_too(self) -> None:
+        body = await render_csv(ACTIONS, [_action()], "fr", "Pacific/Auckland")
 
         assert "2026-09-04" in body
 
-    def test_a_cell_that_starts_like_a_formula_is_neutralised(self) -> None:
+    async def test_a_cell_that_starts_like_a_formula_is_neutralised(self) -> None:
         """A CSV opened in a spreadsheet must not execute what it carries."""
-        body = render_csv(TREATMENTS, [_treatment(tool_name="=cmd|'/c calc'!A1")], "fr", "UTC")
+        body = await render_csv(
+            TREATMENTS, [_treatment(tool_name="=cmd|'/c calc'!A1")], "fr", "UTC"
+        )
 
         assert "\n=cmd" not in body
         assert ",=cmd" not in body
         assert "'=cmd" in body or "\"'=cmd" in body
 
-    def test_an_empty_register_still_carries_its_header(self) -> None:
-        rows = list(csv.reader(io.StringIO(render_csv(ACTIONS, [], "fr", "UTC"))))
+    async def test_an_empty_register_still_carries_its_header(self) -> None:
+        rows = list(csv.reader(io.StringIO(await render_csv(ACTIONS, [], "fr", "UTC"))))
 
         assert rows[0] == list(ACTIONS.csv_columns)
 
 
 class TestTheTwoRegistersShareOneEngine:
-    def test_both_specs_render_through_the_same_functions(self) -> None:
+    async def test_both_specs_render_through_the_same_functions(self) -> None:
         """Two renderers would drift; a register that disagrees proves nothing."""
-        assert render_markdown(ACTIONS, [], "fr", "UTC")
-        assert render_markdown(TREATMENTS, [], "fr", "UTC")
+        assert await render_markdown(ACTIONS, [], "fr", "UTC")
+        assert await render_markdown(TREATMENTS, [], "fr", "UTC")
 
-    def test_each_spec_names_its_own_file(self) -> None:
+    async def test_each_spec_names_its_own_file(self) -> None:
         assert ACTIONS.slug != TREATMENTS.slug
         assert ACTIONS.slug and TREATMENTS.slug

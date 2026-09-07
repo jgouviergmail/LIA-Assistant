@@ -71,10 +71,14 @@ class TestHiddenSectionCachePath:
         assert section is not None and section.status == CardStatus.HIDDEN
         read_cache.assert_not_awaited()
 
-    async def test_live_section_skips_cache_without_placeholder(self) -> None:
+    async def test_the_always_live_section_is_read_from_cache_like_any_other(self) -> None:
+        """The reminders CARD is always fetched live (the plan forces it), but
+        the SECTION is cached like the eight others so the readers that only
+        read the cache can see it. It used to be skipped here, which is why no
+        ordinary page load could ever tell the synthesis about a reminder."""
         svc = BriefingService(user=_make_user(None))
-        with patch.object(svc, "_read_cache", new=AsyncMock()) as read_cache:
-            section = await svc._read_section_cache(SECTION_REMINDERS, live=True)
+        with patch.object(svc, "_read_cache", new=AsyncMock(return_value=None)) as read_cache:
+            section = await svc._read_section_cache(SECTION_REMINDERS)
 
-        assert section is None
-        read_cache.assert_not_awaited()
+        assert section is None  # nothing cached yet — but the cache WAS asked
+        read_cache.assert_awaited_once()

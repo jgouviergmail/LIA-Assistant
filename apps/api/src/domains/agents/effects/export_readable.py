@@ -26,7 +26,7 @@ from __future__ import annotations
 import csv
 import io
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from typing import Any, Final
@@ -111,58 +111,75 @@ def _safe_cell(value: Any) -> str:
     return f"'{text}" if text.startswith(_FORMULA_PREFIXES) else text
 
 
-def render_markdown(
-    spec: RegisterSpec, rows: Sequence[Any], language: str, timezone_name: str
-) -> str:
+async def stream_markdown(
+    spec: RegisterSpec, rows: AsyncIterator[Any], language: str, timezone_name: str
+) -> AsyncIterator[str]:
     """Render one register as a document, grouped by the reader's days.
+
+    Streamed rather than assembled (ADR-273): the day grouping only ever
+    needed the PREVIOUS row's day, so it survives verbatim — the register is
+    read in chronological order, and a section closes when the next row
+    opens another one.
 
     Args:
         spec: Which register.
-        rows: Its rows, oldest first.
+        rows: Its rows, oldest first, produced progressively.
         language: The reader's language.
         timezone_name: The reader's display timezone.
 
-    Returns:
+    Yields:
         Markdown: a title, then one section per day.
     """
     zone = _zone(timezone_name)
-    lines = [f"# {spec.heading(language)}", ""]
+    yield f"# {spec.heading(language)}\n\n"
     current_day = ""
-    for row in rows:
+    async for row in rows:
         stamp = _local(spec.stamp_of(row), zone)
         day = stamp.strftime("%Y-%m-%d") if stamp else ""
         if day != current_day:
-            lines.extend([f"## {day}", ""])
+            yield f"## {day}\n\n"
             current_day = day
         clock = stamp.strftime("%H:%M:%S") if stamp else ""
-        lines.append(f"- {clock} — {spec.sentence_of(row, language)}")
-    return "\n".join(lines) + "\n"
+        yield f"- {clock} — {spec.sentence_of(row, language)}\n"
 
 
-def render_csv(spec: RegisterSpec, rows: Sequence[Any], language: str, timezone_name: str) -> str:
-    """Render one register as a table.
+async def stream_csv(
+    spec: RegisterSpec, rows: AsyncIterator[Any], language: str, timezone_name: str
+) -> AsyncIterator[str]:
+    """Render one register as a table, one line at a time.
 
     Args:
         spec: Which register.
-        rows: Its rows, oldest first.
+        rows: Its rows, oldest first, produced progressively.
         language: The reader's language, for the readable column.
         timezone_name: The reader's display timezone.
 
-    Returns:
+    Yields:
         CSV text, header first — including for an empty register, so a reader
-        can tell "nothing happened" from "the export failed".
+        can tell "nothing happened" from "the export failed". The writer's
+        buffer is emptied after every row: it exists to quote cells, not to
+        accumulate the document.
     """
     zone = _zone(timezone_name)
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
+
+    def drain() -> str:
+        """Take what the writer just produced and reset the buffer."""
+        written = buffer.getvalue()
+        buffer.seek(0)
+        buffer.truncate(0)
+        return written
+
     writer.writerow(spec.csv_columns)
-    for row in rows:
+    yield drain()
+    async for row in rows:
         cells = spec.cells_of(row, language)
         stamped = tuple(
             _local(cell, zone) if isinstance(cell, datetime) else cell for cell in cells
         )
         writer.writerow([_safe_cell(cell) for cell in stamped])
-    return buffer.getvalue()
+        yield drain()
 
 
 # ---------------------------------------------------------------------------

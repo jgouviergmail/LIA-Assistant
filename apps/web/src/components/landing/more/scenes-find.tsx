@@ -3,7 +3,7 @@
  * the group tones that turn a flat list into a map, the everyday-words settings
  * search, settings deep links that survive a reload, full history search, the
  * minutes-template library whose categories open closed, the phone logo
- * navigation.
+ * navigation, and the written debrief that opens a relationship card.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
@@ -17,6 +17,7 @@ import {
   Hash,
   Link2,
   Moon,
+  NotebookPen,
   Palette,
   PanelLeft,
   Plug,
@@ -576,6 +577,78 @@ function MailLabelSourceScene({ active, labels }: SceneProps) {
   );
 }
 
+type DebriefPhase = 'sections' | 'writing' | 'written';
+const DEBRIEF_STEPS: readonly TimelineStep<DebriefPhase>[] = [
+  { at: 0, state: 'sections' },
+  { at: 900, state: 'writing' },
+  { at: 2100, state: 'written' },
+];
+
+/**
+ * The relationship card no longer opens on ten sections (ADR-269).
+ *
+ * The scene animates the ORDER a reader meets: the stack of sections is what
+ * was there, the synthesis lands ABOVE it, and the resting frame is the one
+ * with the debrief in place — because that is the state the page settles in,
+ * not the moment of writing.
+ */
+function RelationDebriefScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(DEBRIEF_STEPS, { active });
+  const writing = phase === 'writing';
+  const written = phase === 'written';
+
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-1.5">
+        {/* The synthesis, above everything the card already stacked. */}
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows,opacity] duration-500 motion-reduce:transition-none',
+            writing || written ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          )}
+        >
+          <div className="min-h-0">
+            <div className="space-y-1.5 rounded-lg border border-primary/40 bg-primary/5 p-2">
+              <div className="flex items-center gap-1.5">
+                <NotebookPen
+                  className={cn(
+                    'h-3 w-3 shrink-0 text-primary',
+                    writing && 'animate-pulse motion-reduce:animate-none'
+                  )}
+                  aria-hidden="true"
+                />
+                <SkeletonLine w="w-2/3" />
+              </div>
+              <div
+                className={cn(
+                  'space-y-1 transition-opacity duration-300 motion-reduce:transition-none',
+                  written ? 'opacity-100' : 'opacity-0'
+                )}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] text-primary">{labels.open}</span>
+                  <SkeletonLine w="w-1/2" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] text-primary">{labels.next}</span>
+                  <SkeletonLine w="w-2/5" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* What the card always held, pushed down rather than replaced. */}
+        {[0, 1, 2].map(row => (
+          <div key={row} className="rounded-md border border-border bg-background px-2 py-1.5">
+            <SkeletonLine w={row === 1 ? 'w-1/2' : 'w-3/5'} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
@@ -587,4 +660,5 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   mobile_logo_nav: MobileLogoNavScene,
   relation_star: RelationStarScene,
   relation_sections: RelationSectionsScene,
+  relation_debrief: RelationDebriefScene,
 };

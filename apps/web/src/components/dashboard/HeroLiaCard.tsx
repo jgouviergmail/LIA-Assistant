@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useLiaGender } from '@/hooks/useLiaGender';
 import { AvatarVariantPicker } from './AvatarVariantPicker';
-import { LLMUsageBadge } from './LLMUsageBadge';
+import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';
 import type { TextSection } from '@/types/briefing';
 
 interface HeroLiaCardProps {

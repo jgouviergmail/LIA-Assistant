@@ -97,13 +97,22 @@ const LIFECYCLE: Record<string, BadgeTone> = {
   pending: 'info',
   queued: 'info',
   running: 'info',
+  claimed: 'info',
   // Failed.
   error: 'destructive',
   failed: 'destructive',
+  // The effect register's own three (ADR-263). They lived in a per-screen
+  // map inside `EffectsJournal` — the very thing this module exists to end —
+  // where « succeeded » rendered as the theme colour rather than as success,
+  // and « in progress » as grey rather than as in-flight.
+  // `refused` is NEUTRAL on the habits precedent: a refusal is a decision,
+  // not an incident. `abandoned` (« Interrupted ») is the one that needs
+  // attention without anything being broken — the record is incomplete.
   // Needs attention, but not broken.
   auth_required: 'warning',
   partial: 'warning',
   degraded: 'warning',
+  abandoned: 'warning',
   // Inert. A call nobody answered is not an incident, and an export past its
   // shelf life is not one either — grey is the tone of the INACTIVE.
   inactive: NEUTRAL,
@@ -113,6 +122,7 @@ const LIFECYCLE: Record<string, BadgeTone> = {
   no_answer: NEUTRAL,
   voicemail: NEUTRAL,
   expired: NEUTRAL,
+  refused: NEUTRAL,
   // Habits (ADR-214): a paused habit is dormant and a blocked one is the
   // user's never-relearn tombstone — both INACTIVE by the owner rule, told
   // apart by their label, never by an alarm colour (a refusal is not an

@@ -44,6 +44,7 @@ VALUES
     (gen_random_uuid(), 'query_agent', 'openai', 'gpt-5.6-luna', NULL, NULL, NULL, NULL, 10000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'query_analyzer', 'openai', 'gpt-5.6-luna', 0.2, 0.15, NULL, 1.7, NULL, NULL, '{"level": "low", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'react_agent', 'openai', 'gpt-5.6-luna', NULL, NULL, NULL, 1.9, 20000, NULL, '{"level": "medium", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'relation_debrief', NULL, 'gpt-5.6-luna', 0.4, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'response', 'deepseek', 'deepseek-v4-flash', 0.3, NULL, NULL, NULL, NULL, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'semantic_pivot', NULL, 'gpt-5.6-luna', 0.2, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'semantic_validator', NULL, 'gpt-5.6-luna', NULL, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),

@@ -6,7 +6,7 @@
 
 **Version**: 4.9
 **Datum**: 2026-08-23
-**Application**: LIA v1.43.0
+**Application**: LIA v1.43.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,6 +52,8 @@
 36. [Ein Merkmal ist keine Reaktion: das von der Antwort deklarierte Register](#36-ein-merkmal-ist-keine-reaktion-das-von-der-antwort-deklarierte-register)
 37. [Drei Mechanismen für eine Konvergenz: eine Spitze glätten, die kein Limit sieht](#37-drei-mechanismen-für-eine-konvergenz-eine-spitze-glätten-die-kein-limit-sieht)
 38. [Besprechungsprotokolle: die Zeile ist der Job, die Vorlage der Vertrag](#38-besprechungsprotokolle-die-zeile-ist-der-job-die-vorlage-der-vertrag)
+39. [Drei Register, und das, um das niemand gebeten hatte](#39-drei-register-und-das-um-das-niemand-gebeten-hatte)
+40. [Ein Debriefing je Beziehung: was zehn Abschnitte nicht sagen](#40-ein-debriefing-je-beziehung-was-zehn-abschnitte-nicht-sagen)
 ---
 
 ## 1. Kontext und grundlegende Entscheidungen
@@ -65,8 +67,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 537 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 267 ADRs, ~24.454 von pytest gesammelte Tests in 1.488 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 541 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 272 ADRs, ~25.394 von pytest gesammelte Tests in 1.534 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -84,10 +86,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 24.454 von pytest über 1.488 Testdateien gesammelt + 7.404 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 25.394 von pytest über 1.534 Testdateien gesammelt + 7.626 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 267 |
+| ADRs (Architecture Decision Records) | 272 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -957,7 +959,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 537 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 541 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -965,7 +967,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 537 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 541 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1257,7 +1259,7 @@ Die vollständige Anwendung auf Wetter (`gettext.gettext(text, language)` expliz
 
 ### 23.11. Observability-Architektur
 
-Observability ruht auf drei Säulen: **defensive Emission** auf dem kritischen Pfad, vorverdrahtete **Grafana-Dashboards** (26 Dashboards / 637 Panels, die App, Infra und jedes Business-Subsystem abdecken) und **DB-gestützte Gauges**, die durch einen periodischen Updater gepflegt werden.
+Observability ruht auf drei Säulen: **defensive Emission** auf dem kritischen Pfad, vorverdrahtete **Grafana-Dashboards** (28 Dashboards / 719 Panels, die App, Infra und jedes Business-Subsystem abdecken) und **DB-gestützte Gauges**, die durch einen periodischen Updater gepflegt werden.
 
 Ein 26. Dashboard macht aus dieser Telemetrie ein Produkt-Cockpit (ADR-178): Ergebnisse werden E1 validiert (explizite Bestätigung des Nutzers) oder E2 (eine über ein volles Verhaltensfenster unkorrigiert gebliebene Aktion), die exakte deduplizierte Zählung lebt in PostgreSQL — veränderliche Zustände lassen sich nie aus Prometheus-Zählern ableiten — und Grafana liest sie über eine Nur-Lese-Rolle, die auf Aggregat-Views mit fixiertem Statement-Timeout beschränkt ist.
 
@@ -1367,7 +1369,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-267 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+272 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1473,7 +1475,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 267 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~24.454 Tests in 1.488 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 272 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~25.394 Tests in 1.534 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1590,4 +1592,29 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 **Jede bezahlte Einheit wird verbucht und gezeigt.** Eine Besprechung verbraucht Audio bei der Transkriptions-Engine und Tokens beim Synthesemodell, Verdichtungsläufe und Neuaufbauten eingeschlossen; beides erreicht die Bücher der Plattform wie jeder Austausch — das Audio über die Statistik der entfernten Spracherkennung, die Tokens unter einer `run_id`, die die archivierte Chat-Nachricht trägt, sodass die Historie genau wie bei jeder proaktiven Benachrichtigung mit dem Token-Protokoll verknüpft wird. Die Zeile behält die eigene Ausgabe des Protokolls, damit die Seite die exakte Summe mit ihrer Aufschlüsselung nennt, die Karte nennt beide Einheiten und ihre Summe, und ein Modell ohne verwalteten Preis liefert `null`: Ein unbekannter Preis ist kein kostenloser. Dieselbe Ehrlichkeit durchzieht das Protokoll selbst — eine Lücke wird benannt, nie überbrückt; eine unbenannte Stimme bleibt S2; ein offen gebliebener Vorschlag ist keine Entscheidung.
 
 **Das Protokollformat wurde zu einer Bibliothek, und die Wahl hat einen einzigen Ort.** Dreißig integrierte Vorlagen leben im Code, ihre Wörter in einem i18n-Datenmodul, und eine Zusicherung beim Start verweigert den Bootvorgang, wenn ein Name in einer der sechs Sprachen fehlt: Was ein Validator ablehnen kann, darf der Katalog nicht ausliefern. Eine Vorlage wird durch eine Referenz benannt — `builtin:<Schlüssel>` oder `user:<uuid>` —, die Besprechungen, Einstellungen und Anfragen anstelle einer Zeile austauschen, sodass eine integrierte Vorlage keine Datenbankzeile braucht und eine gelöschte Vorlage eine Referenz hinterlässt, deren Leser auf den gespeicherten Schnappschuss zurückfallen. Die Wahl folgt **einer Rangfolge**: die von der Besprechung getragene Referenz, dann der Standard der Einstellung, dann das Sprachmodell, das einen Transkriptauszug liest und oberhalb einer Vertrauensschwelle wählt, dann die integrierte Standardvorlage; jedes Ergebnis wird gezählt und mit der genannten Begründung auf die Zeile geschrieben, sodass die Seite eine Tatsache zeigt und keine Rekonstruktion. Eine fünfte Abschnittsart gibt das Transkript selbst zurück: Es passt nicht in eine Antwort — der Synthese-Slot gibt höchstens achttausend Token aus —, also wird es Teil für Teil neu geschrieben, jeder durch das effektive Ausgabefenster begrenzt, wobei ein fehlender Index den Teil einmal aufspaltet und eine verdächtig kurze Antwort einmal wiederholt wird. Ein bereits geschriebenes Protokoll neu zu schreiben nutzt beim Ersetzen die dauerhafte Regeneration und legt beim neuen Protokoll eine abgeleitete Zeile an, die auf ihre Quelle zeigt — nie eine Kopie: Das Transkript ist dasselbe, das Protokoll nicht. Dieselbe Sorge um die Reihenfolge regiert die Dokumente der Wissensbereiche: Da `rag_chunks.space_id` denormalisiert ist und von der Suche gelesen wird, schreibt ein Verschieben die Zeile und ihre Abschnitte, committet, **dann** verschiebt es die Datei; ein fehlgeschlagenes Umbenennen macht beides rückgängig und meldet es nur für dieses Dokument, und ein Stapel hält nie für ein Element an — jede Kennung kommt erledigt oder übersprungen mit ihrem Code zurück.
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 267 ADRs und des Changelogs (v1.0 bis v1.43.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+
+## 39. Drei Register, und das, um das niemand gebeten hatte
+
+**Ein Assistent, der handelt, muss sagen können, was er getan, was er gelesen hat und in welchem Zug.** Drei Register beantworten das und werden nie vermischt: Das erste nimmt eine Zeile je **Aktion**, vor ihrer Ausführung beansprucht und nur aus einem ausdrücklichen Ergebnis geschlossen; das zweite eine Zeile je **Einsichtnahme**, benannt als Fähigkeit und nie als Suchinhalt; das dritte eine Zeile je **Zug**, das Rückgrat, an dem die beiden anderen hängen. Ihre Summen addieren sich nicht, und das ist gewollt: Ein Zug kann fünf Quellen einsehen und gar nichts verändern.
+
+**Die Garantie war strukturell, die Tür jedoch einzig.** Die Aufzeichnung wird auf der Fähigkeit installiert, sobald sie deklariert ist — ein neues Werkzeug kann sie also nicht vergessen —, nur bleibt eine Fähigkeit unsichtbar, die über ihren *Client* statt über das Werkzeugtor erreicht wird. In der Produktion über vierzehn Tage gemessen: Gesprächsoberflächen waren 24 von 24 Mal erfasst, Arbeit außerhalb eines Zuges **0 von 228 Mal**. Nichts war kaputt: Die Register folgen dem Graphen, und diese Oberflächen rufen das Modell direkt auf. Die Liste dessen, was die Assistentin von sich aus unternimmt, las sich daher leer, was immer sie tat — die schärfste Fassung der Lücke, denn eine proaktive Benachrichtigung ist der eine Akt eigener Initiative, den ein Mensch tatsächlich erlebt.
+
+**Die Antwort ist kein vierter Detektor, sie ist eine Deklaration.** Jede Oberfläche, die ohne Werkzeug liest — das Briefing, das Beziehungs-Debriefing, der periodische Durchlauf, die Interessen, die Wissensräume —, deklariert ihr Vokabular in einer einzigen Tabelle, und die Startprüfung kontrolliert nun die einunddreißig Fähigkeiten dort, wo sie zuvor nur Werkzeuge betrachtete. Die zweiundzwanzig Module, die einen Connector-Client importieren, sind einzeln aufgeführt: Aufzeichner, Nicht-Leser mit schriftlicher Begründung oder Schuld — eine leere Schuldtabelle, die nur schrumpfen kann. Das Register wird endlich **angeboten**, statt geholt zu werden: Die Agenten-Domäne importiert die Beziehungs-Domäne bereits, ein Rückimport schlösse also einen Kreis, den ein lokaler Import nur verstecken würde.
+
+**Wohin ein Euro geht, ist deklariert, nie erschlossen.** Die Buchführung ist ambient — ein Knoten gibt über einen Kontext aus, den ein Vorfahre veröffentlicht hat —, sodass die Frage „wird das gezählt?“ per Dateilektüre in einer einzigen Sitzung neun falsche Schlüsse ergab, in beide Richtungen. Eine Tabelle benennt daher die sechsundvierzig Aufrufstellen und das Register, das jede erreicht, und eine Prüfung, die Aufrufe per AST liest, korrigierte sechs dieser Einordnungen. Zählen ist allerdings nur die Hälfte einer Obergrenze: Die andere ist, **vorher zu fragen**, und fünf dieser Stellen waren durch nichts begrenzt. Drei Formen hatten sie erzeugt — ein Register, das eine Hülle statt der Tür benannte, eine Prüfung, die vor dem Fragen ausstieg, und eine Ablehnung in zwei verschiedenen Gestalten. Eine Ablehnung folgt nun ihrem Transportweg und nie ihrem Urteil: Eine Anfrage wirft, eine Hintergrundaufgabe verzichtet und protokolliert sich als **übersprungen**, nie als *gescheitert*.
+
+**Zwei Endpunkte, die einen Bildschirm bedienen, sind ein Lesevorgang.** Das Dashboard holt Karten und Zusammenfassung parallel, und jede baute das Bündel der neun Sektionen für sich: über sieben Tage 151 Aufbauten, davon 44 Dubletten — 39 % der Seitenaufrufe, und 44 von 44 gleichzeitig. Jeder Connector wurde zweimal geöffnet und zwei Sätze Einsichtnahmen für einen Lesevorgang abgelegt. Die Ursache war eine Frage, keine Codezeile: Die Zusammenfassung fragte „enthält dieses Bündel etwas Interessantes?“ statt „wurde dieses Bündel gebaut?“, und die erste unterscheidet keinen kalten Cache von einem ruhigen Tag. Wer zuerst fragt, baut; die anderen erhalten dasselbe Objekt — im Prozess und über die vier Worker einer Produktionsinstanz hinweg, durch einen Anspruch, den allein sein Eigentümer freigibt.
+
+**Ein Auszug ist vollständig, oder er ist kein Auszug.** Die fünf herunterladbaren Aufzeichnungen trugen eine Zeilenobergrenze, gemessen und nicht willkürlich: Auf dem angepeilten Raspberry Pi erreichten fünf Quellen mit fünftausend Zeilen einen Spitzenwert von 33,9 MB. Die Beschränkung war real — das ganze Dokument wurde im Speicher zusammengesetzt —, aber auf die falsche Größe angewandt. **Knapp war der Speicher; begrenzt war die Wahrheit**: 49 195 echte Zeilen gegen tausend je Quelle, also 97,9 % der Inferenz-Aufzeichnung abwesend, unter einem Kopf, der wahrheitsgemäß „abgeschnitten“ sagte. Ein serverseitiger Cursor begrenzt nun den Puffer; die Anzahl ist exakt — eine Aggregation über dieselbe Anweisung, die der Rumpf durchläuft — und wird vor der ersten Zeile veröffentlicht, sodass ein Auszug ohne obere Schranke eine bekommt: den Zeitpunkt seiner Erzeugung, im Kopf benannt statt still gesetzt.
+
+## 40. Ein Debriefing je Beziehung: was zehn Abschnitte nicht sagen
+
+**Eine Karte stapelt zehn Abschnitte, und niemand liest zehn Abschnitte.** Was ein Leser zuerst sucht — wo stehe ich mit dieser Person, und was ist anzusprechen —, ist eine Zusammenfassung, die keine Aggregation erzeugt. Sie wird daher vom Modell oben auf die Karte geschrieben: was offen ist, was als Nächstes ansteht, was zu merken lohnt. Ihre Erzeugung ist **faul**: Sie entsteht beim Öffnen der Karte, höchstens einmal pro lokalem Tag des Lesers, nie durch einen Planer — die Zahl der Beziehungen ist unbegrenzt — und nie während eines Chat-Zuges. Genau drei Neuerzeugungen sind legitim: die Sprache, der angefragte Umfang und eine ausdrückliche Bitte.
+
+**Zwei Zusammenstellungen hätten zwei Autoritäten darüber geschaffen, wer jemand ist.** Die Beweiszusammenstellung existierte bereits, innerhalb des Werkzeugs, das im Chat antwortet; sie wurde daher in ein eigenes Modul herausgezogen, dessen erster Konsument das Werkzeug wurde. Ein Refactor auf einem Produktionspfad prüft sich nicht durch Lesen: Eine Golden-Datei wurde **auf dem Code davor** aufgenommen, achtzehn Umfangsfälle, Nutzlast und Nachricht Byte für Byte verglichen. Die Anbieterhälfte wird nicht mehr ganz gelesen, um dann verworfen zu werden — bis zu elf externe Aufrufe wurden gegen eine Auswahl abgerechnet, die der Leser bereits getroffen hatte — und die Verengung verlangte einen dritten Status: „Ich habe absichtlich nicht nachgesehen“ ist weder „nichts gefunden“ noch „konnte nicht nachsehen“.
+
+**Nichts wird erfunden, und ein Fehlschlag zerstört nichts.** Kein Befund schließt auf *leer*, ohne das Modell zu rufen, und eine gescheiterte Aktualisierung **behält den vorherigen Text** unter einer Zeile, die es sagt: Eine brauchbare Zusammenfassung durch ein leeres Feld zu ersetzen, macht aus „ich konnte nicht aktualisieren“ ein „es gibt nichts“. Der Anspruch ist eine einzige SQL-Anweisung, und jeder Abschluss schreibt nur seine eigenen Spalten — bereit, leer, gescheitert —, weil ein einziger Abschluss den Rumpf beim ersten Fehlschlag überschrieb. Was das Schreiben gekostet hat, wird mit ihr gespeichert und darunter gezeigt; da null Kosten eine Behauptung sind, zeigt eine stumme Zeile nichts statt „0,00 €“.
+
+**Im Chat tritt das Debriefing neben den Peer-Block — mit der umgekehrten Anweisung.** Der Peer-Block nennt exakte Fakten, weil er sie im Zug selbst liest; derselbe Satz über einer datierten Zusammenfassung wäre eine Maschine für falsche Behauptungen. Die Vorlage sagt daher, dass sie datiert ist, trägt ihr **Alter** und nicht nur ihr Datum, und verweist jede Zahl, jede Anzahl und jeden Status an die Werkzeuge. Eine mehrdeutige Namensübereinstimmung fügt **nichts** ein: Das Verzeichnis enthält jede je geöffnete Beziehung, Firmennamen und Rufnummern eingeschlossen, und ein Fehltreffer gäbe die Akte einer Person auf eine Frage nach einer anderen heraus.
+
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 272 ADRs und des Changelogs (v1.0 bis v1.43.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

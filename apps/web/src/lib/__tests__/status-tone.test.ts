@@ -130,6 +130,38 @@ describe('every tone is renderable', () => {
  * mapping when its domain genuinely names something new.
  */
 describe('lifecycleTone', () => {
+  it('carries the effect register, which had its own map', () => {
+    // `EffectsJournal` kept a private `toneFor` — the per-screen table this
+    // module exists to end (2026-09-07). It rendered « Effectuée » in the
+    // theme colour rather than as a success, and « En cours » in grey rather
+    // than as in-flight, so the register disagreed with every other surface
+    // reporting the same three facts.
+    expect(lifecycleTone('succeeded')).toBe('success');
+    expect(lifecycleTone('failed')).toBe('destructive');
+    expect(lifecycleTone('claimed')).toBe('info');
+  });
+
+  it('reads a refusal as a decision, never as an incident', () => {
+    // Same rule as a paused habit: the person (or the gate) said no. Red
+    // would report a malfunction where none occurred.
+    expect(lifecycleTone('refused')).toBe('secondary');
+  });
+
+  it('reads an interrupted effect as needing attention, not as a failure', () => {
+    // « Interrompue »: the turn stopped mid-flight, so the record is
+    // incomplete — that is a warning, and it is not the same thing as a call
+    // that ran and failed.
+    expect(lifecycleTone('abandoned')).toBe('warning');
+    expect(lifecycleTone('abandoned')).not.toBe(lifecycleTone('failed'));
+  });
+
+  it('gives every effect status a tone, and no two families the same one', () => {
+    // The whole EffectStatus union, so a sixth value cannot ship unmapped and
+    // land on the neutral fallback in silence.
+    const tones = ['succeeded', 'failed', 'refused', 'claimed', 'abandoned'].map(lifecycleTone);
+    expect(new Set(tones).size).toBe(5);
+  });
+
   it('separates a failure from a success — the defect that started this', () => {
     // Recent calls rendered both as the same grey pill.
     expect(lifecycleTone('failed')).not.toBe(lifecycleTone('completed'));
@@ -241,4 +273,4 @@ describe('skillTraitTone', () => {
     }
   });
 });
-
+

@@ -16,6 +16,7 @@ import pytest
 
 from src.domains.diagnostics import diagnosis as diag_module
 from src.domains.diagnostics.diagnosis import DiagnosisOutput
+from src.infrastructure.llm.usage_metadata import UsageTokens
 
 
 def _incident(alertname: str | None = "RedisDown") -> MagicMock:
@@ -53,7 +54,7 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     async def fake_redis() -> Any:
         return redis
 
-    async def fake_invoke(llm: Any, system: str, human: str) -> tuple[DiagnosisOutput, int, int]:
+    async def fake_invoke(llm: Any, system: str, human: str) -> tuple[DiagnosisOutput, UsageTokens]:
         state["llm_calls"] += 1
         state["last_human"] = human
         return (
@@ -62,8 +63,7 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
                 probable_cause="OOM kill",
                 recommended_actions=["docker restart redis"],
             ),
-            500,
-            200,
+            UsageTokens(500, 200, 0),
         )
 
     class _Repo:

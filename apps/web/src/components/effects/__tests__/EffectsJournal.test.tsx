@@ -43,6 +43,9 @@ vi.mock('react-i18next', () => ({
         'effects.journal.source.user': 'You asked',
         'effects.journal.source.scheduled': 'Scheduled',
         'effects.journal.source.subagent': 'Sub-agent',
+        'effects.journal.source.proactive': "LIA's initiative",
+        'effects.export.group_label': 'Export the register',
+        'registers.row.duration': '{{ms}} ms',
         'effects.labels.draft.email': 'Sent an email to {recipient}',
         'effects.labels.generic': 'Ran {tool}',
       };
@@ -60,10 +63,12 @@ vi.mock('react-i18next', () => ({
 
 const hookResult = vi.hoisted(() => ({ current: {} as UseEffectsJournalResult }));
 const requestedStatus = vi.hoisted(() => ({ current: undefined as string | undefined }));
+const requestedOrigin = vi.hoisted(() => ({ current: undefined as string | undefined }));
 
 vi.mock('@/hooks/useEffectsJournal', () => ({
-  useEffectsJournal: (status?: string) => {
+  useEffectsJournal: (status?: string, origin?: string) => {
     requestedStatus.current = status;
+    requestedOrigin.current = origin;
     return hookResult.current;
   },
   EFFECTS_PAGE_SIZE: 20,
@@ -240,5 +245,39 @@ describe('EffectsJournal', () => {
     const row = screen.getByRole('listitem');
     expect(within(row).getByText('Failed')).toBeInTheDocument();
     expect(within(row).getByText('Scheduled')).toBeInTheDocument();
+  });
+});
+
+describe('EffectsJournal — the reading it was given', () => {
+  beforeEach(() => {
+    hookResult.current = state({ entries: [entry()], total: 1 });
+  });
+
+  it('asks the hook for the reading it was given', () => {
+    render(<EffectsJournal lng="en" origin="initiative" />);
+
+    expect(requestedOrigin.current).toBe('initiative');
+  });
+
+  it('keeps the export on the person’s own reading', () => {
+    // The gate is `!== 'initiative'`, not `=== 'all'`: the two main tabs read
+    // `mine`, so a gate written against the default would have removed the
+    // export from the real page while this file — which renders the default —
+    // stayed green.
+    render(<EffectsJournal lng="en" origin="mine" />);
+
+    expect(
+      screen.getByRole('group', { name: 'Export the register' })
+    ).toBeInTheDocument();
+  });
+
+  it('withholds the export from a filtered reading', () => {
+    // The file is the whole register, never the list on screen. Offering it
+    // where a person came to see a SUBSET would say the opposite.
+    render(<EffectsJournal lng="en" origin="initiative" />);
+
+    expect(
+      screen.queryByRole('group', { name: 'Export the register' })
+    ).not.toBeInTheDocument();
   });
 });

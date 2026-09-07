@@ -20,23 +20,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.agents.effects.article12_export import (
     RECORD_KEY,
+    SourceStream,
     article12_filters,
-    extract_of,
     known_sources,
-    render_article12,
+    stream_article12,
 )
 from src.domains.agents.effects.decision_repository import DecisionRepository
 from src.domains.agents.effects.decisions import TurnDecision
 from src.domains.agents.effects.integrity import IntegrityKind
 from src.domains.agents.effects.integrity_repository import IntegrityRepository
 from src.domains.agents.effects.models import EffectSource, TreatmentOutcome
-from src.domains.agents.effects.technical_reads import TechnicalQuery, read_register
+from src.domains.agents.effects.technical_reads import (
+    TechnicalQuery,
+    count_register,
+    stream_register,
+)
 from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
 
 _START = datetime(2026, 9, 5, 9, 0, tzinfo=UTC)
-_CAP = 500
+#: Partition size. Smaller than the fixtures on purpose: a read that
+#: stopped at one partition would be visible here (ADR-273).
+_BATCH = 2
 
 
 @pytest.fixture
@@ -149,29 +155,43 @@ async def _extraction(
     since: datetime | None = None,
     until: datetime | None = None,
 ) -> list[dict[str, Any]]:
-    """Run the extraction exactly as the route does, and parse it back."""
-    extracts = []
-    for spec in known_sources():
-        rows = await read_register(
-            session,
-            TechnicalQuery(
-                register=spec.slug,
-                since=since,
-                until=until,
-                user_ids=user_ids,
-                tool_name=None,
-                mutation_policy=None,
-                status=None,
-                source=None,
-                execution_mode=None,
-            ),
-            _CAP,
+    """Run the extraction exactly as the route does, and parse it back.
+
+    Exactly as the route does means counting each source first and streaming
+    it afterwards (ADR-273): the header is written before the first row is
+    read, so a harness that tallied the body instead would be testing a shape
+    the code cannot produce.
+    """
+
+    def _asked(slug: str) -> TechnicalQuery:
+        return TechnicalQuery(
+            register=slug,
+            since=since,
+            until=until,
+            user_ids=user_ids,
+            tool_name=None,
+            mutation_policy=None,
+            status=None,
+            source=None,
+            execution_mode=None,
         )
-        extracts.append(extract_of(spec, rows, cap=_CAP))
-    content = render_article12(
-        extracts,
-        cap=_CAP,
-        filters=article12_filters(since=since, until=until, user_ids=user_ids),
+
+    sources = [
+        SourceStream(
+            spec=spec,
+            total=await count_register(session, _asked(spec.slug)),
+            rows=stream_register(session, _asked(spec.slug), batch=_BATCH),
+        )
+        for spec in known_sources()
+    ]
+    content = "".join(
+        [
+            chunk
+            async for chunk in stream_article12(
+                sources,
+                filters=article12_filters(since=since, until=until, user_ids=user_ids),
+            )
+        ]
     )
     return [json.loads(line) for line in content.strip().splitlines()]
 

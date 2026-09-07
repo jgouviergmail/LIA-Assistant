@@ -24,6 +24,7 @@ from src.core.exceptions import BaseAPIException
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.domains.rag_spaces.consultations import SECTION_MAIL, space_read
 from src.domains.rag_spaces.drive_ingest import discard_document
 from src.domains.rag_spaces.models import RAGMailSource, RAGSourceSyncStatus
 from src.domains.rag_spaces.repository import (
@@ -109,7 +110,8 @@ class RAGMailSyncService:
         await self._verify_space_ownership(space_id, user_id)
         client = await self._get_gmail_client(user_id)
         try:
-            mapping = await client.list_labels(use_cache=False)
+            async with space_read(user_id=user_id, section=SECTION_MAIL):
+                mapping = await client.list_labels(use_cache=False)
         finally:
             await client.close()
         labels = [
@@ -146,7 +148,8 @@ class RAGMailSyncService:
             )
         client = await self._get_gmail_client(user_id)
         try:
-            label = await client.get_label(label_id)
+            async with space_read(user_id=user_id, section=SECTION_MAIL):
+                label = await client.get_label(label_id)
         finally:
             await client.close()
         if label is None:

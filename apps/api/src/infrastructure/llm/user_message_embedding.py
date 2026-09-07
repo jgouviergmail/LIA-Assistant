@@ -33,7 +33,7 @@ Conversational callers (is_conversational=True — the user's own message):
     - Journal extraction (semantic pre-filter)
 
 Non-conversational callers (is_conversational=False — never an utterance):
-    - person_tools._fetch_person_memories (embeds a person NAME)
+    - relations.overview.recall.fetch_person_memories (embeds a person NAME)
     - heartbeat context_aggregator (embeds an internal search query)
 
 Not consumers of this cache at all (they embed their own text elsewhere):

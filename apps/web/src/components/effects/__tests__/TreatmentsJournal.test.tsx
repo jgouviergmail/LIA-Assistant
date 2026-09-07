@@ -33,6 +33,7 @@ vi.mock('react-i18next', () => ({
         'treatments.journal.load_more': 'Load more',
         'treatments.journal.total': '{{count}} consultations',
         'treatments.journal.duration': '{{ms}} ms',
+        'registers.row.duration': '{{ms}} ms',
         'treatments.journal.repeats': '×{{count}}',
         'treatments.journal.outcome.failed': 'No answer',
         'treatments.journal.empty_title': 'Nothing yet',
@@ -60,10 +61,12 @@ vi.mock('react-i18next', () => ({
 
 const hookResult = vi.hoisted(() => ({ current: {} as UseTreatmentsJournalResult }));
 const requestedTool = vi.hoisted(() => ({ current: undefined as string | undefined }));
+const requestedOrigin = vi.hoisted(() => ({ current: undefined as string | undefined }));
 
 vi.mock('@/hooks/useTreatmentsJournal', () => ({
-  useTreatmentsJournal: (toolName?: string) => {
+  useTreatmentsJournal: (toolName?: string, origin?: string) => {
     requestedTool.current = toolName;
+    requestedOrigin.current = origin;
     return hookResult.current;
   },
   TREATMENTS_PAGE_SIZE: 20,
@@ -318,5 +321,33 @@ describe('TreatmentsJournal', () => {
 
     expect(document.body.textContent).not.toContain('query');
     expect(document.body.textContent).not.toContain('arguments');
+  });
+});
+
+describe('TreatmentsJournal — the reading it was given', () => {
+  beforeEach(() => {
+    hookResult.current = state({ entries: [entry()], total: 1 });
+  });
+
+  it('asks the hook for the reading it was given', () => {
+    render(<TreatmentsJournal lng="en" origin="initiative" />);
+
+    expect(requestedOrigin.current).toBe('initiative');
+  });
+
+  it('keeps the export on the person’s own reading', () => {
+    // The same rule as the action journal, checked on both sides: a rule that
+    // holds on one register only is a rule that will drift.
+    render(<TreatmentsJournal lng="en" origin="mine" />);
+
+    expect(screen.getByRole('group', { name: 'Export this register' })).toBeInTheDocument();
+  });
+
+  it('withholds the export from a filtered reading', () => {
+    render(<TreatmentsJournal lng="en" origin="initiative" />);
+
+    expect(
+      screen.queryByRole('group', { name: 'Export this register' })
+    ).not.toBeInTheDocument();
   });
 });

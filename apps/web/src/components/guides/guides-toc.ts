@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bell,
   Blocks,
+  BookLock,
   BookOpen,
   Brain,
   Cable,
@@ -28,6 +29,7 @@ import {
   Mic,
   MousePointerClick,
   Network,
+  NotebookPen,
   Palette,
   Plug,
   Puzzle,
@@ -111,6 +113,8 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'declared_register', icon: Smile },
   { id: 'shock_absorbers', icon: Waves },
   { id: 'meetings', icon: ClipboardList },
+  { id: 'registers', icon: BookLock },
+  { id: 'relation_debrief', icon: NotebookPen },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [

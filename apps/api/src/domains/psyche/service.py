@@ -48,6 +48,7 @@ from src.domains.psyche.engine import (
 from src.domains.psyche.models import PsycheHistory, PsycheState
 from src.domains.psyche.repository import PsycheStateRepository
 from src.domains.psyche.schemas import PsycheStateSummary
+from src.infrastructure.llm.usage_metadata import model_name_of, tokens_from_response
 from src.infrastructure.observability.logging import get_logger
 
 # Lazy imports for generate_summary (avoid circular at module level)
@@ -809,40 +810,30 @@ class PsycheService:
             )
             summary = str(result.text)
 
-            # Track token usage for user billing
+            # Billed to the account whose profile this is. The counts come
+            # from the one implementation that reads both provider spellings
+            # and subtracts the cache: the hand-rolled block here read the
+            # Anthropic field WITHOUT subtracting it, so a cached prompt was
+            # billed twice on every Anthropic model.
             try:
-                tokens_in = 0
-                tokens_out = 0
-                tokens_cache = 0
-                model_name: str | None = None
-                usage = getattr(result, "usage_metadata", None)
-                if isinstance(usage, dict):
-                    tokens_in = int(usage.get("input_tokens", 0))
-                    tokens_out = int(usage.get("output_tokens", 0))
-                    tokens_cache = int(usage.get("cache_read_input_tokens", 0))
-                model_name = getattr(llm, "model_name", None) or getattr(llm, "model", None)
-
-                if tokens_in > 0 or tokens_out > 0:
-                    from src.infrastructure.proactive.tracking import (
-                        track_proactive_tokens,
-                    )
+                usage = tokens_from_response(result)
+                if not usage.is_empty:
+                    from src.infrastructure.proactive.tracking import track_proactive_tokens
 
                     await track_proactive_tokens(
                         user_id=user_id,
                         task_type="psyche_summary",
                         target_id=str(user_id),
                         conversation_id=None,
-                        tokens_in=tokens_in,
-                        tokens_out=tokens_out,
-                        tokens_cache=tokens_cache,
-                        model_name=str(model_name) if model_name else None,
+                        tokens_in=usage.prompt,
+                        tokens_out=usage.completion,
+                        tokens_cache=usage.cached,
+                        model_name=model_name_of(llm),
                         db=self.db,
+                        source="proactive",
                     )
             except Exception as track_err:
-                logger.debug(
-                    "psyche_summary_token_tracking_failed",
-                    error=str(track_err),
-                )
+                logger.debug("psyche_summary_token_tracking_failed", error=str(track_err))
 
             logger.info(
                 "psyche_summary_generated",

@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from src.domains.agents.effects.models import DecisionOutcome
+from src.domains.agents.effects.source import resolve_source
 
 #: The turn currently being recorded, or None outside a turn. Holds the OBJECT,
 #: never a value: a node mutating it reaches the parent that will write it.
@@ -99,8 +100,57 @@ def turn_decision(
         run_id=run_id,
         user_id=user_id,
         thread_id=thread_id,
-        source="scheduled" if automated else "user",
+        source=resolve_source(None, automated=automated),
         execution_mode=execution_mode,
+    )
+
+
+#: How a run that never entered the graph describes itself. ``source`` says WHO
+#: asked; this says HOW it ran — these surfaces call the model directly, and
+#: repeating the authorship in both columns would add no information.
+OUT_OF_TURN_EXECUTION_MODE = "direct"
+
+
+def out_of_turn_decision(
+    *,
+    run_id: str,
+    user_id: uuid.UUID,
+    thread_id: str,
+    source: str,
+) -> TurnDecision:
+    """Build the record of a turn that ran outside the conversation graph.
+
+    Sibling of :func:`turn_decision`, and separate on purpose: such a run has
+    no router, no plan and no archived request, so a factory that took
+    ``automated`` and guessed would invite callers to pass values that mean
+    nothing here.
+
+    The authorship is the CALLER's to declare. These surfaces are not all
+    initiatives: the briefing answers a request, a reminder fires the person's
+    own deferred instruction, and only a runner sweep is LIA's own idea.
+
+    The outcome starts at ``interrupted`` like every other turn — but a
+    proactive run is recorded once its work is DONE and its cost known, so the
+    caller marks it answered. Leaving it to the default would file every
+    successful briefing as an interruption.
+
+    Args:
+        run_id: The run the cost was filed under; the register uses the same
+            identifier so the two point at each other.
+        user_id: Account the work was done for.
+        thread_id: Correlation key for the run — out-of-turn work has no
+            conversation thread, so the run id serves as its own.
+        source: Who asked, from the caller that knows.
+
+    Returns:
+        The record, ready to be completed and written.
+    """
+    return TurnDecision(
+        run_id=run_id,
+        user_id=user_id,
+        thread_id=thread_id,
+        source=source,
+        execution_mode=OUT_OF_TURN_EXECUTION_MODE,
     )
 
 
@@ -207,12 +257,14 @@ def note_answered(message_id: uuid.UUID | None = None) -> None:
 
 
 __all__ = [
+    "OUT_OF_TURN_EXECUTION_MODE",
     "TurnDecision",
     "current_turn",
     "note_answered",
     "note_plan",
     "note_request_message",
     "note_route",
+    "out_of_turn_decision",
     "note_stop_reason",
     "publish_turn",
     "reset_turn",

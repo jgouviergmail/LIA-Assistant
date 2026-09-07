@@ -16,6 +16,7 @@ import {
   useRegisterJournal,
   type UseRegisterJournalResult,
 } from '@/hooks/useRegisterJournal';
+import type { RegisterOrigin } from '@/types/register-origin';
 import type { TreatmentEntry } from '@/types/treatments';
 
 /** Rows per request — the same rhythm as the action register. */
@@ -27,13 +28,20 @@ export type UseTreatmentsJournalResult = UseRegisterJournalResult<TreatmentEntry
  * Read the consultation register.
  *
  * @param toolName - Restrict to one capability, or every capability.
+ * @param origin - Which authorships to read; the same vocabulary the action
+ *   register uses, so the two tabs cannot disagree about what belongs to the
+ *   person.
  */
-export function useTreatmentsJournal(toolName?: string): UseTreatmentsJournalResult {
+export function useTreatmentsJournal(
+  toolName?: string,
+  origin: RegisterOrigin = 'all'
+): UseTreatmentsJournalResult {
   return useRegisterJournal<TreatmentEntry>(
     (offset, limit) =>
       `/effects/treatments/journal?offset=${offset}&limit=${limit}` +
-      (toolName ? `&tool_name=${encodeURIComponent(toolName)}` : ''),
-    toolName ?? 'all',
+      (toolName ? `&tool_name=${encodeURIComponent(toolName)}` : '') +
+      (origin === 'all' ? '' : `&origin=${origin}`),
+    `${origin}:${toolName ?? 'all'}`,
     'useTreatmentsJournal'
   );
 }

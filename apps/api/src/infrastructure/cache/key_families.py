@@ -81,6 +81,11 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "heartbeat:wake": KeyScope.USER_LEARNING,
     "psyche:state": KeyScope.USER_LEARNING,
     # --- runtime: never purged by a reset --------------------------------
+    # A build claim held across uvicorn workers (shared_flight). NEVER purged
+    # by a reset: deleting a claim while its holder is still building would
+    # let every other worker start the same work again — the opposite of
+    # what the claim is for. It expires on its own.
+    "shared_flight": KeyScope.USER_RUNTIME,
     "session": KeyScope.USER_RUNTIME,
     "user": KeyScope.USER_RUNTIME,
     "user_notifications": KeyScope.USER_RUNTIME,

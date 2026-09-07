@@ -19,23 +19,42 @@
  */
 
 import { useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, ClipboardList, Clock, RefreshCw, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ClipboardList, Clock, XCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { RegisterExportButton } from '@/components/effects/RegisterExportButton';
+import {
+  RegisterJournalTitle,
+  registerEmptyState,
+  registerTotalLabel,
+  type RegisterHeadingOverride,
+} from '@/components/effects/RegisterJournalChrome';
+import { RegisterRow } from '@/components/effects/RegisterRow';
 import { RegisterJournalBody } from '@/components/effects/RegisterJournalBody';
-import { RegisterFilter, RegisterHeader } from '@/components/effects/RegisterJournalStates';
+import { RegisterFilter } from '@/components/effects/RegisterJournalStates';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useEffectsJournal } from '@/hooks/useEffectsJournal';
 import { getIntlLocale, type Language } from '@/i18n/settings';
-import { cn } from '@/lib/utils';
+import { lifecycleTone } from '@/lib/status-tone';
+import type { RegisterOrigin } from '@/types/register-origin';
 import type { EffectEntry, EffectStatus } from '@/types/effects';
 
 export interface EffectsJournalProps {
   /** Current URL locale segment (drives date/time formatting). */
   lng: string;
+  /**
+   * Which authorships to read. Defaults to everything so an existing
+   * caller keeps its behaviour; the tabs pass `mine` or `initiative`.
+   */
+  origin?: RegisterOrigin;
+  /**
+   * Wording for this reading, when a container names the list better than the
+   * register does. The initiative tab stacks both registers under its own
+   * headings; without this each list carried TWO titles — the tab's and the
+   * journal's own — over one set of rows (reported from the dev instance,
+   * 2026-09-07). Omitted, the journal names itself, as it does on its own tab.
+   */
+  heading?: RegisterHeadingOverride;
 }
 
 /** Decorative glyph per outcome — the badge carries the meaning. */
@@ -52,18 +71,12 @@ const STATUS_FILTERS = ['all', 'succeeded', 'failed', 'refused'] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 /** Badge tone per outcome — from the shared vocabulary, never a local map. */
-function toneFor(status: EffectStatus): 'default' | 'destructive' | 'secondary' {
-  if (status === 'failed') return 'destructive';
-  if (status === 'succeeded') return 'default';
-  return 'secondary';
-}
-
-export function EffectsJournal({ lng }: EffectsJournalProps) {
+export function EffectsJournal({ lng, origin = 'all', heading }: EffectsJournalProps) {
   const { t, i18n } = useTranslation();
   const [filter, setFilter] = useState<StatusFilter>('all');
   // The filter travels to the SERVER, so `total` describes the list on screen
   // and "load more" keeps working under a filter.
-  const state = useEffectsJournal(filter === 'all' ? undefined : filter);
+  const state = useEffectsJournal(filter === 'all' ? undefined : filter, origin);
   const { total, firstLoad, loading, refetch } = state;
   const unfiltered = filter === 'all';
   // Both registers show their filter under ONE rule: when there is something
@@ -86,35 +99,25 @@ export function EffectsJournal({ lng }: EffectsJournalProps) {
 
   return (
     <section className="space-y-6">
-      <RegisterHeader
-        actions={
-          <>
-            <RegisterExportButton register="actions" />
-            <Button variant="outline" size="sm" onClick={refetch} disabled={firstLoad}>
-              <RefreshCw
-                className={loading && !firstLoad ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
-                aria-hidden="true"
-              />
-              {t('effects.journal.refresh')}
-            </Button>
-          </>
-        }
-      >
-        {/* h2: the page shell owns the h1, so the two registers sit at the
-            same heading level and the outline stays readable. */}
-        <h2 className="flex items-center gap-2 text-xl font-bold">
-          <ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />
-          {t('effects.journal.title')}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t('effects.journal.description')}</p>
-      </RegisterHeader>
+      <RegisterJournalTitle
+        icon={ClipboardList}
+        title={t('effects.journal.title')}
+        description={t('effects.journal.description')}
+        heading={heading}
+        exportKind="actions"
+        origin={origin}
+        refreshLabel={t('effects.journal.refresh')}
+        onRefresh={refetch}
+        firstLoad={firstLoad}
+        loading={loading}
+      />
 
       <RegisterJournalBody<EffectEntry>
         state={state}
         skeletonSlot="effects-skeleton"
         errorMessage={t('effects.journal.error')}
         retryLabel={t('effects.journal.retry')}
-        totalLabel={total === undefined ? undefined : t('effects.journal.total', { count: total })}
+        totalLabel={registerTotalLabel(t, 'effects.journal.total', total)}
         // Shown under the same rule as the other register: a filter appears
         // when there is something to filter, or when one is applied so a
         // reader can always get back to « all ». Two rules were how the two
@@ -131,22 +134,12 @@ export function EffectsJournal({ lng }: EffectsJournalProps) {
             />
           ) : undefined
         }
-        empty={{
+        empty={registerEmptyState(t, {
           icon: ClipboardList,
-          title: t(
-            unfiltered ? 'effects.journal.empty_title' : 'effects.journal.empty_filtered_title'
-          ),
-          description: t(
-            unfiltered
-              ? 'effects.journal.empty_description'
-              : 'effects.journal.empty_filtered_description'
-          ),
-          reason: unfiltered ? 'no-data' : 'no-match',
-          action: {
-            label: t('effects.journal.empty_action'),
-            href: `/${lng}/dashboard/chat`,
-          },
-        }}
+          prefix: 'effects.journal',
+          filtered: !unfiltered,
+          lng,
+        })}
         loadMoreLabel={t('effects.journal.load_more')}
         dayOf={entry => dayFormat.format(new Date(entry.claimed_at))}
         itemsOf={entries => entries}
@@ -171,39 +164,37 @@ interface JournalRowProps {
 
 function JournalRow({ entry, when }: JournalRowProps) {
   const { t } = useTranslation();
-  const Icon = STATUS_ICONS[entry.status] ?? AlertCircle;
   const label = t(entry.label_key, { ...entry.values, defaultValue: '' });
 
   return (
-    <li className="flex items-start gap-3 rounded-xl border bg-card px-4 py-3">
-      <span
-        className={cn(
-          'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-          entry.status === 'failed'
-            ? 'bg-destructive/10 text-destructive'
-            : 'bg-primary/10 text-primary'
-        )}
-      >
-        <Icon className="h-4 w-4" aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-baseline gap-x-2">
-          <span className="min-w-0 break-words text-sm font-semibold text-foreground">
-            {label || t('effects.labels.generic', { tool: entry.tool_name })}
-          </span>
-          <time dateTime={entry.claimed_at} className="text-xs text-muted-foreground">
-            {when}
-          </time>
-        </span>
-        <span className="mt-1 flex flex-wrap items-center gap-1.5">
-          <Badge variant={toneFor(entry.status)}>
-            {t(`effects.journal.status.${entry.status}`)}
-          </Badge>
-          <span className="text-xs text-muted-foreground">
-            {t(`effects.journal.source.${entry.source}`)}
-          </span>
-        </span>
-      </span>
-    </li>
+    <RegisterRow
+      icon={STATUS_ICONS[entry.status] ?? AlertCircle}
+      failed={entry.status === 'failed'}
+      headline={label || t('effects.labels.generic', { tool: entry.tool_name })}
+      when={when}
+      dateTime={entry.claimed_at}
+      detailBadges={
+        <Badge variant={lifecycleTone(entry.status)}>
+          {t(`effects.journal.status.${entry.status}`)}
+        </Badge>
+      }
+      capability={entry.tool_name}
+      durationMs={durationOf(entry)}
+      source={entry.source}
+    />
   );
+}
+
+/**
+ * How long the effect took, or `null` while it is still in flight.
+ *
+ * An effect is CLAIMED before it happens and closed from its result, so a row
+ * with no `closed_at` has not finished — showing `0 ms` there would read as
+ * "instant" rather than "still running", which is the opposite of what the
+ * ledger is for.
+ */
+function durationOf(entry: EffectEntry): number | null {
+  if (!entry.closed_at) return null;
+  const elapsed = new Date(entry.closed_at).getTime() - new Date(entry.claimed_at).getTime();
+  return Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : null;
 }

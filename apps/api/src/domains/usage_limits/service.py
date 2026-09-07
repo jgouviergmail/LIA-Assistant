@@ -77,7 +77,7 @@ class UsageLimitService:
     # ========================================================================
 
     @staticmethod
-    async def _instance_budget_block() -> UsageLimitCheckResult | None:
+    async def instance_budget_block() -> UsageLimitCheckResult | None:
         """Return a blocking result when the instance exhausted its day.
 
         The effective ceiling is the smallest of the deployment bound
@@ -151,7 +151,7 @@ class UsageLimitService:
         # It is deliberately independent of `usage_limits_enabled`: bounding
         # what ONE account consumes and bounding what the INSTANCE spends are
         # two different protections.
-        instance_block = await UsageLimitService._instance_budget_block()
+        instance_block = await UsageLimitService.instance_budget_block()
         if instance_block is not None:
             return instance_block
 

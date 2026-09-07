@@ -83,6 +83,24 @@ async def decision_recorder(decision: TurnDecision) -> AsyncIterator[TurnDecisio
         await _write_shielded(decision)
 
 
+async def record_decision(decision: TurnDecision) -> None:
+    """Write one turn's row directly, for a caller that owns no context.
+
+    The context manager above suits a turn whose START and END bracket real
+    work. A proactive run is reported the other way round: the work is over and
+    its cost is known when ``track_proactive_tokens`` is called, so there is
+    nothing to wrap — only a row to file, under the very ``run_id`` the cost
+    was filed under.
+
+    Best-effort like every register write: the money is already spent, and a
+    ledger that can take a briefing down is worse than the gap it closes.
+
+    Args:
+        decision: The completed record.
+    """
+    await _write_logged(decision)
+
+
 async def _write_shielded(decision: TurnDecision) -> None:
     """Write the turn, surviving a cancellation delivered during cleanup.
 
@@ -151,4 +169,4 @@ async def _write(decision: TurnDecision) -> None:
     ).inc()
 
 
-__all__ = ["CANCELLATION_GRACE_ATTEMPTS", "decision_recorder"]
+__all__ = ["CANCELLATION_GRACE_ATTEMPTS", "decision_recorder", "record_decision"]

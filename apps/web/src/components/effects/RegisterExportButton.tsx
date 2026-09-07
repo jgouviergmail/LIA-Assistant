@@ -27,9 +27,12 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { apiEndpointUrl } from '@/lib/api-client';
 
+/** Which register a download covers — the two are separate documents. */
+export type RegisterExportKind = 'actions' | 'consultations';
+
 export interface RegisterExportButtonProps {
   /** Which register — the two are separate documents, never merged. */
-  register: 'actions' | 'consultations';
+  register: RegisterExportKind;
 }
 
 /** The three formats, in the order a reader thinks about them. */

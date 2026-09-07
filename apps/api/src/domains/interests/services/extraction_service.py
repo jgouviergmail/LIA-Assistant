@@ -70,6 +70,10 @@ from src.domains.shared.extraction_targets import (
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+from src.infrastructure.llm.usage_metadata import (
+    tokens_from_response,
+    tokens_from_usage_metadata,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -275,17 +279,9 @@ async def _persist_interest_tokens(
             )
             return
 
-        # Parse tokens (OpenAI format: input_tokens includes cached)
-        raw_input_tokens = usage_metadata.get("input_tokens", 0)
-        output_tokens = usage_metadata.get("output_tokens", 0)
-
-        # Extract cached tokens if available
-        input_details = usage_metadata.get("input_token_details", {})
-        cached_tokens = input_details.get("cache_read", 0) if input_details else 0
-
-        # CRITICAL: OpenAI's input_tokens INCLUDES cached tokens
-        # Subtract cached to get non-cached input tokens
-        input_tokens = raw_input_tokens - cached_tokens
+        # One implementation for both provider spellings, cache subtracted and
+        # clamped (``infrastructure/llm/usage_metadata``).
+        input_tokens, output_tokens, cached_tokens = tokens_from_usage_metadata(usage_metadata)
 
         if input_tokens == 0 and output_tokens == 0:
             logger.debug(
@@ -698,12 +694,7 @@ async def _analyze_interests_core(
         )
 
         # Extract LLM metadata
-        usage_metadata = getattr(result, "usage_metadata", {}) or {}
-        raw_input_tokens = usage_metadata.get("input_tokens", 0)
-        output_tokens = usage_metadata.get("output_tokens", 0)
-        input_details = usage_metadata.get("input_token_details", {})
-        cached_tokens = input_details.get("cache_read", 0) if input_details else 0
-        input_tokens = raw_input_tokens - cached_tokens
+        input_tokens, output_tokens, cached_tokens = tokens_from_response(result)
 
         # Parse extraction result
         extracted_interests = _parse_extraction_result(result_content)

@@ -10,11 +10,12 @@
  * doctrine: verbs return `{ ok }`, never leave state to a post-await read).
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { apiClient } from '@/lib/api-client';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import type { LLMUsage } from '@/types/llm-usage';
 
 /** How the relationship key was matched — honesty over false precision. */
 export type IdentityConfidence = 'exact' | 'normalized';
@@ -94,6 +95,14 @@ export interface RelationsOverview {
   relations: RelationSummary[];
   /** Exact number found before the page cap — the list states what it left out. */
   relations_total: number;
+  /**
+   * Whether this account wants the daily relationship debrief.
+   *
+   * OPTIONAL on purpose, like `merged_from`: the front can ship before the API
+   * that returns it, and absent must read as ON — which is the default the
+   * column carries.
+   */
+  debrief_enabled?: boolean;
 }
 
 export interface RelationDetail {
@@ -173,6 +182,33 @@ export function useRelationsOverview() {
     [put, del, refetch]
   );
 
+  // Optimistic switch state, same doctrine as the star: it flips locally at
+  // once and rolls back when the server says no.
+  const [debriefOverride, setDebriefOverride] = useState<boolean | null>(null);
+  const patchSettings = useApiMutation<{ debrief_enabled: boolean }, { debrief_enabled: boolean }>({
+    method: 'PATCH',
+    componentName: 'RelationSettings',
+  });
+
+  const setDebriefEnabled = useCallback(
+    async (nextValue: boolean): Promise<{ ok: boolean }> => {
+      setDebriefOverride(nextValue);
+      try {
+        const stored = await patchSettings.mutate('/relations/settings', {
+          debrief_enabled: nextValue,
+        });
+        // Adopt what the server STORED, not what was sent: a value it refused
+        // must show through rather than be painted over locally.
+        if (stored) setDebriefOverride(stored.debrief_enabled);
+        return { ok: true };
+      } catch {
+        setDebriefOverride(null);
+        return { ok: false };
+      }
+    },
+    [patchSettings]
+  );
+
   const relations = (data?.relations ?? []).map(relation =>
     relation.display_name in overrides
       ? { ...relation, is_favorite: overrides[relation.display_name] }
@@ -188,6 +224,9 @@ export function useRelationsOverview() {
     // the first answer and stays there. Refreshes are announced, not staged.
     initialLoading: data === undefined && loading,
     error: !!error,
+    // Absent reads as ON — the column's own default, and what an older API means.
+    debriefEnabled: debriefOverride ?? data?.debrief_enabled ?? true,
+    setDebriefEnabled,
     toggleFavorite,
     // Exposed so a merge can bring the list back in sync: two cards become
     // one, and the page holds the only copy of that list.
@@ -195,8 +234,22 @@ export function useRelationsOverview() {
   };
 }
 
-/** Per-section outcome of the provider-backed half of the 360° view. */
-export type ContextStatus = 'ok' | 'empty' | 'not_configured' | 'error' | 'no_address';
+/**
+ * Per-section outcome of the provider-backed half of the 360° view.
+ *
+ * `not_requested` is a THIRD answer beside "found nothing" and "could not
+ * look": the caller excluded the section, so it was never fetched and is
+ * neither a result nor a gap. This page always asks for all three, so it never
+ * arrives here — the member exists because the debrief DOES narrow, and a
+ * status the type cannot represent is a lie the compiler stops checking.
+ */
+export type ContextStatus =
+  | 'ok'
+  | 'empty'
+  | 'not_configured'
+  | 'error'
+  | 'no_address'
+  | 'not_requested';
 
 export interface ContactValue {
   value: string;
@@ -463,4 +516,144 @@ export function useOverviewScope() {
   );
 
   return { scope: data ?? null, loading, saving, save };
+}
+
+// =============================================================================
+// The daily relationship debrief
+// =============================================================================
+
+/** What the API says about one relationship's debrief. */
+export type DebriefStatus =
+  | 'absent'
+  | 'building'
+  | 'ready'
+  | 'failed'
+  | 'empty'
+  | 'disabled';
+
+/** The synthesis itself, written by the model in the reader's language. */
+export interface DebriefBody {
+  headline: string;
+  where_we_stand: string;
+  open_points: string[];
+  suggested_next_step: string | null;
+  notable_facts: string[];
+}
+
+/**
+ * One relationship's debrief, with everything that makes it honest.
+ *
+ * `body` survives a FAILED status on purpose: a refresh that failed must leave
+ * the previous synthesis standing, because "I could not refresh this" and
+ * "there is nothing" are different answers and only the first is true.
+ */
+export interface RelationDebrief {
+  status: DebriefStatus;
+  person: string;
+  body: DebriefBody | null;
+  /** When the WORDS were written — never when they were read. */
+  generated_at: string | null;
+  /** The reader's local date this debrief belongs to. */
+  generated_for: string | null;
+  sections_used: string[];
+  /** Sources asked for that could not be read — stated, never implied away. */
+  unavailable: string[];
+  /**
+   * What the call that wrote this body cost.
+   *
+   * `null` — never zeros — when the row cannot say: a cost of 0 is a claim,
+   * and a debrief written before this was recorded made none. Optional so the
+   * front can ship before the API that returns it.
+   */
+  usage?: LLMUsage | null;
+  /** Whether asking again would do anything right now. */
+  can_rebuild: boolean;
+}
+
+/**
+ * Read a relationship's debrief, and build it when nothing stands yet.
+ *
+ * The GET never builds, so it is safe on every mount. The POST is issued ONCE,
+ * and only after `providerReady` — the provider-backed sections of the card
+ * resolve first, so the debrief reads their warm caches instead of racing them
+ * and paying the external quota twice.
+ *
+ * An automatic build happens only from `absent`. A FAILED debrief is NOT
+ * retried on sight: that would turn a cooldown into a loop, and the reader has
+ * an explicit control for it.
+ */
+export function useRelationDebrief(
+  name: string | null,
+  { enabled, providerReady }: { enabled: boolean; providerReady: boolean }
+) {
+  const endpoint = name ? `/relations/${encodeURIComponent(name)}/debrief` : '';
+  const { data, loading, setData } = useApiQuery<RelationDebrief>(endpoint, {
+    componentName: 'RelationDebrief',
+    enabled: !!name && enabled,
+  });
+  const [building, setBuilding] = useState(false);
+  // One automatic attempt per person, ever: a re-render, a refetch or a failed
+  // build must not each buy another LLM call.
+  const attempted = useRef<string | null>(null);
+
+  const run = useCallback(
+    async (force: boolean) => {
+      if (!endpoint) return;
+      setBuilding(true);
+      try {
+        const fresh = await apiClient.post<RelationDebrief>(
+          force ? `${endpoint}?force=true` : endpoint
+        );
+        setData(fresh);
+      } catch {
+        // A failed build leaves the current answer standing: replacing it with
+        // nothing would turn "could not build" into "there is nothing".
+      } finally {
+        setBuilding(false);
+      }
+    },
+    [endpoint, setData]
+  );
+
+  // Whether the read for THIS name has been seen to run at all.
+  //
+  // `loading` alone is not enough, and the reason is a timing fact rather than
+  // an opinion: `useApiQuery` raises its flag INSIDE its own effect, so on the
+  // render where `name` changes, `loading` still holds the previous value
+  // (false) while `data` still holds the previous person's answer. A build
+  // decided there is decided on somebody else's status — and it fires before
+  // the provider sections have refilled their caches, which is the exact
+  // double spend `providerReady` exists to prevent.
+  //
+  // Observing the load CYCLE closes it: the flag is cleared when the name
+  // changes, raised when the query actually runs, and the build waits for it.
+  const sawLoad = useRef(false);
+
+  // Declared FIRST so it runs before the build effect in the same flush.
+  useEffect(() => {
+    sawLoad.current = false;
+    attempted.current = null;
+  }, [name]);
+
+  useEffect(() => {
+    if (loading) sawLoad.current = true;
+  }, [loading]);
+
+  useEffect(() => {
+    if (!name || !enabled || !providerReady || loading || !data) return;
+    if (!sawLoad.current) return;
+    if (data.status !== 'absent') return;
+    if (attempted.current === name) return;
+    attempted.current = name;
+    void run(false);
+  }, [name, enabled, providerReady, loading, data, run]);
+
+  return {
+    debrief: data ?? null,
+    /** True while the first read has not landed — never during a rebuild. */
+    loading: loading && data === undefined,
+    /** True while THIS tab is building; the panel announces, never unmounts. */
+    building: building || data?.status === 'building',
+    rebuild: useCallback(() => run(true), [run]),
+  };
 }

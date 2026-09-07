@@ -5,12 +5,12 @@ response pipeline can skip a useless embedding + four extraction LLM calls on
 "ok" or "merci". That heuristic was applied to **every** caller, including two
 that never pass a conversational message:
 
-- ``person_tools._fetch_person_memories`` embeds a *person name*;
+- ``relations.overview.recall.fetch_person_memories`` embeds a *person name*;
 - ``heartbeat.context_aggregator`` embeds an internal search query.
 
 The shipped patterns include ``fine``, ``cool``, ``top``, ``bien``, ``super``
 and ``parfait`` — all real surnames. A contact named Fine or Bien therefore lost
-every associated memory, silently: ``_fetch_person_memories`` returned ``None``
+every associated memory, silently: ``fetch_person_memories`` returned ``None``
 without ever reaching the database, and the user concluded that LIA "forgot".
 
 These tests pin the boundary in both directions: a conversational "ok" is still
@@ -97,7 +97,7 @@ class TestPersonMemoriesRegression:
 
     async def test_memories_of_a_contact_named_fine_are_returned(self):
         """Before L2 this returned None without ever querying the database."""
-        from src.domains.agents.tools.person_tools import _fetch_person_memories
+        from src.domains.relations.overview.recall import fetch_person_memories
 
         memory = SimpleNamespace(content="Fine loves hiking in the Alps")
         repo = MagicMock()
@@ -121,7 +121,7 @@ class TestPersonMemoriesRegression:
                 return_value=repo,
             ),
         ):
-            result = await _fetch_person_memories(uuid4(), "Fine")
+            result = await fetch_person_memories(uuid4(), "Fine")
 
         assert result == ["Fine loves hiking in the Alps"]
         repo.search_by_relevance.assert_awaited_once()

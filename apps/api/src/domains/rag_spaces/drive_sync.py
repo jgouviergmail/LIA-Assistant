@@ -33,6 +33,7 @@ from src.core.exceptions import BaseAPIException
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.domains.rag_spaces.consultations import SECTION_DRIVE, space_read
 from src.domains.rag_spaces.drive_ingest import (
     ingest_drive_file,
     remove_drive_document,
@@ -179,7 +180,8 @@ class RAGDriveSyncService:
         client = await self._get_drive_client(user_id)
         try:
             # Verify folder exists and is actually a folder
-            metadata = await client.get_file_metadata(folder_id)
+            async with space_read(user_id=user_id, section=SECTION_DRIVE):
+                metadata = await client.get_file_metadata(folder_id)
             if "folder" not in metadata.get("mimeType", ""):
                 raise BaseAPIException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -357,12 +359,13 @@ class RAGDriveSyncService:
         """
         client = await self._get_drive_client(user_id)
         try:
-            return await client.list_files(
-                folder_id=folder_id,
-                content_type=None,
-                page_token=page_token,
-                max_results=100,
-            )
+            async with space_read(user_id=user_id, section=SECTION_DRIVE):
+                return await client.list_files(
+                    folder_id=folder_id,
+                    content_type=None,
+                    page_token=page_token,
+                    max_results=100,
+                )
         finally:
             await client.close()
 

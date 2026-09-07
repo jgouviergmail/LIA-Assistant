@@ -97,6 +97,7 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
                 tokens_cache=usage.tokens_cache,
                 model_name=usage.model_name,
                 db=db,
+                source="user",
             )
         await repo.finish_regenerate(
             meeting_id,

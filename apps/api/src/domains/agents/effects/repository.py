@@ -32,13 +32,13 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import func, select, update
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,9 +47,10 @@ from src.core.repository import BaseRepository
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.agents.effects.digest import payload_digest
 from src.domains.agents.effects.models import AgentEffect, EffectSource, EffectStatus
+from src.domains.agents.effects.origin import RegisterOrigin, origin_sources
 from src.domains.agents.effects.period import period_conditions
 from src.domains.agents.effects.schemas import ClaimRequest
-from src.infrastructure.database.export_window import newest_window
+from src.infrastructure.database.export_stream import stream_all
 
 logger = structlog.get_logger(__name__)
 
@@ -266,8 +267,8 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
         result = await self.db.execute(statement)
         return bool(result.rowcount == 1)  # type: ignore[attr-defined]
 
-    async def list_for_export(
-        self,
+    @staticmethod
+    def export_query(
         *,
         since: datetime | None = None,
         until: datetime | None = None,
@@ -278,14 +279,12 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
         status: EffectStatus | None = None,
         source: EffectSource | None = None,
         execution_mode: str | None = None,
-        limit: int,
-    ) -> list[AgentEffect]:
-        """Rows matching an operator's filters, oldest first, capped.
+    ) -> Select[tuple[AgentEffect]]:
+        """The filtered SELECT an extraction reads, without order or ceiling.
 
-        Every filter is optional and combined with AND. The cap is applied
-        here and PUBLISHED by the caller in the file's header: an export that
-        stops early must say so, or its reader draws conclusions from a
-        truncation nobody mentioned.
+        One builder for both readers: the exact count published in the file's
+        header and the rows streamed under it must describe the same set, and
+        two copies of nine filters would eventually describe two.
 
         Args:
             since: Lower bound on ``claimed_at`` (inclusive).
@@ -299,10 +298,9 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
             status: One outcome.
             source: One authority source.
             execution_mode: ``pipeline`` or ``react``.
-            limit: Row ceiling.
 
         Returns:
-            The matching rows, oldest first.
+            The statement.
         """
         query = select(AgentEffect)
         if since is not None:
@@ -323,16 +321,53 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
             query = query.where(AgentEffect.source == source)
         if execution_mode:
             query = query.where(AgentEffect.execution_mode == execution_mode)
+        return query
 
-        # The most RECENT rows, returned oldest first: ordering ascending and
-        # then capping gave the BEGINNING of history — measured 2026-09-05, an
-        # export covered the first five weeks of an eight-month register.
-        return await newest_window(
+    def stream_for_export(
+        self, query: Select[tuple[AgentEffect]], *, batch: int
+    ) -> AsyncIterator[AgentEffect]:
+        """Every row the filters match, oldest first, at constant memory.
+
+        Args:
+            query: What :meth:`export_query` built.
+            batch: How many rows the cursor buffers at a time.
+
+        Yields:
+            The rows. All of them — a register extraction is complete or it is
+            not an extraction (ADR-273); the memory it costs is bounded by the
+            partition, never by dropping the beginning of the period.
+        """
+        return stream_all(
             self.db,
             query,
-            newest_first=(AgentEffect.claimed_at.desc(), AgentEffect.id.desc()),
-            limit=limit,
+            oldest_first=(AgentEffect.claimed_at.asc(), AgentEffect.id.asc()),
+            batch=batch,
         )
+
+    async def list_latest(
+        self, query: Select[tuple[AgentEffect]], *, limit: int
+    ) -> list[AgentEffect]:
+        """The most recent rows the filters match, returned oldest first.
+
+        For a SCREEN, not for an extraction. A page has a size by nature and
+        the operator sees it, where a downloaded register must be whole
+        (ADR-273) — but a page still owes the rule the extractions taught:
+        ordering ascending and then capping returns the BEGINNING of history,
+        which on this screen would show an account's first fifty actions
+        forever.
+
+        Args:
+            query: What :meth:`export_query` built.
+            limit: Page size.
+
+        Returns:
+            Up to ``limit`` rows, oldest first — a history reads forward, a
+            ceiling keeps the end.
+        """
+        rows = await self.db.execute(
+            query.order_by(AgentEffect.claimed_at.desc(), AgentEffect.id.desc()).limit(limit)
+        )
+        return list(reversed(rows.scalars().all()))
 
     async def count_claimed_orphans(self, older_than: datetime) -> int:
         """How many effects are still CLAIMED past the staleness threshold.
@@ -384,6 +419,7 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
         status: EffectStatus | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        origin: RegisterOrigin = RegisterOrigin.ALL,
     ) -> tuple[list[AgentEffect], int]:
         """One page of a user's effects, newest first, with the EXACT total.
 
@@ -398,6 +434,9 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
                 count as well as to the page.
             since: Inclusive lower bound on the claim time.
             until: Exclusive upper bound on the claim time.
+            origin: Which authorships to keep. Separating what the person set
+                in motion from what LIA decided alone is what stops a sweep's
+                rows from drowning the handful they actually asked for.
 
         Returns:
             The page and the exact total.
@@ -408,6 +447,9 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
         conditions = [AgentEffect.user_id == user_id]
         if status is not None:
             conditions.append(AgentEffect.status == status)
+        sources = origin_sources(origin)
+        if sources is not None:
+            conditions.append(AgentEffect.source.in_(sources))
         conditions.extend(period_conditions(AgentEffect.claimed_at, since, until))
 
         total = (

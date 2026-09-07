@@ -85,6 +85,59 @@ fetched, polled every 60 s and thrown away. The user met a wall with no warning.
 "never both" rule inside one component instead of two independent conditions in
 the page.
 
+## What the ceilings cover, and who pays (ADR-272)
+
+Two ceilings bound every token the **platform** pays for: what one account may
+consume, and what the instance may spend in a day. Only what a person pays with
+their OWN connector key is outside them.
+
+`domains/usage_limits/cost_bearers.py` draws that line, family by family, and it
+is the declaration a guard checks in BOTH directions. `provider_api_keys` has no
+`user_id`, so the LLM, TTS, STT, image and Maps families run on the deployment's
+credential and carry `CostBearer.INSTANCE`; Perplexity, Brave, the weather
+connector and telephony run on the person's own credential and carry
+`CostBearer.USER`. An instance-paid family missing from the enforced sum is a
+spend no ceiling sees; a user-paid family present in it charges someone twice.
+
+### One guard, and every door is named
+
+`infrastructure/llm/usage_guard.py` is the single usage guard, and
+`LLM_CHOKEPOINTS` names every door it must sit on. Three shapes had produced
+five unbounded spend sites out of the forty-six `LLM_SPEND_ROADS` declares:
+
+1. **A chokepoint is the INNERMOST door, never its wrapper.** The registry named
+   `get_structured_output_with_retry` while nine modules called
+   `get_structured_output` directly — one of two siblings in the same file — and
+   the completeness test could not see it, because it only checks DECLARED doors.
+2. **A gate that returns early bounds nothing.** The shared guard short-circuited
+   on `usage_limits_enabled`, which switches off the INSTANCE ceiling too
+   (`check_user_allowed` deliberately keeps that one outside the flag), and on a
+   call having no owner — true of the account's ceiling, and beside the point for
+   the deployment credential that actually paid.
+3. **One refusal, two answers.** The router named an instance pause with a code
+   and a `Retry-After`; the shared guard answered with neither.
+
+Two refusals the guard must NOT make: a call with no owner is never blocked (its
+bound is the instance ledger), and `"system"` is not an account.
+
+### How a caller receives a refusal follows its transport
+
+The verdict never does. `domains/usage_limits/enforcement.py` holds one raiser
+and its non-raising twin:
+
+| Path | Function | Behaviour |
+|---|---|---|
+| Request | `enforce_usage_limit` / `raise_for_blocked_verdict` | Raises — HTTP 429, a dedicated code, and a `Retry-After` naming when the pause lifts |
+| Background | `spend_blocked` | Degrades — the reminder still fires, the dashboard still renders, and it logs **skipped**, never *failed* |
+
+A quota refusal is not a generation failure, and reporting it as one sends an
+operator looking for a fault that does not exist.
+
+`test_every_spend_site_is_bounded` walks the registry and refuses a site that
+reaches no ceiling; `test_usage_guard_at_every_chokepoint` refuses an unguarded
+door; `test_cost_bearer_declaration` compares the declaration to the sum
+`_build_user_stats_columns` actually enforces, read by AST.
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |
@@ -116,4 +169,6 @@ the page.
 ## References
 
 - ADR: [ADR-060-Usage-Limits](../architecture/ADR-060-Usage-Limits.md)
+- ADR: [ADR-270 — Spend roads, cost bearers, register authorship](../architecture/ADR-270-Spend-Roads-And-Register-Authorship.md)
+- ADR: [ADR-272 — Every platform-paid token answers to both ceilings](../architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md)
 - Plan: `~/.claude/plans/wiggly-mapping-pillow.md`

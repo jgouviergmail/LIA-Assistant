@@ -1,0 +1,16 @@
+# Sections of an injected relationship debrief, in INJECTION ORDER.
+# One `field|header|line_template` per line; blank lines and #-comments are
+# ignored.
+#
+# Single source of truth for the labels, their order AND the line wording —
+# same reason as peer_context_section_headers: parallel Python structures
+# drift, and prose in a .py violates the versioned-prompt rule (CLAUDE.md).
+#
+# `field` matches a DebriefBody field, so a field the model left empty simply
+# renders no block: an empty heading would read as "there is nothing here",
+# which is a claim about data the model was never asked to produce.
+headline|WHERE IT STANDS|{value}
+where_we_stand|THE RELATIONSHIP|{value}
+open_points|STILL OPEN (as of the date above — verify before stating any of these)|- {value}
+suggested_next_step|WORTH DOING NEXT|{value}
+notable_facts|WORTH REMEMBERING|- {value}

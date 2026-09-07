@@ -524,7 +524,11 @@ ${scan.summary}`).toHaveLength(0);
     }
     expect(await collapsed.count()).toBe(0);
     await expect(page.getByText(/sera en retard/)).toBeVisible();
-    await expect(page.getByText('Menuiserie Dupont')).toBeVisible();
+    // The CONTACT CARD's own spelling (middle dot), not the bare company
+    // name: the debrief above it names the same employer in its « good to
+    // know » list, so the bare string now matches two elements and the
+    // assertion stopped saying which section it was waiting for.
+    await expect(page.getByText('Menuisier · Menuiserie Dupont')).toBeVisible();
 
     const detail = await scanPage(page, testInfo, '/dashboard/relations#detail');
     expect(

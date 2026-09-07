@@ -92,6 +92,38 @@ def _validate_redis_key_families() -> None:
         raise
 
 
+def _install_consultation_sink() -> None:
+    """Wire the consultation register into its seam, and prove it (ADR-270).
+
+    The seam (``domains/shared/consultation_sink``) inverts the dependency so a
+    feature domain never imports the register — but the register installs
+    itself as an IMPORT SIDE EFFECT, and nothing guaranteed that import ever
+    happened. Measured on dev 2026-09-07: along the exact import path the
+    heartbeat sweep uses — the proactive runner, then
+    ``heartbeat.consultations`` — ``sink_is_installed()`` answered **False**.
+    The register worked in production only because the API happens to import
+    the treatments router at boot; reorder that and every out-of-turn
+    consultation is dropped by a no-op, in silence and with no signal at all.
+
+    So the wiring is a DECLARED step, and the boot refuses a mute register.
+    That is ADR-085's rule applied to a seam rather than a table: an
+    observability subsystem that fails open is the one failure nobody notices.
+
+    Raises:
+        RuntimeError: If the register did not claim the seam.
+    """
+    # Importing the register is what installs both the sink and the collector
+    # factory; the import is the wiring, so it is made explicit here.
+    import src.domains.agents.effects.treatments  # noqa: F401
+    from src.domains.shared.consultation_sink import sink_is_installed
+
+    if not sink_is_installed():
+        raise RuntimeError(
+            "the consultation register did not claim its seam: every "
+            "out-of-turn consultation would be dropped silently"
+        )
+
+
 def _validate_diagnostics_registries() -> None:
     """Boot gates of the diagnostics subsystem (ADR-085 pattern).
 
@@ -298,6 +330,7 @@ def run_failfast_validations() -> None:
     _validate_memory_category_vocabulary()
     _validate_diagnostics_registries()
     _validate_redis_key_families()
+    _install_consultation_sink()
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an

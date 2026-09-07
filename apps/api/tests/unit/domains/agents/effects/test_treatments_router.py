@@ -68,6 +68,7 @@ class _Repository:
         tool_name: str | None = None,
         since: Any = None,
         until: Any = None,
+        origin: Any = None,
     ) -> tuple[list[Any], int]:
         self.seen = {
             "user_id": user_id,
@@ -76,6 +77,7 @@ class _Repository:
             "tool_name": tool_name,
             "since": since,
             "until": until,
+            "origin": origin,
         }
         rows = [row for row in self._rows if tool_name is None or row.tool_name == tool_name]
         return rows[offset : offset + limit], self._total
@@ -216,3 +218,44 @@ class TestTheCapIsStated:
 
         assert page.limit == 7
         assert page.offset == 3
+
+
+class TestTheOriginReachesTheRepository:
+    """The tab's reading is applied SERVER-side, like every other filter.
+
+    Filtering in the browser would leave the total describing a different set
+    from the list under it — the ADR-185 trap, and the reason every criterion
+    on this route travels to the query rather than to the component.
+    """
+
+    async def test_the_initiative_reading_travels(self) -> None:
+        from src.domains.agents.effects.origin import RegisterOrigin
+
+        repository = _Repository([_row()])
+        with _with(repository):
+            await list_treatment_journal(
+                limit=20,
+                offset=0,
+                tool_name=None,
+                since=None,
+                until=None,
+                origin=RegisterOrigin.INITIATIVE,
+                db=object(),
+                user=_user(),
+            )
+
+        assert repository.seen["origin"] is RegisterOrigin.INITIATIVE
+
+    def test_the_declared_default_reads_everything(self) -> None:
+        """An existing caller that passes no origin keeps seeing every row.
+
+        Asserted on the SIGNATURE: reached directly, a FastAPI endpoint gets
+        the ``Query`` object itself, so a call-based test would pin the
+        framework rather than the contract.
+        """
+        import inspect
+
+        from src.domains.agents.effects.origin import RegisterOrigin
+
+        default = inspect.signature(list_treatment_journal).parameters["origin"].default
+        assert default.default is RegisterOrigin.ALL

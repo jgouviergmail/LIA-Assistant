@@ -1,3 +1,7 @@
+import type { LLMUsage } from '@/types/llm-usage';
+
+export type { LLMUsage };
+
 /**
  * TypeScript types — mirror of apps/api/src/domains/briefing/schemas.py.
  *
@@ -275,14 +279,6 @@ export interface CardSection<T extends SectionData = SectionData> {
   last_attempt_at: string | null;
 }
 
-export interface LLMUsage {
-  tokens_in: number;
-  tokens_out: number;
-  tokens_cache: number;
-  /** Computed cost in EUR via the active pricing cache */
-  cost_eur: number;
-  model_name: string | null;
-}
 
 export interface TextSection {
   text: string;

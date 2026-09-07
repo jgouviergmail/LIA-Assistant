@@ -492,3 +492,90 @@ class TestAConnectedPeerBringsTheirOwnAddress:
 
         assert context.contact.status is ContextStatus.OK
         assert context.addresses_used == 1
+
+
+class TestItOnlyFetchesWhatTheCallerAsksFor:
+    """A section the caller excluded must cost nothing at all.
+
+    One mail section is three searches per address (from, to, cc — no provider
+    can express an OR) times up to three addresses, plus the contact card and
+    the calendar: eleven external calls. Fetching them and dropping the result
+    is quota spent against the reader's own selection — ADR-184's trap pointing
+    at cost.
+
+    ``NOT_REQUESTED`` is a THIRD answer beside "found nothing" and "could not
+    look": the question was deliberately never asked, so the section is neither
+    a result nor a gap.
+    """
+
+    async def test_no_section_wanted_asks_nothing(self) -> None:
+        p_card, p_mail, p_event, p_cache, _ = _patched(card=_card("home@x.com"))
+        with p_card as card_fetch, p_mail as mail_fetch, p_event as event_fetch, p_cache:
+            context = await RelationContextService(USER_ID).build(NAME, sections=frozenset())
+
+        assert card_fetch.await_count == 0
+        assert mail_fetch.await_count == 0
+        assert event_fetch.await_count == 0
+        assert context.contact.status is ContextStatus.NOT_REQUESTED
+        assert context.emails.status is ContextStatus.NOT_REQUESTED
+        assert context.events.status is ContextStatus.NOT_REQUESTED
+
+    async def test_contact_only_never_touches_mail_or_calendar(self) -> None:
+        p_card, p_mail, p_event, p_cache, _ = _patched(card=_card("home@x.com"))
+        with p_card as card_fetch, p_mail as mail_fetch, p_event as event_fetch, p_cache:
+            context = await RelationContextService(USER_ID).build(
+                NAME, sections=frozenset({"contact"})
+            )
+
+        assert card_fetch.await_count == 1
+        assert mail_fetch.await_count == 0
+        assert event_fetch.await_count == 0
+        assert context.contact.status is ContextStatus.OK
+        assert context.emails.status is ContextStatus.NOT_REQUESTED
+        assert context.events.status is ContextStatus.NOT_REQUESTED
+
+    async def test_mail_only_still_reads_the_card_because_it_holds_the_addresses(self) -> None:
+        """The card is an INPUT here, not an answer: read, but not reported."""
+        p_card, p_mail, p_event, p_cache, _ = _patched(card=_card("home@x.com"), emails=[_email()])
+        with p_card as card_fetch, p_mail as mail_fetch, p_event as event_fetch, p_cache:
+            context = await RelationContextService(USER_ID).build(
+                NAME, sections=frozenset({"emails"})
+            )
+
+        assert card_fetch.await_count == 1
+        assert mail_fetch.await_count == 1
+        assert event_fetch.await_count == 0
+        assert context.contact.status is ContextStatus.NOT_REQUESTED
+        assert context.contact.contact is None
+        assert context.emails.status is ContextStatus.OK
+        assert context.events.status is ContextStatus.NOT_REQUESTED
+
+    async def test_an_excluded_section_is_not_reported_as_a_missing_address(self) -> None:
+        """No address is a GAP; not being asked for is not."""
+        p_card, p_mail, p_event, p_cache, _ = _patched(card=_card())
+        with p_card, p_mail, p_event, p_cache:
+            context = await RelationContextService(USER_ID).build(
+                NAME, sections=frozenset({"emails"})
+            )
+
+        assert context.emails.status is ContextStatus.NO_ADDRESS
+        assert context.events.status is ContextStatus.NOT_REQUESTED
+
+    async def test_omitting_the_argument_keeps_the_historical_behaviour(self) -> None:
+        """The HTTP route passes nothing and must still get all three."""
+        p_card, p_mail, p_event, p_cache, _ = _patched(
+            card=_card("home@x.com"), emails=[_email()], events=[_event()]
+        )
+        with p_card as card_fetch, p_mail as mail_fetch, p_event as event_fetch, p_cache:
+            context = await RelationContextService(USER_ID).build(NAME)
+
+        assert (card_fetch.await_count, mail_fetch.await_count, event_fetch.await_count) == (
+            1,
+            1,
+            1,
+        )
+        assert ContextStatus.NOT_REQUESTED not in {
+            context.contact.status,
+            context.emails.status,
+            context.events.status,
+        }

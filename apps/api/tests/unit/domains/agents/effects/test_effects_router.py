@@ -61,9 +61,21 @@ class _Repository:
         return self._rows
 
     async def list_for_user(
-        self, user_id: uuid.UUID, *, limit: int, offset: int, status: Any = None
+        self,
+        user_id: uuid.UUID,
+        *,
+        limit: int,
+        offset: int,
+        status: Any = None,
+        origin: Any = None,
     ) -> tuple[list[Any], int]:
-        self.seen = {"user_id": user_id, "limit": limit, "offset": offset, "status": status}
+        self.seen = {
+            "user_id": user_id,
+            "limit": limit,
+            "offset": offset,
+            "status": status,
+            "origin": origin,
+        }
         rows = [row for row in self._rows if status is None or row.status == status]
         return rows[offset : offset + limit], self._total
 
@@ -205,3 +217,38 @@ class TestTheRegisterIsReadOnly:
 
         methods = {method for route in router.routes for method in getattr(route, "methods", set())}
         assert methods <= {"GET", "HEAD", "OPTIONS"}, f"a writing route appeared: {methods}"
+
+
+class TestTheOriginReachesTheRepository:
+    """The same reading, applied to the action journal by the same vocabulary."""
+
+    async def test_the_mine_reading_travels(self) -> None:
+        from src.domains.agents.effects.origin import RegisterOrigin
+
+        repository = _Repository([_row()])
+        patches = _with(repository)
+        with patches[0], patches[1]:
+            await list_journal(
+                limit=20,
+                offset=0,
+                status=None,
+                origin=RegisterOrigin.MINE,
+                db=object(),
+                user=SimpleNamespace(id=OWNER),
+            )
+
+        assert repository.seen["origin"] is RegisterOrigin.MINE
+
+    def test_the_declared_default_reads_everything(self) -> None:
+        """An existing caller that passes no origin keeps seeing every row.
+
+        Asserted on the SIGNATURE rather than by calling the function: reached
+        directly, a FastAPI endpoint receives the ``Query`` object itself, so a
+        call-based test would pin the framework rather than the contract.
+        """
+        import inspect
+
+        from src.domains.agents.effects.origin import RegisterOrigin
+
+        default = inspect.signature(list_journal).parameters["origin"].default
+        assert default.default is RegisterOrigin.ALL

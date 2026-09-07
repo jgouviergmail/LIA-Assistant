@@ -38,6 +38,18 @@ briefing_refresh_requests_total = Counter(
     # scope: single | all
 )
 
+briefing_bundle_builds_total = Counter(
+    "briefing_bundle_builds_total",
+    "Bundle build requests, split by whether this caller ran the build or joined one.",
+    ["outcome"],
+    # outcome: owned  — this caller gathered the nine sections
+    #          joined — another caller was already gathering them; the work
+    #                   was shared instead of repeated. One page load issues
+    #                   /cards and /synthesis in parallel, so a healthy
+    #                   instance shows roughly as many joins as it shows
+    #                   cold or partial builds.
+)
+
 briefing_llm_invocations_total = Counter(
     "briefing_llm_invocations_total",
     "Briefing LLM invocations (greeting / synthesis).",

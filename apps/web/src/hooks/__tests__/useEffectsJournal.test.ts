@@ -183,3 +183,58 @@ describe('useEffectsJournal', () => {
     expect(result.current.entries?.length).toBe(1);
   });
 });
+
+describe('useEffectsJournal — the origin travels to the server', () => {
+  beforeEach(() => {
+    query.calls.length = 0;
+    query.result.data = undefined;
+    query.result.error = null;
+  });
+
+  it('omits the parameter when the reading filters nothing', () => {
+    // A caller that passes no origin must produce the URL it produced before:
+    // the change is additive, and an existing screen keeps its request.
+    renderHook(() => useEffectsJournal());
+
+    expect(query.calls[0]).not.toContain('origin=');
+  });
+
+  it('sends the reading the tab asked for', () => {
+    renderHook(() => useEffectsJournal(undefined, 'initiative'));
+
+    expect(query.calls[0]).toContain('origin=initiative');
+  });
+
+  it('combines with the outcome filter rather than replacing it', () => {
+    renderHook(() => useEffectsJournal('failed', 'mine'));
+
+    expect(query.calls[0]).toContain('status=failed');
+    expect(query.calls[0]).toContain('origin=mine');
+  });
+
+  it('restarts the accumulation when the reading changes', async () => {
+    // Without the origin in the reset key, opening the initiative tab would
+    // show the rows the person's own list had already accumulated — the
+    // journal would look like it merged the two readings.
+    const { result, rerender } = renderHook(
+      ({ origin }: { origin: 'mine' | 'initiative' }) => useEffectsJournal(undefined, origin),
+      { initialProps: { origin: 'mine' } as { origin: 'mine' | 'initiative' } }
+    );
+
+    await act(async () => {
+      query.result.data = { entries: [entry('a')], total: 1, limit: EFFECTS_PAGE_SIZE, offset: 0 };
+      rerender({ origin: 'mine' });
+    });
+    expect(result.current.entries).toHaveLength(1);
+
+    await act(async () => {
+      query.result.data = undefined;
+      rerender({ origin: 'initiative' });
+    });
+
+    // `undefined`, not an empty list: the journal is fresh, not "loaded and
+    // empty" — the same distinction `firstLoad` rests on.
+    expect(result.current.entries).toBeUndefined();
+    expect(result.current.firstLoad).toBe(true);
+  });
+});

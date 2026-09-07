@@ -47,15 +47,13 @@ paying a real defect class for an unmeasurable gain.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable, Sequence
-from functools import lru_cache
 from typing import Final
 from uuid import UUID
 
 from src.core.config import settings
 from src.domains.peers.repository import PeersRepository
-from src.domains.shared.text_normalization import fold_name
+from src.domains.shared.name_mentions import detect_mentioned_names, usable_names
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.logging import get_logger
 
@@ -77,33 +75,9 @@ PEER_DIRECTORY_EMPTY: Final[str] = "(none — this user has no connected users)"
 
 # A one- or two-letter token ("G" in "Jérôme G") occurs in nearly every
 # sentence: matching it alone would fire the correction on every turn.
-_MIN_TOKEN_LEN: Final[int] = 3
-
 # Prompt budget. Beyond this the directory stops being a useful hint and
 # starts costing tokens on every single turn.
 _MAX_DIRECTORY_NAMES: Final[int] = 50
-
-# Alphanumeric runs, Unicode-aware, underscore excluded — used both to split a
-# name into tokens and to define the word boundaries a match must respect.
-_TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"[^\W_]+")
-
-
-@lru_cache(maxsize=512)
-def _word_bounded(needle: str) -> re.Pattern[str]:
-    """Compile a whole-word matcher for one folded needle.
-
-    ``\\b`` is not usable here: it treats ``_`` as a word character and would
-    also fire inside ``snake_case`` blobs. The lookarounds below use the same
-    alphanumeric class as :data:`_TOKEN_RE`, so "Jean" matches "jean," and
-    "(jean)" but never "jeans".
-
-    Args:
-        needle: Already folded search term.
-
-    Returns:
-        Compiled pattern matching ``needle`` on alphanumeric boundaries.
-    """
-    return re.compile(rf"(?<![^\W_]){re.escape(needle)}(?![^\W_])")
 
 
 async def load_connected_peer_names(user_id: str | None) -> list[str]:
@@ -149,7 +123,7 @@ def format_peer_directory(names: Sequence[str | None]) -> str:
         One ``- name`` line per peer, bounded by :data:`_MAX_DIRECTORY_NAMES`,
         or :data:`PEER_DIRECTORY_EMPTY` when there is nobody to list.
     """
-    usable = _usable_names(names)
+    usable = usable_names(names)
     if not usable:
         return PEER_DIRECTORY_EMPTY
     shown = usable[:_MAX_DIRECTORY_NAMES]
@@ -160,33 +134,6 @@ def format_peer_directory(names: Sequence[str | None]) -> str:
     if len(usable) > len(shown):
         lines.append(f"- (+{len(usable) - len(shown)} more)")
     return "\n".join(lines)
-
-
-def _search_needles(folded_name: str) -> set[str]:
-    """Every folded form whose presence means this peer was named.
-
-    The full name, plus each of its tokens long enough to be distinctive —
-    users drop the surname as soon as the conversation is under way.
-
-    Args:
-        folded_name: Peer display name, already folded.
-
-    Returns:
-        Folded needles to search for.
-    """
-    needles = {folded_name}
-    needles.update(t for t in _TOKEN_RE.findall(folded_name) if len(t) >= _MIN_TOKEN_LEN)
-    return needles
-
-
-def _folded_haystack(texts: Iterable[str | None]) -> str:
-    """Fold and join every usable text into one searchable blob."""
-    return "\n".join(fold_name(t) for t in texts if isinstance(t, str) and t.strip())
-
-
-def _usable_names(peer_names: Sequence[str | None]) -> list[str]:
-    """Strip blanks and non-strings from a directory, preserving order."""
-    return [n.strip() for n in peer_names if isinstance(n, str) and n.strip()]
 
 
 def detect_mentioned_peers(
@@ -210,19 +157,7 @@ def detect_mentioned_peers(
     Returns:
         The matching display names, in directory order, without duplicates.
     """
-    directory = _usable_names(peer_names)
-    haystack = _folded_haystack(texts)
-    if not directory or not haystack:
-        return []
-
-    mentioned: list[str] = []
-    for name in directory:
-        folded = fold_name(name)
-        if not folded or name in mentioned:
-            continue
-        if any(_word_bounded(n).search(haystack) for n in _search_needles(folded)):
-            mentioned.append(name)
-    return mentioned
+    return detect_mentioned_names(texts, peer_names)
 
 
 def apply_peer_domain_correction(

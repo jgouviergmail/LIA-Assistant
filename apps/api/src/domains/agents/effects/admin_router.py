@@ -15,13 +15,14 @@ database operation.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, Query, Request, Response
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,15 +31,17 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
 from src.core.security.authorization import require_superuser
 from src.core.session_dependencies import get_current_active_session
-from src.domains.agents.effects.article12_export import (
-    article12_filters,
-    extract_of,
-    known_sources,
-    render_article12,
-)
+from src.core.streaming_download import attachment_stream
+from src.domains.agents.effects.article12_export import article12_filters, known_sources
 from src.domains.agents.effects.models import EffectSource, EffectStatus
-from src.domains.agents.effects.technical_reads import TechnicalQuery, read_register
+from src.domains.agents.effects.technical_reads import (
+    TechnicalQuery,
+    count_register,
+    stated_query,
+    stream_register,
+)
 from src.domains.users.models import AdminAuditLog, User
+from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
 
@@ -87,58 +90,9 @@ def _enum_value(value: Any) -> str:
     return str(getattr(value, "value", value))
 
 
-#: Every filter a register MIGHT be asked for beyond the period and the account
-#: list. Which of them a given register actually honours is declared on its
-#: ``TechnicalSpec``; a request naming one it cannot is REPORTED in the header
-#: rather than silently dropped, or a reader mistakes an unfiltered file for a
-#: filtered one.
-_OPTIONAL_FILTERS: tuple[str, ...] = (
-    "tool_name",
-    "mutation_policy",
-    "status",
-    "source",
-    "execution_mode",
-)
-
-
-def _stated_query(asked: TechnicalQuery) -> dict[str, Any]:
-    """What the file SAYS was asked of it.
-
-    Args:
-        asked: The operator's request.
-
-    Returns:
-        The header's ``filters`` mapping, with the filters this register cannot
-        honour listed under ``ignored_filters`` rather than dropped. Account
-        ids are pseudonymised downstream by ``export_header``, with the same
-        key as the rows.
-    """
-    from src.domains.agents.effects.technical_export import TECHNICAL_SPECS
-
-    honoured = TECHNICAL_SPECS[asked.register].filters
-    values = {
-        "tool_name": asked.tool_name,
-        "mutation_policy": asked.mutation_policy,
-        "status": getattr(asked.status, "value", asked.status),
-        "source": getattr(asked.source, "value", asked.source),
-        "execution_mode": asked.execution_mode,
-    }
-    stated: dict[str, Any] = {
-        "register": asked.register,
-        "since": asked.since.isoformat() if asked.since else None,
-        "until": asked.until.isoformat() if asked.until else None,
-        "user_ids": [str(one) for one in asked.user_ids] if asked.user_ids else None,
-    }
-    stated.update({name: values[name] if name in honoured else None for name in _OPTIONAL_FILTERS})
-    stated["ignored_filters"] = sorted(
-        name for name in _OPTIONAL_FILTERS if values[name] and name not in honoured
-    )
-    return stated
-
-
 @router.get(
     "/export",
-    response_class=PlainTextResponse,
+    response_class=StreamingResponse,
     summary="Pseudonymised technical export (JSON Lines)",
 )
 async def export_technical(
@@ -158,9 +112,10 @@ async def export_technical(
     status: EffectStatus | None = Query(None),
     source: EffectSource | None = Query(None),
     execution_mode: str | None = Query(None),
+    accept_encoding: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_session),
-) -> PlainTextResponse:
+) -> Response:
     """Export the register for analysis, naming nobody.
 
     Args:
@@ -187,16 +142,11 @@ async def export_technical(
     """
     require_superuser(current_user, "export the effect register")
 
-    from src.domains.agents.effects.technical_export import (
-        TECHNICAL_SPECS,
-        export_header,
-        render_jsonl,
-        technical_row,
-    )
+    from src.domains.agents.effects.technical_export import TECHNICAL_SPECS
 
-    cap = settings.effect_technical_export_max_rows
     which = _given(register) or "actions"
     spec = TECHNICAL_SPECS[which]
+    generated_at = datetime.now(UTC)
     since, until = _given(since), _given(until)
     tool_name, mutation_policy = _given(tool_name), _given(mutation_policy)
     status, source, execution_mode = _given(status), _given(source), _given(execution_mode)
@@ -205,7 +155,9 @@ async def export_technical(
     asked = TechnicalQuery(
         register=which,
         since=since,
-        until=until,
+        # Closed at the instant the file is generated, so the exact count in
+        # its header and the rows in its body describe the same set.
+        until=until or generated_at,
         user_ids=scope,
         tool_name=tool_name,
         mutation_policy=mutation_policy,
@@ -213,28 +165,20 @@ async def export_technical(
         source=source,
         execution_mode=execution_mode,
     )
-    rows = await read_register(db, asked, cap)
-    filters = _stated_query(asked)
-    content = render_jsonl(
-        [technical_row(row, spec) for row in rows],
-        export_header(
-            row_count=len(rows),
-            cap=cap,
-            filters=filters,
-            generated_at=datetime.now(UTC),
+    total = await count_register(db, asked)
+    logger.info("effect_technical_export", register=which, row_count=total)
+    return attachment_stream(
+        _technical_document(
+            asked,
             spec=spec,
+            total=total,
+            generated_at=generated_at,
+            batch=settings.effect_export_batch_rows,
         ),
-    )
-    logger.info(
-        "effect_technical_export",
-        register=which,
-        row_count=len(rows),
-        truncated=len(rows) >= cap,
-    )
-    return PlainTextResponse(
-        content,
+        filename=f"lia-{spec.slug}.jsonl",
         media_type="application/x-ndjson",
-        headers={"Content-Disposition": f'attachment; filename="lia-{spec.slug}.jsonl"'},
+        accept_encoding=_given(accept_encoding),
+        extra_headers={"X-Register-Rows": str(total), "X-Register-Truncated": "false"},
     )
 
 
@@ -282,8 +226,9 @@ async def read_admin_view(
     # that actually ran, and the raw parameter is a truthy ``Query`` object
     # whenever the framework is not in the loop.
     scoped_to = _given(user_id)
-    rows = await EffectLedgerRepository(db).list_for_export(
-        user_id=scoped_to, limit=_given(limit) or 50
+    repository = EffectLedgerRepository(db)
+    rows = await repository.list_latest(
+        EffectLedgerRepository.export_query(user_id=scoped_to), limit=_given(limit) or 50
     )
 
     if revealed:
@@ -395,128 +340,154 @@ def _masked_action(row: Any) -> Any:
     return masked
 
 
-#: Format -> (renderer, media type, file extension). A table rather than three
-#: parallel ternaries: a third format becomes an entry, not an edit in three
-#: places that can disagree.
-_RENDERERS: dict[str, tuple[Any, str, str]] = {}
-
-
-def _renderers() -> dict[str, tuple[Any, str, str]]:
-    """The format table, built on first use (the renderers import lazily)."""
-    if not _RENDERERS:
-        from src.domains.agents.effects.export_readable import render_csv, render_markdown
-
-        _RENDERERS["markdown"] = (render_markdown, "text/markdown; charset=utf-8", "md")
-        _RENDERERS["csv"] = (render_csv, "text/csv; charset=utf-8", "csv")
-    return _RENDERERS
-
-
-def _rendered(
+async def _technical_document(
+    asked: TechnicalQuery,
+    *,
     spec: Any,
-    rows: list[Any],
+    total: int,
+    generated_at: datetime,
+    batch: int,
+) -> AsyncIterator[str]:
+    """Render one register as pseudonymised JSON Lines, as it is read.
+
+    The session belongs to this generator: the cursor under it empties the
+    identity map between partitions, which would detach whatever else a shared
+    session held (``export_stream``).
+
+    Args:
+        asked: What was asked for, scope included.
+        spec: The register's column contract.
+        total: The exact row count, already published in the header.
+        generated_at: When the file was produced.
+        batch: How many rows the cursor buffers at a time.
+
+    Yields:
+        The document, chunk by chunk.
+    """
+    from src.domains.agents.effects.technical_export import (
+        export_header,
+        stream_jsonl,
+        technical_row,
+    )
+
+    async with get_db_context() as db:
+
+        async def shaped() -> AsyncIterator[dict[str, Any]]:
+            """Each row through its register's column contract."""
+            async for row in stream_register(db, asked, batch=batch):
+                yield technical_row(row, spec)
+
+        header = export_header(
+            row_count=total,
+            filters=stated_query(asked),
+            generated_at=generated_at,
+            spec=spec,
+        )
+        async for chunk in stream_jsonl(header, shaped()):
+            yield chunk
+
+
+async def _article12_document(
+    since: datetime | None,
+    until: datetime,
+    scope: list[UUID] | None,
+    *,
+    totals: dict[str, int],
+    generated_at: datetime,
+    batch: int,
+) -> AsyncIterator[str]:
+    """Compose the five records into one file, reading them one after another.
+
+    Args:
+        since: Inclusive lower bound.
+        until: Exclusive upper bound — closed, so the totals hold.
+        scope: The accounts covered, or None for every account.
+        totals: The exact count per source, already in the header.
+        generated_at: When the file was produced.
+        batch: How many rows each cursor buffers at a time.
+
+    Yields:
+        The extraction, chunk by chunk.
+    """
+    from src.domains.agents.effects.article12_export import SourceStream, stream_article12
+
+    async with get_db_context() as db:
+        sources = [
+            SourceStream(
+                spec=spec,
+                total=totals[spec.slug],
+                rows=stream_register(
+                    db,
+                    TechnicalQuery(register=spec.slug, since=since, until=until, user_ids=scope),
+                    batch=batch,
+                ),
+            )
+            for spec in known_sources()
+        ]
+        async for chunk in stream_article12(
+            sources,
+            filters=article12_filters(since=since, until=until, user_ids=scope),
+            generated_at=generated_at,
+        ):
+            yield chunk
+
+
+async def _readable_document(
+    spec: Any,
+    asked: TechnicalQuery,
     *,
     export_format: str,
+    reveal: bool,
+    mask: bool,
     reader: User,
-    limit: int,
-    masked: bool,
-) -> Response:
-    """Shape one register as a downloadable document.
+    batch: int,
+) -> AsyncIterator[str]:
+    """Render one register as a readable document, row by row.
+
+    Masking and revealing both happen HERE, one row at a time, because there is
+    no longer a list to walk twice. The audit entry is written by the caller
+    before the first byte leaves: an administrator asked to see the wordings,
+    and that is true whether or not the download completes.
 
     Args:
         spec: The register's rendering spec.
-        rows: Its rows, oldest first.
+        asked: What was asked for, scope included.
         export_format: ``markdown`` or ``csv``.
+        reveal: Decrypt the wordings.
+        mask: Withhold the wordings.
         reader: Whose language and clock the document is written in.
-        limit: The cap that was applied, published in the headers.
-        masked: Whether the wordings were withheld.
+        batch: How many rows the cursor buffers at a time.
 
-    Returns:
-        The attachment. The cap travels in ``X-Register-Truncated``, so a
-        register cut at the ceiling says so instead of looking complete.
+    Yields:
+        The document, chunk by chunk.
     """
-    renderer, media_type, extension = _renderers()[export_format]
-    language = getattr(reader, "language", None) or "en"
-    timezone = getattr(reader, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
-    filename = f"lia-admin-{spec.slug}-{datetime.now(UTC).strftime('%Y%m%d')}.{extension}"
-    return Response(
-        content=renderer(spec, rows, language, timezone),
-        media_type=media_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "X-Register-Rows": str(len(rows)),
-            "X-Register-Truncated": "true" if len(rows) >= limit else "false",
-            "X-Register-Masked": "true" if masked else "false",
-        },
-    )
-
-
-async def _admin_rows(
-    register: str,
-    db: AsyncSession,
-    user_ids: list[UUID] | None,
-    since: datetime | None,
-    until: datetime | None,
-    limit: int,
-) -> list[Any]:
-    """Read one register across the accounts an administrator named.
-
-    Args:
-        register: ``actions`` or ``consultations``.
-        db: Session.
-        user_ids: The accounts, or None for every account.
-        since: Inclusive lower bound.
-        until: Exclusive upper bound.
-        limit: Row ceiling.
-
-    Returns:
-        The rows, oldest first.
-    """
-    if register == "actions":
-        from src.domains.agents.effects.repository import EffectLedgerRepository
-
-        return list(
-            await EffectLedgerRepository(db).list_for_export(
-                user_ids=user_ids, since=since, until=until, limit=limit
-            )
-        )
-    from src.domains.agents.effects.treatment_repository import TreatmentRepository
-
-    return list(
-        await TreatmentRepository(db).list_for_export(
-            user_ids=user_ids, since=since, until=until, limit=limit
-        )
-    )
-
-
-async def _reveal(
-    db: AsyncSession, request: Request, admin: User, rows: list[Any], scope: list[UUID] | None
-) -> None:
-    """Decrypt the wordings in place and leave a trace that it happened.
-
-    Args:
-        db: Session.
-        request: For the audited client details.
-        admin: Who read.
-        rows: The rows to reveal.
-        scope: The accounts asked for, or None for every account.
-    """
+    from src.domains.agents.effects.export_readable import stream_csv, stream_markdown
     from src.domains.agents.effects.repository import EffectLedgerRepository
 
-    for row in rows:
-        row.label = EffectLedgerRepository.decrypted_label(row)
-    _audit_unmask(
-        db,
-        request,
-        admin,
-        scope="all" if scope is None else f"{len(scope)} account(s)",
-        row_count=len(rows),
-    )
-    await db.commit()
+    language = getattr(reader, "language", None) or "en"
+    timezone = getattr(reader, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
+
+    async with get_db_context() as db:
+
+        async def shown() -> AsyncIterator[Any]:
+            """Each row as this reader is allowed to see it."""
+            async for row in stream_register(db, asked, batch=batch):
+                if reveal:
+                    row.label = EffectLedgerRepository.decrypted_label(row)
+                    yield row
+                elif mask:
+                    yield _masked_action(row)
+                else:
+                    yield row
+
+        renderer = stream_markdown if export_format == "markdown" else stream_csv
+        async for chunk in renderer(spec, shown(), language, timezone):
+            yield chunk
 
 
 @router.get(
     "/export/article12",
-    response_class=PlainTextResponse,
+    response_class=StreamingResponse,
     summary="One pseudonymised extraction over every record (JSON Lines)",
 )
 async def export_article12(
@@ -525,6 +496,7 @@ async def export_article12(
     user_ids: list[UUID] | None = Query(
         None, description="One, several, or (omitted) every account"
     ),
+    accept_encoding: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_session),
 ) -> Response:
@@ -558,38 +530,38 @@ async def export_article12(
     # instances behind them — a poor bargain on the hardware this deploys to.
     require_superuser(current_user, "export every record of every account")
 
-    cap = settings.article12_export_max_rows_per_source
-    filters = article12_filters(since=since, until=until, user_ids=user_ids)
-    extracts = []
-    for spec in known_sources():
-        rows = await read_register(
+    generated_at = datetime.now(UTC)
+    since, until = _given(since), _given(until)
+    closed_until = until or generated_at
+    scope = _given(user_ids)
+    totals = {
+        spec.slug: await count_register(
             db,
-            TechnicalQuery(
-                register=spec.slug,
-                since=since,
-                until=until,
-                user_ids=user_ids,
-                tool_name=None,
-                mutation_policy=None,
-                status=None,
-                source=None,
-                execution_mode=None,
-            ),
-            cap,
+            TechnicalQuery(register=spec.slug, since=since, until=closed_until, user_ids=scope),
         )
-        extracts.append(extract_of(spec, rows, cap=cap))
+        for spec in known_sources()
+    }
 
+    lines = sum(totals.values())
     logger.info(
         "article12_export_served",
         admin_id=str(current_user.id),
-        sources=len(extracts),
-        lines=sum(len(extract.rows) for extract in extracts),
+        sources=len(totals),
+        lines=lines,
     )
-    stamp = datetime.now(UTC).strftime("%Y%m%d")
-    return PlainTextResponse(
-        content=render_article12(extracts, cap=cap, filters=filters),
+    return attachment_stream(
+        _article12_document(
+            since,
+            closed_until,
+            scope,
+            totals=totals,
+            generated_at=generated_at,
+            batch=settings.effect_export_batch_rows,
+        ),
+        filename=f"lia-article12-{generated_at.strftime('%Y%m%d')}.jsonl",
         media_type="application/x-ndjson",
-        headers={"Content-Disposition": f'attachment; filename="lia-article12-{stamp}.jsonl"'},
+        accept_encoding=_given(accept_encoding),
+        extra_headers={"X-Register-Rows": str(lines), "X-Register-Truncated": "false"},
     )
 
 
@@ -607,6 +579,7 @@ async def export_readable_admin(
     since: datetime | None = Query(None, description="Inclusive lower bound"),
     until: datetime | None = Query(None, description="Exclusive upper bound"),
     unmask: bool = Query(False, description="Reveal the wordings — audited"),
+    accept_encoding: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_session),
 ) -> Response:
@@ -647,20 +620,50 @@ async def export_readable_admin(
     which = _given(register) or "actions"
     fmt = _given(export_format) or "markdown"
     scope = _given(user_ids)
-    limit = settings.effect_technical_export_max_rows
+    generated_at = datetime.now(UTC)
+    asked = TechnicalQuery(
+        register=which,
+        since=_given(since),
+        until=_given(until) or generated_at,
+        user_ids=scope,
+    )
 
-    rows = await _admin_rows(which, db, scope, _given(since), _given(until), limit)
-    if which == "actions":
-        if revealed:
-            await _reveal(db, request, current_user, rows, scope)
-        else:
-            rows = [_masked_action(row) for row in rows]
+    total = await count_register(db, asked)
+    if which == "actions" and revealed:
+        # Audited BEFORE a byte is sent, and on the request's own session: the
+        # trace records that an administrator asked to see the wordings, which
+        # is true whether or not the download completes.
+        _audit_unmask(
+            db,
+            request,
+            current_user,
+            scope="all" if scope is None else f"{len(scope)} account(s)",
+            row_count=total,
+        )
+        await db.commit()
 
-    return _rendered(
-        ACTIONS if which == "actions" else TREATMENTS,
-        rows,
-        export_format=fmt,
-        reader=current_user,
-        limit=limit,
-        masked=not (which == "actions" and revealed),
+    spec = ACTIONS if which == "actions" else TREATMENTS
+    return attachment_stream(
+        _readable_document(
+            spec,
+            asked,
+            export_format=fmt,
+            reveal=which == "actions" and revealed,
+            mask=which == "actions" and not revealed,
+            reader=current_user,
+            batch=settings.effect_export_batch_rows,
+        ),
+        filename=(
+            f"lia-admin-{spec.slug}-{generated_at.strftime('%Y%m%d')}."
+            f"{'md' if fmt == 'markdown' else 'csv'}"
+        ),
+        media_type=(
+            "text/markdown; charset=utf-8" if fmt == "markdown" else "text/csv; charset=utf-8"
+        ),
+        accept_encoding=_given(accept_encoding),
+        extra_headers={
+            "X-Register-Rows": str(total),
+            "X-Register-Truncated": "false",
+            "X-Register-Masked": "false" if (which == "actions" and revealed) else "true",
+        },
     )

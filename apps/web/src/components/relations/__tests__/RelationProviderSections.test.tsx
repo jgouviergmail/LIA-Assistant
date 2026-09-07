@@ -24,6 +24,7 @@ import {
   ProviderEmailsSection,
   ProviderEventsSection,
   ProviderNote,
+  hasPayload,
   providerNoteKey,
   selectedSubjects,
 } from '../RelationProviderSections';
@@ -411,6 +412,15 @@ describe('the one sentence unusable sections may say', () => {
 
   it('invites connecting an account when NOTHING is plugged in', () => {
     expect(providerNoteKey(all('not_configured'))).toBe('relations.provider_none');
+  });
+
+  it('says NOTHING about a section nobody asked for', () => {
+    // `not_requested` is the debrief narrowing the read to what the user's
+    // scope allows. It is neither a result nor a gap, so it must produce no
+    // card and no note — reporting it would tell the reader something is
+    // wrong with a section they themselves excluded.
+    expect(providerNoteKey(all('not_requested'))).toBeNull();
+    expect(hasPayload(section({ status: 'not_requested' }))).toBe(false);
   });
 
   it('explains a card with no address rather than claiming an empty mailbox', () => {

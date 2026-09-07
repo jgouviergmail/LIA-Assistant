@@ -11,7 +11,14 @@
 export type EffectStatus = 'succeeded' | 'failed' | 'refused' | 'claimed' | 'abandoned';
 
 /** Where the authority to act came from. */
-export type EffectSource = 'user' | 'scheduled' | 'subagent';
+/**
+ * Who set the turn in motion. `proactive` joined on 2026-09-07 (ADR-270):
+ * a briefing answers a request, a routine is the person's own deferred
+ * instruction, and only a sweep LIA scheduled itself is an initiative.
+ */
+export const EFFECT_SOURCES = ['user', 'scheduled', 'subagent', 'proactive'] as const;
+
+export type EffectSource = (typeof EFFECT_SOURCES)[number];
 
 export interface EffectEntry {
   /** Ledger row id — the React key, and the deduplication key across pages. */

@@ -488,11 +488,18 @@ async def fetch_response_context(
             return ""
 
     async def _inject_peer_context() -> str:
-        """Local facts about a CONNECTED user named in this turn (lot 6).
+        """What the turn already knows about a person it names.
 
+        Two blocks behind one call: the written DEBRIEF of that relationship
+        (a dated synthesis) and the LIVE local facts about a connected peer.
         Database-only, so it costs no provider quota; the user's 360° scope
-        decides which blocks may be read. Own failure boundary, like every
-        other injection here.
+        decides what either may read. Own failure boundary, like every other
+        injection here.
+
+        Deliberately still ONE slot in this function: it carries a cyclomatic
+        complexity the audit gate freezes, and the ``asyncio.gather`` below is
+        typed through overloads that stop at six awaitables. A second injection
+        here would cost both.
         """
         user_id_for_peer = runtime_user_id_str(None)
         if not (user_id_for_peer and last_user_message):
@@ -503,7 +510,9 @@ async def fetch_response_context(
         # through `asyncio.gather` and cost the user the whole answer for the
         # sake of an enrichment.
         try:
-            from src.domains.agents.middleware.peer_context_injection import build_peer_context
+            from src.domains.agents.middleware.peer_context_injection import (
+                build_relation_context,
+            )
 
             # The name may be nowhere in what the user typed ("ma femme"): the
             # English pivot and the resolved references carry it instead.
@@ -514,7 +523,7 @@ async def fetch_response_context(
                 resolved = intelligence.get("resolved_references") or {}
                 if isinstance(resolved, dict):
                     texts.extend(str(value) for value in resolved.values())
-            return await build_peer_context(UUID(user_id_for_peer), texts)
+            return await build_relation_context(UUID(user_id_for_peer), texts)
         except Exception as exc:  # noqa: BLE001 - enrichment, never fatal
             logger.warning(
                 "peer_context_injection_failed",

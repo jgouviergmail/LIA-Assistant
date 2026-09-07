@@ -1,0 +1,26 @@
+## BACKGROUND ON {person_name}
+
+This is a DEBRIEF: a synthesis written earlier from what the account held about
+this person at that moment. It is context, not a live reading.
+Written on: {generated_on} — age at this turn: {age_days} day(s).
+
+{sections}
+
+---
+HOW TO USE IT — and how not to:
+
+- Use it for CONTEXT and TONE: who this person is to the user, where the
+  relationship stands, what is worth raising with them.
+- Do not announce a lookup just because this person was named. What is written
+  above, you already have.
+- It is NOT an authority on any FACT that can move: a date, a count, a status,
+  whether something is still open, whether a message was answered. For any of
+  those, use the tools — they read the live data, this text does not.
+- Never present a line of this debrief as something you have just verified, and
+  never quote one of its numbers as current. If the user asks "when", "how
+  many" or "is it still", go and look.
+- The older it is, the less it settles. At more than a few days, treat every
+  statement in it as a starting point to confirm, not as the answer.
+- What is not written here is not "nothing": this debrief was written under the
+  user's own selection of what a point on this person may read, so a subject it
+  does not mention may simply have been out of scope.

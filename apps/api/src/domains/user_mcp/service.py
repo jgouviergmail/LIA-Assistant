@@ -18,6 +18,7 @@ from src.core.config import settings
 from src.core.constants import MCP_USER_DEFAULT_API_KEY_HEADER
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.security.utils import decrypt_data, encrypt_data
+from src.domains.user_mcp.description_generation import generate_domain_description
 from src.domains.user_mcp.models import (
     UserMCPAuthType,
     UserMCPServer,
@@ -428,6 +429,7 @@ class UserMCPServerService:
                     tool_list=entry.tools,
                     server_name=server.name,
                     account_scoped=server.auth_type != UserMCPAuthType.NONE.value,
+                    user_id=server.user_id,
                 )
                 update_data["domain_description"] = generated_desc
 
@@ -534,6 +536,7 @@ class UserMCPServerService:
             tool_list=tool_list,
             server_name=server.name,
             account_scoped=server.auth_type != UserMCPAuthType.NONE.value,
+            user_id=server.user_id,
         )
 
         # Persist (overwrite any existing description)
@@ -560,106 +563,24 @@ class UserMCPServerService:
         tool_list: list[dict],
         server_name: str,
         account_scoped: bool = False,
+        user_id: UUID | None = None,
     ) -> str:
-        """Generate an intelligent domain description using an LLM.
-
-        Analyses MCP tool names and descriptions to produce a domain
-        description optimized for LLM query routing: the description
-        explains *what kind of user queries* this server can handle.
-
-        Falls back to ``auto_generate_server_description()`` if the LLM
-        call fails for any reason (network, provider outage, etc.).
+        """Describe this server for the router (see ``description_generation``).
 
         Args:
-            tool_list: Discovered tools (list of dicts with "name" / "description").
+            tool_list: Discovered tools.
             server_name: Human-readable server name.
-            account_scoped: True when the server's credential is the user's
-                own (``auth_type != none``). Fed only tool names, the
-                generator once described an authenticated GitHub server as
-                "public GitHub repositories" — and every routing surface
-                repeated it (2026-09-02).
+            account_scoped: True when the credential is the user's own.
+            user_id: Account to bill the generation to.
 
         Returns:
-            Generated domain description string.
+            The generated domain description.
         """
-        try:
-            from langchain_core.messages import HumanMessage, SystemMessage
-
-            from src.domains.agents.prompts import load_prompt
-            from src.infrastructure.llm import get_llm
-
-            llm = get_llm("mcp_description")
-
-            # Build tool summary for the prompt
-            tool_lines: list[str] = []
-            for t in tool_list:
-                name = t.get("name", "")
-                desc = t.get("description", "")
-                if name and desc:
-                    tool_lines.append(f"- {name}: {desc}")
-                elif name:
-                    tool_lines.append(f"- {name}")
-            tools_text = "\n".join(tool_lines)
-
-            auth_line = (
-                "Authentication: calls are authenticated with the user's own account "
-                "credentials - capabilities operate on the user's own data, never "
-                "describe this server as public-only."
-                if account_scoped
-                else "Authentication: none - the server serves public or anonymous data."
-            )
-            system_prompt = load_prompt("mcp_description_prompt")
-            user_prompt = (
-                f"Server name: {server_name}\n{auth_line}\n\nAvailable tools:\n{tools_text}"
-            )
-
-            from src.infrastructure.llm.invoke_helpers import (
-                enrich_config_with_node_metadata,
-            )
-
-            invoke_config = enrich_config_with_node_metadata(None, "mcp_description_generation")
-            response = await llm.ainvoke(
-                [
-                    SystemMessage(content=system_prompt),
-                    HumanMessage(content=user_prompt),
-                ],
-                config=invoke_config,
-            )
-
-            generated = response.text.strip()
-
-            # Remove surrounding quotes if present
-            if (generated.startswith('"') and generated.endswith('"')) or (
-                generated.startswith("'") and generated.endswith("'")
-            ):
-                generated = generated[1:-1].strip()
-
-            if generated:
-                logger.debug(
-                    "user_mcp_description_llm_generated",
-                    server_name=server_name,
-                    description_length=len(generated),
-                )
-                return generated
-
-        except Exception:
-            logger.warning(
-                "user_mcp_description_llm_failed",
-                server_name=server_name,
-                exc_info=True,
-            )
-
-        # Fallback to algorithmic generation
-        from src.domains.agents.registry.domain_taxonomy import (
-            auto_generate_server_description,
-        )
-
-        tool_descs = [t.get("description", "") for t in tool_list]
-        tool_names = [t.get("name", "") for t in tool_list]
-        return auto_generate_server_description(
-            tool_descriptions=tool_descs,
+        return await generate_domain_description(
+            tool_list=tool_list,
             server_name=server_name,
-            tool_names=tool_names,
+            account_scoped=account_scoped,
+            user_id=user_id,
         )
 
     async def cache_oauth_metadata(

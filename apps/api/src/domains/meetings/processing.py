@@ -434,6 +434,7 @@ async def _notify_ready(
             model_name=usage.model_name,
             db=db,
             run_id=run_id,
+            source="user",
         )
     await NotificationDispatcher().dispatch(
         user,

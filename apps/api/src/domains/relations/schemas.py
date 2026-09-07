@@ -130,6 +130,13 @@ class RelationsOverview(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     relations: list[RelationSummary]
+    # The account's own switch for the daily debrief. Carried HERE rather than
+    # behind its own read: the page already loads this payload, and a second
+    # round-trip for one boolean is a spinner the reader would notice.
+    debrief_enabled: bool = Field(
+        default=True,
+        description="Whether this account wants the daily relationship debrief.",
+    )
     relations_total: int = Field(
         default=0,
         ge=0,
@@ -189,4 +196,14 @@ class RelationMergeRequest(BaseModel):
         min_length=1,
         max_length=255,
         description="Relationship it joins, as displayed.",
+    )
+
+
+class RelationSettingsUpdate(BaseModel):
+    """The one preference the Relations page owns."""
+
+    model_config = ConfigDict(frozen=True)
+
+    debrief_enabled: bool = Field(
+        description="Whether this account wants the daily relationship debrief."
     )

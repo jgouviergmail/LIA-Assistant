@@ -6,7 +6,7 @@
 
 **Versión**: 4.9
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.43.0
+**Aplicación**: LIA v1.43.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -52,6 +52,8 @@
 36. [Un rasgo no es una reacción: el registro que declara la respuesta](#36-un-rasgo-no-es-una-reacción-el-registro-que-declara-la-respuesta)
 37. [Tres mecanismos para una convergencia: suavizar una ráfaga que un techo no ve](#37-tres-mecanismos-para-una-convergencia-suavizar-una-ráfaga-que-un-techo-no-ve)
 38. [Actas de reunión: la fila es el trabajo, la plantilla es el contrato](#38-actas-de-reunión-la-fila-es-el-trabajo-la-plantilla-es-el-contrato)
+39. [Tres registros, y el que nadie había pedido](#39-tres-registros-y-el-que-nadie-había-pedido)
+40. [Un resumen por relación: lo que diez secciones no dicen](#40-un-resumen-por-relación-lo-que-diez-secciones-no-dicen)
 ---
 
 ## 1. Contexto y decisiones fundacionales
@@ -65,8 +67,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 537 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 267 ADRs, ~24.454 tests recogidos por pytest en 1.488 archivos, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 541 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 272 ADRs, ~25.394 tests recogidos por pytest en 1.534 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -84,10 +86,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 24.454 recopilados por pytest en 1.488 archivos de prueba + 7.404 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 25.394 recopilados por pytest en 1.534 archivos de prueba + 7.626 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 755, de las cuales 32 compartidas mediante conftest |
 | Documentos de documentación | 549 |
-| ADRs (Architecture Decision Records) | 267 |
+| ADRs (Architecture Decision Records) | 272 |
 | Métricas Prometheus | 486 definiciones |
 | Dashboards Grafana | 26 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -957,15 +959,15 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 537 métricas custom (RED pattern) |
-| Grafana | 26 dashboards production-ready |
+| Prometheus | 541 métricas custom (RED pattern) |
+| Grafana | 28 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | Núcleo de 14 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 537 definidas; las 57 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 541 definidas; las 57 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 
@@ -1257,7 +1259,7 @@ La aplicación completa al tiempo (`gettext.gettext(text, language)` propagado e
 
 ### 23.11. Arquitectura de observabilidad
 
-La observabilidad descansa en tres pilares: **emisión defensiva** en la ruta crítica, **dashboards Grafana** pre-cableados (26 dashboards / 637 paneles cubriendo aplicación, infra y cada subsistema de negocio), y **gauges DB-backed** mantenidos por un updater periódico.
+La observabilidad descansa en tres pilares: **emisión defensiva** en la ruta crítica, **dashboards Grafana** pre-cableados (28 dashboards / 719 paneles cubriendo aplicación, infra y cada subsistema de negocio), y **gauges DB-backed** mantenidos por un updater periódico.
 
 Un 26.º dashboard convierte esta telemetría en un cockpit de producto (ADR-178): los resultados se validan E1 (confirmación explícita del usuario) o E2 (una acción sin corregir durante una ventana conductual completa), el conteo exacto y deduplicado vive en PostgreSQL — los estados mutables nunca se derivan de contadores Prometheus — y Grafana lo lee mediante un rol de solo lectura restringido a vistas agregadas con un statement timeout fijado.
 
@@ -1367,7 +1369,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-267 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+272 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1473,7 +1475,7 @@ Un `.xlsx` es un archivo comprimido: la protección contra bombas zip es la del 
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 267 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~24.454 tests en 1.488 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 272 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~25.394 tests en 1.534 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
@@ -1590,4 +1592,29 @@ El rostro del compañero elegía su expresión de fin de turno a partir de la em
 **Cada unidad pagada se contabiliza y se muestra.** Una reunión gasta audio en el motor de transcripción y tokens en el modelo de síntesis, pasadas de condensación y reconstrucciones incluidas; ambos llegan a los libros de la plataforma como cualquier intercambio — el audio por las estadísticas de voz remota, los tokens bajo un `run_id` que lleva el mensaje archivado, de modo que el historial se une al registro de tokens exactamente como con cualquier notificación proactiva. La fila conserva el gasto propio del acta para que la página indique el total exacto con su desglose, la tarjeta indica las dos unidades y su suma, y un modelo sin precio administrado devuelve `null`: un precio desconocido no es un precio gratuito. La misma honestidad recorre el acta misma — una laguna se declara, nunca se rellena; un interlocutor sin nombre sigue siendo S2; una propuesta que quedó abierta no es una decisión.
 
 **El formato del acta se ha convertido en una biblioteca, y la elección tiene un solo lugar.** Treinta plantillas integradas viven en el código, sus palabras en un módulo de datos i18n, y una aserción al arrancar se niega a iniciar si falta un nombre en alguno de los seis idiomas: lo que un validador puede rechazar, el catálogo no puede entregarlo. Una plantilla se designa por una referencia — `builtin:<clave>` o `user:<uuid>` — que reuniones, preferencias y peticiones intercambian en lugar de una fila, de modo que una integrada no necesita existir en base de datos y una plantilla eliminada deja una referencia cuyos lectores saben replegarse sobre la instantánea conservada. La elección sigue **una sola precedencia**: la referencia que lleva la reunión, luego el valor predeterminado de la preferencia, luego el modelo de lenguaje que lee un extracto de la transcripción y elige por encima de un umbral de confianza, luego la integrada por defecto; cada salida se cuenta y se escribe en la fila con el motivo enunciado, de manera que la página muestra un hecho y no una reconstrucción. Una quinta clase de sección devuelve la transcripción misma: no cabe en una sola respuesta — el slot de síntesis emite como mucho ocho mil tokens —, así que se reescribe por partes, cada una acotada por la ventana de salida efectiva, un índice que falta parte el fragmento una vez y una respuesta sospechosamente corta se reintenta una vez. Reescribir un acta ya redactada toma prestada la regeneración duradera cuando reemplaza, y crea una fila derivada que apunta a su origen cuando produce actas nuevas — nunca una copia: la transcripción es la misma, el acta no. El mismo cuidado por el orden gobierna los documentos de los espacios de conocimientos: como `rag_chunks.space_id` está desnormalizado y lo lee la búsqueda, un movimiento escribe la fila y sus fragmentos, confirma, **y luego** mueve el fichero; un renombrado que falla revierte ambos y lo informa solo para ese documento, y un lote nunca se detiene por un elemento — cada identificador vuelve hecho o ignorado con su código.
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 267 ADRs y del changelog (v1.0 a v1.43.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+
+## 39. Tres registros, y el que nadie había pedido
+
+**Un asistente que actúa debe poder decir qué hizo, qué leyó y en qué turno.** Tres registros lo responden y nunca se confunden: el primero lleva una fila por **acción**, reclamada antes de ocurrir y cerrada solo con un resultado explícito; el segundo una fila por **consulta**, nombrada como la capacidad y nunca como lo buscado; el tercero una fila por **turno**, la columna vertebral de la que cuelgan los otros dos. Sus totales no se suman, y es deliberado: un turno puede consultar cinco fuentes y no cambiar nada.
+
+**La garantía era estructural, pero la puerta era única.** El registro se instala sobre la capacidad en el momento en que se declara — así un nuevo herramienta no puede olvidarlo —, salvo que una capacidad alcanzada por su *cliente* en vez de por la puerta de las herramientas queda invisible. Medido en producción durante catorce días: las superficies conversacionales quedaban registradas 24 veces de 24, y el trabajo fuera de turno **0 veces de 228**. Nada estaba roto: los registros siguen el grafo, y esas superficies llaman al modelo directamente. La lista de lo que la asistente emprende por su cuenta se leía por tanto vacía hiciera lo que hiciera — la versión más nítida del hueco, ya que una notificación proactiva es el único acto de iniciativa propia que una persona experimenta de verdad.
+
+**La respuesta no es un cuarto detector, es una declaración.** Cada superficie que lee sin pasar por una herramienta — el resumen diario, el resumen de relación, el barrido periódico, los intereses, los espacios de conocimiento — declara su vocabulario en una única tabla, y la aserción de arranque comprueba ahora las treinta y una capacidades donde antes solo miraba las herramientas. Los veintidós módulos que importan un cliente de conector están enumerados uno a uno: registrador, no-lector con la razón escrita, o deuda — una tabla de deuda vacía que solo puede encoger. El registro por fin se **ofrece** en vez de dejarse buscar: el dominio de los agentes ya importa el de las relaciones, así que un import de vuelta cerraría un ciclo que un import local solo escondería.
+
+**A dónde va un euro está declarado, nunca deducido.** La contabilidad es ambiente — un nodo gasta a través de un contexto que publicó un ancestro —, de modo que responder «¿esto se cuenta?» leyendo los archivos produjo nueve conclusiones falsas en una sola sesión, en ambos sentidos. Una tabla nombra por tanto los cuarenta y seis puntos de gasto y el registro que alcanza cada uno, y una guarda que lee llamadas por AST corrigió seis de esas clasificaciones. Contar es además solo la mitad de un tope: la otra es **preguntar primero**, y cinco de esos puntos no estaban acotados por nada. Tres formas los habían producido — un registro que nombraba una envoltura en vez de la puerta, una guarda que salía antes de preguntar, y un mismo rechazo servido de dos maneras. Un rechazo sigue ahora su transporte y nunca su veredicto: una petición lanza, una tarea de fondo renuncia y se registra como **omitida**, nunca como *fallida*.
+
+**Dos puntos de entrada que sirven una misma pantalla hacen un solo acto de lectura.** El panel obtiene sus tarjetas y su síntesis en paralelo, y cada uno construía el lote de las nueve secciones por su cuenta: en siete días, 151 construcciones de las que 44 eran duplicadas — el 39 % de las cargas, y 44 de 44 concurrentes. Cada conector se abría dos veces y se archivaban dos lotes de consultas para un solo acto de lectura. La causa era una pregunta, no una línea de código: la síntesis preguntaba «¿este lote contiene algo interesante?» en vez de «¿se ha construido este lote?», y la primera no distingue una caché fría de un día tranquilo. Quien pregunta primero construye y los demás reciben el mismo objeto — dentro del proceso y entre los cuatro workers de una instancia de producción, mediante una reclamación que solo su propietario libera.
+
+**Una extracción es completa, o no es una extracción.** Los cinco registros descargables llevaban un tope de filas medido y no arbitrario: en la Raspberry Pi de destino, cinco fuentes a cinco mil filas alcanzaban un pico de 33,9 MB. La restricción era real — el documento entero se ensamblaba en memoria — pero se aplicaba a la variable equivocada. **Lo escaso era la memoria; lo acotado era la verdad**: 49 195 filas reales frente a mil por fuente, es decir el 97,9 % del registro de inferencia ausente, bajo una cabecera que decía verdad al anunciar «truncado». Un cursor del lado del servidor acota ahora el búfer; el recuento es exacto — un agregado sobre la misma sentencia que recorre el cuerpo — y se publica antes de la primera fila, de modo que una extracción sin cota superior recibe una: el instante de su generación, nombrado en la cabecera en lugar de fijado en silencio.
+
+## 40. Un resumen por relación: lo que diez secciones no dicen
+
+**Una ficha apila diez secciones, y nadie lee diez secciones.** Lo que un lector busca primero — en qué punto estoy con esta persona, y qué conviene abordar — es una síntesis que ninguna agregación produce. Por eso la escribe el modelo en lo alto de la ficha: lo que sigue abierto, lo que toca hacer después, lo que conviene recordar. Su fabricación es **perezosa**: nace al abrir la ficha, como mucho una vez por día local del lector, nunca por un planificador — el número de relaciones no está acotado — y nunca durante un turno de chat. Solo tres reconstrucciones son legítimas: el idioma, el alcance pedido y una petición explícita.
+
+**Dos ensamblajes habrían creado dos autoridades sobre quién es esa persona.** El ensamblaje de las evidencias ya existía, dentro de la herramienta que responde en el chat; se extrajo por tanto a su propio módulo, del que la herramienta pasó a ser el primer consumidor. Un refactor sobre un camino en producción no se verifica leyendo: se capturó un archivo dorado **sobre el código anterior**, dieciocho casos de alcance, carga útil y mensaje comparados byte a byte. La mitad del proveedor ya no se lee entera para luego descartarse — hasta once llamadas externas se facturaban contra una selección que el lector ya había hecho — y el estrechamiento exigió un tercer estado: «no he mirado, a propósito» no es ni «no he encontrado nada» ni «no he podido mirar».
+
+**Nada se inventa, y un fallo no destruye nada.** Ninguna evidencia concluye *vacío* sin llamar al modelo, y una actualización fallida **conserva el texto anterior** bajo una línea que lo señala: sustituir una síntesis utilizable por un panel vacío convierte «no he podido actualizar» en «no hay nada». La reclamación es una sola sentencia SQL, y cada cierre escribe únicamente sus propias columnas — lista, vacía, fallida — porque un cierre único sobrescribía el cuerpo al primer fallo. Lo que costó la redacción se guarda con ella y se muestra debajo; siendo un coste nulo una afirmación, una fila muda no muestra nada en vez de «0,00 €».
+
+**En el chat, el resumen se suma al bloque de pares — con la directiva inversa.** El bloque de pares afirma hechos exactos porque los lee en el turno mismo; la misma frase sobre una síntesis fechada sería una máquina de afirmaciones falsas. La plantilla dice por tanto que está fechada, lleva su **antigüedad** y no solo su fecha, y remite a las herramientas toda cifra, todo recuento y todo estado. Una coincidencia de nombre ambigua no inyecta **nada**: el directorio contiene todas las relaciones abiertas alguna vez, nombres de empresa y números incluidos, y un falso positivo entregaría el expediente de una persona ante una pregunta sobre otra.
+
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 272 ADRs y del changelog (v1.0 a v1.43.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

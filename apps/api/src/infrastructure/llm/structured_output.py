@@ -49,6 +49,7 @@ Usage:
 import json
 from collections.abc import Callable
 from typing import Any, TypeVar
+from uuid import UUID
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage
@@ -81,6 +82,7 @@ from src.infrastructure.llm.tool_call_rescue import (
     rescue_tool_call,
     validate_with_defaulted_nulls,
 )
+from src.infrastructure.llm.usage_guard import enforce_usage_limit
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_langgraph import (
     llm_reasoning_stream_double_call_total,
@@ -264,6 +266,7 @@ async def get_structured_output[T: BaseModel](
     node_name: str | None = None,
     config: RunnableConfig | None = None,
     reasoning_emit: Callable[[str], None] | None = None,
+    user_id: str | UUID | None = None,
     **invoke_kwargs: Any,
 ) -> T:
     """
@@ -343,6 +346,15 @@ async def get_structured_output[T: BaseModel](
         ...     node_name="response"
         ... )
     """
+    # The innermost door to a paid model, and therefore where the ceilings are
+    # asked (ADR-271): every euro here is spent on the DEPLOYMENT's provider
+    # key, so the instance's daily bound applies to every call and the
+    # per-account bound to the calls that have an owner. The retry wrapper
+    # above used to be the only guarded entry, while nine modules called this
+    # function directly. ``user_id`` when the caller knows it, ``config``
+    # metadata otherwise.
+    await enforce_usage_limit(user_id, layer="structured_output", config=config)
+
     schema_name = schema.__name__
     logger.debug(
         "structured_output_request",
@@ -1082,6 +1094,7 @@ async def get_structured_output_with_retry[T: BaseModel](
     node_name: str | None = None,
     config: RunnableConfig | None = None,
     max_retries: int = 3,
+    user_id: str | UUID | None = None,
     **invoke_kwargs: Any,
 ) -> T:
     """
@@ -1098,6 +1111,10 @@ async def get_structured_output_with_retry[T: BaseModel](
         node_name: Optional node identifier for metrics
         config: Optional RunnableConfig (will be enriched with node_name metadata)
         max_retries: Maximum number of retry attempts (default: 3)
+        user_id: Account this call belongs to, when the caller knows it. This
+            door carried no usage check at all until 2026-09-07, so the
+            debrief, the telephony synthesis and the self-diagnosis spent
+            where no ceiling could refuse them.
         **invoke_kwargs: Additional invocation parameters
 
     Returns:
@@ -1105,6 +1122,7 @@ async def get_structured_output_with_retry[T: BaseModel](
 
     Raises:
         StructuredOutputError: If all retries fail
+        UsageLimitExceededError: If the owning account is over its allowance
     """
     schema_name = schema.__name__
     last_error = None
@@ -1118,6 +1136,7 @@ async def get_structured_output_with_retry[T: BaseModel](
                 provider=provider,
                 node_name=node_name,
                 config=config,
+                user_id=user_id,
                 **invoke_kwargs,
             )
         except StructuredOutputError as e:

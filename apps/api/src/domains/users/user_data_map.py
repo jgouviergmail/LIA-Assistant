@@ -140,6 +140,16 @@ TABLE_RULES: dict[str, TableRule] = {
             "person) — purged on deletion."
         ),
     ),
+    "relation_debriefs": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "The daily relationship debrief: an LLM synthesis of what the "
+            "account already holds about one person. Exported because it IS "
+            "the reader's own record of a relationship, purged on deletion "
+            "like every source it was written from."
+        ),
+    ),
     "peer_connections": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,
@@ -562,6 +572,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "peer_email_visible": _PREFERENCE,
     # How the user wants a "360° point" built — a display preference.
     "relation_overview_scope": _PREFERENCE,
+    "relation_debrief_enabled": _PREFERENCE,
     "memory_enabled": _PREFERENCE,
     "health_metrics_agents_enabled": _PREFERENCE,
     "execution_mode": _PREFERENCE,

@@ -5,12 +5,12 @@ Implements repository pattern for MessageTokenSummary and TokenUsageLog models.
 Provides data access layer for token tracking and statistics.
 """
 
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,7 +33,7 @@ from src.domains.chat.models import (
     TokenUsageLog,
     UserStatistics,
 )
-from src.infrastructure.database.export_window import newest_window
+from src.infrastructure.database.export_stream import stream_all
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -346,28 +346,22 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
             )
             raise
 
-    async def list_inference_for_export(
-        self,
+    @staticmethod
+    def inference_export_query(
         *,
         since: datetime | None,
         until: datetime | None,
         user_ids: list[UUID] | None,
-        limit: int,
-    ) -> list[TokenUsageLog]:
-        """Inference rows for a technical export, oldest first (ADR-263 lot 7).
-
-        The same shape the three registers offer, so one extraction can read
-        four sources through one contract. Oldest first, like the others: an
-        export is read forward, as a history.
+    ) -> Select[tuple[TokenUsageLog]]:
+        """The filtered SELECT an inference extraction reads (ADR-263 lot 7).
 
         Args:
             since: Inclusive lower bound on ``created_at``.
             until: Exclusive upper bound.
             user_ids: One, several, or (None) every account.
-            limit: Row ceiling, published in the file's header by the caller.
 
         Returns:
-            The matching rows.
+            The statement, without order or ceiling.
         """
         filters = []
         if since is not None:
@@ -376,13 +370,29 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
             filters.append(TokenUsageLog.created_at < until)
         if user_ids:
             filters.append(TokenUsageLog.user_id.in_(user_ids))
+        return select(TokenUsageLog).where(*filters)
 
-        # The most RECENT rows, returned oldest first (``export_window``).
-        return await newest_window(
+    def stream_inference_for_export(
+        self, query: Select[tuple[TokenUsageLog]], *, batch: int
+    ) -> AsyncIterator[TokenUsageLog]:
+        """Every inference row the filters match, oldest first, at constant memory.
+
+        The same shape the three registers offer, so one extraction reads five
+        sources through one contract. Oldest first, like the others: an export
+        is read forward, as a history — and whole (ADR-273).
+
+        Args:
+            query: What :meth:`inference_export_query` built.
+            batch: How many rows the cursor buffers at a time.
+
+        Yields:
+            The rows, oldest first.
+        """
+        return stream_all(
             self.db,
-            select(TokenUsageLog).where(*filters),
-            newest_first=(TokenUsageLog.created_at.desc(), TokenUsageLog.id.desc()),
-            limit=limit,
+            query,
+            oldest_first=(TokenUsageLog.created_at.asc(), TokenUsageLog.id.asc()),
+            batch=batch,
         )
 
     async def get_token_logs_by_run_id(

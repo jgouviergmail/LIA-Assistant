@@ -25,11 +25,25 @@ from src.domains.agents.effects.technical_export import (
     FORBIDDEN_COLUMNS,
     export_header,
     pseudonymise,
-    render_jsonl,
+    stream_jsonl,
     technical_row,
 )
+from tests.unit.domains.agents.effects.streaming import rendered, rows_of
 
 pytestmark = [pytest.mark.unit]
+
+
+async def render_jsonl(rows: list[Any], header: dict[str, Any]) -> str:
+    """The whole JSON Lines document, collected from the stream (ADR-273).
+
+    Args:
+        rows: The technical rows.
+        header: The context header.
+
+    Returns:
+        The document.
+    """
+    return await rendered(stream_jsonl(header, rows_of(rows)))
 
 
 def _effect(**overrides: Any) -> Any:
@@ -67,12 +81,12 @@ class TestNothingIdentifyingLeaves:
 
         assert not set(row) & FORBIDDEN_COLUMNS
 
-    def test_the_content_columns_appear_nowhere_in_the_file(self) -> None:
+    async def test_the_content_columns_appear_nowhere_in_the_file(self) -> None:
         """Not as a key, not as a value — the strongest form of the check."""
         effect = _effect()
-        rendered = render_jsonl(
+        rendered = await render_jsonl(
             [technical_row(effect)],
-            export_header(row_count=1, cap=10, filters={}, generated_at=datetime.now(UTC)),
+            export_header(row_count=1, filters={}, generated_at=datetime.now(UTC)),
         )
 
         assert "ENCRYPTED-LABEL-NAMING-MARIE" not in rendered
@@ -149,30 +163,37 @@ class TestThePseudonymsAreUsable:
 
 
 class TestTheFileSaysWhatItIs:
-    def test_the_header_states_the_cap_and_the_truncation(self) -> None:
+    def test_the_header_states_what_was_asked_and_how_much_came_back(self) -> None:
         header = export_header(
-            row_count=500, cap=500, filters={"status": "failed"}, generated_at=datetime.now(UTC)
+            row_count=500, filters={"status": "failed"}, generated_at=datetime.now(UTC)
         )
 
-        assert header["truncated"] is True
-        assert header["row_cap"] == 500
+        assert header["row_count"] == 500
         assert header["filters"] == {"status": "failed"}
 
-    def test_a_complete_export_says_so(self) -> None:
-        header = export_header(row_count=3, cap=500, filters={}, generated_at=datetime.now(UTC))
+    def test_completeness_is_CLAIMED_rather_than_left_to_be_inferred(self) -> None:
+        """No ceiling exists, so the file says so instead of staying silent.
+
+        The ceiling this key described is gone (ADR-273). Dropping the key
+        would have been the tidier edit and the worse contract: a reader would
+        then tell a complete file from a truncated one by the ABSENCE of a
+        warning, which is exactly what an extraction must never ask of them.
+        """
+        header = export_header(row_count=3, filters={}, generated_at=datetime.now(UTC))
 
         assert header["truncated"] is False
+        assert "row_cap" not in header, "a cap that no longer exists must not be advertised"
 
     def test_the_header_lists_what_it_excludes(self) -> None:
-        header = export_header(row_count=0, cap=1, filters={}, generated_at=datetime.now(UTC))
+        header = export_header(row_count=0, filters={}, generated_at=datetime.now(UTC))
 
         assert set(header["excluded_columns"]) == FORBIDDEN_COLUMNS
         assert header["pseudonymised"] is True
 
-    def test_the_file_is_one_json_object_per_line(self) -> None:
-        rendered = render_jsonl(
+    async def test_the_file_is_one_json_object_per_line(self) -> None:
+        rendered = await render_jsonl(
             [technical_row(_effect()), technical_row(_effect())],
-            export_header(row_count=2, cap=10, filters={}, generated_at=datetime.now(UTC)),
+            export_header(row_count=2, filters={}, generated_at=datetime.now(UTC)),
         )
         lines = rendered.strip().split("\n")
 
@@ -180,9 +201,9 @@ class TestTheFileSaysWhatItIs:
         for line in lines:
             assert isinstance(json.loads(line), dict)
 
-    def test_an_empty_export_still_carries_its_header(self) -> None:
-        rendered = render_jsonl(
-            [], export_header(row_count=0, cap=10, filters={}, generated_at=datetime.now(UTC))
+    async def test_an_empty_export_still_carries_its_header(self) -> None:
+        rendered = await render_jsonl(
+            [], export_header(row_count=0, filters={}, generated_at=datetime.now(UTC))
         )
 
         assert len(rendered.strip().split("\n")) == 1
@@ -285,8 +306,7 @@ class TestAHeaderNeverStatesAFilterTheQueryIgnored:
         assert TECHNICAL_SPECS["decisions"].filters == frozenset()
 
     def test_a_filter_a_register_cannot_honour_is_REPORTED(self) -> None:
-        from src.domains.agents.effects.admin_router import _stated_query
-        from src.domains.agents.effects.technical_reads import TechnicalQuery
+        from src.domains.agents.effects.technical_reads import TechnicalQuery, stated_query
 
         asked = TechnicalQuery(
             register="decisions",
@@ -300,14 +320,13 @@ class TestAHeaderNeverStatesAFilterTheQueryIgnored:
             execution_mode=None,
         )
 
-        stated = _stated_query(asked)
+        stated = stated_query(asked)
 
         assert stated["tool_name"] is None, "the header claimed a filter nobody applied"
         assert stated["ignored_filters"] == ["tool_name"]
 
     def test_a_filter_the_register_HONOURS_is_stated(self) -> None:
-        from src.domains.agents.effects.admin_router import _stated_query
-        from src.domains.agents.effects.technical_reads import TechnicalQuery
+        from src.domains.agents.effects.technical_reads import TechnicalQuery, stated_query
 
         asked = TechnicalQuery(
             register="consultations",
@@ -321,15 +340,14 @@ class TestAHeaderNeverStatesAFilterTheQueryIgnored:
             execution_mode=None,
         )
 
-        stated = _stated_query(asked)
+        stated = stated_query(asked)
 
         assert stated["tool_name"] == "get_emails_tool"
         assert stated["ignored_filters"] == []
 
     def test_an_unasked_filter_is_never_reported_as_ignored(self) -> None:
         """Listing every inapplicable filter would drown the one that matters."""
-        from src.domains.agents.effects.admin_router import _stated_query
-        from src.domains.agents.effects.technical_reads import TechnicalQuery
+        from src.domains.agents.effects.technical_reads import TechnicalQuery, stated_query
 
         asked = TechnicalQuery(
             register="decisions",
@@ -343,7 +361,7 @@ class TestAHeaderNeverStatesAFilterTheQueryIgnored:
             execution_mode=None,
         )
 
-        assert _stated_query(asked)["ignored_filters"] == []
+        assert stated_query(asked)["ignored_filters"] == []
 
     def test_every_declared_filter_is_a_real_query_parameter(self) -> None:
         """A spec naming a filter the route never accepts would be a contract
@@ -402,9 +420,9 @@ class TestEverySpecIsREACHABLE:
         silently falls through to whichever branch is last."""
         import inspect
 
-        from src.domains.agents.effects.technical_reads import read_register
+        from src.domains.agents.effects.technical_reads import register_read
 
-        source = inspect.getsource(read_register)
+        source = inspect.getsource(register_read)
         for register in self._accepted_registers():
             assert f'"{register}"' in source or register == "consultations", (
                 f"{register} is accepted but has no branch — the dispatch would serve "

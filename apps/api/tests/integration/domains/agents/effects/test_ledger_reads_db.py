@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from src.domains.agents.effects.models import EffectStatus
 from src.domains.agents.effects.repository import EffectLedgerRepository
 from src.domains.agents.effects.schemas import ClaimRequest
 from src.domains.users.models import User
+from tests.integration.domains.agents.effects.streaming import collected
 
 pytestmark = pytest.mark.integration
 
@@ -170,6 +172,23 @@ class TestTheJournalFilterIsServerSide:
         assert total == 0
 
 
+async def _exported(
+    repository: EffectLedgerRepository, *, batch: int = 100, **filters: Any
+) -> list[Any]:
+    """Every row the export filters match, collected (ADR-273).
+
+    Args:
+        repository: The ledger repository, bound to the test session.
+        batch: How many rows the cursor buffers at a time.
+        **filters: What :meth:`EffectLedgerRepository.export_query` accepts.
+
+    Returns:
+        The rows, oldest first.
+    """
+    query = EffectLedgerRepository.export_query(**filters)
+    return await collected(repository.stream_for_export(query, batch=batch))
+
+
 class TestTheExportFilters:
     async def test_each_filter_narrows_the_set(
         self, async_session: AsyncSession, user: User
@@ -181,9 +200,9 @@ class TestTheExportFilters:
         )
         repository = EffectLedgerRepository(async_session)
 
-        everything = await repository.list_for_export(limit=100)
-        by_tool = await repository.list_for_export(tool_name="generate_image", limit=100)
-        by_policy = await repository.list_for_export(mutation_policy="artefact", limit=100)
+        everything = await _exported(repository)
+        by_tool = await _exported(repository, tool_name="generate_image")
+        by_policy = await _exported(repository, mutation_policy="artefact")
 
         assert len(everything) >= 2
         assert [row.tool_name for row in by_tool] == ["generate_image"]
@@ -194,16 +213,26 @@ class TestTheExportFilters:
         repository = EffectLedgerRepository(async_session)
         future = datetime.now(UTC) + timedelta(hours=1)
 
-        assert await repository.list_for_export(since=future, limit=100) == []
-        assert await repository.list_for_export(until=future, limit=100) != []
+        assert await _exported(repository, since=future) == []
+        assert await _exported(repository, until=future) != []
 
-    async def test_the_cap_applies(self, async_session: AsyncSession, user: User) -> None:
+    async def test_no_ceiling_holds_rows_back(
+        self, async_session: AsyncSession, user: User
+    ) -> None:
+        """It replaced « the cap applies ».
+
+        There is no cap: an extraction of a register is complete or it is not
+        an extraction (ADR-273). The partition size bounds the memory a read
+        holds, and this reads four rows two at a time to prove it bounds
+        nothing else.
+        """
         for index in range(4):
-            await _claim(async_session, _request(user, f"cap-{index}"))
+            await _claim(async_session, _request(user, f"whole-{index}"))
+        repository = EffectLedgerRepository(async_session)
 
-        rows = await EffectLedgerRepository(async_session).list_for_export(limit=2)
+        rows = await _exported(repository, batch=2)
 
-        assert len(rows) == 2
+        assert len(rows) >= 4
 
 
 class TestTheOrphanCount:

@@ -154,6 +154,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # Group 2 — Main tables (FK directly to users)
         by_user("relation_favorites"),
         by_user("relation_aliases"),
+        by_user("relation_debriefs"),
         by_user("conversations"),
         by_user("memories"),
         by_user("journal_entries"),

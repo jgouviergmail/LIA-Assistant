@@ -26,7 +26,7 @@
  */
 
 import { useId, useState } from 'react';
-import { ChevronDown, type LucideIcon } from 'lucide-react';
+import { ChevronDown, RefreshCw, type LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -101,5 +101,46 @@ export function SectionBadge({ children }: { children: React.ReactNode }) {
     <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-px text-[11px] font-medium tabular-nums text-primary">
       {children}
     </span>
+  );
+}
+
+
+/**
+ * The refresh control a section carries, wherever the section lives.
+ *
+ * Hoisted here from the provider sections when the debrief grew one too: two
+ * "look again" buttons on one card, drawn differently, would read as two
+ * different promises. This is the card's ONE refresh affordance.
+ *
+ * `aria-disabled`, never `disabled`: a control disabled while focused is
+ * blurred by the browser and leaves the tab order, so a keyboard reader is
+ * thrown back to the document (ADR-206). The GUARD in the handler is what
+ * prevents the second press.
+ */
+export function RefreshButton({
+  label,
+  busy,
+  onRefresh,
+}: {
+  label: string;
+  busy: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!busy) onRefresh();
+      }}
+      aria-disabled={busy}
+      aria-label={label}
+      title={label}
+      className={cn(
+        'shrink-0 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        busy && 'cursor-not-allowed opacity-50'
+      )}
+    >
+      <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} aria-hidden="true" />
+    </button>
   );
 }

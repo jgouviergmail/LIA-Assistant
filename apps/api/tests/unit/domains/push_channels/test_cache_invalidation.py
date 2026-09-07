@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.domains.briefing.cache_keys import section_keys_every_language
 from src.domains.push_channels.cache_invalidation import invalidate_for_provider
 from src.domains.push_channels.models import PushChannelProvider
 
@@ -40,8 +41,10 @@ class TestInvalidateForProvider:
             new=AsyncMock(return_value=redis),
         ):
             await invalidate_for_provider(PushChannelProvider.GOOGLE_CALENDAR.value, user_id)
-        deleted = {call.args[0] for call in redis.delete.await_args_list}
-        assert f"briefing:v2:{user_id}:agenda" in deleted
+        # Every argument of every DELETE, not just the first: the section is
+        # dropped in each supported language with one multi-key call.
+        deleted = {arg for call in redis.delete.await_args_list for arg in call.args}
+        assert set(section_keys_every_language(user_id=user_id, section="agenda")) <= deleted
 
     async def test_drive_drops_the_briefing_documents_section(self) -> None:
         user_id = uuid4()
@@ -51,8 +54,8 @@ class TestInvalidateForProvider:
             new=AsyncMock(return_value=redis),
         ):
             await invalidate_for_provider(PushChannelProvider.GOOGLE_DRIVE.value, user_id)
-        deleted = {call.args[0] for call in redis.delete.await_args_list}
-        assert f"briefing:v2:{user_id}:documents" in deleted
+        deleted = {arg for call in redis.delete.await_args_list for arg in call.args}
+        assert set(section_keys_every_language(user_id=user_id, section="documents")) <= deleted
 
     async def test_gmail_drops_mails_section_and_purges_search_caches(self) -> None:
         user_id = uuid4()
@@ -63,10 +66,11 @@ class TestInvalidateForProvider:
             new=AsyncMock(return_value=redis),
         ):
             await invalidate_for_provider(PushChannelProvider.GOOGLE_GMAIL.value, user_id)
-        deleted_single = {call.args[0] for call in redis.delete.await_args_list}
-        assert f"briefing:v2:{user_id}:mails" in deleted_single
-        # The two stale search keys are deleted (batched *args call).
         all_deleted_args = [arg for call in redis.delete.await_args_list for arg in call.args]
+        assert set(section_keys_every_language(user_id=user_id, section="mails")) <= set(
+            all_deleted_args
+        )
+        # The two stale search keys are deleted (batched *args call).
         assert set(stale) <= set(all_deleted_args)
 
     async def test_redis_failure_is_best_effort(self) -> None:

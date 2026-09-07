@@ -56,6 +56,10 @@ from src.infrastructure.llm.embedding_context import (
     set_embedding_context,
 )
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+from src.infrastructure.llm.usage_metadata import (
+    tokens_from_response,
+    tokens_from_usage_metadata,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -100,13 +104,9 @@ async def _persist_memory_tokens(
         if not usage_metadata:
             return
 
-        raw_input_tokens = usage_metadata.get("input_tokens", 0)
-        output_tokens = usage_metadata.get("output_tokens", 0)
-        input_details = usage_metadata.get("input_token_details", {})
-        cached_tokens = input_details.get("cache_read", 0) if input_details else 0
-        input_tokens = raw_input_tokens - cached_tokens
-
-        if input_tokens == 0 and output_tokens == 0:
+        usage = tokens_from_usage_metadata(usage_metadata)
+        input_tokens, output_tokens, cached_tokens = usage
+        if usage.is_empty:
             return
 
         run_id = parent_run_id or f"mem_extract_{uuid.uuid4().hex[:12]}"
@@ -519,18 +519,14 @@ async def extract_memories_background(
         )
 
         # Build debug metadata
-        usage_metadata = getattr(result, "usage_metadata", None) or {}
-        raw_input_tokens = usage_metadata.get("input_tokens", 0)
-        output_tokens = usage_metadata.get("output_tokens", 0)
-        input_details = usage_metadata.get("input_token_details", {})
-        cached_tokens = input_details.get("cache_read", 0) if input_details else 0
+        usage = tokens_from_response(result)
 
         llm_metadata_debug: dict[str, Any] = {
             "model": llm_config.model,
-            "input_tokens": raw_input_tokens - cached_tokens,
-            "output_tokens": output_tokens,
-            "cached_tokens": cached_tokens,
-            "total_tokens": raw_input_tokens + output_tokens,
+            "input_tokens": usage.prompt,
+            "output_tokens": usage.completion,
+            "cached_tokens": usage.cached,
+            "total_tokens": usage.prompt + usage.cached + usage.completion,
         }
 
         # Parse result into actions

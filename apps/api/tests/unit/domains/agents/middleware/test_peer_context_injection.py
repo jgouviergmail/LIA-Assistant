@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -243,3 +244,86 @@ class TestFailureIsNeverFatal:
         monkeypatch.setattr(mod, "_relation_detail", _boom)
 
         assert await build_peer_context(USER_ID, ["Alice Vernier ?"]) == ""
+
+
+@pytest.mark.unit
+class TestTheTwoBlocksTravelTogether:
+    """The debrief joins the live peer facts; it never replaces them.
+
+    They answer different questions and each STATES what it is — a dated
+    synthesis of the whole file, and facts read from the database this very
+    turn. Choosing one would either drop the address book, the mail and the
+    meetings a debrief carries, or hand a dated text the authority of a live
+    read.
+    """
+
+    async def test_no_debrief_leaves_the_peer_block_byte_identical(self) -> None:
+        from src.domains.agents.middleware.peer_context_injection import (
+            build_peer_context,
+            build_relation_context,
+        )
+
+        texts = ["Un point sur Gérard ?"]
+        user_id = uuid4()
+        with (
+            patch(
+                "src.domains.relations.debrief.injection.build_debrief_context",
+                AsyncMock(return_value=""),
+            ),
+            patch(
+                "src.domains.agents.middleware.peer_context_injection.build_peer_context",
+                AsyncMock(return_value="PEER BLOCK"),
+            ),
+        ):
+            combined = await build_relation_context(user_id, texts)
+
+        assert combined == "PEER BLOCK"
+        assert build_peer_context is not None  # the original is still exported
+
+    async def test_the_debrief_comes_first_and_the_live_facts_last(self) -> None:
+        """Context, then the present: the live read is what the answer rests on."""
+        from src.domains.agents.middleware.peer_context_injection import build_relation_context
+
+        with (
+            patch(
+                "src.domains.relations.debrief.injection.build_debrief_context",
+                AsyncMock(return_value="DEBRIEF"),
+            ),
+            patch(
+                "src.domains.agents.middleware.peer_context_injection.build_peer_context",
+                AsyncMock(return_value="PEER BLOCK"),
+            ),
+        ):
+            combined = await build_relation_context(uuid4(), ["Gérard ?"])
+
+        assert combined == "DEBRIEF\n\nPEER BLOCK"
+
+    async def test_neither_block_means_no_injection_at_all(self) -> None:
+        from src.domains.agents.middleware.peer_context_injection import build_relation_context
+
+        with (
+            patch(
+                "src.domains.relations.debrief.injection.build_debrief_context",
+                AsyncMock(return_value=""),
+            ),
+            patch(
+                "src.domains.agents.middleware.peer_context_injection.build_peer_context",
+                AsyncMock(return_value=""),
+            ),
+        ):
+            assert await build_relation_context(uuid4(), ["rien"]) == ""
+
+    async def test_a_debrief_alone_is_injected_for_someone_who_is_not_a_peer(self) -> None:
+        from src.domains.agents.middleware.peer_context_injection import build_relation_context
+
+        with (
+            patch(
+                "src.domains.relations.debrief.injection.build_debrief_context",
+                AsyncMock(return_value="DEBRIEF"),
+            ),
+            patch(
+                "src.domains.agents.middleware.peer_context_injection.build_peer_context",
+                AsyncMock(return_value=""),
+            ),
+        ):
+            assert await build_relation_context(uuid4(), ["Gérard ?"]) == "DEBRIEF"

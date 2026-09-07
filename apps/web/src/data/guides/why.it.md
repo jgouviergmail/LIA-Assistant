@@ -4,7 +4,7 @@
 
 **Versione**: 5.4
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.43.0
+**Applicazione**: LIA v1.43.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -211,6 +211,8 @@ Puoi anche chiederlo senza aprire la pagina: quando è avvenuta l'ultima chiamat
 Resta ciò che nessun sistema può indovinare. LIA raggruppa ciò che si scrive allo stesso modo, a meno di accenti e maiuscole; non può sapere che un numero annotato un giorno e un nome sono la stessa persona, né chi sia esattamente «Papà». È un giudizio, e spetta a te: lo dici una volta, dalla scheda, ed è **reversibile** — l'unione compare con il proprio annullamento e nulla viene riscritto nelle tue fonti. Del resto, un raggruppamento di visualizzazione non cambia mai a chi è indirizzato un messaggio.
 
 
+E poiché dieci sezioni non si leggono, LIA scrive lei stessa la sintesi, in cima alla scheda: a che punto sei con quella persona, che cosa resta aperto, che cosa affrontare, che cosa vale la pena ricordare. Viene redatta al massimo una volta al giorno, nel momento in cui apri la scheda — mai in background, mai durante una conversazione — e se l'aggiornamento fallisce il testo precedente resta, sotto una riga che lo dice: un pannello vuoto farebbe credere che non ci sia nulla. Nominare quella persona in chat basta poi perché LIA la usi, sapendo che è un testo datato: ne dichiara l'età e verifica con i suoi strumenti ogni cifra e ogni stato anziché citare la sintesi di ieri come un fatto di oggi.
+
 ### 3.13. Una riunione registrata, un verbale scritto
 
 Un pulsante nell'intestazione — o la voce «Registra una riunione» del menu sul telefono — e il tuo telefono o il tuo computer diventa il registratore della riunione. Un banner ti segue su ogni pagina con il tempo e ciò che ha già raggiunto il tuo server; nel frattempo continui a parlare con LIA — le risposte parlate si mettono semplicemente in pausa perché il microfono non senta mai l'assistente. Quando ti fermi, LIA trascrive tutto e scrive il verbale **nella tua struttura**: l'intestazione è fissa (data, orari, luogo, partecipanti), il corpo segue un formato che scegli fra trenta modelli integrati — riunioni e team, trascrizioni, analisi delle conversazioni, vendite, tecnico, appuntamenti personali, corsi — oppure che costruisci tu stesso, sezione per sezione. E se non scegli nulla, LIA legge ciò che è stato detto e tiene il formato adatto, poi ti dice quale e perché: un punto di progetto e una visita medica non hanno la stessa struttura.
@@ -357,17 +359,19 @@ La trasparenza ha un modo di fallire che nessuno nota: uno schermo che smette si
 
 La trasparenza vale anche per le regole interne dell'assistente. Un vincolo che il sistema applica deve essere pubblicato a chi lo subisce: quando l'apprendimento delle abitudini non rileva nulla, le Impostazioni mostrano la soglia realmente richiesta — più severa nel weekend, dove i giorni osservati sono meno — invece di un silenzio inspiegato. E quando una regolazione si aggiusta da sola, come la soglia che decide se una nota del diario entra in una risposta, lo fa entro limiti rigidi, un piccolo passo al giorno, con un interruttore di spegnimento e ogni aggiustamento conteggiato: un sistema che apprende è accettabile solo se resta osservabile e disattivabile.
 
-### 6.9. Due registri: ciò che LIA ha fatto e ciò che ha guardato
+### 6.9. Tre registri: ciò che LIA ha fatto, ciò che ha guardato, ciò che ha intrapreso da sola
 
-La trasparenza sul *ragionamento* è una cosa; quella sugli *atti* è un'altra, ed è quella che conta quando un assistente può inviare, creare ed eliminare al posto tuo. LIA tiene dunque due registri, automaticamente, e non li mescola mai.
+La trasparenza sul *ragionamento* è una cosa; quella sugli *atti* è un'altra, ed è quella che conta quando un assistente può inviare, creare ed eliminare al tuo posto. LIA tiene dunque tre registri, automaticamente, e non li mescola mai.
 
-Le **azioni** portano una riga per ogni cosa fatta per te — un'e-mail inviata, un evento creato, un file eliminato — con il suo esito e la conferma che hai dato. Le **consultazioni** portano una riga per capacità usata per risponderti, nominata come un ambito: « la tua agenda », « le tue e-mail ». Una consultazione non registra mai il contenuto cercato: scriverlo sarebbe una seconda copia degli stessi dati che il registro esiste per rendere responsabili.
+Le **azioni** portano una riga per ogni cosa fatta per te — un'e-mail inviata, un evento creato, un file eliminato — con il suo esito e la conferma che hai dato. Le **consultazioni** portano una riga per capacità usata per risponderti, nominata come dominio: «la tua agenda», «le tue e-mail». Una consultazione non registra mai ciò che è stato cercato: scriverlo equivarrebbe a ricopiare il dato stesso di cui il registro esiste per rendere conto. E i **turni** portano una riga per scambio, la spina dorsale a cui gli altri due si agganciano.
 
-La garanzia è strutturale, non promessa. Un'azione è iscritta **prima** di avvenire e chiusa **solo** su un esito esplicito: un successo non è mai dedotto da un errore assente. La registrazione è installata sulla capacità stessa al momento della dichiarazione, così uno strumento nuovo non può dimenticarla. E il server rifiuta di avviarsi se una capacità non dichiara ciò che ti deve — una lettura, una bozza, una conferma, qualcosa di reversibile.
+Si è aggiunta una quarta lettura, ed era quella che mancava di più: **ciò che LIA intraprende di sua iniziativa**. Le sue passate del mattino, i temi che esplora per te, le notifiche che ti manda senza che nessuno lo chieda hanno ora una scheda propria, mai mescolata a ciò che hai avviato tu. Confondere le due equivarrebbe a non dire nulla: ciò che hai chiesto non chiede la stessa lettura di ciò che ha deciso lei.
 
-Una terza scheda disegna il periodo in grafici, ciascuno con il totale esatto dell'insieme accanto alle sue barre: ciò che vedi si verifica invece di crederlo. Tutto si esporta in tre formati — leggibile, foglio di calcolo e il formato macchina che un revisore chiederebbe —, tutto parte con l'archivio del tuo account e sparisce con esso. Dove il tuo amministratore lo attiva, entrambi i registri sono sigillati per account con impronte che puoi verificare tu stesso.
+La garanzia è strutturale anziché promessa. Un'azione è iscritta **prima** di avvenire e chiusa **soltanto** su un esito esplicito: un successo non è mai dedotto da un errore assente. La registrazione è installata sulla capacità stessa nel momento in cui viene dichiarata, sicché un nuovo strumento non può dimenticarla — e ogni superficie che legge senza passare da uno strumento dichiara, una volta per tutte, ciò che apre. Il server si rifiuta di avviarsi se una capacità non dichiara ciò che ti deve: una lettura, una bozza, una conferma, qualcosa di reversibile.
 
-È anche ciò che l'articolo 12 del regolamento europeo sull'IA si attende da un sistema simile. LIA risponde con cinque registrazioni in tutto: le due sopra, più il turno stesso, i parametri realmente inviati a ciascun modello e le lacune del registro — perché un registro incapace di dire dove è incompleto chiede fiducia invece di lasciarsi leggere.
+Un'ultima scheda disegna il periodo in grafici, ciascuno con il totale esatto dell'insieme accanto alle sue barre: ciò che vedi si verifica anziché crederlo. Tutto si esporta in tre formati — leggibile, foglio di calcolo e il formato macchina che un revisore chiederebbe — e **nulla vi è troncato**: qualunque sia il volume, il file porta tutto ciò che i tuoi filtri designano, con il conteggio esatto dichiarato in testa e l'istante in cui è stato preso. Tutto parte con l'archivio del tuo account e sparisce con esso. Dove il tuo amministratore lo attiva, i registri sono sigillati per account con impronte che puoi verificare tu stesso.
+
+È anche ciò che l'articolo 12 del regolamento europeo sull'IA si aspetta da un sistema come questo. LIA risponde con cinque registrazioni in tutto: le tre sopra, più i parametri realmente inviati a ciascun modello e le lacune del registro stesso — perché un registro incapace di dire dove è incompleto chiede di essere creduto anziché lasciarsi leggere.
 
 ## 7. Profondità emotiva
 

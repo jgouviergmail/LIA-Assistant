@@ -56,6 +56,9 @@ export const relationsData: MockRoute[] = [
           is_peer: index === 1,
         })),
       ],
+      // Stated rather than left to the hook's fallback: a fixture that relies
+      // on a client-side default stops testing the contract it stands for.
+      debrief_enabled: true,
     },
   },
   {
@@ -193,6 +196,31 @@ export const relationsData: MockRoute[] = [
       addresses_used: 1,
       window_days: 90,
       email_window_days: 365,
+    },
+  },
+  {
+    // AFTER the catch-all (LIFO), like `/context` above. Serving a READY
+    // debrief is what puts the section's real geometry in front of axe: an
+    // unserved route leaves the panel in its "not built yet" state, which is
+    // three words and a glyph — a scan that would pass over a component nobody
+    // rendered.
+    url: '**/api/v1/relations/*/debrief',
+    json: {
+      status: 'ready',
+      person: 'Gérard Dupont',
+      body: {
+        headline: 'Vous lui devez une réponse sur le devis.',
+        where_we_stand:
+          'Deux échanges cette semaine, tous deux à votre initiative. Le chantier avance.',
+        open_points: ['Répondre au devis du 28 juillet', 'Confirmer la date de visite'],
+        suggested_next_step: 'Lui renvoyer le devis signé avant vendredi.',
+        notable_facts: ['Menuisier, Menuiserie Dupont', 'Anniversaire le 7 avril'],
+      },
+      generated_at: '2026-07-30T06:30:00Z',
+      generated_for: '2026-07-30',
+      sections_used: ['contact', 'open_commitments', 'recent_calls'],
+      unavailable: ['events'],
+      can_rebuild: true,
     },
   },
 ];

@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.constants import RATE_LIMIT_EFFECTS_READ_PER_MINUTE
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
+from src.domains.agents.effects.origin import RegisterOrigin
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.users.models import User
 
@@ -151,6 +152,7 @@ async def list_treatment_journal(
     tool_name: str | None = Query(None, description="One capability, or every capability"),
     since: datetime | None = Query(None, description="Inclusive lower bound"),
     until: datetime | None = Query(None, description="Exclusive upper bound"),
+    origin: RegisterOrigin = Query(RegisterOrigin.ALL, description="mine | initiative | all"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_session),
 ) -> TreatmentPage:
@@ -173,7 +175,13 @@ async def list_treatment_journal(
     from src.domains.agents.effects.treatment_repository import TreatmentRepository
 
     rows, total = await TreatmentRepository(db).list_for_user(
-        user.id, limit=limit, offset=offset, tool_name=tool_name, since=since, until=until
+        user.id,
+        limit=limit,
+        offset=offset,
+        tool_name=tool_name,
+        since=since,
+        until=until,
+        origin=origin,
     )
     return TreatmentPage(
         entries=[_entry(row) for row in rows], total=total, limit=limit, offset=offset

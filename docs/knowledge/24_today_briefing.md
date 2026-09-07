@@ -2,7 +2,7 @@
 
 ## What is the Today briefing?
 
-The home page of your dashboard is no longer a static stats display — it's a **daily briefing** that opens with a personalized AI greeting and a 2-3 sentence synthesis ("teleprompter") summarizing what matters today, then renders a grid of 6 operational cards: weather, today's agenda, unread mails, upcoming birthdays, active reminders, and health metrics.
+The home page of your dashboard is no longer a static stats display — it's a **daily briefing** that opens with a personalized AI greeting and a 2-3 sentence synthesis ("teleprompter") summarizing what matters today, then renders a grid of 9 operational cards: weather, today's agenda, unread mails, upcoming birthdays, active reminders, health metrics, « For you », pending tasks and latest documents.
 
 **Design principle**: read-only orchestration of data that already lives in your connectors and local domains. No data is created here, nothing is pushed to your providers. The briefing is a *view* that brings together what you'd otherwise have to check across many places.
 
@@ -42,6 +42,14 @@ The cards arrive **first** (≈ 1 s on warm cache). The greeting and synthesis a
 
 - If the LLM call fails for any reason, a static localized greeting is shown instead (`Bonjour Jean.`, `Good morning, Jean.`, etc.) so the page always renders.
 - If your dashboard has too few cards with data (fewer than 2), the synthesis is skipped — no LLM cost incurred for a near-empty board.
+
+## Does one page load open my sources twice?
+
+No. The page fetches in two pieces on purpose — the cards first, the LLM synthesis second — but the nine-section bundle behind them is built **once**. Whoever asks first builds it; whoever asks while it is being built is handed the same object, so both answers also agree with each other by construction.
+
+This holds across the server's worker processes too, not only inside one: a worker claims the build and the others wait for what it publishes, with the wait bounded and any failure falling back to building rather than to an empty page. A forced refresh never waits, since what a holder publishes is exactly the cache the refresh asked to bypass.
+
+It matters beyond speed: each build opens your connectors and files one batch of consultation rows in the register. Building twice meant your mailbox was opened twice for one act of reading, and the register said so.
 
 ## What do the tokens / cost numbers next to the timestamp mean?
 

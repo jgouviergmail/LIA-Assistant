@@ -25,6 +25,7 @@ from src.domains.agents.effects.decisions import TurnDecision
 from src.domains.agents.effects.models import AgentDecision, DecisionOutcome
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.users.models import User
+from tests.integration.domains.agents.effects.streaming import collected
 
 pytestmark = pytest.mark.integration
 
@@ -389,8 +390,11 @@ class TestTheTechnicalExportOfTurns:
         )
         await async_session.flush()
 
-        rows = await DecisionRepository(async_session).list_for_export(
-            since=None, until=None, user_ids=[user.id], limit=100
+        rows = await collected(
+            DecisionRepository(async_session).stream_for_export(
+                DecisionRepository.export_query(since=None, until=None, user_ids=[user.id]),
+                batch=100,
+            )
         )
         exported = technical_row(rows[0], DECISIONS_SPEC)
 
@@ -413,11 +417,15 @@ class TestTheTechnicalExportOfTurns:
             )
         await async_session.flush()
 
-        window = await repository.list_for_export(
-            since=_START + timedelta(minutes=1),
-            until=_START + timedelta(minutes=3),
-            user_ids=[user.id],
-            limit=100,
+        window = await collected(
+            repository.stream_for_export(
+                DecisionRepository.export_query(
+                    since=_START + timedelta(minutes=1),
+                    until=_START + timedelta(minutes=3),
+                    user_ids=[user.id],
+                ),
+                batch=100,
+            )
         )
 
         assert [row.run_id for row in window] == ["run-1", "run-2"]
@@ -435,8 +443,11 @@ class TestTheTechnicalExportOfTurns:
             )
         await async_session.flush()
 
-        rows = await repository.list_for_export(
-            since=None, until=None, user_ids=[user.id], limit=100
+        rows = await collected(
+            repository.stream_for_export(
+                DecisionRepository.export_query(since=None, until=None, user_ids=[user.id]),
+                batch=100,
+            )
         )
 
         assert [row.run_id for row in rows] == ["run-0", "run-1", "run-2"]
@@ -445,27 +456,29 @@ class TestTheTechnicalExportOfTurns:
         self, async_session: AsyncSession, user: User
     ) -> None:
         """The branch, from the route's own value object."""
-        from src.domains.agents.effects.technical_reads import TechnicalQuery, read_register
+        from src.domains.agents.effects.technical_reads import TechnicalQuery, stream_register
 
         await DecisionRepository(async_session).record(
             _turn(user, "run-1"), ended_at=_START + timedelta(seconds=1)
         )
         await async_session.flush()
 
-        rows = await read_register(
-            async_session,
-            TechnicalQuery(
-                register="decisions",
-                since=None,
-                until=None,
-                user_ids=[user.id],
-                tool_name="ignored_here",
-                mutation_policy=None,
-                status=None,
-                source=None,
-                execution_mode=None,
-            ),
-            100,
+        rows = await collected(
+            stream_register(
+                async_session,
+                TechnicalQuery(
+                    register="decisions",
+                    since=None,
+                    until=None,
+                    user_ids=[user.id],
+                    tool_name="ignored_here",
+                    mutation_policy=None,
+                    status=None,
+                    source=None,
+                    execution_mode=None,
+                ),
+                batch=100,
+            )
         )
 
         assert [row.run_id for row in rows] == ["run-1"]

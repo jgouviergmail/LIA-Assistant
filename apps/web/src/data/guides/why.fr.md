@@ -4,7 +4,7 @@
 
 **Version** : 5.4
 **Date** : 2026-08-23
-**Application** : LIA v1.43.0
+**Application** : LIA v1.43.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -211,6 +211,8 @@ Tu peux aussi le demander à voix haute, sans ouvrir la page : « de quand date 
 Reste ce qu'aucun système ne peut deviner. LIA regroupe ce qui s'écrit pareil, aux accents et aux majuscules près ; elle ne peut pas savoir qu'un numéro noté un jour et un nom sont la même personne, ni que « Papa » est quelqu'un en particulier. C'est un jugement, et il te revient : tu le dis une fois, depuis la fiche, et c'est **réversible** — la fusion s'affiche avec son annulation, rien n'est réécrit dans tes sources. Un regroupement d'affichage ne change d'ailleurs jamais à qui un message est adressé.
 
 
+Et parce que dix sections ne se lisent pas, LIA en écrit la synthèse elle-même, en tête de la fiche : où tu en es avec cette personne, ce qui reste ouvert, ce qu'il faut aborder, ce qui vaut d'être retenu. Elle est rédigée au plus une fois par jour, au moment où tu ouvres la carte — jamais en tâche de fond, jamais pendant une conversation — et si l'actualisation échoue, le texte précédent reste, sous une ligne qui le dit : un panneau vide laisserait croire qu'il n'y a rien. Nommer cette personne dans le chat suffit ensuite à ce que LIA s'en serve, en sachant qu'il s'agit d'un texte daté : elle en donne l'âge et vérifie auprès de ses outils tout chiffre et tout statut plutôt que de citer une synthèse d'hier comme un fait d'aujourd'hui.
+
 ### 3.13. Une réunion enregistrée, un compte rendu rédigé
 
 Un bouton dans l'en-tête — ou l'entrée « Enregistrer une réunion » du menu sur téléphone — et ton téléphone ou ton ordinateur devient l'enregistreur de la réunion. Une bannière te suit sur chaque page avec le temps et ce qui a déjà atteint ton serveur ; tu continues à parler avec LIA pendant ce temps — les réponses parlées se mettent simplement en pause pour que le micro n'entende jamais l'assistant. Quand tu arrêtes, LIA transcrit tout et rédige le compte rendu **à ta structure** : l'en-tête est fixe (date, horaires, lieu, participants), le corps suit un format que tu choisis parmi trente modèles intégrés — réunions et équipes, transcriptions, analyses de conversation, commercial, technique, rendez-vous personnels, cours — ou que tu construis toi-même, section par section. Et si tu ne choisis rien, LIA lit ce qui a été dit et retient le format qui convient, puis te dit lequel et pourquoi : un point projet et une consultation médicale n'ont pas la même structure.
@@ -357,17 +359,19 @@ La transparence a un mode de défaillance que personne ne remarque : un écran q
 
 La transparence vaut aussi pour les règles internes de l'assistant. Une contrainte que le système applique doit être publiée à qui la subit : quand l'apprentissage des habitudes ne détecte rien, les Réglages affichent le seuil réellement exigé — plus strict le week-end, où les jours observés sont moins nombreux — au lieu d'un silence inexpliqué. Et quand un réglage s'ajuste tout seul, comme le seuil qui décide qu'une note du journal entre dans une réponse, il le fait dans des bornes strictes, un petit pas par jour, avec un interrupteur d'arrêt et chaque ajustement compté : un système qui apprend n'est acceptable que s'il reste observable et débrayable.
 
-### 6.9. Deux registres : ce que LIA a fait, et ce qu'elle a regardé
+### 6.9. Trois registres : ce que LIA a fait, ce qu'elle a regardé, ce qu'elle a entrepris seule
 
-La transparence sur le *raisonnement* est une chose ; celle sur les *actes* en est une autre, et c'est elle qui compte quand un assistant peut envoyer, créer et supprimer à ta place. LIA tient donc deux registres, automatiquement, et ne les mélange jamais.
+La transparence sur le *raisonnement* est une chose ; celle sur les *actes* en est une autre, et c'est elle qui compte quand un assistant peut envoyer, créer et supprimer à ta place. LIA tient donc trois registres, automatiquement, et ne les mélange jamais.
 
-Les **actions** portent une ligne par chose faite pour toi — un e-mail envoyé, un événement créé, un fichier supprimé — avec son résultat et la confirmation que tu as donnée. Les **consultations** portent une ligne par capacité utilisée pour te répondre, nommée sous la forme d'un domaine : « ton agenda », « tes e-mails ». Une consultation n'enregistre jamais ce qui a été cherché : l'écrire reviendrait à recopier la donnée même que le registre existe pour rendre redevable.
+Les **actions** portent une ligne par chose faite pour toi — un e-mail envoyé, un événement créé, un fichier supprimé — avec son résultat et la confirmation que tu as donnée. Les **consultations** portent une ligne par capacité utilisée pour te répondre, nommée sous la forme d'un domaine : « ton agenda », « tes e-mails ». Une consultation n'enregistre jamais ce qui a été cherché : l'écrire reviendrait à recopier la donnée même que le registre existe pour rendre redevable. Et les **tours** portent une ligne par échange, la colonne vertébrale à laquelle les deux autres se rattachent.
 
-La garantie est structurelle plutôt que promise. Une action est inscrite **avant** d'avoir lieu et close **uniquement** sur un résultat explicite : un succès n'est jamais déduit d'une erreur absente. L'enregistrement est installé sur la capacité elle-même au moment où elle est déclarée, si bien qu'un nouvel outil ne peut pas l'oublier. Et le serveur refuse de démarrer si une capacité ne déclare pas ce qu'elle te doit — une lecture, un brouillon, une confirmation, quelque chose de réversible.
+Une quatrième lecture s'est ajoutée, et elle manquait plus que les autres : **ce que LIA entreprend d'elle-même**. Ses balayages du matin, les sujets qu'elle explore pour toi, les notifications qu'elle t'envoie sans que personne le demande ont leur propre onglet, jamais mêlé à ce que tu as déclenché. Confondre les deux reviendrait à ne rien dire du tout : ce que tu as demandé n'appelle pas la même lecture que ce qu'elle a décidé.
 
-Un troisième onglet dessine la période en graphiques, chacun portant à côté de ses barres le total exact de l'ensemble : ce que tu vois se vérifie au lieu de se croire. Tout s'exporte en trois formats — lisible, tableur, et le format machine qu'un auditeur demanderait — tout part avec l'archive de ton compte et disparaît avec lui. Là où ton administrateur l'active, les deux registres sont scellés par compte avec des empreintes que tu peux vérifier toi-même.
+La garantie est structurelle plutôt que promise. Une action est inscrite **avant** d'avoir lieu et close **uniquement** sur un résultat explicite : un succès n'est jamais déduit d'une erreur absente. L'enregistrement est installé sur la capacité elle-même au moment où elle est déclarée, si bien qu'un nouvel outil ne peut pas l'oublier — et chaque surface qui lit sans passer par un outil déclare, une fois pour toutes, ce qu'elle ouvre. Le serveur refuse de démarrer si une capacité ne déclare pas ce qu'elle te doit : une lecture, un brouillon, une confirmation, quelque chose de réversible.
 
-C'est aussi ce que l'article 12 du règlement européen sur l'IA attend d'un système comme celui-ci. LIA y répond avec cinq enregistrements au total : les deux ci-dessus, plus le tour lui-même, les paramètres réellement envoyés à chaque modèle, et les lacunes du registre — parce qu'un registre incapable de dire où il est incomplet demande qu'on lui fasse confiance au lieu de se laisser lire.
+Un dernier onglet dessine la période en graphiques, chacun portant à côté de ses barres le total exact de l'ensemble : ce que tu vois se vérifie au lieu de se croire. Tout s'exporte en trois formats — lisible, tableur, et le format machine qu'un auditeur demanderait — et **rien n'y est tronqué** : quel que soit le volume, le fichier porte tout ce que tes filtres désignent, avec le compte exact annoncé en tête et l'instant auquel il a été pris. Tout part avec l'archive de ton compte et disparaît avec lui. Là où ton administrateur l'active, les registres sont scellés par compte avec des empreintes que tu peux vérifier toi-même.
+
+C'est aussi ce que l'article 12 du règlement européen sur l'IA attend d'un système comme celui-ci. LIA y répond avec cinq enregistrements au total : les trois ci-dessus, plus les paramètres réellement envoyés à chaque modèle, et les lacunes du registre — parce qu'un registre incapable de dire où il est incomplet demande qu'on lui fasse confiance au lieu de se laisser lire.
 
 ## 7. Profondeur émotionnelle
 

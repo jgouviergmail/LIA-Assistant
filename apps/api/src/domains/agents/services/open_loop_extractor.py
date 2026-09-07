@@ -343,6 +343,7 @@ async def _run_extraction(
                 tokens_out=token_capture.tokens_out,
                 tokens_cache=token_capture.tokens_cache,
                 model_name=config.model,
+                source="user",
             )
         except Exception as exc:  # noqa: BLE001 — tracking must not lose the extraction
             logger.warning("open_loop_token_tracking_failed", run_id=run_id, error=str(exc))

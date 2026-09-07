@@ -155,6 +155,17 @@ class User(BaseModel):
         comment="Sections/directions/roles/max the 360° chat tool applies. Null = defaults.",
     )
 
+    # The daily relationship debrief. ON by default — it is only ever built
+    # when the reader opens a card — but it spends LLM budget and reads a
+    # relationship in full, so the decision belongs to the account, from the
+    # Relations page where the result is shown.
+    relation_debrief_enabled: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="User preference for the daily relationship debrief. True = enabled.",
+    )
+
     # Peer email visibility opt-in (ADR-189). Separate from discovery on
     # purpose: being findable and handing your address over are two different
     # consents, and only ACCEPTED connections ever see it.

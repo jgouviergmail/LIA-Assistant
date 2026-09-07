@@ -66,6 +66,14 @@ _SECTION_CONTACT = "contact"
 _SECTION_EMAILS = "emails"
 _SECTION_EVENTS = "events"
 
+#: What ``build`` fetches when the caller names no subset — the HTTP route's
+#: case, and the historical behaviour.
+_ALL_SECTIONS = frozenset({_SECTION_CONTACT, _SECTION_EMAILS, _SECTION_EVENTS})
+
+#: The two sections queried BY ADDRESS. They share every step the contact card
+#: does not: the address resolution, the no-address answer, and the concurrency.
+_EXCHANGE_SECTIONS = frozenset({_SECTION_EMAILS, _SECTION_EVENTS})
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -76,6 +84,21 @@ def _off(status: ContextStatus) -> ContextSection:
     return ContextSection(status=status, generated_at=_now())
 
 
+def _uniform(status: ContextStatus) -> RelationContext:
+    """A context whose three sections share one outcome, with no payload."""
+    section = _off(status)
+    return RelationContext(contact=section, emails=section, events=section)
+
+
+async def _ready(section: ContextSection) -> ContextSection:
+    """Keep the ``gather`` shape for a section nobody asked for.
+
+    An already-built value rather than a fetch: a section the caller excluded
+    must cost no call.
+    """
+    return section
+
+
 class RelationContextService:
     """Builds the provider-backed half of one relationship's 360° view."""
 
@@ -83,7 +106,13 @@ class RelationContextService:
         """Bind the owner (the service holds no session — fetchers own theirs)."""
         self.user_id = user_id
 
-    async def build(self, name: str, *, refresh: frozenset[str] | None = None) -> RelationContext:
+    async def build(
+        self,
+        name: str,
+        *,
+        refresh: frozenset[str] | None = None,
+        sections: frozenset[str] | None = None,
+    ) -> RelationContext:
         """The three sections for one relationship.
 
         Args:
@@ -92,19 +121,50 @@ class RelationContextService:
                 lives up to six hours, so a correction made in the address book
                 would otherwise stay invisible for half a day — the reader gets
                 a way to say "look again", per section or for all three.
+            sections: Sections to actually fetch; None means all three (what
+                the HTTP route asks for). A section left out comes back
+                ``NOT_REQUESTED`` and costs NOTHING — one mail section is three
+                searches per address, so fetching what the caller already
+                decided to drop is quota spent against the reader's own
+                selection (ADR-184, pointing at cost).
+
+                The contact card is the one exception, and only as an INPUT:
+                it is read whenever mail or meetings are wanted, because it is
+                what resolves the addresses they are queried by. It is still
+                only REPORTED when the caller asked for it.
 
         Returns:
             One section each for the contact card, the mail exchanged and the
             meetings shared, plus the scope those answers rest on.
         """
+        wanted = sections if sections is not None else _ALL_SECTIONS
         target_key = fold_name(name)
-        forced = refresh or frozenset()
         if not settings.relations_provider_sections_enabled or not target_key:
             # The flag off is not a failure and not an empty result: the
             # question is never asked, so no section may claim an answer.
-            blank = _off(ContextStatus.NOT_CONFIGURED)
-            return RelationContext(contact=blank, emails=blank, events=blank)
+            return _uniform(ContextStatus.NOT_CONFIGURED)
+        if not wanted:
+            return _uniform(ContextStatus.NOT_REQUESTED)
+        return await self._build_wanted(name, target_key, refresh or frozenset(), wanted)
 
+    async def _build_wanted(
+        self, name: str, target_key: str, forced: frozenset[str], wanted: frozenset[str]
+    ) -> RelationContext:
+        """The sections the caller asked for, in the order their inputs allow.
+
+        The contact card comes first because it RESOLVES the addresses mail and
+        meetings are queried by — so it is read whenever either of them is
+        wanted, and only REPORTED when it was asked for.
+
+        Args:
+            name: The relationship as the CRM displays it.
+            target_key: Its folded identity.
+            forced: Sections whose cache must be bypassed.
+            wanted: Sections to fetch (non-empty).
+
+        Returns:
+            The assembled context.
+        """
         contact = await self._section(
             _SECTION_CONTACT,
             target_key,
@@ -112,43 +172,99 @@ class RelationContextService:
             lambda: self._fetch_contact(target_key, name),
             forced=_SECTION_CONTACT in forced,
         )
+        reported = contact if _SECTION_CONTACT in wanted else _off(ContextStatus.NOT_REQUESTED)
+        if not wanted & _EXCHANGE_SECTIONS:
+            return self._assembled(reported, ContextStatus.NOT_REQUESTED, wanted)
+
         addresses = await self._match_addresses(contact, target_key)
         if not addresses:
             # NOT "nothing found": mail and calendar are queried by address, so
             # without one the question was never asked (ADR-184 doctrine — a
             # negative you did not verify is not a result).
-            no_address = _off(ContextStatus.NO_ADDRESS)
-            return RelationContext(
-                contact=contact,
-                emails=no_address,
-                events=no_address,
-                window_days=settings.relations_provider_window_days,
-                email_window_days=settings.relations_provider_email_window_days,
-            )
+            return self._assembled(reported, ContextStatus.NO_ADDRESS, wanted)
 
-        emails, events = await asyncio.gather(
-            self._section(
-                _SECTION_EMAILS,
-                target_key,
-                RELATIONS_PROVIDER_EMAILS_TTL_SECONDS,
-                lambda: self._fetch_emails(addresses),
-                forced=_SECTION_EMAILS in forced,
-                inputs=addresses,
-            ),
-            self._section(
-                _SECTION_EVENTS,
-                target_key,
-                RELATIONS_PROVIDER_EVENTS_TTL_SECONDS,
-                lambda: self._fetch_events(addresses),
-                forced=_SECTION_EVENTS in forced,
-                inputs=addresses,
-            ),
-        )
+        emails, events = await self._fetch_exchanges(target_key, forced, wanted, addresses)
         return RelationContext(
-            contact=contact,
+            contact=reported,
             emails=emails,
             events=events,
             addresses_used=len(addresses),
+            window_days=settings.relations_provider_window_days,
+            email_window_days=settings.relations_provider_email_window_days,
+        )
+
+    async def _fetch_exchanges(
+        self,
+        target_key: str,
+        forced: frozenset[str],
+        wanted: frozenset[str],
+        addresses: list[str],
+    ) -> tuple[ContextSection, ContextSection]:
+        """Mail and meetings, concurrently — and only the ones asked for.
+
+        The excluded one resolves to an already-built section rather than a
+        second code path: the concurrency is what makes the two paid sections
+        overlap, and reshaping it per subset would be two ways to do one thing.
+
+        Args:
+            target_key: Folded identity, part of the cache key.
+            forced: Sections whose cache must be bypassed.
+            wanted: Sections to fetch.
+            addresses: Mailboxes to query by — also part of the cache key.
+
+        Returns:
+            The mail section and the meetings section.
+        """
+        skipped = _off(ContextStatus.NOT_REQUESTED)
+        emails, events = await asyncio.gather(
+            (
+                self._section(
+                    _SECTION_EMAILS,
+                    target_key,
+                    RELATIONS_PROVIDER_EMAILS_TTL_SECONDS,
+                    lambda: self._fetch_emails(addresses),
+                    forced=_SECTION_EMAILS in forced,
+                    inputs=addresses,
+                )
+                if _SECTION_EMAILS in wanted
+                else _ready(skipped)
+            ),
+            (
+                self._section(
+                    _SECTION_EVENTS,
+                    target_key,
+                    RELATIONS_PROVIDER_EVENTS_TTL_SECONDS,
+                    lambda: self._fetch_events(addresses),
+                    forced=_SECTION_EVENTS in forced,
+                    inputs=addresses,
+                )
+                if _SECTION_EVENTS in wanted
+                else _ready(skipped)
+            ),
+        )
+        return emails, events
+
+    @staticmethod
+    def _assembled(
+        contact: ContextSection, exchange_status: ContextStatus, wanted: frozenset[str]
+    ) -> RelationContext:
+        """A context whose two exchange sections share one outcome.
+
+        Args:
+            contact: The contact section, already decided.
+            exchange_status: What mail and meetings both answer.
+            wanted: Sections the caller asked for — an excluded one stays
+                ``NOT_REQUESTED`` whatever the others report.
+
+        Returns:
+            The assembled context.
+        """
+        outcome = _off(exchange_status)
+        skipped = _off(ContextStatus.NOT_REQUESTED)
+        return RelationContext(
+            contact=contact,
+            emails=outcome if _SECTION_EMAILS in wanted else skipped,
+            events=outcome if _SECTION_EVENTS in wanted else skipped,
             window_days=settings.relations_provider_window_days,
             email_window_days=settings.relations_provider_email_window_days,
         )

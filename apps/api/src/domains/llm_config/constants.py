@@ -385,6 +385,17 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=[],
         power_tier=POWER_TIER_LOW,
     ),
+    # --- Relations (personal CRM) ---
+    "relation_debrief": LLMTypeMetadata(
+        llm_type="relation_debrief",
+        display_name="Relationship Debrief",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.relation_debrief",
+        # Structured output: the debrief is rendered as fields, not prose, so a
+        # model that cannot answer a schema cannot serve this slot.
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_LOW,
+    ),
     # --- Specialized ---
     "voice_comment": LLMTypeMetadata(
         llm_type="voice_comment",
@@ -988,6 +999,22 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     # 600-token cap was consumed entirely by reasoning (empty/truncated JSON on
     # every call). Calibrated like heartbeat_decision (same shape of task).
     "telephony_synthesis": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.4,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=5000,
+        timeout_seconds=60.0,
+    ),
+    # Relationship debrief: ONE structured call over an evidence payload bounded
+    # by the reader's own scope (max_items per section), so the input is small
+    # and the output is five short fields. The budget is nonetheless sized for a
+    # thinking model: an admin routing this slot to one would otherwise spend the
+    # whole cap on reasoning and return an empty body — the defect measured on
+    # telephony_synthesis, whose comment above says so.
+    "relation_debrief": LLMAgentConfig(
         provider="openai",
         model="gpt-4.1-mini",
         temperature=0.4,

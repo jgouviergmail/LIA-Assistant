@@ -29,6 +29,7 @@ import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import TYPE_CHECKING, Any, Literal
 
 from src.core.config import settings
@@ -350,15 +351,35 @@ class KnowledgeEnrichmentService:
             # Call API with timeout + auto-set freshness for news queries (last 7 days)
             freshness = "pw" if is_news_query else None
 
-            api_response = await asyncio.wait_for(
-                client.search(
-                    query=keyword,
-                    endpoint=endpoint,
-                    count=BRAVE_SEARCH_MAX_RESULTS,
-                    freshness=freshness,
-                ),
-                timeout=settings.brave_search_enrichment_timeout_seconds,
-            )
+            # Recorded: this search reaches Brave through its CLIENT, so the
+            # tool gate that fills the consultation register never sees it —
+            # the same query is registered when the person asks for it through
+            # brave_search_tool and silent when a node decides to run it. The
+            # capability is what the register names, never the query.
+            _started = perf_counter()
+            _search_failed = False
+            try:
+                api_response = await asyncio.wait_for(
+                    client.search(
+                        query=keyword,
+                        endpoint=endpoint,
+                        count=BRAVE_SEARCH_MAX_RESULTS,
+                        freshness=freshness,
+                    ),
+                    timeout=settings.brave_search_enrichment_timeout_seconds,
+                )
+            except Exception:
+                _search_failed = True
+                raise
+            finally:
+                from src.domains.agents.effects.treatments import record_treatment
+
+                record_treatment(
+                    "enrichment:brave",
+                    None,
+                    succeeded=not _search_failed,
+                    duration_ms=int((perf_counter() - _started) * 1000),
+                )
 
             if not api_response:
                 logger.info("knowledge_enrichment_no_results", keyword=keyword, endpoint=endpoint)

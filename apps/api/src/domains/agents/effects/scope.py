@@ -21,6 +21,7 @@ from dataclasses import dataclass, replace
 
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.effects.schemas import EffectSourceName
+from src.domains.agents.effects.source import resolve_source
 
 
 @dataclass(frozen=True)
@@ -137,9 +138,7 @@ def scope_from_config(
         # A run with no id in its config still has a thread; the ledger needs a
         # correlation value, never an invented one.
         resolved = context.thread_id if context is not None else "unknown"
-    source: EffectSourceName = (
-        "scheduled" if context is not None and context.is_automated_source else "user"
-    )
+    source: EffectSourceName = resolve_source(context)
     return EffectScope(
         run_id=resolved,
         idempotency_key=idempotency_key,

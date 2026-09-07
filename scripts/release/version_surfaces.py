@@ -599,9 +599,12 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
     # words that follow it in its own sentence, because the bare phrase
     # also matches an unrelated "5 métriques Prometheus" in the same file:
     # the same collision the guide surfaces above already guard against.
+    # The dashboard count that follows is matched as a digit run, not as a
+    # literal: anchoring on the number itself made this guard red every time
+    # an unrelated tile was added to Grafana, which is noise rather than drift.
     CountSurface(
         "apps/web/locales/en/translation.json",
-        re.compile(rf"{_COUNT} Prometheus Metrics, 26"),
+        re.compile(rf"{_COUNT} Prometheus Metrics, \d+"),
         "prometheus_metrics",
         "blog observability article title (en)",
     ),
@@ -613,7 +616,7 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
     ),
     CountSurface(
         "apps/web/locales/fr/translation.json",
-        re.compile(rf"{_COUNT} métriques Prometheus, 26"),
+        re.compile(rf"{_COUNT} métriques Prometheus, \d+"),
         "prometheus_metrics",
         "blog observability article title (fr)",
     ),
@@ -625,7 +628,7 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
     ),
     CountSurface(
         "apps/web/locales/de/translation.json",
-        re.compile(rf"{_COUNT} Prometheus-Metriken, 26"),
+        re.compile(rf"{_COUNT} Prometheus-Metriken, \d+"),
         "prometheus_metrics",
         "blog observability article title (de)",
     ),
@@ -637,7 +640,7 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
     ),
     CountSurface(
         "apps/web/locales/es/translation.json",
-        re.compile(rf"{_COUNT} métricas Prometheus, 26"),
+        re.compile(rf"{_COUNT} métricas Prometheus, \d+"),
         "prometheus_metrics",
         "blog observability article title (es)",
     ),
@@ -649,7 +652,7 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
     ),
     CountSurface(
         "apps/web/locales/it/translation.json",
-        re.compile(rf"{_COUNT} metriche Prometheus, 26"),
+        re.compile(rf"{_COUNT} metriche Prometheus, \d+"),
         "prometheus_metrics",
         "blog observability article title (it)",
     ),
@@ -661,7 +664,7 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
     ),
     CountSurface(
         "apps/web/locales/zh/translation.json",
-        re.compile(rf"{_COUNT}个Prometheus指标、26"),
+        re.compile(rf"{_COUNT}个Prometheus指标、\d+"),
         "prometheus_metrics",
         "blog observability article title (zh)",
     ),

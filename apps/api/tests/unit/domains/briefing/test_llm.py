@@ -21,6 +21,8 @@ from src.domains.briefing.schemas import (
     ForecastAlert,
     ForecastAlertKind,
     MailsData,
+    ReminderItem,
+    RemindersData,
     WeatherData,
 )
 
@@ -147,3 +149,80 @@ class TestPromptTodayIsoInjection:
         rendered = captured.get("rendered", "")
         today_iso = datetime.now(PARIS).date().isoformat()
         assert today_iso in rendered, "Synthesis prompt must include today's ISO date as anchor"
+
+
+# =============================================================================
+# Reminders reach the SYNTHESIS, and never the greeting as a bare count
+# =============================================================================
+
+
+def _reminders_bundle() -> CardsBundle:
+    """A dashboard whose reminders span two different days."""
+    return CardsBundle(
+        weather=_empty_section(),
+        agenda=_empty_section(),
+        mails=_empty_section(),
+        birthdays=_empty_section(),
+        reminders=CardSection(
+            status=CardStatus.OK,
+            generated_at=datetime.now(UTC),
+            data=RemindersData(
+                items=[
+                    ReminderItem(content="Appeler Ana", trigger_at_local="aujourd'hui 18:00"),
+                    ReminderItem(content="Payer la facture", trigger_at_local="demain 09:00"),
+                ]
+            ),
+        ),
+        health=_empty_section(),
+        for_you=_empty_section(),
+        tasks=_empty_section(),
+        documents=_empty_section(),
+    )
+
+
+@pytest.mark.unit
+class TestRemindersInThePrompt:
+    """``briefing_synthesis_prompt.txt`` documents a ``reminders`` key and has
+    done so all along; until the section became cacheable, no ordinary page
+    load could deliver it. These pin what it now delivers — and what the
+    greeting must still NOT be given."""
+
+    def test_the_synthesis_receives_each_reminder_with_its_own_day(self) -> None:
+        summary = json.loads(_summarize_cards_for_llm(_reminders_bundle(), verbose=True))
+        assert summary["reminders"] == [
+            {"content": "Appeler Ana", "trigger": "aujourd'hui 18:00"},
+            {"content": "Payer la facture", "trigger": "demain 09:00"},
+        ]
+
+    def test_the_greeting_is_given_no_reminder_count(self) -> None:
+        """A BARE count carries no day, and the agenda rule in this very file
+        records what that produced: "deux rendez-vous cet après-midi" for
+        events spread over two days. A reminder also fires on its own, so a
+        fifteen-word greeting has better things to spend its single hint on."""
+        summary = json.loads(_summarize_cards_for_llm(_reminders_bundle(), verbose=False))
+        assert "reminders_count" not in summary
+        assert "reminders" not in summary
+
+    def test_an_empty_reminders_card_adds_nothing(self) -> None:
+        bundle = _reminders_bundle()
+        empty = bundle.model_copy(update={"reminders": _empty_section()})
+        assert "reminders" not in json.loads(_summarize_cards_for_llm(empty, verbose=True))
+
+    def test_the_synthesis_quotes_at_most_three(self) -> None:
+        """Same cap as agenda, mails and documents — the prompt gets a hint,
+        never a dump."""
+        many = RemindersData(
+            items=[
+                ReminderItem(content=f"R{i}", trigger_at_local=f"demain 0{i}:00") for i in range(5)
+            ]
+        )
+        bundle = _reminders_bundle()
+        packed = bundle.model_copy(
+            update={
+                "reminders": CardSection(
+                    status=CardStatus.OK, generated_at=datetime.now(UTC), data=many
+                )
+            }
+        )
+        summary = json.loads(_summarize_cards_for_llm(packed, verbose=True))
+        assert len(summary["reminders"]) == 3

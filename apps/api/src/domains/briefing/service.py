@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Awaitable, Callable
+import uuid
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -28,14 +29,13 @@ from src.core.time_utils import (
 from src.core.time_utils import (
     seconds_to_next_local_midnight as _seconds_to_next_local_midnight,
 )
+from src.domains.briefing.cache_keys import last_good_key, section_cache_key
 from src.domains.briefing.constants import (
-    BRIEFING_CACHE_PREFIX,
-    BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA,
+    BRIEFING_SHARED_BUILD_WAIT_SECONDS,
     ERROR_CODE_INTERNAL,
     SECTION_AGENDA,
     SECTION_AGENDA_TTL_SECONDS,
     SECTION_BIRTHDAYS,
-    SECTION_BIRTHDAYS_TTL_SECONDS,
     SECTION_DOCUMENTS,
     SECTION_DOCUMENTS_TTL_SECONDS,
     SECTION_FOR_YOU,
@@ -44,6 +44,7 @@ from src.domains.briefing.constants import (
     SECTION_HEALTH_TTL_SECONDS,
     SECTION_MAILS,
     SECTION_MAILS_TTL_SECONDS,
+    SECTION_NAMES,
     SECTION_REMINDERS,
     SECTION_REMINDERS_TTL_SECONDS,
     SECTION_TASKS,
@@ -51,6 +52,7 @@ from src.domains.briefing.constants import (
     SECTION_WEATHER,
     SECTION_WEATHER_TTL_SECONDS,
 )
+from src.domains.briefing.consultations import SURFACE as BRIEFING_SURFACE
 from src.domains.briefing.exceptions import (
     ConnectorAccessError,
     ConnectorNotConfiguredError,
@@ -76,12 +78,17 @@ from src.domains.briefing.schemas import (
     SynthesisResponse,
     TextSection,
 )
+from src.domains.shared.consultation_sink import consultation_collector
+from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.metrics_briefing import (
     briefing_build_duration_seconds,
+    briefing_bundle_builds_total,
     briefing_refresh_requests_total,
     briefing_section_status_total,
 )
+from src.infrastructure.utils.shared_flight import CLAIM_PREFIX, run_shared_flight
+from src.infrastructure.utils.single_flight import run_single_flight
 
 if TYPE_CHECKING:
     from src.domains.users.models import User
@@ -95,6 +102,34 @@ _ORIGIN_LIVE = "live"
 _ORIGIN_CACHE = "cache"
 _ORIGIN_HIDDEN = "hidden"  # UXR Lot 5 (B4): user-hidden placeholder, zero IO
 _ORIGIN_STALE = "stale"  # D-04: last known-good served alongside an ERROR
+
+# Whether a caller gathered the bundle or shared one already being gathered.
+_BUILD_OWNED = "owned"
+_BUILD_JOINED = "joined"
+
+
+class _SectionPlan(NamedTuple):
+    """How one section is obtained during a build.
+
+    Attributes:
+        name: Section name, as declared in ``SECTION_NAMES``.
+        fetcher: Produces the live payload when the cache is not used.
+        ttl: How long a successful outcome stays in the cache. Always > 0:
+            a section that is never written is invisible to the readers that
+            only read the cache.
+        force: Bypass the cache READ for this build.
+        cache_eligible: Whether being served from cache is a possible outcome
+            for this section. False for the always-live one, which would
+            otherwise make every build look 'partial' in the duration
+            histogram — a section that can never be a cache hit says nothing
+            about how warm the cache is.
+    """
+
+    name: str
+    fetcher: Callable[[], Awaitable[Any]]
+    ttl: int
+    force: bool
+    cache_eligible: bool = True
 
 
 def _resolve_user_tz(user: User) -> ZoneInfo:
@@ -145,6 +180,9 @@ class BriefingService:
         self._hidden_sections = frozenset(
             sanitize_briefing_preferences(getattr(user, "briefing_preferences", None)).hidden
         )
+        # One correlation key per service instance, so a bundle's consultations
+        # are one readable act rather than nine unrelated reads.
+        self._consultation_run_id = f"briefing_cards_{uuid.uuid4().hex[:12]}"
 
     # =========================================================================
     # Public entry point
@@ -158,7 +196,21 @@ class BriefingService:
 
         This is the non-blocking endpoint backbone: the frontend renders the
         dashboard grid as soon as this returns, without waiting for the LLM
-        greeting + synthesis (handled by build_synthesis()).
+        greeting + synthesis (handled by ``build_text``).
+
+        **One page load is one act of reading.** ``/briefing/cards`` and
+        ``/briefing/synthesis`` are issued in parallel by the dashboard and
+        both want this bundle, so the gathering is coalesced: whoever asks
+        first builds it, whoever asks while it is running is handed the very
+        same object. Measured on the running instance before this seam existed,
+        44 of 151 bundle builds over seven days were duplicates — every
+        connector called twice within the same second, and two batches of
+        consultation rows filed for a single act.
+
+        Wrapped in the consultation register: the sections that were actually
+        READ — never the ones served from cache, hidden by the person, or
+        gathered by another caller — are collected here and written once, so
+        the account holder can see which of their sources LIA opened and when.
 
         Args:
             force_refresh: Set of section names to bypass cache for.
@@ -166,118 +218,290 @@ class BriefingService:
         Returns:
             CardsBundle ready for the UI.
         """
-        force = force_refresh or set()
-        force_all = "all" in force
+        # A shared build is shielded, so it outlives a caller that disconnects
+        # — and it then reads ``self.user`` from a request whose session has
+        # been closed. That is safe here, and not by luck: the sessionmaker
+        # sets ``expire_on_commit=False``, ``User`` declares no deferred
+        # column, and the whole build path touches loaded COLUMNS only (id,
+        # language, timezone, the health toggle, the home location) — never a
+        # relationship, which is the access that would lazy-load off a
+        # detached instance. Every fetcher opens its own session anyway.
+        # Adding a relationship read below would break that, silently.
+        force = frozenset(force_refresh or ())
+        # The collector costs NOTHING on the common path: a page load served
+        # entirely from cache collects no row, and the flush returns before
+        # opening a session. Only a load that actually opened a source pays for
+        # the write — and that load already paid for the network fetches.
+        #
+        # A caller that JOINS collects nothing: the shared task runs in the
+        # context of the caller that started it, so the rows land in that
+        # caller's live list. That is the honest record — one act, one set of
+        # consultations, one decision — and it is why the register stopped
+        # double-counting the home page without a line of register code.
         if force:
-            briefing_refresh_requests_total.labels(scope="all" if force_all else "single").inc()
+            # Counted per REQUEST, which is what the metric says it counts —
+            # and it has to be outside the coalescing seam to stay true: two
+            # people double-clicking "refresh all" at the same instant share
+            # one build, and a counter placed inside it would report one
+            # refresh where two were asked for.
+            scope = "all" if "all" in force else "single"
+            briefing_refresh_requests_total.labels(scope=scope).inc()
 
-        start = time.perf_counter()
+        async with consultation_collector(self._consultation_run_id) as consulted:
+            flight = await run_single_flight(
+                self._flight_key(force), lambda: self._gather_once_per_deployment(force)
+            )
+            read_something = bool(consulted)
+        briefing_bundle_builds_total.labels(
+            outcome=_BUILD_JOINED if flight.joined else _BUILD_OWNED
+        ).inc()
+        if read_something:
+            await self._record_cards_turn()
+        return flight.value
 
-        # Fetch all 9 sections in parallel — each independently failable.
-        # Each fetcher acquires its own DB session (SQLAlchemy AsyncSession is
-        # not safe for concurrent use, see fetchers.py module docstring).
-        (
-            weather,
-            agenda,
-            mails,
-            birthdays,
-            reminders,
-            health,
-            for_you,
-            tasks,
-            documents,
-        ) = await asyncio.gather(
-            self._section(
+    async def _gather_once_per_deployment(self, force: frozenset[str]) -> CardsBundle:
+        """Gather the bundle once across WORKERS, not merely once per process.
+
+        ``run_single_flight`` shares the work between callers on one event
+        loop, and production runs four of them (``WEB_CONCURRENCY=4``), so the
+        two requests of a page load usually land on different workers — measured
+        on the deployed instance 2026-09-07: three overlapping pairs, none
+        joined, and ``briefing:mails`` opened five times for two page loads.
+
+        So one worker claims the build and the others wait for what it
+        publishes, which is the section cache it fills anyway — no payload of
+        this seam's own travels through Redis. A waiter loses nothing it would
+        not have spent building the same bundle, and the sources are opened
+        once.
+
+        A FORCED refresh never waits: the caller asked to bypass the cache, and
+        handing it what another build published is exactly the cache it
+        refused.
+
+        Args:
+            force: Section names whose cache this build bypasses.
+
+        Returns:
+            The bundle, built here or published by the worker that claimed it.
+        """
+        if force:
+            return await self._gather_cards(force)
+
+        shared = await run_shared_flight(
+            self._claim_key(),
+            build=lambda: self._gather_cards(force),
+            read_shared=self._published_bundle,
+            wait_budget_s=BRIEFING_SHARED_BUILD_WAIT_SECONDS,
+        )
+        return shared.value
+
+    def _claim_key(self) -> str:
+        """The cross-worker claim's identity.
+
+        The same identity as the in-process flight, flattened to a string and
+        carrying its declared family head: a claim shared between two builds
+        that would produce different bundles would hand one caller the other's
+        answer, and a key whose family only appears after a helper prepends it
+        is a key the ADR-260 guard cannot read.
+        """
+        hidden = ",".join(sorted(self._hidden_sections))
+        return (
+            f"{CLAIM_PREFIX}:briefing_bundle:{self.user.id}"
+            f":{self.language}:{self.user_tz}:{hidden}"
+        )
+
+    async def _published_bundle(self) -> CardsBundle | None:
+        """The bundle another worker has finished publishing, or None.
+
+        « Finished » is the whole point: a partially written cache would hand
+        the waiter a bundle with holes, which is worse than the duplicate build
+        it is avoiding. Nothing missing means the holder wrote every visible
+        section — reminders included, which is why that section needed a TTL of
+        its own.
+        """
+        bundle, missing = await self._read_cached_bundle()
+        return None if missing else bundle
+
+    def _flight_key(self, force: frozenset[str]) -> tuple[object, ...]:
+        """What makes two bundle builds the same work.
+
+        Everything that changes the bundle belongs here: a key that is too
+        coarse hands a caller a bundle built for someone else, or in another
+        language, which is worse than building it twice. A forced refresh
+        therefore never joins an unforced build — joining would silently
+        ignore the force and return the cache the caller asked to bypass.
+
+        Args:
+            force: Sections whose cache this build bypasses.
+
+        Returns:
+            A hashable identity for the coalescing registry.
+        """
+        return (
+            "briefing_bundle",
+            self.user.id,
+            self.language,
+            str(self.user_tz),
+            self._hidden_sections,
+            force,
+        )
+
+    async def _record_cards_turn(self) -> None:
+        """File the act the consultations belong to.
+
+        Only when at least one source was actually read: a page load served
+        entirely from cache opened nothing, and a register row for it would
+        claim a read that never happened.
+
+        Never raises — the dashboard is already built when this runs.
+        """
+        try:
+            from src.domains.agents.effects.decision_recorder import record_decision
+            from src.domains.agents.effects.decisions import out_of_turn_decision
+            from src.domains.agents.effects.models import DecisionOutcome, EffectSource
+
+            decision = out_of_turn_decision(
+                run_id=self._consultation_run_id,
+                user_id=self.user.id,
+                thread_id=self._consultation_run_id,
+                # A request reached the API; nothing schedules the briefing.
+                source=EffectSource.USER.value,
+            )
+            decision.outcome = DecisionOutcome.ANSWERED
+            decision.route = "briefing_cards"
+            await record_decision(decision)
+        except Exception as exc:  # noqa: BLE001 - observing never breaks the observed
+            logger.warning(
+                "briefing_cards_decision_not_recorded",
+                run_id=self._consultation_run_id,
+                error_type=type(exc).__name__,
+            )
+
+    def _build_plan(self, force: frozenset[str]) -> tuple[_SectionPlan, ...]:
+        """How each of the nine sections is obtained for this build.
+
+        One declaration, read by everything downstream: the gather, the
+        duration histogram's cold/warm verdict and the structured log all
+        derive from it. They used to list the nine names each in their own
+        shape — a bundle, a tuple of TTLs and a dict — which is three places
+        for a section to be added to two of them.
+
+        Args:
+            force: Section names whose cache this build bypasses.
+
+        Returns:
+            One plan per section, in gather order.
+        """
+        force_all = "all" in force
+
+        def forced(name: str) -> bool:
+            return force_all or name in force
+
+        return (
+            _SectionPlan(
                 SECTION_WEATHER,
                 lambda: fetch_weather(user=self.user, user_tz=self.user_tz, language=self.language),
-                ttl=SECTION_WEATHER_TTL_SECONDS,
-                force=force_all or SECTION_WEATHER in force,
+                SECTION_WEATHER_TTL_SECONDS,
+                forced(SECTION_WEATHER),
             ),
-            self._section(
+            _SectionPlan(
                 SECTION_AGENDA,
                 lambda: fetch_agenda(user=self.user, user_tz=self.user_tz, language=self.language),
-                ttl=SECTION_AGENDA_TTL_SECONDS,
-                force=force_all or SECTION_AGENDA in force,
+                SECTION_AGENDA_TTL_SECONDS,
+                forced(SECTION_AGENDA),
             ),
-            self._section(
+            _SectionPlan(
                 SECTION_MAILS,
                 lambda: fetch_mails(user=self.user, user_tz=self.user_tz, language=self.language),
-                ttl=SECTION_MAILS_TTL_SECONDS,
-                force=force_all or SECTION_MAILS in force,
+                SECTION_MAILS_TTL_SECONDS,
+                forced(SECTION_MAILS),
             ),
-            self._section(
+            _SectionPlan(
                 SECTION_BIRTHDAYS,
                 lambda: fetch_birthdays(user=self.user, user_tz=self.user_tz),
                 # Birthday cards pre-compute `days_until`, so the cache MUST
                 # expire at local midnight — otherwise a value cached on day N
                 # still advertises the same "N days" on day N+1 until the next
                 # manual refresh. Cap hard at 24 h as a belt-and-braces safety.
-                ttl=_seconds_to_next_local_midnight(self.user_tz),
-                force=force_all or SECTION_BIRTHDAYS in force,
+                _seconds_to_next_local_midnight(self.user_tz),
+                forced(SECTION_BIRTHDAYS),
             ),
-            self._section(
+            _SectionPlan(
                 SECTION_REMINDERS,
                 lambda: fetch_reminders(
                     user_id=self.user.id,
                     user_tz=self.user_tz,
                     language=self.language,
                 ),
-                ttl=SECTION_REMINDERS_TTL_SECONDS,
-                force=True,  # always live — local DB lookup is < 10 ms
+                SECTION_REMINDERS_TTL_SECONDS,
+                # Always live — a local DB lookup under 10 ms, and a reminder
+                # created a moment ago must appear now. The TTL only makes the
+                # section READABLE by the cache-only readers; it never serves
+                # this card.
+                True,
+                cache_eligible=False,
             ),
-            self._section(
+            _SectionPlan(
                 SECTION_HEALTH,
                 lambda: fetch_health(user=self.user),
-                ttl=SECTION_HEALTH_TTL_SECONDS,
-                force=force_all or SECTION_HEALTH in force,
+                SECTION_HEALTH_TTL_SECONDS,
+                forced(SECTION_HEALTH),
             ),
-            self._section(
+            _SectionPlan(
                 SECTION_FOR_YOU,
                 lambda: fetch_for_you(
                     user_id=self.user.id, user_tz=self.user_tz, language=self.language
                 ),
-                ttl=SECTION_FOR_YOU_TTL_SECONDS,
-                force=force_all or SECTION_FOR_YOU in force,
+                SECTION_FOR_YOU_TTL_SECONDS,
+                forced(SECTION_FOR_YOU),
             ),
-            self._section(
+            _SectionPlan(
                 SECTION_TASKS,
                 lambda: fetch_tasks(user=self.user, user_tz=self.user_tz),
-                ttl=SECTION_TASKS_TTL_SECONDS,
-                force=force_all or SECTION_TASKS in force,
+                SECTION_TASKS_TTL_SECONDS,
+                forced(SECTION_TASKS),
             ),
-            self._section(
+            _SectionPlan(
                 SECTION_DOCUMENTS,
                 lambda: fetch_documents(
                     user=self.user, user_tz=self.user_tz, language=self.language
                 ),
-                ttl=SECTION_DOCUMENTS_TTL_SECONDS,
-                force=force_all or SECTION_DOCUMENTS in force,
+                SECTION_DOCUMENTS_TTL_SECONDS,
+                forced(SECTION_DOCUMENTS),
             ),
         )
 
-        cards = CardsBundle(
-            weather=weather,
-            agenda=agenda,
-            mails=mails,
-            birthdays=birthdays,
-            reminders=reminders,
-            health=health,
-            for_you=for_you,
-            tasks=tasks,
-            documents=documents,
+    async def _gather_cards(self, force: frozenset[str]) -> CardsBundle:
+        """Fetch the nine sections in parallel and assemble the bundle.
+
+        Runs inside the coalescing seam (see ``build_cards``): at most one
+        execution of this method per identity is in flight at any moment, so
+        every counter and log line below describes ONE act of reading.
+
+        Args:
+            force: Section names whose cache this build bypasses.
+
+        Returns:
+            CardsBundle ready for the UI.
+        """
+        start = time.perf_counter()
+
+        # Fetch all 9 sections in parallel — each independently failable.
+        # Each fetcher acquires its own DB session (SQLAlchemy AsyncSession is
+        # not safe for concurrent use, see fetchers.py module docstring).
+        plans = self._build_plan(force)
+        results = await asyncio.gather(
+            *(
+                self._section(plan.name, plan.fetcher, ttl=plan.ttl, force=plan.force)
+                for plan in plans
+            )
         )
+        sections = dict(zip((plan.name for plan in plans), results, strict=True))
+        cards = CardsBundle(**sections)
 
         duration_s = time.perf_counter() - start
         cache_state = self._classify_cache_state(
-            (weather, SECTION_WEATHER_TTL_SECONDS),
-            (agenda, SECTION_AGENDA_TTL_SECONDS),
-            (mails, SECTION_MAILS_TTL_SECONDS),
-            (birthdays, SECTION_BIRTHDAYS_TTL_SECONDS),
-            (reminders, 0),  # always live
-            (health, SECTION_HEALTH_TTL_SECONDS),
-            (for_you, SECTION_FOR_YOU_TTL_SECONDS),
-            (tasks, SECTION_TASKS_TTL_SECONDS),
-            (documents, SECTION_DOCUMENTS_TTL_SECONDS),
+            (sections[plan.name], plan.cache_eligible) for plan in plans
         )
         briefing_build_duration_seconds.labels(cache_state=cache_state).observe(duration_s)
         logger.info(
@@ -285,17 +509,7 @@ class BriefingService:
             user_id=str(self.user.id),
             duration_ms=int(duration_s * 1000),
             cache_state=cache_state,
-            sections_status={
-                SECTION_WEATHER: weather.status.value,
-                SECTION_AGENDA: agenda.status.value,
-                SECTION_MAILS: mails.status.value,
-                SECTION_BIRTHDAYS: birthdays.status.value,
-                SECTION_REMINDERS: reminders.status.value,
-                SECTION_HEALTH: health.status.value,
-                SECTION_FOR_YOU: for_you.status.value,
-                SECTION_TASKS: tasks.status.value,
-                SECTION_DOCUMENTS: documents.status.value,
-            },
+            sections_status={name: section.status.value for name, section in sections.items()},
             forced_refresh=sorted(force),
         )
         return cards
@@ -304,38 +518,43 @@ class BriefingService:
         """Build the LLM greeting + synthesis.
 
         When ``cards`` is None (the standard ``/briefing/synthesis`` path), the
-        bundle is read from the Redis cache. When the cache is too sparse —
-        typically a cold start where ``/briefing/synthesis`` lands while the
-        parallel ``/briefing/cards`` request is still in flight — the cards
-        are built inline so the LLM does not see an artificially empty
-        dashboard. This keeps the two endpoints independent on the wire while
-        making ``/synthesis`` self-sufficient on the data side.
+        bundle is read from the Redis cache, and BUILT when the cache is
+        missing any visible section.
+
+        The question asked here is "has this bundle been built?", never "does
+        it hold anything interesting?". They read alike and are not the same:
+        the second one cannot tell a cold cache from a legitimately quiet day,
+        and answering it is how ``/synthesis`` came to rebuild the whole
+        dashboard on every call for anyone whose morning was empty, while a
+        second implementation of the same threshold — this one counting six
+        sections, the LLM helper counting nine — decided "too sparse" about
+        bundles the synthesis would have summarised.
+
+        Building here is not a duplicate of ``/briefing/cards``: the gathering
+        is coalesced (see ``build_cards``), so on a page load this joins the
+        build already running and both responses describe the very same
+        bundle. Whether the synthesis is worth generating at all remains the
+        LLM helper's decision, in the one place that owns it.
 
         When ``cards`` is provided (the bundled ``build_today`` / refresh
         path), it is used as-is to avoid rebuilding what the caller already
         produced.
 
+        Args:
+            cards: An already-built bundle, or None to obtain one.
+
         Returns:
             SynthesisResponse with greeting (always populated, fallback if LLM
-            down) and synthesis (None only when the dashboard genuinely has
-            fewer than ``BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA`` populated
-            sections, or when the LLM call itself fails).
+            down) and synthesis (None when the dashboard genuinely has too few
+            populated sections, or when the LLM call itself fails).
         """
         if cards is None:
-            cards = await self.read_cached_cards()
-
-            # Race-aware: if the cache hasn't been populated yet (cold start,
-            # or /synthesis racing /cards), the synthesis would be silently
-            # skipped because every section reads as NOT_CONFIGURED. Build the
-            # cards inline in that case so the LLM has actual data to work
-            # with.
-            cache_sections_with_data = self._count_sections_with_data(cards)
-            if cache_sections_with_data < BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA:
+            cards, missing = await self._read_cached_bundle()
+            if missing:
                 logger.info(
-                    "briefing_synthesis_cache_insufficient_building_inline",
+                    "briefing_synthesis_bundle_not_cached",
                     user_id=str(self.user.id),
-                    cache_sections_with_data=cache_sections_with_data,
-                    threshold=BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA,
+                    missing_sections=sorted(missing),
                 )
                 cards = await self.build_cards()
 
@@ -389,6 +608,45 @@ class BriefingService:
     # Section orchestration (cache + status mapping + safety net)
     # =========================================================================
 
+    def _record_consultation(self, name: str, section: CardSection, started: float) -> None:
+        """Tell the register which source was actually read, and how it went.
+
+        The briefing calls fetchers, not tools, so the tool gate that fills the
+        consultation register never sees it — its reads were absent by
+        construction. And the briefing answers a REQUEST: nothing schedules it
+        (verified on the call graph, 2026-09-07), so the authorship is the
+        person's, not an initiative of LIA's.
+
+        Args:
+            name: Section key.
+            section: What the fetch produced.
+            started: ``time.perf_counter()`` taken before the fetch.
+        """
+        # ``_section`` is documented « Never raises. », and that contract is the
+        # dashboard's: a register that can take the home page down is worse
+        # than the gap it closes. ``record_surface_consultations`` is
+        # best-effort in full, but the status read below is not, so the whole
+        # body stays guarded.
+        try:
+            # OK and EMPTY both mean the source answered; NOT_CONFIGURED and
+            # ERROR mean it could not be read. « Nothing to report » is not
+            # « I could not look », and the register must not merge them.
+            answered = section.status in (CardStatus.OK, CardStatus.EMPTY)
+            record_surface_consultations(
+                surface=BRIEFING_SURFACE,
+                user_id=self.user.id,
+                run_id=self._consultation_run_id,
+                opened=[name],
+                failed=() if answered else [name],
+                duration_ms=int((time.perf_counter() - started) * 1000),
+            )
+        except Exception as exc:  # noqa: BLE001 - observing never breaks the observed
+            logger.debug(
+                "briefing_consultation_not_recorded",
+                section=name,
+                error_type=type(exc).__name__,
+            )
+
     async def _section(
         self,
         name: str,
@@ -406,7 +664,7 @@ class BriefingService:
             ).inc()
             return CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
 
-        cache_key = f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{name}"
+        cache_key = self._cache_key(name)
 
         # 1. Try cache (skipped when ttl=0 or force=True).
         if ttl > 0 and not force:
@@ -421,7 +679,11 @@ class BriefingService:
                 return cached
 
         # 2. Live fetch + status mapping (extracted — CC discipline).
+        # Only THIS branch is a consultation: a cache hit above reads Redis,
+        # not the person's mailbox, and a hidden section never runs at all.
+        started = time.perf_counter()
         section = await self._fetch_and_map(name, fetcher)
+        self._record_consultation(name, section, started)
 
         # 3. Persist on cacheable outcomes (skip ttl=0 and ERROR — errors should
         #    retry next request, not be sticky).
@@ -510,6 +772,21 @@ class BriefingService:
     # Redis helpers (defensive — cache is best-effort)
     # =========================================================================
 
+    def _cache_key(self, name: str) -> str:
+        """The cache key of one section.
+
+        Built by ``briefing.cache_keys``, never here: the push invalidation in
+        another domain deletes the very same keys, and a second builder is how
+        one of them silently stopped matching.
+
+        Args:
+            name: Section name.
+
+        Returns:
+            The fully scoped Redis key.
+        """
+        return section_cache_key(user_id=self.user.id, language=self.language, section=name)
+
     async def read_cached_cards(self) -> CardsBundle:
         """Read every card section from Redis cache — NEVER fetching.
 
@@ -523,46 +800,53 @@ class BriefingService:
         placeholders — the LLM helpers ignore them when summarizing for the
         prompt, and the suggestion builder treats them as "no evidence".
         """
+        cards, _missing = await self._read_cached_bundle()
+        return cards
+
+    async def _read_cached_bundle(self) -> tuple[CardsBundle, frozenset[str]]:
+        """Read the bundle from cache, and say which sections were absent.
+
+        The absence is the useful half: it is what tells a caller whether the
+        bundle has been BUILT recently, which is a different question from
+        whether it is INTERESTING. Conflating the two is what made a quiet
+        dashboard indistinguishable from a cold cache, and had ``/synthesis``
+        rebuild everything on every single call for anyone whose day happened
+        to be empty.
+
+        A hidden section is never fetched, so its absence is not a gap. A
+        section that FAILED is not written either (an error must retry, not
+        stick), so a failing connector does read as absent — the honest
+        consequence is one extra gather, which on a page load costs nothing
+        because it is coalesced with the one ``/cards`` is already running.
+
+        Returns:
+            The bundle, and the names of the visible sections the cache had no
+            entry for.
+        """
         now = datetime.now(UTC)
-        sections = await asyncio.gather(
-            self._read_section_cache(SECTION_WEATHER),
-            self._read_section_cache(SECTION_AGENDA),
-            self._read_section_cache(SECTION_MAILS),
-            self._read_section_cache(SECTION_BIRTHDAYS),
-            # Reminders are TTL=0 (always live) — synthesis won't have them.
-            self._read_section_cache(SECTION_REMINDERS, live=True),
-            self._read_section_cache(SECTION_HEALTH),
-            self._read_section_cache(SECTION_FOR_YOU),
-            self._read_section_cache(SECTION_TASKS),
-            self._read_section_cache(SECTION_DOCUMENTS),
-        )
+        results = await asyncio.gather(*(self._read_section_cache(name) for name in SECTION_NAMES))
+        by_name = dict(zip(SECTION_NAMES, results, strict=True))
+        missing = frozenset(name for name, section in by_name.items() if section is None)
 
-        def _or_placeholder(s: CardSection | None) -> CardSection:
-            return s or CardSection(status=CardStatus.NOT_CONFIGURED, generated_at=now)
+        def _or_placeholder(name: str) -> CardSection:
+            return by_name[name] or CardSection(status=CardStatus.NOT_CONFIGURED, generated_at=now)
 
-        return CardsBundle(
-            weather=_or_placeholder(sections[0]),
-            agenda=_or_placeholder(sections[1]),
-            mails=_or_placeholder(sections[2]),
-            birthdays=_or_placeholder(sections[3]),
-            reminders=_or_placeholder(sections[4]),
-            health=_or_placeholder(sections[5]),
-            for_you=_or_placeholder(sections[6]),
-            tasks=_or_placeholder(sections[7]),
-            documents=_or_placeholder(sections[8]),
-        )
+        bundle = CardsBundle(**{name: _or_placeholder(name) for name in SECTION_NAMES})
+        return bundle, missing
 
-    async def _read_section_cache(self, name: str, *, live: bool = False) -> CardSection | None:
+    async def _read_section_cache(self, name: str) -> CardSection | None:
         """Per-section cache read honoring hidden preferences (UXR B4).
 
-        Hidden sections return their placeholder without any Redis IO; a
-        ``live`` section (TTL=0, never cached) returns None without IO.
+        Args:
+            name: Section name.
+
+        Returns:
+            The cached section, a HIDDEN placeholder when the person hid it
+            (no Redis IO at all), or None when the cache holds nothing.
         """
         if name in self._hidden_sections:
             return CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
-        if live:
-            return None
-        return await self._read_cache(f"{BRIEFING_CACHE_PREFIX}:{self.user.id}:{name}")
+        return await self._read_cache(self._cache_key(name))
 
     async def _read_cache(self, key: str) -> CardSection | None:
         try:
@@ -599,7 +883,8 @@ class BriefingService:
     # =========================================================================
 
     def _last_good_key(self, name: str) -> str:
-        return f"{BRIEFING_CACHE_PREFIX}:lastgood:{self.user.id}:{name}"
+        """The long-TTL side key holding this section's last known-good payload."""
+        return last_good_key(user_id=self.user.id, language=self.language, section=name)
 
     async def _write_last_good(self, name: str, section: CardSection) -> None:
         """Remember an OK-with-data payload under the long-TTL side key.
@@ -631,55 +916,36 @@ class BriefingService:
     # =========================================================================
 
     @staticmethod
-    def _count_sections_with_data(cards: CardsBundle) -> int:
-        """Return the number of card sections whose status is OK.
-
-        Used by ``build_text`` to decide whether the Redis cache is rich
-        enough to feed the synthesis LLM, or whether cards must be built
-        inline first.
-        """
-        return sum(
-            1
-            for section in (
-                cards.weather,
-                cards.agenda,
-                cards.mails,
-                cards.birthdays,
-                cards.reminders,
-                cards.health,
-            )
-            if section.status == CardStatus.OK
-        )
-
-    @staticmethod
     def _classify_cache_state(
-        *sections_with_ttl: tuple[CardSection, int],
+        outcomes: Iterable[tuple[CardSection, bool]],
     ) -> str:
         """Return 'cold' / 'warm' / 'partial' for the duration histogram label.
 
-        Heuristic: a section was 'cache-hit' if its generated_at predates the
-        request boundary (start of build_today). Reminders (ttl=0) are always
-        live and excluded from the count.
+        Heuristic: a section was a cache hit if its ``generated_at`` predates
+        this build. Sections that can never be cache hits (the always-live one)
+        are excluded — counting them would report every build as 'partial'.
 
-        We don't track per-section origin precisely here (that's done by the
-        Counter with the ``origin`` label) — this is just a coarse global tag.
+        This is a coarse global tag; per-section origin is what the
+        ``origin`` label on ``briefing_section_status_total`` carries.
+
+        Args:
+            outcomes: Each built section and whether a cache hit was possible
+                for it.
+
+        Returns:
+            One of 'cold', 'warm', 'partial'.
         """
-        # A section is considered live if its generated_at is within the last
-        # second (i.e. fetched in this build). Otherwise it came from cache.
         now = datetime.now(UTC)
         live_count = 0
-        cacheable_count = 0
-        for section, ttl in sections_with_ttl:
-            if ttl <= 0:
+        eligible_count = 0
+        for section, cache_eligible in outcomes:
+            if not cache_eligible:
                 continue
-            cacheable_count += 1
-            age_seconds = (now - section.generated_at).total_seconds()
-            if age_seconds < 1.5:
+            eligible_count += 1
+            if (now - section.generated_at).total_seconds() < 1.5:
                 live_count += 1
-        if cacheable_count == 0:
+        if eligible_count == 0 or live_count == 0:
             return "warm"
-        if live_count == 0:
-            return "warm"
-        if live_count == cacheable_count:
+        if live_count == eligible_count:
             return "cold"
         return "partial"

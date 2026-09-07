@@ -4,7 +4,7 @@
 
 **Versión**: 5.4
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.43.0
+**Aplicación**: LIA v1.43.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -211,6 +211,8 @@ También puedes preguntarlo sin abrir la página: cuándo fue la última llamada
 Queda lo que ningún sistema puede adivinar. LIA agrupa lo que se escribe igual, salvando acentos y mayúsculas; no puede saber que un número anotado un día y un nombre son la misma persona, ni quién es exactamente «Papá». Eso es un juicio, y te corresponde: lo dices una vez, desde la ficha, y es **reversible** — la fusión se muestra con su propia opción de deshacer y no se reescribe nada en tus fuentes. Además, una agrupación de visualización nunca cambia a quién va dirigido un mensaje.
 
 
+Y como diez secciones no se leen, LIA escribe ella misma la síntesis, en lo alto de la ficha: en qué punto estás con esa persona, qué sigue abierto, qué conviene abordar, qué merece recordarse. Se redacta como mucho una vez al día, en el momento en que abres la ficha — nunca en tarea de fondo, nunca durante una conversación — y si la actualización falla, el texto anterior permanece bajo una línea que lo dice: un panel vacío haría creer que no hay nada. Nombrar a esa persona en el chat basta luego para que LIA la use, sabiendo que es un texto fechado: da su antigüedad y comprueba con sus herramientas toda cifra y todo estado en vez de citar la síntesis de ayer como un hecho de hoy.
+
 ### 3.13. Una reunión grabada, un acta redactada
 
 Un botón en la cabecera — o la entrada «Grabar una reunión» del menú en el móvil — y tu teléfono o tu ordenador se convierte en la grabadora de la reunión. Un banner te acompaña en cada página con el tiempo y lo que ya ha llegado a tu servidor; mientras tanto sigues hablando con LIA — las respuestas habladas simplemente se pausan para que el micrófono nunca oiga al asistente. Cuando paras, LIA transcribe todo y redacta el acta **con tu estructura**: la cabecera es fija (fecha, horas, lugar, participantes), el cuerpo sigue un formato que eliges entre treinta plantillas integradas — reuniones y equipos, transcripciones, análisis de conversación, ventas, técnico, citas personales, cursos — o que construyes tú mismo, sección a sección. Y si no eliges nada, LIA lee lo que se dijo y se queda con el formato que corresponde, y luego te dice cuál y por qué: una reunión de proyecto y una consulta médica no tienen la misma estructura.
@@ -357,17 +359,19 @@ La transparencia tiene un modo de fallo que nadie advierte: una pantalla que dej
 
 La transparencia también se aplica a las reglas internas del asistente. Una restricción que el sistema impone debe publicarse a quien la sufre: cuando el aprendizaje de hábitos no detecta nada, los Ajustes muestran el umbral realmente exigido — más estricto el fin de semana, cuando hay menos días observados — en lugar de un silencio sin explicación. Y cuando un ajuste se regula solo, como el umbral que decide que una nota del diario entra en una respuesta, lo hace dentro de límites estrictos, un pequeño paso al día, con interruptor de apagado y cada ajuste contabilizado: un sistema que aprende solo es aceptable si sigue siendo observable y desconectable.
 
-### 6.9. Dos registros: lo que LIA hizo y lo que consultó
+### 6.9. Tres registros: lo que LIA hizo, lo que consultó y lo que emprendió sola
 
-La transparencia sobre el *razonamiento* es una cosa; la transparencia sobre los *actos* es otra, y es la que importa cuando un asistente puede enviar, crear y eliminar en tu nombre. LIA mantiene por tanto dos registros, automáticamente, y nunca los mezcla.
+La transparencia sobre el *razonamiento* es una cosa; la de los *actos* es otra, y es la que cuenta cuando un asistente puede enviar, crear y eliminar en tu lugar. LIA lleva por tanto tres registros, automáticamente, y nunca los mezcla.
 
-Las **acciones** llevan una línea por cada cosa hecha por ti — un correo enviado, un evento creado, un archivo eliminado — con su resultado y la confirmación que diste. Las **consultas** llevan una línea por capacidad usada para responderte, nombrada como un ámbito: « tu agenda », « tus correos ». Una consulta nunca registra lo que se buscó: escribirlo sería una segunda copia de los mismos datos que el registro existe para hacer rendibles.
+Las **acciones** llevan una fila por cada cosa hecha para ti — un correo enviado, un evento creado, un archivo eliminado — con su resultado y la confirmación que diste. Las **consultas** llevan una fila por capacidad utilizada para responderte, nombrada como un dominio: «tu agenda», «tus correos». Una consulta nunca registra lo que se buscó: escribirlo equivaldría a copiar el dato mismo que el registro existe para hacer rendir cuentas. Y los **turnos** llevan una fila por intercambio, la columna vertebral de la que cuelgan los otros dos.
 
-La garantía es estructural, no prometida. Una acción se inscribe **antes** de ocurrir y se cierra **solo** con un resultado explícito: un éxito nunca se deduce de un error ausente. El registro se instala en la propia capacidad cuando se declara, de modo que una herramienta nueva no puede olvidarlo. Y el servidor se niega a arrancar si una capacidad no declara lo que te debe — una lectura, un borrador, una confirmación, algo reversible.
+Se les ha sumado una cuarta lectura, y era la que más faltaba: **lo que LIA emprende por su cuenta**. Sus barridos de la mañana, los temas que explora para ti, las notificaciones que envía sin que nadie se lo pida tienen ahora su propia pestaña, nunca mezclada con lo que tú desencadenaste. Confundir ambas sería no decir nada: lo que pediste no pide la misma lectura que lo que ella decidió.
 
-Una tercera pestaña dibuja el período en gráficos, cada uno con el total exacto del conjunto junto a sus barras: lo que ves se comprueba en lugar de creerse. Todo se exporta en tres formatos — legible, hoja de cálculo y el formato máquina que pediría un auditor —, todo se va con el archivo de tu cuenta y desaparece con ella. Donde tu administrador lo activa, ambos registros se sellan por cuenta con huellas que puedes verificar tú mismo.
+La garantía es estructural en lugar de prometida. Una acción se inscribe **antes** de ocurrir y se cierra **únicamente** con un resultado explícito: un éxito nunca se deduce de un error ausente. El registro se instala sobre la capacidad misma en el momento en que se declara, de modo que una herramienta nueva no puede olvidarlo — y cada superficie que lee sin pasar por una herramienta declara, de una vez por todas, lo que abre. El servidor se niega a arrancar si una capacidad no declara lo que te debe: una lectura, un borrador, una confirmación, algo reversible.
 
-Es también lo que el artículo 12 del reglamento europeo de IA espera de un sistema así. LIA responde con cinco registros en total: los dos anteriores, más el turno en sí, los parámetros realmente enviados a cada modelo y las lagunas del registro — porque un registro incapaz de decir dónde está incompleto pide que se le crea en vez de dejarse leer.
+Una última pestaña dibuja el período en gráficos, cada uno con el total exacto del conjunto junto a sus barras: lo que ves se verifica en lugar de creerse. Todo se exporta en tres formatos — legible, hoja de cálculo y el formato máquina que pediría un auditor — y **nada en ellos se trunca**: sea cual sea el volumen, el archivo lleva todo lo que tus filtros designan, con el recuento exacto anunciado en la cabecera y el instante en que se tomó. Todo se va con el archivo de tu cuenta y desaparece con ella. Allí donde tu administrador lo activa, los registros se sellan por cuenta con huellas que puedes verificar tú mismo.
+
+Es también lo que el artículo 12 del reglamento europeo sobre la IA espera de un sistema como este. LIA responde con cinco registros en total: los tres anteriores, más los parámetros realmente enviados a cada modelo y las lagunas del propio registro — porque un registro incapaz de decir dónde está incompleto pide que se le crea en lugar de dejarse leer.
 
 ## 7. Profundidad emocional
 

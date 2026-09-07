@@ -27,6 +27,7 @@ import structlog
 
 from src.domains.agents.effects.treatment_repository import TreatmentRepository
 from src.domains.agents.effects.treatments import Treatment, treatment_collector
+from src.domains.shared.consultation_sink import install_collector_factory
 from src.infrastructure.async_utils import write_through_cancellation
 
 logger = structlog.get_logger(__name__)
@@ -137,3 +138,9 @@ async def _flush(rows: list[Treatment]) -> None:
     # cost the register the rows it just kept.
     with suppress(Exception):
         count_persisted_treatments(rows)
+
+
+# Offered rather than fetched: a domain publishes a collector without importing
+# this package, which is what keeps the coupling graph acyclic (CLAUDE.md —
+# injection, never a local import the ratchet still counts).
+install_collector_factory(treatment_recorder)

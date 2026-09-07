@@ -7,16 +7,18 @@ reads them by FILESYSTEM PATH only, so telephony still does NOT import the
 agents package — the ``agents ↔ telephony`` import cycle stays broken (audit
 T2). It is a minimal cached file reader; telephony has only two prompts and
 needs none of the agents loader's hash-validation / metrics machinery.
+
+This loader delegates the FILE READ to ``core.prompt_store``: the same
+byte-identical reader had grown in three domains, and a fourth was about to
+join them. What stays here is what is domain-specific — which prompts this
+domain may ask for, and the exception its callers catch.
 """
 
 from __future__ import annotations
 
-from functools import lru_cache
-from pathlib import Path
 from typing import Literal
 
-# Central prompt store, reached by path (never by importing the agents package).
-_PROMPTS_DIR = Path(__file__).parents[2] / "agents" / "prompts"
+from src.core.prompt_store import PromptFileError, read_prompt_file
 
 TelephonyPromptName = Literal[
     "telephony_agent_system_prompt",
@@ -28,7 +30,6 @@ class TelephonyPromptError(Exception):
     """Raised when a telephony prompt file cannot be loaded."""
 
 
-@lru_cache(maxsize=8)
 def load_telephony_prompt(name: TelephonyPromptName, version: str = "v1") -> str:
     """Load a telephony prompt from ``prompts/<version>/<name>.txt``.
 
@@ -42,10 +43,7 @@ def load_telephony_prompt(name: TelephonyPromptName, version: str = "v1") -> str
     Raises:
         TelephonyPromptError: If the file does not exist or cannot be read.
     """
-    path = _PROMPTS_DIR / version / f"{name}.txt"
-    if not path.is_file():
-        raise TelephonyPromptError(f"Telephony prompt not found: {path}")
     try:
-        return path.read_text(encoding="utf-8")
-    except OSError as exc:  # pragma: no cover - defensive I/O guard
-        raise TelephonyPromptError(f"Failed to read telephony prompt {path}: {exc}") from exc
+        return read_prompt_file(name, version)
+    except PromptFileError as exc:
+        raise TelephonyPromptError(f"Telephony prompt {name!r}: {exc}") from exc

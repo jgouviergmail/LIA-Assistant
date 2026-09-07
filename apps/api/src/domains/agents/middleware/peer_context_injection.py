@@ -223,4 +223,40 @@ async def build_peer_context(user_id: UUID, texts: Sequence[str | None]) -> str:
         return ""
 
 
-__all__ = ["build_peer_context"]
+async def build_relation_context(user_id: UUID, texts: Sequence[str | None]) -> str:
+    """Everything local the turn should know about a person it names.
+
+    TWO blocks, never one, and in this order:
+
+    1. the DEBRIEF of that person, when one was written recently enough — a
+       dated synthesis of their whole file, useful for context and tone;
+    2. the LIVE facts about a connected peer, unchanged from what this module
+       has always injected — read from the database this very turn.
+
+    Both, rather than a choice between them, because they answer different
+    questions and each STATES what it is. Picking one would either drop the
+    richer half (the address book, the mail, the meetings a debrief
+    synthesises and this block never sees) or hand a dated text the authority
+    of a live read. Their two templates say which is which, in as many words.
+
+    Args:
+        user_id: The reader.
+        texts: Every text that may carry the name.
+
+    Returns:
+        The blocks joined, or ``""`` when neither has anything to say.
+    """
+    from src.domains.relations.debrief.injection import build_debrief_context
+
+    parts = [
+        block
+        for block in (
+            await build_debrief_context(user_id, texts),
+            await build_peer_context(user_id, texts),
+        )
+        if block
+    ]
+    return "\n\n".join(parts)
+
+
+__all__ = ["build_peer_context", "build_relation_context"]

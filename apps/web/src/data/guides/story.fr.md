@@ -4,7 +4,7 @@
 
 **Version** : 2.0
 **Date** : 2026-08-23
-**Application** : LIA v1.43.0
+**Application** : LIA v1.43.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 44 domaines fonctionnels | **580 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **32 300+** |
-| Décisions d'architecture documentées (ADR) | **267** |
-| Versions livrées à rythme régulier | **250** |
+| Tests automatisés, exécutés à chaque commit et livraison | **33 000+** |
+| Décisions d'architecture documentées (ADR) | **272** |
+| Versions livrées à rythme régulier | **251** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 267 documentées :
+Trois décisions structurantes, parmi les 272 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -86,6 +86,8 @@ Le niveau annoncé dans ce document résulte d'un audit technique complet : 24 p
 Le plan d'action est organisé en vagues, chacune avec des critères de sortie mesurables. C'est la façon de rendre compte de ce projet : pas un niveau proclamé, un niveau mesuré — écarts compris.
 
 Cette exigence a une conséquence que le projet a apprise à ses dépens : **une suite de tests verte ne prouve pas qu'une fonctionnalité marche**. Elle prouve que ce qui a été testé se comporte comme écrit. Les défauts qui survivent aux portes sont précisément ceux qu'on ne leur a jamais demandé de voir — une capacité que personne n'appelle, un chiffre que personne n'additionne, une garde qui reconnaît un nom plutôt qu'un mécanisme.
+
+Deux exemples récents en sont l'illustration exacte. Le journal des actes était alimenté par une seule porte, et tout ce que l'assistante entreprenait d'elle-même passait à côté : la liste se lisait vide quoi qu'elle fasse, sans qu'un seul test échoue, puisque aucun ne demandait ce qui devait s'y trouver. Et le dossier qu'un utilisateur télécharge portait un plafond de lignes — mesuré, justifié, appliqué à la mauvaise variable : ce qui était rare, c'était la mémoire ; ce qui était borné, c'était la vérité. Aucune de ces deux erreurs n'est une faute de code. Ce sont des questions qui n'avaient jamais été posées.
 
 D'où une règle de travail : **rien n'est cru avant d'avoir tourné**, sur des données réelles et par le chemin que l'utilisateur emprunte. Un composant peut être juste et sa page vide ; un compteur peut être exact et sa question fausse. Chaque livraison se termine donc par une relecture adverse, menée à froid, dont le but n'est pas de dérouler les tests mais de chercher ce qu'ils ne couvrent pas.
 

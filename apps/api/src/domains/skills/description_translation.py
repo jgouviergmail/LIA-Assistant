@@ -26,15 +26,35 @@ async def _translate_description_all_langs(
     """Call LLM to translate a skill description into all 6 supported languages."""
     from langchain_core.messages import HumanMessage, SystemMessage
 
+    from src.core.exceptions_domains import raise_usage_limit_exceeded
     from src.domains.agents.prompts import load_prompt
     from src.domains.agents.utils.json_parser import extract_json_from_llm_response
+    from src.domains.usage_limits.instance_spend import (
+        is_instance_spend_blocked,
+        record_instance_llm_call,
+    )
     from src.infrastructure.llm.factory import get_llm
+    from src.infrastructure.llm.usage_metadata import model_name_of
+
+    # A description is translated once, for every future reader in every
+    # language: the deployment pays, so no account is billed — but the
+    # deployment's own ceiling must still see it and be able to refuse.
+    if await is_instance_spend_blocked():
+        raise_usage_limit_exceeded(
+            limit_name="instance_daily_budget",
+            reason="Instance daily spend ceiling reached",
+        )
 
     system_prompt = load_prompt("skill_description_translation_prompt", version="v1")
     llm = get_llm("skill_description_translator")
     response = await llm.ainvoke(
         [SystemMessage(content=system_prompt), HumanMessage(content=description)],
         config=invoke_config,
+    )
+    await record_instance_llm_call(
+        surface="skill_description_translator",
+        model_name=model_name_of(llm),
+        response=response,
     )
     content = response.content if hasattr(response, "content") else str(response)
     # Central parser handles fences, trailing commas and // comments. Callers

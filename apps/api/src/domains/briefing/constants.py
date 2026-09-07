@@ -19,8 +19,24 @@ BRIEFING_CACHE_PREFIX = "briefing:v2"
 SECTION_WEATHER_TTL_SECONDS = 3600  # 1 h — slow variations + free-tier API
 SECTION_AGENDA_TTL_SECONDS = 600  # 10 min — occasional event edits
 SECTION_MAILS_TTL_SECONDS = 300  # 5 min — important but Gmail-quota friendly
-SECTION_BIRTHDAYS_TTL_SECONDS = 604800  # 7 days — quasi-static, full contacts scan is costly
-SECTION_REMINDERS_TTL_SECONDS = 0  # Live (local DB, < 10 ms)
+# Birthdays have NO constant TTL: the payload pre-computes `days_until`, so it
+# must expire at the reader's local midnight or day N's "in 1 day" is still on
+# screen on day N+1. `seconds_to_next_local_midnight` computes it per account
+# and caps it at 24 h. A `SECTION_BIRTHDAYS_TTL_SECONDS = 604800` constant used
+# to sit here saying "7 days"; nothing ever applied it, and the documentation
+# quoted it as though it were the rule.
+
+# The reminders CARD is always live: the service passes force=True, so this
+# TTL never serves a card. It exists so the section is WRITTEN, and therefore
+# visible to the readers that only read the cache — the briefing synthesis
+# above all. At 0 the section was never written, so `read_cached_cards` always
+# returned a NOT_CONFIGURED placeholder for it: `_summarize_cards_for_llm` has
+# always had a reminders branch, and no ordinary page load could reach it. Only
+# "refresh all" ever fed it, so the same dashboard produced two different texts
+# depending on how it was asked. 60 s is deliberately the SHORTEST TTL of the
+# nine, so a bundle older than a minute is rebuilt rather than summarised from
+# a stale reminder list.
+SECTION_REMINDERS_TTL_SECONDS = 60
 SECTION_HEALTH_TTL_SECONDS = 900  # 15 min — Shortcuts ingest cadence
 SECTION_FOR_YOU_TTL_SECONDS = 300  # 5 min — open loops / automation runs move
 SECTION_TASKS_TTL_SECONDS = 600  # 10 min — same natural change rate as agenda
@@ -54,6 +70,15 @@ SECTION_DOCUMENTS_TTL_SECONDS = 600  # 10 min — Drive activity cadence
 # 40 slots × 3 h = 120 h = 5 days (the free-tier maximum).
 # Used both to detect short-term alerts AND to aggregate the 5-day forecast.
 BRIEFING_WEATHER_FORECAST_CNT = 40
+
+# How long a request waits for ANOTHER uvicorn worker to publish the bundle
+# before building it itself (ADR-271 amendment). Production runs four workers
+# (`WEB_CONCURRENCY=4`), so the two requests of a page load usually land on
+# different ones and the in-process seam cannot reach across. Waiting costs the
+# waiter nothing it would not have spent building the same bundle, and it saves
+# the sources from being opened twice. Bounded well under the claim's own TTL,
+# and generous enough for the slowest build measured in production (5.8 s).
+BRIEFING_SHARED_BUILD_WAIT_SECONDS = 10.0
 
 # =============================================================================
 # Section names (Literal alignment for RefreshRequest schema).

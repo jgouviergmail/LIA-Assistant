@@ -10,11 +10,17 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
+from src.core.exceptions_domains import raise_usage_limit_exceeded
 from src.core.i18n_types import LANGUAGE_NAMES
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
+from src.domains.usage_limits.instance_spend import (
+    is_instance_spend_blocked,
+    record_instance_llm_call,
+)
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.usage_metadata import model_name_of
 
 logger = structlog.get_logger(__name__)
 
@@ -89,6 +95,15 @@ class PersonalityTranslationService:
         user_prompt = f"""Title: {source_title}
 Description: {source_description}"""
 
+        # The deployment pays for this: personalities are catalogue content,
+        # so no account may be billed — and until now no ledger saw it either
+        # (measured 2026-09-07: 84 translations, no trace anywhere).
+        if await is_instance_spend_blocked():
+            raise_usage_limit_exceeded(
+                limit_name="instance_daily_budget",
+                reason="Instance daily spend ceiling reached",
+            )
+
         try:
             # Registered LLM slot: code defaults + admin DB override
             llm = get_llm("personality_translation")
@@ -104,6 +119,11 @@ Description: {source_description}"""
                     HumanMessage(content=user_prompt),
                 ],
                 config=invoke_config,
+            )
+            await record_instance_llm_call(
+                surface="personality_translation",
+                model_name=model_name_of(llm),
+                response=response,
             )
 
             # Parse response. Gemini 3.x returns content as list[dict] blocks;

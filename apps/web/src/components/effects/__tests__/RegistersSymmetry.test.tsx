@@ -143,3 +143,92 @@ describe('The two registers read the same', () => {
     );
   });
 });
+
+/** What one row shows a reader: its structure, stripped of the words. */
+function rowShapeOf(view: RenderResult): string[] {
+  const row = view.container.querySelector('li');
+  if (!row) return ['row:MISSING'];
+  return [
+    `row:${row.className}`,
+    ...[...row.querySelectorAll('*')].map(node => `${node.tagName}:${node.className}`),
+  ];
+}
+
+describe('The three readings present the same information', () => {
+  /**
+   * Reported live, 2026-09-07: « l'écart de formatage entre les action,
+   * consultation et à l'initiative de LIA : les affichages doivent être
+   * homogène et présenter les mêmes informations ».
+   *
+   * The cause was two nearly identical row renderers: the action row showed
+   * neither the capability nor the duration the consultation row showed. They
+   * are ONE component now, but each journal still chooses what to hand it —
+   * so a journal that stops passing a field diverges again, and that is what
+   * these compare.
+   */
+
+  it('renders both registers rows with the same structure', () => {
+    const actions = render(<EffectsJournal lng="fr" />);
+    const consultations = render(<TreatmentsJournal lng="fr" />);
+
+    expect(rowShapeOf(actions)).toEqual(rowShapeOf(consultations));
+  });
+
+  it('shows the capability on both, not on one', () => {
+    const actions = render(<EffectsJournal lng="fr" />);
+    const consultations = render(<TreatmentsJournal lng="fr" />);
+
+    expect(actions.container.querySelector('.font-mono')?.textContent).toBe('send_email_tool');
+    expect(consultations.container.querySelector('.font-mono')?.textContent).toBe(
+      'get_emails_tool'
+    );
+  });
+
+  it('carries a timestamp on every row of both', () => {
+    const actions = render(<EffectsJournal lng="fr" />);
+    const consultations = render(<TreatmentsJournal lng="fr" />);
+
+    expect(actions.container.querySelector('time')).not.toBeNull();
+    expect(consultations.container.querySelector('time')).not.toBeNull();
+  });
+
+  it('names the authorship on both', () => {
+    const actions = render(<EffectsJournal lng="fr" />);
+    const consultations = render(<TreatmentsJournal lng="fr" />);
+
+    expect(actions.container.textContent).toContain('effects.journal.source.user');
+    expect(consultations.container.textContent).toContain('effects.journal.source.user');
+  });
+
+  it('lets a long row reflow instead of overflowing on a phone', () => {
+    // The detail line now carries one more badge on every consultation. It is
+    // the same line in both registers, so the reflow rule is asserted once —
+    // and `break-words` on the capability is what keeps a long MCP tool name
+    // from pushing the row past the viewport.
+    const view = render(<TreatmentsJournal lng="fr" />);
+    const detail = view.container.querySelector('.font-mono')?.parentElement;
+
+    expect(detail?.className).toContain('flex-wrap');
+    expect(view.container.querySelector('.font-mono')?.className).toContain('break-words');
+    expect(view.container.querySelector('.font-mono')?.className).toContain('min-w-0');
+  });
+
+  it('states the outcome in TEXT, since the glyph is hidden from assistive tech', () => {
+    // `RegisterRow`'s icon is `aria-hidden`, so before the badge became
+    // unconditional a successful consultation had NO accessible statement of
+    // its outcome — only a colour a screen reader never sees.
+    const consultations = render(<TreatmentsJournal lng="fr" />);
+
+    expect(consultations.container.textContent).toContain('treatments.journal.outcome.ok');
+  });
+
+  it('reads the initiative tab through the very same row', () => {
+    // The third reading is not a third renderer: it stacks the two registers
+    // filtered to `initiative`. A separate row component there is how the
+    // divergence came back the first time.
+    const initiative = render(<EffectsJournal lng="fr" origin="initiative" />);
+    const mine = render(<EffectsJournal lng="fr" origin="mine" />);
+
+    expect(rowShapeOf(initiative)).toEqual(rowShapeOf(mine));
+  });
+});

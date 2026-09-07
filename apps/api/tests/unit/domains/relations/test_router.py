@@ -179,3 +179,70 @@ class TestOverviewScopeEndpoints:
                 for dependency in route.dependant.dependencies
             }
             assert "rate_limit_dependency" not in guards
+
+
+@pytest.mark.unit
+class TestDebriefEndpoints:
+    """Reading is free and never builds; building is a separate, capped verb."""
+
+    async def test_the_read_delegates_the_raw_name_and_never_builds(self) -> None:
+        from src.domains.relations.debrief.schemas import DebriefStatus, RelationDebriefRead
+        from src.domains.relations.router import get_relation_debrief
+
+        answer = RelationDebriefRead(status=DebriefStatus.ABSENT, person="Mémé Jeanne")
+        service = MagicMock(read=AsyncMock(return_value=answer), build=AsyncMock())
+        user = _user()
+        with patch(
+            "src.domains.relations.router.RelationDebriefService", return_value=service
+        ) as ctor:
+            result = await get_relation_debrief(name="Mémé Jeanne", current_user=user)
+
+        ctor.assert_called_once_with(user.id)
+        service.read.assert_awaited_once_with("Mémé Jeanne")
+        service.build.assert_not_awaited()
+        assert result is answer
+
+    async def test_the_build_forwards_the_force_flag(self) -> None:
+        from src.domains.relations.debrief.schemas import DebriefStatus, RelationDebriefRead
+        from src.domains.relations.router import build_relation_debrief
+
+        answer = RelationDebriefRead(status=DebriefStatus.READY, person="Mémé Jeanne")
+        service = MagicMock(build=AsyncMock(return_value=answer))
+        with patch("src.domains.relations.router.RelationDebriefService", return_value=service):
+            await build_relation_debrief(name="Mémé Jeanne", force=True, current_user=_user())
+
+        service.build.assert_awaited_once_with("Mémé Jeanne", force=True)
+
+    async def test_the_preference_echoes_what_was_stored(self) -> None:
+        """The stored value, not the requested one — a clamp must show through."""
+        from src.domains.relations.router import update_relation_settings
+        from src.domains.relations.schemas import RelationSettingsUpdate
+
+        service = MagicMock(set_debrief_enabled=AsyncMock(return_value=False))
+        with patch("src.domains.relations.router.RelationsService", return_value=service):
+            result = await update_relation_settings(
+                payload=RelationSettingsUpdate(debrief_enabled=False), current_user=_user()
+            )
+
+        service.set_debrief_enabled.assert_awaited_once_with(False)
+        assert result.debrief_enabled is False
+
+
+@pytest.mark.unit
+class TestRouteDeclarationOrder:
+    """A literal segment declared after ``/{name}`` is a route nobody reaches."""
+
+    def test_every_literal_route_is_declared_before_the_catch_all(self) -> None:
+        paths = [getattr(route, "path", "") for route in router.routes]
+        catch_all = paths.index("/relations/{name}")
+        for literal in ("/relations/settings", "/relations/overview-scope"):
+            assert paths.index(literal) < catch_all, literal
+
+    def test_the_two_budgets_are_separate_actions(self) -> None:
+        """Sharing one would let each capability exhaust the other's allowance."""
+        from src.domains.relations import router as router_module
+
+        assert (
+            router_module.rate_limit_relation_debrief
+            is not router_module.rate_limit_relation_context
+        )

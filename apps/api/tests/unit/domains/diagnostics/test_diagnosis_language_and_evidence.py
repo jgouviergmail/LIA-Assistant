@@ -18,6 +18,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.infrastructure.llm.usage_metadata import UsageTokens
+
 pytestmark = pytest.mark.unit
 
 #: The evidence pack (ADR-266) as the pump receives it when a test does not
@@ -414,7 +416,7 @@ class TestThePumpGeneratesOneVariantPerAdminLanguage:
 
         async def fake_invoke(
             llm: Any, system: str, human: str
-        ) -> tuple[DiagnosisOutput, int, int]:
+        ) -> tuple[DiagnosisOutput, UsageTokens]:
             state["prompts"].append(system)
             return (
                 DiagnosisOutput(
@@ -422,8 +424,7 @@ class TestThePumpGeneratesOneVariantPerAdminLanguage:
                     probable_cause="cause",
                     recommended_actions=["act", "act2", "act3", "act4", "act5", "act6"],
                 ),
-                100,
-                50,
+                UsageTokens(100, 50, 0),
             )
 
         class _Repo:
@@ -586,12 +587,11 @@ class TestTheDailyCapGatesEveryCallNotEveryIncident:
         async def fake_record(_key: str, cost: float) -> None:
             state["spent"] += cost
 
-        async def fake_invoke(*_a: Any) -> tuple[DiagnosisOutput, int, int]:
+        async def fake_invoke(*_a: Any) -> tuple[DiagnosisOutput, UsageTokens]:
             state["calls"] += 1
             return (
                 DiagnosisOutput(diagnosis="d", probable_cause="c", recommended_actions=[]),
-                10,
-                5,
+                UsageTokens(10, 5, 0),
             )
 
         class _Repo:

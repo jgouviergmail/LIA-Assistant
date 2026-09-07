@@ -89,11 +89,15 @@ class TestTheStoredVocabulary:
         Without ``values_callable`` the column stores ``USER`` while every
         migration and query says ``user`` — and the test schema, built from
         this same metadata, would agree with itself and pass.
+
+        ``proactive`` joined the vocabulary on 2026-09-07: this register is
+        precisely the one the original three-value argument did not fit, since
+        a briefing consults without running a single tool.
         """
         from src.domains.agents.effects.models import AgentTreatment
 
         enum_type = AgentTreatment.__table__.c.source.type
-        assert set(enum_type.enums) == {"user", "scheduled", "subagent"}
+        assert set(enum_type.enums) == {"user", "scheduled", "subagent", "proactive"}
 
     def test_the_outcome_says_only_what_was_observed(self) -> None:
         from src.domains.agents.effects.models import TreatmentOutcome

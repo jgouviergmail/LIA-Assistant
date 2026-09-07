@@ -34,6 +34,8 @@ from uuid import uuid4
 import pytest
 
 from src.domains.agents.tools import person_tools
+from src.domains.relations.overview import evidence as evidence_module
+from src.domains.relations.overview import fallback as fallback_module
 from src.domains.relations.overview_scope import (
     OverviewDirection,
     OverviewRole,
@@ -188,12 +190,13 @@ async def _run(*, scope=None, detail=None, context=None, by_name=None, memories=
     mails, events = by_name or ([], [])
     with (
         patch.object(person_tools, "RelationsService", return_value=service),
-        patch.object(person_tools, "RelationContextService", return_value=ctx_service),
-        patch.object(person_tools, "_fetch_recent_emails", AsyncMock(return_value=mails)),
-        patch.object(person_tools, "_fetch_upcoming_events", AsyncMock(return_value=events)),
+        patch.object(evidence_module, "RelationsService", return_value=service),
+        patch.object(evidence_module, "RelationContextService", return_value=ctx_service),
+        patch.object(fallback_module, "fetch_recent_emails", AsyncMock(return_value=mails)),
+        patch.object(fallback_module, "fetch_upcoming_events", AsyncMock(return_value=events)),
         patch.object(
-            person_tools,
-            "_fetch_person_memories",
+            evidence_module,
+            "fetch_person_memories",
             AsyncMock(
                 return_value=None if isinstance(memories, BaseException) else memories,
                 side_effect=memories if isinstance(memories, BaseException) else None,

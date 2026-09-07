@@ -1,7 +1,8 @@
 /**
  * Scenes of section 06 — "Unseen but felt": background response continuity,
  * widgets that travel across devices, per-response cost transparency, the
- * pricing grid reviewed field by field before it is written, and
+ * pricing grid reviewed field by field before it is written, the acts LIA
+ * files under her own initiative, and
  * the accessibility care (focus ring travelling on Tab), and the reflow that
  * keeps a narrow screen readable. Timer-driven micro-demos; last phase =
  * resting frame.
@@ -24,6 +25,7 @@ import {
   Send,
   Server,
   Sun,
+  Sunrise,
   Vibrate,
   Wind,
 } from 'lucide-react';
@@ -1049,8 +1051,71 @@ function LocalModelFitScene({ active, labels }: SceneProps) {
   );
 }
 
+type InitiativePhase = 'asked' | 'sweeping' | 'alone';
+const INITIATIVE_STEPS: readonly TimelineStep<InitiativePhase>[] = [
+  { at: 0, state: 'asked' },
+  { at: 1100, state: 'sweeping' },
+  { at: 2200, state: 'alone' },
+];
+
+/**
+ * What LIA did when nobody asked, on its own list (ADR-270).
+ *
+ * The scene shows the SEPARATION rather than the act: the rows a person
+ * triggered stay where they were, and the new row lands in a second list
+ * headed differently. Filing them together would be the very thing the third
+ * tab exists to stop — so the two headings are always both on screen, and
+ * only the second one gains a line.
+ */
+function OwnInitiativeScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(INITIATIVE_STEPS, { active });
+  const alone = phase === 'alone';
+
+  return (
+    <div className={cn(STAGE, 'flex-col items-stretch justify-center gap-2')}>
+      <div className="space-y-1 rounded-md border border-border bg-background px-2 py-1.5">
+        <span className="text-[9px] text-muted-foreground">{labels.asked}</span>
+        <SkeletonLine w="w-3/5" />
+        <SkeletonLine w="w-2/5" />
+      </div>
+
+      <div
+        className={cn(
+          'space-y-1 rounded-md border px-2 py-1.5 transition-colors duration-500 motion-reduce:transition-none',
+          alone ? 'border-primary/40 bg-primary/5' : 'border-dashed border-border bg-muted/40'
+        )}
+      >
+        <div className="flex items-center gap-1.5">
+          <Sunrise
+            className={cn(
+              'h-3 w-3 shrink-0',
+              alone ? 'text-primary' : 'text-muted-foreground',
+              phase === 'sweeping' && 'animate-pulse motion-reduce:animate-none'
+            )}
+            aria-hidden="true"
+          />
+          <span className={cn('text-[9px]', alone ? 'text-primary' : 'text-muted-foreground')}>
+            {labels.alone}
+          </span>
+        </div>
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows] duration-500 motion-reduce:transition-none',
+            alone ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+          )}
+        >
+          <div className="min-h-0">
+            <SkeletonLine w="w-1/2" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   activity_timeline: ActivityTimelineScene,
+  own_initiative: OwnInitiativeScene,
   claim_before_effect: ClaimBeforeEffectScene,
   readable_at_a_glance: ReadableAtAGlanceScene,
   oled_black: OledBlackScene,

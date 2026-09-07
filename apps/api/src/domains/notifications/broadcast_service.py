@@ -19,6 +19,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import MAX_UNREAD_BROADCASTS
+from src.core.exceptions_domains import raise_usage_limit_exceeded
 from src.core.i18n import _
 from src.core.i18n_types import LANGUAGE_NAMES, Language
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -26,9 +27,14 @@ from src.domains.notifications.models import AdminBroadcast
 from src.domains.notifications.repository import BroadcastRepository
 from src.domains.notifications.schemas import BroadcastInfo
 from src.domains.notifications.service import FCMNotificationService
+from src.domains.usage_limits.instance_spend import (
+    is_instance_spend_blocked,
+    record_instance_llm_call,
+)
 from src.domains.users.repository import UserRepository
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.llm import get_llm
+from src.infrastructure.llm.usage_metadata import model_name_of
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -212,6 +218,15 @@ class BroadcastService:
         if not target_languages:
             return translations
 
+        # One translation serves every recipient, so charging it to any of
+        # them would pick a payer at random among people who did not ask.
+        # The deployment pays — and its ceiling is asked first.
+        if await is_instance_spend_blocked():
+            raise_usage_limit_exceeded(
+                limit_name="instance_daily_budget",
+                reason="Instance daily spend ceiling reached",
+            )
+
         llm = get_llm("broadcast_translator")
         prompt_template = load_prompt("broadcast_translation_prompt", version="v1")
 
@@ -281,6 +296,11 @@ class BroadcastService:
                 HumanMessage(content=message),
             ],
             config=invoke_config,
+        )
+        await record_instance_llm_call(
+            surface="broadcast_translator",
+            model_name=model_name_of(llm),
+            response=response,
         )
 
         translated = response.text.strip()

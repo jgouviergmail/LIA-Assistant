@@ -281,6 +281,16 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "PUT /api/v1/relations/overview-scope",
         "GET /api/v1/relations/{name}",
         "GET /api/v1/relations/{name}/context",
+        # The relationship debrief: a visitor reaches their OWN, over their own
+        # data, like every other feature of their own account. The build verb is
+        # capped per account per day on its own budget, and the read never
+        # builds — so neither can be turned into a way to spend the
+        # demonstrator's LLM allowance from outside.
+        "GET /api/v1/relations/{name}/debrief",
+        "POST /api/v1/relations/{name}/debrief",
+        # ...and the switch that turns it off, or the visitor could not decline
+        # a capability the same page offers them.
+        "PATCH /api/v1/relations/settings",
         # The reminders domain gained a management screen on 2026-09-06, so a
         # visitor creates and edits their OWN reminders exactly as they create
         # and edit their own routines below. Nothing here reaches another

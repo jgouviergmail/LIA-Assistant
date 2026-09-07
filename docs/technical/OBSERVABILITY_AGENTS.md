@@ -3154,7 +3154,7 @@ POST /api/v1/agents/chat/stream (500ms)
 - `apps/api/src/infrastructure/observability/tracing.py` - OpenTelemetry tracing
 - `apps/api/src/infrastructure/observability/logging.py` - Logging structuré
 - `apps/api/src/infrastructure/observability/token_extractor.py` - Extraction de tokens
-- `infrastructure/observability/grafana/dashboards/` - 15 dashboards Grafana
+- `infrastructure/observability/grafana/dashboards/` - 28 dashboards Grafana
 
 ---
 

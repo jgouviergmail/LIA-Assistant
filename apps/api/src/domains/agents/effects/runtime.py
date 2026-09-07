@@ -35,6 +35,7 @@ from src.domains.agents.effects.labels import build_effect_label
 from src.domains.agents.effects.outcome import ToolOutcome, read_outcome, succeeded_only
 from src.domains.agents.effects.schemas import ClaimRequest, EffectSourceName
 from src.domains.agents.effects.scope import EffectScope, current_scope
+from src.domains.agents.effects.source import resolve_source
 from src.domains.agents.effects.treatments import record_treatment
 from src.infrastructure.observability.metrics_effects import (
     effect_already_performed_total,
@@ -297,9 +298,7 @@ def _build_request(
     if context is None:
         return None
 
-    source: EffectSourceName = (
-        scope.source if scope else ("scheduled" if context.is_automated_source else "user")
-    )
+    source: EffectSourceName = resolve_source(context, scope=scope)
     return ClaimRequest(
         user_id=context.user_id,
         thread_id=context.thread_id,

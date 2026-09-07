@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 60 cards in
+ * Single source of truth for the "/more" small-attentions page: 62 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (60 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (62 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -48,6 +48,7 @@ import {
   MessageSquareCheck,
   MessageSquarePlus,
   MonitorSmartphone,
+  NotebookPen,
   Orbit,
   Palette,
   PanelLeft,
@@ -69,6 +70,7 @@ import {
   Sliders,
   Sparkles,
   Star,
+  Sunrise,
   TextSearch,
   TextSelect,
   ThumbsUp,
@@ -150,6 +152,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'mobile_logo_nav',
       'relation_star',
       'relation_sections',
+      'relation_debrief',
     ],
   },
   {
@@ -177,6 +180,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     cards: [
       'background_response',
       'activity_timeline',
+      'own_initiative',
       'claim_before_effect',
       'capability_map',
       'capability_honesty',
@@ -234,6 +238,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   mobile_logo_nav: Menu,
   relation_star: Star,
   relation_sections: PanelsTopLeft,
+  relation_debrief: NotebookPen,
   briefing_custom: LayoutGrid,
   card_actions: Zap,
   starter_checklist: ListChecks,
@@ -242,6 +247,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   server_escape_hatch: LifeBuoy,
   background_response: Radio,
   activity_timeline: ListTree,
+  own_initiative: Sunrise,
   claim_before_effect: Hourglass,
   widgets_travel: AppWindow,
   cost_transparency: Coins,
@@ -302,6 +308,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   mobile_logo_nav: [],
   relation_star: [],
   relation_sections: ['section'],
+  relation_debrief: ['open', 'next'],
   briefing_custom: [],
   week_grid: [],
   card_actions: ['chip1', 'chip2'],
@@ -311,6 +318,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   server_escape_hatch: [],
   background_response: ['ready'],
   activity_timeline: ['entry1', 'entry2', 'entry3'],
+  own_initiative: ['asked', 'alone'],
   claim_before_effect: ['claimed', 'acting', 'settled'],
   widgets_travel: [],
   cost_transparency: [],

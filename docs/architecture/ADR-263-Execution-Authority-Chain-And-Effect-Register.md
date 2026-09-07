@@ -511,12 +511,17 @@ stopped configuring, while the header truthfully said « capped ». Nothing was
 fabricated and nothing was verifiable: a reader checking their recent activity
 found none of it.
 
-The rule this leaves: **a capped read states which end it kept.** All five reads
-now go through one helper (`infrastructure/database/export_window.py`), which
-orders newest-first, takes the cap, and reverses — so the file reads
-chronologically while holding the most recent window. Verified against the dev
-register: 2026-07-22 → 2026-09-04, with the four models `llm_config_overrides`
-actually names.
+The rule this left: **a capped read states which end it kept.** All five reads
+went through one helper, which ordered newest-first, took the cap, and reversed
+— so the file read chronologically while holding the most recent window.
+Verified against the dev register: 2026-07-22 → 2026-09-04, with the four
+models `llm_config_overrides` actually names.
+
+**Superseded by ADR-273**: the ceiling is gone rather than merely honest, and
+the helper is now `infrastructure/database/export_stream.py`, which streams the
+whole register through a server-side cursor. The ordering rule survives its
+cause and lives in that one place; what a download bounds is the memory it
+holds.
 
 It sits in `infrastructure/database/` rather than beside the registers because
 the chat domain reads it too, and putting it in `domains/agents/` closed an

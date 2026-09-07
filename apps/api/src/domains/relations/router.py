@@ -26,12 +26,15 @@ from src.core.config import settings
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
+from src.domains.relations.debrief.schemas import RelationDebriefRead
+from src.domains.relations.debrief.service import RelationDebriefService
 from src.domains.relations.overview_scope import RelationOverviewScope
 from src.domains.relations.providers.schemas import RelationContext
 from src.domains.relations.providers.service import RelationContextService
 from src.domains.relations.schemas import (
     RelationDetail,
     RelationMergeRequest,
+    RelationSettingsUpdate,
     RelationsOverview,
 )
 from src.domains.relations.service import RelationsService
@@ -49,6 +52,18 @@ rate_limit_relation_context = create_user_rate_limiter(
     action="relations_context",
     max_calls=settings.relations_provider_rate_limit_calls,
     window_seconds=settings.relations_provider_rate_limit_window_seconds,
+)
+
+# Its OWN action, deliberately not the one above. Sharing a budget would let a
+# reader walking cards exhaust the debrief allowance, and a rebuild loop
+# exhaust the 360° allowance — two capabilities failing for each other's
+# reasons. A build costs an LLM call ON TOP of the provider reads, so it is
+# counted over a DAY rather than a minute: the once-a-day rule already bounds
+# the nominal case, and this bounds the pathological one.
+rate_limit_relation_debrief = create_user_rate_limiter(
+    action="relations_debrief_build",
+    max_calls=settings.relation_debrief_daily_build_cap,
+    window_seconds=86400,
 )
 
 
@@ -125,6 +140,25 @@ async def split_relation(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.patch(
+    "/settings",
+    response_model=RelationSettingsUpdate,
+    summary="Turn the daily relationship debrief on or off",
+    description=(
+        "The account's own switch. The debrief is only ever built when a card "
+        "is opened, so the cost follows use — but it spends LLM budget and "
+        "reads a relationship in full, and that decision belongs to the reader."
+    ),
+)
+async def update_relation_settings(
+    payload: RelationSettingsUpdate,
+    current_user: User = Depends(get_current_active_session),
+) -> RelationSettingsUpdate:
+    """Persist the debrief preference and echo what was stored."""
+    stored = await RelationsService(current_user.id).set_debrief_enabled(payload.debrief_enabled)
+    return RelationSettingsUpdate(debrief_enabled=stored)
+
+
 @router.get(
     "/overview-scope",
     response_model=RelationOverviewScope,
@@ -169,8 +203,62 @@ async def set_overview_scope(
 async def get_relations_overview(
     current_user: User = Depends(get_current_active_session),
 ) -> RelationsOverview:
-    """Aggregate open loops + calls into a ranked list of relationships."""
-    return await RelationsService(current_user.id).build_overview()
+    """Aggregate open loops + calls into a ranked list of relationships.
+
+    The debrief switch travels with the list because the page needs both and
+    the session dependency already resolved the user — one round-trip, and no
+    second query inside an aggregation that computes nothing else about them.
+    """
+    overview = await RelationsService(current_user.id).build_overview()
+    return overview.model_copy(
+        update={"debrief_enabled": bool(getattr(current_user, "relation_debrief_enabled", True))}
+    )
+
+
+@router.get(
+    "/{name}/debrief",
+    response_model=RelationDebriefRead,
+    summary="The stored debrief of one relationship (never builds)",
+    description=(
+        "Cheap and always safe: it answers what is stored, or states that "
+        "nothing is. Building is a separate, capped verb — a read that could "
+        "spend an LLM call is a read nobody can put on a page."
+    ),
+)
+async def get_relation_debrief(
+    name: str,
+    current_user: User = Depends(get_current_active_session),
+) -> RelationDebriefRead:
+    """Read one relationship's debrief and everything that makes it honest."""
+    return await RelationDebriefService(current_user.id).read(name)
+
+
+@router.post(
+    "/{name}/debrief",
+    response_model=RelationDebriefRead,
+    summary="Build today's debrief for one relationship (or rebuild it)",
+    description=(
+        "Builds at most once per LOCAL day, unless ``force`` is set. Claimed "
+        "atomically, so two tabs never spend two calls, and capped per account "
+        "per day on its own budget. When the evidence has not moved since the "
+        "stored debrief, no model is called at all and the answer says so by "
+        "keeping the date it was written on."
+    ),
+    dependencies=[Depends(rate_limit_relation_debrief)],
+)
+async def build_relation_debrief(
+    name: str,
+    force: bool = Query(
+        default=False,
+        description=(
+            "Ask again even though today's is already there. Still free when "
+            "the evidence is unchanged — it is verified, not assumed."
+        ),
+    ),
+    current_user: User = Depends(get_current_active_session),
+) -> RelationDebriefRead:
+    """Build (or rebuild) one relationship's debrief."""
+    return await RelationDebriefService(current_user.id).build(name, force=force)
 
 
 @router.get(

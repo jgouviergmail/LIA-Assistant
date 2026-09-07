@@ -30,6 +30,7 @@ import structlog
 
 from src.core.constants import MCP_TOOL_NAME_PREFIX
 from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+from src.domains.shared.consultation_surfaces import capability_domains
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from src.domains.agents.registry import AgentRegistry
@@ -83,7 +84,7 @@ _VERB_SEGMENTS: Final[frozenset[str]] = frozenset(
 #: Names whose subject is not the domain they belong to. Each entry is a fact
 #: about the vocabulary, not a workaround: "calls" is not a domain, telephony
 #: is; a peer message belongs to the peer domain, not to messaging.
-TREATMENT_DOMAIN_OVERRIDES: Final[dict[str, str]] = {
+_TOOL_DOMAIN_OVERRIDES: Final[dict[str, str]] = {
     "get_calls_tool": "telephony",
     "local_query_engine_tool": "query",
     "claude_server_task_tool": "devops",
@@ -102,6 +103,16 @@ TREATMENT_DOMAIN_OVERRIDES: Final[dict[str, str]] = {
     # correctly through its manifest today, so the defect would only appear the
     # day the manifest is absent — an override is the honest fix.
     "place_phone_call_tool": "telephony",
+}
+
+#: Every capability a reader can meet in the register, and the domain it reads
+#: as. The direct-read surfaces (briefing, relationship debrief, heartbeat
+#: sweep) declare their OWN vocabulary — transcribing it here is what produced
+#: two dead tables, thirty-one duplicated entries, and a boot guard that
+#: checked none of them (measured 2026-09-07).
+TREATMENT_DOMAIN_OVERRIDES: Final[dict[str, str]] = {
+    **_TOOL_DOMAIN_OVERRIDES,
+    **capability_domains(),
 }
 
 
@@ -258,10 +269,29 @@ def assert_treatment_domain_completeness(registry: AgentRegistry | None = None) 
     unreadable = sorted(
         name for name in get_all_tools() if treatment_domain(name, registry) not in known
     )
-    if unreadable:
+    # The direct-read capabilities, on a STRICTER rule. This guard walked
+    # ``get_all_tools()`` alone until 2026-09-07, so not one of the thirty-one
+    # names the briefing, the debrief and the heartbeat sweep record was
+    # checked where every other completeness rule is — a fourth surface would
+    # have shipped with no boot check at all.
+    #
+    # Stricter, because :data:`UNKNOWN_DOMAIN` is itself a translatable key and
+    # therefore passes the test above. That tolerance is deliberate for a TOOL:
+    # a third-party name we cannot read must show « Unknown » rather than a
+    # technical string. A DECLARED capability is not a surprise — we wrote it —
+    # so ``unknown`` there is a declaration error, and letting it through would
+    # make this whole extension protect nothing.
+    undeclared = sorted(
+        capability
+        for capability, domain in capability_domains().items()
+        if domain == UNKNOWN_DOMAIN or domain not in known
+    )
+    if unreadable or undeclared:
         raise AssertionError(
-            f"{len(unreadable)} capability(ies) have no readable domain in the "
-            f"consultation register: {unreadable}. Declare the domain in "
-            "``DOMAIN_REGISTRY``, or add an entry to "
-            "``TREATMENT_DOMAIN_OVERRIDES`` with the reason its name says nothing."
+            f"{len(unreadable) + len(undeclared)} capability(ies) have no "
+            f"readable domain in the consultation register: "
+            f"{[*unreadable, *undeclared]}. Declare the domain in "
+            "``DOMAIN_REGISTRY`` or word it in every language, and for a tool "
+            "add an entry to ``_TOOL_DOMAIN_OVERRIDES`` with the reason its "
+            "name says nothing."
         )

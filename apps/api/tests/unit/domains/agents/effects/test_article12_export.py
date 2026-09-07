@@ -1,4 +1,4 @@
-"""One extraction over everything LIA records (ADR-263, lot 9).
+"""One extraction over everything LIA records (ADR-263 lot 9, ADR-273).
 
 The extraction composes five contracts and renders nothing new, so the tests
 here are about the properties composition can still get wrong:
@@ -6,7 +6,10 @@ here are about the properties composition can still get wrong:
 - the five sources must stay **five**, never one total — they answer different
   questions and adding them up is meaningless;
 - a reader must be able to answer « is this the whole period? » from the header
-  alone, which means the ceiling is stated **per source**;
+  alone. Until ADR-273 that meant stating a ceiling per source; now it means
+  there is none, and the file says so rather than leaving it to be inferred;
+- the count in the header is the EXACT total, and it is published before the
+  first row is read — a streamed file cannot revise its own first line;
 - nothing identifying may leave in the clear, in the rows OR in the header —
   the defect lot 4 found in a file that promised the opposite;
 - a sixth record declared tomorrow must join the extraction without anyone
@@ -24,13 +27,14 @@ import pytest
 
 from src.domains.agents.effects.article12_export import (
     RECORD_KEY,
+    SourceStream,
     article12_filters,
     article12_header,
-    extract_of,
     known_sources,
-    render_article12,
+    stream_article12,
 )
 from src.domains.agents.effects.technical_export import TECHNICAL_SPECS, pseudonymise
+from tests.unit.domains.agents.effects.streaming import rendered, rows_of
 
 pytestmark = [pytest.mark.unit]
 
@@ -44,19 +48,37 @@ def _row(spec_slug: str, **values: object) -> SimpleNamespace:
     return SimpleNamespace(**base)
 
 
-def _extract(slug: str, count: int, *, cap: int = 100):
+def _source(slug: str, count: int, *, total: int | None = None) -> SourceStream:
+    """One source's contribution: its exact total, and its rows.
+
+    Args:
+        slug: Which record.
+        count: How many rows the body carries.
+        total: What the header declares — defaults to ``count``. A test that
+            wants to prove the header reads the COUNT rather than tallying the
+            body passes the two apart.
+
+    Returns:
+        The source.
+    """
     spec = TECHNICAL_SPECS[slug]
-    return extract_of(spec, [_row(slug) for _ in range(count)], cap=cap)
+    return SourceStream(
+        spec=spec,
+        total=count if total is None else total,
+        rows=rows_of([_row(slug) for _ in range(count)]),
+    )
+
+
+async def _content(*sources: SourceStream, filters: dict[str, object] | None = None) -> str:
+    """The whole extraction, collected from the stream that renders it."""
+    return await rendered(
+        stream_article12(list(sources), filters=filters or {}, generated_at=_WHEN)
+    )
 
 
 class TestTheFiveSourcesStayFIVE:
-    def test_every_line_says_which_record_it_belongs_to(self) -> None:
-        content = render_article12(
-            [_extract("decisions", 1), _extract("actions", 1)],
-            cap=100,
-            filters={},
-            generated_at=_WHEN,
-        )
+    async def test_every_line_says_which_record_it_belongs_to(self) -> None:
+        content = await _content(_source("decisions", 1), _source("actions", 1))
 
         records = [json.loads(line)[RECORD_KEY] for line in content.strip().splitlines()]
         assert records == ["lia.article12", "lia.decisions", "lia.actions"]
@@ -71,10 +93,8 @@ class TestTheFiveSourcesStayFIVE:
                 "line's own discriminator and make the file unreadable"
             )
 
-    def test_a_source_column_named_kind_SURVIVES_beside_it(self) -> None:
-        content = render_article12(
-            [_extract("integrity", 1)], cap=100, filters={}, generated_at=_WHEN
-        )
+    async def test_a_source_column_named_kind_SURVIVES_beside_it(self) -> None:
+        content = await _content(_source("integrity", 1))
         line = json.loads(content.strip().splitlines()[1])
 
         assert line[RECORD_KEY] == "lia.integrity"
@@ -83,10 +103,7 @@ class TestTheFiveSourcesStayFIVE:
     def test_the_header_counts_each_source_SEPARATELY(self) -> None:
         """One total would invite exactly the arithmetic the registers refuse."""
         header = article12_header(
-            [_extract("decisions", 3), _extract("actions", 2)],
-            cap=100,
-            filters={},
-            generated_at=_WHEN,
+            [_source("decisions", 3), _source("actions", 2)], filters={}, generated_at=_WHEN
         )
 
         assert header["sources"]["decisions"]["lines"] == 3
@@ -103,57 +120,61 @@ class TestTheFiveSourcesStayFIVE:
 
 
 class TestTheHeaderAnswersIsThisTheWHOLEPeriod:
-    def test_a_source_that_hit_the_ceiling_says_so(self) -> None:
+    def test_no_source_is_ever_reported_as_truncated(self) -> None:
+        """There is no ceiling to hit any more (ADR-273)."""
         header = article12_header(
-            [_extract("decisions", 5, cap=5), _extract("actions", 1, cap=5)],
-            cap=5,
-            filters={},
-            generated_at=_WHEN,
+            [_source("decisions", 5), _source("actions", 1)], filters={}, generated_at=_WHEN
         )
 
-        assert header["sources"]["decisions"]["truncated"] is True
+        assert header["sources"]["decisions"]["truncated"] is False
         assert header["sources"]["actions"]["truncated"] is False
 
-    def test_a_file_complete_in_FOUR_of_five_is_not_complete(self) -> None:
-        header = article12_header(
-            [_extract("decisions", 5, cap=5), _extract("actions", 1, cap=5)],
-            cap=5,
-            filters={},
-            generated_at=_WHEN,
-        )
+    def test_completeness_is_CLAIMED_rather_than_left_to_be_inferred(self) -> None:
+        """Dropping the key would have been tidier and a worse contract.
 
-        assert header["complete"] is False
-
-    def test_a_whole_period_says_so_too(self) -> None:
-        header = article12_header(
-            [_extract("decisions", 2), _extract("actions", 1)],
-            cap=100,
-            filters={},
-            generated_at=_WHEN,
-        )
+        A reader would then tell a complete file from a partial one by the
+        ABSENCE of a warning, which is what an extraction must never ask of
+        them — and it is the same reasoning that made the ceiling stated per
+        source in the first place.
+        """
+        header = article12_header([_source("decisions", 2)], filters={}, generated_at=_WHEN)
 
         assert header["complete"] is True
 
-    def test_the_ceiling_itself_is_published(self) -> None:
-        header = article12_header([_extract("actions", 1)], cap=42, filters={}, generated_at=_WHEN)
+    def test_a_ceiling_that_no_longer_exists_is_not_advertised(self) -> None:
+        header = article12_header([_source("actions", 1)], filters={}, generated_at=_WHEN)
 
-        assert header["cap_per_source"] == 42
+        assert "cap_per_source" not in header
+
+    def test_the_count_is_the_one_that_was_COUNTED_not_a_tally_of_the_body(self) -> None:
+        """The header goes out before the first row is read.
+
+        Tallying while rendering would be the obvious implementation and it
+        cannot work: the first line is already on the wire. The count comes
+        from an aggregate over the same statement the body streams, so this
+        test hands the two apart and pins which one the header reports.
+        """
+        header = article12_header([_source("actions", 1, total=7)], filters={}, generated_at=_WHEN)
+
+        assert header["sources"]["actions"]["lines"] == 7
 
     def test_each_source_publishes_what_it_WITHHELD(self) -> None:
         """« excluded_columns » is what turns an allowlist into a statement."""
-        header = article12_header([_extract("actions", 1)], cap=100, filters={}, generated_at=_WHEN)
+        header = article12_header([_source("actions", 1)], filters={}, generated_at=_WHEN)
 
         assert "label" in header["sources"]["actions"]["excluded_columns"]
         assert "user_id" in header["sources"]["actions"]["excluded_columns"]
 
 
 class TestNothingIdentifyingLeaves:
-    def test_no_raw_account_id_appears_in_any_line(self) -> None:
+    async def test_no_raw_account_id_appears_in_any_line(self) -> None:
         account = uuid.uuid4()
         spec = TECHNICAL_SPECS["decisions"]
-        extract = extract_of(spec, [_row("decisions", user_id=account)], cap=100)
+        source = SourceStream(
+            spec=spec, total=1, rows=rows_of([_row("decisions", user_id=account)])
+        )
 
-        content = render_article12([extract], cap=100, filters={}, generated_at=_WHEN)
+        content = await _content(source)
 
         assert str(account) not in content
         assert pseudonymise(account) in content
@@ -165,7 +186,7 @@ class TestNothingIdentifyingLeaves:
         account = uuid.uuid4()
         filters = article12_filters(since=None, until=None, user_ids=[account])
 
-        header = article12_header([_extract("actions", 1)], cap=100, filters=filters)
+        header = article12_header([_source("actions", 1)], filters=filters)
 
         assert str(account) not in json.dumps(header)
 
@@ -177,58 +198,85 @@ class TestNothingIdentifyingLeaves:
 
 
 class TestTheFileIsMachineREADABLE:
-    def test_every_line_is_valid_json(self) -> None:
-        content = render_article12(
-            [_extract("decisions", 2), _extract("integrity", 1)],
-            cap=100,
-            filters={},
-            generated_at=_WHEN,
-        )
+    async def test_every_line_is_valid_json(self) -> None:
+        content = await _content(_source("decisions", 2), _source("integrity", 1))
 
         for line in content.strip().splitlines():
             json.loads(line)
 
-    def test_an_empty_period_still_produces_a_readable_file(self) -> None:
+    async def test_an_empty_period_still_produces_a_readable_file(self) -> None:
         """An extraction over a quiet week is a valid answer, not an error."""
-        content = render_article12(
-            [_extract(slug, 0) for slug in TECHNICAL_SPECS],
-            cap=100,
-            filters={},
-            generated_at=_WHEN,
-        )
+        content = await _content(*[_source(slug, 0) for slug in TECHNICAL_SPECS])
 
         lines = content.strip().splitlines()
         assert len(lines) == 1
         assert json.loads(lines[0])["complete"] is True
 
-    def test_the_file_ends_with_a_newline(self) -> None:
-        content = render_article12(
-            [_extract("actions", 1)], cap=100, filters={}, generated_at=_WHEN
-        )
+    async def test_the_file_ends_with_a_newline(self) -> None:
+        content = await _content(_source("actions", 1))
 
         assert content.endswith("\n")
 
 
-class TestTheCeilingIsItsOWN:
-    def test_the_extraction_is_capped_lower_than_a_single_record(self) -> None:
-        """Measured, not guessed: five sources at 5 000 rows render a 10,8 MB
-        file with a 33,9 MB peak and 939 ms of pure serialisation, before the
-        ORM instances behind them. At 1 000 the same file is 2,1 MB, peaks at
-        6,6 MB and renders in 201 ms — a better bargain on the hardware this
-        project deploys to, and the header says what was truncated."""
-        from src.core.config import settings
+class TestNoExtractionCarriesACeiling:
+    """The guard that replaced « the ceiling is its own, and lower ».
 
-        assert (
-            settings.article12_export_max_rows_per_source
-            < settings.effect_technical_export_max_rows
+    That property became unfalsifiable the day the ceiling was removed, and a
+    test which cannot fail is worse than no test: it reads as coverage. What
+    stays falsifiable is the opposite claim — that no export route reads a row
+    ceiling — and it fails the moment someone reintroduces one.
+    """
+
+    @staticmethod
+    def _export_routes() -> dict[str, object]:
+        from src.domains.agents.effects.admin_router import (
+            export_article12 as admin_article12,
+        )
+        from src.domains.agents.effects.admin_router import (
+            export_readable_admin,
+            export_technical,
+        )
+        from src.domains.agents.effects.export_router import (
+            export_article12 as user_article12,
+        )
+        from src.domains.agents.effects.export_router import (
+            export_register,
         )
 
-    def test_the_route_uses_that_ceiling_and_not_the_other(self) -> None:
+        return {
+            "admin/export": export_technical,
+            "admin/export/article12": admin_article12,
+            "admin/export/readable": export_readable_admin,
+            "export": export_register,
+            "export/article12": user_article12,
+        }
+
+    def test_the_two_row_ceilings_are_gone_from_the_settings(self) -> None:
+        from src.core.config import settings
+
+        assert not hasattr(settings, "effect_technical_export_max_rows")
+        assert not hasattr(settings, "article12_export_max_rows_per_source")
+
+    def test_what_replaced_them_bounds_MEMORY_and_says_so(self) -> None:
+        from src.core.config import settings
+
+        assert settings.effect_export_batch_rows > 0
+
+    def test_no_export_route_reads_a_row_ceiling(self) -> None:
         import inspect
 
-        from src.domains.agents.effects.admin_router import export_article12
+        for name, route in self._export_routes().items():
+            source = inspect.getsource(route)  # type: ignore[arg-type]
+            assert "max_rows" not in source, (
+                f"{name} reads a row ceiling again — an extraction of a register is "
+                "complete or it is not an extraction (ADR-273)"
+            )
 
-        source = inspect.getsource(export_article12)
+    def test_every_export_route_declares_its_completeness(self) -> None:
+        import inspect
 
-        assert "article12_export_max_rows_per_source" in source
-        assert "effect_technical_export_max_rows" not in source
+        for name, route in self._export_routes().items():
+            source = inspect.getsource(route)  # type: ignore[arg-type]
+            assert (
+                "X-Register-Truncated" in source
+            ), f"{name} sends no completeness claim; a reader would have to infer it"

@@ -22,16 +22,17 @@ but possible, and a lost update here would silently understate a turn.
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import AGENT_EFFECT_SCHEMA_VERSION
 from src.domains.agents.effects.decisions import TurnDecision
 from src.domains.agents.effects.models import AgentDecision
-from src.infrastructure.database.export_window import newest_window
+from src.infrastructure.database.export_stream import stream_all
 
 
 class DecisionRepository:
@@ -123,28 +124,22 @@ class DecisionRepository:
             await self.db.execute(select(AgentDecision).where(AgentDecision.run_id == run_id))
         ).scalar_one_or_none()
 
-    async def list_for_export(
-        self,
+    @staticmethod
+    def export_query(
         *,
         since: datetime | None,
         until: datetime | None,
         user_ids: list[uuid.UUID] | None,
-        limit: int,
-    ) -> list[AgentDecision]:
-        """Rows for a technical export, oldest first.
-
-        Oldest first, unlike the journal: an export is read forward, as a
-        history, and a reader stitching two capped exports together needs the
-        boundary to be the same one the period filter names.
+    ) -> Select[tuple[AgentDecision]]:
+        """The filtered SELECT an extraction reads, without order or ceiling.
 
         Args:
             since: Inclusive lower bound on ``started_at``.
             until: Exclusive upper bound.
             user_ids: One, several, or (None) every account.
-            limit: Row ceiling, published in the file's header by the caller.
 
         Returns:
-            The matching rows.
+            The statement.
         """
         filters = []
         if since is not None:
@@ -153,13 +148,29 @@ class DecisionRepository:
             filters.append(AgentDecision.started_at < until)
         if user_ids:
             filters.append(AgentDecision.user_id.in_(user_ids))
+        return select(AgentDecision).where(*filters)
 
-        # The most RECENT rows, returned oldest first (``export_window``).
-        return await newest_window(
+    def stream_for_export(
+        self, query: Select[tuple[AgentDecision]], *, batch: int
+    ) -> AsyncIterator[AgentDecision]:
+        """Every turn the filters match, oldest first, at constant memory.
+
+        Oldest first, unlike the journal: an export is read forward, as a
+        history — and it is read whole, so nobody has to stitch two partial
+        files together to see one period (ADR-273).
+
+        Args:
+            query: What :meth:`export_query` built.
+            batch: How many rows the cursor buffers at a time.
+
+        Yields:
+            The rows, oldest first.
+        """
+        return stream_all(
             self.db,
-            select(AgentDecision).where(*filters),
-            newest_first=(AgentDecision.started_at.desc(), AgentDecision.id.desc()),
-            limit=limit,
+            query,
+            oldest_first=(AgentDecision.started_at.asc(), AgentDecision.id.asc()),
+            batch=batch,
         )
 
     async def list_for_user(

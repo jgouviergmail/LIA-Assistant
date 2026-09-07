@@ -28,8 +28,16 @@ import { useLanguageParam } from '@/hooks/useLanguageParam';
 export default function RelationsPage({ params }: { params: Promise<{ lng: string }> }) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation();
-  const { relations, relationsTotal, loading, initialLoading, toggleFavorite, refetch } =
-    useRelationsOverview();
+  const {
+    relations,
+    relationsTotal,
+    loading,
+    initialLoading,
+    toggleFavorite,
+    refetch,
+    debriefEnabled,
+    setDebriefEnabled,
+  } = useRelationsOverview();
   const [selected, setSelected] = useState<string | null>(null);
 
   const handleToggleFavorite = async (name: string, nextValue: boolean) => {
@@ -58,6 +66,10 @@ export default function RelationsPage({ params }: { params: Promise<{ lng: strin
             lng={lng}
             isFavorite={selectedIsFavorite}
             onToggleFavorite={handleToggleFavorite}
+            // Same single-source rule as the star: the overview owns the
+            // switch, and the panel never re-reads it.
+            debriefEnabled={debriefEnabled}
+            onDebriefToggle={next => void setDebriefEnabled(next)}
             // The merge candidates come from the overview the page already
             // holds: a second read would be a second opinion on which
             // relationships exist.

@@ -24,15 +24,18 @@ pseudonymised with the same key across all five, so correlation survives and
 identity does not; and every column is an allowlist, so a column added tomorrow
 is absent until someone classifies it.
 
-One property it owes on its own: the ceiling is **per source and stated**. A
-file that silently held five thousand of eight thousand turns would be read as
-a complete account of a period it only samples.
+One property it owes on its own: **it is complete, per source, and it says so**
+(ADR-273). It used to hold a per-source ceiling — a file that silently held
+five thousand of eight thousand turns reads as a complete account of a period
+it only samples — and the ceiling is gone rather than merely stated: the rows
+are streamed under a header whose per-source counts are exact, so the reader
+answers « is this the whole period? » from the header and gets « yes ».
 """
 
 from __future__ import annotations
 
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Final
@@ -45,9 +48,6 @@ from src.domains.agents.effects.technical_export import (
     technical_row,
 )
 
-#: Reader of one source, in the shape all five already offer.
-SourceReader = Callable[..., Awaitable[list[Any]]]
-
 #: The key that says which record a line belongs to. Namespaced so no source
 #: column can shadow it — ``kind`` did, on the very first render against real
 #: rows, because the integrity register has a column by that name.
@@ -55,56 +55,37 @@ RECORD_KEY: Final[str] = "lia_record"
 
 
 @dataclass(frozen=True)
-class SourceExtract:
-    """What one source contributed, and whether it was complete.
+class SourceStream:
+    """One source's contribution to the extraction.
 
     Attributes:
         spec: The source's contract.
-        rows: Its exported rows.
-        capped: Whether the ceiling truncated it — stated per source, because a
-            file complete in four of five is not a complete file.
+        total: How many rows it holds for the period — counted over the same
+            statement :attr:`rows` walks, because the header goes out before
+            the first row and a streamed file cannot revise its own first line.
+        rows: Its rows, produced progressively.
     """
 
     spec: TechnicalSpec
-    rows: list[dict[str, Any]]
-    capped: bool
-
-
-def extract_of(spec: TechnicalSpec, rows: list[Any], *, cap: int) -> SourceExtract:
-    """Shape one source's rows through its own contract.
-
-    Args:
-        spec: The source's contract.
-        rows: What its repository returned.
-        cap: The ceiling that was applied to the read.
-
-    Returns:
-        The extract. ``capped`` is true when the read came back full, which is
-        the only honest way to say « there may be more ».
-    """
-    return SourceExtract(
-        spec=spec,
-        rows=[technical_row(row, spec) for row in rows],
-        capped=len(rows) >= cap,
-    )
+    total: int
+    rows: AsyncIterator[Any]
 
 
 def article12_header(
-    extracts: list[SourceExtract],
+    sources: list[SourceStream],
     *,
-    cap: int,
     filters: dict[str, Any],
     generated_at: datetime | None = None,
 ) -> dict[str, Any]:
     """The context line the extraction opens with.
 
-    It names the five sources, what each one may show, how many lines each
-    contributed and whether any of them hit the ceiling. A reader must be able
-    to answer « is this the whole period? » from the header alone.
+    It names the five sources, what each one may show and how many lines each
+    contributes. A reader must be able to answer « is this the whole period? »
+    from the header alone — and since ADR-273 the answer is always yes, stated
+    rather than implied.
 
     Args:
-        extracts: The five sources' contributions.
-        cap: The per-source ceiling.
+        sources: The five sources, each with its exact total.
         filters: What the operator asked for; identifiers are pseudonymised
             with the same key as the rows.
         generated_at: Override for the timestamp, for tests.
@@ -118,52 +99,48 @@ def article12_header(
         "pseudonymised": True,
         "identifiers": "HMAC-SHA256 keyed by the instance secret, truncated",
         "filters": _stated_filters(filters),
-        "cap_per_source": cap,
         # Stated per source: they answer different questions and never add up,
         # so one total would invite exactly the arithmetic the registers refuse.
         "sources": {
-            extract.spec.slug: {
-                "lines": len(extract.rows),
-                "truncated": extract.capped,
-                "columns": [*extract.spec.exported, "user"],
-                "excluded_columns": sorted(extract.spec.forbidden),
+            source.spec.slug: {
+                "lines": source.total,
+                "truncated": False,
+                "columns": [*source.spec.exported, "user"],
+                "excluded_columns": sorted(source.spec.forbidden),
             }
-            for extract in extracts
+            for source in sources
         },
-        "complete": not any(extract.capped for extract in extracts),
+        "complete": True,
     }
 
 
-def render_article12(
-    extracts: list[SourceExtract],
+async def stream_article12(
+    sources: list[SourceStream],
     *,
-    cap: int,
     filters: dict[str, Any],
     generated_at: datetime | None = None,
-) -> str:
-    """Render the whole extraction as JSON Lines.
+) -> AsyncIterator[str]:
+    """Render the whole extraction as JSON Lines, as the rows arrive.
 
     Args:
-        extracts: The five sources' contributions.
-        cap: The per-source ceiling.
+        sources: The five sources, each with its exact total and its rows.
         filters: What the operator asked for.
         generated_at: Override for the timestamp, for tests.
 
-    Returns:
-        The file content: one header line, then one line per row, each carrying
-        the ``kind`` that says which record it belongs to.
+    Yields:
+        One line at a time: the header, then one line per row, each carrying
+        the ``lia_record`` that says which record it belongs to. The sources
+        are read in order, so a reader can stop at the record they wanted.
     """
     import json
 
-    header = article12_header(extracts, cap=cap, filters=filters, generated_at=generated_at)
-    lines = [json.dumps(header, ensure_ascii=False, sort_keys=True)]
-    for extract in extracts:
-        record = f"lia.{extract.spec.slug}"
-        lines.extend(
-            json.dumps({**row, RECORD_KEY: record}, ensure_ascii=False, sort_keys=True)
-            for row in extract.rows
-        )
-    return "\n".join(lines) + "\n"
+    header = article12_header(sources, filters=filters, generated_at=generated_at)
+    yield json.dumps(header, ensure_ascii=False, sort_keys=True) + "\n"
+    for source in sources:
+        record = f"lia.{source.spec.slug}"
+        async for row in source.rows:
+            shaped = {**technical_row(row, source.spec), RECORD_KEY: record}
+            yield json.dumps(shaped, ensure_ascii=False, sort_keys=True) + "\n"
 
 
 def article12_filters(
@@ -210,11 +187,10 @@ def known_sources() -> tuple[TechnicalSpec, ...]:
 
 __all__ = [
     "RECORD_KEY",
-    "SourceExtract",
+    "SourceStream",
     "article12_filters",
     "article12_header",
-    "extract_of",
     "known_sources",
     "pseudonymise",
-    "render_article12",
+    "stream_article12",
 ]

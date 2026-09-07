@@ -236,6 +236,7 @@ async def synthesize_return(
     callee_display: str,
     user_language: str,
     user_timezone: str,
+    user_id: UUID | None = None,
 ) -> tuple[ReturnProposal, _SynthUsage | None]:
     """Single tool-less LLM call → factual ``summary`` + first-person ``proposal_text``.
 
@@ -276,6 +277,9 @@ async def synthesize_return(
         provider=provider,
         node_name=_LLM_TYPE,
         config=RunnableConfig(callbacks=[token_capture]),
+        # Named so the account's ceiling applies: this door carried no usage
+        # check at all until 2026-09-07.
+        user_id=user_id,
     )
     return proposal, _capture_to_usage(token_capture)
 
@@ -395,6 +399,7 @@ async def _synthesize_with_fallback(
     language: str,
     user_timezone: str,
     fallback_phrase: str,
+    user_id: UUID | None = None,
 ) -> tuple[ReturnProposal, _SynthUsage | None]:
     """Run the synthesis; a failure degrades to the plain-summary proposal.
 
@@ -410,6 +415,7 @@ async def _synthesize_with_fallback(
             callee_display=callee_display,
             user_language=language,
             user_timezone=user_timezone,
+            user_id=user_id,
         )
     except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call
         logger.warning("telephony_synthesis_failed", call_id=str(call_id), error=str(exc))
@@ -436,6 +442,7 @@ async def _track_synthesis_usage(
             tokens_out=usage.tokens_out,
             tokens_cache=usage.tokens_cache,
             model_name=usage.model_name,
+            source="user",
         )
     except Exception as exc:  # noqa: BLE001 — tracking must not lose the delivery
         logger.warning("telephony_token_tracking_failed", call_id=str(call_id), error=str(exc))
@@ -475,6 +482,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             language=language,
             user_timezone=user_timezone,
             fallback_phrase=phrases["fallback"],
+            user_id=call.user_id,
         )
 
         # P14 — append the deterministic appointment suggestion BEFORE arming

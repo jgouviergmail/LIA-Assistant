@@ -42,6 +42,7 @@ from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.usage_metadata import tokens_from_response
 from src.infrastructure.observability.metrics_briefing import (
     briefing_llm_invocations_total,
 )
@@ -197,6 +198,20 @@ async def _invoke_and_track(
         Exception: Network / provider failures from ``llm.ainvoke`` propagate
             to the caller, which wraps them in a non-fatal try/except.
     """
+    # Bounded before it spends. The deployment's provider key pays for this
+    # call, so both ceilings apply — the account's and the instance's. The
+    # non-raising shape on purpose: the dashboard still has a page to render,
+    # and it degrades to its written greeting rather than to an error.
+    from src.domains.usage_limits.enforcement import spend_blocked
+
+    if await spend_blocked(user.id):
+        briefing_llm_invocations_total.labels(kind=kind, outcome="skipped").inc()
+        # No text, which is what both callers already read as "use my own
+        # fallback": the greeting returns its written sentence, the synthesis
+        # returns None and the card slot shows its discreet line. A refusal
+        # must not be the one thing that leaves the hero empty.
+        return "", None
+
     llm = get_llm(BRIEFING_LLM_TYPE)
     model_name = get_llm_config_for_agent(app_settings, BRIEFING_LLM_TYPE).model
 
@@ -210,15 +225,10 @@ async def _invoke_and_track(
     # variants that omit cache fields. OpenAI's input_tokens already includes
     # cached tokens — subtract to expose the "billable non-cached" count
     # consistently with the rest of the tracking pipeline.
-    raw_usage = getattr(response, "usage_metadata", None) or {}
-    raw_input = int(raw_usage.get("input_tokens", 0) or 0)
-    tokens_out = int(raw_usage.get("output_tokens", 0) or 0)
-    tokens_cache = int(
-        raw_usage.get("cache_read_input_tokens", 0)
-        or raw_usage.get("input_token_details", {}).get("cache_read", 0)
-        or 0
-    )
-    tokens_in = max(raw_input - tokens_cache, 0)
+    # Presence, not magnitude: the previous code keyed on the raw dict being
+    # non-empty, and a provider reporting a zero-token call still reported one.
+    reported_usage = getattr(response, "usage_metadata", None)
+    tokens_in, tokens_out, tokens_cache = tokens_from_response(response)
 
     # EUR cost via the sync in-memory pricing cache (already populated at startup).
     cost_eur = 0.0
@@ -251,6 +261,7 @@ async def _invoke_and_track(
             tokens_out=tokens_out,
             tokens_cache=tokens_cache,
             model_name=model_name,
+            source="user",
         )
     except Exception as exc:
         logger.warning(
@@ -263,7 +274,7 @@ async def _invoke_and_track(
     briefing_llm_invocations_total.labels(kind=kind, outcome="success").inc()
 
     usage: LLMUsage | None = None
-    if raw_usage:
+    if reported_usage:
         usage = LLMUsage(
             tokens_in=tokens_in,
             tokens_out=tokens_out,
@@ -460,14 +471,26 @@ def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:
         d_items = getattr(cards.documents.data, "items", []) or []
         summary["documents"] = [{"name": d.name, "modified": d.modified_local} for d in d_items[:3]]
 
-    if cards.reminders.status == CardStatus.OK and cards.reminders.data is not None:
+    # The SYNTHESIS is told about reminders; the greeting deliberately is not.
+    # Both halves are decisions this codebase already made elsewhere:
+    #
+    # - a reminder fires on its own, so it is the least urgent thing a
+    #   one-sentence greeting could spend its single hint on — the same
+    #   ranking ``chat/suggestions`` states explicitly ("a meeting and a mail
+    #   batch are more time-bound than a reminder, which will fire on its own
+    #   anyway");
+    # - and the only shape a greeting could take them in was a BARE COUNT,
+    #   carrying no day at all. The agenda rule above records what that
+    #   produces: "deux rendez-vous cet après-midi" for events spread over two
+    #   days. That count was unreachable until the section became cacheable,
+    #   which is precisely why it must not be reached now.
+    #
+    # The synthesis gets the day-aware pair its own prompt documents.
+    if verbose and cards.reminders.status == CardStatus.OK and cards.reminders.data is not None:
         items = getattr(cards.reminders.data, "items", []) or []
-        if verbose:
-            summary["reminders"] = [
-                {"content": r.content, "trigger": r.trigger_at_local} for r in items[:3]
-            ]
-        else:
-            summary["reminders_count"] = len(items)
+        summary["reminders"] = [
+            {"content": r.content, "trigger": r.trigger_at_local} for r in items[:3]
+        ]
 
     if cards.health.status == CardStatus.OK and cards.health.data is not None:
         items = getattr(cards.health.data, "items", []) or []

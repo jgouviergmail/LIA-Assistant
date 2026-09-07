@@ -26,6 +26,7 @@ References:
 
 import random
 from dataclasses import dataclass, replace
+from time import perf_counter
 from typing import Any
 
 from src.core.config import settings
@@ -45,7 +46,11 @@ from src.domains.interests.services.content_sources.llm_reflection_source import
 from src.domains.interests.services.content_sources.perplexity_source import (
     PerplexityContentSource,
 )
+from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.observability.logging import get_logger
+
+#: This surface's key, shared with ``CONSULTATION_RECORDERS``.
+INTEREST_SURFACE = "interest"
 
 logger = get_logger(__name__)
 
@@ -377,6 +382,14 @@ class InterestContentGenerator:
         Returns:
             ContentResult if successful, None otherwise
         """
+        # The ONE place every source runs, so the one place they are recorded.
+        # These call Brave, Perplexity and Wikipedia through their clients
+        # directly, never through the tool layer — so the tool gate that fills
+        # the consultation register never sees them, and the same search LIA
+        # performs in a conversation was invisible when it ran alone.
+        started = perf_counter()
+        opened = source.source_name
+
         try:
             kwargs: dict[str, Any] = {
                 "topic": context.topic,
@@ -394,9 +407,13 @@ class InterestContentGenerator:
             if result and not result.embedding:
                 result.embedding = await self._generate_content_embedding(result.content)
 
+            # It ran and answered — « nothing to report » is not « I could not
+            # look », so an empty result is still a source that was consulted.
+            self._record_consultation(context, opened, failed=False, started=started)
             return result
 
         except Exception as e:
+            self._record_consultation(context, opened, failed=True, started=started)
             logger.warning(
                 "content_source_exception",
                 source=source.source_name,
@@ -405,6 +422,26 @@ class InterestContentGenerator:
                 error_type=type(e).__name__,
             )
             return None
+
+    @staticmethod
+    def _record_consultation(
+        context: ContentGenerationContext, source_name: str, *, failed: bool, started: float
+    ) -> None:
+        """Tell the register which source the sweep actually queried.
+
+        Args:
+            context: The generation context, for the account.
+            source_name: The source that ran, as it names itself.
+            failed: Whether it raised; the rest answered.
+            started: ``perf_counter()`` taken before the call.
+        """
+        record_surface_consultations(
+            surface=INTEREST_SURFACE,
+            user_id=context.user_id,
+            opened=[source_name],
+            failed=[source_name] if failed else (),
+            duration_ms=int((perf_counter() - started) * 1000),
+        )
 
     async def _generate_content_embedding(self, content: str) -> list[float] | None:
         """

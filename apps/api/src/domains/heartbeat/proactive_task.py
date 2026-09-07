@@ -606,6 +606,7 @@ class HeartbeatProactiveTask:
                 tokens_out=tokens_out,
                 tokens_cache=tokens_cache,
                 model_name=model_name,
+                source="proactive",
             )
         except Exception as e:
             # Non-fatal: token tracking failure shouldn't prevent the skip

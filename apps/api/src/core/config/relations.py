@@ -12,6 +12,10 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    RELATION_DEBRIEF_DAILY_BUILD_CAP_DEFAULT,
+    RELATION_DEBRIEF_FAILURE_COOLDOWN_SECONDS_DEFAULT,
+    RELATION_DEBRIEF_INJECTION_MAX_AGE_DAYS_DEFAULT,
+    RELATION_DEBRIEF_LEASE_SECONDS_DEFAULT,
     RELATIONS_MAX_ITEMS_DEFAULT,
     RELATIONS_MAX_ITEMS_PER_SECTION_DEFAULT,
     RELATIONS_PROVIDER_EMAIL_EXCERPT_MAX_CHARS_DEFAULT,
@@ -115,4 +119,67 @@ class RelationsSettings(BaseSettings):
         ge=1,
         le=3600,
         description="Sliding window, in seconds, for the budget above.",
+    )
+
+    # ------------------------------------------------------------------
+    # The relationship debrief (one LLM synthesis per person, per local day)
+    # ------------------------------------------------------------------
+    relation_debrief_enabled: bool = Field(
+        default=True,
+        description=(
+            "Whether the daily relationship debrief exists at all. It is only "
+            "ever built when a reader opens a card, so the cost follows use — "
+            "but an operator who wants no LLM on this surface turns it off "
+            "here, and every account loses it at once."
+        ),
+    )
+    relation_debrief_injection_enabled: bool = Field(
+        default=True,
+        description=(
+            "Whether a debrief may be injected into a chat turn that names the "
+            "person. Separate from the feature flag: an operator may want the "
+            "card without the prompt block, since the block competes for "
+            "attention with the live tools."
+        ),
+    )
+    relation_debrief_lease_seconds: int = Field(
+        default=RELATION_DEBRIEF_LEASE_SECONDS_DEFAULT,
+        ge=30,
+        le=1800,
+        description=(
+            "How long one build holds a relationship before another may take "
+            "it over. Must exceed the LLM timeout plus the evidence read, or a "
+            "slow provider hands the row to a second builder mid-call."
+        ),
+    )
+    relation_debrief_failure_cooldown_seconds: int = Field(
+        default=RELATION_DEBRIEF_FAILURE_COOLDOWN_SECONDS_DEFAULT,
+        ge=0,
+        le=86400,
+        description=(
+            "How long a failed build waits before a retry may be claimed. A "
+            "gap the reader can see must be repairable; retrying it on every "
+            "card open would not be a repair, it would be a loop."
+        ),
+    )
+    relation_debrief_daily_build_cap: int = Field(
+        default=RELATION_DEBRIEF_DAILY_BUILD_CAP_DEFAULT,
+        ge=1,
+        le=1000,
+        description=(
+            "Builds one account may start per day across every relationship. "
+            "The once-a-day rule bounds the nominal case; this bounds the "
+            "pathological one (a script walking every card)."
+        ),
+    )
+    relation_debrief_injection_max_age_days: int = Field(
+        default=RELATION_DEBRIEF_INJECTION_MAX_AGE_DAYS_DEFAULT,
+        ge=1,
+        le=365,
+        description=(
+            "Beyond this age a debrief is no longer injected into a chat turn. "
+            "It is still SHOWN on the card with its date: a card can state how "
+            "old it is, a prompt block competing with live tools should step "
+            "aside."
+        ),
     )

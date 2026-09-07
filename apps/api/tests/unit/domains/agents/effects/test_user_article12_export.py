@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
@@ -32,6 +34,7 @@ from fastapi.testclient import TestClient
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.effects.export_router import rate_limit_export, router
+from tests.unit.domains.agents.effects.streaming import rows_of
 
 pytestmark = [pytest.mark.unit]
 
@@ -55,17 +58,52 @@ def _client() -> TestClient:
     return TestClient(app, raise_server_exceptions=False)
 
 
-def _served(rows: dict[str, list[Any]] | None = None) -> Any:
+class _Served:
+    """Stub the two halves of every register read, capturing each scope.
+
+    Both halves, because the route counts before it streams (ADR-273): the
+    header carries the exact total and the body carries the rows, and a harness
+    stubbing only one of them would leave the other reaching for a database in
+    the middle of a response.
+    """
+
+    def __init__(self, rows: dict[str, list[Any]] | None = None) -> None:
+        self._rows = rows or {}
+        self.seen: list[Any] = []
+        self._patches: list[Any] = []
+
+    def _for(self, asked: Any) -> list[Any]:
+        self.seen.append(asked)
+        return self._rows.get(asked.register, [])
+
+    def __enter__(self) -> _Served:
+        async def _count(_db: Any, asked: Any) -> int:
+            return len(self._for(asked))
+
+        def _stream(_db: Any, asked: Any, *, batch: int) -> Any:
+            return rows_of(self._for(asked))
+
+        @asynccontextmanager
+        async def _no_session() -> AsyncIterator[Any]:
+            yield SimpleNamespace()
+
+        self._patches = [
+            patch("src.domains.agents.effects.export_router.count_register", _count),
+            patch("src.domains.agents.effects.export_router.stream_register", _stream),
+            patch("src.domains.agents.effects.export_router.get_db_context", _no_session),
+        ]
+        for one in self._patches:
+            one.start()
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        for one in reversed(self._patches):
+            one.stop()
+
+
+def _served(rows: dict[str, list[Any]] | None = None) -> _Served:
     """Stub the register reads, capturing the scope each one was asked for."""
-    seen: list[Any] = []
-
-    async def _read(db: Any, asked: Any, cap: int) -> list[Any]:
-        seen.append(asked)
-        return (rows or {}).get(asked.register, [])
-
-    patcher = patch("src.domains.agents.effects.export_router.read_register", side_effect=_read)
-    patcher.seen = seen  # type: ignore[attr-defined]
-    return patcher
+    return _Served(rows)
 
 
 def _lines(body: str) -> list[dict[str, Any]]:
@@ -177,24 +215,26 @@ class TestTheTwoSurfacesShareOneImplementation:
 
         for module in (admin_router, export_router):
             source = inspect.getsource(module)
-            assert "render_article12(" in source
+            assert "stream_article12(" in source
             assert "known_sources()" in source
-            assert "extract_of(" in source
+            assert "SourceStream(" in source
 
     def test_neither_route_reimplements_the_reads(self) -> None:
         import inspect
 
         from src.domains.agents.effects import admin_router, export_router
-        from src.domains.agents.effects.technical_reads import read_register
+        from src.domains.agents.effects.technical_reads import register_read
 
         for module in (admin_router, export_router):
-            assert "read_register(" in inspect.getsource(module)
+            source = inspect.getsource(module)
+            assert "stream_register(" in source
+            assert "count_register(" in source
             # The dispatch lives in one place: a route that grew its own
             # `if register ==` branch would be a second authority on which
             # table answers for which record.
-            assert "if asked.register ==" not in inspect.getsource(module)
+            assert "if asked.register ==" not in source
 
-        assert 'asked.register == "actions"' in inspect.getsource(read_register)
+        assert 'asked.register == "actions"' in inspect.getsource(register_read)
 
     def test_the_two_routes_differ_only_in_scope(self) -> None:
         import inspect

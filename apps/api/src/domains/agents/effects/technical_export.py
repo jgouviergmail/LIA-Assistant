@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -442,7 +443,6 @@ def _stated_filters(filters: dict[str, Any]) -> dict[str, Any]:
 def export_header(
     *,
     row_count: int,
-    cap: int,
     filters: dict[str, Any],
     generated_at: datetime,
     spec: TechnicalSpec | None = None,
@@ -452,9 +452,14 @@ def export_header(
     A file with no header is a file whose reader guesses: what was asked, what
     was refused, and whether the answer is complete.
 
+    ``truncated`` outlived the ceiling it described and is now always false
+    (ADR-273). Keeping it is deliberate: completeness is a claim a record makes
+    out loud, never something a reader infers from the absence of a warning —
+    and a parser written against the capped contract keeps working.
+
     Args:
-        row_count: Rows actually exported.
-        cap: The ceiling that applied.
+        row_count: Rows exported — the exact total, counted over the same
+            statement the body streams, never the length of a page.
         filters: The filters the operator asked for. Identifiers among them are
             pseudonymised here, with the same key as the rows.
         generated_at: When the export was produced.
@@ -480,21 +485,26 @@ def export_header(
         "columns": columns,
         "filters": _stated_filters(filters),
         "row_count": row_count,
-        "row_cap": cap,
-        "truncated": row_count >= cap,
+        "truncated": False,
     }
 
 
-def render_jsonl(rows: list[dict[str, Any]], header: dict[str, Any]) -> str:
-    """Render the export as JSON Lines, header first.
+async def stream_jsonl(
+    header: dict[str, Any], rows: AsyncIterator[dict[str, Any]]
+) -> AsyncIterator[str]:
+    """Render the export as JSON Lines, header first, as the rows arrive.
+
+    The header goes out before a single row is read, which is why its
+    ``row_count`` is counted rather than tallied: a streamed document cannot
+    revise its own first line.
 
     Args:
-        rows: The technical rows.
         header: The context header.
+        rows: The technical rows, produced progressively.
 
-    Returns:
-        The file content.
+    Yields:
+        One line at a time, newline included.
     """
-    lines = [json.dumps(header, ensure_ascii=False, sort_keys=True)]
-    lines.extend(json.dumps(row, ensure_ascii=False, sort_keys=True) for row in rows)
-    return "\n".join(lines) + "\n"
+    yield json.dumps(header, ensure_ascii=False, sort_keys=True) + "\n"
+    async for row in rows:
+        yield json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"

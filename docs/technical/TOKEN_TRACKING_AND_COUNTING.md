@@ -2052,6 +2052,58 @@ class TestAsyncPricingService:
 
 ---
 
+## Où va la dépense d'un module : les routes déclarées (ADR-270)
+
+La comptabilité de ce dépôt est **ambiante** : un nœud dépense à travers un
+`TrackingContext` publié par un ancêtre, donc son propre fichier ne nomme aucun
+traqueur. Chercher le traqueur produit par conséquent des faux positifs (un
+module suivi qui ne nomme rien) et des faux négatifs (un module non suivi qui
+nomme un helper qu'il n'atteint jamais). Répondre à « est-ce compté ? » en
+lisant les fichiers a donné **neuf conclusions fausses en une seule session**,
+dans les deux sens.
+
+`src/infrastructure/llm/spend_roads.py` déclare donc, pour chacun des modules
+qui appellent `get_llm`, le registre que ses euros atteignent :
+
+| Route | Signification |
+|---|---|
+| `TURN` | Traqueur ambiant : la dépense rejoint le tour en cours |
+| `ACCOUNTED` | Comptabilité propre, hors tour |
+| `CALLER` | Un comptable **nommé**, lui-même vérifié |
+| `INSTANCE` | Aucun propriétaire : seul le registre journalier du déploiement |
+
+La garde lit des **appels AST**, jamais des sous-chaînes, et refuse une omission,
+une entrée périmée, une route `instance` sans raison écrite, une route `caller`
+sans comptable nommé, et une route dont le module ne fait pas ce qu'elle
+prétend. Elle a repris **6 des 46 classements** de l'auteur.
+
+### Un euro sans propriétaire atteint quand même un registre
+
+L'auto-diagnostic, les traductions du catalogue et le traducteur de diffusion
+tournent pour aucun compte : ils ne doivent donc PAS toucher `user_statistics`.
+Mais « aucun compte » avait été lu comme « aucun registre », et 84 traductions de
+personnalité n'ont laissé de trace nulle part pendant que le registre
+enregistrait 5 976 autres lignes sur 17 surfaces. `domains/usage_limits/instance_spend.py`
+alimente `InstanceDailyBudget` ; `token_usage_logs.user_id` étant `NOT NULL`,
+c'est un chemin séparé par construction.
+
+**Enregistrer n'est que la moitié d'un registre — l'autre est de demander
+d'abord.** `INSTANCE_GATE_EXEMPT` oblige un module non gardé à déclarer, par
+écrit, pourquoi il ne peut pas sauter son appel (le harnais d'évaluation doit
+produire une mesure ou échouer ; un score fabriqué qu'un exploitant lit comme
+réel est pire que la dépense).
+
+### Lire les métadonnées d'usage d'un fournisseur : une seule implémentation
+
+`src/infrastructure/llm/usage_metadata.py`. Elle avait été écrite **huit fois**
+et les copies divergeaient : une seule lisait `cache_read_input_tokens`
+d'Anthropic et une seule bornait à zéro, si bien que sept facturaient au plein
+tarif des prompts mis en cache et pouvaient calculer un nombre de jetons
+négatif. `model_name_of` a de même remplacé sept lectures portant trois replis
+différents.
+
+---
+
 ## Integration with Usage Limits (v1.9.0)
 
 After token usage is persisted to `UserStatistics`, the usage limits cache is invalidated to ensure the next enforcement check reflects the updated consumption:

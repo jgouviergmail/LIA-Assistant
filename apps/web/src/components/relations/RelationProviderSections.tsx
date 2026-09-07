@@ -21,17 +21,20 @@
  */
 
 import { useState } from 'react';
-import { CalendarDays, Contact, Mail, RefreshCw, Sparkles } from 'lucide-react';
+import { CalendarDays, Contact, Mail, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { directionTone } from '@/lib/status-tone';
 
-import { CollapsibleSection, SectionBadge } from '@/components/relations/CollapsibleSection';
+import {
+  CollapsibleSection,
+  RefreshButton,
+  SectionBadge,
+} from '@/components/relations/CollapsibleSection';
 import { ContactCardBody } from '@/components/relations/ContactCardBody';
 import { chatIntentHref, dateTimeRangeLabel, timeAgoLabel } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
-import { cn } from '@/lib/utils';
 import type {
   ContactCard,
   ContextSection,
@@ -51,35 +54,6 @@ export function hasPayload(section: ContextSection | undefined): boolean {
     section !== undefined &&
     section.status === 'ok' &&
     (section.contact !== null || section.emails.length > 0 || section.events.length > 0)
-  );
-}
-
-/** The refresh control every cached section carries. */
-function RefreshButton({
-  label,
-  busy,
-  onRefresh,
-}: {
-  label: string;
-  busy: boolean;
-  onRefresh: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onRefresh}
-      // `aria-disabled`, never `disabled`: a control disabled while focused is
-      // blurred by the browser and leaves the tab order.
-      aria-disabled={busy}
-      aria-label={label}
-      title={label}
-      className={cn(
-        'shrink-0 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        busy && 'cursor-not-allowed opacity-50'
-      )}
-    >
-      <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} aria-hidden="true" />
-    </button>
   );
 }
 

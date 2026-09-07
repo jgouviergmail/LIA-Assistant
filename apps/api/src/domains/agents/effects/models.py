@@ -64,14 +64,25 @@ class EffectStatus(str, Enum):
 class EffectSource(str, Enum):
     """Who asked for the turn that produced the effect.
 
-    Deliberately three values: the heartbeat runs no tool, and a peer never
-    mutates on someone else's behalf — two values removed before they were born
-    rather than left as dead vocabulary.
+    ``proactive`` was excluded at first, on the argument that "the heartbeat
+    runs no tool". That argument is true of the EFFECT register and false of
+    the two that came after it: a briefing runs no tool either, yet it reads
+    the person's mail, calendar and tasks every morning at their expense.
+    When the consultation and decision registers arrived (ADR-263 lots 4 and
+    6), the enum was never reopened — so 228 proactive runs over fourteen days
+    produced no row at all (measured 2026-09-07).
+
+    ``scheduled`` and ``proactive`` are deliberately distinct. A routine is the
+    person's own instruction, deferred: they wrote it, so its actions belong
+    beside the ones they typed. ``proactive`` is LIA deciding.
+
+    The value, never the name, is what the ``varchar`` column stores.
     """
 
     USER = "user"
     SCHEDULED = "scheduled"
     SUBAGENT = "subagent"
+    PROACTIVE = "proactive"
 
 
 class AgentEffect(Base, UUIDMixin):

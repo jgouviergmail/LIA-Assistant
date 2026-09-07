@@ -37,8 +37,24 @@ class TestTheVocabulary:
         }
 
     def test_source_vocabulary_is_only_what_exists(self) -> None:
-        """Three values: the heartbeat runs no tool, a peer never mutates for another."""
-        assert {s.value for s in EffectSource} == {"user", "scheduled", "subagent"}
+        """Four values, and the fourth was paid for by a measurement.
+
+        ``proactive`` was excluded on the argument that "the heartbeat runs no
+        tool" — true of THIS register and false of the two that came after it.
+        A briefing runs no tool either, yet it reads the person's mail every
+        morning at their expense: 228 such runs over fourteen days produced no
+        register row at all (measured 2026-09-07).
+
+        ``scheduled`` stays distinct from it. A routine is the person's own
+        instruction, deferred; collapsing the two would move rows out of the
+        lists their owner put them in.
+        """
+        assert {s.value for s in EffectSource} == {
+            "user",
+            "scheduled",
+            "subagent",
+            "proactive",
+        }
 
 
 class TestTheInvariantsTheRepositoryRelies_On:
@@ -88,15 +104,20 @@ class TestTheModelAndTheMigrationAgree:
     """A disagreement here only shows in production (measured 2026-09-04).
 
     The integration schema is built from this metadata, so a model that stores
-    member NAMES would agree with itself and pass, while the migration's CHECK
-    constraint — written with the VALUES — would reject every insert on a real
-    deployment.
+    member NAMES would agree with itself and pass, while every migration, query
+    and export — all written with the VALUES — would read nothing.
+
+    Measured 2026-09-07: these columns carry NO check constraint at all.
+    ``Enum(native_enum=False)`` leaves ``create_constraint`` at its SQLAlchemy
+    2.x default of False, so the column is a plain ``varchar(20)``. That is why
+    this test is the only thing standing between the vocabulary and the data —
+    and why widening the enum needs no migration.
     """
 
     @pytest.mark.parametrize(
         ("column", "expected"),
         [
-            ("source", {"user", "scheduled", "subagent"}),
+            ("source", {"user", "scheduled", "subagent", "proactive"}),
             ("status", {"claimed", "succeeded", "failed", "abandoned", "refused"}),
         ],
     )

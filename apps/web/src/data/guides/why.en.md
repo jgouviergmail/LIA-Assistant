@@ -4,7 +4,7 @@
 
 **Version**: 5.4
 **Date**: 2026-08-23
-**Application**: LIA v1.43.0
+**Application**: LIA v1.43.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -211,6 +211,8 @@ You can also just ask, without opening the page: "when did I last call Marie?", 
 What remains is what no system can guess. LIA groups what is written the same, accents and capitals aside; it cannot know that a number jotted down one day and a name are the same person, or that "Dad" is anyone in particular. That is a judgement, and it is yours: you say it once, from the card, and it is **reversible** — the merge is shown with its own undo, and nothing is rewritten in your sources. A display grouping never changes who a message is addressed to, either.
 
 
+And because ten sections do not get read, LIA writes the synthesis herself, at the top of the card: where you stand with this person, what is still open, what to raise, what is worth remembering. It is written at most once a day, at the moment you open the card — never as a background job, never during a conversation — and if the refresh fails the previous text stays, under a line saying so: an empty panel would suggest there is nothing. Naming that person in the chat is then enough for LIA to use it, knowing it is a dated text: she gives its age and checks any figure or status against her tools rather than quoting yesterday's synthesis as today's fact.
+
 ### 3.13. A meeting recorded, minutes written up
 
 A button in the header — or the “Record a meeting” entry of the menu on a phone — and your phone or your computer becomes the meeting's recorder. A banner follows you on every page with the time and what has already reached your server; you keep talking with LIA meanwhile — spoken answers simply pause so the microphone never hears the assistant. When you stop, LIA transcribes everything and writes the minutes **in your structure**: the head is fixed (date, times, place, participants), the body follows a format you pick among thirty built-in templates — meetings and teams, transcripts, conversation analysis, sales, technical, personal appointments, courses — or one you build yourself, section by section. And if you pick nothing, LIA reads what was said and keeps the format that fits, then tells you which one and why: a project review and a medical consultation do not share a structure.
@@ -357,17 +359,19 @@ Transparency has a failure mode nobody notices: a screen that quietly stops tell
 
 Transparency also applies to the assistant's internal rules. A constraint the system enforces must be published to whoever it affects: when habit learning detects nothing, Settings display the threshold actually required — stricter on weekends, where observed days are fewer — instead of an unexplained silence. And when a setting tunes itself, like the threshold deciding that a journal note enters a reply, it does so inside strict bounds, one small step per day, with a kill switch and every adjustment counted: a learning system is only acceptable if it stays observable and stoppable.
 
-### 6.9. Two registers: what LIA did, and what it looked at
+### 6.9. Three registers: what LIA did, what it looked at, what it undertook alone
 
-Transparency about *reasoning* is one thing; transparency about *acts* is another, and it is the one that matters when an assistant can send, create and delete on your behalf. LIA therefore keeps two registers, automatically, and never merges them.
+Transparency about *reasoning* is one thing; transparency about *acts* is another, and it is the one that counts when an assistant can send, create and delete on your behalf. LIA therefore keeps three registers, automatically, and never mixes them.
 
-**Actions** hold one line per thing done for you — an email sent, an event created, a file deleted — with its outcome and the confirmation you gave. **Consultations** hold one line per capability used to answer you, named as a domain: « your calendar », « your emails ». A consultation never records what was searched for; writing that down would be a second copy of the very data the register exists to make accountable.
+**Actions** take one row per thing done for you — an email sent, an event created, a file deleted — with its outcome and the confirmation you gave. **Consultations** take one row per capability used to answer you, named as a domain: "your calendar", "your emails". A consultation never records what was searched for: writing it down would copy the very data the register exists to make accountable. And **turns** take one row per exchange, the spine the other two hang off.
 
-The guarantee is structural rather than promised. An action is written down **before** it happens and closed **only** from an explicit result, so a success is never inferred from a missing error; the recording is installed on the capability itself when it is registered, so a new tool cannot forget it; and the server refuses to start if a capability does not declare what it owes you — a read, a draft, a confirmation, something reversible.
+A fourth reading has joined them, and it was missed more than the others: **what LIA undertakes on her own**. Her morning sweeps, the subjects she explores for you, the notifications she sends without anyone asking now have their own tab, never mixed with what you triggered. Merging the two would say nothing at all: what you asked for does not call for the same reading as what she decided.
 
-A third tab draws the period as charts, each carrying the exact total of the whole period beside its bars, so what you see can be checked rather than believed. Everything exports in three formats — readable, spreadsheet, and the machine-readable one an auditor would ask for — and everything leaves with your account archive and dies with your account. Where your administrator enables it, both registers are sealed per account with cryptographic fingerprints you can verify yourself.
+The guarantee is structural rather than promised. An action is written down **before** it happens and closed **only** from an explicit result: a success is never inferred from a missing error. Recording is installed on the capability itself at the moment it is declared, so a new tool cannot forget it — and every surface that reads without going through a tool declares, once and for all, what it opens. The server refuses to start if a capability does not declare what it owes you: a read, a draft, a confirmation, something reversible.
 
-This is also what the European AI Act's Article 12 asks of a system like this. LIA answers it with five records in all: the two above, plus the turn itself, the parameters actually sent to each model, and the gaps in the record — because a register that cannot say where it is incomplete is asking to be trusted rather than read.
+A last tab draws the period as charts, each carrying the exact total of the whole set beside its bars: what you see can be checked rather than believed. Everything exports in three formats — readable, spreadsheet, and the machine format an auditor would ask for — and **nothing in it is truncated**: whatever the volume, the file carries everything your filters name, with the exact count stated in the header and the moment it was taken. All of it leaves with your account archive and disappears with it. Where your administrator switches it on, the registers are sealed per account with fingerprints you can verify yourself.
+
+This is also what Article 12 of the European AI regulation expects of a system like this one. LIA answers it with five records in total: the three above, plus the parameters actually sent to each model, and the register's own gaps — because a register unable to say where it is incomplete asks to be trusted instead of letting itself be read.
 
 ## 7. Emotional depth
 

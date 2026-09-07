@@ -29,6 +29,7 @@ from src.domains.interests.services.content_sources.base import ContentResult
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.llm.token_utils import extract_llm_tokens
+from src.infrastructure.llm.usage_metadata import tokens_from_response
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -204,18 +205,9 @@ class LLMReflectionContentSource:
         from src.domains.chat.service import TrackingContext
 
         try:
-            usage_metadata = getattr(result, "usage_metadata", None)
-            if not usage_metadata:
-                return
-
-            raw_input_tokens = usage_metadata.get("input_tokens", 0)
-            output_tokens = usage_metadata.get("output_tokens", 0)
-
-            input_details = usage_metadata.get("input_token_details", {})
-            cached_tokens = input_details.get("cache_read", 0) if input_details else 0
-            input_tokens = raw_input_tokens - cached_tokens
-
-            if input_tokens == 0 and output_tokens == 0:
+            usage = tokens_from_response(result)
+            input_tokens, output_tokens, cached_tokens = usage
+            if usage.is_empty:
                 return
 
             run_id = f"llm_reflection_{uuid.uuid4().hex[:12]}"
