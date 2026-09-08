@@ -6,7 +6,7 @@
  * when the message carries no document.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { makeMessage, makeUser } from '@/__tests__/factories';
@@ -112,5 +112,79 @@ describe('ChatMessage — generated document cards', () => {
   it('renders nothing without documents', () => {
     renderMessage(makeMessage({}));
     expect(screen.queryByTestId('generated-document-card')).not.toBeInTheDocument();
+  });
+});
+
+describe('ChatMessage — attachment URLs reach the API, not the frontend', () => {
+  /**
+   * Measured 2026-09-09 on the dev environment: a relative
+   * `/api/v1/attachments/{id}` resolves against the FRONTEND origin, which
+   * only works where a reverse proxy re-routes it. The dev API serves HTTPS
+   * only and a Next rewrite refuses its self-signed certificate, so every
+   * generated document and every generated image answered 500 while every
+   * other call — which uses the API origin — worked. The rest of the app
+   * already states this rule in `apiEndpointUrl`.
+   */
+  const ORIGIN = 'https://api.example.test:8000';
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('a document download link points at the API origin', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', ORIGIN);
+    renderMessage(makeMessage({ generatedDocuments: [csvDocument] }));
+    expect(screen.getByRole('link', { name: /chat.document_card.download/ })).toHaveAttribute(
+      'href',
+      `${ORIGIN}/api/v1/attachments/d1`
+    );
+  });
+
+  it('a PDF opens from the API origin', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', ORIGIN);
+    renderMessage(
+      makeMessage({
+        generatedDocuments: [{ ...csvDocument, doc_type: 'pdf', filename: 'rapport.pdf' }],
+      })
+    );
+    expect(screen.getByRole('link', { name: 'chat.document_card.open' })).toHaveAttribute(
+      'href',
+      `${ORIGIN}/api/v1/attachments/d1`
+    );
+  });
+
+  it('a generated image is loaded from the API origin', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', ORIGIN);
+    renderMessage(
+      makeMessage({
+        generatedImages: [{ url: '/api/v1/attachments/i1', alt: 'un dessin', expires_at: null }],
+      })
+    );
+    expect(screen.getByAltText('un dessin')).toHaveAttribute(
+      'src',
+      `${ORIGIN}/api/v1/attachments/i1`
+    );
+  });
+
+  it('a browser screenshot is loaded from the API origin', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', ORIGIN);
+    renderMessage(
+      makeMessage({
+        browserScreenshot: { url: '/api/v1/attachments/s1', alt: 'Browser screenshot' },
+      })
+    );
+    expect(screen.getByAltText('Browser screenshot')).toHaveAttribute(
+      'src',
+      `${ORIGIN}/api/v1/attachments/s1`
+    );
+  });
+
+  it('keeps the relative path when no API origin is configured', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', '');
+    renderMessage(makeMessage({ generatedDocuments: [csvDocument] }));
+    expect(screen.getByRole('link', { name: /chat.document_card.download/ })).toHaveAttribute(
+      'href',
+      '/api/v1/attachments/d1'
+    );
   });
 });

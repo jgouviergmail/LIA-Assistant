@@ -1,0 +1,517 @@
+{
+  "doc_types": [
+    "docx",
+    "pdf",
+    "md",
+    "txt"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "rapport-annuel",
+    "title": "Rapport annuel",
+    "subtitle": "À l'attention du comité",
+    "blocks": [
+      {
+        "kind": "paragraph",
+        "text": "Ce rapport couvre l'exercice écoulé et ses suites."
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "1. Partie 1"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Analyse 1"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le point saillant est une hausse de **12 %** documentée [ici](https://example.org/etude)."
+      },
+      {
+        "kind": "numbered",
+        "items": [
+          "Constater l'écart",
+          "Chiffrer l'impact",
+          "Décider"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "2. Partie 2"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Analyse 2"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le point saillant est une hausse de **12 %** documentée [ici](https://example.org/etude)."
+      },
+      {
+        "kind": "numbered",
+        "items": [
+          "Constater l'écart",
+          "Chiffrer l'impact",
+          "Décider"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "3. Partie 3"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Analyse 3"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le point saillant est une hausse de **12 %** documentée [ici](https://example.org/etude)."
+      },
+      {
+        "kind": "numbered",
+        "items": [
+          "Constater l'écart",
+          "Chiffrer l'impact",
+          "Décider"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "4. Partie 4"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Analyse 4"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le point saillant est une hausse de **12 %** documentée [ici](https://example.org/etude)."
+      },
+      {
+        "kind": "numbered",
+        "items": [
+          "Constater l'écart",
+          "Chiffrer l'impact",
+          "Décider"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "5. Partie 5"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Analyse 5"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le point saillant est une hausse de **12 %** documentée [ici](https://example.org/etude)."
+      },
+      {
+        "kind": "numbered",
+        "items": [
+          "Constater l'écart",
+          "Chiffrer l'impact",
+          "Décider"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "6. Partie 6"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Analyse 6"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le point saillant est une hausse de **12 %** documentée [ici](https://example.org/etude)."
+      },
+      {
+        "kind": "numbered",
+        "items": [
+          "Constater l'écart",
+          "Chiffrer l'impact",
+          "Décider"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "7. Partie 7"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Analyse 7"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le point saillant est une hausse de **12 %** documentée [ici](https://example.org/etude)."
+      },
+      {
+        "kind": "numbered",
+        "items": [
+          "Constater l'écart",
+          "Chiffrer l'impact",
+          "Décider"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 1,
+        "text": "8. Partie 8"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Analyse 8"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le point saillant est une hausse de **12 %** documentée [ici](https://example.org/etude)."
+      },
+      {
+        "kind": "numbered",
+        "items": [
+          "Constater l'écart",
+          "Chiffrer l'impact",
+          "Décider"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Citation"
+      },
+      {
+        "kind": "quote",
+        "text": "« Nous ne mesurions pas ce que nous décidions. »"
+      },
+      {
+        "kind": "callout",
+        "text": "Point d'attention : les chiffres de mars sont provisoires."
+      },
+      {
+        "kind": "table",
+        "caption": "Chiffres clés par ville",
+        "table": {
+          "name": "villes",
+          "headers": [
+            "Ville",
+            "Population",
+            "Croissance (%)",
+            "Mise à jour"
+          ],
+          "rows": [
+            [
+              "Ville 0",
+              "100000",
+              "-3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 1",
+              "101234",
+              "-2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 2",
+              "102468",
+              "-1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 3",
+              "103702",
+              "0.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 4",
+              "104936",
+              "1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 5",
+              "106170",
+              "2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 6",
+              "107404",
+              "3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 7",
+              "108638",
+              "-3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 8",
+              "109872",
+              "-2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 9",
+              "111106",
+              "-1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 10",
+              "112340",
+              "0.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 11",
+              "113574",
+              "1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 12",
+              "114808",
+              "2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 13",
+              "116042",
+              "3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 14",
+              "117276",
+              "-3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 15",
+              "118510",
+              "-2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 16",
+              "119744",
+              "-1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 17",
+              "120978",
+              "0.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 18",
+              "122212",
+              "1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 19",
+              "123446",
+              "2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 20",
+              "124680",
+              "3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 21",
+              "125914",
+              "-3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 22",
+              "127148",
+              "-2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 23",
+              "128382",
+              "-1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 24",
+              "129616",
+              "0.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 25",
+              "130850",
+              "1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 26",
+              "132084",
+              "2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 27",
+              "133318",
+              "3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 28",
+              "134552",
+              "-3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 29",
+              "135786",
+              "-2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 30",
+              "137020",
+              "-1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 31",
+              "138254",
+              "0.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 32",
+              "139488",
+              "1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 33",
+              "140722",
+              "2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 34",
+              "141956",
+              "3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 35",
+              "143190",
+              "-3.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 36",
+              "144424",
+              "-2.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 37",
+              "145658",
+              "-1.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 38",
+              "146892",
+              "0.0",
+              "2026-09-01"
+            ],
+            [
+              "Ville 39",
+              "148126",
+              "1.0",
+              "2026-09-01"
+            ]
+          ]
+        }
+      },
+      {
+        "kind": "table",
+        "caption": "Répartition",
+        "table": {
+          "name": "part",
+          "headers": [
+            "Segment",
+            "Part"
+          ],
+          "rows": [
+            [
+              "A",
+              "42%"
+            ],
+            [
+              "B",
+              "58%"
+            ]
+          ]
+        }
+      }
+    ]
+  }
+}

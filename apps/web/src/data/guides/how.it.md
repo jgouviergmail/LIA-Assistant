@@ -6,7 +6,7 @@
 
 **Versione**: 4.9
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.43.1
+**Applicazione**: LIA v1.43.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -68,7 +68,7 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 541 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 272 ADRs, ~25.394 test raccolti da pytest in 1.534 file, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 274 ADRs, ~25.732 test raccolti da pytest in 1.548 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -86,10 +86,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | 25.394 raccolti da pytest su 1.534 file di test + 7.626 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | 25.732 raccolti da pytest su 1.548 file di test + 7.642 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 755, di cui 32 condivise tramite conftest |
 | Documenti di documentazione | 549 |
-| ADR (Architecture Decision Record) | 272 |
+| ADR (Architecture Decision Record) | 274 |
 | Metriche Prometheus | 486 definizioni |
 | Dashboard Grafana | 26 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -370,6 +370,10 @@ L'insieme è governato da un feature flag e una dozzina di impostazioni configur
 La pipeline può concludersi con un file e non solo con la prosa. Lo strumento `generate_document` segue la stessa architettura della generazione di immagini — un agente virtuale nel catalogo, nessun nodo di grafo dedicato — ma il suo «generatore» è uno slot LLM dedicato (`document_generation`, amministrabile come tutti gli altri) chiamato con **output strutturato tipizzato per famiglia di formato**: contenuto tabellare per CSV/Excel, un albero di sezioni per Word/PDF/Markdown/testo, un elenco di diapositive per PowerPoint. Lo schema è scelto *prima* della chiamata, quindi ogni risposta è validata con schema stretto; poi un **motore di resa locale puro** costruisce i byte esatti — openpyxl, python-docx, python-pptx, PyMuPDF: le librerie già incluse per l'estrazione RAG, che ora scrivono invece di leggere, senza alcun servizio documentale di terzi.
 
 Tre decisioni di progetto sostengono la funzionalità. Primo, l'onestà dell'artefatto: le celle dei fogli sono neutralizzate contro l'iniezione di formule (una sonda ha dimostrato che openpyxl memorizza `=1+2` come formula viva) mentre i numeri negativi legittimi restano intatti, e un fallimento dopo la chiamata LLM pagata restituisce un errore esplicito — mai una scheda fantasma. Secondo, il concatenamento: il pianificatore può iniettare i risultati di un passo di ricerca web nel passo documento (`source_data`), così «cerca e poi formalizza in CSV» sta in una sola richiesta. Terzo, il ciclo di vita: il file atterra nello store degli allegati esistente con la stessa pulizia TTL delle immagini generate, e la sua scheda — consegnata in diretta dal done chunk SSE e persistita nei metadati del messaggio da un serializzatore unico condiviso — mostra la scadenza esatta.
+
+**La cura appartiene al renderer, il significato al modello (ADR-274).** Lo schema che lo slot redattore riempie è *semantico*: nomina che cosa una cosa è — un titolo, una sequenza ordinata, una citazione, un richiamo, un'apertura di parte, un confronto su due colonne, una tabella con didascalia — e mai come disegnarla. La decisione di impaginazione spetta al renderer, che la esprime con i meccanismi nativi del formato invece di imitarli: stili con nome, campi `PAGE`/`NUMPAGES` e una definizione di numerazione multilivello in Word, così che sommario e numeri li ricalcoli Word stesso; i layout e i segnaposto del modello in PowerPoint, su una scena 16:9; una tabella con nome su colonne tipizzate in Excel, con filtro e ordinamento gratuiti; segnalibri, collegamenti e numeri di pagina esatti nel PDF, ottenuti impaginando il corpo una volta e concatenandogli davanti le pagine preliminari. Questa divisione evita di consegnare al modello un catalogo di modelli da scegliere — una decisione di disegno che non sa giudicare — e lascia che la resa migliori senza toccare lo schema.
+
+**Il testo viene misurato prima di essere collocato.** PowerPoint non calcola alcun adattamento automatico all'apertura di un file, e l'adattamento offerto dalla libreria sbaglia di un fattore due: il renderer misura quindi da sé, con uno stimatore calibrato contro PowerPoint — un glifo a larghezza piena vale un em intero, uno latino una frazione misurata. Ciò che non sta viene prima ridotto fino a una soglia di leggibilità, poi diviso in diapositive «Titolo (2/3)»; un punto elenco troppo lungo viene spezzato a fine frase. Non si taglia mai, perché un testo troncato a schermo è informazione persa senza preavviso. Lo stesso principio governa la chiamata al modello: una risposta che il fornitore dichiara troncata viene rifiutata nominando il suo budget (ADR-275), mai richiusa per sembrare un documento completo.
 
 ## 6. Il sistema di pianificazione (ExecutionPlan DSL)
 
@@ -1371,7 +1375,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-272 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+274 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1477,7 +1481,7 @@ Un `.xlsx` è un archivio: la protezione anti zip-bomb è quella dell'importator
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 272 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~25.394 test in 1.534 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 274 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~25.732 test in 1.548 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
@@ -1619,4 +1623,4 @@ Il volto del compagno sceglieva la propria espressione di fine turno dall'emozio
 
 **In chat, il debriefing affianca il blocco dei pari — con la direttiva opposta.** Il blocco dei pari afferma fatti esatti perché li legge nel turno stesso; la stessa frase sopra una sintesi datata sarebbe una macchina per affermazioni false. Il modello dice quindi che è datata, porta la sua **età** e non solo la sua data, e rimanda agli strumenti ogni cifra, ogni conteggio e ogni stato. Una corrispondenza di nome ambigua non inserisce **nulla**: la rubrica contiene ogni relazione mai aperta, nomi di aziende e numeri compresi, e un falso positivo consegnerebbe il fascicolo di una persona a una domanda che ne riguardava un'altra.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 272 ADRs e del changelog (da v1.0 a v1.43.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 274 ADRs e del changelog (da v1.0 a v1.43.2). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

@@ -1,0 +1,41 @@
+{
+  "doc_types": [
+    "docx",
+    "pdf",
+    "md",
+    "txt"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "note-de-cadrage",
+    "title": "Note de cadrage",
+    "subtitle": "Pour l'équipe produit",
+    "blocks": [
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Objet"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Cette note fixe le cadre de la refonte pour le prochain trimestre."
+      },
+      {
+        "kind": "bullets",
+        "items": [
+          "Réduire le délai de première réponse",
+          "Unifier les deux parcours d'entrée"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Décision"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Nous retenons l'option **incrémentale**, moins risquée à effectif constant."
+      }
+    ]
+  }
+}

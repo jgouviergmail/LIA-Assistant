@@ -24,7 +24,10 @@ from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.domains.document_generation.schemas import DocumentType
-from src.domains.document_generation.service import generate_document_for_user
+from src.domains.document_generation.service import (
+    DocumentOutputTruncatedError,
+    generate_document_for_user,
+)
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -147,7 +150,25 @@ async def generate_document(
             source_data=source_data,
             requested_filename=filename,
             language=normalize_language(user.language),
+            timezone=user.timezone,
             config=runtime.config if runtime else None,
+        )
+    except DocumentOutputTruncatedError as exc:
+        # The model was cut at the slot's output budget: no card, no retry, and
+        # a message the caller can act on rather than a bare refusal (ADR-275).
+        logger.warning(
+            "document_generation_too_long",
+            doc_type=parsed_type.value,
+            user_id=str(user_id),
+            budget_tokens=exc.budget_tokens,
+        )
+        return UnifiedToolOutput.failure(
+            message=(
+                "The document exceeded the output budget of the document_generation "
+                f"slot ({exc.budget_tokens} tokens). No document was produced. Ask for "
+                "a shorter document, or split it into several documents."
+            ),
+            error_code="TOOL_ERROR",
         )
     except Exception as exc:
         logger.error(

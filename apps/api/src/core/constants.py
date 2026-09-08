@@ -5361,6 +5361,39 @@ DOCUMENT_GENERATION_MAX_SOURCE_CHARS_DEFAULT: int = 60000
 # LLM config key (LLM_TYPES_REGISTRY / LLMConfigOverrideCache lookup)
 DOCUMENT_GENERATION_LLM_TYPE: str = "document_generation"
 
+# ----------------------------------------------------------------------------
+# Rendering craft (ADR-274)
+# ----------------------------------------------------------------------------
+# Page size of docx/pdf outputs (ISO A4 everywhere except North America; a
+# deployment picks). Slides are 16:9 LANDSCAPE and deliberately not configurable.
+DOCUMENT_GENERATION_PAGE_SIZE_DEFAULT: Literal["a4", "letter"] = "a4"
+
+# Headings from which a document is "long": table of contents, heading
+# numbering and a page break before each part switch on TOGETHER — one
+# predicate, never a TOC without numbering or numbering without a TOC.
+DOCUMENT_GENERATION_TOC_MIN_HEADINGS_DEFAULT: int = 5
+
+# Slide density budgets PUBLISHED to the writer and ENFORCED by the renderer:
+# beyond them the slide is split in two, never overflowed (ADR-184, ADR-274).
+DOCUMENT_GENERATION_SLIDE_MAX_BULLETS_DEFAULT: int = 6
+DOCUMENT_GENERATION_SLIDE_MAX_BULLET_CHARS_DEFAULT: int = 110
+
+# Words the writer may spend per output token of the slot, PER CONTENT FAMILY:
+# a conversion factor, not a tunable. Measured 2026-09-08 (o200k_base) on
+# realistic large documents: prose and slides converge to 0.69 words per token,
+# a workbook to 0.25 — short cells make the JSON structure dominate. One factor
+# for the three would publish a budget 2.2x too generous for a spreadsheet, and
+# a model obeying the number it was given would still be cut (ADR-184,
+# ADR-275). Each value keeps a ~20% margin under its measurement, because the
+# ratio also depends on the language (a compounding language tokenizes worse).
+# Keyed by the content model's name so the map has ONE writer and the
+# completeness guard can compare it with SCHEMA_BY_DOC_TYPE.
+DOCUMENT_GENERATION_WORDS_PER_OUTPUT_TOKEN: dict[str, float] = {
+    "SectionedContent": 0.55,
+    "SlideContent": 0.55,
+    "TabularContent": 0.20,
+}
+
 # ============================================================================
 # MEETINGS (meeting recording & structured minutes, ADR-258)
 # ============================================================================

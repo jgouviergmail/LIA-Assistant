@@ -42,6 +42,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { apiEndpointUrl } from '@/lib/api-client';
 import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -344,7 +345,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
   }, [memories]);
 
   const handleExport = () => {
-    window.open('/api/v1/memories/export', '_blank');
+    window.open(apiEndpointUrl('/memories/export'), '_blank');
   };
 
   // Group memories by category for display, sorted by date DESC within each category

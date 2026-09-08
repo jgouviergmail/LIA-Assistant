@@ -4,7 +4,7 @@
 
 **Versione**: 2.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.43.1
+**Applicazione**: LIA v1.43.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice (esclusi i test) — 44 domini funzionali | **580.000** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **33.000+** |
-| Decisioni di architettura documentate (ADR) | **272** |
-| Versioni rilasciate a ritmo regolare | **251** |
+| Decisioni di architettura documentate (ADR) | **274** |
+| Versioni rilasciate a ritmo regolare | **252** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 272 documentate:
+Tre decisioni strutturanti, tra le 274 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -88,6 +88,8 @@ Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misur
 Questa esigenza ha una conseguenza che il progetto ha imparato a proprie spese: **una suite di test verde non dimostra che una funzionalità funzioni**. Dimostra che ciò che è stato testato si comporta come è scritto. I difetti che sopravvivono ai controlli sono esattamente quelli su cui non sono mai stati interrogati — una capacità che nessuno invoca, una cifra che nessuno somma, una guardia che riconosce un nome anziché un meccanismo.
 
 Due esempi recenti lo illustrano esattamente. Il registro degli atti era alimentato da una sola porta, e tutto ciò che l'assistente intraprendeva di sua iniziativa le passava accanto: l'elenco si leggeva vuoto qualunque cosa facesse, senza che un solo test fallisse, perché nessuno chiedeva che cosa dovesse esserci. E il fascicolo che un utente scarica portava un tetto di righe — misurato, giustificato e applicato alla variabile sbagliata: scarsa era la memoria, limitata era la verità. Nessuno dei due è un errore di codice. Sono domande che non erano mai state poste.
+
+Un terzo caso, ancora più insidioso, viene dall'impaginazione dei documenti generati. Lo stimatore che decide se un testo sta in una diapositiva era calibrato contro PowerPoint su cinquantaquattro misure, tutte latine. Un ideogramma è largo il doppio di una lettera: una diapositiva densa in cinese sforava di centoventiquattro punti, e il test che avrebbe dovuto accorgersene non vedeva nulla, **perché interrogava lo stesso modulo che stava giudicando**. Un oracolo che condivide l'errore di ciò che misura è verde per costruzione. È servito far aprire i file a Office stesso perché il numero venisse fuori.
 
 Da qui una regola di lavoro: **nulla è creduto prima di aver girato**, su dati reali e lungo il percorso che l'utente compie. Un componente può essere corretto e la sua pagina vuota; un contatore può essere esatto e la sua domanda sbagliata. Ogni rilascio termina perciò con una rilettura avversariale, condotta a freddo, il cui scopo non è eseguire i test ma cercare ciò che non coprono.
 

@@ -1,0 +1,72 @@
+{
+  "doc_types": [
+    "pdf"
+  ],
+  "language": "fr",
+  "structure": "plain",
+  "content": {
+    "filename_stem": "compte-rendu",
+    "title": "Point projet",
+    "blocks": [
+      {
+        "kind": "paragraph",
+        "text": "Compte rendu de réunion"
+      },
+      {
+        "kind": "bullets",
+        "items": [
+          "Date : 2026-09-08",
+          "Lieu : Strasbourg",
+          "Participants : 4"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Résumé"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Sujets"
+      },
+      {
+        "kind": "heading",
+        "level": 3,
+        "text": "Budget"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Le budget est tenu."
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Actions"
+      },
+      {
+        "kind": "bullets",
+        "items": [
+          "Marie — relancer le fournisseur — 2026-09-15"
+        ]
+      },
+      {
+        "kind": "heading",
+        "level": 2,
+        "text": "Transcription"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Marie — Nous commençons par le budget."
+      },
+      {
+        "kind": "paragraph",
+        "text": "Paul — D'accord."
+      }
+    ]
+  }
+}

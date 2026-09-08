@@ -67,6 +67,7 @@ import {
   SlashSquare,
   Smartphone,
   Smile,
+  Presentation,
   Sliders,
   Sparkles,
   Star,
@@ -197,6 +198,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'frosted_glass',
       'narrow_screens',
       'local_model_fit',
+      'slide_never_overflows',
     ],
   },
 ] as const;
@@ -268,6 +270,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   plugin_report: Puzzle,
   narrow_screens: Smartphone,
   local_model_fit: Sliders,
+  slide_never_overflows: Presentation,
 };
 
 /**
@@ -338,4 +341,5 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   plugin_report: ['skill', 'server', 'installed', 'skipped', 'reason'],
   narrow_screens: [],
   local_model_fit: ['thinking', 'dropped'],
+  slide_never_overflows: [],
 };

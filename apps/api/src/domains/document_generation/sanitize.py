@@ -19,6 +19,15 @@ import re
 
 _FORMULA_PREFIXES: tuple[str, ...] = ("=", "+", "-", "@", "\t", "\r")
 
+# XML 1.0 forbids the C0 controls except tab, newline and carriage return, and
+# both writers enforce it: python-docx raises "All strings must be XML
+# compatible" and openpyxl raises IllegalCharacterError. A model echoing a form
+# feed out of an extracted PDF therefore killed the render AFTER the call was
+# paid for (measured 2026-09-08). Vertical tab and form feed are listed even
+# though whitespace collapsing usually turns them into spaces first: this
+# function must be correct on its own.
+_XML_FORBIDDEN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
+
 # A plain signed numeric literal ("-5", "+3.14", "-1e6", "-5,2") is data, not
 # a formula: neutralizing it would deface every negative number in a table.
 _PLAIN_NUMBER = re.compile(r"^[+-]?(\d+([.,]\d+)?|[.,]\d+)([eE][+-]?\d+)?$")
@@ -47,6 +56,18 @@ def neutralize_formula(value: str) -> str:
     if value.startswith(_FORMULA_PREFIXES) and not _PLAIN_NUMBER.match(value):
         return f"'{value}"
     return value
+
+
+def strip_control_characters(text: str) -> str:
+    """Drop the characters XML forbids, keeping tab, newline and return.
+
+    Args:
+        text: Any model-produced text.
+
+    Returns:
+        The same text without the characters a document writer refuses.
+    """
+    return _XML_FORBIDDEN.sub("", text)
 
 
 def sanitize_filename_stem(stem: str, fallback: str = "document") -> str:

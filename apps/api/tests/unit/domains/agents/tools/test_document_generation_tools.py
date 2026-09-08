@@ -145,6 +145,29 @@ class TestGenerateDocumentGuards:
 class TestGenerateDocumentOutcomes:
     """After the guards: honest failure, honest success."""
 
+    async def test_a_truncated_document_names_the_budget_and_produces_no_card(self) -> None:
+        """ADR-275: the caller is told WHY and what to do, not just « it failed »."""
+        from src.domains.document_generation.service import DocumentOutputTruncatedError
+
+        with (
+            patch.object(mod, "settings", _fake_settings()),
+            patch(SETTINGS_PATCH_PATH, return_value=_wrapper_settings()),
+            patch.object(mod, "_load_user", AsyncMock(return_value=_user())),
+            patch.object(
+                mod,
+                "generate_document_for_user",
+                AsyncMock(side_effect=DocumentOutputTruncatedError(16000)),
+            ),
+        ):
+            result = await mod.generate_document.coroutine(
+                instructions="a very long report", doc_type="docx", runtime=_runtime()
+            )
+        assert result.success is False
+        assert result.error_code == "TOOL_ERROR"
+        assert "16000" in result.message
+        assert "No document was produced" in result.message
+        assert "shorter" in result.message  # actionable, not just a refusal
+
     async def test_service_failure_is_honest(self) -> None:
         with (
             patch.object(mod, "settings", _fake_settings()),

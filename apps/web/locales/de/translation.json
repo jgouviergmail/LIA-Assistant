@@ -4507,7 +4507,7 @@
         },
         "documentGeneration": {
           "title": "Dokumenterstellung",
-          "description": "LIA schreibt auf Anfrage vollständige, herunterladbare Dokumente: CSV- und Excel-Tabellen, Word-Berichte, PowerPoint-Präsentationen mit Notizen, PDF, Markdown, reiner Text. Ein eigenes Schreibmodell erzeugt den Inhalt in deiner Sprache — gestützt auf deine Daten oder auf eine Recherche in derselben Anfrage — dann baut ein lokaler Renderer die exakte Datei, ganz ohne fremden Dokumentdienst. Die Dateien erscheinen als Karten unter der Antwort mit Name, Größe und Frist, und alles ist bewusst vergänglich: Lade herunter, was du behalten willst."
+          "description": "LIA verfasst auf Wunsch vollständige, herunterladbare Dokumente: CSV- und Excel-Tabellen, Word-Berichte, PowerPoint-Präsentationen mit Sprechernotizen, PDF, Markdown, reinen Text. Ein eigenes Schreibmodell erzeugt den Inhalt in deiner Sprache, gestützt auf deine Daten oder auf eine Recherche aus derselben Anfrage, und ein lokaler Renderer baut daraus die exakte Datei, ohne fremden Dokumentendienst. Jedes Format erhält eigene Gestaltungsregeln: 16:9-Folien mit einem Layout je Absicht, ein von Word berechnetes Inhaltsverzeichnis samt Seitenzahlen, typisierte Excel-Spalten unter einer filterbaren Tabelle, exakte Seitenzahlen im PDF. Text wird gemessen, bevor er gesetzt wird: nichts läuft über. Die Dateien erscheinen als Karten mit Name, Größe und Ablaufdatum."
         },
         "reactMode": {
           "title": "⚡ ReAct-Ausführungsmodus",
@@ -4592,6 +4592,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_43_2": {
+          "title": "v1.43.2 — 📊 Dokumente mit der Sorgfalt ihres Formats",
+          "date": "September 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Dokumente mit der Sorgfalt ihres Formats</b> — bitte um eine Präsentation und du bekommst eine echte: 16:9, ein Layout je Absicht — Kapitelauftakt, zweispaltiger Vergleich, native Tabelle — und eine Foliennummer auf jeder Folie. Eine Word-Datei kommt mit Inhaltsverzeichnis, nummerierten Überschriften und Seitenzahlen, von Word selbst berechnet. Eine Excel-Datei kommt mit typisierten Spalten, Filter und fixierter Kopfzeile. Ein PDF kommt mit exakten Seitenzahlen im Inhaltsverzeichnis und mit Lesezeichen.",
+            "i2": "<b>📐 Und nichts läuft über die Seite hinaus</b> — Text wird gemessen, bevor er gesetzt wird: eine überfüllte Folie wird verkleinert und dann in „Titel (2/3)“-Folien geteilt statt abgeschnitten. Ein zu langer Aufzählungspunkt wird am Satzende getrennt, nie mitten im Wort. Geprüft, indem die Dateien in Office geöffnet wurden: null Überläufe auf 69 Folien.",
+            "i3": "<b>🈶 Auch auf Chinesisch, Japanisch und Koreanisch</b> — ein Schriftzeichen ist doppelt so breit wie ein Buchstabe, was die Messung übersah: eine dichte chinesische Folie lief um 124 Punkte über, ohne dass es jemand meldete. Kopf- und Fußzeile eines chinesischen PDFs erschienen als Punkte, weil die passende Schrift fehlte.",
+            "i4": "<b>✂️ Ein abgeschnittenes Dokument wird nicht mehr als vollständig geliefert</b> — erreichte das Modell mitten im Schreiben seine Längengrenze, wurde das Ergebnis stillschweigend geschlossen und als „erfolgreich erzeugt“ gemeldet, ohne seine letzten Abschnitte. LIA sagt dir jetzt, dass es zu lang war, nennt die Grenze und schlägt vor, kürzer zu schreiben oder auf mehrere Dokumente aufzuteilen.",
+            "i5": "<b>⬇️ Downloads und Bilder ohne Umweg</b> — der Link eines erzeugten Dokuments, ein erzeugtes Bild, ein Screenshot sowie die Exporte deiner Interessen, Journale und Erinnerungen zeigten auf die Adresse der Website statt auf die der API. Auf einer Installation, in der die Website die API nicht weiterleitet, ließ sich nichts davon öffnen. Diese Links sprechen die API jetzt direkt an."
+          }
+        },
         "v1_43_1": {
           "title": "v1.43.1 — 🤝 Ein geschriebenes Debriefing für jede Beziehung",
           "date": "September 2026",
@@ -8164,7 +8176,7 @@
       "document_generation": {
         "title": "KI-Dokumenterstellung",
         "description": "Erstellen Sie herunterladbare CSV-, Excel-, Word-, PowerPoint-, PDF-, Markdown- oder Textdateien direkt aus der Unterhaltung.",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Wie erstelle ich ein Dokument?",
@@ -8185,6 +8197,10 @@
           "q5": {
             "question": "Wer kann die Dokumenterstellung abschalten?",
             "answer": "Der Administrator kann die Fähigkeit instanzweit im Panel der Plattform-Fähigkeiten abschalten, sofort und ohne Neustart — das Werkzeug verschwindet dann sogar aus dem, was der Assistent überhaupt vorschlagen kann. Einen Schalter pro Nutzer gibt es nicht: Bietet die Instanz die Dokumenterstellung an, steht sie jedem Nutzer zur Verfügung."
+          },
+          "q6": {
+            "question": "Wie sieht die fertige Datei aus?",
+            "answer": "Jedes Format wird mit seinen eigenen Regeln gesetzt, nicht als Text in einem grauen Kasten. Eine <b>Präsentation</b> ist 16:9, mit einem Layout je Absicht — Kapitelauftakt, zweispaltiger Vergleich, native Tabelle — und einer Foliennummer auf jeder Folie. Eine <b>Word</b>-Datei trägt Inhaltsverzeichnis, nummerierte Überschriften, eine Kopfzeile und Seitenzahlen, alle von Word selbst berechnet: sie bleiben richtig, wenn du einen Absatz hinzufügst. Eine <b>Excel</b>-Datei hat typisierte Spalten, eine fixierte Kopfzeile und eine filterbare Tabelle. Ein <b>PDF</b> hat ein Inhaltsverzeichnis mit exakten Seitenzahlen sowie Lesezeichen und Links. Text wird gemessen, bevor er gesetzt wird: eine überfüllte Folie wird verkleinert und dann geteilt statt abgeschnitten."
           }
         }
       },
@@ -8552,6 +8568,10 @@
       "local_model_fit": {
         "title": "Was es ablehnt, wird nicht angeboten",
         "desc": "Läuft ein Modell auf deinem Rechner, fragt LIA deinen Server, was es kann — und zeigt dann nur das. Die Denktiefe erscheint nur, wenn das Modell denkt, und die Regler, die es ignorieren würde, verschwinden, statt umsonst angeboten zu werden."
+      },
+      "slide_never_overflows": {
+        "title": "Nichts läuft über die Folie hinaus",
+        "desc": "Bevor LIA Text setzt, misst sie ihn. Eine überfüllte Folie wird verkleinert und dann geteilt statt abgeschnitten, und ein zu langer Aufzählungspunkt endet am Satzende, nie mitten im Wort. Ein Schriftzeichen zählt doppelt, weil es den Platz zweier Buchstaben einnimmt."
       }
     },
     "scenes": {
@@ -9802,7 +9822,7 @@
       },
       "document_generation": {
         "title": "KI-Dokumenterstellung",
-        "description": "Fragen Sie nach einer CSV, einer Excel-Tabelle, einem Word-Bericht, einem PowerPoint oder einem PDF: Ein dediziertes Autorenmodell erzeugt den Inhalt, und die fertige Datei kommt als herunterladbare Karte — verkettbar mit einer Web-Recherche derselben Anfrage."
+        "description": "Frag nach einer CSV, einer Excel-Tabelle, einem Word-Bericht, einem PowerPoint oder einem PDF: ein eigenes Autorenmodell erzeugt den Inhalt, und ein lokaler Renderer baut die Datei nach den Regeln ihres Formats — 16:9-Folien, deren Layout der Absicht folgt, ein von Word berechnetes Inhaltsverzeichnis samt Seitenzahlen, typisierte Excel-Spalten unter einer filterbaren Tabelle, exakte Seitenzahlen im PDF. Text wird gemessen, bevor er gesetzt wird — nichts läuft über. Verkettbar mit einer Websuche aus derselben Anfrage."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -12130,6 +12150,7 @@
       "stop_failed": "Die Aufnahme konnte nicht abgeschlossen werden.",
       "storage_unavailable": "Der Server konnte die Aufnahme nicht speichern (Speicher voll oder nicht verfügbar). Die Segmente bleiben erhalten und werden erneut gesendet.",
       "synthesis_failed": "Das Protokoll konnte nicht verfasst werden.",
+      "synthesis_too_long": "Die Aufnahme ist zu lang, um das Protokoll in einem Durchgang zu schreiben.",
       "transcript_unavailable": "Die Transkription ist nicht mehr verfügbar.",
       "unexpected": "Bei der Verarbeitung ist ein Fehler aufgetreten.",
       "unknown": "Unbekannter Fehler ({{code}})",

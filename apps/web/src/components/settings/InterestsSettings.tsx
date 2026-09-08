@@ -40,6 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { apiEndpointUrl } from '@/lib/api-client';
 import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -431,7 +432,7 @@ export function InterestsSettings({ lng }: BaseSettingsProps) {
                 label: t('interests.export'),
                 icon: Download,
                 disabled: total === 0,
-                onSelect: () => window.open('/api/v1/interests/export', '_blank'),
+                onSelect: () => window.open(apiEndpointUrl('/interests/export'), '_blank'),
                 // Visible on phones too (owner request 2026-08-05): folded
                 // into "⋯" it read as absent.
                 pinned: true,

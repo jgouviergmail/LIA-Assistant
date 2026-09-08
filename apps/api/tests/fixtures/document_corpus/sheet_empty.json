@@ -1,0 +1,26 @@
+{
+  "doc_types": [
+    "xlsx",
+    "csv"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "classeur-vide",
+    "title": "Classeur vide",
+    "sheets": [
+      {
+        "name": "Entêtes seules",
+        "headers": [
+          "a",
+          "b"
+        ],
+        "rows": []
+      },
+      {
+        "name": "Rien",
+        "headers": [],
+        "rows": []
+      }
+    ]
+  }
+}

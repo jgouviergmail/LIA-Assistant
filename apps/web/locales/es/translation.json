@@ -4507,7 +4507,7 @@
         },
         "documentGeneration": {
           "title": "Generación de documentos",
-          "description": "LIA redacta bajo demanda documentos completos y descargables: hojas CSV y Excel, informes Word, presentaciones PowerPoint con notas del ponente, PDF, Markdown, texto plano. Un modelo redactor dedicado produce el contenido en tu idioma — apoyado en los datos que aportas o en una búsqueda hecha en la misma petición — y luego un renderizador local construye el archivo exacto, sin ningún servicio documental de terceros. Los archivos aparecen como tarjetas bajo la respuesta con nombre, tamaño y caducidad, y todo es temporal por diseño: descarga lo que quieras conservar."
+          "description": "LIA redacta bajo demanda documentos completos y descargables: hojas de cálculo CSV y Excel, informes Word, presentaciones PowerPoint con notas del ponente, PDF, Markdown, texto plano. Un modelo redactor dedicado produce el contenido en tu idioma, apoyado en tus datos o en una búsqueda hecha en la misma petición, y luego un motor local fabrica el archivo exacto, sin servicio documental externo. Cada formato recibe sus propios códigos: diapositivas 16:9 con una maquetación por intención, índice y paginación calculados por Word, columnas de Excel tipadas bajo una tabla filtrable, números de página exactos en el PDF. El texto se mide antes de colocarse: nada se desborda. Los archivos llegan como tarjetas con nombre, tamaño y caducidad."
         },
         "reactMode": {
           "title": "⚡ Modo de Ejecución ReAct",
@@ -4592,6 +4592,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_43_2": {
+          "title": "v1.43.2 — 📊 Documentos con el oficio que merece su formato",
+          "date": "Septiembre 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Documentos con el oficio que merece su formato</b> — pide una presentación y recibes una de verdad: formato 16:9, una maquetación por intención — apertura de parte, comparación a dos columnas, tabla nativa — y un número en cada diapositiva. Un Word llega con su índice, sus títulos numerados y su paginación, calculados por el propio Word. Un Excel llega con columnas tipadas, filtro y encabezado fijo. Un PDF llega con números de página exactos en su índice y con marcadores.",
+            "i2": "<b>📐 Y nada se sale de la página</b> — el texto se mide antes de colocarse: una diapositiva recargada se reduce y luego se parte en diapositivas «Título (2/3)» en vez de recortarse. Una viñeta demasiado larga se corta al final de una frase, nunca a mitad de palabra. Comprobado abriendo los archivos con Office: cero desbordamientos en 69 diapositivas.",
+            "i3": "<b>🈶 También en chino, japonés y coreano</b> — un ideograma ocupa el doble que una letra, algo que la medida ignoraba: una diapositiva densa en chino se desbordaba 124 puntos sin que nada lo señalara. El encabezado y el pie de un PDF en chino se imprimían como puntos, por falta de la tipografía adecuada.",
+            "i4": "<b>✂️ Un documento cortado ya no se entrega como si estuviera completo</b> — cuando el modelo alcanzaba su límite de longitud a mitad de la redacción, el resultado se cerraba en silencio y se anunciaba «generado correctamente», sin sus últimas partes. Ahora LIA te dice que era demasiado largo, nombra el límite y te propone pedir algo más corto o repartirlo en varios documentos.",
+            "i5": "<b>⬇️ Descargas e imágenes que no dependen de un relevo</b> — el enlace de un documento generado, una imagen generada, una captura y las exportaciones de tus intereses, diarios y recuerdos apuntaban a la dirección del sitio en lugar de la de la API. En una instalación donde el sitio no reenvía la API, nada de esto se abría. Ahora esos enlaces se dirigen directamente a la API."
+          }
+        },
         "v1_43_1": {
           "title": "v1.43.1 — 🤝 Un resumen escrito para cada relación",
           "date": "Septiembre 2026",
@@ -8164,7 +8176,7 @@
       "document_generation": {
         "title": "Generación de documentos IA",
         "description": "Crea archivos CSV, Excel, Word, PowerPoint, PDF, Markdown o de texto descargables, directamente desde la conversación.",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "¿Cómo creo un documento?",
@@ -8185,6 +8197,10 @@
           "q5": {
             "question": "¿Quién puede desactivar la generación de documentos?",
             "answer": "El administrador puede desactivar la capacidad para toda la instancia desde el panel de capacidades de la plataforma, al instante y sin redespliegue — la herramienta desaparece entonces incluso de lo que el asistente puede proponer. No hay interruptor por usuario: cuando la instancia ofrece la generación de documentos, todos los usuarios disponen de ella."
+          },
+          "q6": {
+            "question": "¿Qué aspecto tiene el archivo terminado?",
+            "answer": "Cada formato se dibuja con sus propios códigos, no como texto en una caja gris. Una <b>presentación</b> es 16:9, con una maquetación elegida según la intención — apertura de parte, comparación a dos columnas, tabla nativa — y un número en cada diapositiva. Un <b>Word</b> lleva índice, títulos numerados, encabezado y paginación, todos calculados por el propio Word: siguen siendo correctos cuando añades un párrafo. Un <b>Excel</b> tiene columnas tipadas, encabezado fijo y una tabla filtrable. Un <b>PDF</b> tiene un índice con números de página exactos, además de marcadores y enlaces. El texto se mide antes de colocarse: una diapositiva recargada se reduce y luego se parte en dos en vez de recortarse."
           }
         }
       },
@@ -8552,6 +8568,10 @@
       "local_model_fit": {
         "title": "El ajuste que rechaza no existe",
         "desc": "Cuando un modelo funciona en tu máquina, LIA pregunta a tu servidor qué sabe hacer y luego muestra solo eso. La profundidad de razonamiento aparece únicamente si el modelo razona, y los controles que ignoraría desaparecen en vez de ofrecerse en balde."
+      },
+      "slide_never_overflows": {
+        "title": "Nada se sale de la diapositiva",
+        "desc": "Antes de colocar un texto, LIA lo mide. Una diapositiva recargada se reduce y luego se parte en dos en vez de recortarse, y una viñeta demasiado larga acaba al final de una frase, nunca a mitad de palabra. Un ideograma cuenta doble, porque ocupa el sitio de dos letras."
       }
     },
     "scenes": {
@@ -9802,7 +9822,7 @@
       },
       "document_generation": {
         "title": "Generación de documentos IA",
-        "description": "Pide un CSV, una hoja Excel, un informe Word, un PowerPoint o un PDF: un modelo redactor dedicado produce el contenido, y el archivo terminado llega como tarjeta descargable — encadenable con una investigación web de la misma petición."
+        "description": "Pide un CSV, una hoja Excel, un informe Word, un PowerPoint o un PDF: un modelo redactor dedicado produce el contenido y un motor local construye el archivo con los códigos de su formato — diapositivas 16:9 cuya maquetación sigue la intención, índice y paginación calculados por Word, columnas de Excel tipadas bajo una tabla filtrable, números de página exactos en el PDF. El texto se mide antes de colocarse, así que nada se desborda. Encadenable con una búsqueda web de la misma petición."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -12130,6 +12150,7 @@
       "stop_failed": "No se pudo finalizar la grabación.",
       "storage_unavailable": "El servidor no pudo guardar el audio (almacenamiento lleno o no disponible). Los segmentos se conservan y se reenvían.",
       "synthesis_failed": "No se pudo redactar el acta.",
+      "synthesis_too_long": "La grabación es demasiado larga para redactar el acta de una sola vez.",
       "transcript_unavailable": "La transcripción ya no está disponible.",
       "unexpected": "Algo falló durante el procesamiento.",
       "unknown": "Error desconocido ({{code}})",

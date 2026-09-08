@@ -6,7 +6,7 @@
 
 **Version**: 4.9
 **Datum**: 2026-08-23
-**Application**: LIA v1.43.1
+**Application**: LIA v1.43.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -68,7 +68,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 541 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 272 ADRs, ~25.394 von pytest gesammelte Tests in 1.534 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 274 ADRs, ~25.732 von pytest gesammelte Tests in 1.548 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -86,10 +86,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 25.394 von pytest über 1.534 Testdateien gesammelt + 7.626 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 25.732 von pytest über 1.548 Testdateien gesammelt + 7.642 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 272 |
+| ADRs (Architecture Decision Records) | 274 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -370,6 +370,10 @@ Das Ganze wird über ein Feature-Flag und ein Dutzend env-konfigurierbarer Einst
 Kann die Pipeline mit einer Datei enden statt nur mit Prosa. Das Werkzeug `generate_document` folgt derselben Architektur wie die Bildgenerierung — ein virtueller Agent im Katalog, kein eigener Graphknoten — aber sein „Generator" ist ein dedizierter LLM-Slot (`document_generation`, administrierbar wie jeder andere), aufgerufen mit **strukturierter Ausgabe, typisiert je Formatfamilie**: tabellarischer Inhalt für CSV/Excel, ein Abschnittsbaum für Word/PDF/Markdown/Text, eine Folienliste für PowerPoint. Das Schema wird *vor* dem Aufruf gewählt, jede Antwort ist also strikt schema-validiert; dann baut ein **reiner lokaler Renderer** die exakten Bytes — openpyxl, python-docx, python-pptx, PyMuPDF: die bereits für die RAG-Extraktion mitgelieferten Bibliotheken, die nun schreiben statt lesen, ohne jeden Dokumentdienst von Dritten.
 
 Drei Designentscheidungen tragen das Feature. Erstens die Ehrlichkeit des Artefakts: Tabellenzellen werden gegen Formel-Injektion neutralisiert (eine Probe bewies, dass openpyxl `=1+2` als lebendige Formel speichert), während legitime negative Zahlen unberührt bleiben, und ein Fehler nach dem bezahlten LLM-Aufruf liefert einen expliziten Fehler — nie eine Phantomkarte. Zweitens die Verkettung: Der Planer kann die Ergebnisse eines Web-Recherche-Schritts in den Dokumentschritt einspeisen (`source_data`), sodass „recherchieren, dann als CSV formalisieren" eine einzige Anfrage ist. Drittens der Lebenszyklus: Die Datei landet im bestehenden Attachment-Store mit derselben TTL-Bereinigung wie generierte Bilder, und ihre Karte — live über den SSE-Done-Chunk geliefert und über einen gemeinsamen Serialisierer in den Nachrichten-Metadaten persistiert — zeigt das exakte Ablaufdatum.
+
+**Die Sorgfalt gehört dem Renderer, die Bedeutung dem Modell (ADR-274).** Das Schema, das der Autoren-Slot ausfüllt, ist *semantisch*: es benennt, was eine Sache ist — eine Überschrift, eine geordnete Folge, ein Zitat, ein Hinweis, ein Kapitelauftakt, ein zweispaltiger Vergleich, eine Tabelle mit Bildunterschrift — und nie, wie sie zu zeichnen ist. Die Layoutentscheidung liegt beim Renderer, der sie mit den nativen Mitteln des Formats ausdrückt, statt sie nachzuahmen: benannte Formatvorlagen, `PAGE`/`NUMPAGES`-Felder und eine mehrstufige Nummerierungsdefinition in Word, sodass Word Inhaltsverzeichnis und Zahlen selbst neu berechnet; die Layouts und Platzhalter der Vorlage in PowerPoint auf einer 16:9-Bühne; eine benannte Tabelle über typisierten Spalten in Excel, wodurch Filtern und Sortieren gratis sind; Lesezeichen, Links und exakte Seitenzahlen im PDF, gewonnen, indem der Textkörper einmal paginiert und der Vorspann davor gesetzt wird. Diese Teilung erspart dem Modell einen Katalog von Vorlagen — eine gestalterische Entscheidung, die es nicht beurteilen kann — und lässt das Rendering sich verbessern, ohne das Schema anzufassen.
+
+**Text wird gemessen, bevor er gesetzt wird.** PowerPoint berechnet beim Öffnen einer Datei keine automatische Anpassung, und die Anpassung der Bibliothek liegt um den Faktor zwei daneben: der Renderer misst deshalb selbst, mit einem gegen PowerPoint kalibrierten Schätzer — ein Vollbreiten-Zeichen zählt ein ganzes Em, ein lateinisches einen gemessenen Bruchteil. Was nicht passt, wird zuerst bis zu einer Lesbarkeitsgrenze verkleinert und dann in „Titel (2/3)“-Folien geteilt; ein zu langer Aufzählungspunkt wird am Satzende getrennt. Abgeschnitten wird nie, denn auf dem Bildschirm abgeschnittener Text ist ohne Warnung verlorene Information. Dasselbe Prinzip gilt für den Modellaufruf: eine Antwort, die der Anbieter als abgeschnitten meldet, wird unter Nennung ihres Budgets abgelehnt (ADR-275) und nie so geschlossen, dass sie wie ein vollständiges Dokument aussieht.
 
 ## 6. Das Planungssystem (ExecutionPlan DSL)
 
@@ -1369,7 +1373,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-272 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+274 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1475,7 +1479,7 @@ Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers,
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 272 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~25.394 Tests in 1.534 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 274 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~25.732 Tests in 1.548 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
@@ -1617,4 +1621,4 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 
 **Im Chat tritt das Debriefing neben den Peer-Block — mit der umgekehrten Anweisung.** Der Peer-Block nennt exakte Fakten, weil er sie im Zug selbst liest; derselbe Satz über einer datierten Zusammenfassung wäre eine Maschine für falsche Behauptungen. Die Vorlage sagt daher, dass sie datiert ist, trägt ihr **Alter** und nicht nur ihr Datum, und verweist jede Zahl, jede Anzahl und jeden Status an die Werkzeuge. Eine mehrdeutige Namensübereinstimmung fügt **nichts** ein: Das Verzeichnis enthält jede je geöffnete Beziehung, Firmennamen und Rufnummern eingeschlossen, und ein Fehltreffer gäbe die Akte einer Person auf eine Frage nach einer anderen heraus.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 272 ADRs und des Changelogs (v1.0 bis v1.43.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 274 ADRs und des Changelogs (v1.0 bis v1.43.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

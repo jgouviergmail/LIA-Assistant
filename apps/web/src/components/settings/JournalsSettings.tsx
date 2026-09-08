@@ -54,6 +54,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { apiEndpointUrl } from '@/lib/api-client';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -299,7 +300,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
   };
 
   const handleExport = (format: 'json' | 'csv') => {
-    window.open(`/api/v1/journals/export?format=${format}`, '_blank');
+    window.open(apiEndpointUrl(`/journals/export?format=${format}`), '_blank');
   };
 
   const handleSubmitFeedback = async () => {

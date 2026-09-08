@@ -1,0 +1,111 @@
+{
+  "doc_types": [
+    "pptx"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "presentation",
+    "title": "Analyse du marché",
+    "subtitle": "Comité de direction",
+    "slides": [
+      {
+        "title": "1. Contexte",
+        "kind": "section",
+        "subtitle": "Où en est le marché",
+        "notes": "Poser le décor."
+      },
+      {
+        "title": "Les coûts augmentent avec le volume",
+        "bullets": [
+          "Hausse de **12 %** sur douze mois",
+          "Trois fournisseurs concentrent 68 % des achats",
+          "Le point mort recule de deux mois"
+        ],
+        "notes": "Insister sur la concentration."
+      },
+      {
+        "title": "Option A contre option B",
+        "kind": "comparison",
+        "columns": [
+          {
+            "heading": "Internaliser",
+            "bullets": [
+              "Coût faible",
+              "Délai long",
+              "Risque modéré"
+            ]
+          },
+          {
+            "heading": "Sous-traiter",
+            "bullets": [
+              "Coût élevé",
+              "Délai court",
+              "Risque faible"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Chiffres clés",
+        "kind": "table",
+        "table": {
+          "name": "t",
+          "headers": [
+            "Ville",
+            "Population",
+            "Croissance (%)"
+          ],
+          "rows": [
+            [
+              "Ville 0",
+              "100000",
+              "-3.0"
+            ],
+            [
+              "Ville 1",
+              "101234",
+              "-2.0"
+            ],
+            [
+              "Ville 2",
+              "102468",
+              "-1.0"
+            ],
+            [
+              "Ville 3",
+              "103702",
+              "0.0"
+            ],
+            [
+              "Ville 4",
+              "104936",
+              "1.0"
+            ],
+            [
+              "Ville 5",
+              "106170",
+              "2.0"
+            ],
+            [
+              "Ville 6",
+              "107404",
+              "3.0"
+            ],
+            [
+              "Ville 7",
+              "108638",
+              "-3.0"
+            ]
+          ]
+        }
+      },
+      {
+        "title": "Ce qu'il faut retenir",
+        "bullets": [
+          "Décider avant fin octobre",
+          "Sécuriser deux fournisseurs"
+        ]
+      }
+    ]
+  }
+}

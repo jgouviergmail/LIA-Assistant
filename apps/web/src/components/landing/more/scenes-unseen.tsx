@@ -1113,6 +1113,66 @@ function OwnInitiativeScene({ active, labels }: SceneProps) {
   );
 }
 
+type SlideFitPhase = 'crowded' | 'shrunk' | 'split';
+const SLIDE_FIT_STEPS: readonly TimelineStep<SlideFitPhase>[] = [
+  { at: 0, state: 'crowded' },
+  { at: 1600, state: 'shrunk' },
+  { at: 2800, state: 'split' },
+];
+
+/**
+ * Nothing runs off the slide.
+ *
+ * The bars overflow their frame, shrink, then move to a second slide rather
+ * than being clipped — the three states the renderer actually goes through.
+ */
+function SlideNeverOverflowsScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(SLIDE_FIT_STEPS, { active });
+  const split = phase === 'split';
+  const crowded = phase === 'crowded';
+  return (
+    <div className={cn(STAGE, 'flex-row items-center justify-center gap-2')}>
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-md border bg-card/70 p-1.5 transition-all duration-700 ease-out',
+          'h-12 w-20',
+          crowded ? 'border-amber-500/60' : 'border-border/60'
+        )}
+      >
+        <div
+          className={cn(
+            'space-y-1 transition-all duration-700 ease-out',
+            crowded ? 'scale-100' : 'scale-90 origin-top'
+          )}
+        >
+          {[0, 1, 2, 3, 4].map(index => (
+            <SkeletonLine
+              key={index}
+              w={index % 2 === 0 ? 'w-full' : 'w-4/5'}
+              className={cn(
+                'h-1 transition-opacity duration-500',
+                split && index > 2 ? 'opacity-0' : 'opacity-100'
+              )}
+            />
+          ))}
+        </div>
+      </div>
+      <div
+        className={cn(
+          'overflow-hidden rounded-md border border-border/60 bg-card/70 p-1.5 transition-all duration-700 ease-out',
+          'h-12',
+          split ? 'w-20 opacity-100' : 'w-0 border-transparent p-0 opacity-0'
+        )}
+      >
+        <div className="space-y-1">
+          <SkeletonLine w="w-4/5" className="h-1" />
+          <SkeletonLine w="w-full" className="h-1" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   activity_timeline: ActivityTimelineScene,
   own_initiative: OwnInitiativeScene,
@@ -1133,4 +1193,5 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   frosted_glass: FrostedGlassScene,
   narrow_screens: NarrowScreensScene,
   local_model_fit: LocalModelFitScene,
+  slide_never_overflows: SlideNeverOverflowsScene,
 };

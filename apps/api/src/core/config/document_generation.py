@@ -17,14 +17,20 @@ map was about to report a dormant state nobody could ever turn on.)
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     DOCUMENT_GENERATION_ENABLED_DEFAULT,
     DOCUMENT_GENERATION_MAX_SOURCE_CHARS_DEFAULT,
+    DOCUMENT_GENERATION_PAGE_SIZE_DEFAULT,
     DOCUMENT_GENERATION_RATE_LIMIT_CALLS_DEFAULT,
     DOCUMENT_GENERATION_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    DOCUMENT_GENERATION_SLIDE_MAX_BULLET_CHARS_DEFAULT,
+    DOCUMENT_GENERATION_SLIDE_MAX_BULLETS_DEFAULT,
+    DOCUMENT_GENERATION_TOC_MIN_HEADINGS_DEFAULT,
     DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
     MAX_DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
 )
@@ -107,5 +113,48 @@ class DocumentGenerationSettings(BaseSettings):
             "Maximum characters of source_data forwarded to the document LLM; "
             "the excess is truncated and the truncation is reported to the "
             "caller (never silent)."
+        ),
+    )
+
+    # ========================================================================
+    # Rendering craft (ADR-274)
+    # ========================================================================
+    # What the renderer ENFORCES, the prompt PUBLISHES (ADR-184): the three
+    # bounds below travel to the writer as placeholders, with the consequence
+    # of each overrun stated.
+
+    document_generation_page_size: Literal["a4", "letter"] = Field(
+        default=DOCUMENT_GENERATION_PAGE_SIZE_DEFAULT,
+        description="Page size of docx/pdf documents: a4 or letter (slides are 16:9 landscape).",
+    )
+
+    document_generation_toc_min_headings: int = Field(
+        default=DOCUMENT_GENERATION_TOC_MIN_HEADINGS_DEFAULT,
+        ge=2,
+        le=50,
+        description=(
+            "Headings from which a document gets a table of contents, numbered "
+            "headings and a page break before each part — one predicate for the "
+            "three, so a note never grows an apparatus it does not need."
+        ),
+    )
+
+    document_generation_slide_max_bullets: int = Field(
+        default=DOCUMENT_GENERATION_SLIDE_MAX_BULLETS_DEFAULT,
+        ge=2,
+        le=12,
+        description=(
+            "Bullets per slide published to the writer; beyond it the renderer "
+            "splits the slide rather than overflowing it."
+        ),
+    )
+
+    document_generation_slide_max_bullet_chars: int = Field(
+        default=DOCUMENT_GENERATION_SLIDE_MAX_BULLET_CHARS_DEFAULT,
+        ge=40,
+        le=400,
+        description=(
+            "Characters per bullet published to the writer; beyond it the "
+            "renderer shrinks the text, then splits the slide."
         ),
     )

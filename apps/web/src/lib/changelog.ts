@@ -16,6 +16,7 @@
 
 /** Versions rendered by any changelog surface, newest first. */
 export const CHANGELOG_VERSION_KEYS = [
+  'v1_43_2',
   'v1_43_1',
   'v1_43_0',
   'v1_42_4',

@@ -1,0 +1,65 @@
+{
+  "doc_types": [
+    "pptx"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "deck-colonnes",
+    "title": "Colonnes",
+    "slides": [
+      {
+        "title": "Une seule colonne",
+        "kind": "comparison",
+        "columns": [
+          {
+            "heading": "Seule",
+            "bullets": [
+              "a",
+              "b"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Trois colonnes",
+        "kind": "comparison",
+        "columns": [
+          {
+            "heading": "A",
+            "bullets": [
+              "a1",
+              "a2"
+            ]
+          },
+          {
+            "heading": "B",
+            "bullets": [
+              "b1"
+            ]
+          },
+          {
+            "heading": "C",
+            "bullets": [
+              "c1",
+              "c2",
+              "c3"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Section avec puces",
+        "kind": "section",
+        "subtitle": "accroche",
+        "bullets": [
+          "suite 1",
+          "suite 2"
+        ]
+      },
+      {
+        "title": "Table annoncée sans table",
+        "kind": "table"
+      }
+    ]
+  }
+}

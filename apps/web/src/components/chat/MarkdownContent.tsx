@@ -16,6 +16,7 @@ import { InlinePlaceCarousel } from '@/components/ui/inline-place-carousel';
 import { ReasoningScroll } from '@/components/chat/ReasoningScroll';
 import { formatPhonesInText } from '@/lib/format';
 import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
+import { apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { logger } from '@/lib/logger';
 
 // MCP Apps widget — lazy loaded (only needed when MCP App sentinel divs are present)
@@ -118,7 +119,10 @@ const MarkdownImage = memo(
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const { t } = useTranslation();
     // Normalize src to string (React 19 types allow Blob)
-    const src = typeof srcProp === 'string' ? srcProp : undefined;
+    // A markdown image can be an API resource (`/api/v1/connectors/...` for a
+    // place photo, a static map, a Drive thumbnail): resolve it against the API
+    // origin like every other link the browser follows.
+    const src = typeof srcProp === 'string' ? apiResourceUrl(srcProp) : undefined;
     // Use global cache to check if image already loaded
     const alreadyLoaded = src ? isImageLoaded(src) : false;
     const [loaded, setLoaded] = useState(alreadyLoaded);

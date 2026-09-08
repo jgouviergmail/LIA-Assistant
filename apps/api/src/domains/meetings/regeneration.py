@@ -19,6 +19,7 @@ from src.core.constants import MEETINGS_PROACTIVE_TASK_TYPE
 from src.domains.meetings.models import MeetingStage
 from src.domains.meetings.processing import (
     ERROR_SYNTHESIS,
+    ERROR_SYNTHESIS_TOO_LONG,
     ERROR_UNEXPECTED,
     synthesis_cost_eur,
 )
@@ -28,7 +29,10 @@ from src.domains.meetings.template_resolution import template_for_regeneration
 from src.domains.meetings.templates import sections_to_json
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.database import get_db_context
-from src.infrastructure.llm.structured_output import StructuredOutputError
+from src.infrastructure.llm.structured_output import (
+    StructuredOutputError,
+    StructuredOutputTruncatedError,
+)
 from src.infrastructure.observability.metrics_meetings import meeting_failures_total
 
 logger = structlog.get_logger(__name__)
@@ -71,6 +75,14 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
         )
         try:
             synthesis = await synthesize_minutes(turns, decision.sections, context)
+        except StructuredOutputTruncatedError as exc:
+            # Cut at the output budget: a distinct, permanent code so the
+            # reader is told WHY rather than « it failed » (ADR-275).
+            meeting_failures_total.labels(reason=ERROR_SYNTHESIS_TOO_LONG).inc()
+            await repo.fail_regenerate(
+                meeting_id, code=ERROR_SYNTHESIS_TOO_LONG, message=str(exc)[:1000]
+            )
+            return
         except StructuredOutputError as exc:
             meeting_failures_total.labels(reason=ERROR_SYNTHESIS).inc()
             await repo.fail_regenerate(meeting_id, code=ERROR_SYNTHESIS, message=str(exc)[:1000])

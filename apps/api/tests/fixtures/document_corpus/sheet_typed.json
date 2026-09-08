@@ -1,0 +1,76 @@
+{
+  "doc_types": [
+    "xlsx",
+    "csv"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "donnees-typees",
+    "title": "Données typées",
+    "sheets": [
+      {
+        "name": "Ventes",
+        "headers": [
+          "Ville",
+          "Date",
+          "Montant",
+          "Part",
+          "Code postal",
+          "Note"
+        ],
+        "rows": [
+          [
+            "Strasbourg",
+            "2026-09-01",
+            "1234.5",
+            "12%",
+            "67000",
+            "=1+1"
+          ],
+          [
+            "Colmar",
+            "2026-09-02",
+            "-98.25",
+            "3.5%",
+            "01000",
+            "-5.2"
+          ],
+          [
+            "Mulhouse",
+            "2026-09-03",
+            "1000000",
+            "84.5%",
+            "68100",
+            "ok"
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ]
+      },
+      {
+        "name": "Q1/Q2 [brouillon]",
+        "headers": [
+          "a",
+          "a",
+          ""
+        ],
+        "rows": [
+          [
+            "1",
+            "2",
+            "3"
+          ],
+          [
+            "4"
+          ]
+        ]
+      }
+    ]
+  }
+}

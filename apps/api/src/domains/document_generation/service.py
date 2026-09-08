@@ -20,11 +20,15 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
-from src.core.constants import DOCUMENT_GENERATION_LLM_TYPE
+from src.core.constants import (
+    DOCUMENT_GENERATION_LLM_TYPE,
+    DOCUMENT_GENERATION_WORDS_PER_OUTPUT_TOKEN,
+)
 from src.core.i18n_types import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.attachments.models import AttachmentContentType, AttachmentStatus
 from src.domains.attachments.repository import AttachmentRepository
+from src.domains.document_generation.context import build_render_context
 from src.domains.document_generation.document_store import (
     PendingDocument,
     store_pending_document,
@@ -43,10 +47,26 @@ from src.domains.document_generation.schemas import (
 )
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
-from src.infrastructure.llm.structured_output import get_structured_output_with_retry
+from src.infrastructure.llm.structured_output import (
+    StructuredOutputTruncatedError,
+    get_structured_output_with_retry,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class DocumentOutputTruncatedError(Exception):
+    """The document LLM was cut at the slot's output budget (ADR-275).
+
+    Nothing usable exists: a truncated payload is never rendered, and the tool
+    turns this into an explicit failure naming the budget so the caller can ask
+    for a shorter document instead of receiving a silently shortened one.
+    """
+
+    def __init__(self, budget_tokens: int) -> None:
+        super().__init__(f"document output cut at the slot budget of {budget_tokens} tokens")
+        self.budget_tokens = budget_tokens
 
 
 @dataclass
@@ -62,6 +82,44 @@ class GeneratedDocumentResult:
     truncated_source: bool
 
 
+def prompt_values(
+    *, doc_type: DocumentType, language: str, instructions: str, source_data: str
+) -> dict[str, str | int]:
+    """Every placeholder of the document prompt, budgets included.
+
+    What the renderer ENFORCES, the prompt PUBLISHES (ADR-184): the slide
+    density budgets, the long-document threshold and a length budget derived
+    from the slot's effective ``max_tokens``. A number written in the prompt
+    instead would be a number nobody could reconcile with the one applied.
+
+    The length budget follows the FAMILY: a spreadsheet spends four times as
+    many tokens per word as prose does (measured), so one factor for the three
+    would hand a workbook a budget it cannot honour.
+
+    Args:
+        doc_type: Target format — it selects the family's length economics.
+        language: Backend-canonical language code.
+        instructions: What the document must contain.
+        source_data: Raw material (already truncated by the caller).
+
+    Returns:
+        The ``str.format`` mapping the prompt file expects.
+    """
+    slot = get_llm_config_for_agent(settings, DOCUMENT_GENERATION_LLM_TYPE)
+    words_per_token = DOCUMENT_GENERATION_WORDS_PER_OUTPUT_TOKEN[
+        SCHEMA_BY_DOC_TYPE[doc_type].__name__
+    ]
+    return {
+        "language": get_language_name(language),
+        "instructions": instructions,
+        "source_data": source_data,
+        "max_bullets_per_slide": settings.document_generation_slide_max_bullets,
+        "max_bullet_chars": settings.document_generation_slide_max_bullet_chars,
+        "toc_min_headings": settings.document_generation_toc_min_headings,
+        "length_budget_words": int(slot.max_tokens * words_per_token),
+    }
+
+
 async def _call_document_llm(
     *,
     doc_type: DocumentType,
@@ -69,6 +127,7 @@ async def _call_document_llm(
     source_data: str,
     language: str,
     config: RunnableConfig | None,
+    user_id: uuid.UUID,
 ) -> DocumentContent:
     """Produce structured document content with the dedicated LLM slot.
 
@@ -83,14 +142,24 @@ async def _call_document_llm(
         source_data: Raw material (already truncated by the caller).
         language: Backend-canonical language code for the document content.
         config: RunnableConfig carrying the run's callbacks, or ``None``.
+        user_id: Account this call belongs to. Passed EXPLICITLY: the door
+            resolves an owner from ``config.metadata``, which LangGraph never
+            fills, so an inferred owner is no owner at all (ADR-272/ADR-275).
 
     Returns:
         Validated content matching ``SCHEMA_BY_DOC_TYPE[doc_type]``.
+
+    Raises:
+        StructuredOutputTruncatedError: When the model was cut at its output
+            budget — never retried, never rescued into a shorter document.
     """
     system = load_document_prompt("document_generation_prompt", "v1").format(
-        language=get_language_name(language),
-        instructions=instructions,
-        source_data=source_data,
+        **prompt_values(
+            doc_type=doc_type,
+            language=language,
+            instructions=instructions,
+            source_data=source_data,
+        )
     )
     # The literal satisfies the LLMType Literal; the constant (same value,
     # asserted by a test) feeds the str-typed config-helper lookup.
@@ -106,6 +175,7 @@ async def _call_document_llm(
         provider=provider,
         node_name=DOCUMENT_GENERATION_LLM_TYPE,
         config=config,
+        user_id=user_id,
     )
 
 
@@ -130,6 +200,7 @@ async def generate_document_for_user(
     source_data: str,
     requested_filename: str,
     language: str,
+    timezone: str,
     config: RunnableConfig | None,
 ) -> GeneratedDocumentResult:
     """Generate, render and store one document; queue its card for delivery.
@@ -142,6 +213,8 @@ async def generate_document_for_user(
         source_data: Optional raw material (research results, prior steps).
         requested_filename: User-requested stem; wins over the LLM suggestion.
         language: Backend-canonical language code for the document content.
+        timezone: The person's IANA timezone — the date on the title block is
+            read in THEIR day, never the server's (ADR-274).
         config: RunnableConfig carrying the run's callbacks, or ``None``.
 
     Returns:
@@ -153,15 +226,32 @@ async def generate_document_for_user(
     """
     cap = settings.document_generation_max_source_chars
     truncated = len(source_data) > cap
-    content = await _call_document_llm(
-        doc_type=doc_type,
-        instructions=instructions,
-        source_data=source_data[:cap],
-        language=language,
-        config=config,
-    )
+    try:
+        content = await _call_document_llm(
+            doc_type=doc_type,
+            instructions=instructions,
+            source_data=source_data[:cap],
+            language=language,
+            config=config,
+            user_id=user_id,
+        )
+    except StructuredOutputTruncatedError as exc:
+        # The slot's output budget cut the document: nothing is rendered and
+        # nothing is stored. The tool names the budget so the caller can ask
+        # for a shorter document (ADR-275) — ADR-226 promised this honesty.
+        budget = get_llm_config_for_agent(settings, DOCUMENT_GENERATION_LLM_TYPE).max_tokens
+        logger.warning(
+            "document_generation_output_truncated",
+            user_id=str(user_id),
+            doc_type=doc_type.value,
+            budget_tokens=budget,
+        )
+        raise DocumentOutputTruncatedError(budget) from exc
 
-    data = await asyncio.to_thread(render_document, doc_type, content)
+    context = build_render_context(
+        language=language, timezone=timezone, generated_at=datetime.now(UTC)
+    )
+    data = await asyncio.to_thread(render_document, doc_type, content, context)
 
     stem = sanitize_filename_stem(requested_filename or content.filename_stem)
     extension = DOCUMENT_EXTENSIONS[doc_type]

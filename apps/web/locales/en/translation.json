@@ -4516,7 +4516,7 @@
         },
         "documentGeneration": {
           "title": "Document Generation",
-          "description": "LIA writes complete, downloadable documents on demand: CSV and Excel spreadsheets, Word reports, PowerPoint decks with speaker notes, PDF, Markdown, plain text. A dedicated writer model produces the content in your language — grounded in the data you provided or in research done in the same request — then a local renderer builds the exact file, with no third-party document service involved. Files appear as cards under the answer with their name, size and expiry, and everything is temporary by design: download what you want to keep."
+          "description": "LIA writes complete, downloadable documents on demand: CSV and Excel spreadsheets, Word reports, PowerPoint decks with speaker notes, PDF, Markdown, plain text. A dedicated writer model produces the content in your language, then a local renderer builds the exact file — no third-party service. Each format gets its own codes: 16:9 slides with a layout per intent, contents and pagination computed by Word, typed Excel columns under a filterable Table, exact page numbers in the PDF. Text is measured before it is placed, so nothing overflows."
         },
         "reactMode": {
           "title": "⚡ ReAct Execution Mode",
@@ -4601,6 +4601,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_43_2": {
+          "title": "v1.43.2 — 📊 Documents with the craft their format deserves",
+          "date": "September 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Documents with the craft their format deserves</b> — ask for a deck and you get a real one: 16:9, a layout per intent — part opener, two-column comparison, native table — and a slide number on every slide. A Word file arrives with its contents, numbered headings and pagination, computed by Word itself. An Excel file arrives with typed columns, a filter and a frozen header. A PDF arrives with exact page numbers in its contents, and bookmarks.",
+            "i2": "<b>📐 And nothing runs off the page</b> — text is measured before it is placed: a crowded slide is shrunk, then split into “Title (2/3)” slides rather than clipped. An over-long bullet is cut at the end of a sentence, never mid-word. Checked by opening the files in Office: zero overflows across 69 slides.",
+            "i3": "<b>🈶 In Chinese, Japanese and Korean too</b> — an ideograph is twice as wide as a letter, which the measurement ignored: a dense Chinese slide overflowed by 124 points with nothing to report it. The running head and footer of a Chinese PDF printed as dots, for want of the right font.",
+            "i4": "<b>✂️ A cut document is no longer delivered as a complete one</b> — when the model hits its length limit mid-write, the result used to be closed silently and announced “generated successfully”, missing its last sections. LIA now tells you it was too long, names the limit, and offers to write something shorter or to split it into several documents.",
+            "i5": "<b>⬇️ Downloads and images that need no relay</b> — a generated document's link, a generated image, a screenshot, and the exports of your interests, journals and memories pointed at the website's address instead of the API's. On an install where the website does not relay the API, none of them opened. Those links now address the API directly."
+          }
+        },
         "v1_43_1": {
           "title": "v1.43.1 — 🤝 A written debrief for every relationship",
           "date": "September 2026",
@@ -8173,7 +8185,7 @@
       "document_generation": {
         "title": "AI Document Generation",
         "description": "Create downloadable CSV, Excel, Word, PowerPoint, PDF, Markdown or text files directly from the conversation.",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "How do I create a document?",
@@ -8194,6 +8206,10 @@
           "q5": {
             "question": "Who can turn document generation off?",
             "answer": "The administrator can disable the capability instance-wide from the platform capabilities panel, instantly and without redeploying — the tool then disappears from what the assistant can even propose. There is no per-user switch: when the instance offers document generation, every user has it."
+          },
+          "q6": {
+            "question": "What does the finished file look like?",
+            "answer": "Each format is drawn with its own codes, not as plain text in a grey box. A <b>presentation</b> is 16:9, with a layout chosen per intent — a part opener, a two-column comparison, a native table — and a slide number on every slide. A <b>Word</b> file carries a table of contents, numbered headings, a running head and pagination, all computed by Word itself: they stay right when you add a paragraph. An <b>Excel</b> file has typed columns, a frozen header and a filterable Table. A <b>PDF</b> has a contents page with exact page numbers, plus bookmarks and links. Text is measured before it is placed: a crowded slide is shrunk, then split in two rather than clipped."
           }
         }
       },
@@ -8561,6 +8577,10 @@
       "local_model_fit": {
         "title": "The setting it refuses is not shown",
         "desc": "When a model runs on your own machine, LIA asks your server what it can do — then shows only that. The thinking depth appears only if the model thinks, and the sliders it would ignore disappear instead of being offered for nothing."
+      },
+      "slide_never_overflows": {
+        "title": "Nothing runs off the slide",
+        "desc": "Before placing text, LIA measures it. A crowded slide is shrunk, then split in two rather than clipped, and an over-long bullet stops at the end of a sentence, never mid-word. An ideograph counts double, because it takes the room of two letters."
       }
     },
     "scenes": {
@@ -9882,7 +9902,7 @@
       },
       "document_generation": {
         "title": "AI Document Generation",
-        "description": "Ask for a CSV, an Excel sheet, a Word report, a PowerPoint or a PDF: a dedicated writer model produces the content, and the finished file arrives as a downloadable card — chainable on a web research from the same request."
+        "description": "Ask for a CSV, an Excel sheet, a Word report, a PowerPoint or a PDF: a dedicated writer model produces the content, and a local renderer builds the file with its format's own codes — 16:9 slides whose layout follows the intent, a table of contents and pagination computed by Word, typed Excel columns under a filterable Table, exact page numbers in the PDF. Text is measured before it is placed, so nothing overflows. Chains on a web search from the same request."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -12131,6 +12151,7 @@
       "stop_failed": "The recording could not be finalized.",
       "storage_unavailable": "The server could not store the audio (storage full or unavailable). The segments are kept and sent again.",
       "synthesis_failed": "The minutes could not be written.",
+      "synthesis_too_long": "The recording is too long for the minutes to be written in one pass.",
       "transcript_unavailable": "The transcript is no longer available.",
       "unexpected": "Something went wrong while processing.",
       "unknown": "Unknown error ({{code}})",

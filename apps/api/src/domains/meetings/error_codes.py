@@ -12,6 +12,10 @@ ERROR_NO_ENGINE = "no_engine_available"
 ERROR_NORMALIZE = "audio_normalize_failed"
 ERROR_AUDIO_UNAVAILABLE = "audio_unavailable"
 ERROR_SYNTHESIS = "synthesis_failed"
+#: The model was cut at its output budget while writing the minutes (ADR-275).
+#: PERMANENT by nature: the same transcript through the same prompt is cut at
+#: the same place, so a requeue would buy the identical refusal.
+ERROR_SYNTHESIS_TOO_LONG = "synthesis_too_long"
 ERROR_UNEXPECTED = "unexpected"
 #: The worker stopped heartbeating with no retry budget left (reaper dead-letter).
 ERROR_WORKER_LOST = "worker_lost"

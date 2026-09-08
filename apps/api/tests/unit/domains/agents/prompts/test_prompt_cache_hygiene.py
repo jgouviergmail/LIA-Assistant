@@ -52,6 +52,8 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "hitl_draft_critique_prompt",
     "hitl_plan_approval_question_prompt",
     "hitl_question_generator_prompt",
+    # Documents (ADR-274): the static craft rules first, the request in the tail
+    "document_generation_prompt",
     # Background intelligence
     "memory_extraction_prompt",
     "interest_extraction_prompt",
@@ -100,6 +102,19 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     "smart_planner_prompt": frozenset({"result_keys_list", "semantic_broad_batch"}),
     # Settings-driven cap, invariant at runtime for a given deployment.
     "initiative_prompt": frozenset({"max_actions"}),
+    # What the RENDERER enforces, the prompt publishes (ADR-184, ADR-274):
+    # three settings and one value derived from the slot's max_tokens. All four
+    # are invariant for a deployment — they change when an administrator edits
+    # a setting, not between two requests — and they must sit NEXT TO the rules
+    # they quantify, or a writer reads a rule whose number lives elsewhere.
+    "document_generation_prompt": frozenset(
+        {
+            "max_bullets_per_slide",
+            "max_bullet_chars",
+            "toc_min_headings",
+            "length_budget_words",
+        }
+    ),
     # Personality block in the static header; stable per user.
     "heartbeat_message_prompt": frozenset({"personality_instruction"}),
 }

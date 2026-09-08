@@ -7,11 +7,13 @@
  * honest error instead of an empty document.
  */
 
+import { apiResourceUrl } from './api-resource-url';
+
 export async function fetchAttachmentBlob(
   attachmentId: string,
   signal?: AbortSignal
 ): Promise<Blob> {
-  const response = await fetch(`/api/v1/attachments/${attachmentId}`, {
+  const response = await fetch(apiResourceUrl(`/api/v1/attachments/${attachmentId}`), {
     credentials: 'include',
     signal,
   });

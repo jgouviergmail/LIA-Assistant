@@ -15,7 +15,9 @@ from uuid import UUID
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.i18n import normalize_language
 from src.core.i18n_meetings import get_header_label
+from src.domains.document_generation.context import RenderContext
 from src.domains.document_generation.renderers import render_document
 from src.domains.document_generation.schemas import DocumentType
 from src.domains.meetings.models import Meeting
@@ -49,7 +51,14 @@ def render_pdf(meeting: Meeting, report: MeetingReport, *, language: str, gaps: 
     """The minutes as a PDF (document_generation renderer)."""
     header = build_header(meeting, report, language=language, gaps=gaps)
     content = render_sectioned(report, header, filename_stem=minutes_filename_stem(meeting, report))
-    return render_document(DocumentType.PDF, content)
+    # Minutes shape themselves and carry their own dated header, so they take
+    # the craft (running head, pagination, tables) and none of the apparatus
+    # (contents, numbering, a second date) — owner decision 2026-09-08.
+    return render_document(
+        DocumentType.PDF,
+        content,
+        RenderContext(language=normalize_language(language), structure="plain"),
+    )
 
 
 def pdf_filename(meeting: Meeting, report: MeetingReport) -> str:

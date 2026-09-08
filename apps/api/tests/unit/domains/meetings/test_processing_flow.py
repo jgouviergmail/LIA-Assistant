@@ -23,7 +23,10 @@ from src.domains.meetings.synthesis import SynthesisResult, SynthesisUsage
 from src.domains.meetings.template_ref import TemplateRef
 from src.domains.meetings.template_resolution import TemplateDecision
 from src.domains.meetings.transcription import TranscriptionError
-from src.infrastructure.llm.structured_output import StructuredOutputError
+from src.infrastructure.llm.structured_output import (
+    StructuredOutputError,
+    StructuredOutputTruncatedError,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -94,6 +97,15 @@ class TestProcessMeeting:
                 StructuredOutputError("bad json", "openai", "MeetingReport"),
                 processing.ERROR_SYNTHESIS,
                 True,
+            ),
+            # A cut answer is PERMANENT (ADR-275): the same transcript through
+            # the same prompt is cut at the same place, so every requeue would
+            # buy the identical refusal. Same doctrine as the permanent
+            # transcription codes above.
+            (
+                StructuredOutputTruncatedError("cut", "openai", "MeetingReport"),
+                processing.ERROR_SYNTHESIS_TOO_LONG,
+                False,
             ),
             (RuntimeError("boom"), processing.ERROR_UNEXPECTED, True),
         ],

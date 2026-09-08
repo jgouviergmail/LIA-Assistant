@@ -22,7 +22,10 @@ from src.domains.agents.orchestration.semantic_validator import (
     PlanSemanticValidator,
     SemanticValidationResult,
 )
-from src.infrastructure.llm.structured_output import StructuredOutputError
+from src.infrastructure.llm.structured_output import (
+    StructuredOutputError,
+    StructuredOutputTruncatedError,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -100,6 +103,30 @@ async def test_structured_output_error_is_retried_once(
     assert len(calls) == 2
     assert result.used_fallback is False
     assert result.is_valid is False  # the real verdict, not the fail-open pass
+
+
+async def test_a_truncated_answer_is_not_retried_and_falls_open_at_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-275: the same plan through the same prompt is cut at the same place.
+
+    The retry exists for a residual EMPTY-answer rate, which a second attempt
+    squares; it cannot complete an answer the output budget cut, so it would
+    only be paid twice before the same fail-open below.
+    """
+    validator = PlanSemanticValidator()
+    calls: list[int] = []
+
+    async def truncated(*args: object, **kwargs: object) -> SemanticValidationResult:
+        calls.append(1)
+        raise StructuredOutputTruncatedError("cut", provider="openai", schema_name="S")
+
+    monkeypatch.setattr(validator, "_validate_with_llm", truncated)
+    result = await validator.validate(_plan(), "create the appointment", user_language="fr")
+    assert len(calls) == 1
+    assert result.used_fallback is True
+    assert result.is_valid is True  # the documented fail-open, reached at once
+    assert result.fallback_reason == "validation_error:StructuredOutputTruncatedError"
 
 
 async def test_double_structured_output_error_falls_open(

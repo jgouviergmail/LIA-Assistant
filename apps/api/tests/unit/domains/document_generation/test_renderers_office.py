@@ -8,7 +8,6 @@ sees" is asserted, not assumed.
 import io
 
 import docx
-import openpyxl
 import pptx
 import pytest
 
@@ -20,66 +19,7 @@ from src.domains.document_generation.schemas import (
     Slide,
     SlideContent,
     TableSheet,
-    TabularContent,
 )
-
-
-@pytest.mark.unit
-class TestXlsxRenderer:
-    """xlsx: round-trip, neutralization, sheet-title safety."""
-
-    def test_round_trip_and_formula_neutralized(self) -> None:
-        content = TabularContent(
-            filename_stem="data",
-            title="Data",
-            sheets=[
-                TableSheet(name="Feuille 1", headers=["a", "b"], rows=[["1", "=2+2"]]),
-                TableSheet(name="Feuille 2", headers=["c"], rows=[["x"]]),
-            ],
-        )
-        data = render_document(DocumentType.XLSX, content)
-        wb = openpyxl.load_workbook(io.BytesIO(data))
-        assert wb.sheetnames == ["Feuille 1", "Feuille 2"]
-        ws = wb["Feuille 1"]
-        assert ws["A1"].value == "a"
-        assert ws["B2"].value == "'=2+2"
-        assert ws["B2"].data_type != "f"  # the probe-proven injection stays closed
-
-    def test_negative_numbers_survive_untouched(self) -> None:
-        content = TabularContent(
-            filename_stem="deltas",
-            title="Deltas",
-            sheets=[TableSheet(name="D", headers=["delta"], rows=[["-5.2"]])],
-        )
-        wb = openpyxl.load_workbook(io.BytesIO(render_document(DocumentType.XLSX, content)))
-        assert wb.active["A2"].value == "-5.2"
-
-    def test_sheet_titles_sanitized_and_deduplicated(self) -> None:
-        # openpyxl REJECTS []:*?/\ in titles; the LLM can produce both invalid
-        # characters and duplicate names — the renderer must survive both.
-        content = TabularContent(
-            filename_stem="data",
-            title="Data",
-            sheets=[
-                TableSheet(name="Q1/Q2 [draft]", headers=["a"], rows=[["1"]]),
-                TableSheet(name="Q1/Q2 [draft]", headers=["b"], rows=[["2"]]),
-                TableSheet(name="", headers=["c"], rows=[["3"]]),
-            ],
-        )
-        wb = openpyxl.load_workbook(io.BytesIO(render_document(DocumentType.XLSX, content)))
-        assert len(wb.sheetnames) == 3
-        assert len(set(wb.sheetnames)) == 3  # deduplicated
-        for title in wb.sheetnames:
-            assert not set(title) & set("[]:*?/\\")  # sanitized
-
-    def test_requires_tabular_content(self) -> None:
-        content = SectionedContent(
-            filename_stem="x",
-            title="T",
-            blocks=[SectionBlock(kind="paragraph", text="p")],
-        )
-        with pytest.raises(ValueError, match="TabularContent"):
-            render_document(DocumentType.XLSX, content)
 
 
 @pytest.mark.unit

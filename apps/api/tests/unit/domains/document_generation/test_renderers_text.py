@@ -108,3 +108,68 @@ class TestFormatMaps:
     def test_mime_and_extension_maps_are_total(self) -> None:
         assert set(DOCUMENT_MIME_TYPES) == set(DocumentType)
         assert set(DOCUMENT_EXTENSIONS) == set(DocumentType)
+
+
+@pytest.mark.unit
+class TestMarkdownStructureSurvivesTheData:
+    """A pipe is markdown's column separator: a cell carrying one splits the
+    row, and every later cell lands under the wrong header."""
+
+    def test_a_pipe_in_a_cell_does_not_add_a_column(self) -> None:
+        content = SectionedContent(
+            filename_stem="x",
+            title="T",
+            blocks=[
+                SectionBlock(
+                    kind="table",
+                    table=TableSheet(
+                        name="t", headers=["a|b", "c"], rows=[["1|2", "3"], ["4", "5"]]
+                    ),
+                )
+            ],
+        )
+        lines = render_document(DocumentType.MD, content).decode("utf-8").splitlines()
+        rows = [line for line in lines if line.startswith("|")]
+        # Header, rule and two data rows, each with exactly two cells.
+        assert len(rows) == 4
+        for row in rows:
+            assert row.count("|") - row.count(r"\|") == 3
+
+    def test_a_newline_in_a_cell_stays_on_one_row(self) -> None:
+        content = SectionedContent(
+            filename_stem="x",
+            title="T",
+            blocks=[
+                SectionBlock(
+                    kind="table",
+                    table=TableSheet(name="t", headers=["a", "b"], rows=[["x\ny", "z"]]),
+                )
+            ],
+        )
+        lines = render_document(DocumentType.MD, content).decode("utf-8").splitlines()
+        assert len([line for line in lines if line.startswith("|")]) == 3
+
+
+@pytest.mark.unit
+class TestAPlainTextRuleMatchesWhatItUnderlines:
+    """Four ideographs are eight columns wide: a rule of four dashes under them
+    reads as a typo in the one format that has no typography to fall back on."""
+
+    ZH = "季度报告"
+
+    def test_the_title_rule_follows_the_display_width(self) -> None:
+        content = SectionedContent(
+            filename_stem="x",
+            title=self.ZH,
+            blocks=[SectionBlock(kind="paragraph", text="corps")],
+        )
+        lines = render_document(DocumentType.TXT, content).decode("utf-8").splitlines()
+        assert lines[0] == self.ZH
+        assert len(lines[1]) == 2 * len(self.ZH)
+
+    def test_a_latin_rule_is_unchanged(self) -> None:
+        content = SectionedContent(
+            filename_stem="x", title="Titre", blocks=[SectionBlock(kind="paragraph", text="c")]
+        )
+        lines = render_document(DocumentType.TXT, content).decode("utf-8").splitlines()
+        assert lines[1] == "=" * len("Titre")

@@ -100,3 +100,23 @@ async def test_a_refused_delivery_is_email_send_failed_and_nothing_is_recorded(
 def test_the_subject_is_localized_and_names_the_meeting() -> None:
     assert delivery.minutes_subject(_report(), "en") == "Meeting minutes · Point projet"
     assert delivery.minutes_subject(_report(), "zh") == "会议纪要 · Point projet"
+
+
+def test_render_pdf_keeps_the_minutes_plain_and_undated() -> None:
+    """Minutes carry their own dated header: craft yes, apparatus no (ADR-274)."""
+    from unittest.mock import patch
+
+    from src.domains.meetings import delivery as delivery_module
+
+    seen: dict = {}
+
+    def _spy(doc_type, content, context=None):
+        seen["context"] = context
+        return b"%PDF-1.4"
+
+    with patch.object(delivery_module, "render_document", _spy):
+        delivery_module.render_pdf(_meeting(), _report(), language="fr")
+
+    assert seen["context"].structure == "plain"
+    assert seen["context"].generated_at is None
+    assert seen["context"].language == "fr"

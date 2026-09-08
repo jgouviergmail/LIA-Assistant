@@ -41,7 +41,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from src.core.config import settings
 from src.domains.agents.prompts import load_prompt
 from src.infrastructure.llm.factory import get_llm
-from src.infrastructure.llm.structured_output import StructuredOutputError, get_structured_output
+from src.infrastructure.llm.structured_output import (
+    StructuredOutputError,
+    StructuredOutputTruncatedError,
+    get_structured_output,
+)
 from src.infrastructure.observability.logging import get_logger
 
 from .for_each_rules import validate_for_each_patterns as validate_for_each_patterns
@@ -1145,6 +1149,11 @@ class PlanSemanticValidator:
                     ),
                     timeout=self._timeout_seconds,
                 )
+            except StructuredOutputTruncatedError:
+                # The retry below squares a residual EMPTY-answer rate; it
+                # cannot complete an answer the output budget cut, so it would
+                # only be paid twice before the same fail-open (ADR-275).
+                raise
             except StructuredOutputError as first_error:
                 # deepseek-v4-flash keeps a residual empty-answer rate on this
                 # call (measured 2/9 on 2026-07-17 even after the prompt-conflict

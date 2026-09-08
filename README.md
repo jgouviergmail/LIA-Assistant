@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.43.1</strong> — <strong>A written debrief per relationship, and a register that no longer hides what LIA does on her own.</strong> A relationship card stacks ten sections; nobody reads ten sections. What a reader actually wants — where I stand with this person, and what to raise next — is a synthesis no aggregate produces, so one is now written per person, at most once per local day, and read by the chat when that person is named. Facing it, the record closed three holes it could not see: the effect register is fed by the tool gate and proactive work calls no tool, so <strong>0 out-of-turn runs out of 228 over fourteen days</strong> left a trace while conversational surfaces scored 24/24 — "acts of her own initiative" was empty <em>by construction</em>, whatever she did. Nine surfaces that read through connector clients rather than tools recorded nothing either. And the download meant to hand that record over carried a row cap applied to the wrong variable: <strong>49 195 real rows against 1 000 per source — 97,9 % of the inference record absent</strong> from every extraction, under a header that truthfully said "truncated", which repairs nothing. A server-side cursor replaces the cap: what is bounded is now the memory a download holds, never what it contains. — 7 September 2026.
+  <strong>Version 1.43.2</strong> — <strong>Documents with the craft their format deserves, and an answer that is cut says so.</strong> The prompt was suspected and was not the cause: it already asked for more than the renderer could produce — measured, <strong>2 of the template's 11 PowerPoint layouts, 4 of Word's 164 named styles, no PDF stylesheet at all</strong>, and a 4:3 deck. The model now says what a thing <em>is</em> — an ordered sequence, a quote, a callout, a part opener, a comparison, data — and the renderer draws it with each format's native mechanisms: Word's fields and numbering definitions, PowerPoint's own layouts on a 16:9 stage, a named Excel Table over typed columns, exact page numbers and bookmarks in the PDF. Nothing overflows by construction: text is measured before it is placed, and Office itself reports <strong>0 overflows across 69 slides</strong>. Facing it, honesty about what a model returns: a payload cut at the output budget was closed mechanically and the shortened object validated — <strong>12 report cuts and 14 deck cuts in 100 became shorter documents announced “generated successfully”</strong>. A truncation is now a refusal that names the budget, never a rescue. — 9 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **33,000+** automated tests | **272** ADRs                                                           |
-| **251** versions shipped  | **6 languages**, parity enforced in CI  | **541** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **46** functional domains | **570,000** lines of code (excl. tests) | **33,000+** automated tests | **274** ADRs                                                           |
+| **252** versions shipped  | **6 languages**, parity enforced in CI  | **541** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -205,7 +205,7 @@ The result is measured, not proclaimed:
 - **Agent Plugins (agent-plugins.org)** ([ADR-225](docs/architecture/ADR-225-Standard-Agent-Plugins-v1.md)): LIA is a conformant client of the open Agent Plugins v1.0.0 standard (TSC: AWS, Cursor, Microsoft, OpenAI, Vercel) — portable plugin packages bundling agentskills.io skills and streamable-http MCP servers install in one step (zip upload or SSRF-hardened https URL) and behave exactly like their manually-created counterparts afterwards. Every install returns an exhaustive per-component report (installed / updated / skipped with a translated reason / removed — never a silent partial success); updates are re-imports that preserve configured OAuth credentials; uninstall removes the plugin and all its components as a group, and that group removal is the only way plugin components leave (individual deletion is refused server-side and guarded in the UI). Documented conformance deviations: stdio servers are never launched (multi-user server), endpoints are HTTPS-only
 - **Agentic Telephony** ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md)): LIA places real outbound phone calls on your behalf via your own per-user ElevenLabs + Twilio connector (BYO — zero cost on LIA's side). Every call is HITL-confirmed before dialing; the goal-driven voice agent greets the instant the line opens, resolves relative dates against a live temporal anchor, and hangs up when done. Privacy by capability: the call agent can only read free/busy availability — never event titles or contents; no recording, no stored transcript. A **strict mandate boundary** forbids any expense or commitment beyond the objective (offers are captured with their price and deferred to you), and the asynchronous post-call summary must state every cost and flag every open point. Config self-heals: fingerprint-based lazy re-sync of the vendor agent, self-healing one-active-call guard (vendor status probe, deleted-conversation 404 handling), pinned thinking-free agent LLM, telephony-native `ulaw_8000` audio
 - **AI Image Generation & Editing**: Generate images from text prompts (gpt-image-1), edit existing images with natural language instructions. Multi-provider factory architecture, per-user quality/size preferences, cost tracking with DB-cached pricing, attachment-based storage with cascade cleanup
-- **AI Document Generation** (ADR-226): Ask for a CSV, Excel, Word, PowerPoint, PDF, Markdown or text file in the chat — a dedicated writer LLM slot produces structured content per format family, pure local renderers build the exact bytes (zero new dependency, no third-party document service), and the file arrives as a downloadable card with an explicit expiry deadline. Chains on same-request web research, formula-injection-safe spreadsheets, PDFs open inline, instance-wide capability switch
+- **AI Document Generation** (ADR-226, ADR-274): Ask for a CSV, Excel, Word, PowerPoint, PDF, Markdown or text file in the chat — a dedicated writer LLM slot produces structured content per format family, pure local renderers build the exact bytes (zero new dependency, no third-party document service), and the file arrives as a downloadable card with an explicit expiry deadline. **The craft belongs to the renderer, the meaning to the model**: the writer says what a thing IS (an ordered sequence, a quote, a callout, a part opener, a comparison, data) and each format is drawn with its own native mechanisms — Word's named styles, `PAGE`/`NUMPAGES` fields, multilevel numbering and a table of contents; PowerPoint's own layouts on a 16:9 landscape stage with native tables and slide numbers; typed Excel columns under a named Table with a frozen header and a filter; a PDF whose contents carries exact page numbers, plus bookmarks and links. **Nothing overflows by construction** — text is measured before it is placed (calibrated against PowerPoint on 54 combinations, full-width glyphs counted as one em), shrunk, then split into “Title (2/3)” slides rather than clipped. A truncated model answer is refused and names the budget (ADR-275), never rescued into a shorter document announced as complete. Chains on same-request web research, formula-injection-safe spreadsheets, PDFs open inline, instance-wide capability switch
 - **File Attachments (Images, PDF)**: Upload with client-side compression, configurable LLM vision analysis, PDF text extraction, strict per-user isolation
 - **Response Grounding on Recent Entities** ([ADR-147](docs/architecture/ADR-147-Recent-Entities-Grounding.md)): on a turn that produces no tool data, the response model is re-grounded on the most recent entities already in state (zero I/O, age-bounded, explicitly non-authoritative) instead of paraphrasing older prose — and the prompt forbids inventing an entity attribute rather than admitting it is unknown
 - **Semantic Routing**: Binary classification with confidence scoring (high >0.85, medium >0.65)
@@ -1059,7 +1059,7 @@ OpenAI compatibility layer, which is what makes the difference:
 
 ### Architecture Decision Records (ADR)
 
-272 ADR files (ADR-001 through ADR-273 — ADR-008 has no separate file) documenting major architectural decisions:
+274 ADR files (ADR-001 through ADR-275 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -1095,7 +1095,7 @@ pytest --cov=src --cov-report=html -v
 | ----------------------- | --------------------------------------------------------------------------------------------- |
 | Total backend tests     | 20,468 collected (`pytest tests/unit tests/agents --collect-only`, 2026-08-27)                |
 | Frontend tests (vitest) | 6,327 across 496 files (+ hermetic Playwright E2E specs incl. axe/dark/zoom)                   |
-| Coverage floor          | 70% backend enforced, 71.37% measured (shrink-only ratchet) · frontend thresholds per glob     |
+| Coverage floor          | 71% backend enforced, 71.37% measured (shrink-only ratchet) · frontend thresholds per glob     |
 | CI Workflows            | 3 (CI, Security, Release)                                                                     |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
@@ -1112,7 +1112,7 @@ Pre-commit (local)              GitHub Actions CI
 ===================             ==================
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy             Fast unit tests + coverage (70%)
+Ruff + Black + MyPy             Fast unit tests + coverage (71%)
 Fast unit tests                 Integration tests (PostgreSQL + Redis)
 Critical pattern detection      Agents suite
 i18n keys sync                  Code Hygiene (i18n, Alembic, lockfiles, patterns)
@@ -1136,7 +1136,7 @@ ESLint + TypeScript check       ────────────────
 | **Branch protection**         | PR required (external contributors), 7 status checks, force push forbidden                                                                                                                                                          |
 | **Dependabot**                | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped                                                                                                                                                                  |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more)                                                                                                                                                                                 |
-| **Coverage threshold**        | 70% enforced in CI, 71.37% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
+| **Coverage threshold**        | 71% enforced in CI, 71.37% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
 | **Documentation gate**        | Every version and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; links, code paths and unreachable documents too       |
 
 ### Workflows

@@ -1,6 +1,7 @@
 """Guard the DocumentGenerationSettings composition into the Settings MRO (ADR-226)."""
 
 import pytest
+from pydantic import ValidationError
 
 from src.core.config.document_generation import DocumentGenerationSettings
 from src.core.constants import (
@@ -26,6 +27,10 @@ class TestDocumentGenerationSettings:
             "DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS",
             "MAX_DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS",
             "DOCUMENT_GENERATION_MAX_SOURCE_CHARS",
+            "DOCUMENT_GENERATION_PAGE_SIZE",
+            "DOCUMENT_GENERATION_TOC_MIN_HEADINGS",
+            "DOCUMENT_GENERATION_SLIDE_MAX_BULLETS",
+            "DOCUMENT_GENERATION_SLIDE_MAX_BULLET_CHARS",
         ):
             monkeypatch.delenv(var, raising=False)
 
@@ -49,6 +54,48 @@ class TestDocumentGenerationSettings:
         assert (
             s.document_generation_max_source_chars == DOCUMENT_GENERATION_MAX_SOURCE_CHARS_DEFAULT
         )
+
+    def test_rendering_defaults_come_from_constants(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The craft settings (ADR-274) are tunables, so they read from constants."""
+        from src.core.constants import (
+            DOCUMENT_GENERATION_PAGE_SIZE_DEFAULT,
+            DOCUMENT_GENERATION_SLIDE_MAX_BULLET_CHARS_DEFAULT,
+            DOCUMENT_GENERATION_SLIDE_MAX_BULLETS_DEFAULT,
+            DOCUMENT_GENERATION_TOC_MIN_HEADINGS_DEFAULT,
+        )
+
+        for var in (
+            "DOCUMENT_GENERATION_PAGE_SIZE",
+            "DOCUMENT_GENERATION_TOC_MIN_HEADINGS",
+            "DOCUMENT_GENERATION_SLIDE_MAX_BULLETS",
+            "DOCUMENT_GENERATION_SLIDE_MAX_BULLET_CHARS",
+        ):
+            monkeypatch.delenv(var, raising=False)
+
+        s = DocumentGenerationSettings()
+        assert s.document_generation_page_size == DOCUMENT_GENERATION_PAGE_SIZE_DEFAULT
+        assert (
+            s.document_generation_toc_min_headings == DOCUMENT_GENERATION_TOC_MIN_HEADINGS_DEFAULT
+        )
+        assert (
+            s.document_generation_slide_max_bullets == DOCUMENT_GENERATION_SLIDE_MAX_BULLETS_DEFAULT
+        )
+        assert (
+            s.document_generation_slide_max_bullet_chars
+            == DOCUMENT_GENERATION_SLIDE_MAX_BULLET_CHARS_DEFAULT
+        )
+
+    def test_page_size_is_a_closed_choice(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An unsupported page size is a configuration error, not a silent A4."""
+        monkeypatch.setenv("DOCUMENT_GENERATION_PAGE_SIZE", "a5")
+        with pytest.raises(ValidationError):
+            DocumentGenerationSettings()
+
+    def test_the_density_budgets_are_bounded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A slide of 200 bullets is not a budget: the bounds keep it a document."""
+        monkeypatch.setenv("DOCUMENT_GENERATION_SLIDE_MAX_BULLETS", "200")
+        with pytest.raises(ValidationError):
+            DocumentGenerationSettings()
 
     def test_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DOCUMENT_GENERATION_ENABLED", "false")

@@ -108,10 +108,15 @@ generate_document_catalogue_manifest = ToolManifest(
             description="Confirmation with the generated filename",
         ),
     ],
+    # Measured 2026-09-08 (tiktoken o200k_base) after ADR-274: the prompt is
+    # 1 234 tokens (was 855 — it now publishes the vocabulary and the budgets)
+    # and the schema 259 to 597 depending on the family, before instructions
+    # and source data. A published estimate that no longer covers the prompt
+    # alone is worse than no estimate.
     cost=CostProfile(
-        est_tokens_in=2000,
+        est_tokens_in=2500,
         est_tokens_out=8000,
-        est_cost_usd=0.05,
+        est_cost_usd=0.06,
         est_latency_ms=60000,
     ),
     permissions=PermissionProfile(

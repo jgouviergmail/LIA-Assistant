@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useHealthMetrics, type HealthMetricsPeriod } from '@/hooks/useHealthMetrics';
+import { apiEndpointUrl } from '@/lib/api-client';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -73,6 +74,7 @@ interface HealthMetricsSettingsProps {
 }
 
 const PERIOD_VALUES: HealthMetricsPeriod[] = ['hour', 'day', 'week', 'month', 'year'];
+const API_PREFIX = '/api/v1';
 const INGEST_STEPS_PATH = '/api/v1/ingest/health/steps';
 const INGEST_HEART_RATE_PATH = '/api/v1/ingest/health/heart_rate';
 
@@ -120,8 +122,16 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
   const [ingestHeartRateUrl, setIngestHeartRateUrl] = useState<string>(INGEST_HEART_RATE_PATH);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIngestStepsUrl(`${window.location.origin}${INGEST_STEPS_PATH}`);
-      setIngestHeartRateUrl(`${window.location.origin}${INGEST_HEART_RATE_PATH}`);
+      // The API origin when one is configured: these URLs are pasted into an
+      // external app, and the frontend origin only reaches the API where a
+      // reverse proxy re-routes /api/v1/*. The fallback keeps today's
+      // behaviour for a deployment that does exactly that.
+      const absolute = (path: string) => {
+        const built = apiEndpointUrl(path.replace(API_PREFIX, ''));
+        return built.startsWith('http') ? built : `${window.location.origin}${path}`;
+      };
+      setIngestStepsUrl(absolute(INGEST_STEPS_PATH));
+      setIngestHeartRateUrl(absolute(INGEST_HEART_RATE_PATH));
     }
   }, []);
 

@@ -10,6 +10,7 @@ import pytest
 from src.domains.document_generation.sanitize import (
     neutralize_formula,
     sanitize_filename_stem,
+    strip_control_characters,
 )
 
 
@@ -59,3 +60,20 @@ class TestSanitizeFilenameStem:
         cleaned = sanitize_filename_stem(".hidden.")
         assert not cleaned.startswith(".")
         assert not cleaned.endswith(".")
+
+
+@pytest.mark.unit
+class TestControlCharactersAreRemoved:
+    """XML forbids most C0 controls, so python-docx and openpyxl REFUSE them:
+    a model that echoed a form feed out of an extracted PDF crashed the render
+    after the call had been paid for (measured 2026-09-08)."""
+
+    def test_the_characters_xml_forbids_are_dropped(self) -> None:
+        assert strip_control_characters("a\x00b\x07c\x1bd") == "abcd"
+
+    def test_tab_newline_and_carriage_return_survive(self) -> None:
+        """They are legal in XML, and the whitespace collapsing owns them."""
+        assert strip_control_characters("a\tb\nc\rd") == "a\tb\nc\rd"
+
+    def test_ordinary_text_is_untouched(self) -> None:
+        assert strip_control_characters("Émile — 12 \u20ac \u4e00") == "Émile — 12 \u20ac \u4e00"

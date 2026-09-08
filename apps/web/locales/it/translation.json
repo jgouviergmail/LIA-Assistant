@@ -4509,7 +4509,7 @@
         },
         "documentGeneration": {
           "title": "Generazione di documenti",
-          "description": "LIA redige su richiesta documenti completi e scaricabili: fogli CSV ed Excel, relazioni Word, presentazioni PowerPoint con note del relatore, PDF, Markdown, testo semplice. Un modello redattore dedicato produce il contenuto nella tua lingua — basandosi sui dati che fornisci o su una ricerca fatta nella stessa richiesta — poi un renderer locale costruisce il file esatto, senza alcun servizio documentale di terzi. I file compaiono come schede sotto la risposta con nome, dimensione e scadenza, e tutto è temporaneo per scelta: scarica ciò che vuoi conservare."
+          "description": "LIA redige su richiesta documenti completi e scaricabili: fogli di calcolo CSV ed Excel, relazioni Word, presentazioni PowerPoint con note del relatore, PDF, Markdown, testo semplice. Un modello redattore dedicato produce il contenuto nella tua lingua, basandosi sui tuoi dati o su una ricerca fatta nella stessa richiesta, e poi un motore locale costruisce il file esatto, senza servizi documentali di terzi. Ogni formato riceve i propri codici: diapositive 16:9 con un'impaginazione per intenzione, sommario e paginazione calcolati da Word, colonne Excel tipizzate sotto una tabella filtrabile, numeri di pagina esatti nel PDF. Il testo viene misurato prima di essere collocato: nulla fuoriesce. I file arrivano come schede con nome, dimensione e scadenza."
         },
         "reactMode": {
           "title": "⚡ Modalità di Esecuzione ReAct",
@@ -4594,6 +4594,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_43_2": {
+          "title": "v1.43.2 — 📊 Documenti con la cura che il loro formato merita",
+          "date": "Settembre 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>📊 Documenti con la cura che il loro formato merita</b> — chiedi una presentazione e ne ricevi una vera: formato 16:9, un'impaginazione per intenzione — apertura di parte, confronto su due colonne, tabella nativa — e un numero su ogni diapositiva. Un Word arriva con il suo sommario, i titoli numerati e la paginazione, calcolati da Word stesso. Un Excel arriva con colonne tipizzate, filtro e intestazione bloccata. Un PDF arriva con i numeri di pagina esatti nel sommario e con i segnalibri.",
+            "i2": "<b>📐 E nulla esce dalla pagina</b> — il testo viene misurato prima di essere collocato: una diapositiva troppo densa viene ridotta e poi divisa in diapositive «Titolo (2/3)» invece che tagliata. Un punto elenco troppo lungo viene spezzato a fine frase, mai a metà parola. Verificato aprendo i file con Office: zero fuoriuscite su 69 diapositive.",
+            "i3": "<b>🈶 Anche in cinese, giapponese e coreano</b> — un ideogramma è largo il doppio di una lettera, cosa che la misura ignorava: una diapositiva densa in cinese sforava di 124 punti senza che nulla lo segnalasse. Intestazione e piè di pagina di un PDF in cinese venivano stampati come puntini, per mancanza del carattere giusto.",
+            "i4": "<b>✂️ Un documento troncato non viene più consegnato come completo</b> — quando il modello raggiungeva il suo limite di lunghezza a metà scrittura, il risultato veniva chiuso in silenzio e annunciato come «generato con successo», privo delle ultime parti. Ora LIA ti dice che era troppo lungo, nomina il limite e propone di chiedere qualcosa di più breve o di dividerlo in più documenti.",
+            "i5": "<b>⬇️ Download e immagini che non dipendono da un ponte</b> — il link di un documento generato, un'immagine generata, uno screenshot e le esportazioni di interessi, diari e ricordi puntavano all'indirizzo del sito anziché a quello dell'API. Su un'installazione in cui il sito non inoltra l'API, niente di tutto ciò si apriva. Ora quei link si rivolgono direttamente all'API."
+          }
+        },
         "v1_43_1": {
           "title": "v1.43.1 — 🤝 Un debriefing scritto per ogni relazione",
           "date": "Settembre 2026",
@@ -8166,7 +8178,7 @@
       "document_generation": {
         "title": "Generazione di documenti IA",
         "description": "Crea file CSV, Excel, Word, PowerPoint, PDF, Markdown o di testo scaricabili, direttamente dalla conversazione.",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Come creo un documento?",
@@ -8187,6 +8199,10 @@
           "q5": {
             "question": "Chi può disattivare la generazione di documenti?",
             "answer": "L'amministratore può disattivare la capacità per l'intera istanza dal pannello delle capacità della piattaforma, all'istante e senza rilancio — lo strumento sparisce allora perfino da ciò che l'assistente può proporre. Non c'è un interruttore per utente: quando l'istanza offre la generazione di documenti, ogni utente ne dispone."
+          },
+          "q6": {
+            "question": "Che aspetto ha il file finito?",
+            "answer": "Ogni formato è disegnato con i propri codici, non come testo in una scatola grigia. Una <b>presentazione</b> è in 16:9, con un'impaginazione scelta secondo l'intenzione — apertura di parte, confronto su due colonne, tabella nativa — e un numero su ogni diapositiva. Un <b>Word</b> porta sommario, titoli numerati, intestazione e paginazione, tutti calcolati da Word stesso: restano giusti quando aggiungi un paragrafo. Un <b>Excel</b> ha colonne tipizzate, intestazione bloccata e una tabella filtrabile. Un <b>PDF</b> ha un sommario con numeri di pagina esatti, oltre a segnalibri e collegamenti. Il testo viene misurato prima di essere collocato: una diapositiva troppo densa viene ridotta e poi divisa in due anziché tagliata."
           }
         }
       },
@@ -8554,6 +8570,10 @@
       "local_model_fit": {
         "title": "Il comando che rifiuta non esiste",
         "desc": "Quando un modello gira sulla tua macchina, LIA chiede al tuo server cosa sa fare e poi mostra solo quello. La profondità di ragionamento compare solo se il modello ragiona, e i cursori che ignorerebbe spariscono invece di essere offerti per nulla."
+      },
+      "slide_never_overflows": {
+        "title": "Nulla esce dalla diapositiva",
+        "desc": "Prima di collocare un testo, LIA lo misura. Una diapositiva troppo densa viene ridotta e poi divisa in due anziché tagliata, e un punto elenco troppo lungo si ferma a fine frase, mai a metà parola. Un ideogramma conta doppio, perché occupa lo spazio di due lettere."
       }
     },
     "scenes": {
@@ -9804,7 +9824,7 @@
       },
       "document_generation": {
         "title": "Generazione di documenti IA",
-        "description": "Chiedi un CSV, un foglio Excel, una relazione Word, un PowerPoint o un PDF: un modello redattore dedicato produce il contenuto, e il file finito arriva come scheda scaricabile — concatenabile a una ricerca web della stessa richiesta."
+        "description": "Chiedi un CSV, un foglio Excel, una relazione Word, un PowerPoint o un PDF: un modello redattore dedicato produce il contenuto e un motore locale costruisce il file con i codici del suo formato — diapositive 16:9 la cui impaginazione segue l'intenzione, sommario e paginazione calcolati da Word, colonne Excel tipizzate sotto una tabella filtrabile, numeri di pagina esatti nel PDF. Il testo viene misurato prima di essere collocato, quindi nulla fuoriesce. Concatenabile con una ricerca web della stessa richiesta."
       },
       "devops_cli": {
         "title": "DevOps CLI (Admin)",
@@ -12132,6 +12152,7 @@
       "stop_failed": "Impossibile finalizzare la registrazione.",
       "storage_unavailable": "Il server non ha potuto salvare l'audio (spazio pieno o non disponibile). I segmenti sono conservati e reinviati.",
       "synthesis_failed": "Impossibile redigere il verbale.",
+      "synthesis_too_long": "La registrazione è troppo lunga per redigere il verbale in una sola volta.",
       "transcript_unavailable": "La trascrizione non è più disponibile.",
       "unexpected": "Qualcosa è andato storto durante l'elaborazione.",
       "unknown": "Errore sconosciuto ({{code}})",

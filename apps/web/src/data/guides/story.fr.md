@@ -4,7 +4,7 @@
 
 **Version** : 2.0
 **Date** : 2026-08-23
-**Application** : LIA v1.43.1
+**Application** : LIA v1.43.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 44 domaines fonctionnels | **580 000** |
 | Tests automatisés, exécutés à chaque commit et livraison | **33 000+** |
-| Décisions d'architecture documentées (ADR) | **272** |
-| Versions livrées à rythme régulier | **251** |
+| Décisions d'architecture documentées (ADR) | **274** |
+| Versions livrées à rythme régulier | **252** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 272 documentées :
+Trois décisions structurantes, parmi les 274 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -88,6 +88,8 @@ Le plan d'action est organisé en vagues, chacune avec des critères de sortie m
 Cette exigence a une conséquence que le projet a apprise à ses dépens : **une suite de tests verte ne prouve pas qu'une fonctionnalité marche**. Elle prouve que ce qui a été testé se comporte comme écrit. Les défauts qui survivent aux portes sont précisément ceux qu'on ne leur a jamais demandé de voir — une capacité que personne n'appelle, un chiffre que personne n'additionne, une garde qui reconnaît un nom plutôt qu'un mécanisme.
 
 Deux exemples récents en sont l'illustration exacte. Le journal des actes était alimenté par une seule porte, et tout ce que l'assistante entreprenait d'elle-même passait à côté : la liste se lisait vide quoi qu'elle fasse, sans qu'un seul test échoue, puisque aucun ne demandait ce qui devait s'y trouver. Et le dossier qu'un utilisateur télécharge portait un plafond de lignes — mesuré, justifié, appliqué à la mauvaise variable : ce qui était rare, c'était la mémoire ; ce qui était borné, c'était la vérité. Aucune de ces deux erreurs n'est une faute de code. Ce sont des questions qui n'avaient jamais été posées.
+
+Un troisième cas, plus retors encore, vient de la mise en page des documents générés. L'estimateur qui décide si un texte tient sur une diapositive était calibré contre PowerPoint sur cinquante-quatre mesures — toutes latines. Un idéogramme occupe deux fois la largeur d'une lettre : une diapositive dense en chinois débordait de cent vingt-quatre points, et le test censé l'attraper ne voyait rien, **parce qu'il interrogeait le même module que le composant qu'il jugeait**. Un oracle qui partage l'erreur de ce qu'il mesure est vert par construction. Il a fallu faire ouvrir les fichiers par Office lui-même pour que le chiffre apparaisse.
 
 D'où une règle de travail : **rien n'est cru avant d'avoir tourné**, sur des données réelles et par le chemin que l'utilisateur emprunte. Un composant peut être juste et sa page vide ; un compteur peut être exact et sa question fausse. Chaque livraison se termine donc par une relecture adverse, menée à froid, dont le but n'est pas de dérouler les tests mais de chercher ce qu'ils ne couvrent pas.
 

@@ -1,0 +1,42 @@
+{
+  "doc_types": [
+    "pptx"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "titres-longs",
+    "title": "Un titre de présentation délibérément très long pour éprouver la casse du titre de couverture",
+    "slides": [
+      {
+        "title": "Titre 0 délibérément très long pour éprouver la casse sur deux lignes et au-delà",
+        "bullets": [
+          "court"
+        ]
+      },
+      {
+        "title": "Titre 1 délibérément très long pour éprouver la casse sur deux lignes et au-delà",
+        "bullets": [
+          "court"
+        ]
+      },
+      {
+        "title": "Titre 2 délibérément très long pour éprouver la casse sur deux lignes et au-delà",
+        "bullets": [
+          "court"
+        ]
+      },
+      {
+        "title": "Titre 3 délibérément très long pour éprouver la casse sur deux lignes et au-delà",
+        "bullets": [
+          "court"
+        ]
+      },
+      {
+        "title": "Titre 4 délibérément très long pour éprouver la casse sur deux lignes et au-delà",
+        "bullets": [
+          "court"
+        ]
+      }
+    ]
+  }
+}

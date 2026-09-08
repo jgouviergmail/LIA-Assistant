@@ -212,6 +212,9 @@ apps/api/data/rag_uploads/
 apps/api/data/tool_embeddings_cache.json
 apps/api/data/tool_cache/
 
+# Rendered document corpus (task documents:corpus:render) — regenerated, never committed.
+apps/api/data/document_corpus_out/
+
 # ============================================
 # BUILD & TEMPORARY
 # ============================================

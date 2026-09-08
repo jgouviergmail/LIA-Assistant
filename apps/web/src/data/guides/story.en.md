@@ -4,7 +4,7 @@
 
 **Version**: 2.0
 **Date**: 2026-08-23
-**Application**: LIA v1.43.1
+**Application**: LIA v1.43.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Lines of code (excluding tests) — 44 functional domains | **580,000** |
 | Automated tests, run on every commit and release | **33,000+** |
-| Documented architecture decisions (ADR) | **272** |
-| Versions shipped at a steady pace | **251** |
+| Documented architecture decisions (ADR) | **274** |
+| Versions shipped at a steady pace | **252** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 272 documented:
+Three structural decisions, among the 274 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -88,6 +88,8 @@ The action plan is organized in waves, each with measurable exit criteria. That 
 That requirement carries a consequence the project learned the hard way: **a green test suite does not prove a feature works**. It proves that what was tested behaves as written. The defects that survive the gates are exactly the ones the gates were never asked about — a capability nobody calls, a figure nobody adds up, a guard that recognises a name rather than a mechanism.
 
 Two recent examples illustrate it exactly. The register of acts was fed by a single door, and everything the assistant undertook on her own went past it: the list read empty whatever she did, without a single test failing, because none of them asked what ought to be in it. And the record a user downloads carried a row ceiling — measured, justified, and applied to the wrong variable: what was scarce was memory; what was bounded was the truth. Neither of those is a coding mistake. They are questions that had never been asked.
+
+A third case, subtler still, comes from the layout of generated documents. The estimator that decides whether text fits on a slide was calibrated against PowerPoint over fifty-four measurements — all of them Latin. An ideograph is twice as wide as a letter: a dense Chinese slide overflowed by a hundred and twenty-four points, and the test meant to catch it saw nothing, **because it asked the very module it was judging**. An oracle that shares the error of what it measures is green by construction. It took having Office open the files itself for the number to appear.
 
 Hence a working rule: **nothing is believed until it has run**, against real data and along the path a user takes. A component can be correct and its page empty; a counter can be exact and its question wrong. Every release therefore ends with an adversarial review, conducted cold, whose purpose is not to run the tests but to look for what they do not cover.
 

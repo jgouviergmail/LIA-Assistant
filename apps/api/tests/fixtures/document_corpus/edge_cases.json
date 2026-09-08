@@ -1,0 +1,57 @@
+{
+  "doc_types": [
+    "docx",
+    "pdf",
+    "md",
+    "txt"
+  ],
+  "language": "fr",
+  "content": {
+    "filename_stem": "cas-limites",
+    "title": "Cas limites",
+    "blocks": [
+      {
+        "kind": "heading",
+        "level": 0,
+        "text": "Niveau zéro"
+      },
+      {
+        "kind": "heading",
+        "level": 9,
+        "text": "Niveau neuf"
+      },
+      {
+        "kind": "bullets",
+        "items": [
+          "",
+          "   "
+        ]
+      },
+      {
+        "kind": "paragraph",
+        "text": "- puce échappée\n- deuxième puce"
+      },
+      {
+        "kind": "paragraph",
+        "text": "### Titre échappé"
+      },
+      {
+        "kind": "paragraph",
+        "text": "1. étape une\n2) étape deux"
+      },
+      {
+        "kind": "bullets",
+        "text": "du texte sans items",
+        "items": []
+      },
+      {
+        "kind": "table",
+        "caption": "Sans table"
+      },
+      {
+        "kind": "paragraph",
+        "text": "Astérisque isolé : 3 * 4 = 12, et snake_case_name intact."
+      }
+    ]
+  }
+}

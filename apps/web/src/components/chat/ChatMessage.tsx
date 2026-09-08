@@ -21,6 +21,7 @@ import { formatNumber, formatEuro } from '@/lib/format';
 import { cn, proxyGoogleImageUrl } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
 import { copyMessageToClipboard } from '@/lib/message-clipboard';
+import { apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { MarkdownContent } from './MarkdownContent';
 import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
@@ -443,7 +444,7 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
       <div className="mt-3 space-y-3">
         {images.map((img, i) => {
           // Use relative URL to go through Next.js rewrite proxy
-          const displayUrl = img.url;
+          const displayUrl = apiResourceUrl(img.url);
           return (
             <div key={i} className="group relative w-full max-w-[512px] mx-auto">
               {/* Opening the lightbox is a real action: a native <button>
@@ -510,7 +511,7 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
  * last segment by construction (`/api/v1/attachments/{id}`).
  */
 function documentOpenHref(doc: GeneratedDocument, lng: string): string {
-  if (doc.doc_type === 'pdf') return doc.url;
+  if (doc.doc_type === 'pdf') return apiResourceUrl(doc.url);
   const id = doc.url.split('/').pop() ?? '';
   const params = new URLSearchParams({ name: doc.filename, type: doc.doc_type });
   return `/${lng}/dashboard/documents/${id}?${params.toString()}`;
@@ -561,7 +562,7 @@ function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[]
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
-                  href={doc.url}
+                  href={apiResourceUrl(doc.url)}
                   download={doc.filename}
                   className="p-2 shrink-0 rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label={t('chat.document_card.download', { name: doc.filename })}
@@ -586,6 +587,8 @@ function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[]
 function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt: string } }) {
   const { t } = useTranslation();
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  // The screenshot is an attachment like any other (`/api/v1/attachments/{id}`).
+  const source = apiResourceUrl(screenshot.url);
   return (
     <>
       <div className="mt-3">
@@ -600,7 +603,7 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={screenshot.url}
+              src={source}
               alt={screenshot.alt}
               className="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
               crossOrigin="use-credentials"
@@ -611,7 +614,7 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
             type="button"
             onClick={e => {
               e.stopPropagation();
-              downloadImage(screenshot.url, screenshot.alt);
+              downloadImage(source, screenshot.alt);
             }}
             className="absolute bottom-8 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70"
             aria-label={t('common.download')}
@@ -630,7 +633,7 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
         typeof document !== 'undefined' &&
         createPortal(
           <ImageLightbox
-            src={screenshot.url}
+            src={source}
             alt={screenshot.alt}
             isOpen={lightboxOpen}
             onClose={() => setLightboxOpen(false)}

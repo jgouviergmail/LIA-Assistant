@@ -4,7 +4,7 @@
 
 **Versione**: 5.4
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.43.1
+**Applicazione**: LIA v1.43.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -149,7 +149,7 @@ LIA offre una modalità vocale completa:
 ### 3.5. Creazione e media
 
 - **Generazione di immagini**: crea immagini da una descrizione testuale, modifica foto esistenti
-- **Generazione di documenti**: chiedi un CSV, un foglio Excel, una relazione Word, un PowerPoint o un PDF — un modello redattore dedicato produce il contenuto nella tua lingua, un motore di resa locale costruisce il file reale, e arriva come scheda scaricabile con scadenza esplicita
+- **Generazione di documenti**: chiedi un CSV, un foglio Excel, una relazione Word, un PowerPoint o un PDF — un modello redattore dedicato produce il contenuto nella tua lingua, poi un motore di resa locale costruisce il file vero con i codici del suo formato: diapositive 16:9 la cui impaginazione segue l'intenzione, sommario e paginazione calcolati da Word, colonne Excel tipizzate sotto una tabella filtrabile, numeri di pagina esatti e segnalibri nel PDF. Il testo viene misurato prima di essere collocato, quindi nulla fuoriesce; e se il modello viene troncato, LIA te lo dice invece di consegnarti un documento amputato. Il file arriva come scheda scaricabile con una scadenza esplicita
 - **Diagrammi Excalidraw**: genera schemi e diagrammi direttamente nella conversazione
 - **Allegati**: allega foto e PDF — LIA analizza il contenuto visivo ed estrae il testo dai documenti
 - **MCP Apps**: widget interattivi direttamente nella chat (moduli, visualizzazioni, mini-applicazioni)

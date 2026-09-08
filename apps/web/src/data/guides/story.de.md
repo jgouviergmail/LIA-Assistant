@@ -4,7 +4,7 @@
 
 **Version**: 2.0
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.43.1
+**Anwendung**: LIA v1.43.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 44 Fachdomänen | **580.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **33.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **272** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **251** |
+| Dokumentierte Architekturentscheidungen (ADR) | **274** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **252** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 272 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 274 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -88,6 +88,8 @@ Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriter
 Dieser Anspruch hat eine Folge, die das Projekt auf die harte Tour gelernt hat: **Eine grüne Testsuite beweist nicht, dass eine Funktion funktioniert.** Sie beweist, dass sich das Getestete so verhält, wie es geschrieben wurde. Die Fehler, die die Prüfungen überleben, sind genau jene, nach denen nie gefragt wurde — eine Fähigkeit, die niemand aufruft, eine Zahl, die niemand zusammenzählt, eine Wache, die einen Namen erkennt statt eines Mechanismus.
 
 Zwei jüngere Beispiele zeigen genau das. Das Register der Taten wurde über eine einzige Tür gespeist, und alles, was die Assistentin von sich aus unternahm, ging daran vorbei: Die Liste las sich leer, was immer sie tat, ohne dass ein einziger Test fehlschlug — denn keiner fragte danach, was darin stehen müsste. Und die Datei, die eine Nutzerin herunterlädt, trug eine Zeilenobergrenze: gemessen, begründet, und auf die falsche Größe angewandt — knapp war der Speicher, begrenzt war die Wahrheit. Keiner der beiden Fälle ist ein Programmierfehler. Es sind Fragen, die nie gestellt worden waren.
+
+Ein dritter, noch heimtückischerer Fall stammt aus dem Layout erzeugter Dokumente. Der Schätzer, der entscheidet, ob ein Text auf eine Folie passt, war an vierundfünfzig Messungen gegen PowerPoint kalibriert — allesamt lateinisch. Ein Schriftzeichen ist doppelt so breit wie ein Buchstabe: eine dichte chinesische Folie lief um hundertvierundzwanzig Punkte über, und der Test, der das hätte fangen sollen, sah nichts, **weil er genau das Modul befragte, über das er urteilte**. Ein Orakel, das den Fehler dessen teilt, was es misst, ist konstruktionsbedingt grün. Erst als Office die Dateien selbst öffnete, trat die Zahl zutage.
 
 Daher eine Arbeitsregel: **Nichts gilt, bevor es gelaufen ist** — an echten Daten und auf dem Weg, den eine Nutzerin nimmt. Eine Komponente kann korrekt und ihre Seite leer sein; ein Zähler kann exakt und seine Frage falsch sein. Jede Auslieferung endet deshalb mit einer kalt geführten Gegenprüfung, deren Zweck nicht das Durchlaufen der Tests ist, sondern die Suche nach dem, was sie nicht abdecken.
 

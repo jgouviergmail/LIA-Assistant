@@ -48,6 +48,7 @@ from src.domains.meetings.error_codes import (
     ERROR_NO_ENGINE,
     ERROR_NORMALIZE,
     ERROR_SYNTHESIS,
+    ERROR_SYNTHESIS_TOO_LONG,
     ERROR_UNEXPECTED,
     ERROR_USAGE_LIMIT,
 )
@@ -79,7 +80,10 @@ from src.domains.meetings.transcription import (
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.database import get_db_context
-from src.infrastructure.llm.structured_output import StructuredOutputError
+from src.infrastructure.llm.structured_output import (
+    StructuredOutputError,
+    StructuredOutputTruncatedError,
+)
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.observability.metrics_meetings import (
     meeting_failures_total,
@@ -769,6 +773,14 @@ async def process_meeting(meeting_id: UUID) -> None:
         except TranscriptionError as exc:
             await _fail_guarded(
                 repo, job, code=exc.code, message=exc.message, transient=exc.transient
+            )
+        except StructuredOutputTruncatedError as exc:
+            # A cut answer is PERMANENT (ADR-275): the same transcript through
+            # the same prompt is cut at the same place, so every requeue would
+            # pay for the identical refusal. Same doctrine as the permanent
+            # transcription codes.
+            await _fail_guarded(
+                repo, job, code=ERROR_SYNTHESIS_TOO_LONG, message=str(exc), transient=False
             )
         except StructuredOutputError as exc:
             await _fail_guarded(repo, job, code=ERROR_SYNTHESIS, message=str(exc), transient=True)

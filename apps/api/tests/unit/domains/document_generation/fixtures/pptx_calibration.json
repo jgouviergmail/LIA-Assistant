@@ -1,0 +1,387 @@
+{
+  "measured": "2026-09-08 by PowerPoint 16 through COM, on the 16:9 body placeholder",
+  "frame": {
+    "width_pt": 863.98,
+    "height_pt": 356.38
+  },
+  "rows": [
+    {
+      "size": 14,
+      "bullets": 1,
+      "chars": 25,
+      "lines": 1,
+      "bound_height": 16.8
+    },
+    {
+      "size": 14,
+      "bullets": 1,
+      "chars": 70,
+      "lines": 1,
+      "bound_height": 16.8
+    },
+    {
+      "size": 14,
+      "bullets": 1,
+      "chars": 140,
+      "lines": 2,
+      "bound_height": 33.6
+    },
+    {
+      "size": 14,
+      "bullets": 4,
+      "chars": 25,
+      "lines": 4,
+      "bound_height": 77.28
+    },
+    {
+      "size": 14,
+      "bullets": 4,
+      "chars": 70,
+      "lines": 4,
+      "bound_height": 77.28
+    },
+    {
+      "size": 14,
+      "bullets": 4,
+      "chars": 140,
+      "lines": 8,
+      "bound_height": 144.48
+    },
+    {
+      "size": 14,
+      "bullets": 8,
+      "chars": 25,
+      "lines": 8,
+      "bound_height": 157.92
+    },
+    {
+      "size": 14,
+      "bullets": 8,
+      "chars": 70,
+      "lines": 8,
+      "bound_height": 157.92
+    },
+    {
+      "size": 14,
+      "bullets": 8,
+      "chars": 140,
+      "lines": 16,
+      "bound_height": 292.32
+    },
+    {
+      "size": 16,
+      "bullets": 1,
+      "chars": 25,
+      "lines": 1,
+      "bound_height": 19.2
+    },
+    {
+      "size": 16,
+      "bullets": 1,
+      "chars": 70,
+      "lines": 1,
+      "bound_height": 19.2
+    },
+    {
+      "size": 16,
+      "bullets": 1,
+      "chars": 140,
+      "lines": 2,
+      "bound_height": 38.4
+    },
+    {
+      "size": 16,
+      "bullets": 4,
+      "chars": 25,
+      "lines": 4,
+      "bound_height": 88.32
+    },
+    {
+      "size": 16,
+      "bullets": 4,
+      "chars": 70,
+      "lines": 4,
+      "bound_height": 88.32
+    },
+    {
+      "size": 16,
+      "bullets": 4,
+      "chars": 140,
+      "lines": 8,
+      "bound_height": 165.12
+    },
+    {
+      "size": 16,
+      "bullets": 8,
+      "chars": 25,
+      "lines": 8,
+      "bound_height": 180.48
+    },
+    {
+      "size": 16,
+      "bullets": 8,
+      "chars": 70,
+      "lines": 8,
+      "bound_height": 180.48
+    },
+    {
+      "size": 16,
+      "bullets": 8,
+      "chars": 140,
+      "lines": 16,
+      "bound_height": 334.08
+    },
+    {
+      "size": 18,
+      "bullets": 1,
+      "chars": 25,
+      "lines": 1,
+      "bound_height": 21.6
+    },
+    {
+      "size": 18,
+      "bullets": 1,
+      "chars": 70,
+      "lines": 1,
+      "bound_height": 21.6
+    },
+    {
+      "size": 18,
+      "bullets": 1,
+      "chars": 140,
+      "lines": 2,
+      "bound_height": 43.2
+    },
+    {
+      "size": 18,
+      "bullets": 4,
+      "chars": 25,
+      "lines": 4,
+      "bound_height": 99.36
+    },
+    {
+      "size": 18,
+      "bullets": 4,
+      "chars": 70,
+      "lines": 4,
+      "bound_height": 99.36
+    },
+    {
+      "size": 18,
+      "bullets": 4,
+      "chars": 140,
+      "lines": 8,
+      "bound_height": 185.76
+    },
+    {
+      "size": 18,
+      "bullets": 8,
+      "chars": 25,
+      "lines": 8,
+      "bound_height": 203.04
+    },
+    {
+      "size": 18,
+      "bullets": 8,
+      "chars": 70,
+      "lines": 8,
+      "bound_height": 203.04
+    },
+    {
+      "size": 18,
+      "bullets": 8,
+      "chars": 140,
+      "lines": 16,
+      "bound_height": 375.84
+    },
+    {
+      "size": 20,
+      "bullets": 1,
+      "chars": 25,
+      "lines": 1,
+      "bound_height": 24.0
+    },
+    {
+      "size": 20,
+      "bullets": 1,
+      "chars": 70,
+      "lines": 1,
+      "bound_height": 24.0
+    },
+    {
+      "size": 20,
+      "bullets": 1,
+      "chars": 140,
+      "lines": 2,
+      "bound_height": 48.0
+    },
+    {
+      "size": 20,
+      "bullets": 4,
+      "chars": 25,
+      "lines": 4,
+      "bound_height": 110.4
+    },
+    {
+      "size": 20,
+      "bullets": 4,
+      "chars": 70,
+      "lines": 4,
+      "bound_height": 110.4
+    },
+    {
+      "size": 20,
+      "bullets": 4,
+      "chars": 140,
+      "lines": 8,
+      "bound_height": 206.4
+    },
+    {
+      "size": 20,
+      "bullets": 8,
+      "chars": 25,
+      "lines": 8,
+      "bound_height": 225.6
+    },
+    {
+      "size": 20,
+      "bullets": 8,
+      "chars": 70,
+      "lines": 8,
+      "bound_height": 225.6
+    },
+    {
+      "size": 20,
+      "bullets": 8,
+      "chars": 140,
+      "lines": 16,
+      "bound_height": 417.6
+    },
+    {
+      "size": 24,
+      "bullets": 1,
+      "chars": 25,
+      "lines": 1,
+      "bound_height": 28.8
+    },
+    {
+      "size": 24,
+      "bullets": 1,
+      "chars": 70,
+      "lines": 1,
+      "bound_height": 28.8
+    },
+    {
+      "size": 24,
+      "bullets": 1,
+      "chars": 140,
+      "lines": 2,
+      "bound_height": 57.6
+    },
+    {
+      "size": 24,
+      "bullets": 4,
+      "chars": 25,
+      "lines": 4,
+      "bound_height": 132.48
+    },
+    {
+      "size": 24,
+      "bullets": 4,
+      "chars": 70,
+      "lines": 4,
+      "bound_height": 132.48
+    },
+    {
+      "size": 24,
+      "bullets": 4,
+      "chars": 140,
+      "lines": 8,
+      "bound_height": 247.68
+    },
+    {
+      "size": 24,
+      "bullets": 8,
+      "chars": 25,
+      "lines": 8,
+      "bound_height": 270.72
+    },
+    {
+      "size": 24,
+      "bullets": 8,
+      "chars": 70,
+      "lines": 8,
+      "bound_height": 270.72
+    },
+    {
+      "size": 24,
+      "bullets": 8,
+      "chars": 140,
+      "lines": 16,
+      "bound_height": 501.12
+    },
+    {
+      "size": 28,
+      "bullets": 1,
+      "chars": 25,
+      "lines": 1,
+      "bound_height": 33.6
+    },
+    {
+      "size": 28,
+      "bullets": 1,
+      "chars": 70,
+      "lines": 2,
+      "bound_height": 67.2
+    },
+    {
+      "size": 28,
+      "bullets": 1,
+      "chars": 140,
+      "lines": 3,
+      "bound_height": 100.8
+    },
+    {
+      "size": 28,
+      "bullets": 4,
+      "chars": 25,
+      "lines": 4,
+      "bound_height": 154.56
+    },
+    {
+      "size": 28,
+      "bullets": 4,
+      "chars": 70,
+      "lines": 8,
+      "bound_height": 288.96
+    },
+    {
+      "size": 28,
+      "bullets": 4,
+      "chars": 140,
+      "lines": 12,
+      "bound_height": 423.36
+    },
+    {
+      "size": 28,
+      "bullets": 8,
+      "chars": 25,
+      "lines": 8,
+      "bound_height": 315.84
+    },
+    {
+      "size": 28,
+      "bullets": 8,
+      "chars": 70,
+      "lines": 16,
+      "bound_height": 584.64
+    },
+    {
+      "size": 28,
+      "bullets": 8,
+      "chars": 140,
+      "lines": 24,
+      "bound_height": 853.44
+    }
+  ]
+}

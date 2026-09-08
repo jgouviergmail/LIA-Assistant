@@ -6,7 +6,7 @@
 
 **Version**: 4.9
 **Date**: 2026-08-23
-**Application**: LIA v1.43.1
+**Application**: LIA v1.43.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -68,7 +68,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 541 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 272 ADRs, ~25,394 pytest-collected tests across 1,488 files, native observability, 6-level HITL |
+| Production reliability | 274 ADRs, ~25,732 pytest-collected tests across 1,548 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -86,10 +86,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 25,394 collected by pytest across 1,534 test files + 7,626 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 25,732 collected by pytest across 1,548 test files + 7,642 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 755, 32 of them shared through conftest |
 | Documentation documents | 549 |
-| ADRs (Architecture Decision Records) | 272 |
+| ADRs (Architecture Decision Records) | 274 |
 | Prometheus metrics | 486 definitions |
 | Grafana dashboards | 26 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -370,6 +370,10 @@ The whole system is governed by a feature flag and a dozen env-tunable settings 
 The pipeline can end on a file rather than only on prose. The `generate_document` tool follows the same architecture as image generation — a virtual agent in the catalogue, no dedicated graph node — but its "generator" is a dedicated LLM slot (`document_generation`, admin-configurable like every other slot) called with **structured output typed per format family**: tabular content for CSV/Excel, a section tree for Word/PDF/Markdown/text, a slide list for PowerPoint. The schema is selected *before* the call, so every response is strict-schema validated, then a **pure local renderer** builds the exact bytes — openpyxl, python-docx, python-pptx, PyMuPDF: the libraries already shipped for RAG extraction, now writing instead of reading, with zero third-party document service.
 
 Three design decisions carry the feature. First, honesty of the artifact: spreadsheet cells are neutralized against formula injection (a probe proved openpyxl stores `=1+2` as a live formula) while legitimate negative numbers stay untouched, and a failure after the paid LLM call returns an explicit error — never a phantom card. Second, chaining: the planner can feed the results of a web-research step into the document step (`source_data`), so "research then formalize as CSV" is one request. Third, lifecycle: the file lands in the existing attachments store with the same TTL purge as generated images, and its card — delivered live through the SSE done chunk and persisted in message metadata through one shared serializer — displays the exact expiry deadline.
+
+**The craft belongs to the renderer, the meaning to the model (ADR-274).** The schema the writer slot fills is *semantic*: it names what a thing is — a heading, an ordered sequence, a quote, a callout, a part opener, a two-column comparison, a captioned table — and never how to draw it. The layout decision belongs to the renderer, which expresses it through each format's native mechanisms rather than imitating them: named styles, `PAGE`/`NUMPAGES` fields and a multilevel numbering definition in Word, so the contents and the numbers are recomputed by Word itself; the template's own layouts and placeholders in PowerPoint, on a 16:9 stage; a named Table over typed columns in Excel, so filtering and sorting come for free; bookmarks, links and exact page numbers in the PDF, obtained by paginating the body once and concatenating the front matter ahead of it. This split avoids handing the model a catalogue of templates to choose from — a drawing decision it cannot judge — and lets the renderer improve without touching the schema.
+
+**Text is measured before it is placed.** PowerPoint computes no autofit when a file is opened, and the library's own fit is wrong by a factor of two: the renderer therefore measures itself, with an estimator calibrated against PowerPoint — a full-width glyph counting one whole em, a Latin glyph a measured fraction. What does not fit is first shrunk to a readability floor, then split into “Title (2/3)” slides; an over-long bullet is cut at a sentence end. Nothing is ever clipped, because text cut off on screen is information lost without warning. The same principle governs the model call: an answer the provider reports as truncated is refused with its budget named (ADR-275), never closed up to look like a complete document.
 
 ## 6. The planning system (ExecutionPlan DSL)
 
@@ -1363,7 +1367,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-272 ADRs in MADR format document the major architectural decisions. Some representative examples:
+274 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1502,7 +1506,7 @@ An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared ra
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 272 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~25,394 tests across 1,488 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 274 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~25,732 tests across 1,548 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
@@ -1644,4 +1648,4 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 
 **In the chat, the debrief joins the peer block — with the opposite directive.** The peer block states exact facts because it reads them in the turn itself; the same sentence over a dated synthesis would be a false-claim machine. The template therefore says it is dated, carries its **age** and not only its date, and sends every figure, count and status to the tools. An ambiguous name match injects **nothing**: the directory holds every relationship ever opened, company names and phone numbers included, and a false positive would hand one person's file to a question about another.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 272 ADRs, and the changelog (v1.0 to v1.43.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 274 ADRs, and the changelog (v1.0 to v1.43.2). All metrics, versions, and patterns cited are verifiable in the codebase.*

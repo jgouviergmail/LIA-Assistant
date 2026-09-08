@@ -67,6 +67,7 @@ from src.infrastructure.llm.invoke_helpers import (
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 from src.infrastructure.llm.model_profiles import ModelProfile
+from src.infrastructure.llm.output_truncation import is_output_truncated, raise_truncated
 
 # Strict-mode schema analysis lives in its own module; re-exported here so
 # callers keep a single import surface.
@@ -76,6 +77,13 @@ from src.infrastructure.llm.strict_schema import (  # noqa: F401  (re-export)
     _get_max_nesting_depth,
     _has_type_indicator,
     _schema_has_additional_properties,
+)
+
+# The error taxonomy lives in its own module (file-size ratchet); re-exported
+# here so every caller keeps one import surface.
+from src.infrastructure.llm.structured_output_errors import (  # noqa: F401  (re-export)
+    StructuredOutputError,
+    StructuredOutputTruncatedError,
 )
 from src.infrastructure.llm.tool_call_rescue import (
     rejection_reason,
@@ -238,24 +246,6 @@ def _is_v4_thinking_enabled(llm: BaseChatModel) -> bool:
         # No explicit thinking config: V4 default is enabled.
         return True
     return thinking_cfg.get("type") == "enabled"
-
-
-class StructuredOutputError(Exception):
-    """Raised when structured output generation or parsing fails."""
-
-    def __init__(
-        self,
-        message: str,
-        provider: str,
-        schema_name: str,
-        raw_output: str | None = None,
-        original_error: Exception | None = None,
-    ) -> None:
-        super().__init__(message)
-        self.provider = provider
-        self.schema_name = schema_name
-        self.raw_output = raw_output
-        self.original_error = original_error
 
 
 async def get_structured_output[T: BaseModel](
@@ -474,6 +464,7 @@ async def _structured_via_auto_tool[T: BaseModel](
     messages: list[BaseMessage],
     schema: type[T],
     reasoning_emit: Callable[[str], None] | None,
+    provider: str = "unknown",
     **invoke_kwargs: Any,
 ) -> T | None:
     """Structured output via ``tool_choice="auto"`` instead of a forced tool.
@@ -493,17 +484,22 @@ async def _structured_via_auto_tool[T: BaseModel](
     ``auto``. When ``reasoning_emit`` is set the call is streamed (live reasoning);
     otherwise it is a plain ``ainvoke``. Returns ``None`` (the caller decides how
     to fall back) when the model declines the tool or the args fail validation.
-    Never raises.
 
     Args:
         llm: The chat model (OpenAI ChatOpenAI or Anthropic ChatAnthropic).
         messages: The structured-output prompt messages.
         schema: Target Pydantic schema.
         reasoning_emit: Coalesced-reasoning callback, or ``None`` to skip streaming.
+        provider: Provider name, for the truncation refusal below.
         **invoke_kwargs: Carries ``config`` for token tracking / tracing.
 
     Returns:
         A validated ``schema`` instance, or ``None`` to trigger the fallback.
+
+    Raises:
+        StructuredOutputTruncatedError: When the provider reports the answer
+            cut at its output budget (ADR-275). This is the ONE failure this
+            helper raises: a fallback would only pay for the same cut again.
     """
     schema_name = schema.__name__
     # NOTE (prompt impact): unlike the forced-tool path (``with_structured_output``,
@@ -543,17 +539,22 @@ async def _structured_via_auto_tool[T: BaseModel](
         return None
 
     tool_calls = getattr(ai_msg, "tool_calls", None) or []
-    if not tool_calls:
-        return None
-    try:
-        return schema(**(tool_calls[0].get("args") or {}))
-    except ValidationError as exc:
-        logger.warning(
-            "structured_auto_tool_parse_failed",
-            schema=schema_name,
-            error=str(exc),
-        )
-        return None
+    if tool_calls:
+        try:
+            # A tool call that validates is complete, whatever the stop reason.
+            return schema(**(tool_calls[0].get("args") or {}))
+        except ValidationError as exc:
+            logger.warning(
+                "structured_auto_tool_parse_failed",
+                schema=schema_name,
+                error=str(exc),
+            )
+
+    # Nothing complete came back. A cut answer is not a « miss »: the buffered
+    # fallback would buy the same cut a second time (ADR-275).
+    if is_output_truncated(ai_msg):
+        raise_truncated(ai_msg, provider, schema_name)
+    return None
 
 
 def _rescue_structured_from_text[T: BaseModel](
@@ -662,6 +663,7 @@ async def _get_native_structured_output[T: BaseModel](
             messages=messages,
             schema=schema,
             reasoning_emit=reasoning_emit,
+            provider=provider,
             **invoke_kwargs,
         )
         if auto_result is not None:
@@ -756,9 +758,19 @@ async def _get_native_structured_output[T: BaseModel](
             )
             bundle = await raw_structured_llm.ainvoke(messages, **invoke_kwargs)
             parsed = bundle.get("parsed") if isinstance(bundle, dict) else bundle
+            # A payload the provider parsed WITHOUT any repair is syntactically
+            # complete: the budget stopped the stream after the object closed,
+            # and nothing was lost. Refusing it would cost a valid document and
+            # a second bill, so the verdict is consulted only once no complete
+            # answer exists.
             if isinstance(parsed, schema):
                 return parsed
             raw_message = bundle.get("raw") if isinstance(bundle, dict) else None
+            # Now the verdict, BEFORE the rescues below: they close an open
+            # structure mechanically, which turns a cut answer into a shorter,
+            # valid-looking object announced as complete (ADR-275).
+            if is_output_truncated(raw_message):
+                raise_truncated(raw_message, provider, schema_name)
             parsing_error = bundle.get("parsing_error") if isinstance(bundle, dict) else None
             # A tool call rejected for its nulls is a complete answer spelled
             # « absent » where the schema has a default (2026-09-05): default
@@ -966,6 +978,14 @@ async def _get_json_mode_fallback[T: BaseModel](
         try:
             parsed_json = json.loads(raw_output)
         except json.JSONDecodeError as e:
+            # Bare JSON failed, so nothing complete came back. The provider's
+            # verdict is consulted BEFORE the recovery below, whose own comment
+            # names truncation as a case it "handles": closing a cut payload
+            # yields a shorter object with no parsing error left for anyone
+            # downstream to notice (ADR-275).
+            if is_output_truncated(response):
+                raise_truncated(response, provider, schema_name)
+
             from src.infrastructure.llm.json_recovery import extract_json_payload
 
             recovered = extract_json_payload(raw_output)
@@ -1139,6 +1159,10 @@ async def get_structured_output_with_retry[T: BaseModel](
                 user_id=user_id,
                 **invoke_kwargs,
             )
+        except StructuredOutputTruncatedError:
+            # Deterministic: the same prompt is cut at the same place, and each
+            # retry is paid in full for the same refusal (ADR-275).
+            raise
         except StructuredOutputError as e:
             last_error = e
             logger.warning(
