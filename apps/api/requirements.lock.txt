@@ -1230,9 +1230,9 @@ httpx==0.28.1 \
     #   ollama
     #   openai
     #   python-telegram-bot
-httpx2==2.10.0 \
-    --hash=sha256:5e3194a432701e1cc6f69a8b1b2fa199ef907013fede8d9a09a2c5b7b8141a18 \
-    --hash=sha256:8741d7329fe2c7885fc9ceb61c8217acfb87a85f75723714b89ebf7ad7196338
+httpx2==2.12.0 \
+    --hash=sha256:7631fe9887a8a2275f4a2540e053aa670fcc50742864a9ae7c66e609fdcf12cf \
+    --hash=sha256:cc8b6eecb8661c146b8f89a60e97456ee086e91a784ed31ac450c3a9e613dd36
     # via
     #   -r requirements.txt
     #   mcp
