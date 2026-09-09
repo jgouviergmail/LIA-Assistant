@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Écrire une position HÉRITÉE de placeholder PowerPoint le fige à une hauteur nulle** : seules les formes portant leur propre transformation sont mises à l'échelle pour passer le gabarit en 16:9.
 - **Le service de documents ne transmettait pas le propriétaire à la porte structurée** : `resolve_owner` lit `config.metadata.user_id`, que LangGraph ne remplit jamais (sondé — seul `thread_id` y est fusionné), donc un appelant « borné » accepté par son NOM ne portait aucun propriétaire.
 
+### Security
+
+- **`httpx2` 2.10.0 → 2.12.0** — trois vulnérabilités signalées par `pip-audit` sur la version épinglée : **CVE-2026-84379** (les en-têtes de partie fournis via l'API `files=` sont sérialisés sans validation, donc un CR ou un LF y injecte des en-têtes de partie supplémentaires), **CVE-2026-84380** (un `Content-Length` ajouté d'office à côté d'un `Transfer-Encoding` fourni par l'appelant : deux cadrages contradictoires sur une même requête HTTP/1.1, primitive de désynchronisation) et **CVE-2026-84382** (chaque lecture réseau de 64 Kio était décompressée en une seule allocation, soit ~64 Mio au taux maximal de DEFLATE, y compris pour une réponse pourtant traitée en flux). Le plancher du manifeste passe de `>=2.5.0` à `>=2.12.0` : la borne porte sa raison, faute de quoi un futur recalcul de verrou pourrait redescendre. `httpx2` porte les transports MCP v2 et les classes d'authentification de LIA en héritent — 980 tests MCP rejoués sur la nouvelle version.
+
 ### Tests
 
 - **395 tests** couvrent la génération documentaire, dont **74 mesures de calibration PowerPoint**, un corpus de treize documents relu par le lecteur natif de chaque format, l'idempotence de la normalisation épinglée sur tout le corpus, et une simulation de bout en bout (outil → service → renderer) incluant un jeu de diapositives chinois.
