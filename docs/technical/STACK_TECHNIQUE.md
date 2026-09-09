@@ -33,7 +33,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **Next.js** | 16.2.11 | Framework React SSR/SSG |
+| **Next.js** | 16.3.4 | Framework React SSR/SSG |
 | **React** | 19.2.7 | UI Library |
 | **TypeScript** | 6.0.2 | Type safety |
 | **Tailwind CSS** | 4.3.2 | Utility-first CSS |

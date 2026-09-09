@@ -960,7 +960,7 @@ apps/api/src/
 | Technology     | Version | Role                     |
 | -------------- | ------- | ------------------------ |
 | Node.js        | 24 LTS  | JavaScript runtime       |
-| Next.js        | 16.2.11 | React framework          |
+| Next.js        | 16.3.4 | React framework          |
 | React          | 19.2.7  | UI library               |
 | TypeScript     | 6.0.2   | Type safety              |
 | TailwindCSS    | 4.3.2   | Styling                  |

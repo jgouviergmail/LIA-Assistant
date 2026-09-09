@@ -548,7 +548,7 @@ section ne référence.
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Next.js | 16.2.11 | Framework React |
+| Next.js | 16.3.4 | Framework React |
 | React | 19.2.7 | UI Library |
 | TypeScript | 6.0.2 | Typage |
 | Tailwind CSS | 4.3.2 | Styling |

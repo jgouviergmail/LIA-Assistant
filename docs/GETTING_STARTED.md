@@ -57,7 +57,7 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
 | **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.11, LangChain 1.3.15, SQLAlchemy 2.0.50, Python 3.14 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.2.11, React 19.2.7 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.3.4, React 19.2.7 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector:pg16`) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
 | **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.0.0, Grafana 11.3.0, Loki 3.2.1, Tempo 2.6.1 |
